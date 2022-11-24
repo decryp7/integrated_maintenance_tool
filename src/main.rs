@@ -1,3 +1,4 @@
+use imt::traits::ilog_processor::ILogProcessor;
 use imt::log_processor::LogProcessor;
 use std::env;
 use std::error::Error;
