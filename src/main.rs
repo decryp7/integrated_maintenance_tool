@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("Missing argument!")?;
     }
 
-    let app_config: AppConfig = confy::load("imt", "imt")?;
+    let app_config: AppConfig = confy::load("imt", "imt").expect("Unable to load configuration.");
 
     let log_processor = LogProcessor {
         filter_regex: Regex::new(&*app_config.log_processor_config.filter_regex)?,
