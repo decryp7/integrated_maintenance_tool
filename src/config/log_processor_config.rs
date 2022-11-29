@@ -1,22 +1,9 @@
 use serde_derive::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct AppConfig {
-    pub log_processor_config : LogProcessorConfig,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct LogProcessorConfig {
     pub filter_regex: String,
     pub line_start_regex: String,
-}
-
-impl Default for AppConfig  {
-    fn default() -> Self {
-        Self {
-            log_processor_config: LogProcessorConfig::default(),
-        }
-    }
 }
 
 impl Default for LogProcessorConfig  {

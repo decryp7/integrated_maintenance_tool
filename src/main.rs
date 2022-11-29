@@ -2,8 +2,8 @@ use imt::traits::ilog_processor::ILogProcessor;
 use imt::log_processor::LogProcessor;
 use std::env;
 use std::error::Error;
-use imt::app_config::AppConfig;
 use regex::Regex;
+use imt::config::app_config::AppConfig;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
