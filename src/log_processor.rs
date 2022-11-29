@@ -30,22 +30,22 @@ impl ILogProcessor for LogProcessor {
         };
 
         let mut filtered_log_file_writer = LineWriter::new(filtered_log_file);
-        let mut filtered_log_line = String::new();
+        let mut log_line = String::new();
 
         for line in BufReader::new(log_file).lines() {
             match line {
                 Ok(l) =>{
                     let is_log_line = self.line_start_regex.is_match(&l);
                     if is_log_line {
-                        if !filtered_log_line.is_empty() {
-                            if self.filter_regex.is_match(&filtered_log_line) {
-                                filtered_log_file_writer.write_all(filtered_log_line.as_bytes()).expect("Unable to write to filtered log file");
+                        if !log_line.is_empty() {
+                            if self.filter_regex.is_match(&log_line) {
+                                filtered_log_file_writer.write_all(log_line.as_bytes()).expect("Unable to write to filtered log file");
                                 filtered_log_file_writer.write_all(b"\n")?;
                             }
-                            filtered_log_line.clear();
+                            log_line.clear();
                         }
                     }
-                    filtered_log_line.push_str(&l);
+                    log_line.push_str(&l);
                 },
                 Err(e) => return Err(Box::new(e)),
             }
