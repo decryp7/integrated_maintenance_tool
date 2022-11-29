@@ -3,15 +3,15 @@ use std::fs::File;
 use std::io::{BufReader, LineWriter, Write};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
-use crate::traits::ilog_processor::ILogProcessor;
+use crate::log_processors::log_processor::LogProcessor;
 use regex::Regex;
 
-pub struct LogProcessor {
+pub struct FilterLogProcessor {
     pub filter_regex: Regex,
     pub line_start_regex: Regex,
 }
 
-impl ILogProcessor for LogProcessor {
+impl LogProcessor for FilterLogProcessor {
     fn process(&self, log_file_path: impl AsRef<Path>) -> Result<(), Box<dyn Error>>{
         let log_file = match File::open(&log_file_path) {
             Ok(file) => file,

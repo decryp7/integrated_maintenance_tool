@@ -1,3 +1,2 @@
-pub mod log_processor;
-pub mod traits;
+pub mod log_processors;
 pub mod config;

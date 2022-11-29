@@ -1,9 +1,9 @@
-use imt::traits::ilog_processor::ILogProcessor;
-use imt::log_processor::LogProcessor;
 use std::env;
 use std::error::Error;
 use regex::Regex;
 use imt::config::app_config::AppConfig;
+use imt::log_processors::filter_log_processor::FilterLogProcessor;
+use imt::log_processors::log_processor::LogProcessor;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let app_config: AppConfig = confy::load("imt", "imt").expect("Unable to load configuration.");
 
-    let log_processor = LogProcessor {
+    let log_processor = FilterLogProcessor {
         filter_regex: Regex::new(&*app_config.log_processor_config.filter_regex)?,
         line_start_regex: Regex::new(&*app_config.log_processor_config.line_start_regex)?,
     };
