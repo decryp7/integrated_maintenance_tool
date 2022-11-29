@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let app_config: AppConfig = confy::load("imt", "imt").expect("Unable to load configuration.");
 
     let log_processor = FilterLogProcessor {
-        filter_regex: Regex::new(&*app_config.log_processor_config.filter_regex)?,
+        filter_regex: Regex::new(&*app_config.filter_log_processor_config.filter_regex)?,
         line_start_regex: Regex::new(&*app_config.log_processor_config.line_start_regex)?,
     };
 
