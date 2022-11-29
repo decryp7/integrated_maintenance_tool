@@ -1,9 +1,10 @@
-use std::fs::File;
-use std::io::{BufReader, LineWriter, Write};
-use std::io::BufRead;
-use std::path::{Path, PathBuf};
 use crate::log_processors::log_processor::LogProcessor;
 use regex::Regex;
+use std::error::Error;
+use std::fs::File;
+use std::io::BufRead;
+use std::io::{BufReader, LineWriter, Write};
+use std::path::{Path, PathBuf};
 
 pub struct FilterLogProcessor {
     pub filter_regex: Regex,
@@ -11,10 +12,10 @@ pub struct FilterLogProcessor {
 }
 
 impl LogProcessor for FilterLogProcessor {
-    fn process(&self, log_file_path: String) -> Result<(), String>{
+    fn process(&self, log_file_path: String) -> Result<(), Box<dyn Error>> {
         let log_file = match File::open(&log_file_path) {
             Ok(file) => file,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(Box::new(e)),
         };
 
         let file_path = Path::new(&log_file_path);
@@ -22,11 +23,16 @@ impl LogProcessor for FilterLogProcessor {
         let directory = file_path.parent().expect("Unable to get directory");
         let file_extension = file_path.extension().expect("Unable to get file extension");
         let mut output_file_path = PathBuf::from(directory);
-        output_file_path.push(format!("{}{}{}",file_name.to_str().unwrap(), "-filtered.", file_extension.to_str().unwrap()));
+        output_file_path.push(format!(
+            "{}{}{}",
+            file_name.to_str().unwrap(),
+            "-filtered.",
+            file_extension.to_str().unwrap()
+        ));
 
         let filtered_log_file = match File::create(&output_file_path) {
             Ok(file) => file,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(Box::new(e)),
         };
 
         let mut filtered_log_file_writer = LineWriter::new(filtered_log_file);
@@ -34,20 +40,22 @@ impl LogProcessor for FilterLogProcessor {
 
         for line in BufReader::new(log_file).lines() {
             match line {
-                Ok(l) =>{
+                Ok(l) => {
                     let is_log_line = self.line_start_regex.is_match(&l);
                     if is_log_line {
                         if !log_line.is_empty() {
                             if self.filter_regex.is_match(&log_line) {
-                                filtered_log_file_writer.write_all(log_line.as_bytes()).expect("Unable to write to filtered log file");
+                                filtered_log_file_writer
+                                    .write_all(log_line.as_bytes())
+                                    .expect("Unable to write to filtered log file");
                                 filtered_log_file_writer.write_all(b"\n").unwrap();
                             }
                             log_line.clear();
                         }
                     }
                     log_line.push_str(&l);
-                },
-                Err(e) => return Err(e.to_string()),
+                }
+                Err(e) => return Err(Box::new(e)),
             }
         }
         Ok(())
