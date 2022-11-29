@@ -13,7 +13,7 @@ impl LogProcessor for DirLogProcessor {
     fn process(&self, log_file_path: String) -> Result<(), Box<dyn Error>> {
         let md = metadata(&log_file_path).expect("Unable to get meta data of log file path");
         if !md.is_dir() {
-            return Err("The log file path is not a valid directory!".into());
+            return Err("The log file path is not a valid directory!")?;
         }
 
         let paths = fs::read_dir(&log_file_path).expect("Unable to read path of directory");
