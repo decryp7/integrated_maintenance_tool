@@ -29,7 +29,7 @@ impl LogProcessor for DirLogProcessor {
                 && path
                     .path()
                     .extension()
-                    .unwrap()
+                    .unwrap_or_default()
                     .to_str()
                     .unwrap()
                     .to_ascii_lowercase()
