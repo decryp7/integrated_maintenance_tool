@@ -38,26 +38,29 @@ impl LogProcessor for FilterLogProcessor {
         let mut filtered_log_file_writer = LineWriter::new(filtered_log_file);
         let mut log_line = String::new();
 
-        for line in BufReader::new(log_file).lines() {
-            match line {
-                Ok(l) => {
-                    let is_log_line = self.line_start_regex.is_match(&l);
-                    if is_log_line {
-                        if !log_line.is_empty() {
-                            if self.filter_regex.is_match(&log_line) {
-                                filtered_log_file_writer
-                                    .write_all(log_line.as_bytes())
-                                    .expect("Unable to write to filtered log file");
-                                filtered_log_file_writer.write_all(b"\n").unwrap();
-                            }
-                            log_line.clear();
-                        }
-                    }
-                    log_line.push_str(&l);
-                }
-                Err(e) => return Err(Box::new(e)),
+        let mut reader = BufReader::new(log_file);
+        let mut buf = vec![];
+
+        while let Ok(_) = reader.read_until(b'\n', &mut buf) {
+            if buf.is_empty() {
+                break;
             }
+            let line = String::from_utf8_lossy(&buf);
+            let is_log_line = self.line_start_regex.is_match(&line);
+            if is_log_line {
+                if !log_line.is_empty() {
+                    if self.filter_regex.is_match(&log_line) {
+                        filtered_log_file_writer
+                            .write_all(log_line.as_bytes())
+                            .expect("Unable to write to filtered log file");
+                    }
+                    log_line.clear();
+                }
+            }
+            log_line.push_str(&line);
+            buf.clear();
         }
+
         Ok(())
     }
 }
