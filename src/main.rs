@@ -1,7 +1,7 @@
 use std::env;
 use std::error::Error;
 use std::fs::metadata;
-use regex::Regex;
+use regex::bytes::Regex;
 use imt::config::app_config::AppConfig;
 use imt::log_processors::dir_log_processor::DirLogProcessor;
 use imt::log_processors::filter_log_processor::FilterLogProcessor;
@@ -14,6 +14,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let app_config: AppConfig = confy::load("imt", "imt").expect("Unable to load configuration.");
+
+    let path = confy::get_configuration_file_path("imt", "imt")?;
+    println!("Loading configuration from {}.", path.display());
+    println!("Running on {:?} with {:?}.", &args[1], app_config);
 
     let md = metadata(&args[1]).expect("Unable to get metadata");
     let log_processor: Box<dyn LogProcessor>;

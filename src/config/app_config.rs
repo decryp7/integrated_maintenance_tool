@@ -2,7 +2,7 @@ use serde_derive::{Serialize, Deserialize};
 use crate::config::filter_log_processor_config::FilterLogProcessorConfig;
 use crate::config::log_processor_config::LogProcessorConfig;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AppConfig {
     pub log_processor_config: LogProcessorConfig,
     pub filter_log_processor_config: FilterLogProcessorConfig,

@@ -1,6 +1,6 @@
 use serde_derive::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LogProcessorConfig {
     pub log_file_ext: String,
     pub line_start_regex: String,

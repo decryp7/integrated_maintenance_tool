@@ -1,5 +1,5 @@
 use crate::log_processors::log_processor::LogProcessor;
-use regex::Regex;
+use regex::bytes::Regex;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufRead;
@@ -36,7 +36,7 @@ impl LogProcessor for FilterLogProcessor {
         };
 
         let mut filtered_log_file_writer = LineWriter::new(filtered_log_file);
-        let mut log_line = String::new();
+        //let mut log_line = String::new();
 
         let mut reader = BufReader::new(log_file);
         let mut buf = vec![];
@@ -45,19 +45,16 @@ impl LogProcessor for FilterLogProcessor {
             if buf.is_empty() {
                 break;
             }
-            let line = String::from_utf8_lossy(&buf);
-            let is_log_line = self.line_start_regex.is_match(&line);
+            //let line = String::from_utf8_lossy(&buf);
+            let is_log_line = self.line_start_regex.is_match(&buf);
             if is_log_line {
-                if !log_line.is_empty() {
-                    if self.filter_regex.is_match(&log_line) {
-                        filtered_log_file_writer
-                            .write_all(log_line.as_bytes())
-                            .expect("Unable to write to filtered log file");
-                    }
-                    log_line.clear();
+                if self.filter_regex.is_match(&buf) {
+                    filtered_log_file_writer
+                        .write_all(&buf)
+                        .expect("Unable to write to filtered log file");
+                    println!("{}", String::from_utf8_lossy(&buf));
                 }
             }
-            log_line.push_str(&line);
             buf.clear();
         }
 
