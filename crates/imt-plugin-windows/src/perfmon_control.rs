@@ -47,14 +47,16 @@ impl fmt::Display for PerfmonError {
 
 impl std::error::Error for PerfmonError {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RunState {
     Running,
     Stopped,
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CollectorStatus {
     pub name: String,
     pub status: RunState,

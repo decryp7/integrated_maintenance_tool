@@ -1787,6 +1787,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-log",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -1888,6 +1889,7 @@ dependencies = [
  "evtx",
  "imt-core",
  "quick-xml 0.39.4",
+ "serde",
  "serde_json",
 ]
 

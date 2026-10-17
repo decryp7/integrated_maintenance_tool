@@ -28,7 +28,8 @@ const SUBDIRECTORY_PATTERN: &str = "yyyyMMdd\\-NNNNNN";
 const TRUE: &str = "-1";
 const FALSE: &str = "0";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CounterPreset {
     pub id: String,
     pub name: String,
@@ -158,7 +159,8 @@ pub fn presets() -> Vec<CounterPreset> {
     ]
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum LogFormat {
     /// Binary `.blg` (required for circular logs).
     Blg,
@@ -176,7 +178,8 @@ impl LogFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct CollectorTemplate {
     pub name: String,
     /// Process instance names (without `.exe`); empty = all processes (`*`).

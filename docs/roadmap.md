@@ -62,6 +62,40 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
   performance-counter snapshot and environment info into an `.imtz` bundle, with redaction.
 - **Scheduled collection** and a headless/service mode for servers.
 
+## Phase 4b: profiling
+
+Profiler plugins = a collector (start/stop capture with the platform's official tools) plus an
+importer; IMT adds two generic views shared by all of them: a **flame graph** (CPU stacks, from
+speedscope / collapsed-stack formats) and an **allocation table with snapshot diff**.
+
+- **.NET Framework 4.6.2+ (primary target)**, two levels feeding the same views:
+  1. *ETW (default, production-safe, no restart):* CLR provider events via a session started by
+     IMT — sampled CPU stacks, GC start/end and heap sizes, AllocationTick (sampled ~100 KB),
+     exceptions, contention, JIT; heap snapshots (`.gcdump`, as PerfView takes them). A small
+     Windows-only helper using TraceEvent converts traces to the flame-graph/allocation formats.
+  2. *CLR Profiling API agent ("deep mode", dev/test):* a native profiler DLL
+     (`ICorProfilerCallback`, loaded via `COR_ENABLE_PROFILING`/`COR_PROFILER`/
+     `COR_PROFILER_PATH`; attach to running processes with reduced callbacks) streaming exact
+     allocation stacks, method enter/leave timings, GC heap-graph snapshots (leak paths) and
+     exceptions to IMT. Caveats shown in the UI: one profiler per process (conflicts with APM
+     agents), noticeable overhead, a profiler bug can crash the app.
+     - *Attach to a running process* (CLR 4+, `ICLRProfiling::AttachProfiler`,
+       `InitializeForAttach`, clean `RequestProfilerDetach`): GC events and heap walks (object
+       graph → leak paths), CPU sampling via `DoStackSnapshot`, exceptions, JIT/thread/module
+       events. Not available after attach (startup-only flags): per-allocation callbacks and
+       enter/leave hooks → offer *Launch with profiler* for those. x86 and x64 profiler builds
+       (match target bitness); same user or elevated for services/IIS. Verify the
+       allowed-after-attach flag set against Microsoft docs during implementation.
+  No .NET performance counters in the PerfMon presets (kept generic).
+- **.NET (Core / 5+)**: `dotnet-counters` (System.Runtime) onto the timeline; `dotnet-trace`
+  CPU sampling → flame graph; `dotnet-gcdump` heap snapshots → top types and diffs.
+- **C++ on Windows**: UMDH heap snapshots with allocation stacks (gflags +ust) diffed to find
+  leaks; Windows Performance Recorder (`wpr`) CPU traces exported for flame graphs; symbols from
+  PDBs / symbol server.
+- **C++ on Linux/macOS**: `perf` (CPU) and `heaptrack` (memory) on Linux; `sample`/`xctrace` on
+  macOS.
+- Captures line up with logs and counters on the same timeline (Moment view includes them).
+
 ## Phase 5: explain and share
 
 - **AI assistant (opt-in):** summarise an incident, explain an exception and stack trace,
@@ -76,8 +110,13 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 
 ## Phase 6: scale and platform
 
-- **Persistent store (DuckDB)** behind `LogStore`: data larger than RAM, instant reopen,
-  background indexing with progress and cancel, SQL console tab for power users.
+- **Persistent store** behind `LogStore`: data larger than RAM, instant reopen, background
+  indexing with progress and cancel, SQL console tab for power users. Spike first: DuckDB vs.
+  DataFusion + Parquet (pure Rust), each with Tantivy for full-text search, benchmarked on 10M+
+  events; the in-memory store stays for normal sizes. Frequently used fields are promoted to
+  typed columns.
+- **Very large UIs**: scaled scrolling in the events grid beyond ~1.2M rows (browser element
+  height limit), virtualized facet lists and trees.
 - **Plugin SDK:** WASM plugins (importers, collectors, views) with a manifest, sandboxed
   and versioned; later a plugin catalogue.
 - **Scripting** for custom transforms (e.g. Rhai or JavaScript) where profiles aren't enough.
