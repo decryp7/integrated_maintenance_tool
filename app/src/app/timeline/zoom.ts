@@ -109,13 +109,21 @@ export class TimelineZoom {
     return s?.from != null && s.to != null ? { from: s.from, to: Math.max(s.to, s.from + MIN_SPAN_MS) } : null;
   });
 
-  /** The range on screen: the query range, or the full extent. */
+  /**
+   * The range on screen: the query range, or the full extent. While following a live window (resolved by the
+   * engine), it is the range of the latest timeline, so zooming and panning start from what is shown.
+   */
   readonly view = computed<Range | null>(() => {
     const ext = this.extent();
     const q = this.store.query();
     if (!ext) return null;
+    const t = this.store.timeline();
+    if (q.window && q.from == null && q.to == null && t) return { from: t.from, to: t.to };
     return { from: q.from ?? ext.from, to: q.to ?? ext.to };
   });
+
+  /** True while the view can be panned: a fixed range, or a sliding live window (panning pauses following). */
+  readonly canPan = computed(() => this.store.hasRange() || !!this.store.query().window);
 
   readonly isZoomed = computed(() => this.store.hasRange());
 
@@ -164,7 +172,7 @@ export class TimelineZoom {
   panBy(deltaMs: number, debounced = true): void {
     const view = this.pending ?? this.view();
     const ext = this.extent();
-    if (!view || !ext || !this.store.hasRange()) return;
+    if (!view || !ext || !this.canPan()) return;
     const next = pan(view, deltaMs, ext);
     if (debounced) this.schedule(next);
     else this.apply(next);

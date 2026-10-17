@@ -52,6 +52,18 @@ export interface MarkerRule {
   [key: string]: unknown;
 }
 
+/** A `[[marker_override]]` entry: every key but `kind` is optional. */
+export interface MarkerOverride {
+  kind: string;
+  enabled?: boolean;
+  label?: string;
+  color?: string;
+  icon?: string;
+  badge?: string;
+  shape?: string;
+  description?: string;
+}
+
 export interface ChartRule {
   id: string;
   title?: string;
@@ -157,6 +169,8 @@ export interface ProfileModel {
   instance?: { key?: string[]; candidates?: string[]; [key: string]: unknown };
   extract?: ExtractRule[];
   marker?: MarkerRule[];
+  /** Switches off or restyles a plugin or built-in marker kind (default_profile.toml `[[marker_override]]`). */
+  marker_override?: MarkerOverride[];
   chart?: ChartRule[];
   pipeline?: PipelineStep[];
   [key: string]: unknown;

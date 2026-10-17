@@ -52,6 +52,10 @@ pub struct FieldInfo {
 #[serde(rename_all = "camelCase")]
 pub struct MarkerKind {
     pub kind: String,
+    /// Who defines it: `profile`, `builtin` or a plugin id.
+    pub owner: String,
+    /// Lifecycle meaning of a plugin kind: start, stop or crash.
+    pub role: Option<crate::plugin::markers::MarkerRole>,
     pub label: String,
     pub lifecycle: bool,
     pub color: Option<String>,
@@ -63,6 +67,10 @@ pub struct MarkerKind {
     pub shape: Option<String>,
     /// Meaning of the marker, for the legend and tooltips.
     pub description: Option<String>,
+    /// The default rule of a plugin kind (all conditions must match), shown
+    /// read-only. Empty for profile and built-in kinds (their rules are in
+    /// the profile) and for kinds a plugin only marks programmatically.
+    pub when: Vec<crate::condition::ConditionCfg>,
 }
 
 #[derive(Debug, Clone, Serialize)]

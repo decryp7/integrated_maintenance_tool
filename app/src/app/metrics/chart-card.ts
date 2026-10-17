@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked } from '@angular/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import { ChartData, ChartDef, ChartSeries, LEVELS } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
@@ -9,6 +9,19 @@ import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { TimelineZoom } from '../timeline/zoom';
 import { TimeCursor, TimeCursorSource, TimeRange, timeToFrac } from '../analysis/time-cursor';
+import { LiveTail } from '../workspace/live-tail';
+
+/** Live charts animate their updates briefly (none with reduced motion). */
+export const LIVE_UPDATE_MS = 200;
+
+function reducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Option for a live chart: the same chart, with short update transitions so merged updates glide. */
+export function liveOption(option: EChartsCoreOption, reduced = reducedMotion()): EChartsCoreOption {
+  return reduced ? option : { ...option, animation: true, animationDuration: 0, animationDurationUpdate: LIVE_UPDATE_MS, animationEasingUpdate: 'linear' };
+}
 
 const MAX_NAMED = 4;
 /** Plot box of every chart (ECharts `grid`), px; the right inset grows when series are labelled directly. */
@@ -161,7 +174,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
       <div class="msg faint">No numeric values for {{ def().y }} in the current results.</div>
     } @else if (option(); as o) {
       <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
-        <imt-echart class="chart" [options]="o" (brushed)="brushed($event)" />
+        <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" />
         @if (hoverLeft(); as left) {
           <div class="hover-line" [style.left]="left" [style.top.px]="grid().top" [style.bottom.px]="grid().bottom" aria-hidden="true"></div>
         }
@@ -198,6 +211,9 @@ export class ChartCard {
   private readonly cursor = inject(TimeCursor);
   private readonly backend = inject(ImtBackend);
   private readonly theme = inject(ChartTheme);
+  protected readonly live = inject(LiveTail);
+  /** The card is on screen; live refreshes of cards scrolled out of view wait until they are visible again. */
+  private readonly onScreen = signal(true);
 
   protected readonly data = signal<ChartData | null>(null);
   protected readonly loading = signal(false);
@@ -257,20 +273,32 @@ export class ChartCard {
     const d = this.data();
     if (!d) return null;
     const labels = new Map([...this.store.markerKindMap().values()].map((k) => [k.kind, k.label]));
-    return buildOption(d, this.theme.tokens(), this.store.timezone(), labels);
+    const option = buildOption(d, this.theme.tokens(), this.store.timezone(), labels);
+    return this.live.enabled() ? liveOption(option) : option;
   });
 
   constructor() {
     let seq = 0;
+    let fetched = '';
+    let fetchedKey = '';
     effect(() => {
       const def = this.def();
       const fromProfile = this.fromProfile();
       const query = this.store.effectiveQuery();
       const buckets = this.store.buckets();
-      this.store.dataVersion();
-      const mine = ++seq;
+      const version = this.store.dataVersion();
+      const onScreen = this.onScreen();
       untracked(() => {
-        this.loading.set(true);
+        const key = JSON.stringify([def, fromProfile, query, buckets]);
+        const fingerprint = `${key}|${version}`;
+        if (fingerprint === fetched) return;
+        // A live refresh of a chart scrolled out of view waits until it is visible (the engine buckets anyway).
+        if (!onScreen && key === fetchedKey && this.live.isLiveRefresh()) return;
+        fetched = fingerprint;
+        fetchedKey = key;
+        const mine = ++seq;
+        // Live updates replace the data in place; the spinner would only flicker.
+        if (!this.data() || !this.live.isLiveRefresh()) this.loading.set(true);
         this.backend
           .queryChart({ query, chartId: fromProfile ? def.id : null, def: fromProfile ? null : def, buckets })
           .then((d) => {
@@ -281,6 +309,15 @@ export class ChartCard {
           .catch((e) => mine === seq && this.error.set(String(e)))
           .finally(() => mine === seq && this.loading.set(false));
       });
+    });
+
+    const host = inject<ElementRef<HTMLElement>>(ElementRef);
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      if (typeof IntersectionObserver === 'undefined') return;
+      const io = new IntersectionObserver((entries) => this.onScreen.set(entries.some((e) => e.isIntersecting)));
+      io.observe(host.nativeElement);
+      destroyRef.onDestroy(() => io.disconnect());
     });
   }
 }

@@ -8,6 +8,7 @@ import { formatKeybinding } from '../extensions/keybinding';
 import { ViewRegistry } from '../extensions/view-registry';
 import { PaletteService } from '../palette/palette.service';
 import { TitleExtras } from '../lifecycle/title-extras';
+import { WindowingService } from '../windowing/windowing.service';
 
 interface MenuItem {
   label: string;
@@ -100,6 +101,7 @@ export class TitleBar {
   private readonly dock = inject(DockService);
   private readonly views = inject(ViewRegistry);
   private readonly palette = inject(PaletteService);
+  private readonly windowing = inject(WindowingService);
   protected readonly open = signal<string | null>(null);
 
   protected readonly menus = computed<Menu[]>(() => {
@@ -116,7 +118,7 @@ export class TitleBar {
       run: () => this.dock.toggle(v.id),
     }));
     return [
-      { label: 'File', items: ['file.openFiles', 'file.openFolder', 'file.reimport', 'file.export', 'file.close'].flatMap(cmd) },
+      { label: 'File', items: ['window.new', 'file.openFiles', 'file.openFolder', 'file.reimport', 'file.export', 'file.close'].flatMap(cmd) },
       {
         label: 'View',
         items: [
@@ -132,7 +134,14 @@ export class TitleBar {
         label: 'Analyze',
         items: ['analyze.search', 'analyze.markedOnly', 'analyze.fit', 'analyze.back', 'analyze.forward', 'analyze.clearFilters', 'analyze.utc', 'analyze.local'].flatMap(cmd),
       },
-      { label: 'Help', items: [...cmd('help.welcome'), { label: 'IMT 0.1.0 — Integrated Maintenance Tool', run: () => undefined }] },
+      {
+        label: 'Window',
+        items: [
+          ...['window.new', 'window.close'].flatMap(cmd),
+          ...this.windowing.windows().map((w) => ({ label: w.title || w.label, checked: w.label === this.windowing.label(), run: () => void this.windowing.focus(w.label) })),
+        ],
+      },
+      { label: 'Help', items: [...cmd('help.welcome'), ...cmd('help.about'), { label: 'IMT 0.1.0 — Integrated Maintenance Tool', run: () => undefined }] },
     ];
   });
 

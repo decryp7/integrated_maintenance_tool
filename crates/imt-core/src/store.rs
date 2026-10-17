@@ -153,6 +153,36 @@ pub trait LogStore: Send + Sync {
     fn set_tail_options(&mut self, options: crate::workspace::TailOptions) {
         let _ = options;
     }
+
+    /// Mutes live alerts of one kind or rule until `until_ms` (wall clock, at
+    /// most a day ahead): they are not raised meanwhile. Fails for an invalid
+    /// mute. A store without live alerts has nothing to mute.
+    fn mute_alerts(&mut self, target: crate::workspace::AlertTarget, until_ms: i64) -> Result<()> {
+        let _ = (target, until_ms);
+        Ok(())
+    }
+
+    /// Lifts a mute set with [`LogStore::mute_alerts`].
+    fn unmute_alerts(&mut self, target: &crate::workspace::AlertTarget) {
+        let _ = target;
+    }
+
+    /// Ranges and points found by plugin annotators (reboots, service
+    /// uptime, ...) overlapping the request. A store without plugins has none.
+    fn annotations(&self, req: &crate::plugin::annotate::AnnotationsRequest) -> Vec<crate::plugin::annotate::AnnotationDto> {
+        let _ = req;
+        Vec::new()
+    }
+
+    /// The event bus between the engine and its plugins, for publishing
+    /// host events (e.g. [`crate::events::SnapshotTaken`]) and reading
+    /// per-subscriber delivery metrics. A store without plugins has none.
+    fn event_bus(&self) -> Option<std::sync::Arc<crate::events::EventBus>> {
+        None
+    }
+
+    /// Deactivates the store's plugins, dependents first (on exit). Idempotent.
+    fn shutdown_plugins(&self) {}
 }
 
 impl LogStore for Workspace {
@@ -310,5 +340,25 @@ impl LogStore for Workspace {
 
     fn set_tail_options(&mut self, options: crate::workspace::TailOptions) {
         Workspace::set_tail_options(self, options)
+    }
+
+    fn mute_alerts(&mut self, target: crate::workspace::AlertTarget, until_ms: i64) -> Result<()> {
+        Workspace::mute_alerts(self, target, until_ms)
+    }
+
+    fn unmute_alerts(&mut self, target: &crate::workspace::AlertTarget) {
+        Workspace::unmute_alerts(self, target);
+    }
+
+    fn annotations(&self, req: &crate::plugin::annotate::AnnotationsRequest) -> Vec<crate::plugin::annotate::AnnotationDto> {
+        Workspace::annotations(self, req)
+    }
+
+    fn event_bus(&self) -> Option<std::sync::Arc<crate::events::EventBus>> {
+        Some(self.registry().events())
+    }
+
+    fn shutdown_plugins(&self) {
+        self.registry().shutdown()
     }
 }

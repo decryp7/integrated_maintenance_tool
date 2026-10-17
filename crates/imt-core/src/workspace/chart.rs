@@ -109,7 +109,7 @@ impl Workspace {
             })
             .collect();
 
-        let lifecycle_mask = self.profile.lifecycle_mask | self.fatal_mask();
+        let lifecycle_mask = (self.profile.lifecycle_mask | self.fatal_mask()) & self.visible_markers();
         let lifecycle = self
             .records
             .iter()
@@ -134,7 +134,7 @@ impl Workspace {
         })
     }
 
-    fn fatal_mask(&self) -> u32 {
+    fn fatal_mask(&self) -> crate::model::MarkerMask {
         self.marker_kinds
             .iter()
             .enumerate()

@@ -13,7 +13,6 @@ import {
   LifecycleEvent,
   MarkerCluster,
   MarkerKind,
-  MarkerShape,
   Page,
   PageRequest,
   PipelineStat,
@@ -26,10 +25,14 @@ import { parseBucket, valueToString } from '../format';
 import { Condition, ExtractField, ExtractRule, ProfileModel, toJsRegex } from '../profile.model';
 import { MockRecord, MockSource } from './mock-data';
 import { applyPipeline } from './mock-pipeline';
+import { effectiveMarkers, MockPluginKind } from './mock-plugin-markers';
 import { mockQlFilter } from './mock-ql';
 
 /** In-memory query engine mirroring the Rust core's semantics, for browser development. */
 export class MockEngine {
+  /** @param pluginKinds marker kinds contributed by (mock) plugins; none by default. */
+  constructor(private readonly pluginKinds: readonly MockPluginKind[] = []) {}
+
   records: MockRecord[] = [];
   sources: MockSource[] = [];
   derived = new Set<string>();
@@ -59,36 +62,9 @@ export class MockEngine {
     records.sort((a, b) => (a.ts ?? Number.MAX_SAFE_INTEGER) - (b.ts ?? Number.MAX_SAFE_INTEGER) || a.source - b.source || a.line - b.line);
     records.forEach((r, i) => (r.id = i));
 
-    for (const rule of profile.extract ?? []) {
-      const re = safeRegex(rule.regex);
-      if (!re) continue;
-      for (const name of Object.keys(rule.fields ?? {})) this.derived.add(name);
-      const when = compileConditions(rule.when ?? []);
-      for (const r of records) {
-        if (!when((f) => this.fieldText(r, f))) continue;
-        const text = this.fieldText(r, rule.from ?? '@message');
-        if (text === null) continue;
-        const m = re.exec(text);
-        if (!m?.groups) continue;
-        Object.assign(r.fields, convertCaptures(m.groups, rule));
-      }
-    }
+    this.decorate(records, profile);
 
-    const markerRules = (profile.marker ?? []).map((m) => ({ kind: m.kind, when: compileConditions(m.when ?? []) }));
-    for (const r of records) {
-      for (const m of markerRules) if (m.when((f) => this.fieldText(r, f))) r.markers.push(m.kind);
-    }
-
-    this.markerKinds = (profile.marker ?? []).map((m) => ({
-      kind: m.kind,
-      label: m.label ?? m.kind,
-      lifecycle: !!m.lifecycle,
-      color: m.color ?? null,
-      icon: (m['icon'] as string | undefined) ?? null,
-      badge: (m['badge'] as string | undefined) ?? null,
-      shape: (m['shape'] as MarkerShape | undefined) ?? null,
-      description: (m['description'] as string | undefined) ?? null,
-    }));
+    this.markerKinds = effectiveMarkers(profile, this.pluginKinds).map((m) => m.info);
     this.icons = ((profile['icon'] as { name: string; svg?: string; png?: string }[] | undefined) ?? []).map((i) => ({
       name: i.name,
       svg: i.svg ? i.svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '') : null,
@@ -105,6 +81,62 @@ export class MockEngine {
     }));
     this.records = records;
     this.defaultGroupBy = this.pickGroupBy(profile);
+  }
+
+  /**
+   * Appends newly tailed raw records (live tail): the pipeline, extractors and markers run on the new records
+   * only, and they get the next ids. Records must not be older than the newest one already present (the mock
+   * appends in time order; the engine handles out-of-order lines by reporting `idsChangedFrom`).
+   */
+  append(raw: MockRecord[], profile: ProfileModel): MockRecord[] {
+    const piped = applyPipeline(raw, profile.pipeline ?? [], (id) => this.sourceById.get(id)?.name ?? '');
+    for (const [source, n] of piped.dropped) this.droppedBySource.set(source, (this.droppedBySource.get(source) ?? 0) + n);
+    const records = piped.records.map((r) => ({ ...r, fields: { ...r.fields }, markers: [] as string[] }));
+    this.decorate(records, profile);
+    const base = this.records.length;
+    records.forEach((r, i) => (r.id = base + i));
+    this.records.push(...records);
+    this.cache = null;
+    return records;
+  }
+
+  /** Newest timestamp of any record, or null. */
+  newestTs(): number | null {
+    for (let i = this.records.length - 1; i >= 0; i--) {
+      const ts = this.records[i].ts;
+      if (ts !== null) return ts;
+    }
+    return null;
+  }
+
+  /** Registers sources added after the last rebuild (live tail). */
+  setSources(sources: MockSource[]): void {
+    this.sources = sources;
+    this.sourceById = new Map(sources.map((s) => [s.id, s]));
+    this.cache = null;
+  }
+
+  /** Runs the extractors and marker rules over records (in place). */
+  private decorate(records: MockRecord[], profile: ProfileModel): void {
+    for (const rule of profile.extract ?? []) {
+      const re = safeRegex(rule.regex);
+      if (!re) continue;
+      for (const name of Object.keys(rule.fields ?? {})) this.derived.add(name);
+      const when = compileConditions(rule.when ?? []);
+      for (const r of records) {
+        if (!when((f) => this.fieldText(r, f))) continue;
+        const text = this.fieldText(r, rule.from ?? '@message');
+        if (text === null) continue;
+        const m = re.exec(text);
+        if (!m?.groups) continue;
+        Object.assign(r.fields, convertCaptures(m.groups, rule));
+      }
+    }
+
+    const markerRules = effectiveMarkers(profile, this.pluginKinds).map((m) => ({ kind: m.info.kind, when: compileConditions(m.when) }));
+    for (const r of records) {
+      for (const m of markerRules) if (m.when((f) => this.fieldText(r, f))) r.markers.push(m.kind);
+    }
   }
 
   private pickGroupBy(profile: ProfileModel): string[] {

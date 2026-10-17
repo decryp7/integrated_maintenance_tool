@@ -5,9 +5,12 @@ import { ImtBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { tinyDataset } from '../../testing/helpers';
 import { LiveTail } from '../workspace/live-tail';
+import { LiveFeed } from '../live/live-feed';
+import { LiveFollow } from '../live/live-follow.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { SettingsStore } from '../settings/settings.store';
 import { EventsGrid } from './events-grid';
+import { GridSelection } from './grid-selection';
 import { RecordActions } from '../context/record-actions';
 import { HighlightRules } from '../projects/bookmarks/highlight';
 
@@ -220,6 +223,28 @@ describe('EventsGrid', () => {
       store.select(store.selected() && { ...store.selected()!, id: 10 });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([10]);
+    });
+
+    it('publishes the selected records to GridSelection for commands outside the grid', async () => {
+      const { fixture, store } = await render();
+      const published = TestBed.inject(GridSelection);
+      expect(published.records()).toEqual([]);
+      click(rows(fixture)[1]);
+      click(rows(fixture)[3], { shiftKey: true });
+      click(rows(fixture)[6], { ctrlKey: true });
+      await settle(fixture);
+      expect(published.records().map((r) => r.id)).toEqual([1, 2, 3, 6]);
+      expect(published.records().map((r) => r.message)).toEqual([1, 2, 3, 6].map((i) => rows(fixture)[i].querySelector('.msg')!.textContent!.trim()));
+      click(rows(fixture)[4]);
+      await settle(fixture);
+      expect(published.records().map((r) => r.id)).toEqual([4]);
+      store.select(null);
+      await settle(fixture);
+      expect(published.records()).toEqual([]);
+      click(rows(fixture)[2]);
+      await settle(fixture);
+      fixture.destroy();
+      expect(published.records()).toEqual([]);
     });
   });
 
@@ -610,6 +635,28 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     it('has no live control of its own (the status bar owns it)', async () => {
       const { fixture } = await render(synthetic(5000));
       expect(all(fixture, 'button').some((b) => /live/i.test(b.textContent ?? ''))).toBe(false);
+    });
+
+    it('holds the rows while not following, counts the new events, and reveals the newest on request', async () => {
+      for (const descending of [true, false]) {
+        TestBed.resetTestingModule();
+        const backend = synthetic(5000, { liveMs: 25 });
+        const { fixture, store, grid } = await render(backend);
+        if (descending) store.toggleSort();
+        await flush(fixture);
+        TestBed.inject(LiveFollow).setFollow(false);
+        const feed = TestBed.inject(LiveFeed);
+        const tail = TestBed.inject(LiveTail);
+        await tail.toggle();
+        await vi.waitFor(() => expect(feed.newEvents()).toBeGreaterThan(1), { timeout: 3000 });
+        expect(grid.total()).toBe(5000);
+        await settle(fixture);
+        el<HTMLButtonElement>(fixture, '[data-testid=new-events]').click();
+        await vi.waitFor(() => expect(grid.total()).toBeGreaterThan(5000), { timeout: 3000 });
+        await flush(fixture);
+        expect(grid.virtualTop()).toBe(descending ? 0 : grid.geometry().maxTop);
+        await tail.toggle();
+      }
     });
 
     it('keeps the same rows selected when new events are inserted above them', async () => {

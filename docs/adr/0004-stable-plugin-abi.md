@@ -1,0 +1,65 @@
+# 4. Stable plugin ABI: WIT for WebAssembly, protobuf for processes
+
+- Status: accepted
+- Date: 2026-10-17
+
+## Context
+
+Built-in plugins are Rust crates compiled into IMT and use Rust traits directly. Third parties
+(and plugins in other languages) need a contract that stays stable across IMT releases and Rust
+compiler versions. Rust has no stable ABI: loading a Rust `cdylib`/`dylib` that exchanges trait
+objects is undefined behaviour across compiler or dependency versions, and native code loaded
+in-process can crash IMT (ADR 0002).
+
+Options considered:
+
+1. **Compile-time only** (today): no ABI problem, but every plugin needs an IMT rebuild.
+2. **Native dynamic libraries with a C ABI** (`extern "C"`, `abi_stable`, `stabby`): fast, but
+   in-process native code defeats crash isolation, needs per-OS/arch builds and careful
+   memory-ownership rules.
+3. **WebAssembly components with WIT interfaces** (wasmtime): a versioned, language-neutral
+   interface definition; sandboxed (memory limits, epoch interruption, no ambient I/O); one
+   binary for every OS.
+4. **Out-of-process plugins over gRPC** (ADR 0002): the contract is the `.proto` schema; any
+   language; full crash isolation.
+
+## Decision
+
+IMT supports **no native dynamic-library plugins**. The stable plugin ABI is two contracts that
+describe the same capabilities:
+
+- **WIT package `imt:plugin@1.x`** for WebAssembly components (preferred for third-party
+  importers, transforms, marker kinds, annotators, exporters and settings).
+- **Protobuf package `imt.plugin.v1`** for plugin processes (for code that needs native
+  libraries, OS APIs or another runtime, e.g. .NET TraceEvent, profilers).
+
+Rules:
+
+- **One capability model.** Both contracts expose the same contribution kinds as the Rust
+  traits (importer with sniff/import/import-tail, transform, marker kinds, annotator, exporter,
+  settings section, services, events). Host-side adapters map each contract onto the Rust
+  traits, so the core, the guard, quarantine, settings and the UI see no difference.
+- **Data in Arrow.** Record batches cross the boundary as Arrow IPC bytes in both contracts;
+  small structured values (settings, manifests, markers) use the contract's own types.
+- **Versioning.** Semver on the package: minor versions only add (new functions, optional
+  fields, new enum cases that hosts and plugins must tolerate); a breaking change is a new major
+  (`imt:plugin@2`, `imt.plugin.v2`), and the host supports the previous major for at least one
+  release. The handshake negotiates the version and the capabilities a plugin implements;
+  missing capabilities are simply absent.
+- **Manifest.** Every external plugin ships a manifest (id, version, contract and version,
+  requires/provides per ADR 0003, requested permissions such as "read files the user opened"
+  or "network to example.com"). Permissions are shown at install and enforced by the host
+  (WASI capabilities for components; the gRPC host only proxies what is granted).
+- **Conformance.** A plugin test kit (SDK crate plus a CLI) runs contract tests against a
+  plugin component or process before it can be installed; the same tests run against the
+  built-in adapters in CI.
+- **Built-in plugins** keep using Rust traits (no serialisation cost) but must stay expressible
+  through the contracts, so they could be moved out without changing behaviour.
+
+## Consequences
+
+- Third-party plugins work across IMT versions without recompiling IMT, in any language that
+  targets WebAssembly components or speaks gRPC.
+- A buggy external plugin cannot corrupt IMT's memory.
+- Cost: two schemas to keep aligned (mitigated by one capability model and shared contract
+  tests), serialisation at the boundary (mitigated by Arrow batches), and wasmtime in the app.

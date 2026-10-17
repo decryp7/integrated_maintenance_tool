@@ -541,13 +541,15 @@ pub struct EngineError {
 pub enum EngineErrorKind {
     PluginCrash,
     PluginQuarantined,
+    /// A plugin stopped running: a required dependency became unavailable, or activation failed.
+    PluginInactive,
     ImportCrash,
 }
 
-/// Tells the UI the engine contained a failure, so it can take an error snapshot. Never fails.
-pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, error: &EngineError) {
+/// Tells the window whose workspace contained a failure, so it can take an error snapshot. Never fails.
+pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str, error: &EngineError) {
     use tauri::Emitter;
-    let _ = app.emit(ERROR_EVENT, error);
+    let _ = app.emit_to(window, ERROR_EVENT, error);
 }
 
 /// The active IMT log file's name (owned by the diagnostics module).
@@ -638,9 +640,20 @@ pub fn save_error_snapshot<R: tauri::Runtime>(
     if first_time {
         store.take_first_time();
     }
+    publish_snapshot_taken(&app, &id);
     // Reason and size only: no message text, no image data.
     log::info!(SnapshotId = id.as_str(), Reason = context.reason.as_str(), Bytes = bytes.len() as u64; "Error snapshot saved");
     Ok(SaveResult { id, first_time })
+}
+
+/// Tells every window's plugins that a snapshot was saved (`imt_core::events::SnapshotTaken`).
+fn publish_snapshot_taken<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
+    use tauri::Manager;
+    if let Some(windows) = app.try_state::<crate::windows::Windows>() {
+        for w in windows.all() {
+            w.publish(imt_core::events::SnapshotTaken { id: id.to_string() });
+        }
+    }
 }
 
 #[tauri::command]
@@ -1105,6 +1118,24 @@ mod tests {
     }
 
     #[test]
+    fn saved_snapshots_are_announced_to_every_windows_plugins() {
+        let app = crate::test_support::test_app(None);
+        let main = crate::test_support::main_window(&app);
+        let (tx, rx) = std::sync::mpsc::channel();
+        main.events
+            .clone()
+            .unwrap()
+            .subscribe::<imt_core::events::SnapshotTaken>("test.snapshots", move |e| {
+                let _ = tx.send(e.id.clone());
+            })
+            .unwrap();
+        publish_snapshot_taken(app.handle(), "snap-42");
+        assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap(), "snap-42");
+        // Without window state (e.g. very early at startup) nothing happens.
+        publish_snapshot_taken(tauri::test::mock_app().handle(), "x");
+    }
+
+    #[test]
     fn commands_run_against_a_mock_app() {
         let app = tauri::test::mock_app();
         let handle = app.handle().clone();
@@ -1131,6 +1162,7 @@ mod tests {
         assert!(delete_error_snapshot(handle.clone(), "../x".into()).is_err());
         emit_engine_error(
             &handle,
+            "main",
             &EngineError {
                 kind: EngineErrorKind::PluginCrash,
                 message: "m".into(),

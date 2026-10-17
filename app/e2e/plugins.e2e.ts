@@ -8,7 +8,7 @@ test('Plugins panel lists installed plugins and built-ins', async ({ page }, tes
   await page.getByRole('menuitemcheckbox', { name: 'Plugins' }).click();
   const panel = page.locator('imt-plugins-view');
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole('list', { name: 'Installed plugins' }).getByRole('listitem')).toHaveCount(2);
+  await expect(panel.getByRole('list', { name: 'Installed plugins' }).getByRole('listitem')).toHaveCount(4);
   await expect(panel).toContainText('Windows registry importer');
   await expect(panel).toContainText('About plugins');
   await expectNoSeriousViolations(page, testInfo, 'plugins');

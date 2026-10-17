@@ -16,6 +16,14 @@ import {
   mockTraces,
 } from './mock-insights';
 import { checkMockQl, MockQlError, mockCompletions, runMockQl } from '../../core/mock/mock-ql';
+import { mockResolveWindow } from '../../core/mock/mock-live';
+
+/** Timestamp of the newest record (the "now" of live windows, as the engine's default data clock). */
+function newestTs(records: readonly RecordView[]): number | null {
+  let newest: number | null = null;
+  for (const r of records) if (r.ts !== null && (newest === null || r.ts > newest)) newest = r.ts;
+  return newest;
+}
 
 /** Loads every record of the (mock) workspace through the regular backend, so ids match the grid. */
 export function recordsFrom(backend: ImtBackend): () => Promise<RecordView[]> {
@@ -31,13 +39,21 @@ export class MockAnalysisBackend extends AnalysisBackend {
     super();
   }
 
+  /** The records and the query with its sliding window (`window: live`) resolved into `from`, like the engine. */
+  private async resolved(query: QlQuery): Promise<{ all: RecordView[]; query: QlQuery }> {
+    const all = await this.records();
+    return { all, query: mockResolveWindow(query, newestTs(all)) };
+  }
+
   private async matched(query: QlQuery): Promise<RecordView[]> {
-    return filterRecords(await this.records(), query);
+    const r = await this.resolved(query);
+    return filterRecords(r.all, r.query);
   }
 
   async runQuery(query: QlQuery): Promise<QueryOutcome> {
-    const all = await this.records();
-    const { ql, ...base } = query;
+    const r = await this.resolved(query);
+    const all = r.all;
+    const { ql, ...base } = r.query;
     try {
       return { result: runMockQl(ql ?? '', filterRecords(all, base)) };
     } catch (e) {
@@ -78,6 +94,7 @@ export class MockAnalysisBackend extends AnalysisBackend {
     return mockRequests(await this.matched(query), idField);
   }
   async queryMoment(query: QlQuery, from: number, to: number) {
-    return mockMoment(await this.records(), query, from, to);
+    const r = await this.resolved(query);
+    return mockMoment(r.all, r.query, from, to);
   }
 }

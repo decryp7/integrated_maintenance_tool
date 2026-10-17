@@ -4,6 +4,7 @@ import { ImtBackend } from '../core/backend';
 import { formatCount } from '../core/format';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
+import { LiveFeed } from '../live/live-feed';
 import { ClickOutside } from '../shared/click-outside';
 import { Icon } from '../shared/icon';
 import { VirtualList } from './virtual-list';
@@ -122,6 +123,14 @@ export class FacetPopover {
       this.store.effectiveQuery();
       untracked(() => void this.load());
     });
+    // Live tail: counts refresh in place (throttled by the feed), without flashing back to "…".
+    const feed = inject(LiveFeed);
+    effect(() => {
+      const version = feed.facetVersion();
+      untracked(() => {
+        if (version > 0 && this.facet()) void this.load(true);
+      });
+    });
   }
 
   protected share(n: number): number {
@@ -129,10 +138,10 @@ export class FacetPopover {
     return total ? (n / total) * 100 : 0;
   }
 
-  protected async load(): Promise<void> {
+  protected async load(quiet = false): Promise<void> {
     const mine = ++this.seq;
     this.error.set(null);
-    this.facet.set(null);
+    if (!quiet) this.facet.set(null);
     try {
       const facet = await this.backend.queryFacet({ query: this.store.effectiveQuery(), field: this.field(), limit: FACET_LIMIT });
       if (mine === this.seq) this.facet.set(facet);

@@ -1,10 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, output } from '@angular/core';
-import { BarChart, LineChart } from 'echarts/charts';
-import { BrushComponent, DataZoomComponent, GridComponent, LegendComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
-import { ECharts, EChartsCoreOption, init, use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-
-use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, MarkLineComponent, BrushComponent, CanvasRenderer]);
+import type { ECharts, EChartsCoreOption } from 'echarts/core';
+import { ECHARTS_INIT } from './echarts-init';
 
 interface BrushEndEvent {
   areas?: { coordRange?: [number, number] }[];
@@ -19,10 +15,16 @@ interface BrushEndEvent {
 })
 export class EChart {
   readonly options = input.required<EChartsCoreOption>();
+  /**
+   * Merge updates into the existing chart (`notMerge: false`, series replaced by name) instead of rebuilding it:
+   * live charts update in place without flicker.
+   */
+  readonly merge = input(false);
   /** Emits [from, to] (x-axis values) after the user drags across the plot. */
   readonly brushed = output<[number, number]>();
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly init = inject(ECHARTS_INIT);
   private chart: ECharts | null = null;
 
   constructor() {
@@ -30,11 +32,12 @@ export class EChart {
 
     effect(() => {
       const options = this.options();
-      if (this.chart) this.apply(options);
+      const merge = this.merge();
+      if (this.chart) this.apply(options, merge);
     });
 
     afterNextRender(() => {
-      const chart = init(this.host.nativeElement, undefined, { renderer: 'canvas' });
+      const chart = this.init(this.host.nativeElement, undefined, { renderer: 'canvas' });
       this.chart = chart;
       chart.on('brushEnd', (e) => {
         const range = (e as BrushEndEvent).areas?.[0]?.coordRange;
@@ -48,14 +51,14 @@ export class EChart {
         chart.dispose();
         this.chart = null;
       });
-      this.apply(this.options());
+      this.apply(this.options(), false);
     });
   }
 
-  private apply(options: EChartsCoreOption): void {
+  private apply(options: EChartsCoreOption, merge: boolean): void {
     const chart = this.chart;
     if (!chart) return;
-    chart.setOption(options, { notMerge: true });
+    chart.setOption(options, merge ? { notMerge: false, replaceMerge: ['series'], lazyUpdate: true } : { notMerge: true });
     // Arm x-range brushing without a toolbox: drag anywhere on the plot to select a time range.
     chart.dispatchAction({ type: 'takeGlobalCursor', key: 'brush', brushOption: { brushType: 'lineX', brushMode: 'single' } });
   }

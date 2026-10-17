@@ -3,6 +3,7 @@ import { IMT_COMMANDS, IMT_VIEWS, flattenContributions } from '../extensions/tok
 import { provideTinyBackend, settle, tinyBackend } from '../../testing/helpers';
 import { RecordActions } from '../context/record-actions';
 import { WorkspaceStore } from '../core/workspace.store';
+import { GridSelection } from '../grid/grid-selection';
 import { CommandContext } from '../extensions/tokens';
 import { provideMarkers, MarkersCommands } from './markers.plugin';
 import { MarkersManager } from './markers-manager';
@@ -44,5 +45,15 @@ describe('markers plugin', () => {
     commands.find((c) => c.id === 'markers.infer')!.run(ctx);
     expect(highlight).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), '');
     expect(infer).toHaveBeenCalledWith([expect.objectContaining({ id: 1 })]);
+  });
+
+  it('infer uses every line selected in the grid', () => {
+    const { commands, ctx, store } = setup();
+    const infer = vi.spyOn(TestBed.inject(RecordActions), 'infer').mockImplementation(() => undefined);
+    store.select({ id: 2, message: 'b' } as never);
+    TestBed.inject(GridSelection).publish([{ id: 1, message: 'a' } as never, { id: 2, message: 'b' } as never]);
+    commands.find((c) => c.id === 'markers.infer')!.run(ctx);
+    expect(infer).toHaveBeenCalledWith([expect.objectContaining({ id: 1 }), expect.objectContaining({ id: 2 })]);
+    expect(ctx.notifyError).not.toHaveBeenCalled();
   });
 });

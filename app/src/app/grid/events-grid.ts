@@ -17,6 +17,8 @@ import { formatCount, formatDateTime } from '../core/format';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
+import { LiveFeed } from '../live/live-feed';
+import { NewEventsPill } from '../live/new-events-pill';
 import { VirtualList } from '../workspace/virtual-list';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
@@ -26,6 +28,7 @@ import { RecordActions } from '../context/record-actions';
 import { FieldFormatters } from '../extensions/field-formatters';
 import { MarkerIcon } from '../shared/marker-icon';
 import { HighlightRules } from '../projects/bookmarks/highlight';
+import { GridSelection } from './grid-selection';
 import { contains, EMPTY_SELECTION, extendTo, indices, RowSelection, shift, single, toggle, withFocus } from './row-selection';
 import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToScroll, visibleWindow, wheelToPixels, clamp } from './scroll-map';
 
@@ -52,7 +55,7 @@ interface VisibleRow {
   selector: 'imt-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[style.--row-h.px]': 'rowH()' },
-  imports: [Icon, MarkerIcon, ClickOutside, VirtualList],
+  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill],
   template: `
     <div class="bar">
       <span class="section-title">Events</span>
@@ -83,6 +86,7 @@ interface VisibleRow {
       </div>
     </div>
 
+    <imt-new-events-pill />
     <div
       class="viewport"
       #viewport
@@ -200,7 +204,11 @@ export class EventsGrid {
   private readonly actions = inject(RecordActions);
   private readonly settings = inject(SettingsStore);
   private readonly live = inject(LiveTail);
+  /** Live refreshes: whether to reload the rows in view (following) or keep them ("N new events"). */
+  private readonly feed = inject(LiveFeed);
   protected readonly highlight = inject(HighlightRules);
+  /** Where the grid publishes its multi-selection for palette commands and other panels. */
+  private readonly published = inject(GridSelection);
   protected readonly rowH = computed(() => ROW_HEIGHT[this.settings.density()]);
   private readonly viewport = viewChild<ElementRef<HTMLElement>>('viewport');
 
@@ -272,8 +280,17 @@ export class EventsGrid {
         const key = JSON.stringify(query);
         const sameView = this.queryKey === key && descending === this.descending;
         this.queryKey = key;
-        if (sameView && this.live.isLiveRefresh()) this.liveRefresh();
-        else this.reset(query, descending);
+        if (sameView && this.live.isLiveRefresh()) {
+          if (!this.feed.holdGrid()) this.liveRefresh();
+        } else this.reset(query, descending);
+      });
+    });
+
+    // "N new events" clicked, or following resumed: reload and bring the newest events into view.
+    effect(() => {
+      const nonce = this.feed.revealNonce();
+      untracked(() => {
+        if (nonce > 0 && this.query) this.liveRefresh(this.descending ? 'start' : 'end');
       });
     });
 
@@ -305,6 +322,14 @@ export class EventsGrid {
         if (focusRow && focusRow.id !== selected.id) this.selection.set(EMPTY_SELECTION);
       });
     });
+
+    // Publish the selected records (and again as their pages load) for commands outside the grid.
+    effect(() => {
+      this.selection();
+      this.cacheTick();
+      untracked(() => this.published.publish(this.selectedRecords()));
+    });
+    destroyRef.onDestroy(() => this.published.clear());
 
     afterNextRender(() => {
       const el = this.viewport()!.nativeElement;
@@ -340,13 +365,14 @@ export class EventsGrid {
   }
 
   /** Live tail changed the data: refetch what is on screen (old rows stay until the new ones arrive) and keep following. */
-  private liveRefresh(): void {
+  private liveRefresh(reveal?: 'start' | 'end'): void {
+    if (reveal === 'start') this.setTop(0);
     const g = this.geometry();
     const top = this.virtualTop();
     const oldTotal = this.total();
     const atStart = top < g.rowH;
     const atEnd = top >= g.maxTop - g.rowH;
-    const mode = this.descending ? (atStart ? 'keep' : 'shift') : atEnd ? 'end' : 'keep';
+    const mode = reveal === 'end' ? 'end' : reveal === 'start' ? 'keep' : this.descending ? (atStart ? 'keep' : 'shift') : atEnd ? 'end' : 'keep';
     this.generation++;
     this.inflight.clear();
     this.failed.clear();
@@ -406,12 +432,14 @@ export class EventsGrid {
     if (!live) return;
     this.pendingLive = null;
     const delta = newTotal - live.oldTotal;
+    if (live.mode === 'end') {
+      this.setTop(Number.POSITIVE_INFINITY, newTotal);
+      return;
+    }
     if (delta <= 0) return;
     if (live.mode === 'shift') {
       this.setTop(this.virtualTop() + delta * this.rowH(), newTotal);
       this.selection.update((sel) => shift(sel, delta));
-    } else if (live.mode === 'end') {
-      this.setTop(Number.POSITIVE_INFINITY, newTotal);
     }
   }
 

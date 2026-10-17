@@ -1,6 +1,6 @@
 import { Component, EnvironmentProviders, Provider, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Query } from '../app/core/api.types';
+import { MarkerKind, PluginInfo, Query } from '../app/core/api.types';
 import { ImtBackend } from '../app/core/backend';
 import { Logger, LogProps } from '../app/core/logger';
 import { DEMO_START, MockDataset, MockRecord } from '../app/core/mock/mock-data';
@@ -49,7 +49,7 @@ export function tinyDataset(): MockDataset {
 }
 
 export function tinyBackend(): MockBackend {
-  return new MockBackend({ latency: false, dataset: tinyDataset });
+  return new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
 }
 
 export interface LogEntry {
@@ -119,6 +119,42 @@ export function testLogger(): MemoryLogger {
 
 export function query(patch: Partial<Query> = {}): Query {
   return { ...EMPTY_QUERY, ...patch };
+}
+
+/** A plugin as the engine reports it: active, healthy, no dependencies, plus `patch`. */
+export function pluginInfo(patch: Partial<PluginInfo> & Pick<PluginInfo, 'id'>): PluginInfo {
+  return {
+    name: patch.id,
+    version: '1.0.0',
+    contributes: [],
+    status: 'active',
+    failures: 0,
+    lastError: null,
+    requires: [],
+    provides: [],
+    inactiveReason: null,
+    dependents: [],
+    warnings: [],
+    hung: false,
+    ...patch,
+  };
+}
+
+/** A marker kind as the engine reports it: a profile kind with no style, plus `patch`. */
+export function markerKind(patch: Partial<MarkerKind> & Pick<MarkerKind, 'kind'>): MarkerKind {
+  return {
+    owner: 'profile',
+    role: null,
+    label: patch.kind,
+    lifecycle: false,
+    color: null,
+    icon: null,
+    badge: null,
+    shape: null,
+    description: null,
+    when: [],
+    ...patch,
+  };
 }
 
 /** Lets promises, effects and change detection settle. */

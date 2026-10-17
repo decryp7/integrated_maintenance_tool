@@ -335,6 +335,7 @@ impl Workspace {
             group_by: &self.default_group_by,
             marker_kinds: &self.marker_kinds,
             instances,
+            mutes: &self.tail.mutes,
             now: self.live_now(),
             detect,
         };

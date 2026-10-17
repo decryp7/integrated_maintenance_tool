@@ -90,7 +90,7 @@ fn level_of(n: i64) -> Level {
     }
 }
 
-fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
+pub(crate) fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
     let mut r = Record::new(line);
     let event = data.get("Event").unwrap_or(data);
     let system = event.get("System").unwrap_or(&Value::Null);

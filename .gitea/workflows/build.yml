@@ -32,7 +32,7 @@ jobs:
         run: |
           SUDO=$(command -v sudo || true)
           $SUDO apt-get update
-          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake
 
       - uses: actions/cache@v4
         with:
@@ -63,6 +63,13 @@ jobs:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
+
+      - name: Third-party notices are up to date
+        run: |
+          cargo install cargo-about --locked --features cli
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs
+          scripts/notices/generate.sh
+          git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
 
       - name: Frontend build
         working-directory: app
@@ -117,7 +124,7 @@ jobs:
         run: |
           SUDO=$(command -v sudo || true)
           $SUDO apt-get update
-          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm
+          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm cmake
 
       - uses: actions/cache@v4
         with:
@@ -139,6 +146,8 @@ jobs:
         shell: bash
         run: |
           npm ci
+          cargo install cargo-about --locked --features cli
+          ../scripts/notices/generate.sh
           npx tauri build --bundles ${{ matrix.bundles }}
 
       - name: Collect installers

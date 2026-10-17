@@ -39,9 +39,9 @@ describe('SettingsScreen', () => {
   it('lists General, then the engine sections by group with their status', async () => {
     const { fixture } = await setup();
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
-    expect(groups).toEqual(['Diagnostics', 'Plugins', 'AI', 'Advanced']);
+    expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
+    expect(items).toEqual(['General', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Theme');
   });
@@ -160,7 +160,7 @@ describe('SettingsScreen', () => {
     const backend = new MockSettingsBackend();
     const { fixture, store } = await setup(backend);
     const overview = store.overview()!;
-    vi.spyOn(backend, 'sections').mockResolvedValueOnce({ ...overview, sections: [{ ...overview.sections[0], fields: [], description: '' }] });
+    vi.spyOn(backend, 'sections').mockResolvedValueOnce({ ...overview, sections: [{ ...overview.sections.find((s) => s.id === 'diagnostics')!, fields: [], description: '' }] });
     await store.load();
     store.select('diagnostics');
     await settle(fixture);

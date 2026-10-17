@@ -2,8 +2,10 @@
 //! recent window only, instances that stop logging are reported, and user
 //! alert rules (a query-language condition, N matches in T) are counted
 //! incrementally. New findings become [`LiveAlert`]s, deduplicated with a
-//! cooldown per kind and instance (or rule).
+//! cooldown per kind and instance (or rule); muted kinds and rules
+//! ([`AlertMutes`]) are not raised at all.
 
+use super::mutes::AlertMutes;
 use super::types::LiveAlert;
 use crate::analysis::{self, AnomalyConfig, AnomalyKind};
 use crate::api::Severity;
@@ -227,6 +229,12 @@ pub fn duration_ms(text: &str) -> Result<i64> {
     Ok(ms as i64)
 }
 
+/// The stable id of an alert (see [`LiveAlert::id`]).
+fn alert_id(a: &LiveAlert, cooldown: i64) -> String {
+    let who = a.rule.as_deref().or(a.instance.as_deref()).unwrap_or("");
+    format!("{}:{who}:{}", a.kind, a.from.div_euclid(cooldown.max(1)))
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct InstanceSeen {
     pub last_ts: i64,
@@ -254,6 +262,7 @@ pub struct Batch<'a> {
     pub group_by: &'a [String],
     pub marker_kinds: &'a [String],
     pub instances: &'a HashMap<String, InstanceSeen>,
+    pub mutes: &'a AlertMutes,
     pub now: i64,
     pub detect: bool,
 }
@@ -281,11 +290,18 @@ impl AlertState {
             self.detectors(rules, b, &mut out);
         }
         self.prev_now = Some(b.now);
+        for a in &mut out {
+            a.id = alert_id(a, rules.cooldown);
+        }
         out
     }
 
-    /// Records the alert unless one for the same key fired within the cooldown.
-    fn cooled(&mut self, kind: &str, who: Option<&str>, now: i64, cooldown: i64) -> bool {
+    /// Records the alert unless its kind (or rule) is muted or one for the
+    /// same key fired within the cooldown. A muted alert does not start the cooldown.
+    fn cooled(&mut self, mutes: &AlertMutes, kind: &str, who: Option<&str>, now: i64, cooldown: i64) -> bool {
+        if mutes.covers(kind, who) {
+            return false;
+        }
         let key = (kind.to_string(), who.map(str::to_string));
         if self.cooldowns.get(&key).is_some_and(|last| now - last < cooldown && now >= *last) {
             return false;
@@ -327,8 +343,9 @@ impl AlertState {
             if hits.len() >= rule.threshold {
                 let from = hits.front().copied().unwrap_or(since);
                 let n = hits.len();
-                if self.cooled("rule", Some(&rule.name), b.now, rules.cooldown) {
+                if self.cooled(b.mutes, "rule", Some(&rule.name), b.now, rules.cooldown) {
                     out.push(LiveAlert {
+                        id: String::new(),
                         kind: "rule".into(),
                         rule: Some(rule.name.clone()),
                         instance: None,
@@ -363,8 +380,9 @@ impl AlertState {
             .collect();
         silent.sort_by(|a, b| a.0.cmp(b.0));
         for (key, seen) in silent {
-            if self.cooled("silence", Some(key), b.now, rules.cooldown) {
+            if self.cooled(b.mutes, "silence", Some(key), b.now, rules.cooldown) {
                 out.push(LiveAlert {
+                    id: String::new(),
                     kind: "silence".into(),
                     rule: None,
                     instance: Some(key.clone()),
@@ -398,7 +416,7 @@ impl AlertState {
                 continue;
             }
             let kind = kind_name(a.kind);
-            if !self.cooled(kind, a.instance.as_deref(), b.now, rules.cooldown) {
+            if !self.cooled(b.mutes, kind, a.instance.as_deref(), b.now, rules.cooldown) {
                 continue;
             }
             let levels = match a.kind {
@@ -406,6 +424,7 @@ impl AlertState {
                 _ => Vec::new(),
             };
             out.push(LiveAlert {
+                id: String::new(),
                 kind: kind.into(),
                 rule: None,
                 severity: kind_severity(a.kind),
@@ -516,20 +535,21 @@ mod tests {
     #[test]
     fn cooldown_and_throttle() {
         let mut s = AlertState::default();
-        assert!(s.cooled("crash", Some("a"), 1_000, 500));
-        assert!(!s.cooled("crash", Some("a"), 1_200, 500));
-        assert!(s.cooled("crash", Some("b"), 1_200, 500));
-        assert!(s.cooled("crash", Some("a"), 1_600, 500));
+        let m = AlertMutes::default();
+        assert!(s.cooled(&m, "crash", Some("a"), 1_000, 500));
+        assert!(!s.cooled(&m, "crash", Some("a"), 1_200, 500));
+        assert!(s.cooled(&m, "crash", Some("b"), 1_200, 500));
+        assert!(s.cooled(&m, "crash", Some("a"), 1_600, 500));
         // The cooldown table stays bounded.
         for i in 0..MAX_COOLDOWNS + 1 {
-            s.cooled("rule", Some(&i.to_string()), 10_000, 500);
+            s.cooled(&m, "rule", Some(&i.to_string()), 10_000, 500);
         }
         assert!(s.cooldowns.len() <= MAX_COOLDOWNS);
         for i in 0..MAX_COOLDOWNS {
-            s.cooled("rule", Some(&i.to_string()), 10_000 + i as i64, 500_000);
+            s.cooled(&m, "rule", Some(&i.to_string()), 10_000 + i as i64, 500_000);
         }
         assert!(s.cooldowns.len() <= MAX_COOLDOWNS);
-        assert!(s.cooled("rule", Some("late"), 900_000, 500));
+        assert!(s.cooled(&m, "rule", Some("late"), 900_000, 500));
         assert!(s.cooldowns.len() < MAX_COOLDOWNS);
         assert!(s.detect_due(60_000));
         assert!(!s.detect_due(60_000));

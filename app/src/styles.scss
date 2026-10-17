@@ -49,6 +49,8 @@
   --lvl-error: #f2545b;
   --lvl-fatal: #ff4fa3;
   --hist-info: #3a4256;
+  /* Share of a highlight rule's colour mixed into a grid row (dark surfaces need a little more to show). */
+  --row-hl-tint: 16%;
 
   --mk-start: #3fbf7f;
   --mk-stop: #a7b0c2;
@@ -56,6 +58,14 @@
   --mk-exception: #ff7a59;
   --mk-error: #f2545b;
   --mk-warning: #e9ae3f;
+
+  /* Plugin annotation bands on the timeline (severity also has an icon and a pattern). */
+  --ann-critical: rgba(242, 84, 91, 0.16);
+  --ann-critical-border: rgba(242, 84, 91, 0.55);
+  --ann-warning: rgba(233, 174, 63, 0.14);
+  --ann-warning-border: rgba(233, 174, 63, 0.55);
+  --ann-info: rgba(76, 141, 255, 0.12);
+  --ann-info-border: rgba(76, 141, 255, 0.5);
 
   /* Validated categorical series (dark surface). */
   --s1: #3987e5;
@@ -109,6 +119,7 @@
   --lvl-error: #d63a42;
   --lvl-fatal: #c2257a;
   --hist-info: #c5ccda;
+  --row-hl-tint: 12%;
 
   --mk-start: #188a57;
   --mk-stop: #7d8698;
@@ -116,6 +127,13 @@
   --mk-exception: #e0582f;
   --mk-error: #d63a42;
   --mk-warning: #c98500;
+
+  --ann-critical: rgba(214, 58, 66, 0.12);
+  --ann-critical-border: rgba(214, 58, 66, 0.6);
+  --ann-warning: rgba(201, 133, 0, 0.12);
+  --ann-warning-border: rgba(201, 133, 0, 0.6);
+  --ann-info: rgba(47, 111, 224, 0.1);
+  --ann-info-border: rgba(47, 111, 224, 0.5);
 
   --s1: #2a78d6;
   --s2: #eb6834;

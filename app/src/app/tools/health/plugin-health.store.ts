@@ -1,7 +1,8 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { LifecycleBackend } from '../../core/tools-backend';
-import { PluginInfo } from '../../core/api.types';
+import { PluginInfo, SubscriberMetrics } from '../../core/api.types';
+import { ImtBackend } from '../../core/backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { errorMessage } from '../tool-errors';
@@ -19,12 +20,20 @@ interface HealthState {
   pending: Record<string, boolean>;
   busy: string | null;
   error: string | null;
+  /** Event-bus delivery counters per subscriber (null until loaded). */
+  events: SubscriberMetrics[] | null;
+  eventsError: string | null;
+}
+
+/** A shorter event name: the Rust type name without its module path (`RecordsAppended`). */
+export function eventName(type: string): string {
+  return type.split('::').pop() || type;
 }
 
 /** Plugin status, failures and the actions the engine offers: reset a quarantine, enable or disable at next start. */
 export const PluginHealthStore = signalStore(
   { providedIn: 'root' },
-  withState<HealthState>({ reset: [], pending: {}, busy: null, error: null }),
+  withState<HealthState>({ reset: [], pending: {}, busy: null, error: null, events: null, eventsError: null }),
   withComputed((store, workspace = inject(WorkspaceStore)) => ({
     plugins: computed<PluginRow[]>(() =>
       (workspace.summary()?.plugins ?? []).map((p): PluginRow => {
@@ -38,8 +47,14 @@ export const PluginHealthStore = signalStore(
       }),
     ),
     needsRestart: computed(() => Object.keys(store.pending()).length > 0),
+    /** Subscriptions by plugin id. */
+    eventsByPlugin: computed(() => {
+      const by = new Map<string, SubscriberMetrics[]>();
+      for (const m of store.events() ?? []) by.set(m.plugin, [...(by.get(m.plugin) ?? []), m]);
+      return by;
+    }),
   })),
-  withMethods((store, backend = inject(LifecycleBackend), life = inject(LifecycleService)) => {
+  withMethods((store, backend = inject(LifecycleBackend), life = inject(LifecycleService), engine = inject(ImtBackend)) => {
     const run = async (label: string, op: () => Promise<void>) => {
       patchState(store, { busy: label, error: null });
       try {
@@ -66,6 +81,14 @@ export const PluginHealthStore = signalStore(
       /** Relaunches so enable/disable choices apply; the session is reopened. */
       restart: () => life.restartKeepingSession(),
       dismissError: () => patchState(store, { error: null }),
+      /** Fetches the event-bus counters again. Never rejects. */
+      loadEvents: async () => {
+        try {
+          patchState(store, { events: await engine.pluginEvents(), eventsError: null });
+        } catch (e) {
+          patchState(store, { eventsError: errorMessage(e) });
+        }
+      },
     };
   }),
 );

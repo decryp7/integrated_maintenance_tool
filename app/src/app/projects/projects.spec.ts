@@ -378,7 +378,6 @@ describe('OpenRequests', () => {
     let openHandler: () => void = () => undefined;
     const stopped = vi.fn();
     vi.spyOn(backend, 'onOpenRequested').mockImplementation(async (h) => ((openHandler = h), stopped));
-    const changed = vi.spyOn(backend, 'onWorkspaceChanged');
     const pending = vi.spyOn(backend, 'takePendingOpen').mockResolvedValueOnce(['/logs/first.log']).mockResolvedValueOnce(['/logs/second.log']);
     const requests = TestBed.inject(OpenRequests);
     await requests.start();
@@ -389,7 +388,6 @@ describe('OpenRequests', () => {
     await settle();
     expect(store.summary()?.sources.some((s) => s.path === '/logs/second.log')).toBe(true);
 
-    expect(changed).not.toHaveBeenCalled();
     requests.stop();
     requests.stop();
     expect(stopped).toHaveBeenCalledTimes(1);

@@ -137,11 +137,8 @@ describe('MockToolsBackend', () => {
     await b.saveSession({ q: 1 });
     expect((await b.openProject('/x/last-session.imtproj')).ui).toEqual({ q: 1 });
     await expect(b.openProject('/nope.imtproj')).rejects.toThrow('not an IMT project');
-    expect(await b.setLive(true)).toBe(1);
-    expect(await b.setLive(false)).toBe(0);
     expect(await b.takePendingOpen()).toEqual([]);
     (await b.onOpenRequested())();
-    (await b.onWorkspaceChanged())();
   });
 
   it('rejects open_project when no workspace summary source is wired', async () => {

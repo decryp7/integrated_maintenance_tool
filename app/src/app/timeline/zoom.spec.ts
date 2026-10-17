@@ -95,6 +95,17 @@ describe('TimelineZoom', () => {
     expect(zoom.view()).toEqual({ from: T0 + 10 * SEC, to: T0 + 500 * SEC });
   });
 
+  it('with a live window, the view is what the engine resolved, and it can be panned', async () => {
+    const { store, zoom } = await setup();
+    expect(zoom.canPan()).toBe(false);
+    store.patchQuery({ window: { kind: 'live', lastMs: 100 * SEC } });
+    await vi.waitFor(() => expect(store.timeline()!.from).toBe(T0 + 400 * SEC));
+    expect(zoom.view()).toEqual({ from: T0 + 400 * SEC, to: T0 + 500 * SEC });
+    expect(zoom.canPan()).toBe(true);
+    zoom.panBy(-10 * SEC, false);
+    expect(store.query().from).toBe(T0 + 390 * SEC);
+  });
+
   it('has no view before data loads', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const zoom = TestBed.inject(TimelineZoom);

@@ -13,6 +13,11 @@ import { ActivityBar } from './activity-bar';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
 import { TitleBar } from './title-bar';
+import { IMT_COMMANDS } from '../extensions/tokens';
+import { memoryHost, MockWindowingBackend } from '../windowing/mock-windowing-backend';
+import { WindowCommands } from '../windowing/window-commands';
+import { WindowingBackend } from '../windowing/windowing-backend';
+import { WindowingService } from '../windowing/windowing.service';
 
 const DROP_DEBUG_PROFILE = `name = "p"\n[[pipeline]]\nstep = "drop"\nwhen = [{ field = "@level", op = "eq", value = "Debug" }]\n`;
 
@@ -111,6 +116,32 @@ describe('TitleBar', () => {
     expect(items[0].getAttribute('aria-checked')).toBe('true');
     expect(items[1].getAttribute('aria-checked')).toBe('false');
     expect(dock.isOpen('timeline')).toBe(true);
+  });
+
+  it('has a Window menu with new/close and one checkable item per window', async () => {
+    const windowing = new MockWindowingBackend(memoryHost());
+    TestBed.configureTestingModule({
+      providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: IMT_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
+    });
+    const { fixture } = setup(TitleBar);
+    await TestBed.inject(WindowingService).init();
+    await settle(fixture);
+    buttonByText(fixture, 'File').click();
+    await settle(fixture);
+    expect(all(fixture, '[role=menuitem]')[0].textContent).toContain('New window');
+    buttonByText(fixture, 'Window').click();
+    await settle(fixture);
+    expect(all(fixture, '[role=menuitem]').map((i) => i.textContent?.trim().split(/\s{2,}|Ctrl|⌘/)[0].trim())).toEqual(['New window', 'Close window']);
+    all<HTMLButtonElement>(fixture, '[role=menuitem]')[0].click();
+    await settle(fixture);
+    buttonByText(fixture, 'Window').click();
+    await settle(fixture);
+    const items = all<HTMLButtonElement>(fixture, '[role=menuitemcheckbox]');
+    expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(items[1].textContent).toContain('IMT — w-2');
+    items[1].click();
+    await settle(fixture);
+    expect(windowing.calls).toEqual(['newWindow', 'focusWindow:w-2']);
   });
 
   it('runs key-bound commands from the keyboard', async () => {

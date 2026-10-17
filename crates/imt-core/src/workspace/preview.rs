@@ -1,7 +1,7 @@
 //! Dry-run of an unsaved extractor against the current records.
 
 use super::{ExtractPreview, ExtractPreviewRequest, ExtractSample, ExtractSpan, Workspace};
-use crate::profile::{CompiledProfile, Profile};
+use crate::profile::Profile;
 use anyhow::{anyhow, Result};
 
 impl Workspace {
@@ -9,7 +9,7 @@ impl Workspace {
     pub fn preview_extractor(&self, req: &ExtractPreviewRequest) -> ExtractPreview {
         let run = || -> Result<ExtractPreview> {
             let profile = Profile::from_toml(&req.toml).map_err(|e| anyhow!(e.to_string()))?;
-            let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+            let compiled = self.registry.compile_profile(profile)?;
             let ex = compiled
                 .extractors
                 .iter()

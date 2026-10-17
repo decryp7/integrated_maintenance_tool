@@ -6,6 +6,7 @@ import { PaletteService } from '../palette/palette.service';
 import { ImtCommand } from '../extensions/tokens';
 import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
 import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
+import { AboutService } from '../about/about-dialog';
 import { TimelineZoom } from '../timeline/zoom';
 import { WelcomeService } from '../welcome/welcome';
 
@@ -20,6 +21,7 @@ export class BuiltinCommands {
   private readonly exporter = inject(ExportService);
   private readonly welcome = inject(WelcomeService);
   private readonly settings = inject(SettingsDialogService);
+  private readonly about = inject(AboutService);
 
   readonly commands: ImtCommand[] = [
     { id: 'palette.open', title: 'Show all commands', category: 'View', keybinding: 'Mod+K', run: () => this.palette.open() },
@@ -36,6 +38,7 @@ export class BuiltinCommands {
       run: () => this.exporter.exportCurrent(),
     },
     { id: 'help.welcome', title: 'Show welcome', category: 'Help', run: () => this.welcome.show() },
+    { id: 'help.about', title: 'About IMT', category: 'Help', run: () => this.about.open() },
     { id: 'settings.open', title: 'Open settings', category: 'View', keybinding: 'Mod+,', run: () => this.settings.open() },
     { id: SETTINGS_DIAGNOSTICS_COMMAND, title: 'Open settings: Diagnostics', category: 'View', run: () => this.settings.open(DIAGNOSTICS_SECTION) },
     { id: 'view.toggleSidebar', title: 'Toggle sidebar', category: 'View', keybinding: 'Mod+B', run: () => this.store.toggleSidebar() },

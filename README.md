@@ -53,6 +53,13 @@ scale to that. IMT is built for exactly this job:
 - Drag to zoom, `Zoom in`/`Zoom out`/`Fit`, and previous/next range history (`Alt+←` / `Alt+→`).
 - Lifecycle markers (start/stop) can be kept visible at any zoom level.
 - Time can be shown in UTC or local time.
+- **Annotations** from plugins (for example reboots and service uptime found in Windows event logs)
+  are drawn over the lanes: a span is a translucent band on the lane it concerns, on every lane of a
+  machine when it is about the machine (and the machine is part of the lane key), or across the full
+  height otherwise; a point is a glyph. Severity is shown by an icon and a fill pattern (hatched,
+  dotted, plain), never by colour alone. Hover or focus one for its label, owner and time; click it
+  (or press `Enter`) to filter to the events behind it. The **Annotations** legend switches kinds on
+  and off, and annotations refresh with every data change, including live tail.
 
 ### Events grid with virtualisation
 
@@ -61,6 +68,27 @@ scale to that. IMT is built for exactly this job:
   (live tail), and jump from a marker or a metric to the exact rows behind it.
 - Row actions on a selection: highlight, mark, extract a value, mask, drop, bookmark, and "same
   CorrelationId".
+
+### Live tail and alerts
+
+- **Open for live tail…** picks files or a folder and follows them, optionally skipping their
+  history (start at end); **Toggle live tail** follows what is already open. Rolled, dated and rotated
+  files (Serilog, log4net, NLog, logrotate) are followed as one log, across renames, truncation and
+  copy-truncate.
+- **Follow** keeps the timeline on the newest events, optionally in a sliding window (last 1, 5, 15
+  or 60 minutes, or custom); zooming or panning pauses it ("Resume following"). While the grid is not
+  following, an **N new events** pill shows what arrived.
+- **Tail status** lists every file with its state (tailing, read whole, rotated, truncated, deleted,
+  error) and sets how often the live detectors run (`detectEveryMs`). Changed file states arrive
+  with each live update and show as badges in the sidebar without polling; polling remains as a
+  fallback.
+- **Alerts**: detectors (error spike, silence, crash, slow outlier, rate change, memory growth) and
+  your own rules (a query-language condition matched N times within a window, edited in **Live alert
+  rules**) raise alerts in the **Alerts** panel and as toasts. Alerts have stable ids, so repeats are
+  not shown twice; **Mute this kind for 15 min** is applied in the engine, so a muted alert is not
+  raised at all and does not start its cooldown.
+- Bursts of changes are coalesced into at most one UI refresh per 250 ms, and a reloaded window
+  restores its live controls from the engine (`live_state`).
 
 ### Inspector
 
@@ -111,6 +139,13 @@ shift time, ...). See [Profiles](#profiles).
 Markers are rules (condition + label + colour). Give a marker a built-in icon, a custom sanitised
 SVG/PNG, or a generated badge such as a hexagon with "3". Rules can be created from a selection
 ("Highlight lines…", "Infer pattern from selected lines…").
+
+Plugins contribute marker kinds of their own, named `<plugin-id>/<kind>` (for example
+`net.decryptology.windows/app-crash` for Application Error 1000); kinds with the start, stop or crash
+role are always shown on the timeline. The markers manager lists them with an owner badge and their
+rule read-only: you can switch a kind off or restyle it (label, colour, icon, badge, shape,
+description), which writes a `[[marker_override]]` to the profile through the same
+validate-and-save flow as every other profile change.
 
 ### Charts
 
@@ -173,7 +208,7 @@ Windows-only collectors are skipped with a clear note on other platforms.
   bookmarks saved and reopened (`Ctrl/⌘+S`); recent projects; file association.
 - **Bookmarks** on events and time ranges (`Ctrl/⌘+D`).
 - **Export** the filtered events to CSV or Serilog CLEF (re-importable), and query results to CSV.
-- **Sessions are autosaved**: after a crash IMT offers to restore your work.
+- **Sessions are autosaved** per window: after a crash IMT offers to restore your work.
 
 ### Dockable workspace
 
@@ -181,6 +216,29 @@ Windows-only collectors are skipped with a clear note on other platforms.
 
 Every view is a panel. Drag tabs to split, float a panel (`Float panel` button), maximise it, and
 reset the layout from the command palette. Layouts are remembered.
+
+### Windows, tray and notifications
+
+- **Several windows, one workspace each.** *New window* (`Mod+Shift+N`) opens a window with its own
+  files, profile, filters, live tail and project; closing a window frees its workspace and stops its
+  live tail.
+- **One IMT per user.** Starting IMT again (or opening files from Finder or Explorer) hands the
+  paths to the running instance, which opens them as set in *Settings → Window & tray*: in a new
+  window (the default), in the current window, or by asking each time. An empty window is always
+  reused. Dismissing the "this window / new window" question cancels and drops the files.
+  `--new-window` always opens a new window; `--new-instance` and safe mode start a separate process
+  (see [Command line](#command-line)).
+- **Closing the last window** asks (the default), quits, or keeps IMT running in the system tray,
+  where live tail, the process monitor and other background work continue. The tray menu shows the
+  windows, a new window, recent projects, the running background tasks with *Stop* actions, a
+  diagnostic screenshot and *Quit*. IMT can also start hidden in the tray. Without a tray (for
+  example Linux without an app indicator) closing the last window quits.
+- **Desktop notifications** (off, alerts only (the default), or alerts and finished work): live
+  alerts in a window you cannot see, a crash detected at start, and imports finished in background
+  windows. They are rate-limited and never contain file contents.
+
+The tray and notifications use the platform's own facilities; they are covered by unit tests of
+their pure logic but have not been checked on every desktop environment.
 
 ### Light and dark themes
 
@@ -192,10 +250,23 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 
 - **Never modifies your files.** Input is opened read-only.
 - **Safe mode** (`--safe-mode` or `IMT_SAFE_MODE=1`, or *Restart in safe mode*) starts without
-  plugins and without the saved profile, for when something misbehaves.
+  plugins and without the saved profile, for when something misbehaves. It runs as a separate
+  process with its own sessions, so it never touches the main instance's.
+- **Crash detection that is not fooled.** A running marker records the process id and its start
+  time; a marker left behind is reported as a crash only when that process is gone (a reused PID is
+  recognised by its different start time). Separate instances (`--new-instance`, safe mode) keep
+  their marker and sessions in `<data>/instances/<pid>/`, removed on a clean exit; folders of dead
+  processes are pruned at the next start.
 - **Plugin containment.** Plugin code runs inside guarded adapters: panics become errors attributed
-  to the plugin, and repeat offenders are quarantined (see the *Plugin health* panel, where a plugin
-  can be reset or disabled).
+  to the plugin, and repeat offenders are quarantined. Every call has a time budget; a watchdog marks
+  a plugin that overruns it as *hung* and its further calls fail fast. A plugin whose required
+  dependency is missing, incompatible, disabled or quarantined becomes *inactive* with the reason,
+  and so do its dependents. The *Plugin health* panel shows each plugin's status (active, disabled,
+  quarantined, inactive), what it requires and provides, the reason it is inactive, its dependents,
+  warnings, whether it is hung, and per-subscriber event counters (delivered, dropped, failures,
+  skipped); a plugin can be reset or disabled there. A plugin that crashes, is quarantined or becomes
+  inactive is also reported to its window as an engine error (`imt://error`, which can trigger an
+  error snapshot). Plugins are deactivated when their window closes and when IMT exits.
 - **One bad file never stops the import.** It is reported as unrecognised with a reason; the rest
   loads.
 - **Bounded resources.** Limits on line length, regex size, archive expansion and result sizes;
@@ -362,6 +433,7 @@ export as CSV. The full grammar is in
 | `Mod+/` | Focus the query bar |
 | `Mod+Enter` | Run the query (in the query bar) |
 | `Mod+Shift+M` | Analyse this moment |
+| `Mod+Shift+N` | New window |
 | `Mod+S` / `Mod+Shift+S` | Save project / save project as |
 | `Mod+D` | Bookmark the selected event |
 | `Mod+Shift+E` | Export events |
@@ -372,12 +444,18 @@ export as CSV. The full grammar is in
 
 ## Command line
 
-The desktop app takes paths to open at startup and an optional safe-mode flag:
+The desktop app takes paths to open at startup and a few flags:
 
 ```sh
-imt-app <folder-or-files...>        # open files and folders at startup
-imt-app --safe-mode                 # no plugins, no saved profile (also: IMT_SAFE_MODE=1)
+imt-app <folder-or-files...>        # open files and folders (in the running IMT, if there is one)
+imt-app --new-window <paths...>     # open them in a new window of the running IMT
+imt-app --new-instance <paths...>   # start a separate IMT process instead
+imt-app --safe-mode                 # separate process, no plugins, no saved profile (also: IMT_SAFE_MODE=1)
 ```
+
+IMT runs once per user: a second launch hands its paths to the running instance (at most 256),
+which opens them as set in *Settings → Window & tray* and focuses its window. Paths that do not
+exist are ignored; the rest are canonicalised.
 
 Two headless tools ship in the workspace for servers and customer machines:
 
@@ -423,9 +501,15 @@ flowchart LR
 ```
 
 - **Engine** (`crates/imt-core`): importers, profiles and pipelines, query language, timeline and chart
-  aggregation, analysis, exports, projects and the plugin registry.
+  aggregation, analysis, live tail and alerts, exports, projects, and the plugin runtime (registry,
+  manifests and dependency graph, services and extension points, the typed event bus, the watchdog,
+  plugin marker kinds and annotators).
 - **Shell** (`app/src-tauri`): thin Tauri 2 commands that validate every argument and run work off the
-  UI thread; least-privilege capabilities and a strict CSP.
+  UI thread; least-privilege capabilities and a strict CSP. Every window has its own workspace:
+  commands take the calling window's state (`CurrentWindow`) and window-specific events go to that
+  window only. App-wide parts: the window manager (open, close, last-window behaviour), single-instance
+  hand-over, the tray, the background-task registry, desktop notifications, settings and the
+  lifecycle (safe mode, crash detection, per-window session autosave).
 - **UI** (`app/src`): standalone Angular components and signals, `@ngrx/signals` stores, dockview
   panels, ECharts. Components never call `invoke` directly; they use the injected backend service.
 - **Contracts:** the wire contract is [`app/src/app/core/api.types.ts`](app/src/app/core/api.types.ts)
@@ -440,7 +524,37 @@ Extend IMT at three levels: **profiles** (TOML, no code), **engine plugins** (Ru
 `Importer`, `BinaryImporter`, `RecordTransform`, `Exporter`, `Collector`, `WorkspaceHook`) and
 **UI plugins** (Angular providers for views, commands, inspector sections and field formatters).
 All engine plugins are registered through `PluginRegistry`, which wraps them in guarded adapters.
-See [docs/plugins.md](docs/plugins.md). Runtime-loaded (WASM) plugins are on the [roadmap](docs/roadmap.md).
+
+Plugins can build on each other ([ADR 0003](docs/adr/0003-plugin-dependencies-services-events.md)):
+
+- **Manifests** declare a semver version, required and optional dependencies (`requires`,
+  `optionally`) and provided services. The registry resolves the graph: a cycle or an unavailable
+  required dependency leaves the plugin *inactive* with a stated reason that cascades to its
+  dependents; a missing optional dependency only adds a warning. `activate` hooks run in dependency
+  order and `deactivate` in reverse, including at shutdown.
+- **Services and extension points**: plugins provide Rust traits from small versioned API crates
+  (`crates/imt-api-perf` is the example) and look them up by id and semver requirement; they get a
+  guarded proxy, never the bare object. A plugin can also declare its own extension point for others
+  to contribute to.
+- **Events**: a typed bus with a bounded queue (1024) and worker thread per subscriber, so a slow
+  subscriber drops its oldest events instead of blocking the engine. The engine publishes
+  `RecordsAppended`, `ProfileChanged`, `LiveAlertRaised`, `PluginStateChanged` and `WorkspaceCleared`;
+  the app publishes `SnapshotTaken` after saving an error snapshot.
+- **Marker kinds and annotators**: plugins contribute marker kinds (`<plugin-id>/<kind>`, with an
+  optional start/stop/crash role; a transform can also mark a record with `TransformCtx::mark()`),
+  and annotators that find ranges and points across records for the timeline. The Windows plugin
+  ships both: marker kinds for crashes, hangs, service failures, unexpected shutdowns, blue screens
+  and more, and annotators for reboot downtime and service uptime. The logs come from Windows, but
+  `.evtx` is read by a pure-Rust parser, so the kinds and annotators work on any OS over the
+  imported records. Their rules follow the documented event ids (sources are cited in
+  `crates/imt-plugin-windows/src/markers.rs`) and are tested with synthetic records; they have not
+  yet been checked against event logs from a range of real Windows machines.
+- **Time budgets**: every guarded call has a budget; a watchdog marks an overrunning plugin *hung*.
+
+See [docs/plugins.md](docs/plugins.md). The stable contract for third-party plugins (WebAssembly
+components with WIT, or plugin processes over protobuf; no native dynamic libraries) is decided in
+[ADR 0004](docs/adr/0004-stable-plugin-abi.md) and on the [roadmap](docs/roadmap.md); it is not
+implemented yet.
 
 ## Building from source
 
@@ -488,6 +602,25 @@ Installers are written to `target/release/bundle/`:
 | Windows | `bundle/msi/*.msi`, `bundle/nsis/*-setup.exe` |
 | macOS | `bundle/dmg/*.dmg` (and `bundle/macos/IMT.app`) |
 
+Build the UI with `npm run build` (or `npm start`), not plain `npx ng build`: the npm scripts run
+[`app/scripts/build-info.mjs`](app/scripts/build-info.mjs), which passes the commit and build date to
+the About dialog (`--define IMT_BUILD_INFO`); a plain `ng build` shows them as "unknown". `tauri build`
+and `tauri dev` use the npm scripts.
+
+### Third-party notices
+
+`THIRD_PARTY_NOTICES.md` (bundled with the app and shown in *About IMT*) and the texts compiled into
+the About dialog are generated, not edited by hand:
+
+```sh
+scripts/notices/generate.sh    # needs cargo, node and cargo-about (installed if missing)
+```
+
+It collects the Rust crate licences with `cargo-about` and the npm production dependencies from
+`package-lock.json`, writing `app/src-tauri/resources/THIRD_PARTY_NOTICES.md` and
+`app/src/app/about/generated/`. CI regenerates them and fails if the committed files are out of date;
+the installer builds regenerate them before bundling.
+
 ### Regenerating the screenshots
 
 The README screenshots are captured by a Playwright script against the browser build with the mock
@@ -530,7 +663,8 @@ Gitea Actions workflows live in [`.gitea/workflows/`](.gitea/workflows/):
 
 - **`build.yml`** runs on pushes to `main`, pull requests and `v*` tags:
   1. *check* (Linux): `cargo test`, `fmt`, `clippy -D warnings`, `cargo-deny`, the Angular build with
-     `npm audit`, unit tests with coverage, and the Playwright end-to-end tests.
+     `npm audit`, unit tests with coverage, the Playwright end-to-end tests, and a check that the
+     generated third-party notices are up to date.
   2. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, `.msi`/NSIS `.exe` on `windows-latest` and
      `.dmg` on `macos-latest`, uploaded as run artifacts.
   3. *release*: on a `v*` tag, creates a Gitea release with all installers attached.
@@ -548,14 +682,20 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 ├── assets/icon/                   application icon (SVG and PNG)
 ├── app/
 │   ├── src/app/                   Angular 22 UI: shell, grid, timeline, inspector, analysis, profile,
-│   │                              markers, tools, projects, lifecycle, dock, core (backend + mock)
-│   ├── src-tauri/                 Tauri 2 shell: commands, capabilities, lifecycle (safe mode, sessions)
+│   │                              markers, live, tools, projects, lifecycle, windowing, about, dock,
+│   │                              core (backend + mock)
+│   ├── src-tauri/                 Tauri 2 shell: commands, capabilities, per-window workspaces, window
+│   │                              manager, tray, background tasks, single instance, notifications,
+│   │                              lifecycle (safe mode, crash detection, sessions)
 │   ├── e2e/                       Playwright end-to-end tests (mock backend)
-│   └── scripts/screenshots/       README screenshot generator
+│   └── scripts/                   README screenshot generator, build info for the About dialog
 ├── crates/
-│   ├── imt-core/                  engine: importers, profile, query/ql, workspace, analysis, export, plugins
+│   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
+│   │                              export, plugin runtime, event bus
+│   ├── imt-api-perf/              plugin service API: performance counter sources (+ contract tests)
 │   ├── imt-plugin-registry/       .reg importer
-│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg) and logman control
+│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg) and logman control,
+│   │                              Windows marker kinds and annotators (reboots, service uptime)
 │   ├── imt-plugin-web/            IIS/W3C, Apache/Nginx, HAR
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
@@ -564,6 +704,7 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 ├── docs/                          architecture, roadmap, backlog, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
 ├── fuzz/                          cargo-fuzz targets
 ├── samples/                       generated sample logs and an example profile
+├── scripts/notices/               third-party notices generator (cargo-about + npm)
 ├── src/                           the original `imt` command-line filter
 └── .gitea/workflows/              CI (build, release, fuzz)
 ```
@@ -613,6 +754,9 @@ Licensed under either of
 - MIT license ([`LICENSE-MIT`](LICENSE-MIT))
 
 at your option.
+
+*About IMT* (command palette, *Help*) shows the version, the build commit and date, both licence
+texts and the third-party notices in a searchable viewer, and can copy the version information.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in IMT
 by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional

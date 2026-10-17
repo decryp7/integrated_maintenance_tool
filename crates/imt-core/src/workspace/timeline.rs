@@ -12,8 +12,9 @@ impl Workspace {
     pub fn timeline(&self, req: &TimelineRequest) -> Result<Timeline> {
         let cq = self.compile(&req.query)?;
         let buckets = req.buckets.clamp(10, 2000);
+        let visible = self.visible_markers();
         let lifecycle = if req.always_show_lifecycle {
-            self.profile.lifecycle_mask
+            self.profile.lifecycle_mask & visible
         } else {
             0
         };
@@ -73,7 +74,7 @@ impl Workspace {
                 lane.matched += 1;
                 lane.density[b] += 1;
                 histogram[b][r.level.index()] += 1;
-                r.markers
+                r.markers & visible
             } else {
                 r.markers & lifecycle
             };

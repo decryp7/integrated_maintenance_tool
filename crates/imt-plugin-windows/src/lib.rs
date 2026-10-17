@@ -18,6 +18,11 @@
 //!   (see [`perfmon`]). [`perfmon_template`] builds Data Collector Set XML and
 //!   [`perfmon_control`] runs `logman` to import, start, stop and query a set.
 //!
+//! * **Markers and annotators**: [`markers::kinds`] marks crashes, hangs,
+//!   unexpected shutdowns, boots, disk errors, updates and logon failures in
+//!   event logs; [`annotators::RebootAnnotator`] and
+//!   [`annotators::ServiceAnnotator`] add downtime and service uptime spans.
+//!
 //! CBS/DISM text logs (`2026-10-14 10:00:00, Info   CBS   message`) need no
 //! importer: the built-in text importer reads them with a profile regex.
 //!
@@ -26,9 +31,11 @@
 //! registry.install(&imt_plugin_windows::WindowsPlugin).unwrap();
 //! ```
 
+pub mod annotators;
 mod blg;
 pub mod command;
 mod evtx_import;
+pub mod markers;
 mod nfo;
 pub mod perfmon;
 pub mod perfmon_control;
@@ -41,6 +48,7 @@ pub use nfo::NfoImporter;
 pub use perfmon::PerfmonCsvImporter;
 
 use anyhow::Result;
+use imt_core::plugin::Manifest;
 use imt_core::settings::Configurable;
 use imt_core::{Plugin, PluginRegistry};
 use std::sync::Arc;
@@ -60,11 +68,20 @@ impl Plugin for WindowsPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
+    /// No dependencies; provides no services: PerfMon data reaches IMT as
+    /// imported records (`.csv`, `.blg`), not as live counters.
+    fn manifest(&self) -> Manifest {
+        Manifest::new(self.id(), self.version())
+    }
+
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         registry.add_binary_importer(Box::new(EvtxImporter));
         registry.add_importer(Box::new(NfoImporter));
         registry.add_importer(Box::new(PerfmonCsvImporter));
         registry.add_binary_importer(Box::<BlgImporter>::default());
+        registry.add_marker_kinds(markers::kinds())?;
+        registry.add_annotator(Arc::new(annotators::RebootAnnotator))?;
+        registry.add_annotator(Arc::new(annotators::ServiceAnnotator))?;
         Ok(())
     }
 
@@ -85,8 +102,10 @@ mod tests {
         registry.install(&WindowsPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 5);
-        assert_eq!(info.contributes[4], "settings");
+        assert_eq!(info.contributes.len(), 4 + markers::kinds().len() + 2 + 1);
+        assert_eq!(info.contributes.last().unwrap(), "settings");
+        assert!(info.contributes.contains(&"marker:app-crash".to_string()));
+        assert!(info.contributes.contains(&"annotator:windows.reboots".to_string()));
         let section = registry.plugin_settings()[0].configurable.settings_section();
         assert_eq!((section.id.as_str(), section.fields.len()), ("net.decryptology.windows", 2));
         assert_eq!(WindowsPlugin.name(), "Windows diagnostics");

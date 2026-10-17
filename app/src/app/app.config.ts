@@ -5,9 +5,11 @@ import { provideErrorLogging, provideLogger } from './core/logger';
 import { provideImtPlugin } from './extensions';
 import { provideDiagnostics } from './diagnostics/provide-diagnostics';
 import { provideAnalysis } from './analysis/analysis.plugin';
+import { provideLive } from './live/provide-live';
 import { provideTools } from './tools/provide-tools';
 import { provideMarkers } from './markers/markers.plugin';
 import { REGISTRY_PLUGIN } from './plugins/registry/registry.plugin';
+import { provideWindowing } from './windowing/provide-windowing';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,5 +23,7 @@ export const appConfig: ApplicationConfig = {
     provideMarkers(),
     provideTools(),
     provideAnalysis(),
+    provideLive(),
+    provideWindowing(),
   ],
 };

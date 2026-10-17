@@ -1,0 +1,13 @@
+[package]
+name = "imt-api-perf"
+license = "MIT OR Apache-2.0"
+version = "1.0.0"
+edition = "2021"
+publish = false
+description = "IMT plugin API: performance counter sources (service contract and contract tests)"
+
+[dependencies]
+anyhow = "1.0"
+
+[dev-dependencies]
+imt-core = { path = "../imt-core" }

@@ -26,10 +26,9 @@ export class MarkersCommands {
       id: 'markers.infer',
       title: 'Infer pattern from selected lines…',
       category: 'Markers',
+      // Every line selected in the grid (shift/ctrl+click), else the event selected elsewhere.
       run: (ctx) => {
-        const record = this.store.selected();
-        if (!record) return ctx.notifyError('Select an event in the grid first.');
-        this.actions.infer([record]);
+        if (!this.actions.inferSelected()) ctx.notifyError('Select one or more events in the grid first.');
       },
     },
   ];

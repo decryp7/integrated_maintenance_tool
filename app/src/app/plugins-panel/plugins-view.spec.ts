@@ -13,8 +13,8 @@ describe('PluginsView', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const fixture = TestBed.createComponent(PluginsView);
     await settle(fixture);
-    expect(all(fixture, '.plugin strong').map((e) => e.textContent)).toEqual(['Windows registry importer', 'CSV and CLEF exporters']);
-    expect(all(fixture, '.plugin .badge').map((e) => e.textContent)).toEqual(['importer', 'exporter']);
+    expect(all(fixture, '.plugin strong').map((e) => e.textContent)).toEqual(['Windows registry importer', 'Windows event logs', 'Web server logs', 'OpenTelemetry']);
+    expect(all(fixture, '.plugin .badge').map((e) => e.textContent)).toContain('importer:registry');
     expect(text(fixture)).toContain('v0.1.0');
     expect(all(fixture, '.builtin .badge').map((e) => e.textContent)).toEqual(['json', 'text', 'csv', 'csv', 'clef']);
     expect(text(fixture)).toContain('About plugins');

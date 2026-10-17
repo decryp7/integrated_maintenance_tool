@@ -60,7 +60,7 @@ pub struct CompiledQuery {
     filters: Vec<Condition>,
     pub group_by: Vec<String>,
     groups: Option<HashSet<String>>,
-    marker_mask: u32,
+    marker_mask: crate::model::MarkerMask,
     match_nothing: bool,
     ql: Vec<crate::ql::Filter>,
 }
@@ -78,7 +78,7 @@ impl CompiledQuery {
             .iter()
             .map(|f| Condition::new(&f.field, &f.op, f.value.as_deref()))
             .collect::<Result<Vec<_>>>()?;
-        let mut marker_mask = 0u32;
+        let mut marker_mask: crate::model::MarkerMask = 0;
         for m in &q.markers {
             if let Some(i) = marker_kinds.iter().position(|k| k == m) {
                 marker_mask |= 1 << i;

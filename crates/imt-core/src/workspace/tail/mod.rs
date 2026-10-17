@@ -32,14 +32,18 @@ mod apply;
 mod files;
 mod identity;
 mod index;
+mod mutes;
 mod reader;
 mod rolling;
+#[cfg(test)]
+mod tests;
 mod types;
 mod watch;
 
 pub use alerts::{duration_ms, AlertRuleCfg, LiveCfg, LiveRules};
 pub use identity::{identity_of, is_network_path, FileIdentity};
 pub(super) use index::{Change, FieldIndex, MatchCache, PatternCache};
+pub use mutes::{AlertMutes, Clock, MAX_MUTES, MAX_MUTE_MS};
 pub use rolling::{family, group_of};
 pub use types::*;
 pub use watch::{
@@ -214,6 +218,8 @@ pub(super) struct TailBook {
     /// Unrecognised files with the size and time seen; retried only when they change.
     unrecognized_seen: HashMap<String, (u64, Option<SystemTime>)>,
     alerts: AlertState,
+    /// Muted alert kinds and rules (kept across clear and reload).
+    mutes: AlertMutes,
     /// Instance keys seen (with the grouping they were computed with).
     instances: Option<(Vec<String>, HashMap<String, InstanceSeen>)>,
     /// Truncated files to read again from their start as new sources.
@@ -221,13 +227,32 @@ pub(super) struct TailBook {
 }
 
 impl TailBook {
-    /// Forgets every file (on clear/reload); options stay.
+    /// Forgets every file (on clear/reload); options and mutes stay.
     pub(super) fn reset(&mut self) {
         let options = self.options;
+        let mutes = std::mem::take(&mut self.mutes);
         *self = TailBook {
             options,
+            mutes,
             ..TailBook::default()
         };
+    }
+
+    /// Each file's state, to tell later which ones changed.
+    fn file_states(&self) -> HashMap<u32, TailFileState> {
+        self.states.iter().map(|(id, st)| (*id, st.state.clone())).collect()
+    }
+
+    /// Files whose state differs from `before` (or that are new).
+    fn changed_states(&self, before: &HashMap<u32, TailFileState>) -> Vec<TailFileChange> {
+        self.states
+            .iter()
+            .filter(|(id, st)| before.get(id) != Some(&st.state))
+            .map(|(id, st)| TailFileChange {
+                source_id: *id,
+                state: st.state.clone(),
+            })
+            .collect()
     }
 
     pub(super) fn forget(&mut self, source: u32) {
@@ -352,9 +377,10 @@ fn normalize(p: &Path) -> PathBuf {
 }
 
 impl Workspace {
-    /// Live tail options (deleted files, retention, carry timeout).
+    /// Live tail options (deleted files, retention, carry timeout, detector
+    /// throttle); out-of-range values are clamped ([`TailOptions::clamped`]).
     pub fn set_tail_options(&mut self, options: TailOptions) {
-        self.tail.options = options;
+        self.tail.options = options.clamped();
         let mut report = TailReport::default();
         self.evict(&mut report);
     }
@@ -372,6 +398,7 @@ impl Workspace {
         let mut report = TailReport::default();
         let mut delta = Delta::default();
         self.ensure_instances();
+        let states_before = self.tail.file_states();
 
         let mut cands: BTreeSet<PathBuf> = BTreeSet::new();
         let mut dirs: BTreeSet<PathBuf> = BTreeSet::new();
@@ -433,6 +460,7 @@ impl Workspace {
             delta.insert.extend(records);
         }
 
+        report.file_states = self.tail.changed_states(&states_before);
         self.finish(delta, &mut report, started);
         Ok(report)
     }
@@ -463,6 +491,17 @@ impl Workspace {
         self.track_instances(&inserted, report);
         self.live_alerts(&inserted, report);
         report.alerts_raised = report.alerts.len();
+        let events = self.registry.events();
+        if report.appended > 0 {
+            events.publish(crate::events::RecordsAppended {
+                count: report.appended,
+                sources: report.sources_changed.clone(),
+            });
+        }
+        for alert in &report.alerts {
+            events.publish(crate::events::LiveAlertRaised(alert.clone()));
+        }
+        self.annotate_after_tail(report, inserted.iter().min().copied());
         report.elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
         if !report.is_empty() {
             self.load_ms = report.elapsed_ms as u64;

@@ -19,4 +19,17 @@ describe('mockOptionsFromSearch', () => {
   it('ignores malformed values', () => {
     expect(mockOptionsFromSearch('?mockTotal=-5&mockFacet=abc&mockLiveMs=0&mockCorrupt=other&mockFail=queryPage:x')).toEqual({ fail: { queryPage: 1 } });
   });
+
+  it('reads the live simulation switches', () => {
+    expect(mockOptionsFromSearch('?mockLive=1')).toEqual({ liveRate: 20, exposeLiveCalls: true });
+    expect(mockOptionsFromSearch('?mockLiveRate=50&mockLiveRotateMs=0&mockLiveAlertMs=1500&mockLiveMs=100')).toEqual({
+      liveMs: 100,
+      liveRate: 50,
+      exposeLiveCalls: true,
+      liveRotateMs: 0,
+      liveAlertMs: 1500,
+    });
+    expect(mockOptionsFromSearch('?mockLive=1&mockLiveRotateMs=x')).toEqual({ liveRate: 20, exposeLiveCalls: true });
+    expect(mockOptionsFromSearch('?mockLive=2')).toEqual({});
+  });
 });

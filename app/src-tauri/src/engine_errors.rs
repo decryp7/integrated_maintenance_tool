@@ -20,6 +20,7 @@ struct PluginHealth {
     status: PluginStatus,
     failures: u32,
     last_error: Option<String>,
+    inactive_reason: Option<String>,
 }
 
 /// The parts of a workspace summary that record contained failures.
@@ -44,6 +45,7 @@ impl HealthSnapshot {
                             status: p.status,
                             failures: p.failures,
                             last_error: p.last_error.clone(),
+                            inactive_reason: p.inactive_reason.clone(),
                         },
                     )
                 })
@@ -70,6 +72,16 @@ pub fn new_errors(before: &HealthSnapshot, after: &HealthSnapshot) -> Vec<Engine
             out.push(EngineError {
                 kind: EngineErrorKind::PluginQuarantined,
                 message: format!("Plugin \"{}\" was disabled after repeated crashes: {detail}", now.name),
+                plugin: Some(id.clone()),
+            });
+        } else if now.status == PluginStatus::Inactive && prev.is_some_and(|p| p.status != PluginStatus::Inactive) {
+            let reason = now
+                .inactive_reason
+                .clone()
+                .unwrap_or_else(|| "a plugin it needs is not running".into());
+            out.push(EngineError {
+                kind: EngineErrorKind::PluginInactive,
+                message: format!("Plugin \"{}\" stopped: {reason}", now.name),
                 plugin: Some(id.clone()),
             });
         } else if now.failures > failures_before && !was_quarantined {
@@ -106,6 +118,12 @@ mod tests {
             status,
             failures,
             last_error: last_error.map(String::from),
+            requires: vec![],
+            provides: vec![],
+            inactive_reason: None,
+            dependents: vec![],
+            warnings: vec![],
+            hung: false,
         }
     }
 
@@ -187,6 +205,27 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[test]
+    fn reports_a_plugin_that_became_inactive_once() {
+        let mut dependent = plugin("dep", PluginStatus::Active, 0, None);
+        let before = snap(vec![dependent.clone(), plugin("was", PluginStatus::Inactive, 0, None)], vec![]);
+        dependent.status = PluginStatus::Inactive;
+        dependent.inactive_reason = Some("needs q ^1.0 (q is quarantined)".into());
+        let mut no_reason = plugin("bare", PluginStatus::Inactive, 0, None);
+        let after = snap(vec![dependent.clone(), plugin("was", PluginStatus::Inactive, 0, None)], vec![]);
+        let got = new_errors(&before, &after);
+        assert_eq!(got.len(), 1, "only the plugin that changed, not one inactive from the start");
+        assert_eq!(got[0].kind, EngineErrorKind::PluginInactive);
+        assert_eq!(got[0].message, "Plugin \"dep plugin\" stopped: needs q ^1.0 (q is quarantined)");
+        assert!(new_errors(&after, &after).is_empty());
+        // Without a stated reason.
+        let before = snap(vec![plugin("bare", PluginStatus::Active, 0, None)], vec![]);
+        no_reason.failures = 0;
+        let got = new_errors(&before, &snap(vec![no_reason], vec![]));
+        assert!(got[0].message.ends_with("a plugin it needs is not running"));
+        assert_eq!(serde_json::to_value(EngineErrorKind::PluginInactive).unwrap(), "plugin-inactive");
     }
 
     #[test]

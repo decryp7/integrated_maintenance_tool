@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { el, provideTinyBackend, settle } from '../../testing/helpers';
+import { el, markerKind, provideTinyBackend, settle } from '../../testing/helpers';
 import { MarkerGlyph } from './marker-glyph';
 import { MarkerStyles, glyphStyleOf, styleOf, summaryIcons } from './marker-styles';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -80,7 +80,7 @@ describe('MarkerGlyph', () => {
 
 describe('style helpers', () => {
   it('reads the presentation fields the engine sends', () => {
-    const k: MarkerKind = { kind: 'a', label: 'A', lifecycle: false, color: '#fff', icon: null, badge: null, shape: null, description: null };
+    const k: MarkerKind = markerKind({ kind: 'a', label: 'A', color: '#fff' });
     expect(styleOf(k)).toEqual({ icon: null, badge: null, shape: null, description: null });
     const styled: MarkerKind = { ...k, badge: '2', shape: 'square', icon: 'bug', description: 'd' };
     expect(styleOf(styled)).toEqual({ icon: 'bug', badge: '2', shape: 'square', description: 'd' });

@@ -22,13 +22,21 @@
  *   source_context         { request: ContextRequest }     -> SourceContext (original lines around an event)
  *   read_file_head         { path: string, maxBytes?: number } -> string   (only files in the workspace)
  *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview
- *   set_live               { enabled: boolean }            -> number        (watched paths)
+ *   set_live               { enabled: boolean, options?: LiveOptions } -> number (watched folders; call again after opening more files)
+ *   tail_status            {}                              -> TailStatus    (per-file live tail state and totals)
+ *   live_state             {}                              -> LiveState     (live tail on/off and its effective options)
+ *   mute_alerts            { target: AlertTarget, untilMs: number } -> void (not raised until untilMs; at most MAX_MUTE_MS ahead)
+ *   unmute_alerts          { target: AlertTarget }         -> void
+ *   open_paths_live        { paths: string[], startAtEnd?: boolean } -> WorkspaceSummary (startAtEnd: only lines written from now on)
  *   infer_regex            { lines: string[] }             -> InferredRegex
  *   explain_regex          { pattern: string }             -> ExplainNode[]
+ *   annotations            { request: AnnotationsRequest } -> AnnotationDto[] (plugin annotator spans/points, by start time)
+ *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
  * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots".
  *
- * Events (Tauri): "imt://workspace-changed" (optional payload `{appended, sourcesChanged, rotated, truncated}`; listeners must accept none) after live tail re-imported changed files;
+ * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
+ * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
  * "imt://error" (EngineError) when the engine contained a new plugin crash, quarantine or import crash.
  *
  * Timestamps are epoch milliseconds (UTC). Records whose timestamp could not be
@@ -46,6 +54,11 @@ export interface SourceInfo {
   id: number;
   path: string;
   name: string;
+  /**
+   * Logical log the file belongs to: rolled, dated and rotated files of one log share it
+   * (`logs/app.log` for `logs/app.log.1`), so the UI can collapse them.
+   */
+  group: string;
   /** Importer id: "json", "text", "csv" or "registry" (plugins add more). */
   importer: string;
   records: number;
@@ -78,6 +91,10 @@ export interface FieldInfo {
 
 export interface MarkerKind {
   kind: string;
+  /** Who defines the kind: `profile`, `builtin` or a plugin id (plugin kinds are named `<plugin-id>/<kind>`). */
+  owner: string;
+  /** Lifecycle meaning of a plugin kind (start, stop, crash); null for others. */
+  role: MarkerRole | null;
   label: string;
   /** Lifecycle markers (start/stop) can be shown on the timeline regardless of level/text filters. */
   lifecycle: boolean;
@@ -90,7 +107,26 @@ export interface MarkerKind {
   shape: MarkerShape | null;
   /** Meaning of the marker, for the legend and tooltips. */
   description: string | null;
+  /**
+   * The default rule of a plugin kind (all conditions must match), shown read-only. Empty for profile and
+   * built-in kinds (their rules are in the profile) and for kinds a plugin only marks programmatically.
+   */
+  when: RuleCondition[];
 }
+
+/** One condition of a rule, in the profile condition language (`[[marker]] when`). */
+export interface RuleCondition {
+  field: string;
+  op: string;
+  value: string | number | boolean | string[] | null;
+}
+
+/** Lifecycle meaning of a plugin marker kind, for the timeline and charts. */
+export type MarkerRole = 'start' | 'stop' | 'crash';
+
+/** Owner of the marker kinds defined in the profile itself and of the engine's built-in kinds. */
+export const PROFILE_OWNER = 'profile';
+export const BUILTIN_OWNER = 'builtin';
 
 export type MarkerShape = 'circle' | 'square' | 'diamond' | 'hexagon';
 export const MARKER_SHAPES: readonly MarkerShape[] = ['circle', 'square', 'diamond', 'hexagon'];
@@ -132,6 +168,8 @@ export interface WorkspaceSummary {
   loadMs: number;
   /** Events removed by the profile pipeline, over all sources. */
   dropped: number;
+  /** Records evicted by the live retention limit so far. */
+  evicted: number;
   /** Backend plugins (importers, transforms, exporters, hooks) that are loaded. */
   plugins: PluginInfo[];
   /** Formats `export_events` can write. */
@@ -150,20 +188,65 @@ export interface PipelineStat {
   output: number;
 }
 
-export type PluginStatus = 'active' | 'disabled' | 'quarantined';
+export type PluginStatus = 'active' | 'disabled' | 'quarantined' | 'inactive';
+
+/** A dependency from a plugin's manifest. */
+export interface DepInfo {
+  id: string;
+  /** Semver requirement, e.g. `^1.0`. */
+  req: string;
+  optional: boolean;
+}
+
+/** A service a plugin provides to other plugins. */
+export interface ServiceInfo {
+  id: string;
+  version: string;
+}
 
 export interface PluginInfo {
   id: string;
   name: string;
   version: string;
-  /** What the plugin adds, e.g. "importer:registry", "transform:x", "exporter:y", "hook". */
+  /** What the plugin adds, e.g. "importer:registry", "transform:x", "exporter:y", "hook", "service:z". */
   contributes: string[];
-  /** `disabled`: turned off by the user or safe mode; `quarantined`: crashed repeatedly and is no longer called. */
+  /**
+   * `disabled`: turned off by the user or safe mode; `quarantined`: crashed repeatedly and is no longer called;
+   * `inactive`: enabled but not running (see `inactiveReason`).
+   */
   status: PluginStatus;
   /** Contained crashes/errors attributed to the plugin. */
   failures: number;
   /** The latest contained error, if any. */
   lastError: string | null;
+  /** Dependencies from the manifest. */
+  requires: DepInfo[];
+  /** Services the plugin provides. */
+  provides: ServiceInfo[];
+  /** Why an `inactive` plugin is not running, e.g. `needs net.decryptology.perfmon ^1.0 (installed 0.9.0)`. */
+  inactiveReason: string | null;
+  /** Plugins that require this one (they stop when it stops). */
+  dependents: string[];
+  /** Non-fatal problems: unavailable optional dependencies, inactive contributions. */
+  warnings: string[];
+  /** A call is running past its time budget right now. */
+  hung: boolean;
+}
+
+/** Delivery counters of one plugin's event subscription (`plugin_events`). */
+export interface SubscriberMetrics {
+  id: number;
+  plugin: string;
+  /** Rust type name of the event, e.g. `imt_core::events::RecordsAppended`. */
+  event: string;
+  delivered: number;
+  /** Dropped because the subscriber's queue was full (oldest first). */
+  dropped: number;
+  /** Deliveries that failed (the handler panicked or overran its budget). */
+  failures: number;
+  /** Not delivered because the subscriber was quarantined, hung or inactive. */
+  skipped: number;
+  queued: number;
 }
 
 export interface ExporterInfo {
@@ -227,7 +310,15 @@ export interface Query {
   markers: string[];
   /** Query-language expression evaluated by the engine; default (absent or empty) = none. */
   ql?: string;
+  /** A sliding time window the engine resolves into `from` (live tail); absent = none. */
+  window?: TimeWindow | null;
 }
+
+/**
+ * A time window relative to "now": the newest record (default) or the wall clock (`[live] clock = "wall"`).
+ * The engine resolves it, so the UI never computes "now" itself.
+ */
+export type TimeWindow = { kind: 'live'; lastMs: number };
 
 export interface PageRequest {
   query: Query;
@@ -783,7 +874,8 @@ export interface SnapshotInfo {
   bytes: number;
 }
 
-export type EngineErrorKind = 'plugin-crash' | 'plugin-quarantined' | 'import-crash';
+/** `plugin-inactive`: a plugin stopped running (a dependency became unavailable or activation failed). */
+export type EngineErrorKind = 'plugin-crash' | 'plugin-quarantined' | 'plugin-inactive' | 'import-crash';
 
 /** Payload of the `imt://error` event: a failure the engine contained. */
 export interface EngineError {
@@ -796,3 +888,207 @@ export interface EngineError {
 /** Name of the event the engine emits for contained failures. */
 export const ENGINE_ERROR_EVENT = 'imt://error';
 export type * from '../settings/settings.types';
+
+// ---------------------------------------------------------------------------------------------
+// Live tail (crates/imt-core/src/workspace/tail/types.rs, app/src-tauri/src/live.rs)
+// ---------------------------------------------------------------------------------------------
+
+/** How urgent a finding is (health check, live alerts). */
+export type Severity = 'critical' | 'warning' | 'info';
+export const SEVERITIES: readonly Severity[] = ['critical', 'warning', 'info'];
+
+/** What happens to the records of a file that disappears while tailed. */
+export type DeletedFiles = 'keep' | 'drop';
+
+/** How the shell notices file changes: auto = events, polling for network paths and after watcher errors. */
+export type WatchPreference = 'auto' | 'events' | 'polling';
+
+/** How one file is actually watched. */
+export type WatchMode = 'events' | 'polling' | 'off';
+
+/** Bounded memory for long live sessions; both limits are off when null/absent. */
+export interface Retention {
+  /** Keep at most this many records (the newest). */
+  maxRecords?: number | null;
+  /** Keep only records at most this old, relative to the newest record. */
+  maxAgeMs?: number | null;
+}
+
+/** Options of `set_live`; every key is optional (engine defaults apply). */
+export interface LiveOptions {
+  watch?: WatchPreference;
+  /** Polling interval (clamped by the shell to 100 ms .. 10 min; default 2000). */
+  pollIntervalMs?: number | null;
+  deletedFiles?: DeletedFiles;
+  retention?: Retention;
+  /** An unterminated last line is parsed anyway after this long without a newline (default 2000). */
+  carryFlushMs?: number;
+  /** The live anomaly detectors run at most this often (default 1000; 0 .. MAX_DETECT_EVERY_MS, clamped by the engine). */
+  detectEveryMs?: number;
+}
+
+/** Longest `detectEveryMs` the engine accepts (10 minutes). */
+export const MAX_DETECT_EVERY_MS = 600_000;
+
+/** Reply of `live_state`: whether the window's live tail runs, and the options in effect (defaults resolved, values clamped). */
+export interface LiveState {
+  enabled: boolean;
+  options: LiveOptions;
+}
+
+/** A source whose file was renamed (rotation) and keeps its records. */
+export interface RotatedSource {
+  sourceId: number;
+  from: string;
+  to: string;
+}
+
+/** What one live refresh changed: the payload of `imt://workspace-changed`. */
+export interface TailReport {
+  /** New records (not counting records rewritten in place). */
+  appended: number;
+  /** Existing records rewritten in place (continuation lines merged into them). */
+  updated: number;
+  /** Sources whose records changed in any way. */
+  sourcesChanged: number[];
+  /** Sources created for files that appeared. */
+  added: number[];
+  rotated: RotatedSource[];
+  /** Sources whose file was truncated or rewritten; the file is read again as a new source. */
+  truncated: number[];
+  /** Sources whose file disappeared (records kept unless `deletedFiles: 'drop'`). */
+  deleted: number[];
+  /** Sources read again in full (binary formats, archives, inconsistencies). */
+  reimported: number[];
+  /** Records removed by the retention limit. */
+  evicted: number;
+  /** Record ids at and after this one changed; null when every existing id is stable. */
+  idsChangedFrom: number | null;
+  /** Timestamp of the newest record. */
+  newestTs: number | null;
+  /** Instance keys seen for the first time. */
+  instancesChanged: string[];
+  /** Files whose live state changed in this refresh (new files included), for badges without polling `tail_status`. */
+  fileStates: TailFileChange[];
+  /** Number of `imt://live-alert` alerts raised by this refresh. */
+  alertsRaised: number;
+  elapsedMs: number;
+}
+
+/** A file whose live state changed in a refresh. */
+export interface TailFileChange {
+  sourceId: number;
+  state: TailFileState;
+}
+
+/** Live state of one tailed file. */
+export type TailFileState =
+  | { kind: 'tailing' }
+  /** Renamed by rotation; still read until the writer lets go. */
+  | { kind: 'rotated' }
+  /** Truncated or rewritten in place; its records stay, the file restarted as a new source. */
+  | { kind: 'truncated' }
+  /** Gone from disk; its records stay (or were dropped). */
+  | { kind: 'deleted' }
+  /** Read only as a whole (binary format or archive). */
+  | { kind: 'whole' }
+  | { kind: 'error'; message: string };
+
+export interface TailFileStatus {
+  sourceId: number;
+  path: string;
+  name: string;
+  group: string;
+  mode: WatchMode;
+  /** Bytes turned into records. */
+  offset: number;
+  /** File size at the last read. */
+  size: number;
+  linesPerSec: number;
+  /** Wall-clock time (ms) of the last change seen. */
+  lastEvent: number | null;
+  state: TailFileState;
+}
+
+export interface TailTotals {
+  files: number;
+  tailing: number;
+  errors: number;
+  bytes: number;
+  linesPerSec: number;
+  /** Records evicted by retention since the workspace was opened. */
+  evicted: number;
+  records: number;
+}
+
+export interface TailStatus {
+  files: TailFileStatus[];
+  totals: TailTotals;
+}
+
+/** A finding of the live detectors or of a user alert rule: the payload of `imt://live-alert`. */
+export interface LiveAlert {
+  /**
+   * Stable id: the same finding has the same id (`kind:who:bucket`, `who` = rule name or instance, `bucket` = `from`
+   * divided by the profile's `[live] cooldown`), so duplicates can be dropped.
+   */
+  id: string;
+  /** An anomaly kind, or `rule` for a `[[live.rule]]`. */
+  kind: AnomalyKind | 'rule';
+  /** The alert rule's name for `rule`. */
+  rule: string | null;
+  instance: string | null;
+  severity: Severity;
+  from: number;
+  to: number;
+  message: string;
+  /** The query that shows the evidence (time range, instance, levels). */
+  evidenceQuery: Query;
+}
+
+/** What `mute_alerts` mutes: one anomaly kind or one alert rule (exactly one of the two). */
+export type AlertTarget = { kind: AnomalyKind } | { rule: string };
+
+/** Longest mute the engine accepts, from now (one day). */
+export const MAX_MUTE_MS = 86_400_000;
+
+/** Tauri event carrying one `LiveAlert`. */
+export const LIVE_ALERT_EVENT = 'imt://live-alert';
+
+// ---------------------------------------------------------------------------------------------
+// Annotations (crates/imt-core/src/plugin/annotate.rs)
+// ---------------------------------------------------------------------------------------------
+
+/** Records with `field == value` (e.g. `Computer = WEB01`): a machine-wide range. */
+export interface FieldMatch {
+  field: string;
+  value: string;
+}
+
+/** A point (`from == to`) or range a plugin annotator found, e.g. a reboot window or a service's uptime. */
+export interface AnnotationDto {
+  /** Id of the annotator that produced it. */
+  annotator: string;
+  /** Plugin id that contributed it. */
+  owner: string;
+  /** `<plugin-id>/<kind>`, usually one of the plugin's marker kinds (shares its style). */
+  kind: string;
+  from: number;
+  to: number;
+  /** The instance (timeline lane) it applies to; null = every instance, or those matching `on`. */
+  instance: string | null;
+  on: FieldMatch | null;
+  label: string;
+  severity: Severity;
+  /** The query that shows the evidence. */
+  evidenceQuery: Query;
+}
+
+/** Which annotations `annotations` returns; every key is optional. */
+export interface AnnotationsRequest {
+  /** Overlapping `[from, to]` (inclusive); open-ended when absent. */
+  from?: number | null;
+  to?: number | null;
+  /** Only those for this instance (plus those for every instance). */
+  instance?: string | null;
+}

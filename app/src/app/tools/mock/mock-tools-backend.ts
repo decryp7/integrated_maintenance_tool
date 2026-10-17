@@ -297,20 +297,11 @@ export class MockToolsBackend implements ToolsBackend {
     };
   }
 
-  async setLive(enabled: boolean): Promise<number> {
-    this.calls.push(`setLive:${enabled}`);
-    return enabled ? 1 : 0;
-  }
-
   async takePendingOpen(): Promise<string[]> {
     return [];
   }
 
   async onOpenRequested(): Promise<Unlisten> {
-    return () => undefined;
-  }
-
-  async onWorkspaceChanged(): Promise<Unlisten> {
     return () => undefined;
   }
 }

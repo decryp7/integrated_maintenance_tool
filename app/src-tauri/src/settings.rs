@@ -18,6 +18,7 @@
 //! Commands: `settings_sections`, `set_settings`, `reset_settings`,
 //! `export_settings`, `import_settings`.
 
+use crate::windows::Windows;
 use crate::{diagnostics, err, lifecycle, AppState, CmdResult};
 use imt_core::plugin::PluginStatus;
 use imt_core::settings::{
@@ -47,6 +48,8 @@ pub const DEFAULT_LIVE_TAIL_DEBOUNCE: Duration = Duration::from_millis(750);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SectionGroup {
+    /// Application-wide behaviour (windows, tray, notifications).
+    App,
     Diagnostics,
     Plugins,
     Ai,
@@ -242,7 +245,7 @@ pub struct SettingsService {
 /// One section, wherever it comes from.
 enum Source {
     Builtin(Builtin),
-    Plugin(imt_core::settings::PluginSettings),
+    Plugin(Box<imt_core::settings::PluginSettings>),
 }
 
 impl SettingsService {
@@ -291,7 +294,6 @@ impl SettingsService {
     }
 
     /// Adds an app module's section (e.g. the AI assistant) and applies its stored values.
-    #[allow(dead_code)] // for app modules installed later (the AI assistant)
     pub fn register(&self, configurable: Arc<dyn Configurable>, group: SectionGroup) -> anyhow::Result<()> {
         let section = configurable.settings_section();
         section.check().map_err(|e| anyhow::anyhow!("invalid settings schema: {e}"))?;
@@ -319,7 +321,7 @@ impl SettingsService {
                 log::warn!(Plugin = p.plugin.id.as_str(); "plugin settings section clashes with a built-in one and is ignored");
                 continue;
             }
-            out.push(Source::Plugin(p));
+            out.push(Source::Plugin(Box::new(p)));
         }
         out
     }
@@ -340,6 +342,8 @@ impl SettingsService {
                     PluginStatus::Active => SectionStatus::Active,
                     PluginStatus::Disabled => SectionStatus::Disabled,
                     PluginStatus::Quarantined => SectionStatus::Quarantined,
+                    // Installed but not running (a dependency is missing): nothing to configure now.
+                    PluginStatus::Inactive => SectionStatus::Disabled,
                 };
                 (status, p.note().map(String::from))
             }
@@ -798,6 +802,12 @@ pub fn live_tail_debounce<R: Runtime>(app: &AppHandle<R>) -> Duration {
         .map_or(DEFAULT_LIVE_TAIL_DEBOUNCE, |s| s.live_tail_debounce())
 }
 
+/// Adds an app module's settings section (window & tray, the AI assistant, ...)
+/// and applies its stored values. Call from `setup` after [`init`].
+pub fn register<R: Runtime>(app: &AppHandle<R>, configurable: Arc<dyn Configurable>, group: SectionGroup) -> anyhow::Result<()> {
+    service(app).register(configurable, group)
+}
+
 fn service<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, SettingsService> {
     if app.try_state::<SettingsService>().is_none() {
         let service = build(app);
@@ -811,7 +821,8 @@ fn service<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, SettingsService> 
 fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
     let dir = app.try_state::<AppState>().and_then(|s| s.config_dir.clone());
     let safe_mode = app.try_state::<lifecycle::Lifecycle>().is_some_and(|l| l.safe_mode);
-    let installed = app.try_state::<AppState>().map_or_else(Vec::new, |state| {
+    // Every window has the same plugins (one factory); any window can tell.
+    let installed = app.try_state::<Windows>().and_then(|w| w.any()).map_or_else(Vec::new, |state| {
         state
             .store_read()
             .summary()
@@ -832,7 +843,7 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
     let handle = app.clone();
     let last_known: Mutex<Vec<PluginSettings>> = Mutex::new(Vec::new());
     let plugins: PluginSource = Box::new(move || {
-        let Some(state) = handle.try_state::<AppState>() else {
+        let Some(state) = handle.try_state::<Windows>().and_then(|w| w.any()) else {
             return Vec::new();
         };
         let mut last = last_known.lock().unwrap_or_else(|p| p.into_inner());
@@ -943,7 +954,7 @@ pub fn import_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use imt_core::guard::QUARANTINE_AFTER;
     use imt_core::{Plugin, PluginRegistry};
@@ -1008,7 +1019,7 @@ mod tests {
     }
 
     /// Tests that apply the Windows plugin's process-wide settings run one at a time.
-    fn serial() -> MutexGuard<'static, ()> {
+    pub(crate) fn serial() -> MutexGuard<'static, ()> {
         static LOCK: Mutex<()> = Mutex::new(());
         LOCK.lock().unwrap_or_else(|p| p.into_inner())
     }
@@ -1552,10 +1563,8 @@ mod tests {
     #[test]
     fn commands_through_the_tauri_app() {
         let _serial = serial();
-        use tauri::test::{mock_builder, mock_context, noop_assets};
         let t = Temp::new("commands");
-        let state = crate::app_state(Some(t.0.join("profiles")), &[]).unwrap();
-        let app = mock_builder().manage(state).build(mock_context(noop_assets())).unwrap();
+        let app = crate::test_support::test_app(Some(t.0.join("profiles")));
         app.manage(lifecycle::Lifecycle::begin(Some(t.0.join("data")), false));
         let h = app.handle().clone();
         assert_eq!(live_tail_debounce(&h), DEFAULT_LIVE_TAIL_DEBOUNCE);
@@ -1582,7 +1591,7 @@ mod tests {
         assert!(import_settings(h.clone(), bad.to_string_lossy().into_owned()).is_err());
         // While an import holds the workspace, the status is read without waiting for it.
         {
-            let state = app.state::<AppState>();
+            let state = crate::test_support::main_window(&app);
             let _busy = state.workspace.write().unwrap();
             assert!(!settings_sections(h.clone()).unwrap().sections.is_empty());
         }

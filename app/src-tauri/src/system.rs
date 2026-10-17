@@ -1,6 +1,7 @@
 //! Elevation (run as administrator) and reading the start of a workspace file.
 
-use crate::{err, AppState, CmdResult, State};
+use crate::windows::CurrentWindow;
+use crate::{err, CmdResult};
 use serde::Serialize;
 use std::path::Path;
 
@@ -52,9 +53,11 @@ pub fn elevation() -> ElevationInfo {
 #[tauri::command]
 pub fn restart_elevated<R: tauri::Runtime>(app: tauri::AppHandle<R>, reopen: Vec<String>) -> CmdResult<()> {
     let exe = std::env::current_exe().map_err(err)?;
+    // The elevated process must become the running instance, not hand over to this one.
+    crate::instance::release(&app);
     relaunch_elevated(&exe, &reopen)?;
     log::info!(Paths = reopen.len() as u64; "Restarting as administrator");
-    app.exit(0);
+    crate::window_manager::quit(&app);
     Ok(())
 }
 
@@ -62,7 +65,7 @@ pub fn restart_elevated<R: tauri::Runtime>(app: tauri::AppHandle<R>, reopen: Vec
 /// or an unrecognised file), for the format wizard. Other paths are refused so
 /// the webview cannot read arbitrary files.
 #[tauri::command]
-pub fn read_file_head(state: State<'_, AppState>, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
+pub fn read_file_head(state: CurrentWindow, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
     let summary = state.store_read().summary();
     let known = summary
         .sources

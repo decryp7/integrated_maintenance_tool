@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { EngineError, ENGINE_ERROR_EVENT, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../core/api.types';
 import { CapturedImage } from './snapshot.types';
+import { listenHere } from '../windowing/window-events';
 
 /** Stops listening to an event. */
 export type Unlisten = () => void;
@@ -26,10 +27,7 @@ export abstract class SnapshotBackend {
 export type ListenFn = (event: string, handler: (payload: unknown) => void) => Promise<Unlisten>;
 
 /* v8 ignore start: thin wrapper over the Tauri event API, exercised only in the real app */
-const tauriListen: ListenFn = async (event, handler) => {
-  const { listen } = await import('@tauri-apps/api/event');
-  return listen(event, (e) => handler(e.payload));
-};
+const tauriListen: ListenFn = (event, handler) => listenHere(event, handler);
 /* v8 ignore stop */
 
 /** Talks to the Rust shell (`snapshots.rs`). `call` and `listen` are injectable for tests. */

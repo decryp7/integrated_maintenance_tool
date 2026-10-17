@@ -68,6 +68,12 @@ impl Level {
 
 pub type Fields = Map<String, Value>;
 
+/// Bit i set = marker kind i of the effective marker set matched.
+pub type MarkerMask = u64;
+
+/// Most marker kinds (profile, plugin and built-in together) a workspace can use.
+pub const MAX_MARKER_KINDS: usize = MarkerMask::BITS as usize;
+
 /// One event. Importers fill everything except `id`, `source` and `markers`,
 /// which the workspace assigns.
 #[derive(Debug, Clone)]
@@ -81,8 +87,8 @@ pub struct Record {
     pub fields: Fields,
     pub source: u32,
     pub line: u32,
-    /// Bit i set = marker rule i of the profile matched.
-    pub markers: u32,
+    /// Bit i set = marker kind i of the effective marker set matched.
+    pub markers: MarkerMask,
 }
 
 impl Record {

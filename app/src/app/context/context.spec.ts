@@ -14,6 +14,7 @@ import { MarkDialog } from './mark-dialog';
 import { applyMask, MaskDialog } from './mask-dialog';
 import { MatchCounter } from './match-count';
 import { RecordActions } from './record-actions';
+import { GridSelection } from '../grid/grid-selection';
 import { selectionWithin } from './selection';
 
 const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
@@ -312,6 +313,21 @@ describe('RecordActions and the context menu', () => {
     expect(dialogs.stack()[1].options.inputs?.['lines']).toEqual([rec.message]);
     infer({});
     expect(dialogs.stack()[2].options.inputs?.['lines']).toEqual([rec.message]);
+  });
+
+  it('infers from the grid multi-selection for the palette command, else from the selected record', async () => {
+    const { rec, actions, dialogs, store } = await setup();
+    const other = { ...rec, id: rec.id + 1, message: 'Slow request 2' };
+    const grid = TestBed.inject(GridSelection);
+    store.select(null);
+    expect(actions.inferSelected()).toBe(false);
+    expect(dialogs.stack()).toHaveLength(0);
+    store.select(rec);
+    expect(actions.inferSelected()).toBe(true);
+    expect(dialogs.stack()[0].options.inputs?.['lines']).toEqual([rec.message]);
+    grid.publish([rec, other]);
+    expect(actions.inferSelected()).toBe(true);
+    expect(dialogs.stack()[1].options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
   });
 
   it('offers a logger filter on rows that have one and truncates long labels', async () => {

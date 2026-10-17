@@ -122,8 +122,19 @@ impl Pipeline {
     }
 
     /// Like [`Pipeline::run`], reporting events in and out of every step.
-    pub fn run_with_stats(&self, mut records: Vec<Record>, source_name: &str) -> (Vec<Record>, Vec<StepStats>) {
-        let ctx = TransformCtx { source_name };
+    pub fn run_with_stats(&self, records: Vec<Record>, source_name: &str) -> (Vec<Record>, Vec<StepStats>) {
+        self.run_marking(records, source_name, &crate::plugin::markers::MarkIndex::default())
+    }
+
+    /// [`Pipeline::run_with_stats`]; plugin transforms may mark records with
+    /// the kinds in `marks` that their plugin declared.
+    pub fn run_marking(
+        &self,
+        mut records: Vec<Record>,
+        source_name: &str,
+        marks: &crate::plugin::markers::MarkIndex,
+    ) -> (Vec<Record>, Vec<StepStats>) {
+        let ctx = TransformCtx::with_marks(source_name, marks);
         let mut stats = Vec::with_capacity(self.steps.len());
         for (when, step) in &self.steps {
             let input = records.len();
@@ -867,7 +878,7 @@ when = [{{ field = "MachineName", op = "eq", value = "nobody" }}]
         ] {
             assert!(!t.id().is_empty());
             let mut r = Record::new(1);
-            assert_eq!(t.apply(&mut r, &TransformCtx { source_name: "s" }), Verdict::Keep);
+            assert_eq!(t.apply(&mut r, &TransformCtx::new("s")), Verdict::Keep);
         }
     }
 

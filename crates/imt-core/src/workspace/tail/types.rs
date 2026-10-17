@@ -1,6 +1,7 @@
 //! Request and response types of live tail. Their serde names are the wire
 //! format the UI depends on (`app/src/app/core/api.types.ts`).
 
+use crate::analysis::AnomalyKind;
 use crate::api::Severity;
 use crate::query::Query;
 use serde::{Deserialize, Serialize};
@@ -36,6 +37,18 @@ pub struct TailOptions {
     pub carry_flush_ms: u64,
     /// The live anomaly detectors run at most this often (rules and silences every batch).
     pub detect_every_ms: u64,
+}
+
+/// Longest `detect_every_ms` accepted (10 minutes); longer values are clamped.
+pub const MAX_DETECT_EVERY_MS: u64 = 600_000;
+
+impl TailOptions {
+    /// The options with every value in its accepted range (`detect_every_ms`
+    /// at most [`MAX_DETECT_EVERY_MS`]; 0 runs the detectors after every batch).
+    pub fn clamped(mut self) -> TailOptions {
+        self.detect_every_ms = self.detect_every_ms.min(MAX_DETECT_EVERY_MS);
+        self
+    }
 }
 
 impl Default for TailOptions {
@@ -95,6 +108,9 @@ pub struct TailReport {
     pub newest_ts: Option<i64>,
     /// Instance keys seen for the first time.
     pub instances_changed: Vec<String>,
+    /// Files whose live state changed in this refresh (new files included;
+    /// files dropped with `deletedFiles: drop` are listed in `deleted` only).
+    pub file_states: Vec<TailFileChange>,
     /// Number of `imt://live-alert` alerts raised by this refresh.
     pub alerts_raised: usize,
     /// The alerts themselves (emitted one by one as `imt://live-alert`).
@@ -115,6 +131,7 @@ impl TailReport {
             && self.deleted.is_empty()
             && self.reimported.is_empty()
             && self.evicted == 0
+            && self.file_states.is_empty()
             && self.alerts.is_empty()
     }
 
@@ -140,6 +157,14 @@ pub enum TailFileState {
     Error {
         message: String,
     },
+}
+
+/// A file whose live state changed in a refresh.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TailFileChange {
+    pub source_id: u32,
+    pub state: TailFileState,
 }
 
 /// How changes to a file are noticed.
@@ -198,6 +223,12 @@ pub use crate::query::TimeWindow;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveAlert {
+    /// Stable id: the same finding gets the same id, so the UI can drop
+    /// duplicates. It is `kind:who:bucket`, where `who` is the rule name (for
+    /// `rule`) or the instance (empty when none) and `bucket` is `from`
+    /// divided by the profile's `[live] cooldown` (rounded down): within one
+    /// cooldown the same kind and instance (or rule) is raised at most once.
+    pub id: String,
     /// An anomaly kind (`errorSpike`, `silence`, `crash`, `slowOutlier`,
     /// `rateChange`, `memoryGrowth`) or `rule`.
     pub kind: String,
@@ -210,4 +241,14 @@ pub struct LiveAlert {
     pub message: String,
     /// The query that shows the evidence (time range, instance, levels).
     pub evidence_query: Query,
+}
+
+/// What a mute applies to: one anomaly kind (`{ "kind": "errorSpike" }`) or
+/// one alert rule by name (`{ "rule": "payment errors" }`). Exactly one of
+/// the two, so a mute can never name both or neither.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum AlertTarget {
+    Kind(AnomalyKind),
+    Rule(String),
 }

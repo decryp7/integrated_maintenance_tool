@@ -47,6 +47,11 @@ impl Plugin for WebPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
+    /// Stand-alone: no dependencies, no services.
+    fn manifest(&self) -> imt_core::plugin::Manifest {
+        imt_core::plugin::Manifest::new(self.id(), self.version())
+    }
+
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         registry.add_importer(Box::new(W3cImporter));
         registry.add_importer(Box::new(AccessLogImporter));

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { query } from '../../testing/helpers';
+import { LIVE_ALERT_EVENT } from './api.types';
 import { ImtBackend, provideBackend, TauriBackend, WORKSPACE_CHANGED_EVENT } from './backend';
 import { FailureReporter } from './failure-reporter';
 import { Logger } from './logger';
@@ -35,8 +36,16 @@ describe('TauriBackend', () => {
       [() => b.readFileHead('/a.log', 100), 'read_file_head', { path: '/a.log', maxBytes: 100 }],
       [() => b.previewParse({ toml: 'x', sample: 's', fileName: 'a.log', limit: 5 }), 'preview_parse', { request: { toml: 'x', sample: 's', fileName: 'a.log', limit: 5 } }],
       [() => b.setLive(true), 'set_live', { enabled: true }],
+      [() => b.setLive(true, { watch: 'polling', pollIntervalMs: 500 }), 'set_live', { enabled: true, options: { watch: 'polling', pollIntervalMs: 500 } }],
+      [() => b.tailStatus(), 'tail_status', undefined],
+      [() => b.liveState(), 'live_state', undefined],
+      [() => b.muteAlerts({ rule: 'payments' }, 5_000), 'mute_alerts', { target: { rule: 'payments' }, untilMs: 5_000 }],
+      [() => b.unmuteAlerts({ kind: 'crash' }), 'unmute_alerts', { target: { kind: 'crash' } }],
+      [() => b.openPathsLive(['/a.log'], true), 'open_paths_live', { paths: ['/a.log'], startAtEnd: true }],
       [() => b.inferRegex(['a 1', 'a 2']), 'infer_regex', { lines: ['a 1', 'a 2'] }],
       [() => b.explainRegex('a\\d+'), 'explain_regex', { pattern: 'a\\d+' }],
+      [() => b.annotations({ from: 1, to: 2 }), 'annotations', { request: { from: 1, to: 2 } }],
+      [() => b.pluginEvents(), 'plugin_events', undefined],
     ];
     for (const [call, name, args] of calls) {
       invoke.mockClear();
@@ -51,25 +60,58 @@ describe('TauriBackend', () => {
 describe('TauriBackend events', () => {
   it('subscribes to the workspace-changed event through the injected listener', async () => {
     const off = vi.fn();
-    const subscribe = vi.fn(async (_event: string, _handler: () => void) => off);
+    const subscribe = vi.fn(async (_event: string, _handler: (payload: unknown) => void) => off);
     const b = new TauriBackend(invoke as never, subscribe);
     const handler = vi.fn();
     expect(await b.onWorkspaceChanged(handler)).toBe(off);
-    expect(subscribe).toHaveBeenCalledWith(WORKSPACE_CHANGED_EVENT, handler);
+    expect(subscribe.mock.calls[0][0]).toBe(WORKSPACE_CHANGED_EVENT);
     expect(WORKSPACE_CHANGED_EVENT).toBe('imt://workspace-changed');
+    const forward = subscribe.mock.calls[0][1];
+    forward(undefined);
+    expect(handler).toHaveBeenLastCalledWith(null);
+    forward({ appended: 3, sourcesChanged: [1, 'x'], newestTs: 9, rotated: [{ sourceId: 1, from: 'a', to: 'b' }], instancesChanged: ['k', 2] });
+    expect(handler).toHaveBeenLastCalledWith(
+      expect.objectContaining({ appended: 3, updated: 0, sourcesChanged: [1], newestTs: 9, idsChangedFrom: null, instancesChanged: ['k'], rotated: [{ sourceId: 1, from: 'a', to: 'b' }], fileStates: [] }),
+    );
+    // Per-file state changes: malformed entries are dropped.
+    forward({ appended: 0, fileStates: [{ sourceId: 2, state: { kind: 'deleted' } }, { sourceId: 'x', state: { kind: 'rotated' } }, { sourceId: 3 }, null] });
+    expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ fileStates: [{ sourceId: 2, state: { kind: 'deleted' } }] }));
+  });
+
+  it('forwards live alerts and drops malformed ones', async () => {
+    const subscribe = vi.fn(async (_event: string, _handler: (payload: unknown) => void) => () => undefined);
+    const b = new TauriBackend(invoke as never, subscribe);
+    const handler = vi.fn();
+    await b.onLiveAlert(handler);
+    expect(subscribe.mock.calls[0][0]).toBe(LIVE_ALERT_EVENT);
+    const forward = subscribe.mock.calls[0][1];
+    forward({ kind: 'rule' });
+    forward(null);
+    expect(handler).not.toHaveBeenCalled();
+    // Without its stable id an alert is not one.
+    forward({ kind: 'errorSpike', rule: null, instance: 'a', severity: 'critical', from: 1, to: 2, message: 'm', evidenceQuery: {} });
+    expect(handler).not.toHaveBeenCalled();
+    const alert = { id: 'errorSpike:a:0', kind: 'errorSpike', rule: null, instance: 'a', severity: 'critical', from: 1, to: 2, message: 'm', evidenceQuery: {} };
+    forward(alert);
+    expect(handler).toHaveBeenCalledWith(alert);
   });
 
   it('uses the Tauri event API by default', async () => {
     const unlisten = vi.fn();
-    let callback: (() => void) | undefined;
+    let callback: ((e?: { payload: unknown }) => void) | undefined;
     vi.doMock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (_e: string, cb: () => void) => ((callback = cb), unlisten)) }));
+    // Listeners are scoped to this window, whose label the Tauri API reads from its internals.
+    (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } } };
     const b = new TauriBackend(invoke as never);
     const handler = vi.fn();
     const off = await b.onWorkspaceChanged(handler);
     callback!();
     expect(handler).toHaveBeenCalledTimes(1);
+    callback!({ payload: { appended: 2 } });
+    expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ appended: 2 }));
     expect(off).toBe(unlisten);
     vi.doUnmock('@tauri-apps/api/event');
+    delete (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'];
   });
 });
 

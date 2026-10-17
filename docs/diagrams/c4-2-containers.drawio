@@ -19,10 +19,10 @@
         <mxCell id="ui" value='&lt;b style="font-size:13px"&gt;Angular UI&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Angular 22, TypeScript, NgRx SignalStore, ECharts, dockview]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Shell, timeline, events grid, inspector, metrics, profile editor, plugin views. Reaches the engine only through the ImtBackend service.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="440" y="230" width="280" height="170" as="geometry"/>
         </mxCell>
-        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;Tauri shell (imt-app)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Thin async commands over the LogStore trait (open_paths, query_*, save_project, set_live, ...). AppState holds the store and profile; validates every IPC argument; file watcher for live tail; writes the app log.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="440" y="500" width="280" height="230" as="geometry"/>
+        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;Tauri shell (imt-app)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Thin async commands over the LogStore trait (open_paths, query_*, save_project, set_live, annotations, ...); validates every IPC argument. One workspace per window (CurrentWindow). Window manager, single instance (--new-window, --new-instance), tray, background tasks, notifications, lifecycle (safe mode, crash marker, per-window sessions in the app data folder); file watcher for live tail; writes the app log.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="500" width="280" height="260" as="geometry"/>
         </mxCell>
-        <mxCell id="core" value='&lt;b style="font-size:13px"&gt;imt-core&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust library]&lt;/font&gt;&lt;br&gt;&lt;br&gt;The engine: Workspace (LogStore), importers, profiles and pipeline, query + ql, analysis, patterns, exceptions, export, project, plugin registry. In-memory, parallel with rayon.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="core" value='&lt;b style="font-size:13px"&gt;imt-core&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust library]&lt;/font&gt;&lt;br&gt;&lt;br&gt;The engine: Workspace (LogStore), importers, profiles and pipeline, query + ql, analysis, patterns, exceptions, export, project, live tail, plugin runtime (dependency graph, services, event bus, marker kinds, annotators). In-memory, parallel with rayon.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="440" y="840" width="280" height="190" as="geometry"/>
         </mxCell>
         <mxCell id="plugins" value='&lt;b style="font-size:13px"&gt;Plugin crates&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust crates]&lt;/font&gt;&lt;br&gt;&lt;br&gt;imt-plugin-registry, -windows, -web, -otel, -syslog. Each implements Plugin and is installed by plugins() in the shell.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
@@ -36,7 +36,7 @@
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="e3" value="events&lt;br&gt;imt://open,&lt;br&gt;imt://workspace-changed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=1;endSize=8;exitX=0.7857;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.7857;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="ui">
+        <mxCell id="e3" value="events (per window)&lt;br&gt;imt://workspace-changed,&lt;br&gt;imt://live-alert, imt://error,&lt;br&gt;imt://open, ..." style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=1;endSize=8;exitX=0.7857;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.7857;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="ui">
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
@@ -44,7 +44,7 @@
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="e5" value="plugins(): install()&lt;br&gt;[Rust]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1304;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="plugins">
+        <mxCell id="e5" value="plugins(): install()&lt;br&gt;[Rust]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1154;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="plugins">
           <mxGeometry x="-0.55" relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="950" y="530"/>
@@ -67,15 +67,15 @@
         <mxCell id="f_logs" value='&lt;b style="font-size:13px"&gt;Log and diagnostic files&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Files: text, CLEF/JSON, CSV, .gz/.zip, evtx, ...]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="40" y="900" width="240" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="e7" value="save / open&lt;br&gt;[JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=-0.0652;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_proj">
+        <mxCell id="e7" value="save / open&lt;br&gt;[JSON]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=-0.0577;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_proj">
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="e8" value="load / save / import&lt;br&gt;[TOML]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.4130;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_prof">
+        <mxCell id="e8" value="load / save / import&lt;br&gt;[TOML]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.3654;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_prof">
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="e9" value="writes log&lt;br&gt;[tauri-plugin-log]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.8913;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_applog">
+        <mxCell id="e9" value="writes log&lt;br&gt;[tauri-plugin-log]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.7885;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="f_applog">
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>

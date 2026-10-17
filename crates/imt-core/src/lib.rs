@@ -10,6 +10,7 @@ pub mod api;
 pub mod archive;
 pub mod chart;
 pub mod condition;
+pub mod events;
 pub mod exceptions;
 pub mod export;
 pub mod guard;

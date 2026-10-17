@@ -6,17 +6,113 @@ planned work is in [roadmap.md](roadmap.md). In short: a Rust engine (`crates/im
 `LogStore` and `Importer` ports, a thin Tauri 2 shell (`app/src-tauri`), and an Angular UI
 (`app/src/app`) that only talks to the engine through the `ImtBackend` service.
 
-Parts that are not implemented yet (Moment, query bar, insights panels, project and live-tail UI,
-Tauri commands for ql/anomalies/moment, Performance Monitor controller UI, Seq/Elastic/Loki and
-Claude integrations) are drawn with a dashed border or labelled "in progress" / "planned".
+Parts that were not implemented when the diagrams were drawn (Moment, query bar, insights panels,
+project and live-tail UI, Tauri commands for ql/anomalies/moment, Performance Monitor controller UI,
+Seq/Elastic/Loki and Claude integrations) are drawn with a dashed border or labelled "in progress" /
+"planned". Several of them have landed since (for example Moment and the anomalies commands, the
+live-tail UI and alerts); where a diagram still marks those dashed, the code is ahead of the diagram.
+The sections below describe the plugin runtime, multiple windows, live tail and annotations in
+text. The C4 container and engine component diagrams show the new modules; the UI component diagram
+and the UML diagrams (for example `uml-seq-plugin-registration`, `uml-state-live-tail`) do not cover
+them yet.
+
+## Plugin runtime (ADR 0003)
+
+Code lives in `crates/imt-core/src/plugin/` and `crates/imt-core/src/events.rs`; the extension guide is
+[plugins.md](plugins.md).
+
+| Module | Responsibility |
+|---|---|
+| `plugin/mod.rs` | `Plugin`, `PluginRegistry` (install, contributions, `resolve`, `set_enabled`, `shutdown`), `PluginStatus` (`active`, `disabled`, `quarantined`, `inactive`), `TransformCtx::mark()`. |
+| `plugin/manifest.rs` | `Manifest`: semver version, `requires` (required or optional `Dep`) and `provides`; bad values are rejected at install. |
+| `plugin/graph.rs` | Pure dependency resolution: cycles, missing / incompatible / disabled / quarantined dependencies, inactive reasons that name the chain, activation order. |
+| `plugin/runtime.rs` | Applies the graph: `activate` in dependency order, `deactivate` in reverse (when a plugin stops being active and on `shutdown`), cascade to dependents, `PluginStateChanged` events. |
+| `plugin/services.rs` | Services (`provide`, lookup by id + trait + semver requirement) and plugin-declared extension points; consumers get a guarded `Service` proxy. |
+| `plugin/watchdog.rs` | The watchdog thread that enforces the per-call-kind time budgets (`guard::Budgets`): a call that overruns marks its plugin *hung* (a failure towards quarantine) and further calls fail fast until it returns. Callers that can afford it (plugin imports, `Service::call_detached`) stop waiting on a helper thread instead. |
+| `plugin/markers.rs` | Plugin marker kinds (`<plugin-id>/<kind>`, roles start / stop / crash), merged after the profile's rules and before the built-in defaults; `[[marker_override]]` switches a kind off or restyles it. |
+| `plugin/annotate.rs` | `Annotator` over a read-only, bounded `AnnotationView`; runs after imports and live-tail appends, each run replacing the annotator's previous set (capped at 10,000). |
+| `events.rs` | `EventBus`: typed events, one bounded queue (1024) and worker thread per subscriber, delivery under the subscriber's guard; `SubscriberMetrics` (`delivered`, `dropped`, `failures`, `skipped`, `queued`). |
+
+Built-in events: `RecordsAppended`, `ProfileChanged`, `LiveAlertRaised`, `PluginStateChanged` and
+`WorkspaceCleared` from the engine; `SnapshotTaken` from the shell after it saves an error snapshot
+(`app/src-tauri/src/snapshots.rs`).
+
+The shell reaches the runtime through the workspace: it deactivates a window's plugins when the window
+closes and every window's plugins on app exit (`shutdown_plugins` in `app/src-tauri/src/windows.rs`,
+called from `RunEvent::Exit` in `lib.rs`); it compares plugin health before and after workspace commands and
+emits new failures as `imt://error` engine errors of kind `plugin-crash`, `plugin-quarantined` or
+`plugin-inactive` (`app/src-tauri/src/engine_errors.rs`); and it serves `plugin_events` (event-bus
+counters) and `annotations` (`workspace_commands.rs`). The UI shows them in the plugin health view
+(`app/src/app/tools/health/`), the markers manager (plugin kinds, read-only rules, overrides) and the
+timeline.
+
+The first real user is the Windows plugin: `crates/imt-plugin-windows/src/markers.rs` (marker kinds
+with the event-id sources) and `annotators.rs` (`windows.reboots`, `windows.services`). The stable
+contract for external plugins (WIT and protobuf) is decided in [ADR 0004](adr/0004-stable-plugin-abi.md)
+and not implemented yet.
+
+## Windows, instances and sessions (shell)
+
+`app/src-tauri/src/lib.rs` is the composition root; its module comment says where new commands and
+state go.
+
+| Module | Responsibility |
+|---|---|
+| `windows.rs` | Per-window state (`WindowState`: store, profile, open queue, live tail, import progress, project) and the `CurrentWindow` extractor that commands use; `emit_to_window` for window-specific events. A window's state is dropped (plugins deactivated, live tail stopped) when the window is destroyed. |
+| `window_manager.rs` | `new_window`, `close_window`, `list_windows`, `focus_window`, `set_window_title`, `resolve_close`, `resolve_open`; what closing the last window does (quit, tray, ask); the "open in this window / new window" question (`imt://open-ask`; `resolve_open` with `cancel` drops the queued paths). Events `imt://windows-changed`, `imt://close-requested`. |
+| `instance.rs` | Single instance (`tauri-plugin-single-instance`): a second launch hands its paths to the running process, planned by the pure `plan` function from `openFilesIn`, `--new-window` and whether the target window is empty. `--new-instance` and safe mode run a separate process. |
+| `tray.rs` | Tray menu as a pure model: windows, new window, recent projects (pushed by the UI with `set_recent_projects`), background tasks with Stop, diagnostic capture, quit. Without a tray, closing the last window quits. |
+| `background.rs` | Registry of background work (live tail per window, process monitor, PerfMon collection) with optional stop actions; `background_tasks`, `stop_background_task`, event `imt://background-tasks`. |
+| `notify.rs` | Desktop notification policy (level × kind × whether a window already shows it), rate limiter, and the adapter over `tauri-plugin-notification`; never includes file contents. |
+| `window_prefs.rs` | The *Window & tray* settings section: `openFilesIn`, `onClose`, `notifications`, `startMinimized`. |
+| `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave. |
+
+Crash detection: `running.marker` stores the PID and the process start time (read with `sysinfo`). A
+marker left behind is a crash only if that process is gone (no such PID, or a different start time,
+i.e. the PID was reused); a marker of a process that still runs is taken over silently, and a process
+removes the marker only while it is still its own. The main instance keeps its marker and sessions in
+the data folder; a separate process (`--new-instance`, safe mode) uses `<data>/instances/<pid>/`,
+removed on a clean exit, and every start prunes the folders of processes that are no longer alive.
+
+Sessions (format version 2): each window autosaves to `sessions/<window>/last-session.imtproj`, and
+`sessions/manifest.json` lists the windows of the current run. At start, the previous run's sessions
+are copied to `recovered/` for the restore offer; a version 1 single session is recovered as the
+main window's. Missing or corrupt files fall back to "no session".
+
+## Live tail
+
+The engine owns live tail (`crates/imt-core/src/workspace/tail/`): file identity and fingerprints
+(`identity.rs`), rolling-file families (`rolling.rs`), incremental reading (`reader.rs`), watching with
+a polling fallback and burst coalescing (`watch.rs`), applying a refresh with stable ids (`apply.rs`,
+`index.rs`), detectors and alert rules (`alerts.rs`) and engine-side mutes (`mutes.rs`). The shell
+(`app/src-tauri/src/live.rs`) only adapts `notify` to the engine's `WatcherFactory`, runs each window's
+session and registers it as a background task. Commands: `set_live`, `tail_status`, `live_state`
+(restores the UI after a webview reload), `mute_alerts` / `unmute_alerts`, `open_paths_live`; events
+`imt://workspace-changed` (with a `TailReport`, including changed `fileStates`), `imt://live-alert` and
+`imt://live-stopped`.
+
+In the UI (`app/src/app/live/`, `app/src/app/workspace/live-tail.ts`) a `RefreshCoalescer` turns
+reports into at most one refresh per 250 ms that never overlap; `TailStatusStore` applies `fileStates`
+directly (sidebar badges, tail status panel) and keeps polling `tail_status` as a fallback; the alerts
+store deduplicates by the engine's stable alert id.
+
+## Annotations on the timeline
+
+`LogStore::annotations` (command `annotations`, DTO `AnnotationDto`) returns the annotations overlapping
+the visible range. `app/src/app/timeline/annotations.store.ts` refetches them on every data change (open,
+reload, profile save, each coalesced live-tail refresh) and range change, ignoring superseded replies;
+`annotation-layout.ts` (pure) places them: an `instance` annotation on its lane, an `on` field match on
+every lane whose key contains that value (when the field is part of the lane key), anything else full
+height; spans are bands, points glyphs. `annotation-track.ts` draws them as buttons (severity by icon
+and fill pattern, not colour alone); clicking one applies its evidence query.
 
 ## C4 model
 
 | Diagram | What it shows |
 |---|---|
 | [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: log-producing applications, Windows Performance Monitor, Windows event log / msinfo32 / registry, Gitea, and the planned Seq/Elastic/Loki and opt-in Claude API. |
-| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units: Angular UI in the webview, the Tauri shell, `imt-core`, the plugin crates, the `imt-monitor` and `imt-collect` CLIs, and the files they exchange (logs, `.imtproj`, `.imtz`, CLEF output, the app log). |
-| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, and the plugin registry. |
+| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units: Angular UI in the webview, the Tauri shell (one workspace per window, window manager, single instance, tray, background tasks, notifications, lifecycle), `imt-core`, the plugin crates, the `imt-monitor` and `imt-collect` CLIs, and the files they exchange (logs, `.imtproj`, `.imtz`, CLEF output, the app log). |
+| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators. |
 | [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders of the Angular app: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views, extension tokens, docking, logger; plus the in-progress panels. |
 
 ## UML

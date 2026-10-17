@@ -87,7 +87,7 @@ describe('MockEngine', () => {
     it('skips extractors with invalid regexes and fills defaults', () => {
       const e = engine({ extract: [{ name: 'bad', regex: '(' }], marker: [{ kind: 'k' }], chart: [{ id: 'c', y: 'count()' }] });
       expect(e.derived.size).toBe(0);
-      expect(e.markerKinds[0]).toEqual({ kind: 'k', label: 'k', lifecycle: false, color: null, icon: null, badge: null, shape: null, description: null });
+      expect(e.markerKinds[0]).toEqual({ kind: 'k', owner: 'profile', role: null, label: 'k', lifecycle: false, color: null, icon: null, badge: null, shape: null, description: null, when: [] });
       expect(e.charts[0]).toMatchObject({ title: 'c', bucket: 'auto', splitBy: [], type: 'line', unit: '' });
     });
   });

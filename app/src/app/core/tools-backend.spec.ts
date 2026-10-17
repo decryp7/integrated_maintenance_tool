@@ -34,7 +34,6 @@ describe('TauriToolsBackend', () => {
       [() => b.lastSession(), 'last_session'],
       [() => b.saveProject('/p', 'n', { a: 1 }), 'save_project', { path: '/p', name: 'n', ui: { a: 1 } }],
       [() => b.openProject('/p'), 'open_project', { path: '/p' }],
-      [() => b.setLive(true), 'set_live', { enabled: true }],
       [() => b.takePendingOpen(), 'take_pending_open'],
     ];
     for (const [call, name, args] of calls) {
@@ -46,8 +45,8 @@ describe('TauriToolsBackend', () => {
     }
     const handler = () => undefined;
     await b.onOpenRequested(handler);
-    await b.onWorkspaceChanged(handler);
-    expect(listen.mock.calls.map((c) => c[0])).toEqual(['imt://open', 'imt://workspace-changed']);
+    expect(listen.mock.calls.map((c) => c[0])).toEqual(['imt://open']);
+    expect('setLive' in b || 'onWorkspaceChanged' in b).toBe(false);
   });
 });
 

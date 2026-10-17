@@ -76,7 +76,7 @@ describe('registry tree', () => {
 });
 
 describe('loadRegistryRows', () => {
-  const source = (id: number, name: string) => ({ id, name, path: `/${name}`, importer: 'registry', records: 0, skipped: 0, dropped: 0, error: null, from: null, to: null });
+  const source = (id: number, name: string) => ({ id, name, path: `/${name}`, group: `/${name}`, importer: 'registry', records: 0, skipped: 0, dropped: 0, error: null, from: null, to: null });
 
   it('pages through every registry source filtered by @source', async () => {
     const pages: number[] = [];

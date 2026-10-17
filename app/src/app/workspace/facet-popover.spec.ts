@@ -4,6 +4,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, t
 import { Facet } from '../core/api.types';
 import { MockBackend } from '../core/mock/mock-backend';
 import { FACET_LIMIT, FacetFilterEvent, FacetPopover } from './facet-popover';
+import { LiveFeed } from '../live/live-feed';
 
 @Component({
   imports: [FacetPopover],
@@ -35,6 +36,16 @@ describe('FacetPopover', () => {
     await settle(fixture);
     return { fixture, host: fixture.componentInstance, backend };
   }
+
+  it('refreshes the counts in place when live tail asks (no flash back to loading)', async () => {
+    const { fixture, backend } = await render();
+    const spy = vi.spyOn(backend, 'queryFacet');
+    const feed = TestBed.inject(LiveFeed);
+    feed.facetVersion.set(1);
+    await settle(fixture);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(all(fixture, '.value')).toHaveLength(2);
+  });
 
   it('lists the values of the field in the current results', async () => {
     const { fixture, backend } = await render();

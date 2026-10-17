@@ -17,6 +17,7 @@ quick-xml = "0.42"
 rayon = "1.12"
 regex = "1.13"
 regex-syntax = "0.8"
+semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 toml = "1"

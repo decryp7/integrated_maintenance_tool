@@ -2,10 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { formatCount, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
+import { BackgroundWork } from '../windowing/background-work';
 
 @Component({
   selector: 'imt-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [BackgroundWork],
   template: `
     @if (store.summary(); as s) {
       <span class="strong">{{ s.sources.length }} source{{ s.sources.length === 1 ? '' : 's' }}</span>
@@ -36,6 +38,7 @@ import { LiveTail } from '../workspace/live-tail';
     >
       <span class="live-dot" aria-hidden="true"></span>Live
     </button>
+    <imt-background-work />
     <span>Importers: {{ importers() }}</span>
     <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time">{{ tz() }}</button>
     <span>IMT 0.1.0</span>

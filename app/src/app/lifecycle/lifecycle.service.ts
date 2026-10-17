@@ -5,6 +5,7 @@ import { AppStatus, ElevationInfo, Platform } from '../core/tools.types';
 import { ProjectService } from '../projects/project.service';
 import { errorMessage } from '../tools/tool-errors';
 import { SessionService } from './session.service';
+import { WindowingBackend } from '../windowing/windowing-backend';
 
 /**
  * How this run started and what it can do about it: administrator badge and restart, safe mode,
@@ -16,6 +17,7 @@ export class LifecycleService {
   private readonly store = inject(WorkspaceStore);
   private readonly session = inject(SessionService);
   private readonly projects = inject(ProjectService);
+  private readonly windowing = inject(WindowingBackend);
 
   readonly status = signal<AppStatus | null>(null);
   readonly elevation = signal<ElevationInfo | null>(null);
@@ -49,17 +51,22 @@ export class LifecycleService {
 
   /** Restores the autosaved session as the workspace and UI state. */
   async restoreLastSession(): Promise<void> {
+    let restored = false;
     try {
       const path = await this.backend.lastSession();
       if (!path) {
         this.store.setNotice('There is no saved session to restore');
       } else if (!(await this.projects.open(path, { session: true }))) {
         return;
+      } else {
+        restored = true;
       }
       this.dismissCrash();
     } catch (e) {
       this.store.setError(`Could not restore the last session: ${errorMessage(e)}`);
     }
+    // The previous run's other windows; this window's restore counts even when they cannot reopen.
+    if (restored) await this.windowing.restoreWindows().catch((e: unknown) => this.store.setError(`Could not reopen the other windows: ${errorMessage(e)}`));
   }
 
   /** Relaunches without plugins and the saved profile. Nothing is reopened (the old session may be the cause). */

@@ -19,6 +19,7 @@
         "minWidth": 1100,
         "minHeight": 680,
         "resizable": true,
+        "visible": false,
         "dragDropEnabled": true
       }
     ],
@@ -37,6 +38,9 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
+    "resources": [
+      "resources/THIRD_PARTY_NOTICES.md"
+    ],
     "shortDescription": "Analyse logs and diagnostic files",
     "fileAssociations": [
       {

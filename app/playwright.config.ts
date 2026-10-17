@@ -9,6 +9,8 @@ const PROD_CSP = '**/prod-csp.e2e.ts';
 // These also run against the production build with the Tauri CSP (no extra permissions needed).
 const ERROR_SNAPSHOTS = '**/error-snapshots.e2e.ts';
 const SETTINGS = '**/settings.e2e.ts';
+const WINDOWING = '**/windowing.e2e.ts';
+const ABOUT = '**/about.e2e.ts';
 
 // End-to-end tests run against the browser build, where the app injects the in-memory MockBackend.
 // The "prod-csp" project runs against the production build served with the Tauri CSP header.
@@ -33,7 +35,7 @@ export default defineConfig({
       : [
           {
             name: 'prod-csp',
-            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS],
+            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, '**/live-*.e2e.ts'],
             use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${PROD_PORT}` },
           },
         ]),

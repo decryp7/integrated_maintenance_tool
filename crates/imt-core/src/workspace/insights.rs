@@ -338,7 +338,7 @@ impl Workspace {
         use crate::api::{ParsePreview, ParsedPreview};
         let run = || -> Result<ParsePreview> {
             let profile = crate::profile::Profile::from_toml(&req.toml).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let compiled = crate::profile::CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+            let compiled = self.registry.compile_profile(profile)?;
             let name = if req.file_name.is_empty() {
                 "sample.log"
             } else {

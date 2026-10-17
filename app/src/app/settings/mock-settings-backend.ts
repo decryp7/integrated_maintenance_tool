@@ -23,7 +23,27 @@ export function mockSections(): SettingsSection[] {
     note: null,
     ...s,
   });
+  const options = (...o: [string, string][]): FieldKind => ({ type: 'enum', options: o.map(([value, label]) => ({ value, label })) });
   return [
+    section({
+      id: 'window',
+      title: 'Window & tray',
+      description: 'Windows, the system tray and what happens when IMT is closed.',
+      owner: { kind: 'app' },
+      group: 'app',
+      fields: [
+        f('openFilesIn', 'Open files from other apps in', options(['newWindow', 'A new window'], ['currentWindow', 'The current window'], ['ask', 'Ask every time']), 'newWindow', {
+          description: 'Where files opened from Explorer, Finder or another app appear.',
+        }),
+        f('onClose', 'When the last window is closed', options(['ask', 'Ask'], ['quit', 'Quit IMT'], ['tray', 'Keep running in the tray']), 'ask', {
+          description: 'Keeping IMT in the tray lets live tail and monitors continue in the background.',
+        }),
+        f('notifications', 'Notifications', options(['off', 'Off'], ['alerts', 'Alerts only'], ['all', 'All']), 'alerts', {
+          description: 'System notifications while IMT runs in the background.',
+        }),
+        f('startMinimized', 'Start in the system tray', { type: 'bool' }, false, { description: 'Start IMT without opening a window.' }),
+      ],
+    }),
     section({
       id: 'diagnostics',
       title: 'Diagnostics',

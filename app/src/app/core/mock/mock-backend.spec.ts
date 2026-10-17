@@ -66,7 +66,7 @@ describe('MockBackend', () => {
     expect(doc.toml).toBe(MOCK_PROFILE_TOML);
     const s = await backend.saveProfile('name = "Only markers"\n[[marker]]\nkind = "warning"\nwhen = [{ field = "@level", op = "eq", value = "Warning" }]\n');
     expect(s.profileName).toBe('Only markers');
-    expect(s.markerKinds.map((k) => k.kind)).toEqual(['warning']);
+    expect(s.markerKinds.map((k) => [k.kind, k.owner])).toEqual([['warning', 'profile']]);
     expect(s.charts).toEqual([]);
     expect((await backend.getProfile()).name).toBe('Only markers');
     await expect(backend.saveProfile('[[broken')).rejects.toBeTruthy();
@@ -213,9 +213,13 @@ describe('MockBackend', () => {
 
     it('lists plugins with their status', async () => {
       expect((await backend.workspaceSummary()).plugins.map((p) => [p.id, p.status, p.failures, p.lastError])).toEqual([
-        ['registry', 'active', 0, null],
-        ['export-basic', 'active', 0, null],
+        ['net.decryptology.registry', 'active', 0, null],
+        ['net.decryptology.windows', 'active', 0, null],
+        ['net.decryptology.web', 'active', 0, null],
+        ['net.decryptology.otel', 'inactive', 0, null],
       ]);
+      const otel = (await backend.workspaceSummary()).plugins.find((p) => p.status === 'inactive')!;
+      expect(otel.inactiveReason).toContain('needs');
     });
   });
 });

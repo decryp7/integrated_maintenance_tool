@@ -5,6 +5,7 @@ export const GENERAL_ID = '@general';
 
 /** Navigation order and titles of the groups the engine assigns. */
 export const GROUPS: { id: SectionGroup; title: string }[] = [
+  { id: 'app', title: 'Application' },
   { id: 'diagnostics', title: 'Diagnostics' },
   { id: 'plugins', title: 'Plugins' },
   { id: 'ai', title: 'AI' },

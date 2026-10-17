@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
   <diagram id="C4-3---Components-imt-core" name="C4 3 - Components imt-core">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2160" pageHeight="1300" math="0" shadow="0">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2160" pageHeight="1460" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
@@ -11,9 +11,9 @@
           <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="b_core" value="imt-core  [Container: Rust library]" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;dashPattern=8 4;fontColor=#666666;fontSize=12;verticalAlign=top;align=right;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
-          <mxGeometry x="300" y="140" width="1800" height="1010" as="geometry"/>
+          <mxGeometry x="300" y="140" width="1800" height="1195" as="geometry"/>
         </mxCell>
-        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;Tauri shell&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Commands call the LogStore trait and ProjectFile.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;Tauri shell&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Commands call the LogStore trait and ProjectFile on the calling window&#39;s workspace (CurrentWindow). Window manager, tray, background tasks, single instance and notifications stay in the shell; it publishes SnapshotTaken and calls shutdown_plugins when a window closes or the app exits.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="40" y="560" width="200" height="330" as="geometry"/>
         </mxCell>
         <mxCell id="api" value='&lt;b style="font-size:13px"&gt;api&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, api.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Wire DTOs: PageRequest, WorkspaceSummary, SourceInfo, MomentRequest, ...' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
@@ -40,7 +40,7 @@
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="ws" value='&lt;b style="font-size:13px"&gt;workspace&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, workspace/ (mod, page, timeline, facet, chart, export, context, preview, insights)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Workspace implements LogStore, in memory. open / reload / clear / remove_source / refresh_files (live tail) / restore (projects); import_files in parallel with rayon, then rebuild (sort by time, number ids, fields, default grouping, cache reset). Queries: matching (cached), page, timeline, facet, chart, source_context, preview_extractor, export. Insights: run_query, check_query, complete_query, patterns, exception_groups, anomalies (cached), compare, field_stats, correlate, traces, requests, moment. Calls WorkspaceHook.on_loaded / on_cleared / on_profile_changed.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="ws" value='&lt;b style="font-size:13px"&gt;workspace&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, workspace/ (mod, page, timeline, facet, chart, export, context, preview, insights, tail/: live tail, alerts, mutes)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Workspace implements LogStore, in memory. open / reload / clear / remove_source / refresh_files (live tail) / restore (projects); import_files in parallel with rayon, then rebuild (sort by time, number ids, fields, default grouping, cache reset). Queries: matching (cached), page, timeline, facet, chart, source_context, preview_extractor, export. Insights: run_query, check_query, complete_query, patterns, exception_groups, anomalies (cached), compare, field_stats, correlate, traces, requests, moment. Calls WorkspaceHook.on_loaded / on_cleared / on_profile_changed.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="660" y="430" width="1420" height="240" as="geometry"/>
         </mxCell>
         <mxCell id="e4" value="implements" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=0;endSize=12;exitX=0.0000;exitY=0.8333;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="store">
@@ -135,7 +135,7 @@
         <mxCell id="i_builtin" value='&lt;b style="font-size:13px"&gt;built-in importers&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, importers/{json,text,csv}.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;JsonImporter, TextImporter, CsvImporter registered by Importers::new.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="660" y="980" width="240" height="130" as="geometry"/>
         </mxCell>
-        <mxCell id="reg" value='&lt;b style="font-size:13px"&gt;plugin registry&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, plugin.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Plugin, PluginRegistry (install, add_importer, add_binary_importer, add_transform, add_exporter, add_collector, add_hook), RecordTransform, WorkspaceHook, Collector, API_VERSION = 1. Owned by the Workspace; its exporters and collectors are looked up by id.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="reg" value='&lt;b style="font-size:13px"&gt;plugin registry&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, plugin/mod.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Plugin, PluginRegistry (install / install_shared, add_importer, add_binary_importer, add_transform, add_exporter, add_collector, add_hook, add_marker_kinds, add_annotator, provide, declare_extension_point, contribute; resolve, set_enabled, shutdown), PluginStatus (active, disabled, quarantined, inactive), RecordTransform with TransformCtx::mark(), WorkspaceHook, Collector, API_VERSION = 1. Owned by the Workspace; its exporters and collectors are looked up by id.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1000" y="980" width="1060" height="130" as="geometry"/>
         </mxCell>
         <mxCell id="e18" value="registered in" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="i_builtin" target="reg">
@@ -154,11 +154,32 @@
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
+        <mxCell id="p_rt" value='&lt;b style="font-size:13px"&gt;plugin runtime&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, plugin/{manifest, graph, runtime, services, watchdog}.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Manifest (semver, requires / optional deps, provides); pure dependency graph (cycles, inactive reasons cascading to dependents); activate in dependency order, deactivate in reverse; guarded Service proxies and extension points; watchdog time budgets (hung).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="1170" width="500" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="ev" value='&lt;b style="font-size:13px"&gt;event bus&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, events.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;EventBus: typed events, bounded queue (1024) + worker per subscriber; delivered / dropped / failures / skipped. RecordsAppended, ProfileChanged, LiveAlertRaised, PluginStateChanged, WorkspaceCleared, SnapshotTaken.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="1170" width="220" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_ma" value='&lt;b style="font-size:13px"&gt;marker kinds, annotators&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, plugin/{markers, annotate}.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;PluginMarkerKind (&amp;lt;plugin-id&amp;gt;/&amp;lt;kind&amp;gt;, roles start / stop / crash), [[marker_override]]; Annotator over a bounded AnnotationView (spans, points).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="1170" width="260" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="e23" value="resolve()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.2358;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="p_rt">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" value="events()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.6321;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="ev">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e25" value="kinds, annotators" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.8774;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="p_ma">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
         <mxCell id="plug" value='&lt;b style="font-size:13px"&gt;Plugin crates&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust crates]&lt;/font&gt;&lt;br&gt;&lt;br&gt;RegistryPlugin, WindowsPlugin, WebPlugin, OtelPlugin, SyslogPlugin, MonitorPlugin implement Plugin.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1000" y="1190" width="1060" height="70" as="geometry"/>
+          <mxGeometry x="1000" y="1375" width="1060" height="70" as="geometry"/>
         </mxCell>
         <mxCell id="e22" value="install(plugin) / register()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="reg">
-          <mxGeometry relative="1" as="geometry">
+          <mxGeometry x="-0.72" relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
         <mxCell id="lg_t" value="Legend" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">

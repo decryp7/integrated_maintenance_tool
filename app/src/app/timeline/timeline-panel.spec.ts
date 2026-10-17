@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { all, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
+import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, tinyDataset } from '../../testing/helpers';
+import { MockBackend } from '../core/mock/mock-backend';
 import { Lane } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { MarkerVm, mergeMarkers } from './marker-layout';
@@ -384,5 +385,92 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
     expect(el(fixture, '.tip-desc').textContent).toBe('Payment gateway rejected the capture');
     marker.dispatchEvent(new PointerEvent('pointerleave'));
     await settle(fixture);
+  });
+});
+
+describe('TimelinePanel annotations', () => {
+  async function render(backend = tinyBackend()) {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle(fixture, 8);
+    return { fixture, store };
+  }
+  const laneOf = (f: Awaited<ReturnType<typeof render>>['fixture'], key: string) =>
+    all(f, '.lane').find((l) => l.querySelector('.lane-label .key')?.textContent?.trim() === key)!;
+
+  it('draws spans as bands on their lanes, machine-wide spans on every lane of the machine, and points as glyphs', async () => {
+    const { fixture } = await render();
+    const web01 = laneOf(fixture, 'WEB01 · 100');
+    const kinds = [...web01.querySelectorAll('.ann')].map((b) => b.getAttribute('data-kind'));
+    expect(kinds).toEqual(expect.arrayContaining(['net.decryptology.windows/service-running', 'net.decryptology.windows/downtime', 'net.decryptology.windows/app-crash']));
+    expect(laneOf(fixture, 'WEB01 · 200').querySelector('[data-kind="net.decryptology.windows/downtime"]')).not.toBeNull();
+    expect(laneOf(fixture, 'WEB02 · 300').querySelector('[data-kind="net.decryptology.windows/downtime"]')).toBeNull();
+    const point = web01.querySelector<HTMLElement>('[data-kind="net.decryptology.windows/app-crash"]')!;
+    expect(point.classList).toContain('point');
+    // Severity is an icon (and a pattern class), not only a colour.
+    expect(point.classList).toContain('sev-critical');
+    expect(point.querySelector('imt-severity-badge')!.textContent).toContain('Critical');
+  });
+
+  it('lists the kinds in an "Annotations" legend whose items hide and show them', async () => {
+    const { fixture } = await render();
+    const legend = el(fixture, '.ann-legend');
+    expect(legend.getAttribute('aria-label')).toBe('Annotations');
+    expect(legend.textContent).toContain('Annotations');
+    const downtime = el<HTMLButtonElement>(fixture, '.ann-legend [data-kind="net.decryptology.windows/downtime"]');
+    expect(downtime.getAttribute('aria-pressed')).toBe('true');
+    downtime.click();
+    await settle(fixture);
+    expect(downtime.getAttribute('aria-pressed')).toBe('false');
+    expect(fixture.nativeElement.querySelector('.lane [data-kind="net.decryptology.windows/downtime"]')).toBeNull();
+    downtime.click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.lane [data-kind="net.decryptology.windows/downtime"]')).not.toBeNull();
+  });
+
+  it('shows label, owner and time on hover and applies the evidence query on click', async () => {
+    const { fixture, store } = await render();
+    const band = el<HTMLButtonElement>(fixture, '.lane [data-kind="net.decryptology.windows/downtime"]');
+    band.dispatchEvent(new PointerEvent('pointerenter', { clientX: 20, clientY: 20 }));
+    await settle(fixture);
+    const tip = el(fixture, '[data-testid="annotation-tip"]').textContent!;
+    expect(tip).toContain('Unexpected shutdown');
+    expect(tip).toContain('net.decryptology.windows');
+    expect(tip).toContain('→');
+    expect(tip).toContain('MachineName = WEB01');
+    band.dispatchEvent(new PointerEvent('pointerleave'));
+    band.click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('[data-testid="annotation-tip"]')).toBeNull();
+    expect(store.query().filters).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
+    expect(store.hasRange()).toBe(true);
+    // Keyboard focus shows the same tooltip.
+    const point = el<HTMLButtonElement>(fixture, '.lane .ann.point');
+    point.dispatchEvent(new FocusEvent('focus'));
+    await settle(fixture);
+    expect(el(fixture, '[data-testid="annotation-tip"]').textContent).toContain('Application crashed');
+    point.dispatchEvent(new FocusEvent('blur'));
+  });
+
+  it('reports a failed request inline and retries', async () => {
+    const { fixture } = await render(new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [], fail: { annotations: 1 } }));
+    expect(el(fixture, '.ann-err').textContent).toContain('Annotations unavailable');
+    expect(all(fixture, '.lane .ann')).toHaveLength(0);
+    buttonByText(fixture, 'Retry').click();
+    await settle(fixture, 8);
+    expect(fixture.nativeElement.querySelector('.ann-err')).toBeNull();
+    expect(all(fixture, '.lane .ann').length).toBeGreaterThan(0);
+  });
+
+  it('refreshes when the data changes (live tail, reload)', async () => {
+    const backend = tinyBackend();
+    const spy = vi.spyOn(backend, 'annotations');
+    const { fixture, store } = await render(backend);
+    const calls = spy.mock.calls.length;
+    expect(calls).toBeGreaterThan(0);
+    await store.refreshSummary();
+    await settle(fixture, 8);
+    expect(spy.mock.calls.length).toBeGreaterThan(calls);
   });
 });

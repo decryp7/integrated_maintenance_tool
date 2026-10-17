@@ -58,6 +58,11 @@ when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
 | `export::Exporter` | `add_exporter` | write events in a new format (streamed) |
 | `plugin::Collector` | `add_collector` | produce events (monitors, probes) into an `EventSink` |
 | `plugin::WorkspaceHook` | `add_hook` | be told when files are loaded, the workspace is cleared, or the profile changes |
+| `plugin::markers::PluginMarkerKind` | `add_marker_kinds` | mark events on the timeline (crashes, boots, …) with rules or from a transform |
+| `plugin::annotate::Annotator` | `add_annotator` | derive ranges and points (reboot windows, service uptime) from the records |
+| any trait | `provide` / `service` | an API other plugins call (see [Services](#services)) |
+| any trait | `declare_extension_point` / `contribute` | let other plugins extend yours (see [Extension points](#extension-points)) |
+| typed events | `events().subscribe` | react to imports, appends, alerts, profile and plugin state (see [Events](#events)) |
 
 All of them live in `imt_core` and are bundled by a `Plugin`:
 
@@ -65,15 +70,20 @@ All of them live in `imt_core` and are bundled by a `Plugin`:
 pub trait Plugin: Send + Sync {
     fn id(&self) -> &'static str;          // reverse-DNS, unique: "com.acme.tools"
     fn name(&self) -> &'static str;
-    fn version(&self) -> &'static str;
+    fn version(&self) -> &'static str;     // semver; "1" and "1.2" are read as 1.0.0 and 1.2.0
     fn api_version(&self) -> u32 { imt_core::API_VERSION }
     fn register(&self, registry: &mut imt_core::PluginRegistry) -> anyhow::Result<()>;
+    fn configurable(&self) -> Option<Arc<dyn Configurable>> { None }   // see Plugin settings
+    fn manifest(&self) -> Manifest { /* id, version, api_version, no dependencies */ }
+    fn activate(&self, ctx: &ActivationCtx) -> anyhow::Result<()> { Ok(()) }
+    fn deactivate(&self) {}
 }
 ```
 
-`PluginRegistry::install` rejects plugins built for another `API_VERSION`, duplicate plugin ids
-and duplicate contribution ids, and records what each plugin contributed (shown in the app's
-Plugins panel).
+`PluginRegistry::install` rejects plugins built for another `API_VERSION`, invalid manifests,
+duplicate plugin ids and duplicate contribution ids, and records what each plugin contributed
+(shown in the app's Plugins panel). A plugin whose `register` fails is listed as `inactive` with
+the reason, and so are the plugins that need it.
 
 ### Step by step: a new file format
 
@@ -149,10 +159,11 @@ The complete, real example is `crates/imt-plugin-registry` (Windows `.reg` expor
    ```
 
 4. **Register it in the app**: add the crate to `app/src-tauri/Cargo.toml` and one line to
-   `plugins()` in `app/src-tauri/src/lib.rs`:
+   `builtin_plugins()` in `app/src-tauri/src/lifecycle.rs` (order does not matter; activation
+   follows the dependency graph):
 
    ```rust
-   registry.install(&imt_plugin_acme::AcmePlugin)?;
+   Arc::new(imt_plugin_acme::AcmePlugin),
    ```
 
 5. **Test it** (see the registry plugin's tests for the pattern): unit tests per format feature,
@@ -341,6 +352,226 @@ How it behaves:
 
 App modules (for example the AI assistant, section id `ai`) register the same trait with
 `SettingsService::register` in `app/src-tauri/src/settings.rs`.
+
+### Manifests and dependencies
+
+A plugin describes itself with a `Manifest`: id, semver version, plugin API level, the plugins it
+needs and the services it provides. The default (no dependencies) is derived from `id`,
+`version` and `api_version`, so plugins that need nothing need no change.
+
+```rust
+use imt_core::plugin::Manifest;
+
+fn manifest(&self) -> Manifest {
+    Manifest::new(self.id(), self.version())
+        .requires("net.decryptology.perfmon", "^1.0")     // cannot work without it
+        .optionally("net.decryptology.windows", ">=0.1")  // used when present
+        .provides("acme.symbols", "1.2.0")                // services it registers
+}
+```
+
+Bad values (a version or requirement that does not parse, a self-dependency, duplicates) are
+reported at install with the value that is wrong.
+
+The registry resolves the graph after every install:
+
+| Situation | Result |
+|---|---|
+| A required plugin is missing | `inactive`: `needs X ^1.0 (not installed)` |
+| …has an incompatible version | `inactive`: `needs X ^1.0 (installed 0.9.0)` |
+| …is disabled / quarantined | `inactive`: `needs X which is disabled` / `…quarantined` |
+| …is itself inactive | `inactive`: `needs X which is inactive (needs Y which is quarantined)` (the chain) |
+| Plugins require each other in a cycle | all of them `inactive`: `dependency cycle: a → b → a` |
+| An optional plugin is unavailable | stays `active`; a warning (`optional: needs …`) |
+
+`PluginInfo` (the Plugins panel) carries `requires`, `provides`, `inactiveReason`, `dependents`
+(plugins that require this one), `warnings` and `hung`. An inactive plugin's contributions stay
+registered but every call to them is refused with that reason (an importer sniffs 0, a transform
+leaves records unchanged, an exporter returns the error).
+
+**Cascade.** Quarantining a provider (after repeated crashes) or disabling it at run time
+(`PluginRegistry::set_enabled`) makes its dependents inactive, transitively; resetting it
+(`reset_plugin`) or enabling it again reactivates them. A `PluginStateChanged` event is published
+for every change.
+
+**Activation.** Once every plugin is installed, `PluginRegistry::resolve()` (the app calls it;
+`Workspace::with_registry` too) runs `activate` hooks in dependency order: a plugin's
+dependencies are active before its own hook runs, so this is where it looks up services.
+`deactivate` runs in reverse order when a plugin stops being active and on `shutdown()`. An error
+from `activate` leaves the plugin inactive (`activation failed: …`) until it is reset. Hooks run
+only for plugins installed with `install_shared(Arc<dyn Plugin>)`: `install(&plugin)` cannot keep
+the plugin, so its hooks are not called (everything else works the same).
+
+### Services
+
+Inter-plugin APIs are Rust traits in small, separately versioned API crates (`crates/imt-api-*`).
+`crates/imt-api-perf` is the example: `trait CounterSource` (live performance counters), its
+service id and version, and `contract_tests(&dyn CounterSource)`, which every provider must pass
+in a `#[test]`.
+
+```rust
+// Provider, in register():
+registry.provide::<dyn CounterSource>(imt_api_perf::SERVICE_ID, imt_api_perf::VERSION, Arc::new(Pdh::new()))?;
+
+// Consumer: declare the dependency, look the service up in activate().
+fn manifest(&self) -> Manifest {
+    Manifest::new(self.id(), self.version()).requires("acme.perf", "^1")
+}
+fn activate(&self, ctx: &ActivationCtx) -> anyhow::Result<()> {
+    let counters = ctx.service::<dyn CounterSource>(imt_api_perf::SERVICE_ID, "^1")?;
+    *self.counters.lock().unwrap() = Some(counters);
+    Ok(())
+}
+
+// Using it: the closure runs under the provider's guard and time budget.
+let paths = counters.try_call(|c| c.counters())?;
+let n = counters.call(|c| c.counters().map(|v| v.len()))??;
+```
+
+Lookups check the id, the trait (`TypeId`) and the semver requirement, and fail with a message
+that says which one did not match (`service "x" ^2 is not available: plugin "p" provides version
+1.4.0`). The `Service` handle never exposes the bare `Arc`: a panicking provider becomes an
+error counted against the provider (and quarantines it), and a quarantined, hung or inactive
+provider is refused (`service "x": provider "p" is quarantined`). `call_detached` runs the call on
+a helper thread and stops waiting when the service budget runs out.
+
+No built-in plugin provides `CounterSource` yet: the Windows plugin imports PerfMon logs as
+records (data over calls), and live PDH sampling lives in `imt-monitor`'s collector. The contract
+tests run against a test-only provider.
+
+### Extension points
+
+A plugin can define its own contribution point (an id and a trait); others contribute
+implementations, in any install order:
+
+```rust
+// The profiler declares it…
+registry.declare_extension_point::<dyn SymbolResolver>("acme.profiler.symbols")?;
+// …a symbols plugin contributes…
+registry.contribute::<dyn SymbolResolver>("acme.profiler.symbols", Arc::new(PdbResolver));
+// …and the profiler collects them (each a guarded `Service`, attributed to its contributor).
+for r in ctx.contributions::<dyn SymbolResolver>("acme.profiler.symbols") {
+    if let Ok(name) = r.call(|r| r.resolve(addr)) { /* … */ }
+}
+```
+
+A contribution to a point nobody declares (or with another trait) is not an error: the
+contributing plugin stays active, shows a warning, and the contribution is not returned.
+
+### Events
+
+`registry.events()` (also `Workspace::events()` and `ActivationCtx::events()`) is a typed bus.
+The engine publishes `RecordsAppended { count, sources }` (after imports and live-tail appends),
+`LiveAlertRaised(LiveAlert)`, `ProfileChanged { name }`, `WorkspaceCleared` and
+`PluginStateChanged { id, status }`; the app publishes `SnapshotTaken { id }`. Any
+`Send + Sync + 'static` type is an event, so plugins define their own by declaring a struct.
+
+```rust
+registry.events().subscribe::<RecordsAppended>(self.id(), move |e| {
+    stats.lock().unwrap().added += e.count;   // runs on the subscriber's own thread
+})?;
+```
+
+Each subscriber has its own worker thread and a bounded queue (1024 events): events arrive in
+publish order, `publish` never blocks the engine, and when a slow subscriber falls behind its
+oldest events are dropped and counted. Delivery runs under the subscriber plugin's guard (a panic
+counts towards quarantine; a quarantined or inactive subscriber is skipped). `metrics()` reports
+`delivered`, `dropped`, `failures`, `skipped` and `queued` per subscriber.
+
+### Marker kinds
+
+A plugin can contribute marker kinds for the timeline, with default rules in the same condition
+language as a profile's `[[marker]] when`:
+
+```rust
+use imt_core::plugin::markers::{MarkerRole, PluginMarkerKind};
+
+registry.add_marker_kinds(vec![
+    PluginMarkerKind::new("app-crash", "Application crash")
+        .when("Provider", "eq", "Application Error")
+        .when("EventId", "eq", "1000")
+        .role(MarkerRole::Crash)            // start / stop / crash: always shown on the timeline
+        .icon("x-circle")
+        .color("#F2545B")
+        .describe("A process crashed."),
+])?;
+```
+
+Kinds are shown as `<plugin-id>/<kind>`, with `owner` (plugin id, `profile` or `builtin`) and
+`role` in the summary's `markerKinds`. Priority (the first match is a record's primary marker):
+the profile's own rules, then plugin kinds, then the built-in defaults. Users switch kinds off or
+restyle them in the profile:
+
+```toml
+[[marker_override]]
+kind = "net.decryptology.windows/app-crash"
+enabled = false
+```
+
+A transform can also mark a record for logic a condition cannot express, with its own plugin's
+kinds only (others are refused and noted in the Plugins panel):
+
+```rust
+fn apply(&self, r: &mut Record, ctx: &TransformCtx) -> Verdict {
+    if looks_like_a_deadlock(r) { ctx.mark("deadlock"); }
+    Verdict::Keep
+}
+```
+
+At most 64 kinds fit in total; extra plugin kinds are dropped with a note. Kinds of a quarantined,
+disabled or inactive plugin are hidden (records keep the bits; they reappear after a reset).
+The Windows plugin (`crates/imt-plugin-windows/src/markers.rs`) is the real example, with the
+event ids and their sources documented.
+
+### Annotators
+
+Markers are points on one record; an annotator finds ranges (and points) across records:
+
+```rust
+impl Annotator for RebootAnnotator {
+    fn id(&self) -> &str { "windows.reboots" }
+    fn annotate(&self, view: &dyn AnnotationView, since: Option<RecordCursor>) -> anyhow::Result<Vec<Annotation>> {
+        let boots = view.select(&ViewFilter { when: vec![/* EventId 6005 … */], ..Default::default() }, 10_000)?;
+        // … pair shutdowns with boots per Computer …
+        Ok(vec![Annotation { kind: "downtime".into(), from, to, instance: None,
+            on: Some(FieldMatch { field: "Computer".into(), value: computer }),
+            label: "Reboot of WEB01".into(), severity: Severity::Info, evidence_query }])
+    }
+}
+// register(): registry.add_annotator(Arc::new(RebootAnnotator))?;
+```
+
+`AnnotationView` is read-only and bounded: `select` (conditions and time bounds, oldest or newest
+first, capped), `query` (a full query including the query language), `instances` and
+`time_range`. Annotators run after every import and after live-tail appends (`since` is the first
+new record); each run returns the annotator's complete set, which replaces the previous one. Runs
+are guarded with the `annotate` budget and capped at 10,000 annotations per annotator. The UI
+reads them with `LogStore::annotations({ from, to, instance })`.
+
+### Time budgets, the watchdog and isolation tiers
+
+Every guarded call has a time budget per kind (`guard::Budgets`, set with
+`PluginRegistry::set_budgets`): sniff 5 s, import 120 s, live-tail parse 10 s, transform 250 ms per
+record, hook 5 s, service call 10 s, event delivery 5 s, annotator run 10 s, activation 10 s;
+exports and collectors are unlimited (they stream or run until stopped).
+
+In process, a running call cannot be pre-empted. A watchdog thread notices a call that exceeds its
+budget, marks the plugin **hung** (a failure towards quarantine; `hung` in the Plugins panel), and
+further calls of that plugin fail fast until the stuck call returns. Where the caller can afford
+it the call runs on a helper thread and is **abandoned** when it overruns: plugin imports work on
+owned copies of their input, so an import that hangs fails that file after 120 s (the thread is
+left to finish; its result is discarded), and `Service::call_detached` does the same for services.
+
+What this cannot do: stop a thread that never returns (it keeps its CPU and memory), or survive a
+stack overflow, an abort or running out of memory, which end the process. That needs process
+isolation (ADR 0002):
+
+| Tier | For | Crash | Hang |
+|---|---|---|---|
+| In-process, guarded (today) | first-party safe Rust plugins | panic → error, quarantine | watchdog: hung, fail fast, abandon where possible |
+| Plugin host process (next) | any Rust plugin, opt-in or after a quarantine | process dies, restarted with backoff | call cancelled by deadline, host killed |
+| Worker process (`imt-ai-worker`) | native code (llama.cpp, PDH, profilers) | as above | as above |
+| WebAssembly (planned) | third-party plugins | trapped | fuel/epoch interruption |
 
 ### Plugin rules
 

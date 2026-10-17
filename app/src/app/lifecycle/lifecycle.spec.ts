@@ -11,6 +11,7 @@ import { SessionService } from './session.service';
 import { TitleExtras } from './title-extras';
 import { UI_STATE_CONTRIBUTIONS } from './ui-state';
 import { CoreUiState } from './core-ui-state';
+import { WindowingBackend } from '../windowing/windowing-backend';
 
 async function setup(options: Partial<MockToolsOptions> = {}) {
   TestBed.configureTestingModule({ providers: [...provideToolsTesting(options), { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(CoreUiState).contributions }] });
@@ -88,6 +89,21 @@ describe('LifecycleService', () => {
     vi.spyOn(again.tools, 'lastSession').mockRejectedValue(new Error('io'));
     await again.life.restoreLastSession();
     expect(again.store.error()).toContain('Could not restore the last session: io');
+  });
+
+  it('reopens the other windows only after a successful restore; their failure does not undo it', async () => {
+    const { life, store, tools } = await setup({ previousCrash: true });
+    const restore = vi.spyOn(TestBed.inject(WindowingBackend), 'restoreWindows');
+    vi.spyOn(tools, 'lastSession').mockResolvedValueOnce(null);
+    await life.restoreLastSession();
+    expect(restore).not.toHaveBeenCalled();
+    await life.restoreLastSession();
+    expect(restore).toHaveBeenCalledTimes(1);
+    restore.mockRejectedValueOnce('no display');
+    await life.restoreLastSession();
+    expect(store.error()).toBe('Could not reopen the other windows: no display');
+    expect(life.showCrashBanner()).toBe(false);
+    expect(store.summary()).not.toBeNull();
   });
 
   it('dismisses the crash banner and re-enables autosave', async () => {

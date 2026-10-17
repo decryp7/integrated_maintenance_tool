@@ -5,6 +5,7 @@ import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
 import { MockToolsBackend } from '../tools/mock/mock-tools-backend';
+import { listenHere } from '../windowing/window-events';
 import {
   AppStatus,
   CollectorAction,
@@ -22,7 +23,6 @@ import {
 
 /** Names of the events the shell emits. */
 export const OPEN_EVENT = 'imt://open';
-export const WORKSPACE_CHANGED_EVENT = 'imt://workspace-changed';
 
 /** Stops listening to an event. */
 export type Unlisten = () => void;
@@ -57,16 +57,13 @@ export abstract class LifecycleBackend {
   abstract lastSession(): Promise<string | null>;
 }
 
-/** Projects, live tail and OS "open with" requests. */
+/** Projects and OS "open with" requests (live tail lives on `ImtBackend`). */
 export abstract class ProjectBackend {
   abstract saveProject(path: string, name: string, ui: unknown): Promise<ProjectSaved>;
   abstract openProject(path: string): Promise<ProjectOpened>;
-  abstract setLive(enabled: boolean): Promise<number>;
   abstract takePendingOpen(): Promise<string[]>;
   /** Calls `handler` whenever the shell queued paths to open (`imt://open`). */
   abstract onOpenRequested(handler: () => void): Promise<Unlisten>;
-  /** Calls `handler` after live tail refreshed the workspace (`imt://workspace-changed`). */
-  abstract onWorkspaceChanged(handler: () => void): Promise<Unlisten>;
 }
 
 /**
@@ -94,20 +91,15 @@ export abstract class ToolsBackend implements PerfmonBackend, CollectBackend, Li
   abstract lastSession(): Promise<string | null>;
   abstract saveProject(path: string, name: string, ui: unknown): Promise<ProjectSaved>;
   abstract openProject(path: string): Promise<ProjectOpened>;
-  abstract setLive(enabled: boolean): Promise<number>;
   abstract takePendingOpen(): Promise<string[]>;
   abstract onOpenRequested(handler: () => void): Promise<Unlisten>;
-  abstract onWorkspaceChanged(handler: () => void): Promise<Unlisten>;
 }
 
 /** Subscribes to a Tauri event; tests pass a fake. */
 export type ListenFn = (event: string, handler: () => void) => Promise<Unlisten>;
 
 /* v8 ignore start: thin wrapper over the Tauri event API, exercised only in the real app */
-const tauriListen: ListenFn = async (event, handler) => {
-  const { listen } = await import('@tauri-apps/api/event');
-  return listen(event, () => handler());
-};
+const tauriListen: ListenFn = (event, handler) => listenHere(event, () => handler());
 /* v8 ignore stop */
 
 /** Talks to the Rust shell through Tauri commands. */
@@ -180,17 +172,11 @@ export class TauriToolsBackend extends ToolsBackend {
   openProject(path: string) {
     return this.call<ProjectOpened>('open_project', { path });
   }
-  setLive(enabled: boolean) {
-    return this.call<number>('set_live', { enabled });
-  }
   takePendingOpen() {
     return this.call<string[]>('take_pending_open');
   }
   onOpenRequested(handler: () => void) {
     return this.listen(OPEN_EVENT, handler);
-  }
-  onWorkspaceChanged(handler: () => void) {
-    return this.listen(WORKSPACE_CHANGED_EVENT, handler);
   }
 }
 

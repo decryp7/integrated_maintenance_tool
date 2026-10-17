@@ -1,5 +1,8 @@
 import { parse, TomlError } from 'smol-toml';
 import {
+  AlertTarget,
+  AnnotationDto,
+  AnnotationsRequest,
   ChartData,
   ChartRequest,
   ContextRequest,
@@ -13,6 +16,9 @@ import {
   InferredRegex,
   LEVELS,
   Level,
+  LiveAlert,
+  LiveOptions,
+  LiveState,
   Page,
   PageRequest,
   ParsePreview,
@@ -20,20 +26,28 @@ import {
   PluginInfo,
   ProfileDoc,
   ProfileValidation,
+  Query,
   SourceContext,
+  SubscriberMetrics,
+  TailReport,
+  TailStatus,
   Timeline,
   TimelineRequest,
   WorkspaceSummary,
 } from '../api.types';
 import type { ImtBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
-import { generateDemo, generateExtraSource, MockDataset } from './mock-data';
+import { generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
+import { mockAnnotations } from './mock-annotations';
 import { MockEngine, safeRegex } from './mock-engine';
+import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
 import type { Failable } from './mock-options';
 import { mockPreviewParse } from './mock-parse';
 import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
+import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
+import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
@@ -52,8 +66,24 @@ export interface MockBackendOptions {
   fail?: Partial<Record<Failable, number>>;
   /** Page rows lose their `markers`, as a buggy backend would send them (panel error boundary tests). */
   corruptMarkers?: boolean;
-  /** Interval between live tail events (default 1500 ms). */
+  /** Interval between live tail events (default 1500 ms; 250 ms with `liveRate`). */
   liveMs?: number;
+  /** Realistic live simulation: this many records per second across the tailed files (default: one per tick). */
+  liveRate?: number;
+  /** With `liveRate`: rotate the tailed file every this many ms (default 30000; 0 = never). */
+  liveRotateMs?: number;
+  /** With `liveRate`: raise a live alert every this many ms (default 10000; 0 = never). */
+  liveAlertMs?: number;
+  /** Publish the `setLive` calls as `globalThis.__imtMockLiveCalls` (end-to-end tests spy on them). */
+  exposeLiveCalls?: boolean;
+  /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
+  pluginMarkerKinds?: readonly MockPluginKind[];
+}
+
+/** One recorded `setLive` call. */
+export interface MockLiveCall {
+  enabled: boolean;
+  options: LiveOptions | null;
 }
 
 /** In-browser stand-in for the Rust backend (used by `ng serve`). */
@@ -61,7 +91,7 @@ export class MockBackend implements ImtBackend {
   private dataset: MockDataset;
   private profileToml = MOCK_PROFILE_TOML;
   private profile: ProfileModel;
-  private engine = new MockEngine();
+  private engine: MockEngine;
   private loadMs = 0;
   private nextSourceId = 100;
 
@@ -69,18 +99,30 @@ export class MockBackend implements ImtBackend {
   private readonly makeDataset: () => MockDataset;
   private readonly options: MockBackendOptions;
   private readonly failuresLeft: Partial<Record<Failable, number>>;
-  private readonly changeHandlers = new Set<() => void>();
+  private readonly changeHandlers = new Set<(report: TailReport | null) => void>();
+  private readonly alertHandlers = new Set<(alert: LiveAlert) => void>();
   private liveTimer: ReturnType<typeof setInterval> | undefined;
   /** Events appended by live tail since the start. */
   private liveAdded = 0;
+  private liveOn = false;
+  private liveOptions: LiveOptions | undefined;
+  private liveSim: MockLiveSim;
+  private readonly mutes = new MockAlertMutes();
+  /** Records evicted by the simulated retention limit. */
+  private evicted = 0;
+  /** Every `setLive` call, in order (tests spy on it). */
+  readonly liveCalls: MockLiveCall[] = [];
 
   constructor(options: MockBackendOptions = {}) {
     this.options = options;
     this.failuresLeft = { ...options.fail };
     this.latency = options.latency ?? true;
     this.makeDataset = options.dataset ?? (() => generateDemo());
+    this.engine = new MockEngine(options.pluginMarkerKinds ?? MOCK_PLUGIN_KINDS);
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;
+    this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
+    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
 
@@ -140,6 +182,7 @@ export class MockBackend implements ImtBackend {
         id: s.id,
         path: s.path,
         name: s.name,
+        group: mockGroupOf(s.path),
         importer: s.importer,
         records: synthetic !== null && i === 0 ? synthetic : (perSource.get(s.id)?.n ?? 0),
         skipped: s.skipped,
@@ -161,6 +204,7 @@ export class MockBackend implements ImtBackend {
       profileName: this.profile.name ?? 'Unnamed profile',
       loadMs: this.loadMs,
       dropped: [...e.droppedBySource.values()].reduce((a, b) => a + b, 0),
+      evicted: this.evicted,
       plugins: MOCK_PLUGINS,
       exporters: MOCK_EXPORTERS,
       pipeline: e.pipelineStats,
@@ -214,25 +258,25 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('queryPage') ??
       this.delay(() => {
-        const page = this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(request);
+        const page = this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(this.windowed(request));
         return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
       }, 20)
     );
   }
 
   queryTimeline(request: TimelineRequest): Promise<Timeline> {
-    return this.failing('queryTimeline') ?? this.delay(() => this.engine.timeline(request), 30);
+    return this.failing('queryTimeline') ?? this.delay(() => this.engine.timeline(this.windowed(request)), 30);
   }
 
   queryFacet(request: FacetRequest): Promise<Facet> {
     return (
       this.failing('queryFacet') ??
-      this.delay(() => (this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(request)), 20)
+      this.delay(() => (this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(this.windowed(request))), 20)
     );
   }
 
   queryChart(request: ChartRequest): Promise<ChartData> {
-    return this.delay(() => this.engine.chart(request), 30);
+    return this.delay(() => this.engine.chart(this.windowed(request)), 30);
   }
 
   getProfile(): Promise<ProfileDoc> {
@@ -273,7 +317,7 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
       // The browser demo writes nothing: it only reports what the desktop app would export.
-      return { format: request.format, path: request.path, events: this.engine.matching(request.query).length };
+      return { format: request.format, path: request.path, events: this.engine.matching(this.windowed(request).query).length };
     }, 100);
   }
 
@@ -310,32 +354,142 @@ export class MockBackend implements ImtBackend {
     return this.failing('previewParse') ?? this.delay(() => mockPreviewParse(request), 20);
   }
 
-  setLive(enabled: boolean): Promise<number> {
+  /** The request with its sliding window resolved against the newest record (mock approximation of the engine). */
+  private windowed<R extends { query: Query }>(request: R): R {
+    if (!request.query.window) return request;
+    const wall = String((this.profile['live'] as { clock?: unknown } | undefined)?.clock ?? '').toLowerCase() === 'wall';
+    return { ...request, query: mockResolveWindow(request.query, wall ? Date.now() : this.engine.newestTs()) };
+  }
+
+  setLive(enabled: boolean, options?: LiveOptions): Promise<number> {
+    this.liveCalls.push({ enabled, options: options ?? null });
     return this.delay(() => {
       clearInterval(this.liveTimer);
       this.liveTimer = undefined;
-      if (enabled) this.liveTimer = setInterval(() => this.liveTick(), this.options.liveMs ?? 1500);
+      this.liveOn = enabled;
+      if (enabled) {
+        this.liveOptions = options;
+        this.liveTimer = setInterval(() => this.liveTick(), this.liveSim.config.tickMs);
+      } else {
+        this.liveSim.idle();
+      }
       return enabled ? this.dataset.sources.length : 0;
     }, 10);
   }
 
-  onWorkspaceChanged(handler: () => void): Promise<() => void> {
+  onWorkspaceChanged(handler: (report: TailReport | null) => void): Promise<() => void> {
     this.changeHandlers.add(handler);
     return Promise.resolve(() => void this.changeHandlers.delete(handler));
   }
 
-  /** One new event arrives in the newest source, then listeners are told, like the engine's file watcher does. */
-  private liveTick(): void {
-    this.liveAdded++;
-    if (!this.options.syntheticTotal) {
-      const last = this.dataset.records.reduce((m, r) => Math.max(m, r.ts ?? 0), 0);
-      const source = this.dataset.sources[0];
-      if (source) {
-        this.dataset.records.push({ id: 0, ts: last + 1000, level: 'Information', message: `Live event ${this.liveAdded}`, template: null, exception: null, fields: { Live: true }, source: source.id, line: 100_000 + this.liveAdded, markers: [] });
-        this.apply();
+  onLiveAlert(handler: (alert: LiveAlert) => void): Promise<() => void> {
+    this.alertHandlers.add(handler);
+    return Promise.resolve(() => void this.alertHandlers.delete(handler));
+  }
+
+  tailStatus(): Promise<TailStatus> {
+    return this.delay(() => {
+      const counts = new Map<number, number>();
+      for (const r of this.engine.records) counts.set(r.source, (counts.get(r.source) ?? 0) + 1);
+      return this.liveSim.status(this.dataset.sources, (id) => counts.get(id) ?? 0, mockWatchMode(this.liveOn, this.liveOptions), this.evicted, this.engine.records.length);
+    }, 15);
+  }
+
+  liveState(): Promise<LiveState> {
+    return this.delay(() => ({ enabled: this.liveOn, options: mockResolveLiveOptions(this.liveOptions) }), 5);
+  }
+
+  muteAlerts(target: AlertTarget, untilMs: number): Promise<void> {
+    return this.delay(() => this.mutes.mute(target, untilMs), 5);
+  }
+
+  unmuteAlerts(target: AlertTarget): Promise<void> {
+    return this.delay(() => this.mutes.unmute(target), 5);
+  }
+
+  openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary> {
+    if (!startAtEnd) return this.openPaths(paths);
+    return this.delay(() => {
+      for (const path of paths) {
+        if (this.dataset.sources.some((s) => s.path === path)) continue;
+        // Only lines written from now on: the file's history is skipped, so the source starts empty.
+        const id = this.nextSourceId++;
+        this.dataset.sources.push({ id, path, name: path.split(/[\\/]/).pop() || path, importer: 'text', skipped: 0 });
+        this.liveSim.follow(id);
       }
+      this.apply();
+      return this.summary();
+    }, 300);
+  }
+
+  /** One simulated watcher batch: new records (and maybe a rotation and an alert), then listeners are told, like the engine's file watcher does. */
+  private liveTick(): void {
+    const t0 = performance.now();
+    const report = emptyReport();
+    let alerts: LiveAlert[] = [];
+    if (this.options.syntheticTotal) {
+      this.liveAdded++;
+      report.appended = 1;
+    } else {
+      const last = this.lastBySource();
+      const batch = this.liveSim.tick(this.dataset.sources, this.engine.newestTs(), (id) => last.get(id), Date.now());
+      for (const r of batch.rotations) {
+        const rotated = this.dataset.sources.find((s) => s.id === r.sourceId);
+        if (rotated) {
+          rotated.path = r.to;
+          rotated.name = r.to.split(/[\\/]/).pop() || r.to;
+        }
+        this.dataset.sources.push(r.replacement);
+        report.rotated.push({ sourceId: r.sourceId, from: r.from, to: r.to });
+        report.added.push(r.replacement.id);
+        report.fileStates.push({ sourceId: r.sourceId, state: { kind: 'rotated' } }, { sourceId: r.replacement.id, state: { kind: 'tailing' } });
+      }
+      if (batch.rotations.length) this.engine.setSources(this.dataset.sources);
+      this.dataset.records.push(...batch.records);
+      const appended = this.engine.append(batch.records, this.profile);
+      this.liveAdded += batch.records.length;
+      report.appended = appended.length;
+      report.sourcesChanged = [...new Set([...batch.records.map((r) => r.source), ...report.added])];
+      this.applyRetention(report);
+      alerts = batch.alerts.filter((a) => !this.mutes.covers(a));
     }
-    for (const handler of [...this.changeHandlers]) handler();
+    report.newestTs = this.engine.newestTs();
+    report.alertsRaised = alerts.length;
+    report.elapsedMs = Math.round((performance.now() - t0) * 10) / 10;
+    for (const handler of [...this.changeHandlers]) handler(report);
+    for (const alert of alerts) for (const handler of [...this.alertHandlers]) handler(alert);
+  }
+
+  /** The newest raw record of each source (for the instance fields and line numbers of new lines). */
+  private lastBySource(): Map<number, MockRecord> {
+    const last = new Map<number, MockRecord>();
+    const wanted = this.dataset.sources.length;
+    for (let i = this.dataset.records.length - 1; i >= 0 && last.size < wanted; i--) {
+      const r = this.dataset.records[i];
+      if (!last.has(r.source)) last.set(r.source, r);
+    }
+    return last;
+  }
+
+  /** Simulated retention: the oldest records beyond `maxRecords` or older than `maxAgeMs` are evicted. */
+  private applyRetention(report: TailReport): void {
+    const retention = this.liveOptions?.retention;
+    const newest = this.engine.newestTs();
+    const maxAge = retention?.maxAgeMs ?? null;
+    const maxRecords = retention?.maxRecords ?? null;
+    if (maxAge === null && maxRecords === null) return;
+    const before = this.dataset.records.length;
+    let kept = maxAge !== null && newest !== null ? this.dataset.records.filter((r) => r.ts === null || r.ts >= newest - maxAge) : this.dataset.records;
+    if (maxRecords !== null && kept.length > maxRecords) {
+      kept = [...kept].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0)).slice(kept.length - maxRecords);
+    }
+    const evicted = before - kept.length;
+    if (evicted <= 0) return;
+    this.dataset.records = kept;
+    this.apply();
+    this.evicted += evicted;
+    report.evicted = evicted;
+    report.idsChangedFrom = 0;
   }
 
   inferRegex(lines: string[]): Promise<InferredRegex> {
@@ -347,6 +501,20 @@ export class MockBackend implements ImtBackend {
       if (!safeRegex(pattern)) throw new Error('regex parse error: the pattern is not a valid regex');
       return mockExplainRegex(pattern);
     }, 20);
+  }
+
+  annotations(request: AnnotationsRequest): Promise<AnnotationDto[]> {
+    return (
+      this.failing('annotations') ??
+      this.delay(() => {
+        const groupBy = this.engine.defaultGroupBy;
+        return mockAnnotations(this.engine.records, (r) => this.engine.groupKey(r, groupBy), request);
+      }, 25)
+    );
+  }
+
+  pluginEvents(): Promise<SubscriberMetrics[]> {
+    return this.delay(() => MOCK_EVENT_METRICS.map((m) => ({ ...m, delivered: m.delivered + this.liveAdded })));
   }
 
   exportProfile(path: string, toml: string): Promise<void> {
@@ -361,9 +529,58 @@ export class MockBackend implements ImtBackend {
   }
 }
 
+/** The simulation settings for the backend options (legacy: one event per tick). */
+function liveConfig(options: MockBackendOptions): MockLiveConfig {
+  if (!options.liveRate) return { ...LEGACY_LIVE, tickMs: options.liveMs ?? LEGACY_LIVE.tickMs };
+  return {
+    tickMs: options.liveMs ?? 250,
+    ratePerSec: options.liveRate,
+    rotateEveryMs: options.liveRotateMs ?? 30_000,
+    alertEveryMs: options.liveAlertMs ?? 10_000,
+  };
+}
+
+const PLUGIN_DEFAULTS = { failures: 0, lastError: null, requires: [], provides: [], inactiveReason: null, dependents: [], warnings: [], hung: false };
 const MOCK_PLUGINS: PluginInfo[] = [
-  { id: 'registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer'], status: 'active', failures: 0, lastError: null },
-  { id: 'export-basic', name: 'CSV and CLEF exporters', version: '0.1.0', contributes: ['exporter'], status: 'active', failures: 0, lastError: null },
+  { ...PLUGIN_DEFAULTS, id: 'net.decryptology.registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer:registry'], status: 'active' },
+  {
+    ...PLUGIN_DEFAULTS,
+    id: MOCK_WINDOWS_PLUGIN,
+    name: 'Windows event logs',
+    version: '0.2.0',
+    contributes: ['importer:evtx', 'marker:app-crash', 'marker:service-stop', 'annotator:windows.reboots', 'annotator:windows.services', 'service:net.decryptology.windows.events'],
+    status: 'active',
+    provides: [{ id: 'net.decryptology.windows.events', version: '1.0.0' }],
+    dependents: ['net.decryptology.web'],
+  },
+  {
+    ...PLUGIN_DEFAULTS,
+    id: 'net.decryptology.web',
+    name: 'Web server logs',
+    version: '0.1.0',
+    contributes: ['importer:w3c'],
+    status: 'active',
+    requires: [
+      { id: MOCK_WINDOWS_PLUGIN, req: '^0.2', optional: false },
+      { id: 'net.decryptology.perfmon', req: '^1.0', optional: true },
+    ],
+    warnings: ['optional dependency net.decryptology.perfmon is not installed'],
+  },
+  {
+    ...PLUGIN_DEFAULTS,
+    id: 'net.decryptology.otel',
+    name: 'OpenTelemetry',
+    version: '0.1.0',
+    contributes: [],
+    status: 'inactive',
+    requires: [{ id: 'net.decryptology.collector', req: '^1.0', optional: false }],
+    inactiveReason: 'needs net.decryptology.collector ^1.0 (not installed)',
+  },
+];
+/** Event-bus counters the demo reports (delivered grows with live tail). */
+const MOCK_EVENT_METRICS: SubscriberMetrics[] = [
+  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'imt_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
+  { id: 2, plugin: 'net.decryptology.web', event: 'imt_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
 ];
 /** What `readFileHead` returns for any file in the browser demo. */
 const SAMPLE_HEAD = [
@@ -403,6 +620,8 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
       return { validation: { ok: false, error: `marker "${m.kind}": unknown icon "${m['icon']}"`, line: lineOf('icon') }, model };
     }
   }
+  const live = validateLiveSection(model, lineOf);
+  if (live) return { validation: live, model };
   for (const c of model.chart ?? []) {
     if (!c.id || !c.y) return { validation: { ok: false, error: '[[chart]] needs id and y', line: lineOf('[[chart]]') }, model };
     if (!/^(count|avg|min|max|sum|last)\(\s*[^)]*\)$/.test(c.y)) return { validation: { ok: false, error: `Chart '${c.id}': y must look like avg(field)`, line: lineOf(c.y) }, model };

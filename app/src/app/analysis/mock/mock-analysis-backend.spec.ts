@@ -49,6 +49,26 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(filterRecords(all, q({ filters: [{ field: 'ElapsedMs', op: 'gt', value: '3000' }] })).every((r) => Number(r.fields['ElapsedMs']) > 3000)).toBe(true);
   });
 
+  it('resolves a live window against the newest record, like the engine', async () => {
+    const newest = Math.max(...all.map((r) => r.ts ?? -Infinity));
+    const lastHour = all.filter((r) => r.ts !== null && r.ts >= newest - HOUR);
+    expect(lastHour.length).toBeGreaterThan(0);
+    expect(lastHour.length).toBeLessThan(all.length);
+    const windowed = q({ window: { kind: 'live', lastMs: HOUR }, ql: '| stats count()' });
+    const out = await backend.runQuery(windowed);
+    expect('result' in out && out.result.kind === 'table' && out.result.rows[0][0]).toBe(lastHour.length);
+    // Every analysis sees the same window.
+    const fieldStats = await backend.fieldStats(q({ window: { kind: 'live', lastMs: HOUR } }), 'level', 10);
+    const unwindowed = await backend.fieldStats(q(), 'level', 10);
+    expect(fieldStats.count).toBe(lastHour.length);
+    expect(unwindowed.count).toBe(all.length);
+    // A later `from` is kept.
+    const later = await backend.runQuery(q({ window: { kind: 'live', lastMs: HOUR }, from: newest - 60_000, ql: '| stats count()' }));
+    expect('result' in later && later.result.kind === 'table' && later.result.rows[0][0]).toBe(all.filter((r) => r.ts !== null && r.ts >= newest - 60_000).length);
+    const moment = await backend.queryMoment(q({ window: { kind: 'live', lastMs: HOUR } }), newest - HOUR, newest);
+    expect(moment).toBeTruthy();
+  });
+
   it('mines patterns, exceptions and anomalies', async () => {
     const patterns = await backend.queryPatterns(q());
     expect(patterns.length).toBeGreaterThan(3);

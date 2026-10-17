@@ -79,6 +79,36 @@ fn workspace_answers_context_progress_and_tail_options_through_the_trait() {
     assert!(store.plugin_settings().is_empty());
 }
 
+#[test]
+fn workspace_exposes_its_event_bus_and_shuts_its_plugins_down() {
+    use imt_core::events::SnapshotTaken;
+    let ws = Workspace::new(Profile::default_profile()).unwrap();
+    let store: &dyn LogStore = &ws;
+    let bus = store.event_bus().expect("a workspace has an event bus");
+    let seen = Arc::new(AtomicUsize::new(0));
+    let s = seen.clone();
+    bus.subscribe::<SnapshotTaken>("host-test", move |_| {
+        s.fetch_add(1, Ordering::SeqCst);
+    })
+    .unwrap();
+    bus.publish(SnapshotTaken { id: "x".into() });
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while seen.load(Ordering::SeqCst) == 0 && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    assert!(store
+        .event_bus()
+        .unwrap()
+        .metrics()
+        .iter()
+        .any(|m| m.plugin == "host-test" && m.delivered == 1));
+    // Idempotent, and the store stays usable for queries.
+    store.shutdown_plugins();
+    store.shutdown_plugins();
+    assert_eq!(store.summary().total, 0);
+}
+
 /// A store implementing only the required methods (delegating to a workspace),
 /// to observe the trait's defaults.
 struct Minimal(Workspace);
@@ -211,6 +241,9 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
     assert_eq!(store.summary().total, 7);
 
     assert_eq!(store.tail_status(), Default::default());
+    assert!(store.annotations(&Default::default()).is_empty());
+    assert!(store.event_bus().is_none());
+    store.shutdown_plugins();
     // Tail options are accepted and ignored: nothing is evicted.
     store.set_tail_options(TailOptions {
         retention: Retention {
@@ -220,4 +253,8 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
         ..TailOptions::default()
     });
     assert_eq!(store.summary().total, 7);
+    // Nothing to mute: accepted and ignored.
+    let target = imt_core::workspace::AlertTarget::Rule("r".into());
+    store.mute_alerts(target.clone(), 0).unwrap();
+    store.unmute_alerts(&target);
 }

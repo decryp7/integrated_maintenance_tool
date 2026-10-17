@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { GridSelection } from '../grid/grid-selection';
 import { ContextMenuService, MenuEntry } from '../ui/context-menu.service';
 import { DialogService } from '../ui/dialog.service';
 import { DropDialog } from './drop-dialog';
@@ -42,6 +43,7 @@ export class RecordActions {
   private readonly store = inject(WorkspaceStore);
   private readonly dialogs = inject(DialogService);
   private readonly menu = inject(ContextMenuService);
+  private readonly gridSelection = inject(GridSelection);
 
   itemsFor(record: RecordView, target: ActionTarget = {}): MenuEntry[] {
     const items: MenuEntry[] = [];
@@ -112,6 +114,17 @@ export class RecordActions {
   /** "Infer pattern from lines…": derives one regex from the messages of these records. */
   infer(records: readonly RecordView[]): void {
     this.dialogs.open(InferDialog, { title: 'Infer pattern from lines', inputs: { lines: records.map((r) => r.message) }, width: 780 });
+  }
+
+  /**
+   * "Infer pattern from selected lines…" (command palette): the grid's multi-selection, else the record selected
+   * elsewhere (timeline, bookmark). Returns false, without opening anything, when nothing is selected.
+   */
+  inferSelected(): boolean {
+    const records = this.gridSelection.recordsOr(this.store.selected());
+    if (!records.length) return false;
+    this.infer(records);
+    return true;
   }
 
   mask(record: RecordView, selection: MessageSelection): void {

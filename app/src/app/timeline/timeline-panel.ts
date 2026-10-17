@@ -24,6 +24,11 @@ import { TimeCursor, TimeCursorSource, timeToFrac } from '../analysis/time-curso
 import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
+import { LiveWindowControls } from '../live/live-window-controls';
+import { SeverityBadge } from '../live/severity-badge';
+import { layoutAnnotations } from './annotation-layout';
+import { AnnotationHover, AnnotationTrack } from './annotation-track';
+import { TimelineAnnotations } from './annotations.store';
 
 const LABEL_W = 250;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
@@ -66,7 +71,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, TimeCursorSource],
+  imports: [Icon, MarkerGlyph, TimeCursorSource, LiveWindowControls, AnnotationTrack, SeverityBadge],
   host: { '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
   template: `
     <div class="head">
@@ -78,6 +83,7 @@ interface Hover {
       </span>
       @if (store.timelineLoading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
       <span class="spacer"></span>
+      <imt-live-window-controls />
       <div class="legend">
         @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
           <button
@@ -91,6 +97,25 @@ interface Hover {
           @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
         }
       </div>
+      @if (ann.kinds().length || ann.error()) {
+        <div class="ann-legend" role="group" aria-label="Annotations">
+          <span class="lg-title">Annotations</span>
+          @for (k of ann.kinds(); track k.kind) {
+            <button
+              type="button"
+              class="lg"
+              [attr.aria-pressed]="ann.isShown(k.kind)"
+              [attr.data-kind]="k.kind"
+              [title]="(ann.isShown(k.kind) ? 'Hide ' : 'Show ') + k.label + ' (' + k.owner + ', ' + k.count + ')'"
+              (click)="ann.toggle(k.kind)"
+            ><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</button>
+          }
+          @if (ann.error(); as e) {
+            <span class="ann-err" role="alert" [title]="e">Annotations unavailable</span>
+            <button type="button" class="btn" (click)="ann.retry()">Retry</button>
+          }
+        </div>
+      }
       <div class="zoom" role="group" aria-label="Zoom">
         <button class="icon-btn" title="Previous range (Alt+←)" aria-label="Previous range" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
         <button class="icon-btn" title="Next range (Alt+→)" aria-label="Next range" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
@@ -103,6 +128,8 @@ interface Hover {
     <div
       class="wrap"
       #wrap
+      [attr.data-from]="tl()?.from"
+      [attr.data-to]="tl()?.to"
       [class.panning]="panning()"
       [imtTimeCursor]="range()"
       [imtTimeCursorLeft]="plotLeft()"
@@ -142,6 +169,9 @@ interface Hover {
             <div class="plot track">
               <div class="baseline"></div>
               <div class="bar" [style.left.%]="l.left" [style.width.%]="l.width"></div>
+              @if (annLayout().lanes.get(l.lane.key); as items) {
+                <imt-annotation-track [items]="items" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
+              }
               <svg class="density" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="l.densityPath" /></svg>
               @if (l.tickCount) {
                 <svg class="ticks" viewBox="0 0 1000 6" preserveAspectRatio="none" role="img" [attr.aria-label]="l.tickCount + ' warnings (zoom in for detail)'">
@@ -182,6 +212,9 @@ interface Hover {
       </div>
 
       <div class="overlay" [style.left.px]="plotLeft()" [style.width.px]="plotWidth()">
+        @if (annLayout().global.length) {
+          <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
+        }
         @for (x of fatalLines(); track $index) {
           <div class="fatal-line" [style.left.%]="x"></div>
         }
@@ -219,6 +252,20 @@ interface Hover {
         <div class="faint small">Click to jump to {{ h.marker.cluster.count > 1 ? 'the first event' : 'the event' }}</div>
       </div>
     }
+
+    @if (annHover(); as h) {
+      <div class="popover tip" data-testid="annotation-tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
+        <div class="tip-head">
+          <imt-severity-badge [severity]="h.vm.ann.severity" />
+          <strong>{{ h.vm.ann.label }}</strong>
+        </div>
+        <div class="mono small">{{ annTime(h.vm.ann.from, h.vm.ann.to) }}</div>
+        <div class="faint small">{{ annKindLabel(h.vm.ann.kind) }} · from {{ h.vm.ann.owner }}</div>
+        @if (h.vm.ann.instance; as inst) { <div class="mono small">{{ inst }}</div> }
+        @else if (h.vm.ann.on; as on) { <div class="mono small">{{ on.field }} = {{ on.value }}</div> }
+        <div class="faint small">Click to show the evidence</div>
+      </div>
+    }
   `,
   styles: `
     :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; position: relative; }
@@ -226,11 +273,16 @@ interface Hover {
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
     .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .spacer { flex: 1; }
-    .legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); flex-wrap: nowrap; overflow-x: auto; max-width: 60%; }
+    .legend, .ann-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); flex-wrap: nowrap; overflow-x: auto; max-width: 60%; }
     .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; padding: 1px 6px; border-radius: 10px; cursor: pointer; }
     .lg:hover { background: var(--bg-hover); }
     .lg[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
     .tip-desc { color: var(--text); }
+    .ann-legend { max-width: 30%; }
+    .lg-title { font-weight: 600; color: var(--text-2); white-space: nowrap; }
+    .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
+    .ann-legend .lg[aria-pressed='true'] { border-color: transparent; background: transparent; }
+    .ann-err { color: var(--danger-text); white-space: nowrap; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -295,6 +347,30 @@ export class TimelinePanel {
   private readonly menu = inject(ContextMenuService);
 
   protected readonly tl = this.store.timeline;
+  protected readonly ann = inject(TimelineAnnotations);
+  protected readonly annHover = signal<AnnotationHover | null>(null);
+
+  /** Annotation bands and glyphs per lane, plus the full-height ones. */
+  protected readonly annLayout = computed(() => {
+    const view = this.range();
+    if (!view) return { lanes: new Map(), global: [] };
+    const q = this.store.query();
+    return layoutAnnotations(this.ann.items(), {
+      laneKeys: this.lanes().map((l) => l.lane.key),
+      view,
+      groupBy: q.groupBy.length ? q.groupBy : (this.store.summary()?.defaultGroupBy ?? []),
+      hidden: this.ann.hidden(),
+    });
+  });
+
+  protected annTime(from: number, to: number): string {
+    const tz = this.store.timezone();
+    return from === to ? formatDateTime(from, tz, true) : `${formatDateTime(from, tz, true)} → ${formatDateTime(to, tz, true)} (${formatDuration(to - from)})`;
+  }
+
+  protected annKindLabel(kind: string): string {
+    return this.ann.kinds().find((k) => k.kind === kind)?.label ?? kind;
+  }
   private readonly markerStyles = inject(MarkerStyles);
 
   protected describe(kind: string): string | null {
@@ -507,7 +583,7 @@ export class TimelinePanel {
 
   private panStart(e: PointerEvent): void {
     const view = this.viewRange();
-    if (!view || !this.store.hasRange()) return;
+    if (!view || !this.zoom.canPan()) return;
     e.preventDefault();
     const el = this.wrap().nativeElement;
     el.setPointerCapture(e.pointerId);
@@ -529,9 +605,16 @@ export class TimelinePanel {
     const x0 = this.localX(e);
     if (x0 < 0 || x0 > this.plotWidth()) return;
     const el = this.wrap().nativeElement;
-    el.setPointerCapture(e.pointerId);
     const w = this.plotWidth();
+    // The pointer is captured only once it moves, so a plain click still reaches what is under it
+    // (an annotation band), while a drag that starts on a band brushes as anywhere else.
+    let captured = false;
     const move = (ev: PointerEvent) => {
+      if (!captured) {
+        if (Math.abs(this.localX(ev) - x0) < 3) return;
+        captured = true;
+        el.setPointerCapture?.(e.pointerId);
+      }
       const x = clamp(this.localX(ev), 0, w);
       this.brush.set({ x0: Math.min(x0, x), x1: Math.max(x0, x) });
     };

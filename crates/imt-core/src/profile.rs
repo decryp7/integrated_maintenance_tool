@@ -39,6 +39,30 @@ pub struct Profile {
     /// Live tail: detectors, alert rules and the clock of live windows.
     #[serde(default)]
     pub live: crate::workspace::LiveCfg,
+    /// Disables or restyles marker kinds by name, typically ones contributed
+    /// by plugins (`<plugin-id>/<kind>`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub marker_override: Vec<MarkerOverrideCfg>,
+}
+
+/// `[[marker_override]]`: switches a marker kind off or changes its look.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MarkerOverrideCfg {
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub badge: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -317,6 +341,10 @@ pub struct Extractor {
 
 pub struct Marker {
     pub kind: String,
+    /// Who defined the rule: `profile`, `builtin` or a plugin id.
+    pub owner: String,
+    /// Lifecycle meaning (start, stop, crash) of a plugin kind.
+    pub role: Option<crate::plugin::markers::MarkerRole>,
     pub label: String,
     pub lifecycle: bool,
     pub color: Option<String>,
@@ -337,7 +365,7 @@ pub struct CompiledProfile {
     pub extractors: Vec<Extractor>,
     pub markers: Vec<Marker>,
     /// Bitmask of lifecycle marker rules.
-    pub lifecycle_mask: u32,
+    pub lifecycle_mask: crate::model::MarkerMask,
     pub pipeline: crate::pipeline::Pipeline,
     pub icons: Vec<crate::icons::CustomIcon>,
 }
@@ -430,50 +458,12 @@ impl CompiledProfile {
             return Err(anyhow!("at most 32 [[marker]] rules are supported"));
         }
         let mut markers = Vec::new();
-        let mut lifecycle_mask = 0u32;
+        let mut lifecycle_mask: crate::model::MarkerMask = 0;
         for (i, m) in profile.marker.iter().enumerate() {
-            let when = compile_conditions(&m.when).with_context(|| format!("marker \"{}\": when", m.kind))?;
             if m.lifecycle {
                 lifecycle_mask |= 1 << i;
             }
-            if let Some(icon) = m
-                .icon
-                .as_deref()
-                .filter(|i| !MARKER_ICONS.contains(i) && !icons.iter().any(|c| c.name == *i))
-            {
-                return Err(anyhow!(
-                    "marker \"{}\": unknown icon \"{icon}\" (use one of: {}, or define it with [[icon]])",
-                    m.kind,
-                    MARKER_ICONS.join(", ")
-                ));
-            }
-            if let Some(badge) = m.badge.as_deref().filter(|b| !is_badge(b)) {
-                return Err(anyhow!(
-                    "marker \"{}\": badge \"{badge}\" must be 1–3 visible characters (e.g. \"1\", \"A\", \"DB\")",
-                    m.kind
-                ));
-            }
-            if let Some(shape) = m.shape.as_deref().filter(|s| !BADGE_SHAPES.contains(s)) {
-                return Err(anyhow!(
-                    "marker \"{}\": shape \"{shape}\" must be one of {}",
-                    m.kind,
-                    BADGE_SHAPES.join(", ")
-                ));
-            }
-            if let Some(color) = m.color.as_deref().filter(|c| !is_hex_color(c)) {
-                return Err(anyhow!("marker \"{}\": color \"{color}\" must be #RGB or #RRGGBB", m.kind));
-            }
-            markers.push(Marker {
-                kind: m.kind.clone(),
-                label: m.label.clone().unwrap_or_else(|| m.kind.clone()),
-                lifecycle: m.lifecycle,
-                color: m.color.clone(),
-                icon: m.icon.clone(),
-                badge: m.badge.as_ref().map(|b| b.trim().to_string()),
-                shape: m.shape.clone(),
-                description: m.description.clone(),
-                when,
-            });
+            markers.push(compile_marker(m, &icons, "profile")?);
         }
 
         for c in &profile.chart {
@@ -505,9 +495,11 @@ impl CompiledProfile {
         for r in &mut records {
             self.apply_extractors(r, source_name);
         }
-        let (mut records, stats) = self.pipeline.run_with_stats(records, source_name);
+        let marks = crate::plugin::markers::MarkIndex::of(&self.markers);
+        let (mut records, stats) = self.pipeline.run_marking(records, source_name, &marks);
         for r in &mut records {
-            r.markers = self.compute_markers(r, source_name);
+            // Plugin transforms may already have marked the record (`TransformCtx::mark`).
+            r.markers |= self.compute_markers(r, source_name);
         }
         (records, stats)
     }
@@ -523,7 +515,7 @@ impl CompiledProfile {
         }
     }
 
-    pub fn compute_markers(&self, rec: &Record, source_name: &str) -> u32 {
+    pub fn compute_markers(&self, rec: &Record, source_name: &str) -> crate::model::MarkerMask {
         let mut mask = 0;
         for (i, m) in self.markers.iter().enumerate() {
             if !m.when.is_empty() && m.when.iter().all(|c| c.eval(rec, source_name)) {
@@ -682,6 +674,51 @@ fn globs(patterns: &[String]) -> Result<GlobSet> {
         b.add(Glob::new(p).with_context(|| format!("invalid glob \"{p}\""))?);
     }
     Ok(b.build()?)
+}
+
+/// Validates and compiles one marker rule; `icons` are the custom icons it may use.
+pub(crate) fn compile_marker(m: &MarkerCfg, icons: &[crate::icons::CustomIcon], owner: &str) -> Result<Marker> {
+    let when = compile_conditions(&m.when).with_context(|| format!("marker \"{}\": when", m.kind))?;
+    if let Some(icon) = m
+        .icon
+        .as_deref()
+        .filter(|i| !MARKER_ICONS.contains(i) && !icons.iter().any(|c| c.name == *i))
+    {
+        return Err(anyhow!(
+            "marker \"{}\": unknown icon \"{icon}\" (use one of: {}, or define it with [[icon]])",
+            m.kind,
+            MARKER_ICONS.join(", ")
+        ));
+    }
+    if let Some(badge) = m.badge.as_deref().filter(|b| !is_badge(b)) {
+        return Err(anyhow!(
+            "marker \"{}\": badge \"{badge}\" must be 1–3 visible characters (e.g. \"1\", \"A\", \"DB\")",
+            m.kind
+        ));
+    }
+    if let Some(shape) = m.shape.as_deref().filter(|s| !BADGE_SHAPES.contains(s)) {
+        return Err(anyhow!(
+            "marker \"{}\": shape \"{shape}\" must be one of {}",
+            m.kind,
+            BADGE_SHAPES.join(", ")
+        ));
+    }
+    if let Some(color) = m.color.as_deref().filter(|c| !is_hex_color(c)) {
+        return Err(anyhow!("marker \"{}\": color \"{color}\" must be #RGB or #RRGGBB", m.kind));
+    }
+    Ok(Marker {
+        kind: m.kind.clone(),
+        owner: owner.to_string(),
+        role: None,
+        label: m.label.clone().unwrap_or_else(|| m.kind.clone()),
+        lifecycle: m.lifecycle,
+        color: m.color.clone(),
+        icon: m.icon.clone(),
+        badge: m.badge.as_ref().map(|b| b.trim().to_string()),
+        shape: m.shape.clone(),
+        description: m.description.clone(),
+        when,
+    })
 }
 
 pub fn compile_conditions(cfgs: &[ConditionCfg]) -> Result<Vec<Condition>> {

@@ -1,36 +1,25 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { FakeECharts } from '../../testing/fake-echarts';
 import type { EChartsCoreOption } from 'echarts/core';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
 import { ChartData, ChartDef } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { buildOption, ChartCard } from './chart-card';
+import { buildOption, ChartCard, LIVE_UPDATE_MS, liveOption } from './chart-card';
+import { ImtBackend } from '../core/backend';
+import { LiveTail } from '../workspace/live-tail';
 import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { MetricsView } from './metrics-view';
 import { TimeCursor } from '../analysis/time-cursor';
 
-const charts = vi.hoisted(() => {
-  const instances: { handlers: Record<string, (e: unknown) => void>; setOption: ReturnType<typeof vi.fn>; dispatchAction: ReturnType<typeof vi.fn>; resize: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] = [];
-  return {
-    instances,
-    init: vi.fn(() => {
-      const c = {
-        handlers: {} as Record<string, (e: unknown) => void>,
-        setOption: vi.fn(),
-        dispatchAction: vi.fn(),
-        resize: vi.fn(),
-        dispose: vi.fn(),
-        on(name: string, h: (e: unknown) => void) {
-          c.handlers[name] = h;
-        },
-      };
-      instances.push(c);
-      return c;
-    }),
-  };
+// Through DI, not vi.mock('echarts/core'): with shared module graphs (isolate: false) a module mock only applies
+// when no earlier spec in the worker has loaded echarts, which made these tests flaky.
+const charts = new FakeECharts();
+beforeEach(() => {
+  charts.reset();
+  TestBed.configureTestingModule({ providers: [charts.provider] });
 });
-vi.mock('echarts/core', () => ({ init: charts.init, use: vi.fn() }));
 
 const TOKENS: ChartTokens = {
   text: '#fff',
@@ -162,7 +151,7 @@ describe('ChartCard', () => {
   beforeEach(() => (charts.instances.length = 0));
 
   async function render(d: ChartDef, fromProfile = true, backend = tinyBackend()) {
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), charts.provider] });
     const fixture = TestBed.createComponent(ChartCard);
     fixture.componentRef.setInput('def', d);
     fixture.componentRef.setInput('fromProfile', fromProfile);
@@ -301,3 +290,73 @@ describe('MetricsView', () => {
     expect(text(fixture)).toContain('No charts defined');
   });
 });
+
+@Component({ selector: 'imt-merge-host', imports: [EChart], template: `<imt-echart [options]="opts()" [merge]="merge()" />` })
+class MergeHost {
+  readonly opts = signal<EChartsCoreOption>({ series: [] });
+  readonly merge = signal(false);
+}
+
+describe('live charts', () => {
+  beforeEach(() => (charts.instances.length = 0));
+  afterEach(() => delete (globalThis as Record<string, unknown>)['IntersectionObserver']);
+
+  it('merge mode updates the chart in place (notMerge false, series replaced by name)', async () => {
+    const fixture = TestBed.createComponent(MergeHost);
+    await settle(fixture);
+    const c = charts.instances[0];
+    fixture.componentInstance.merge.set(true);
+    fixture.componentInstance.opts.set({ series: [{ name: 'a' }] });
+    await settle(fixture);
+    expect(c.setOption).toHaveBeenLastCalledWith({ series: [{ name: 'a' }] }, { notMerge: false, replaceMerge: ['series'], lazyUpdate: true });
+  });
+
+  it('live options glide briefly unless motion is reduced', () => {
+    const o = { animation: false, series: [] };
+    expect(liveOption(o, true)).toBe(o);
+    expect(liveOption(o, false)).toMatchObject({ animation: true, animationDuration: 0, animationDurationUpdate: LIVE_UPDATE_MS });
+    expect(liveOption(o)).toBeTruthy();
+  });
+
+  it('a card scrolled out of view skips live refreshes until it is visible again, without a spinner', async () => {
+    let observed: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
+    const disconnect = vi.fn();
+    (globalThis as Record<string, unknown>)['IntersectionObserver'] = class {
+      constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+        observed = cb;
+      }
+      observe() {}
+      disconnect = disconnect;
+    };
+    const backend = tinyBackend();
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const store = TestBed.inject(WorkspaceStore);
+    const live = TestBed.inject(LiveTail);
+    const fixture = TestBed.createComponent(ChartCard);
+    fixture.componentRef.setInput('def', def({ id: 'cpu', y: 'avg(cpu)' }));
+    await settle(fixture);
+    expect(observed).not.toBeNull();
+    const query = vi.spyOn(TestBed.inject(ImtBackend), 'queryChart');
+    await live.set(true);
+    await settle(fixture);
+    // Live: option animates updates and the chart merges.
+    expect(charts.instances.at(-1)!.setOption.mock.calls.at(-1)![0]).toMatchObject({ animation: true });
+    observed!([{ isIntersecting: false }]);
+    await live.refresh();
+    await settle(fixture);
+    expect(query).not.toHaveBeenCalled();
+    observed!([{ isIntersecting: true }]);
+    await settle(fixture);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(el(fixture, '.head').querySelector('.spinner')).toBeNull();
+    // Not a live change (a profile save): fetched even out of view.
+    observed!([{ isIntersecting: false }]);
+    store.applySummary(store.summary()!);
+    await settle(fixture);
+    expect(query).toHaveBeenCalledTimes(2);
+    await live.set(false);
+    fixture.destroy();
+    expect(disconnect).toHaveBeenCalled();
+  });
+});
+

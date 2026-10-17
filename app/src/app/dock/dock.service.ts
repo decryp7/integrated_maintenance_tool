@@ -182,6 +182,12 @@ export class DockService {
   }
 
   /** Opens the view if needed and brings it to the front. Unknown or unavailable views are ignored. */
+  /** Changes the tab title of an open panel (e.g. to show a count); does nothing when it is not open. */
+  setTitle(id: string, title: string): void {
+    const panel = this.api?.getPanel(id);
+    if (panel && panel.title !== title) panel.api.setTitle(title);
+  }
+
   show(id: string, options: { inactive?: boolean } = {}): void {
     const api = this.api;
     const view = this.views.find(id);

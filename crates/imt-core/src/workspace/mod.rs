@@ -1,5 +1,6 @@
 //! The set of opened files and everything the UI asks about them.
 
+mod annotate;
 mod chart;
 mod context;
 mod export;
@@ -12,10 +13,10 @@ mod timeline;
 
 pub use crate::api::*;
 pub use tail::{
-    duration_ms, family, group_of, identity_of, initial_mode, is_network_path, mode_of, AlertRuleCfg, BatchFn, Coalescer, DeletedFiles,
-    FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions, Retention, RotatedSource, TailFileState,
-    TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow, WatchMode, WatchPreference, WatchSettings, WatchSignal,
-    WatchSink, WatchedRoot, WatcherFactory,
+    duration_ms, family, group_of, identity_of, initial_mode, is_network_path, mode_of, AlertMutes, AlertRuleCfg, AlertTarget, BatchFn,
+    Clock, Coalescer, DeletedFiles, FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions, Retention,
+    RotatedSource, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow, WatchMode,
+    WatchPreference, WatchSettings, WatchSignal, WatchSink, WatchedRoot, WatcherFactory, MAX_DETECT_EVERY_MS, MAX_MUTES, MAX_MUTE_MS,
 };
 
 use crate::chart::ChartDef;
@@ -125,7 +126,8 @@ impl Workspace {
 
     /// An empty workspace extended by the plugins installed in `registry`.
     pub fn with_registry(profile: Profile, registry: PluginRegistry) -> Result<Workspace> {
-        let profile = Arc::new(CompiledProfile::compile_with(profile, &registry.transforms)?);
+        registry.resolve();
+        let profile = Arc::new(registry.compile_profile(profile)?);
         let marker_kinds = profile.markers.iter().map(|m| m.kind.clone()).collect();
         Ok(Workspace {
             profile,
@@ -190,10 +192,17 @@ impl Workspace {
         if options.start_at_end {
             files = self.skip_history(files);
         }
-        let (records, _) = self.import_files(files);
+        let (records, added) = self.import_files(files);
+        let count = records.len();
         self.records.extend(records);
         self.rebuild();
+        self.run_annotators(None);
         self.load_ms = start.elapsed().as_millis() as u64;
+        if count > 0 {
+            self.registry
+                .events()
+                .publish(crate::events::RecordsAppended { count, sources: added });
+        }
         if !self.registry.hooks.is_empty() {
             let summary = self.summary();
             for h in &self.registry.hooks {
@@ -214,9 +223,11 @@ impl Workspace {
     /// Closes everything and notifies hooks.
     pub fn clear(&mut self) {
         self.reset();
+        self.registry.clear_annotations();
         for h in &self.registry.hooks {
             h.on_cleared();
         }
+        self.registry.events().publish(crate::events::WorkspaceCleared);
     }
 
     fn reset(&mut self) {
@@ -239,14 +250,18 @@ impl Workspace {
         self.records.retain(|r| r.source != id);
         self.tail.forget(id);
         self.rebuild();
+        self.run_annotators(None);
     }
 
     /// Replaces the profile and re-imports everything.
     pub fn set_profile(&mut self, profile: Profile) -> Result<()> {
-        let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+        let compiled = self.registry.compile_profile(profile)?;
         for h in &self.registry.hooks {
             h.on_profile_changed(&compiled.profile);
         }
+        self.registry.events().publish(crate::events::ProfileChanged {
+            name: compiled.profile.name.clone(),
+        });
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
         self.profile = Arc::new(compiled);
         self.reload()
@@ -293,8 +308,11 @@ impl Workspace {
     /// Replaces everything with `state` under `profile`. Paths that no longer
     /// exist are skipped and returned.
     pub fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
-        let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+        let compiled = self.registry.compile_profile(profile)?;
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
+        self.registry.events().publish(crate::events::ProfileChanged {
+            name: compiled.profile.name.clone(),
+        });
         self.profile = Arc::new(compiled);
         self.reset();
         self.removed = state.removed.iter().map(PathBuf::from).collect();
@@ -308,7 +326,7 @@ impl Workspace {
 
     /// Checks that a profile compiles against the installed plugins.
     pub fn validate_profile(&self, profile: Profile) -> Result<()> {
-        CompiledProfile::compile_with(profile, &self.registry.transforms).map(|_| ())
+        self.registry.compile_profile(profile).map(|_| ())
     }
 
     /// Lifts a plugin's quarantine and forgets its crashes.
@@ -319,6 +337,16 @@ impl Workspace {
     /// Plugins installed in this workspace.
     pub fn plugins(&self) -> Vec<crate::plugin::PluginInfo> {
         self.registry.plugins()
+    }
+
+    /// The plugin registry (services, extension points, status).
+    pub fn registry(&self) -> &PluginRegistry {
+        &self.registry
+    }
+
+    /// The event bus the workspace publishes to.
+    pub fn events(&self) -> Arc<crate::events::EventBus> {
+        self.registry.events()
     }
 
     fn collect_files(&self, path: &Path, out: &mut Vec<PathBuf>) {
@@ -505,7 +533,8 @@ impl Workspace {
         CompiledQuery::new(&self.resolve_window(q), &self.default_group_by, &self.marker_kinds)
     }
 
-    fn marker_names(&self, mask: u32) -> Vec<&str> {
+    fn marker_names(&self, mask: crate::model::MarkerMask) -> Vec<&str> {
+        let mask = mask & self.visible_markers();
         (0..self.marker_kinds.len())
             .filter(|i| mask & (1 << i) != 0)
             .map(|i| self.marker_kinds[i].as_str())
@@ -563,8 +592,12 @@ impl Workspace {
                 .profile
                 .markers
                 .iter()
-                .map(|m| MarkerKind {
+                .enumerate()
+                .filter(|(i, _)| self.visible_markers() & (1 << i) != 0)
+                .map(|(_, m)| MarkerKind {
                     kind: m.kind.clone(),
+                    owner: m.owner.clone(),
+                    role: m.role,
                     label: m.label.clone(),
                     lifecycle: m.lifecycle,
                     color: m.color.clone(),
@@ -572,6 +605,7 @@ impl Workspace {
                     badge: m.badge.clone(),
                     shape: m.shape.clone(),
                     description: m.description.clone(),
+                    when: self.registry.marker_rule(&m.owner, &m.kind),
                 })
                 .collect(),
             charts: self.chart_defs(),

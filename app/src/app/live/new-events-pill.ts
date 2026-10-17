@@ -1,0 +1,25 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { formatCount } from '../core/format';
+import { LiveFeed } from './live-feed';
+
+/** "N new events" over the grid while live tail runs but the grid is not following; click to show them. */
+@Component({
+  selector: 'imt-new-events-pill',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    @if (feed.newEvents() > 0) {
+      <button type="button" class="pill" data-testid="new-events" (click)="feed.showNewEvents()">
+        <span aria-hidden="true">↑</span> {{ fmt(feed.newEvents()) }} new event{{ feed.newEvents() === 1 ? '' : 's' }} — show
+      </button>
+    }
+  `,
+  styles: `
+    :host { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 4; }
+    .pill { height: 24px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg-3); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; box-shadow: var(--shadow); white-space: nowrap; }
+    .pill:hover { background: var(--bg-hover); }
+  `,
+})
+export class NewEventsPill {
+  protected readonly feed = inject(LiveFeed);
+  protected readonly fmt = formatCount;
+}

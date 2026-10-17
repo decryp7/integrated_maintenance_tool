@@ -1,5 +1,6 @@
 import { Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FakeECharts } from '../../testing/fake-echarts';
 import { all, buttonByText, el, settle, text } from '../../testing/helpers';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { ChartTheme } from '../metrics/chart-theme';
@@ -8,21 +9,16 @@ import { barGeometry, DEFAULT_ID_FIELD, TracesView, waterfallTotal } from './tra
 import { FieldStatsView, HISTOGRAM_BUCKETS, histogramOption } from './field-stats-view';
 import { FakeContext, FIX, loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
 
-const charts = vi.hoisted(() => {
-  const instances: { setOption: ReturnType<typeof vi.fn> }[] = [];
-  return {
-    instances,
-    init: vi.fn(() => {
-      const c = { setOption: vi.fn(), dispatchAction: vi.fn(), resize: vi.fn(), dispose: vi.fn(), on: vi.fn() };
-      instances.push(c);
-      return c;
-    }),
-  };
+// Through DI, not vi.mock('echarts/core'): with shared module graphs (isolate: false) a module mock only applies
+// when no earlier spec in the worker has loaded echarts, which made these tests flaky.
+const charts = new FakeECharts();
+beforeEach(() => {
+  charts.reset();
+  TestBed.configureTestingModule({ providers: [charts.provider] });
 });
-vi.mock('echarts/core', () => ({ init: charts.init, use: vi.fn() }));
 
 async function mount<T>(view: Type<T>, backend: AnalysisBackend = stubBackend(), ctx = new FakeContext()) {
-  TestBed.configureTestingModule({ providers: provideAnalysisTesting({ backend, context: ctx }) });
+  TestBed.configureTestingModule({ providers: [...provideAnalysisTesting({ backend, context: ctx }), charts.provider] });
   const store = await loadWorkspace();
   const fixture = TestBed.createComponent(view);
   fixture.detectChanges();

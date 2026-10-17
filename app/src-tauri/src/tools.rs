@@ -1,7 +1,10 @@
 //! Commands driving external tooling: Windows Performance Monitor (templates
 //! and `logman` control), the process monitor collector and the diagnostics
-//! collector. Long-running work happens off the UI thread.
+//! collector. Long-running work happens off the UI thread. A running process
+//! monitor and started PerfMon collector sets are listed as background work
+//! (`crate::background`), which the tray can stop.
 
+use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::export::ClefFileSink;
 use imt_core::plugin::Collector;
@@ -73,7 +76,40 @@ pub async fn perfmon_install(template: CollectorTemplate) -> CmdResult<Value> {
 
 /// `start`, `stop`, `delete` or `query` a collector set; returns its status (null after delete).
 #[tauri::command]
-pub async fn perfmon_control(name: String, action: String) -> CmdResult<Value> {
+pub async fn perfmon_control<R: tauri::Runtime>(app: tauri::AppHandle<R>, name: String, action: String) -> CmdResult<Value> {
+    let status = control(name.clone(), action.clone()).await?;
+    if let Some(tasks) = tauri::Manager::try_state::<BackgroundTasks>(&app) {
+        match action.as_str() {
+            "start" => register_perfmon(&tasks, &name),
+            "stop" | "delete" => {
+                tasks.remove(&perfmon_task(&name));
+            }
+            _ => {}
+        }
+    }
+    Ok(status)
+}
+
+fn perfmon_task(name: &str) -> String {
+    format!("perfmon:{name}")
+}
+
+/// Lists a started collector set as background work; stopping runs `logman stop`.
+fn register_perfmon(tasks: &BackgroundTasks, name: &str) {
+    let spec = TaskSpec {
+        id: perfmon_task(name),
+        label: format!("PerfMon collection \u{201c}{name}\u{201d}"),
+        kind: TaskKind::Perfmon,
+        window: None,
+    };
+    let set = name.to_string();
+    let stop = Arc::new(move || controller().stop(&set).map_err(anyhow::Error::from));
+    if let Err(e) = tasks.register(spec, Some(stop)) {
+        log::warn!("could not list PerfMon collection as background work: {e:#}");
+    }
+}
+
+async fn control(name: String, action: String) -> CmdResult<Value> {
     tauri::async_runtime::spawn_blocking(move || {
         let c = controller();
         match action.as_str() {
@@ -141,13 +177,41 @@ pub fn monitor_start<R: tauri::Runtime>(
         thread,
         dir: dir.clone(),
     });
+    drop(slot);
+    if let Some(tasks) = app.try_state::<BackgroundTasks>() {
+        let handle = app.clone();
+        let stop = Arc::new(move || {
+            let tools = handle.try_state::<Tools>().ok_or_else(|| anyhow::anyhow!("IMT is shutting down"))?;
+            stop_monitor(&tools).map(|_| ()).map_err(|e| anyhow::anyhow!(e))
+        });
+        let spec = TaskSpec {
+            id: MONITOR_TASK.into(),
+            label: "Process monitor".into(),
+            kind: TaskKind::ProcessMonitor,
+            window: None,
+        };
+        if let Err(e) = tasks.register(spec, Some(stop)) {
+            log::warn!("could not list the process monitor as background work: {e:#}");
+        }
+    }
     Ok(dir.to_string_lossy().into_owned())
 }
 
+/// Id of the process monitor in the background task registry.
+const MONITOR_TASK: &str = "monitor";
+
 /// Stops the process monitor; returns its folder.
 #[tauri::command]
-pub fn monitor_stop(tools: State<'_, Tools>) -> CmdResult<Option<String>> {
-    let Some(session) = tools.monitor.lock().map_err(err)?.take() else {
+pub fn monitor_stop<R: tauri::Runtime>(app: tauri::AppHandle<R>, tools: State<'_, Tools>) -> CmdResult<Option<String>> {
+    let out = stop_monitor(&tools);
+    if let Some(tasks) = tauri::Manager::try_state::<BackgroundTasks>(&app) {
+        tasks.remove(MONITOR_TASK);
+    }
+    out
+}
+
+fn stop_monitor(tools: &Tools) -> CmdResult<Option<String>> {
+    let Some(session) = tools.monitor.lock().unwrap_or_else(|p| p.into_inner()).take() else {
         return Ok(None);
     };
     session.stop.store(true, Ordering::SeqCst);
@@ -213,13 +277,41 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
         #[cfg(not(windows))]
         {
-            let r = tauri::async_runtime::block_on(perfmon_control("IMT-test".into(), "query".into()));
+            let r = tauri::async_runtime::block_on(control("IMT-test".into(), "query".into()));
             assert!(r.unwrap_err().contains("only be managed on Windows"));
-            let r = tauri::async_runtime::block_on(perfmon_control("IMT-test".into(), "explode".into()));
+            let r = tauri::async_runtime::block_on(control("IMT-test".into(), "explode".into()));
             assert!(r.unwrap_err().contains("unknown action"));
             assert!(tauri::async_runtime::block_on(perfmon_install(template)).is_err());
             assert!(tauri::async_runtime::block_on(perfmon_outputs("IMT-test".into())).is_err());
         }
         assert!(collect_default_plan().contains("redact"));
+    }
+
+    #[test]
+    fn collections_are_listed_as_background_work() {
+        let app = crate::test_support::test_app(None);
+        let h = app.handle().clone();
+        tauri::Manager::manage(&app, Tools::default());
+        let tasks = || tauri::Manager::state::<BackgroundTasks>(&app);
+        register_perfmon(&tasks(), "IMT-test");
+        let listed = tasks().list();
+        assert_eq!(
+            (listed[0].id.as_str(), listed[0].kind, listed[0].stoppable),
+            ("perfmon:IMT-test", TaskKind::Perfmon, true)
+        );
+        // Stopping runs `logman stop`; where that fails the task stays listed with the reason.
+        #[cfg(not(windows))]
+        {
+            assert!(tasks().stop("perfmon:IMT-test").is_err());
+            assert_eq!(tasks().list().len(), 1);
+            // A failed start registers nothing; stop and delete remove the entry.
+            assert!(tauri::async_runtime::block_on(perfmon_control(h.clone(), "x".into(), "start".into())).is_err());
+            assert!(tauri::async_runtime::block_on(perfmon_control(h.clone(), "IMT-test".into(), "stop".into())).is_err());
+        }
+        tasks().remove("perfmon:IMT-test");
+        // Stopping a monitor that is not running is fine.
+        assert_eq!(monitor_stop(h.clone(), tauri::Manager::state::<Tools>(&app)).unwrap(), None);
+        let status = monitor_status(tauri::Manager::state::<Tools>(&app)).unwrap();
+        assert_eq!(status["running"], false);
     }
 }

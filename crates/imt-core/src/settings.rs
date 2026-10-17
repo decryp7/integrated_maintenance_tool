@@ -598,6 +598,9 @@ impl PluginSettings {
             PluginStatus::Quarantined => {
                 Some("This plugin was stopped after repeated crashes. Re-enable it in the Plugins panel to change its settings.")
             }
+            PluginStatus::Inactive => {
+                Some("This plugin is inactive (see the Plugins panel for why). Its settings can be changed once it runs.")
+            }
         }
     }
 

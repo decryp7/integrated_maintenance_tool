@@ -146,6 +146,23 @@ metrics = ["CpuPercent", "WorkingSetMb", "PrivateMb", "Handles", "Threads", "Ela
 # kind = "payment-timeout"
 # imt_index = 2
 # when = [{ field = "@message", op = "contains", value = "timeout" }]
+#
+# Plugins contribute marker kinds too, named "<plugin-id>/<kind>" (e.g. the
+# Windows plugin's "net.decryptology.windows/app-crash"). Priority, first
+# match wins: this profile's own [[marker]] rules, then plugin kinds, then the
+# built-in defaults below. Kinds of a quarantined or disabled plugin are hidden.
+# [[marker_override]] switches any kind off or restyles it; every key but
+# `kind` is optional (enabled, label, color, icon, badge, shape, description).
+# Overrides of kinds that are not installed are kept and ignored.
+# [[marker_override]]
+# kind = "net.decryptology.windows/app-crash"
+# enabled = false
+#
+# [[marker_override]]
+# kind = "net.decryptology.windows/unexpected-shutdown"
+# color = "#FF4FA3"
+# badge = "!"
+# shape = "diamond"
 [[marker]]
 kind = "fatal"
 label = "Fatal"
