@@ -604,7 +604,10 @@ fn clef_files_open_in_imt_with_lanes_and_lifecycle_markers() {
         .unwrap();
     let lanes: Vec<&str> = tl.lanes.iter().map(|l| l.key.as_str()).collect();
     for pid in ["100", "101", "300"] {
-        assert!(lanes.iter().any(|l| l.ends_with(&format!(" · {pid}"))), "lane for {pid} in {lanes:?}");
+        assert!(
+            lanes.iter().any(|l| l.ends_with(&format!(" · {pid}"))),
+            "lane for {pid} in {lanes:?}"
+        );
     }
     let kinds = |pid: &str| -> Vec<String> {
         tl.lanes

@@ -1884,6 +1884,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "csv",
  "evtx",
  "imt-core",
  "quick-xml 0.39.4",

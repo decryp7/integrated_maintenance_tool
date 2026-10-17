@@ -296,7 +296,9 @@ fn refreshes_changed_new_and_deleted_files() {
     // Appended lines, a rotated file, a file outside the workspace, a directory.
     std::fs::write(&app, log("A", 5)).unwrap();
     let rotated = d.write("logs/app.log.1", log("R", 3).as_bytes());
-    let n = ws.refresh_files(&[app.clone(), rotated.clone(), stranger, d.0.join("logs")]).unwrap();
+    let n = ws
+        .refresh_files(&[app.clone(), rotated.clone(), stranger, d.0.join("logs")])
+        .unwrap();
     assert_eq!(n, 2);
     assert_eq!(ws.summary().total, 5 + 3 + 1);
     assert_eq!(ws.summary().sources.len(), 3);
@@ -317,4 +319,3 @@ fn refreshes_changed_new_and_deleted_files() {
     assert_eq!(store.refresh_files(&[d.0.join("solo.log")]).unwrap(), 1);
     assert_eq!(store.summary().total, 4);
 }
-

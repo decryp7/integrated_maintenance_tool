@@ -13,6 +13,11 @@
 //!   `Data` row with `Category` (full path, `A/B/C`), `Item`, `Value` and any
 //!   other column by name; no timestamp.
 //!
+//! * **Performance Monitor** (`.csv`/`.tsv` PDH logs, `.blg` on Windows via `relog`):
+//!   [`PerfmonCsvImporter`] and [`BlgImporter`] produce one record per row and counter
+//!   (see [`perfmon`]). [`perfmon_template`] builds Data Collector Set XML and
+//!   [`perfmon_control`] runs `logman` to import, start, stop and query a set.
+//!
 //! CBS/DISM text logs (`2026-10-14 10:00:00, Info   CBS   message`) need no
 //! importer: the built-in text importer reads them with a profile regex.
 //!
@@ -21,11 +26,18 @@
 //! registry.install(&imt_plugin_windows::WindowsPlugin).unwrap();
 //! ```
 
+mod blg;
+pub mod command;
 mod evtx_import;
 mod nfo;
+pub mod perfmon;
+pub mod perfmon_control;
+pub mod perfmon_template;
 
+pub use blg::BlgImporter;
 pub use evtx_import::{is_evtx, read_evtx, EvtxImporter};
 pub use nfo::NfoImporter;
+pub use perfmon::PerfmonCsvImporter;
 
 use anyhow::Result;
 use imt_core::{Plugin, PluginRegistry};
@@ -48,6 +60,8 @@ impl Plugin for WindowsPlugin {
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         registry.add_binary_importer(Box::new(EvtxImporter));
         registry.add_importer(Box::new(NfoImporter));
+        registry.add_importer(Box::new(PerfmonCsvImporter));
+        registry.add_binary_importer(Box::<BlgImporter>::default());
         Ok(())
     }
 }
@@ -64,7 +78,7 @@ mod tests {
         registry.install(&WindowsPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 2);
+        assert_eq!(info.contributes.len(), 4);
         assert_eq!(WindowsPlugin.name(), "Windows diagnostics");
         assert_eq!(WindowsPlugin.version(), env!("CARGO_PKG_VERSION"));
     }
@@ -79,7 +93,7 @@ mod tests {
         let s = ws.summary();
         let mut ids: Vec<&str> = s.sources.iter().map(|x| x.importer.as_str()).collect();
         ids.sort();
-        assert_eq!(ids, vec!["evtx", "msinfo"]);
+        assert_eq!(ids, vec!["evtx", "msinfo", "perfmon-csv"]);
         assert!(ws.records().iter().any(|r| r.fields.contains_key("EventId")));
         assert!(ws.records().iter().any(|r| r.fields.contains_key("Item")));
     }

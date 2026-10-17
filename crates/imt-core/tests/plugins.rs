@@ -477,4 +477,3 @@ fn collectors_write_to_sinks_that_imt_can_open() {
     assert_eq!((s.total, s.sources[0].importer.as_str()), (4, "json"));
     std::fs::remove_dir_all(dir).unwrap();
 }
-
