@@ -280,3 +280,41 @@ fn saves_and_restores_projects() {
     assert!(store.restore(bad, &WorkspaceState::default()).is_err());
     assert!(Path::new(&file).exists());
 }
+
+#[test]
+fn refreshes_changed_new_and_deleted_files() {
+    let d = Dir::new("refresh");
+    let app = d.write("logs/app.log", log("A", 2).as_bytes());
+    d.write("logs/skip.gz.tmp", b"x");
+    d.write("solo.log", log("S", 1).as_bytes());
+    let outside = Dir::new("refresh-outside");
+    let stranger = outside.write("x.log", log("X", 1).as_bytes());
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(&[d.0.join("logs"), d.0.join("solo.log")]).unwrap();
+    assert_eq!(ws.summary().total, 3);
+
+    // Appended lines, a rotated file, a file outside the workspace, a directory.
+    std::fs::write(&app, log("A", 5)).unwrap();
+    let rotated = d.write("logs/app.log.1", log("R", 3).as_bytes());
+    let n = ws.refresh_files(&[app.clone(), rotated.clone(), stranger, d.0.join("logs")]).unwrap();
+    assert_eq!(n, 2);
+    assert_eq!(ws.summary().total, 5 + 3 + 1);
+    assert_eq!(ws.summary().sources.len(), 3);
+
+    // Removed sources stay out; deleted files disappear; excluded names are ignored.
+    let rid = ws.summary().sources.iter().find(|s| s.name == "app.log.1").unwrap().id;
+    ws.remove_source(rid);
+    assert_eq!(ws.refresh_files(std::slice::from_ref(&rotated)).unwrap(), 0);
+    std::fs::remove_file(&app).unwrap();
+    let hidden = d.write("logs/.hidden.log", log("H", 1).as_bytes());
+    ws.refresh_files(&[app, hidden]).unwrap();
+    let left: Vec<String> = ws.summary().sources.iter().map(|s| s.name.clone()).collect();
+    assert!(left.len() == 1 && left[0].ends_with("/solo.log"), "{left:?}");
+
+    // An explicitly opened file refreshes too.
+    std::fs::write(d.0.join("solo.log"), log("S", 4)).unwrap();
+    let mut store: Box<dyn LogStore> = Box::new(ws);
+    assert_eq!(store.refresh_files(&[d.0.join("solo.log")]).unwrap(), 1);
+    assert_eq!(store.summary().total, 4);
+}
+

@@ -25,6 +25,7 @@ chrono = "0.4.45"
 tauri = { version = "2.12.4", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
+notify-debouncer-mini = "0.7"
 
 [dev-dependencies]
 tauri = { version = "2.12.4", features = ["test"] }

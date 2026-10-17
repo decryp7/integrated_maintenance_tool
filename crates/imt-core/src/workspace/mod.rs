@@ -169,6 +169,59 @@ impl Workspace {
         self.reload()
     }
 
+    /// Re-imports files that changed on disk and imports new files under the
+    /// opened folders (e.g. a rotated log). Paths outside the workspace and
+    /// removed files are ignored. Returns how many sources were (re)imported.
+    pub fn refresh_files(&mut self, changed: &[PathBuf]) -> Result<usize> {
+        let start = Instant::now();
+        let mut files = Vec::new();
+        for p in changed {
+            let Ok(p) = std::fs::canonicalize(p) else {
+                // Deleted: drop its sources.
+                let gone = p.to_string_lossy().into_owned();
+                let ids: Vec<u32> = self.sources.iter().filter(|s| source_file(&s.path) == gone).map(|s| s.id).collect();
+                self.drop_sources(&ids);
+                continue;
+            };
+            if !p.is_file() || self.removed.contains(&p) {
+                continue;
+            }
+            let under_root = self.roots.iter().any(|r| *r == p || (r.is_dir() && p.starts_with(r)));
+            if !under_root {
+                continue;
+            }
+            if let Some(root) = self.roots.iter().find(|r| r.is_dir() && p.starts_with(r)) {
+                let rel = p.strip_prefix(root).unwrap_or(&p);
+                if self.profile.exclude.is_match(rel) || !self.profile.include.is_match(rel) {
+                    continue;
+                }
+            }
+            let path_s = p.to_string_lossy().into_owned();
+            let ids: Vec<u32> = self.sources.iter().filter(|s| source_file(&s.path) == path_s).map(|s| s.id).collect();
+            self.drop_sources(&ids);
+            self.unrecognized.retain(|u| source_file(&u.path) != path_s);
+            files.push(p);
+        }
+        files.sort();
+        files.dedup();
+        let before = self.sources.len();
+        let count = files.len();
+        self.import_files(files);
+        self.rebuild();
+        if count > 0 || self.sources.len() != before {
+            self.load_ms = start.elapsed().as_millis() as u64;
+        }
+        Ok(count)
+    }
+
+    fn drop_sources(&mut self, ids: &[u32]) {
+        if ids.is_empty() {
+            return;
+        }
+        self.sources.retain(|s| !ids.contains(&s.id));
+        self.records.retain(|r| !ids.contains(&r.source));
+    }
+
     /// The opened paths and removed files.
     pub fn state(&self) -> WorkspaceState {
         let s = |p: &PathBuf| p.to_string_lossy().into_owned();
@@ -561,6 +614,11 @@ fn import_bytes(
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
     Ok((importer.id().to_string(), imported, stats))
+}
+
+/// The file part of a source path ("x.zip!/a.log" -> "x.zip").
+fn source_file(path: &str) -> &str {
+    path.split(crate::archive::ENTRY_SEPARATOR).next().unwrap_or(path)
 }
 
 /// Path relative to the opened folder it came from, else `<parent dir>/<file name>`.

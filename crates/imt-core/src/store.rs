@@ -61,6 +61,9 @@ pub trait LogStore: Send + Sync {
     /// Opened paths and removed files (for saving a project).
     fn state(&self) -> WorkspaceState;
 
+    /// Re-imports changed files and imports new files under opened folders.
+    fn refresh_files(&mut self, changed: &[PathBuf]) -> Result<usize>;
+
     /// Rebuilds the workspace from a saved state; returns paths that no longer exist.
     fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>>;
 }
@@ -128,6 +131,10 @@ impl LogStore for Workspace {
 
     fn state(&self) -> WorkspaceState {
         Workspace::state(self)
+    }
+
+    fn refresh_files(&mut self, changed: &[PathBuf]) -> Result<usize> {
+        Workspace::refresh_files(self, changed)
     }
 
     fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {

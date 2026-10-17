@@ -23,7 +23,12 @@ struct AppState {
     /// Paths to open that arrived before or outside the UI (launch arguments,
     /// files opened from Finder/Explorer); the UI takes them after `imt://open`.
     pending: std::sync::Mutex<Vec<String>>,
+    /// File watcher while live tail is on.
+    watcher: std::sync::Mutex<Option<notify_debouncer_mini::Debouncer<notify_debouncer_mini::notify::RecommendedWatcher>>>,
 }
+
+/// Event telling the UI that live tail changed the workspace.
+const CHANGED_EVENT: &str = "imt://workspace-changed";
 
 /// Event telling the UI that `take_pending_open` has paths for it.
 const OPEN_EVENT: &str = "imt://open";
@@ -396,7 +401,63 @@ fn app_state(profile_dir: Option<PathBuf>, args: &[PathBuf]) -> anyhow::Result<A
         profile: RwLock::new(doc),
         profile_dir,
         pending: std::sync::Mutex::new(pending),
+        watcher: std::sync::Mutex::new(None),
     })
+}
+
+/// Turns live tail on or off. While on, the opened files and folders are
+/// watched; changed and new files are re-imported and `imt://workspace-changed`
+/// is emitted. Call again after opening more files to watch them too.
+/// Returns how many paths are watched.
+#[tauri::command]
+fn set_live<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, enabled: bool) -> CmdResult<usize> {
+    use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
+    let mut slot = state.watcher.lock().map_err(err)?;
+    *slot = None;
+    if !enabled {
+        return Ok(0);
+    }
+    let roots = state.workspace.read().map_err(err)?.state().roots;
+    let handle = app.clone();
+    let mut debouncer = new_debouncer(
+        std::time::Duration::from_millis(750),
+        move |res: notify_debouncer_mini::DebounceEventResult| {
+            if let Ok(events) = res {
+                let paths: Vec<PathBuf> = events.into_iter().map(|e| e.path).collect();
+                if apply_changes(&handle.state::<AppState>(), &paths) > 0 {
+                    use tauri::Emitter;
+                    let _ = handle.emit(CHANGED_EVENT, ());
+                }
+            }
+        },
+    )
+    .map_err(err)?;
+    let mut watched = 0;
+    for root in &roots {
+        let path = std::path::Path::new(root.split(imt_core::archive::ENTRY_SEPARATOR).next().unwrap_or(root));
+        let mode = if path.is_dir() {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        };
+        if debouncer.watcher().watch(path, mode).is_ok() {
+            watched += 1;
+        }
+    }
+    *slot = Some(debouncer);
+    log::info!(Watched = watched as u64; "Live tail on");
+    Ok(watched)
+}
+
+/// Re-imports changed files; returns how many sources were refreshed.
+fn apply_changes(state: &AppState, paths: &[PathBuf]) -> usize {
+    match state.workspace.write() {
+        Ok(mut ws) => ws.refresh_files(paths).unwrap_or_else(|e| {
+            log::warn!("live tail refresh failed: {e:#}");
+            0
+        }),
+        Err(_) => 0,
+    }
 }
 
 /// Paths waiting to be opened (launch arguments, files opened from the OS).
@@ -437,6 +498,7 @@ pub fn run() {
             export_events,
             source_context,
             take_pending_open,
+            set_live,
             save_project,
             open_project,
             get_profile,
@@ -710,5 +772,24 @@ mod tests {
         queue_open(app.handle(), vec!["/a/b.imtproj".into()]);
         queue_open(app.handle(), vec![]);
         assert_eq!(take_pending_open(app.state::<AppState>()).unwrap(), ["/a/b.imtproj"]);
+    }
+
+    #[test]
+    fn live_tail() {
+        let dir = TempDir::new("live");
+        std::fs::write(dir.0.join("a.log"), "2026-10-14 10:00:00 INFO first\n").unwrap();
+        let app = opened(None, std::slice::from_ref(&dir.0));
+        let st = || app.state::<AppState>();
+        assert_eq!(set_live(app.handle().clone(), st(), true).unwrap(), 1);
+        assert!(st().watcher.lock().unwrap().is_some());
+        std::fs::write(
+            dir.0.join("a.log"),
+            "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n",
+        )
+        .unwrap();
+        assert_eq!(apply_changes(&st(), &[dir.0.join("a.log")]), 1);
+        assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
+        assert_eq!(set_live(app.handle().clone(), st(), false).unwrap(), 0);
+        assert!(st().watcher.lock().unwrap().is_none());
     }
 }
