@@ -94,6 +94,18 @@ speedscope / collapsed-stack formats) and an **allocation table with snapshot di
   PDBs / symbol server.
 - **C++ on Linux/macOS**: `perf` (CPU) and `heaptrack` (memory) on Linux; `sample`/`xctrace` on
   macOS.
+- **Memory snapshots (all profilers)**: take snapshot (on demand, scheduled, or automatically
+  when e.g. Private Bytes grows by N MB); compare two snapshots (per type or allocation stack:
+  count/bytes before → after, sorted by growth, new types highlighted); compare a series of 3+
+  to find steady growth; retention paths to GC roots ("why is this alive"); retained size via
+  dominators.
+- **WebView2 apps** (WinForms/WPF hosts, incl. .NET Framework 4.6.2): track the
+  `msedgewebview2.exe` process family (browser/renderer/GPU by `--type`) as children of the host;
+  enable remote debugging via `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` and attach over the Chrome
+  DevTools Protocol for console messages, JS exceptions, network requests, periodic
+  `Performance.getMetrics` (JS heap, DOM nodes, listeners, documents), JS heap snapshots
+  (take/compare) and CPU profiles (flame graph); import runtime logs (`--enable-logging`),
+  Crashpad crash reports and the runtime version/user-data-folder health.
 - Captures line up with logs and counters on the same timeline (Moment view includes them).
 
 ## Phase 5: explain and share

@@ -1773,7 +1773,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "imt-collect",
  "imt-core",
+ "imt-monitor",
  "imt-plugin-otel",
  "imt-plugin-registry",
  "imt-plugin-syslog",

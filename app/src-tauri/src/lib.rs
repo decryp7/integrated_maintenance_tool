@@ -2,6 +2,9 @@
 //! names and payloads are documented in app/src/app/core/api.types.ts.
 
 mod clef;
+mod insights;
+mod system;
+mod tools;
 
 use imt_core::project::ProjectFile;
 use imt_core::workspace::{
@@ -12,11 +15,11 @@ use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use tauri::{Manager, State};
+use tauri::Manager;
 
 const PROFILE_FILE: &str = "active.imtprofile.toml";
 
-struct AppState {
+pub(crate) struct AppState {
     workspace: Arc<RwLock<Box<dyn LogStore>>>,
     profile: RwLock<ProfileDoc>,
     profile_dir: Option<PathBuf>,
@@ -49,14 +52,15 @@ struct ProfileValidation {
     line: Option<usize>,
 }
 
-type CmdResult<T> = Result<T, String>;
+pub(crate) type CmdResult<T> = Result<T, String>;
+pub(crate) use tauri::State;
 
-fn err(e: impl std::fmt::Display) -> String {
+pub(crate) fn err(e: impl std::fmt::Display) -> String {
     format!("{e:#}")
 }
 
 /// Runs read-only work on the blocking pool so large scans never stall the UI thread.
-async fn read<T: Send + 'static>(
+pub(crate) async fn read<T: Send + 'static>(
     state: &State<'_, AppState>,
     f: impl FnOnce(&dyn LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
@@ -486,6 +490,7 @@ pub fn run() {
                 .collect();
             log::info!(Version = env!("CARGO_PKG_VERSION"); "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
             app.manage(app_state(profile_dir, &args)?);
+            app.manage(tools::Tools::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -503,6 +508,32 @@ pub fn run() {
             source_context,
             take_pending_open,
             set_live,
+            insights::run_query,
+            insights::check_query,
+            insights::complete_query,
+            insights::query_patterns,
+            insights::query_exceptions,
+            insights::query_anomalies,
+            insights::compare_windows,
+            insights::field_stats,
+            insights::correlate,
+            insights::query_traces,
+            insights::query_requests,
+            insights::query_moment,
+            insights::preview_parse,
+            system::elevation,
+            system::restart_elevated,
+            system::read_file_head,
+            tools::perfmon_presets,
+            tools::perfmon_generate,
+            tools::perfmon_install,
+            tools::perfmon_control,
+            tools::perfmon_outputs,
+            tools::monitor_start,
+            tools::monitor_stop,
+            tools::monitor_status,
+            tools::collect_default_plan,
+            tools::collect_diagnostics,
             save_project,
             open_project,
             get_profile,
