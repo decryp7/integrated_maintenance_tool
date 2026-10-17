@@ -4,6 +4,8 @@ import { SavedQuery } from '../../core/tools.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { sanitizeQuery } from '../../lifecycle/core-ui-state';
 import { newId } from './ids';
+import { UndoStack } from '../../undo/undo-stack';
+import { recordSnapshot } from '../../undo/snapshot-undo';
 
 interface SavedQueryState {
   items: SavedQuery[];
@@ -20,21 +22,25 @@ export function parseSavedQueries(value: unknown): SavedQuery[] {
 export const SavedQueryStore = signalStore(
   { providedIn: 'root' },
   withState<SavedQueryState>({ items: [] }),
-  withMethods((store, workspace = inject(WorkspaceStore)) => ({
-    /** Saves the current query under a name (blank names become "Query N"). Uses the search box text, which may not be applied yet (debounce). */
-    saveCurrent(name: string): void {
-      const label = name.trim() || `Query ${store.items().length + 1}`;
-      patchState(store, (s) => ({ items: [...s.items, { id: newId('sq'), name: label, query: { ...structuredClone(workspace.query()), text: workspace.textInput() } }] }));
-    },
-    rename: (id: string, name: string) => patchState(store, (s) => ({ items: s.items.map((q) => (q.id === id ? { ...q, name: name.trim() || q.name } : q)) })),
-    remove: (id: string) => patchState(store, (s) => ({ items: s.items.filter((q) => q.id !== id) })),
-    replace: (items: SavedQuery[]) => patchState(store, { items }),
-    apply(id: string): void {
-      const saved = store.items().find((q) => q.id === id);
-      if (!saved) return;
-      const query = sanitizeQuery(saved.query);
-      workspace.patchQuery(query);
-      workspace.setTextInput(query.text);
-    },
-  })),
+  withMethods((store, workspace = inject(WorkspaceStore), undo = inject(UndoStack)) => {
+    const state = { read: () => store.items(), write: (v: SavedQuery[]) => patchState(store, { items: v }) };
+    const edit = (label: string, mutate: () => void, mergeKey?: string) => recordSnapshot(undo, state, label, mutate, { mergeKey });
+    return {
+      /** Saves the current query under a name (blank names become "Query N"). Uses the search box text, which may not be applied yet (debounce). */
+      saveCurrent(name: string): void {
+        const label = name.trim() || `Query ${store.items().length + 1}`;
+        edit('saved query', () => patchState(store, (s) => ({ items: [...s.items, { id: newId('sq'), name: label, query: { ...structuredClone(workspace.query()), text: workspace.textInput() } }] })));
+      },
+      rename: (id: string, name: string) => edit('saved query rename', () => patchState(store, (s) => ({ items: s.items.map((q) => (q.id === id ? { ...q, name: name.trim() || q.name } : q)) })), `saved-query:${id}`),
+      remove: (id: string) => edit('saved query removal', () => patchState(store, (s) => ({ items: s.items.filter((q) => q.id !== id) }))),
+      replace: (items: SavedQuery[]) => patchState(store, { items }),
+      apply(id: string): void {
+        const saved = store.items().find((q) => q.id === id);
+        if (!saved) return;
+        const query = sanitizeQuery(saved.query);
+        workspace.patchQuery(query);
+        workspace.setTextInput(query.text);
+      },
+    };
+  }),
 );

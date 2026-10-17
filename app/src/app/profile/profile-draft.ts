@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { TomlError } from 'smol-toml';
 import { ProfileDoc, ProfileValidation } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
@@ -7,6 +7,8 @@ import { Platform } from '../core/platform';
 import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
 import { parseProfile, stringifyProfile } from './toml';
+import { OverwriteGuard } from '../ui/overwrite-guard';
+import { ProfileUndo } from '../undo/profile-undo';
 
 /**
  * The profile being edited. The TOML text is the source of truth; the form edits a parsed
@@ -17,7 +19,9 @@ export class ProfileDraft {
   private readonly backend = inject(ImtBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly platform = inject(Platform);
+  private readonly overwrite = inject(OverwriteGuard);
   private readonly logger = inject(Logger);
+  private readonly undo = inject(ProfileUndo);
 
   readonly doc = signal<ProfileDoc | null>(null);
   readonly text = signal('');
@@ -26,6 +30,11 @@ export class ProfileDraft {
   readonly validation = signal<ProfileValidation | null>(null);
   readonly saving = signal(false);
   readonly importedFrom = signal<string | null>(null);
+  /**
+   * The active profile changed underneath unsaved edits (undo, redo, a restored version): the edits are kept
+   * but are based on an older version; saving replaces the newer one.
+   */
+  readonly stale = signal(false);
   readonly dirty = computed(() => {
     const doc = this.doc();
     return !!doc && this.text() !== doc.toml;
@@ -39,12 +48,45 @@ export class ProfileDraft {
 
   private validateTimer: ReturnType<typeof setTimeout> | undefined;
   private validateSeq = 0;
+  private seenProfileVersion = this.store.profileVersion();
+
+  constructor() {
+    // Follow profile changes made elsewhere (undo/redo, marker rules, a restored version).
+    effect(() => {
+      const version = this.store.profileVersion();
+      untracked(() => {
+        if (version === this.seenProfileVersion) return;
+        this.seenProfileVersion = version;
+        void this.refresh();
+      });
+    });
+  }
+
+  /** Takes the active profile when it differs from the loaded one: replaces a clean draft, flags a dirty one as stale. */
+  async refresh(): Promise<void> {
+    if (!this.doc()) return;
+    try {
+      const doc = await this.backend.getProfile();
+      if (doc.toml === this.doc()?.toml) return;
+      if (this.dirty()) {
+        this.stale.set(true);
+        this.store.setNotice('The active profile changed: your unsaved profile edits are based on the previous version.');
+        return;
+      }
+      this.doc.set(doc);
+      this.importedFrom.set(null);
+      this.setText(doc.toml);
+    } catch {
+      /* the editor keeps what it has; the next load shows the error */
+    }
+  }
 
   async load(): Promise<void> {
     try {
       const doc = await this.backend.getProfile();
       this.doc.set(doc);
       this.importedFrom.set(null);
+      this.stale.set(false);
       this.setText(doc.toml);
     } catch (e) {
       this.store.setError(String(e));
@@ -88,6 +130,11 @@ export class ProfileDraft {
   }
 
   revert(): void {
+    // Edits based on an older version go back to the active profile, not to the version they started from.
+    if (this.stale()) {
+      void this.load();
+      return;
+    }
     const doc = this.doc();
     if (doc) {
       this.importedFrom.set(null);
@@ -100,11 +147,12 @@ export class ProfileDraft {
     this.saving.set(true);
     try {
       const text = this.text();
-      const summary = await this.backend.saveProfile(text);
-      this.store.profileSaved(summary);
+      const summary = await this.undo.save('profile edit', text);
+      this.seenProfileVersion = this.store.profileVersion();
       this.logger.info('ui.profile', 'Profile saved', { Markers: summary.markerKinds.length, Charts: summary.charts.length, Events: summary.total });
       this.doc.update((d) => ({ name: summary.profileName, path: d?.path ?? null, toml: text }));
       this.importedFrom.set(null);
+      this.stale.set(false);
     } catch (e) {
       this.store.setError(`Profile not saved: ${String(e)}`);
     } finally {
@@ -129,7 +177,8 @@ export class ProfileDraft {
       const name = (this.model().name ?? 'profile').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'profile';
       const path = await this.platform.pickProfileToSave(`${name}.toml`);
       if (!path) return;
-      await this.backend.exportProfile(path, this.text());
+      const text = this.text();
+      await this.overwrite.write(path, (overwrite) => this.backend.exportProfile(path, text, overwrite));
     } catch (e) {
       this.store.setError(`Export failed: ${String(e)}`);
     }

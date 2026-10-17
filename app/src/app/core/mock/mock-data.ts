@@ -20,6 +20,8 @@ export interface MockSource {
   name: string;
   importer: string;
   skipped: number;
+  /** Clock-skew offset applied to the source's timestamps (ms). */
+  offsetMs?: number;
 }
 
 export interface MockDataset {

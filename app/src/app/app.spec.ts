@@ -24,7 +24,8 @@ describe('App', () => {
     for (const tag of ['imt-title-bar', 'imt-activity-bar', 'imt-sidebar', 'imt-filter-bar', 'imt-dock-host', 'imt-status-bar', 'imt-command-palette']) {
       expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
     }
-    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'profile', 'timeline']);
+    // Only the core views: the profile editor, analysis and tool windows open on demand.
+    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'timeline']);
     expect(fixture.nativeElement.querySelector('imt-timeline-panel')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('imt-inspector')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('imt-events-grid')).not.toBeNull();

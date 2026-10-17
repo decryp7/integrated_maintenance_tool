@@ -1,3 +1,4 @@
+import { DialogService } from '../ui/dialog.service';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Logger } from '../core/logger';
@@ -88,9 +89,13 @@ describe('ErrorSnapshotsView', () => {
     expect(backend.exports[0]).toEqual({ path: '/out/diag.zip', ids: [b.id, a.id] });
     expect(el.textContent).toContain('Exported 2 snapshots');
 
-    // Export only the ticked one.
+    // Export only the ticked one, over the first export after confirming.
     (el.querySelectorAll('input.pick')[1] as HTMLInputElement).click();
     exportButton().click();
+    await flush(f);
+    const dialogs = TestBed.inject(DialogService);
+    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
+    dialogs.stack()[0].ref.close(true);
     await flush(f);
     expect(backend.exports[1].ids).toEqual([a.id]);
 

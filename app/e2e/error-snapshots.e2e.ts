@@ -96,8 +96,10 @@ test('a second automatic error within 10 seconds does not take another snapshot'
   await openApp(page);
   await throwUncaught(page, 'first');
   await expect(toast(page)).toContainText('Error captured');
+  // The app logs the error and decides about a snapshot in the same task: once it is logged, it was decided.
+  const handled = page.waitForEvent('console', (m) => m.type() === 'error' && m.text().includes('second'));
   await throwUncaught(page, 'second');
-  await page.waitForTimeout(600);
+  await handled;
   await openSnapshotsView(page);
   await expect(page.locator('imt-error-snapshots-view [data-testid=snapshot-card]')).toHaveCount(1);
 });
@@ -107,7 +109,17 @@ test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the char
   await page.getByRole('tab', { name: /Metrics/ }).click();
   const chart = page.locator('imt-chart-card canvas').first();
   await expect(chart).toBeVisible();
-  await page.waitForTimeout(500);
+  // ECharts draws after the canvas appears: wait until it shows more than a flat background.
+  await expect
+    .poll(() =>
+      chart.evaluate((c: HTMLCanvasElement) => {
+        const data = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data ?? [];
+        const colours = new Set<number>();
+        for (let i = 0; i < data.length; i += 16) colours.add(((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4));
+        return colours.size;
+      }),
+    )
+    .toBeGreaterThan(3);
   const box = (await chart.boundingBox())!;
 
   await page.keyboard.press('ControlOrMeta+Shift+F12');

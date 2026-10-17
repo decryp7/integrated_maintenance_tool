@@ -1,4 +1,6 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
+import { AiButton } from '../ai/ai-button';
+import { AiLauncher } from '../ai/ai-launcher';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatchCounter } from '../context/match-count';
 import { MarkDialog } from '../context/mark-dialog';
@@ -18,12 +20,13 @@ import { ProfileModel } from '../core/profile.model';
 @Component({
   selector: 'imt-markers-manager',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton],
   template: `
     <div class="head">
       <span class="section-title">Markers</span>
       <span class="faint">First matching rule is an event's primary marker. Drag or use the arrows to reorder.</span>
       <span class="spacer"></span>
+      <imt-ai-button label="Propose markers" hint="The local model proposes markers from the selected event's file; the engine checks them" testId="ai-propose-markers" (pressed)="proposeWithAi()" />
       <button type="button" class="btn primary" (click)="add()"><imt-icon name="plus" [size]="13" /> New marker</button>
     </div>
     @if (error(); as e) {
@@ -143,6 +146,7 @@ export class MarkersManager {
   private readonly counter = inject(MatchCounter);
   private readonly dialogs = inject(DialogService);
   private readonly store = inject(WorkspaceStore);
+  private readonly ai = inject(AiLauncher);
 
   protected readonly rows = signal<RuleRow[]>([]);
   protected readonly counts = signal<Record<string, number | undefined>>({});
@@ -290,5 +294,10 @@ export class MarkersManager {
       inputs: { initial: [{ field: '@message', op: 'matches', value: '' }], suggestedLabel: 'New marker', submitLabel: 'Add marker', hint: 'Describe the lines to highlight with a regex or other conditions.' },
       width: 760,
     });
+  }
+
+  /** "Propose markers" with the local AI model, on the selected event's file. */
+  protected proposeWithAi(): void {
+    void this.ai.propose('markers', { recordId: this.store.selected()?.id ?? null });
   }
 }

@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, inject, output } from '@angular/cor
 import { DateFormat, TimeZoneMode } from '../core/format';
 import { ThemeMode, WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
+import { OverviewPrefs } from '../overview/overview-prefs';
 import { HelpHint } from '../ui/help-hint';
 import { GridDensity, SettingsStore } from './settings.store';
 
-/** UI-only preferences (kept in the browser, applied immediately): theme, time zone, date format, density. */
+/** UI-only preferences (kept in the browser, applied immediately): theme, time zone, date format, density, overview. */
 @Component({
   selector: 'imt-general-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,6 +49,11 @@ import { GridDensity, SettingsStore } from './settings.store';
       Always show start/stop markers
       <imt-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." />
     </label>
+    <label class="row">
+      <input type="checkbox" data-testid="overview-auto-open" [checked]="overview.autoOpen()" (change)="overview.setAutoOpen($any($event.target).checked)" />
+      Overview: show after every import
+      <imt-help label="Overview after import" text="Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel." />
+    </label>
     <div>
       <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()">Reset layout</button>
     </div>
@@ -65,6 +71,7 @@ export class GeneralSettings {
   protected readonly store = inject(WorkspaceStore);
   protected readonly settings = inject(SettingsStore);
   protected readonly dock = inject(DockService);
+  protected readonly overview = inject(OverviewPrefs);
   /** The layout was reset (the screen closes so the user sees it). */
   readonly layoutReset = output<void>();
   protected readonly themes: ThemeMode[] = ['system', 'dark', 'light'];

@@ -1,8 +1,10 @@
 import { expect, Page } from '@playwright/test';
+import { showView } from './menu-support';
 
 /**
  * Opens the app with the mock tools backend switched by query parameters:
- * mock-safe=1, mock-crash=1, mock-elevated=1, mock-os=mac, mock-denied=1, mock-latency=<ms>.
+ * mock-safe=1, mock-crash=1, mock-elevated=1, mock-os=mac, mock-denied=1, mock-latency=<ms>,
+ * mock-tools=quarantined|inactive|disabled (state of the tools plugin).
  */
 export async function openAppWith(page: Page, search = ''): Promise<void> {
   await page.goto(`/${search}`);
@@ -29,8 +31,7 @@ export async function sourceCount(page: Page): Promise<number> {
   return Number(/(\d+) sources?/.exec(text)?.[1] ?? 0);
 }
 
-/** Opens a panel from the View menu. */
+/** Opens a panel (View ▸ Other windows…, which lists every view). */
 export async function openView(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: 'View', exact: true }).click();
-  await page.getByRole('menuitemcheckbox', { name }).click();
+  await showView(page, name);
 }

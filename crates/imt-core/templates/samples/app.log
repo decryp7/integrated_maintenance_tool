@@ -1,0 +1,6 @@
+2026-10-14 10:41:00.120 INFO Application started
+2026-10-14 10:41:02.540 [WARN] Slow request /api/orders took 1500 ms
+2026-10-14T10:41:24.050Z ERROR: Payment failed for order 88412
+java.util.concurrent.TimeoutException: gateway timed out
+	at com.contoso.shop.Gateway.capture(Gateway.java:88)
+[2026-10-14 10:41:30.000] Cache refreshed

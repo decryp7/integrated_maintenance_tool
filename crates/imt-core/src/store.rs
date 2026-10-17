@@ -183,6 +183,95 @@ pub trait LogStore: Send + Sync {
 
     /// Deactivates the store's plugins, dependents first (on exit). Idempotent.
     fn shutdown_plugins(&self) {}
+
+    /// Switches the redacted view on or off: while on, pages, facets and
+    /// source context are redacted with the profile's `[redact]` rules.
+    /// Fails when there is nothing to redact with, or the store cannot.
+    fn set_view_redaction(&mut self, on: bool) -> Result<()> {
+        if on {
+            anyhow::bail!("this store has no redacted view");
+        }
+        Ok(())
+    }
+
+    /// A sample redacted with the profile's rules (or a candidate profile's).
+    fn preview_redaction(&self, req: &crate::workspace::RedactionPreviewRequest) -> crate::redact::RedactionPreview {
+        let cfg = match &req.toml {
+            None => self.profile().redact.clone(),
+            Some(t) => match Profile::from_toml(t) {
+                Ok(p) => p.redact,
+                Err(e) => {
+                    return crate::redact::RedactionPreview {
+                        before: req.sample.clone(),
+                        after: req.sample.clone(),
+                        hits: Vec::new(),
+                        error: Some(e.to_string()),
+                    }
+                }
+            },
+        };
+        crate::redact::preview(&cfg, &req.sample)
+    }
+
+    /// What redaction would change in the events of a query (before an export).
+    fn redaction_summary(&self, req: &crate::workspace::RedactionSummaryRequest) -> Result<crate::workspace::RedactionSummary> {
+        let _ = req;
+        anyhow::bail!("this store cannot preview redaction")
+    }
+
+    /// Evaluates one dashboard tile.
+    fn dashboard_tile(&self, req: &crate::dashboard::TileRequest) -> Result<crate::dashboard::TileData> {
+        let _ = req;
+        anyhow::bail!("this store cannot evaluate dashboards")
+    }
+
+    /// A report with its events looked up and, with `redact`, redacted.
+    fn resolve_report(&self, report: &crate::report::Report, redact: bool) -> Result<crate::report::ResolvedReport> {
+        let _ = (report, redact);
+        anyhow::bail!("this store cannot export reports")
+    }
+
+    /// What a shareable bundle would contain.
+    fn estimate_bundle(&self, opts: &crate::bundle::BundleOptions, profile_toml: &str) -> Result<crate::bundle::BundleEstimate> {
+        let _ = (opts, profile_toml);
+        anyhow::bail!("this store cannot write bundles")
+    }
+
+    /// Writes a shareable `.imtz` bundle.
+    fn write_bundle(
+        &self,
+        opts: &crate::bundle::BundleOptions,
+        profile_toml: &str,
+        path: &std::path::Path,
+    ) -> Result<crate::bundle::BundleManifest> {
+        let _ = (opts, profile_toml, path);
+        anyhow::bail!("this store cannot write bundles")
+    }
+
+    /// Configuration parsers for the diff view: the built-in formats plus
+    /// those the store's plugins contribute.
+    fn config_parsers(&self) -> crate::config::ConfigParsers {
+        crate::config::ConfigParsers::builtin()
+    }
+
+    /// The tools the store's plugins contribute, for generic dispatch by the
+    /// shell (usable without the store lock). A store without plugins has none.
+    fn tool_host(&self) -> Option<crate::plugin::tools::ToolHost> {
+        None
+    }
+
+    /// Sets a source's clock offset (manually or by aligning two events) and
+    /// moves its records in time. A store without clock correction refuses.
+    fn set_source_offset(&mut self, req: &crate::skew::SetOffsetRequest) -> Result<crate::skew::OffsetChange> {
+        let _ = req;
+        Err(anyhow::anyhow!("this store cannot correct clock skew"))
+    }
+
+    /// Suggests clock offsets from correlation ids shared across sources.
+    fn suggest_offsets(&self, req: &crate::skew::SuggestRequest) -> crate::skew::SuggestResult {
+        let _ = req;
+        crate::skew::SuggestResult::default()
+    }
 }
 
 impl LogStore for Workspace {
@@ -360,5 +449,50 @@ impl LogStore for Workspace {
 
     fn shutdown_plugins(&self) {
         self.registry().shutdown()
+    }
+
+    fn set_view_redaction(&mut self, on: bool) -> Result<()> {
+        Workspace::set_view_redaction(self, on)
+    }
+
+    fn redaction_summary(&self, req: &crate::workspace::RedactionSummaryRequest) -> Result<crate::workspace::RedactionSummary> {
+        Workspace::redaction_summary(self, req)
+    }
+
+    fn dashboard_tile(&self, req: &crate::dashboard::TileRequest) -> Result<crate::dashboard::TileData> {
+        Workspace::dashboard_tile(self, req)
+    }
+
+    fn resolve_report(&self, report: &crate::report::Report, redact: bool) -> Result<crate::report::ResolvedReport> {
+        Workspace::resolve_report(self, report, redact)
+    }
+
+    fn estimate_bundle(&self, opts: &crate::bundle::BundleOptions, profile_toml: &str) -> Result<crate::bundle::BundleEstimate> {
+        Workspace::estimate_bundle(self, opts, profile_toml)
+    }
+
+    fn write_bundle(
+        &self,
+        opts: &crate::bundle::BundleOptions,
+        profile_toml: &str,
+        path: &std::path::Path,
+    ) -> Result<crate::bundle::BundleManifest> {
+        Workspace::write_bundle(self, opts, profile_toml, path)
+    }
+
+    fn config_parsers(&self) -> crate::config::ConfigParsers {
+        crate::config::ConfigParsers::with_registry(self.registry())
+    }
+
+    fn tool_host(&self) -> Option<crate::plugin::tools::ToolHost> {
+        Some(self.registry().tools())
+    }
+
+    fn set_source_offset(&mut self, req: &crate::skew::SetOffsetRequest) -> Result<crate::skew::OffsetChange> {
+        Ok(Workspace::set_source_offset(self, req)?)
+    }
+
+    fn suggest_offsets(&self, req: &crate::skew::SuggestRequest) -> crate::skew::SuggestResult {
+        Workspace::suggest_offsets(self, req)
     }
 }

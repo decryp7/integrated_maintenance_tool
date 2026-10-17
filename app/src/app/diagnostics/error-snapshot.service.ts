@@ -22,6 +22,13 @@ export const SNAPSHOT_CLOCK = new InjectionToken<SnapshotClock>('SNAPSHOT_CLOCK'
   }),
 });
 
+/**
+ * Optional filter for the text a snapshot stores (message, stack): the share feature provides one that
+ * passes it through the engine's redaction while the window's redacted view is on.
+ */
+export type SnapshotTextFilter = (text: string) => Promise<string>;
+export const SNAPSHOT_TEXT_FILTER = new InjectionToken<SnapshotTextFilter>('SNAPSHOT_TEXT_FILTER');
+
 /** The small notice shown after a capture. */
 export interface SnapshotToast {
   kind: 'captured' | 'failed';
@@ -50,6 +57,7 @@ export class ErrorSnapshotService implements FailureReporter {
   private readonly logger = inject(Logger);
   private readonly clock = inject(SNAPSHOT_CLOCK);
   private readonly gate = new SnapshotGate();
+  private readonly textFilter = inject(SNAPSHOT_TEXT_FILTER, { optional: true });
   private busy = false;
   private automatic = true;
   private unlisten: Unlisten | null = null;
@@ -124,7 +132,7 @@ export class ErrorSnapshotService implements FailureReporter {
     try {
       await this.clock.nextFrame();
       const image = await this.screen.capture();
-      const result = await this.backend.save(image, this.context(reason, detail, manual));
+      const result = await this.backend.save(image, await this.filtered(this.context(reason, detail, manual)));
       this.saved.update((n) => n + 1);
       this.toast.set({ kind: 'captured', id: result.id, firstTime: result.firstTime });
       return result.id;
@@ -135,6 +143,13 @@ export class ErrorSnapshotService implements FailureReporter {
     } finally {
       this.busy = false;
     }
+  }
+
+  /** The context with its texts passed through the optional filter (redaction). */
+  private async filtered(context: SnapshotContext): Promise<SnapshotContext> {
+    const filter = this.textFilter;
+    if (!filter) return context;
+    return { ...context, message: await filter(context.message), stack: context.stack === undefined ? undefined : await filter(context.stack) };
   }
 
   private context(reason: SnapshotReason, detail: CaptureDetail, manual: boolean): SnapshotContext {

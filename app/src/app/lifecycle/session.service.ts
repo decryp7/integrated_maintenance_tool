@@ -1,7 +1,8 @@
-import { effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { Logger } from '../core/logger';
 import { LifecycleBackend } from '../core/tools-backend';
 import { UiStateRegistry } from './ui-state';
+import { ReportStore } from '../share/report/report.store';
 
 /** Quiet period before a changed state is written. */
 export const AUTOSAVE_MS = 10_000;
@@ -17,6 +18,9 @@ export class SessionService {
   private readonly backend = inject(LifecycleBackend);
   private readonly registry = inject(UiStateRegistry);
   private readonly logger = inject(Logger);
+  private readonly reports = inject(ReportStore);
+  /** The UI state and the reports, as one string (what is compared and written). */
+  private readonly state = computed(() => `${this.registry.snapshot()}\u0000${this.reports.json()}`);
 
   readonly enabled = signal(true);
   /** Last time a save succeeded (epoch ms), for display. */
@@ -28,7 +32,7 @@ export class SessionService {
 
   constructor() {
     effect(() => {
-      const snapshot = this.registry.snapshot();
+      const snapshot = this.state();
       const enabled = this.enabled();
       untracked(() => this.changed(snapshot, enabled));
     });
@@ -45,7 +49,7 @@ export class SessionService {
   async flush(): Promise<boolean> {
     clearTimeout(this.timer);
     this.timer = undefined;
-    const snapshot = this.registry.snapshot();
+    const snapshot = this.state();
     if (!this.started || !this.enabled() || snapshot === this.savedSnapshot) return false;
     return this.write(snapshot);
   }
@@ -54,7 +58,7 @@ export class SessionService {
   async saveNow(): Promise<boolean> {
     clearTimeout(this.timer);
     this.timer = undefined;
-    return this.write(this.registry.snapshot());
+    return this.write(this.state());
   }
 
   private changed(snapshot: string, enabled: boolean): void {
@@ -65,7 +69,8 @@ export class SessionService {
 
   private async write(snapshot: string): Promise<boolean> {
     try {
-      await this.backend.saveSession(JSON.parse(snapshot));
+      const [ui, reports] = snapshot.split('\u0000');
+      await this.backend.saveSession(JSON.parse(ui), JSON.parse(reports));
       this.savedSnapshot = snapshot;
       this.lastSaved.set(Date.now());
       return true;

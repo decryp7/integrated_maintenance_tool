@@ -1,0 +1,5 @@
+Timestamp,Level,Message,MachineName,ElapsedMs
+2026-10-14 10:41:00.120,Information,Order 88411 placed,WEB01,31
+2026-10-14 10:41:02.540,Warning,Slow request /api/orders,WEB01,1500
+2026-10-14 10:41:24.050,Error,Payment failed for order 88412,WEB02,5000
+2026-10-14 10:41:30.000,Debug,Cache refreshed,WEB02,2

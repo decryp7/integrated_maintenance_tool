@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, InjectionToken } from '@angular/core';
 import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { GridSelection } from '../grid/grid-selection';
@@ -35,6 +35,13 @@ export interface ActionTarget {
 const LABEL_MAX = 40;
 
 /**
+ * Extra entries for the record context menu, contributed by features (multi provider; each returns
+ * the entries for the record and the user's target).
+ */
+export type RecordMenuContribution = (record: RecordView, target: ActionTarget) => MenuEntry[];
+export const IMT_RECORD_MENU_ITEMS = new InjectionToken<readonly RecordMenuContribution[]>('IMT_RECORD_MENU_ITEMS');
+
+/**
  * The actions offered on a record or one of its values: filter, and the "teach IMT from this event"
  * dialogs (drop, mask, extract, mark). Builds menu entries; the grid and inspector only open the menu.
  */
@@ -44,6 +51,7 @@ export class RecordActions {
   private readonly dialogs = inject(DialogService);
   private readonly menu = inject(ContextMenuService);
   private readonly gridSelection = inject(GridSelection);
+  private readonly contributions = inject(IMT_RECORD_MENU_ITEMS, { optional: true }) ?? [];
 
   itemsFor(record: RecordView, target: ActionTarget = {}): MenuEntry[] {
     const items: MenuEntry[] = [];
@@ -65,6 +73,7 @@ export class RecordActions {
     if (sel?.text.trim()) {
       items.push({ label: 'Mask in message…', run: () => this.mask(record, sel) }, { label: 'Extract value…', run: () => this.extract(record, sel) });
     }
+    for (const contribute of this.contributions) items.push(...contribute(record, target));
     return items;
   }
 

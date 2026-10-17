@@ -43,6 +43,13 @@ pub struct Profile {
     /// by plugins (`<plugin-id>/<kind>`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub marker_override: Vec<MarkerOverrideCfg>,
+    /// Redaction of secrets and personal data: the redacted view, exports,
+    /// reports and bundles.
+    #[serde(default)]
+    pub redact: crate::redact::RedactCfg,
+    /// Dashboards: grids of chart, stat, table, top, alert and annotation tiles.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dashboard: Vec<crate::dashboard::DashboardCfg>,
 }
 
 /// `[[marker_override]]`: switches a marker kind off or changes its look.
@@ -473,6 +480,8 @@ impl CompiledProfile {
         }
 
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
+        crate::redact::Redactor::from_config(&profile.redact, crate::redact::Salt::fixed([0; 16])).context("[redact]")?;
+        crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
 
         Ok(CompiledProfile {
             icons,

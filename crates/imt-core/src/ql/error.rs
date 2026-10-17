@@ -12,6 +12,9 @@ pub struct QlError {
     pub offset: usize,
     /// Length in bytes (0 = a position, e.g. "unexpected end of query").
     pub len: usize,
+    /// "Did you mean": closest known names for an unknown field, best first.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub suggestions: Vec<String>,
 }
 
 impl QlError {
@@ -20,6 +23,7 @@ impl QlError {
             message: message.into(),
             offset,
             len,
+            suggestions: Vec::new(),
         }
     }
 }

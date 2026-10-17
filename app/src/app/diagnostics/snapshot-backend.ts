@@ -1,5 +1,5 @@
-import { invoke } from '@tauri-apps/api/core';
-import { EngineError, ENGINE_ERROR_EVENT, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../core/api.types';
+import { invoke } from '../core/activity/ipc';
+import { EngineError, ENGINE_ERROR_EVENT, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../core/api.types';
 import { CapturedImage } from './snapshot.types';
 import { listenHere } from '../windowing/window-events';
 
@@ -17,11 +17,18 @@ export abstract class SnapshotBackend {
   /** Shows the folder in the OS file manager; resolves to its path. */
   abstract openFolder(): Promise<string>;
   /** Zips the chosen snapshots and the recent IMT log to `path`; resolves to the number of files. */
-  abstract exportDiagnostics(path: string, ids: string[]): Promise<number>;
+  /** Zips the snapshots; never replaces an existing file unless `overwrite`. */
+  abstract exportDiagnostics(path: string, ids: string[], overwrite?: boolean): Promise<number>;
   /** Whether automatic snapshots are on (the shared diagnostics setting). */
   abstract automaticEnabled(): Promise<boolean>;
   /** Calls `handler` for every `imt://error` event. */
   abstract onEngineError(handler: (error: EngineError) => void): Promise<Unlisten>;
+  /** What a problem report would contain, for the user to review before saving. */
+  abstract reportPreview(description: string): Promise<ProblemReportPreview>;
+  /** Writes the problem report zip to `path`; never replaces an existing file unless `overwrite`. Resolves to the number of files. */
+  abstract saveReport(path: string, description: string, overwrite?: boolean): Promise<number>;
+  /** Opens IMT's own logs in a new window, filtered to the activity entries (Help ▸ Show activity log). Resolves to the window label. */
+  abstract openActivityLog(): Promise<string>;
 }
 
 export type ListenFn = (event: string, handler: (payload: unknown) => void) => Promise<Unlisten>;
@@ -53,8 +60,8 @@ export class TauriSnapshotBackend extends SnapshotBackend {
   openFolder() {
     return this.call<string>('open_snapshots_folder');
   }
-  exportDiagnostics(path: string, ids: string[]) {
-    return this.call<number>('export_diagnostics', { path, ids });
+  exportDiagnostics(path: string, ids: string[], overwrite = false) {
+    return this.call<number>('export_diagnostics', overwrite ? { path, ids, overwrite } : { path, ids });
   }
   async automaticEnabled() {
     const s = await this.call<{ snapshots: { enabled: boolean } }>('diagnostics_settings');
@@ -62,5 +69,14 @@ export class TauriSnapshotBackend extends SnapshotBackend {
   }
   onEngineError(handler: (error: EngineError) => void) {
     return this.listen(ENGINE_ERROR_EVENT, (p) => handler(p as EngineError));
+  }
+  reportPreview(description: string) {
+    return this.call<ProblemReportPreview>('problem_report_preview', { description });
+  }
+  saveReport(path: string, description: string, overwrite = false) {
+    return this.call<number>('save_problem_report', overwrite ? { path, description, overwrite } : { path, description });
+  }
+  openActivityLog() {
+    return this.call<string>('open_activity_log');
   }
 }

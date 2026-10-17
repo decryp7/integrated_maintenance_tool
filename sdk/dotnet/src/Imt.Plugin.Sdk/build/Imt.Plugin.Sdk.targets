@@ -1,0 +1,27 @@
+<Project>
+  <!--
+    Plugin folder layout (see sdk/README.md):
+
+      <ImtPluginLayoutDir>/
+        plugin.json                 the manifest (written by running the published binary with \-\-print-manifest)
+        bin/<rid>/<executable>      one self-contained executable per OS/architecture
+
+    `dotnet publish -c Release -r <rid>` copies the executable into the layout after every publish when
+    ImtPluginLayoutDir is set. plugin.json is written when the RID can run on this machine.
+  -->
+  <PropertyGroup>
+    <_ImtPluginExeName Condition="$(RuntimeIdentifier.StartsWith('win'))">$(AssemblyName).exe</_ImtPluginExeName>
+    <_ImtPluginExeName Condition="!$(RuntimeIdentifier.StartsWith('win'))">$(AssemblyName)</_ImtPluginExeName>
+  </PropertyGroup>
+
+  <Target Name="ImtPluginLayout" AfterTargets="Publish" Condition="'$(ImtPluginLayoutDir)' != '' and '$(RuntimeIdentifier)' != ''">
+    <PropertyGroup>
+      <_ImtPluginBinDir>$(ImtPluginLayoutDir)/bin/$(RuntimeIdentifier)</_ImtPluginBinDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(_ImtPluginBinDir)" />
+    <Copy SourceFiles="$(PublishDir)$(_ImtPluginExeName)" DestinationFolder="$(_ImtPluginBinDir)" />
+    <Exec Condition="'$(RuntimeIdentifier)' == '$(NETCoreSdkRuntimeIdentifier)'"
+          Command="&quot;$(PublishDir)$(_ImtPluginExeName)&quot; --print-manifest &gt; &quot;$(ImtPluginLayoutDir)/plugin.json&quot;" />
+    <Message Importance="high" Text="IMT plugin layout: $(ImtPluginLayoutDir) (bin/$(RuntimeIdentifier)/$(_ImtPluginExeName))" />
+  </Target>
+</Project>

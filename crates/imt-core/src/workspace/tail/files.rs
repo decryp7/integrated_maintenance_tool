@@ -30,6 +30,10 @@ impl Workspace {
             s.path = to.to_string_lossy().into_owned();
             s.group = group_of(&name);
             s.name = name.clone();
+            // The rotated file keeps its clock offset (a new file at the old name too).
+            if s.offset_ms != 0 {
+                let _ = self.offsets.set(&s.path, s.offset_ms);
+            }
         }
         if let Some(n) = self.names.get_mut(id as usize) {
             *n = name;
@@ -88,8 +92,10 @@ impl Workspace {
         match results.into_iter().find(|(p, ..)| *p == path_s).map(|(_, _, r)| r) {
             Some(Ok(loaded)) => {
                 delta.remove_from(id, None);
+                let offset = self.source_offset(id);
                 delta.insert.extend(loaded.imported.records.into_iter().map(|mut r| {
                     r.source = id;
+                    r.ts = crate::skew::shift(r.ts, offset);
                     r
                 }));
                 if let Some(s) = self.sources.iter_mut().find(|s| s.id == id) {

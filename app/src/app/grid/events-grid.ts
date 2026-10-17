@@ -31,6 +31,7 @@ import { HighlightRules } from '../projects/bookmarks/highlight';
 import { GridSelection } from './grid-selection';
 import { contains, EMPTY_SELECTION, extendTo, indices, RowSelection, shift, single, toggle, withFocus } from './row-selection';
 import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToScroll, visibleWindow, wheelToPixels, clamp } from './scroll-map';
+import { NextSteps } from '../ui/next-steps';
 
 /** Row heights for the two grid densities (px). */
 const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
@@ -55,7 +56,7 @@ interface VisibleRow {
   selector: 'imt-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[style.--row-h.px]': 'rowH()' },
-  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill],
+  imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps],
   template: `
     <div class="bar">
       <span class="section-title">Events</span>
@@ -145,7 +146,7 @@ interface VisibleRow {
           }
         }
         @if (loaded() && total() === 0 && !pageError()) {
-          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">No events match the current filters.</span></div>
+          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ store.summary()?.sources?.length ? 'No events match the current filters.' : 'No events: nothing is open yet.' }}<imt-next-steps /></span></div>
         }
       </div>
       <div aria-hidden="true" [style.height.px]="spacerH()"></div>

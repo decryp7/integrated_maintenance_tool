@@ -13,15 +13,19 @@ import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { DockHost } from './dock-host';
 import { DockService, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
 import { GroupActions } from './group-actions';
-import { LAYOUT_KEY, LAYOUT_STORE, LAYOUT_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
+import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
+import { loadDockview } from './dockview-loader';
+
+// dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
+beforeAll(() => loadDockview());
 
 @Component({ selector: 'imt-test-query', template: 'query bar' })
 class QueryStub {}
 
 /** Stand-in for the analysis plugin's query bar: a conditional bottom view. */
 const QUERY_PLUGIN: ImtPlugin = {
-  views: [{ id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0 }],
+  views: [{ id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0, autoOpen: true }],
 };
 
 /** Ids of the panels in each group, in grid order (depth first). */
@@ -50,22 +54,25 @@ describe('LocalStorageLayoutStore', () => {
   it('saves and loads a versioned layout', () => {
     const store = new LocalStorageLayoutStore();
     expect(store.load()).toBeNull();
-    store.save(LAYOUT);
-    expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!).version).toBe(LAYOUT_VERSION);
-    expect(store.load()).toEqual(LAYOUT);
+    store.save({ layout: LAYOUT, extras: EMPTY_EXTRAS });
+    expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!).version).toBe(ENVELOPE_VERSION);
+    expect(store.load()).toEqual({ layout: LAYOUT, extras: EMPTY_EXTRAS });
+    // Layouts saved by older versions (v1: the dockview layout alone) migrate.
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: 1, layout: LAYOUT }));
+    expect(store.load()).toEqual({ layout: LAYOUT, extras: EMPTY_EXTRAS });
     store.clear();
     expect(store.load()).toBeNull();
   });
 
   it('ignores incompatible, malformed or empty entries', () => {
     const store = new LocalStorageLayoutStore();
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: LAYOUT_VERSION + 1, layout: LAYOUT }));
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: ENVELOPE_VERSION + 1, layout: LAYOUT }));
     expect(store.load()).toBeNull();
     localStorage.setItem(LAYOUT_KEY, 'null');
     expect(store.load()).toBeNull();
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: LAYOUT_VERSION }));
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: ENVELOPE_VERSION }));
     expect(store.load()).toBeNull();
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: LAYOUT_VERSION, layout: 'x' }));
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: ENVELOPE_VERSION, layout: 'x' }));
     expect(store.load()).toBeNull();
     localStorage.setItem(LAYOUT_KEY, '{not json');
     expect(store.load()).toBeNull();
@@ -79,7 +86,7 @@ describe('LocalStorageLayoutStore', () => {
       vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('blocked'); }),
     ];
     expect(store.load()).toBeNull();
-    expect(() => store.save(LAYOUT)).not.toThrow();
+    expect(() => store.save({ layout: LAYOUT, extras: EMPTY_EXTRAS })).not.toThrow();
     expect(() => store.clear()).not.toThrow();
     spies.forEach((s) => s.mockRestore());
   });
@@ -411,9 +418,9 @@ describe('DockService with dockview', () => {
     layoutStore = {
       saves: 0,
       cleared: 0,
-      load: () => saved,
+      load: () => (saved ? { layout: saved, extras: EMPTY_EXTRAS } : null),
       save: (l) => {
-        saved = l;
+        saved = l.layout;
         layoutStore.saves++;
       },
       clear: () => {
@@ -437,14 +444,14 @@ describe('DockService with dockview', () => {
   const ids = (d: DockService) => [...d.openIds()].sort();
   const persisted = () => new Promise((r) => setTimeout(r, 300));
 
-  it('builds the default arrangement: timeline over events, inspector right, metrics and profile stacked with the timeline', () => {
+  it('builds the clean default arrangement: timeline over events, inspector right, metrics stacked with the timeline (the profile editor opens on demand)', () => {
     const { dock } = setup();
     dock.attach(container);
-    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'profile', 'timeline']);
+    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'timeline']);
     const groups = [...container.querySelectorAll('.dv-groupview')];
     expect(groups).toHaveLength(3);
     const tabsOf = (g: Element) => [...g.querySelectorAll('[role=tab]')].map((t) => t.getAttribute('aria-label'));
-    expect(groups.map(tabsOf).sort()).toEqual([['Events'], ['Inspector'], ['Timeline', 'Metrics', 'Profile']].sort());
+    expect(groups.map(tabsOf).sort()).toEqual([['Events'], ['Inspector'], ['Timeline', 'Metrics']].sort());
     expect(container.querySelector('[role=tab][aria-selected=true]')).not.toBeNull();
   });
 
@@ -498,7 +505,7 @@ describe('DockService with dockview', () => {
     expect(dockBack).not.toBeNull();
     dockBack.click();
     expect(container.querySelector('button[aria-label="Dock panel back into the window"]')).toBeNull();
-    expect(ids(dock)).toHaveLength(5);
+    expect(ids(dock)).toHaveLength(4);
   });
 
   it('docks a floated view back next to where it opens by default (below or right of the timeline)', () => {
@@ -547,14 +554,14 @@ describe('DockService with dockview', () => {
 
     const second = setup({ stored: saved });
     second.dock.attach(container);
-    expect(ids(second.dock)).toEqual(['events', 'inspector', 'profile', 'timeline']);
+    expect(ids(second.dock)).toEqual(['events', 'inspector', 'timeline']);
   });
 
   it('falls back to the default layout when the saved one cannot be restored', () => {
     const { dock } = setup({ stored: { grid: null, panels: {} } as never });
     dock.attach(container);
     expect(layoutStore.cleared).toBe(1);
-    expect(ids(dock)).toHaveLength(5);
+    expect(ids(dock)).toHaveLength(4);
     expect(testLogger().entries.some((e) => e.category === 'ui.layout' && e.level === 'warn')).toBe(true);
   });
 
@@ -575,19 +582,19 @@ describe('DockService with dockview', () => {
     await settle();
     expect(dock.isOpen(QUERY_VIEW)).toBe(true);
     const order = () => groupsInOrder((dock as unknown as { api: { toJSON(): SerializedDockview } }).api.toJSON());
-    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
     // Gone while there is nothing to query; back above the grid (not tabbed with it) when there is.
     await store.clearWorkspace();
     await settle();
     expect(dock.isOpen(QUERY_VIEW)).toBe(false);
     await store.openPaths(['/x/a.log']);
     await settle();
-    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
     // With a real size (jsdom has no layout), the query group gets its short fixed height.
     const api = (dock as unknown as { api: DockviewApi }).api;
     api.layout(1200, 800);
     dock.reset();
-    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
     expect(api.getPanel(QUERY_VIEW)!.group.api.height).toBe(QUERY_HEIGHT);
     expect(api.getPanel('timeline')!.group.api.height).toBe(300);
   });
@@ -609,7 +616,7 @@ describe('DockService with dockview', () => {
     dock.close('metrics');
     dock.close('events');
     dock.reset();
-    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'profile', 'timeline']);
+    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'timeline']);
     expect(layoutStore.cleared).toBeGreaterThan(0);
     await persisted();
     expect(Object.keys(saved!.panels)).toContain('events');
@@ -701,8 +708,8 @@ describe('DockHost', () => {
 
 describe('GroupActions', () => {
   it('only wires up once initialised and disposes its subscriptions', () => {
-    const a = new GroupActions({ toggleFloat: () => undefined });
+    const a = new GroupActions({ toggleFloat: () => undefined, popOut: () => undefined, autoHide: () => undefined, isTool: () => false, canPopOut: () => true, openMenu: () => undefined });
     a.dispose();
-    expect(a.element.querySelectorAll('button')).toHaveLength(2);
+    expect(a.element.querySelectorAll('button')).toHaveLength(5);
   });
 });

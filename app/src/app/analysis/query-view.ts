@@ -2,8 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, injec
 import { ClickOutside } from '../shared/click-outside';
 import { Completion } from '../core/api.types';
 import { formatKeybinding } from '../extensions/keybinding';
-import { applyCompletion, charToByte, errorSpan, highlight } from './ql-text';
+import { applyCompletion, applySuggestion, charToByte, errorSpan, highlight } from './ql-text';
+import { QlSuggestions } from './ql-suggestions';
 import { QuerySession } from './query-session';
+import { AiButton } from '../ai/ai-button';
+import { AiLauncher } from '../ai/ai-launcher';
 
 /** Focuses the element, retrying while its tab is still being shown (the panel may be hidden or not yet laid out). */
 export function focusSoon(el: HTMLElement, attempts = 20): void {
@@ -18,7 +21,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
 @Component({
   selector: 'imt-query-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ClickOutside],
+  imports: [ClickOutside, QlSuggestions, AiButton],
   template: `
     <div class="qbar">
       <div class="editor" [class.invalid]="!!session.error()" (imtClickOutside)="closePopups()">
@@ -58,6 +61,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         }
       </div>
       <button class="btn primary" type="button" (click)="run()" [disabled]="session.running()" [title]="'Run (' + runKey + ')'">Run</button>
+      <imt-ai-button label="Ask AI" hint="Describe what you want in plain words; the local model writes the query" testId="ai-ask-query" (pressed)="ai.askQuery()" />
       <div class="anchor" (imtClickOutside)="historyOpen.set(false)">
         <button class="btn" type="button" (click)="historyOpen.set(!historyOpen())" [attr.aria-expanded]="historyOpen()" aria-haspopup="true" [disabled]="!session.history.entries().length">History</button>
         @if (historyOpen()) {
@@ -73,6 +77,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     <div class="status" role="status">
       @if (session.error(); as e) {
         <span id="ql-error" class="err-msg">⚠ {{ e.message }}@if (e.len || e.offset) { <span class="muted"> (at column {{ column() }})</span> }</span>
+        <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" />
       } @else if (session.runError(); as r) {
         <span class="err-msg">⚠ {{ r }}</span>
       } @else if (session.applied(); as ql) {
@@ -122,6 +127,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
   `,
 })
 export class QueryView {
+  protected readonly ai = inject(AiLauncher);
   protected readonly session = inject(QuerySession);
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
 
@@ -210,6 +216,21 @@ export class QueryView {
     this.session.edit(next.text, charToByte(next.text, next.cursor));
     this.sync();
     el.focus();
+  }
+
+  /** Replaces the unknown field the engine reported with the chosen suggestion. */
+  protected useSuggestion(name: string): void {
+    const error = this.session.error();
+    if (!error) return;
+    const el = this.el();
+    const next = applySuggestion(el.value, error, name);
+    el.value = next.text;
+    this.session.error.set(null);
+    this.session.edit(next.text, charToByte(next.text, next.cursor));
+    el.focus();
+    el.setSelectionRange(next.cursor, next.cursor);
+    this.dismissed.set(true);
+    this.sync();
   }
 
   protected useHistory(text: string): void {

@@ -136,6 +136,22 @@ describe('ViewRegistry', () => {
     expect(isViewAvailable(mk('x'), null)).toBe(true);
     expect(isViewAvailable(mk('x', () => true), null)).toBe(false);
   });
+
+  it('isViewAvailable honours enabled (a feature that may be absent), whatever the workspace', () => {
+    expect(isViewAvailable({ ...mk('x'), enabled: () => false }, null)).toBe(false);
+    expect(isViewAvailable({ ...mk('x'), enabled: () => true }, null)).toBe(true);
+    expect(
+      isViewAvailable(
+        {
+          ...mk('x'),
+          enabled: () => {
+            throw new Error('broken');
+          },
+        },
+        null,
+      ),
+    ).toBe(false);
+  });
 });
 
 describe('CommandRegistry', () => {

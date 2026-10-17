@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
+import { AiButton } from '../ai/ai-button';
+import { AiLauncher } from '../ai/ai-launcher';
 import { LEVELS, Level, MomentSummary, UserCount } from '../core/api.types';
 import { formatCount, formatNumber } from '../core/format';
 import { AnalysisBackend } from '../core/analysis-backend';
@@ -11,18 +13,20 @@ import { anomalyIcon, anomalyLabel, ARROWS, direction, formatChange } from './an
 import { AsyncResource } from './async-resource';
 import { qlEquals } from './ql-text';
 import { TimeCursor } from './time-cursor';
+import { ProfileMomentSection } from '../profiling/integration/profile-moment';
 
 /** Everything that happened in a time window: levels, instances, metrics, users, activity and anomalies. */
 @Component({
   selector: 'imt-moment-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, ProfileMomentSection, AiButton],
   template: `
     <div class="bar">
       <span class="section-title">Moment</span>
       <span class="mono">{{ time.range(range()) }}</span>
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()">Zoom to this range</button>
+      <imt-ai-button label="Summarize" hint="The local model summarizes what happened in this range" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
     <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." (retry)="res.retry()">
       @if (res.data(); as m) {
@@ -125,6 +129,8 @@ import { TimeCursor } from './time-cursor';
           } @else {
             <p class="muted">None.</p>
           }
+
+          <imt-profile-moment [range]="range()" />
         </div>
       }
     </imt-analysis-state>
@@ -150,6 +156,7 @@ import { TimeCursor } from './time-cursor';
   ],
 })
 export class MomentView {
+  private readonly ai = inject(AiLauncher);
   protected readonly actions = inject(AnalysisActions);
   protected readonly time = inject(AnalysisTime);
   protected readonly cursor = inject(TimeCursor);
@@ -202,5 +209,11 @@ export class MomentView {
 
   protected selectSample(id: number | undefined): void {
     if (id !== undefined) this.select(id);
+  }
+
+  /** "Summarize this range" with the local AI model. */
+  protected summarize(): void {
+    const r = this.range();
+    if (r) void this.ai.summarize(r.from, r.to);
   }
 }

@@ -50,15 +50,15 @@ describe('SettingsScreen', () => {
     const { fixture } = await setup();
     nav(fixture, 'Diagnostics').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(5);
-    expect(text(fixture)).toContain('3 advanced settings hidden');
+    expect(all(fixture, 'imt-setting-field')).toHaveLength(6);
+    expect(text(fixture)).toContain('4 advanced settings hidden');
     buttonByText(fixture, 'Show advanced').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(8);
+    expect(all(fixture, 'imt-setting-field')).toHaveLength(10);
     expect(el<HTMLInputElement>(fixture, '.adv input').checked).toBe(true);
     el<HTMLInputElement>(fixture, '.adv input').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-setting-field')).toHaveLength(5);
+    expect(all(fixture, 'imt-setting-field')).toHaveLength(6);
   });
 
   it('searches label, description and key across sections', async () => {

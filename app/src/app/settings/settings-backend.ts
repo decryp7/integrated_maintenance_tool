@@ -1,5 +1,5 @@
 import { reportBackendFailures } from '../core/failure-reporter';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../core/activity/ipc';
 import { inject, Injectable } from '@angular/core';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
@@ -26,7 +26,8 @@ export abstract class SettingsBackend {
   /** Puts a whole section back to its defaults. */
   abstract reset(section: string): Promise<SetResult>;
   /** Writes all settings to a user-chosen `.json` file. */
-  abstract exportTo(path: string): Promise<void>;
+  /** Writes the settings to a file; never replaces an existing file unless `overwrite`. */
+  abstract exportTo(path: string, overwrite?: boolean): Promise<void>;
   /** Reads a settings file and applies each valid section. */
   abstract importFrom(path: string): Promise<ImportResult>;
 }
@@ -46,8 +47,8 @@ export class TauriSettingsBackend extends SettingsBackend {
   reset(section: string) {
     return this.call<SetResult>('reset_settings', { section });
   }
-  exportTo(path: string) {
-    return this.call<void>('export_settings', { path });
+  exportTo(path: string, overwrite = false) {
+    return this.call<void>('export_settings', overwrite ? { path, overwrite } : { path });
   }
   importFrom(path: string) {
     return this.call<ImportResult>('import_settings', { path });

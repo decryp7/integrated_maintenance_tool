@@ -1,6 +1,9 @@
 import { ErrorHandler, inject, Injectable, Provider } from '@angular/core';
 import { debug as tauriDebug, error as tauriError, info as tauriInfo, warn as tauriWarn } from '@tauri-apps/plugin-log';
 import { isTauri } from './platform';
+import { activity, errorCode } from './activity/runtime';
+import { ACTIVITY_TRACKED, backendCallSettled, backendCallStarted } from './activity/backend-activity';
+import { isUserError } from './activity/severity';
 
 /** Structured properties attached to a log event (PascalCase names, Serilog style). */
 export type LogProps = Record<string, string | number | boolean | null | undefined>;
@@ -35,6 +38,16 @@ export function toKeyValues(category: string, props: LogProps = {}): Record<stri
   return out;
 }
 
+/**
+ * Adds what correlates an event with the user's activity: the current operation's id and this window's label
+ * (unless the caller set them). Every UI log event goes through it, so an error inside an operation carries
+ * its `OperationId`.
+ */
+export function withActivityContext(props: LogProps = {}): LogProps {
+  const op = activity.currentOperationId();
+  return { ...(op ? { OperationId: op } : {}), Window: activity.window, ...props };
+}
+
 /** Describes any thrown value as text. */
 export function describeError(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -65,7 +78,11 @@ export class TauriLogger extends Logger {
   }
   private send(fn: PluginFn, category: string, message: string, props?: LogProps): void {
     // Logging must never break the UI.
-    fn(message, { keyValues: toKeyValues(category, props) }).catch(() => undefined);
+    try {
+      fn(message, { keyValues: toKeyValues(category, withActivityContext(props)) }).catch(() => undefined);
+    } catch {
+      /* the plugin is unavailable */
+    }
   }
   debug(category: string, message: string, props?: LogProps): void {
     this.send(this.plugin.debug, category, message, props);
@@ -81,19 +98,23 @@ export class TauriLogger extends Logger {
   }
 }
 
-/** Browser development and tests: the devtools console. */
+/**
+ * Browser development and tests: the devtools console. Without Rust to attach them, errors carry this window's
+ * latest activity entries (`Breadcrumbs`) here.
+ */
 export class ConsoleLogger extends Logger {
   debug(category: string, message: string, props?: LogProps): void {
-    console.debug(`[${category}] ${message}`, props ?? {});
+    console.debug(`[${category}] ${message}`, withActivityContext(props));
   }
   info(category: string, message: string, props?: LogProps): void {
-    console.info(`[${category}] ${message}`, props ?? {});
+    console.info(`[${category}] ${message}`, withActivityContext(props));
   }
   warn(category: string, message: string, props?: LogProps): void {
-    console.warn(`[${category}] ${message}`, props ?? {});
+    console.warn(`[${category}] ${message}`, withActivityContext(props));
   }
   error(category: string, message: string, props?: LogProps): void {
-    console.error(`[${category}] ${message}`, props ?? {});
+    const crumbs = activity.breadcrumbs();
+    console.error(`[${category}] ${message}`, withActivityContext(crumbs.length ? { Breadcrumbs: JSON.stringify(crumbs), ...props } : props));
   }
 }
 
@@ -113,9 +134,23 @@ export class LoggingErrorHandler implements ErrorHandler {
 
   handleError(error: unknown): void {
     const stack = error instanceof Error ? error.stack : undefined;
-    this.logger.error('ui.error', redactPaths(describeError(error)), { Stack: stack ? redactPaths(stack) : undefined });
+    // Pending coalesced changes (a query being typed) are part of what led here.
+    activity.flushCoalesced();
+    this.logger.error('ui.error', redactPaths(describeError(error)), {
+      ErrorType: errorType(error),
+      ErrorCode: errorCode(error),
+      View: activity.view(),
+      Stack: stack ? redactPaths(stack) : undefined,
+    });
     console.error(error);
   }
+}
+
+/** The kind of a thrown value (TypeError, a custom error class, string, ...). */
+export function errorType(e: unknown): string {
+  if (e instanceof Error) return e.constructor?.name || e.name || 'Error';
+  if (e === null) return 'null';
+  return typeof e;
 }
 
 export function provideErrorLogging(): Provider {
@@ -131,19 +166,43 @@ export interface FailureLoggingOptions {
 
 /**
  * Decorates a promise-returning service so every rejected call is logged (operation name and
- * redacted error only), reported to `onFailure`, and then rethrown unchanged.
+ * redacted error only), reported to `onFailure`, and then rethrown unchanged. It is also where every backend
+ * call meets the activity log (`core/activity/backend-activity.ts`): a call inside an operation carries its id;
+ * a change made outside any operation becomes one.
  */
 export function withFailureLogging<T extends object>(target: T, logger: Logger, options: FailureLoggingOptions = {}): T {
   const { category = 'ui.backend', onFailure } = options;
   return new Proxy(target, {
     get(obj, prop, receiver) {
+      if (prop === ACTIVITY_TRACKED) return true;
       const value = Reflect.get(obj, prop, receiver);
       if (typeof value !== 'function') return value;
       return (...args: unknown[]) => {
-        const result = (value as (...a: unknown[]) => unknown).apply(obj, args);
-        if (!(result instanceof Promise)) return result;
-        return result.catch((e: unknown) => {
-          logger.warn(category, 'Backend command failed', { Command: String(prop), Error: redactPaths(describeError(e)) });
+        const op = typeof prop === 'string' ? backendCallStarted(prop, args) : null;
+        let result: unknown;
+        try {
+          result = (value as (...a: unknown[]) => unknown).apply(obj, args);
+        } catch (e) {
+          backendCallSettled(op, e);
+          throw e;
+        }
+        if (!(result instanceof Promise)) {
+          backendCallSettled(op);
+          return result;
+        }
+        return result.then(
+          (v: unknown) => {
+            backendCallSettled(op);
+            return v;
+          },
+          (e: unknown) => {
+            backendCallSettled(op, e);
+            throw e;
+          },
+        ).catch((e: unknown) => {
+          // A mistake the user can fix is a warning; anything else is an unexpected error.
+          const log = isUserError(e) ? logger.warn.bind(logger) : logger.error.bind(logger);
+          log(category, 'Backend command failed', { Command: String(prop), ErrorCode: errorCode(e), Error: redactPaths(describeError(e)) });
           try {
             onFailure?.(String(prop), e);
           } catch {

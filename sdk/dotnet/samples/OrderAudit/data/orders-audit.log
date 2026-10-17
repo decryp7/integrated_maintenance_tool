@@ -1,0 +1,2435 @@
+# order-service audit log
+2026-10-17 08:00:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 0s
+2026-10-17 08:00:08.031 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10001
+    Customer = C-016
+    Amount = 1798.23
+    Channel = app
+2026-10-17 08:00:08.767 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10001
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:00:09.501 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10001
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 08:00:10.853 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10001
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10001
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 284
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:00:46.406 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10002
+    Customer = C-023
+    Amount = 2257.72 EUR
+    Channel = store
+--- log rotated by logrotate ---
+2026-10-17 08:00:47.712 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10002
+    Items = 3
+2026-10-17 08:01:00.334 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10003
+    Customer = C-011
+    Amount = 734.01 GBP
+    Channel = app
+2026-10-17 08:01:01.260 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10003
+    Items = 3
+2026-10-17 08:01:37.315 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10004
+    Customer = C-103
+    Amount = 1326.45 USD
+    Channel = app
+2026-10-17 08:01:38.636 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10004
+    Items = 3
+2026-10-17 08:02:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 120s
+2026-10-17 08:02:18.738 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10005
+    Customer = C-005
+    Amount = 1448.53 USD
+    Channel = app
+2026-10-17 08:02:19.762 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10005
+    Items = 8
+2026-10-17 08:02:32.156 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10006
+    Customer = C-063
+    Amount = 1718.00 EUR
+    Channel = app
+2026-10-17 08:02:32.717 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10006
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:02:33.007 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10006
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 08:02:34.489 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10006
+    Items = 8
+2026-10-17 08:03:04.059 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10007
+    Customer = C-118
+    Amount = 807.79 USD
+    Channel = web
+2026-10-17 08:03:04.363 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10007
+    Items = 3
+2026-10-17 08:03:44.705 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10008
+    Customer = C-015
+    Amount = 1629.65 EUR
+    Channel = web
+2026-10-17 08:03:45.532 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10008
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:03:45.745 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10008
+    Items = 1
+2026-10-17 08:04:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 240s
+2026-10-17 08:04:20.106 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10009
+    Customer = C-074
+    Amount = 872.12 EUR
+    Channel = web
+2026-10-17 08:04:20.730 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10009
+    Error = AddressInvalid
+2026-10-17 08:04:41.509 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10010
+    Customer = C-057
+    Amount = 1503.50 EUR
+    Channel = store
+2026-10-17 08:04:41.898 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10010
+    Items = 1
+2026-10-17 08:05:17.504 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10011
+    Customer = C-075
+    Amount = 925.18 EUR
+    Channel = store
+2026-10-17 08:05:18.855 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10011
+    Items = 1
+2026-10-17 08:05:31.782 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10012
+    Customer = C-057
+    Amount = 2495.70
+    Channel = web
+2026-10-17 08:05:32.220 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10012
+    Items = 1
+2026-10-17 08:06:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 360s
+2026-10-17 08:06:12.643 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10013
+    Customer = C-111
+    Amount = 2229.45 USD
+    Channel = web
+2026-10-17 08:06:18.045 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10013
+    Items = 9
+2026-10-17 08:06:41.429 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10014
+    Customer = C-047
+    Amount = 1885.73 USD
+    Channel = app
+2026-10-17 08:06:42.814 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10014
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10014
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 299
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:07:11.538 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10015
+    Customer = C-002
+    Amount = 2229.57 GBP
+    Channel = app
+2026-10-17 08:07:20.372 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10015
+    Items = 9
+2026-10-17 08:07:45.362 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10016
+    Customer = C-047
+    Amount = 1186.45
+    Channel = app
+2026-10-17 08:07:46.271 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10016
+    Items = 2
+2026-10-17 08:08:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 480s
+2026-10-17 08:08:04.903 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10017
+    Customer = C-015
+    Amount = 791.39 GBP
+    Channel = web
+2026-10-17 08:08:05.991 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10017
+    Items = 5
+2026-10-17 08:08:32.473 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10018
+    Customer = C-070
+    Amount = 2349.68 GBP
+    Channel = app
+2026-10-17 08:08:33.107 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10018
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:08:33.809 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10018
+    Items = 7
+2026-10-17 08:09:05.433 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10019
+    Customer = C-032
+    Amount = 934.15 EUR
+    Channel = store
+2026-10-17 08:09:06.100 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10019
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:09:06.725 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10019
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10019
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 383
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:09:39.930 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10020
+    Customer = C-052
+    Amount = 712.51 USD
+    Channel = store
+2026-10-17 08:09:40.742 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10020
+    Items = 7
+2026-10-17 08:10:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 600s
+2026-10-17 08:10:11.942 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10021
+    Customer = C-116
+    Amount = 279.58 EUR
+    Channel = store
+2026-10-17 08:10:13.377 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10021
+    Items = 9
+2026-10-17 08:10:31.466 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10022
+    Customer = C-056
+    Amount = 149.49 EUR
+    Channel = app
+2026-10-17 08:10:32.207 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10022
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:10:32.783 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10022
+    Items = 9
+2026-10-17 08:11:12.857 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10023
+    Customer = C-067
+    Amount = 1756.12 USD
+    Channel = web
+2026-10-17 08:11:13.704 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10023
+    Items = 8
+2026-10-17 08:11:32.647 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10024
+    Customer = C-094
+    Amount = 747.71 USD
+    Channel = app
+2026-10-17 08:11:33.864 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10024
+    Items = 5
+2026-10-17 08:12:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 720s
+2026-10-17 08:12:15.640 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10025
+    Customer = C-005
+    Amount = 2230.81
+    Channel = store
+2026-10-17 08:12:16.636 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10025
+    Items = 4
+2026-10-17 08:12:48.553 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10026
+    Customer = C-027
+    Amount = 254.96
+    Channel = web
+2026-10-17 08:12:49.132 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10026
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:12:50.100 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10026
+    Items = 6
+2026-10-17 08:13:10.367 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10027
+    Customer = C-022
+    Amount = 908.37 EUR
+    Channel = store
+2026-10-17 08:13:10.840 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10027
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:13:16.780 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10027
+    Items = 2
+2026-10-17 08:13:36.219 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10028
+    Customer = C-053
+    Amount = 862.54 USD
+    Channel = store
+2026-10-17 08:13:36.984 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10028
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:13:37.619 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10028
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 08:13:38.077 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10028
+    Items = 1
+2026-10-17 08:14:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 840s
+2026-10-17 08:14:03.873 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10029
+    Customer = C-114
+    Amount = 19.75 USD
+    Channel = app
+2026-10-17 08:14:04.770 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10029
+    Items = 9
+2026-10-17 08:14:37.341 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10030
+    Customer = C-021
+    Amount = 1609.43 EUR
+    Channel = web
+2026-10-17 08:14:38.025 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10030
+    Items = 2
+2026-10-17 08:15:18.154 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10031
+    Customer = C-013
+    Amount = 2285.02 EUR
+    Channel = app
+2026-10-17 08:15:18.688 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10031
+    Items = 4
+2026-10-17 08:15:39.975 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10032
+    Customer = C-104
+    Amount = 2253.17
+    Channel = app
+2026-10-17 08:15:43.499 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10032
+    Items = 1
+2026-10-17 08:16:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 960s
+2026-10-17 08:16:15.657 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10033
+    Customer = C-007
+    Amount = 2273.37 GBP
+    Channel = app
+2026-10-17 08:16:16.747 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10033
+    Items = 7
+2026-10-17 08:16:48.936 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10034
+    Customer = C-018
+    Amount = 1890.28 GBP
+    Channel = store
+2026-10-17 08:16:49.253 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10034
+    Items = 6
+2026-10-17 08:17:19.117 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10035
+    Customer = C-019
+    Amount = 2160.02 EUR
+    Channel = store
+2026-10-17 08:17:19.875 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10035
+    Items = 1
+2026-10-17 08:17:32.807 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10036
+    Customer = C-048
+    Amount = 2376.85 EUR
+    Channel = app
+2026-10-17 08:17:33.745 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10036
+    Items = 8
+2026-10-17 08:18:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1080s
+2026-10-17 08:18:14.608 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10037
+    Customer = C-074
+    Amount = 673.51
+    Channel = store
+2026-10-17 08:18:15.704 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10037
+    Items = 7
+2026-10-17 08:18:30.399 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10038
+    Customer = C-065
+    Amount = 650.36 EUR
+    Channel = store
+2026-10-17 08:18:31.454 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10038
+    Items = 8
+2026-10-17 08:19:06.595 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10039
+    Customer = C-096
+    Amount = 1735.30 GBP
+    Channel = web
+2026-10-17 08:19:07.339 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10039
+    Items = 5
+2026-10-17 08:19:46.987 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10040
+    Customer = C-085
+    Amount = 1912.36 EUR
+    Channel = web
+2026-10-17 08:19:47.778 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10040
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:19:50.567 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10040
+    Items = 7
+2026-10-17 08:20:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1200s
+2026-10-17 08:20:06.687 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10041
+    Customer = C-005
+    Amount = 1096.67 GBP
+    Channel = app
+2026-10-17 08:20:07.188 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10041
+    Items = 5
+2026-10-17 08:20:43.174 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10042
+    Customer = C-051
+    Amount = 1230.05 EUR
+    Channel = store
+2026-10-17 08:20:44.283 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10042
+    Items = 7
+2026-10-17 08:21:07.917 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10043
+    Customer = C-029
+    Amount = 1767.09
+    Channel = store
+2026-10-17 08:21:08.790 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10043
+    Items = 6
+2026-10-17 08:21:50.268 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10044
+    Customer = C-064
+    Amount = 1755.85 GBP
+    Channel = app
+2026-10-17 08:21:51.597 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10044
+    Items = 7
+2026-10-17 08:22:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1320s
+2026-10-17 08:22:10.922 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10045
+    Customer = C-008
+    Amount = 1153.19 EUR
+    Channel = store
+2026-10-17 08:22:11.951 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10045
+    Error = AddressInvalid
+2026-10-17 08:22:41.619 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10046
+    Customer = C-089
+    Amount = 2237.27 EUR
+    Channel = web
+2026-10-17 08:22:42.443 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10046
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:22:43.291 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10046
+    Items = 2
+2026-10-17 08:23:10.790 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10047
+    Customer = C-010
+    Amount = 2048.43 USD
+    Channel = app
+2026-10-17 08:23:11.624 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10047
+    Items = 1
+2026-10-17 08:23:49.582 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10048
+    Customer = C-090
+    Amount = 325.61 EUR
+    Channel = web
+2026-10-17 08:23:50.782 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10048
+    Items = 4
+2026-10-17 08:24:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1440s
+2026-10-17 08:24:16.674 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10049
+    Customer = C-081
+    Amount = 57.93 EUR
+    Channel = web
+2026-10-17 08:24:16.896 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10049
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:24:17.721 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10049
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 08:24:19.091 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10049
+    Items = 7
+2026-10-17 08:24:43.375 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10050
+    Customer = C-030
+    Amount = 643.48 EUR
+    Channel = app
+2026-10-17 08:24:43.701 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10050
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:24:44.748 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10050
+    Items = 2
+2026-10-17 08:25:17.939 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10051
+    Customer = C-072
+    Amount = 1228.67 GBP
+    Channel = web
+2026-10-17 08:25:18.339 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10051
+    Items = 1
+2026-10-17 08:25:38.953 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10052
+    Customer = C-088
+    Amount = 1529.69
+    Channel = app
+2026-10-17 08:25:39.149 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10052
+    Items = 8
+2026-10-17 08:26:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1560s
+2026-10-17 08:26:19.396 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10053
+    Customer = C-092
+    Amount = 1163.71
+    Channel = web
+2026-10-17 08:26:20.300 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10053
+    Items = 5
+2026-10-17 08:26:46.928 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10054
+    Customer = C-003
+    Amount = 1292.19
+    Channel = web
+2026-10-17 08:26:47.521 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10054
+    Items = 4
+2026-10-17 08:27:13.591 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10055
+    Customer = C-103
+    Amount = 131.33 EUR
+    Channel = app
+2026-10-17 08:27:14.951 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10055
+    Items = 7
+2026-10-17 08:27:39.163 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10056
+    Customer = C-085
+    Amount = 1731.05 EUR
+    Channel = store
+2026-10-17 08:27:39.770 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10056
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:27:40.449 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10056
+    Items = 5
+2026-10-17 08:28:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1680s
+2026-10-17 08:28:00.117 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10057
+    Customer = C-109
+    Amount = 1383.97 GBP
+    Channel = store
+2026-10-17 08:28:00.943 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10057
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:28:01.965 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10057
+    Items = 9
+2026-10-17 08:28:34.436 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10058
+    Customer = C-120
+    Amount = 961.63 GBP
+    Channel = web
+2026-10-17 08:28:35.254 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10058
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:28:36.253 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10058
+    Items = 1
+2026-10-17 08:29:02.609 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10059
+    Customer = C-027
+    Amount = 755.38 EUR
+    Channel = store
+2026-10-17 08:29:04.027 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10059
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10059
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 65
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:29:39.630 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10060
+    Customer = C-054
+    Amount = 1162.87 EUR
+    Channel = store
+2026-10-17 08:29:40.076 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10060
+    Items = 8
+2026-10-17 08:30:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1800s
+2026-10-17 08:30:16.596 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10061
+    Customer = C-031
+    Amount = 71.10 USD
+    Channel = web
+2026-10-17 08:30:17.346 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10061
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:30:18.707 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10061
+    Items = 6
+2026-10-17 08:30:42.961 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10062
+    Customer = C-087
+    Amount = 422.26 USD
+    Channel = app
+2026-10-17 08:30:43.245 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10062
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:30:44.552 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10062
+    Items = 3
+2026-10-17 08:31:02.465 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10063
+    Customer = C-112
+    Amount = 1039.49 EUR
+    Channel = web
+2026-10-17 08:31:03.058 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10063
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:31:03.474 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10063
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 08:31:04.122 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10063
+    Attempt = 4
+    Reason = Connection reset
+2026-10-17 08:31:05.140 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10063
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10063
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 117
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:31:34.897 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10064
+    Customer = C-111
+    Amount = 150.05 GBP
+    Channel = store
+2026-10-17 08:31:35.714 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10064
+    Items = 2
+2026-10-17 08:32:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 1920s
+2026-10-17 08:32:20.104 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10065
+    Customer = C-115
+    Amount = 1046.56 EUR
+    Channel = web
+2026-10-17 08:32:20.587 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10065
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:32:21.192 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10065
+    Items = 6
+2026-10-17 08:32:46.647 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10066
+    Customer = C-114
+    Amount = 547.72 USD
+    Channel = web
+2026-10-17 08:32:47.230 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10066
+    Items = 2
+2026-10-17 08:33:14.477 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10067
+    Customer = C-020
+    Amount = 2326.74 EUR
+    Channel = store
+2026-10-17 08:33:14.754 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10067
+    Items = 5
+2026-10-17 08:33:50.443 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10068
+    Customer = C-065
+    Amount = 1789.91 GBP
+    Channel = store
+2026-10-17 08:33:51.893 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10068
+    Items = 7
+2026-10-17 08:34:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2040s
+2026-10-17 08:34:01.609 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10069
+    Customer = C-120
+    Amount = 2418.02 EUR
+    Channel = web
+2026-10-17 08:34:01.989 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10069
+    Items = 8
+2026-10-17 08:34:38.986 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10070
+    Customer = C-065
+    Amount = 594.23 EUR
+    Channel = app
+2026-10-17 08:34:39.677 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10070
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10070
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 360
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:35:09.159 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10071
+    Customer = C-033
+    Amount = 1833.93 GBP
+    Channel = web
+2026-10-17 08:35:09.392 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10071
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:35:10.743 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10071
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10071
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 355
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:35:48.699 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10072
+    Customer = C-019
+    Amount = 1167.77
+    Channel = app
+2026-10-17 08:35:49.614 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10072
+    Items = 5
+2026-10-17 08:36:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2160s
+2026-10-17 08:36:12.839 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10073
+    Customer = C-001
+    Amount = 2328.83 USD
+    Channel = store
+2026-10-17 08:36:14.147 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10073
+    Items = 5
+2026-10-17 08:36:41.551 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10074
+    Customer = C-044
+    Amount = 1198.60 GBP
+    Channel = app
+2026-10-17 08:36:49.798 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10074
+    Items = 5
+2026-10-17 08:37:03.698 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10075
+    Customer = C-099
+    Amount = 1485.43 EUR
+    Channel = app
+2026-10-17 08:37:04.878 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10075
+    Items = 2
+2026-10-17 08:37:45.700 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10076
+    Customer = C-050
+    Amount = 180.19 USD
+    Channel = web
+2026-10-17 08:37:50.493 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10076
+    Items = 3
+2026-10-17 08:38:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2280s
+2026-10-17 08:38:18.943 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10077
+    Customer = C-012
+    Amount = 2168.79 GBP
+    Channel = store
+2026-10-17 08:38:20.038 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10077
+    Items = 2
+2026-10-17 08:38:44.486 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10078
+    Customer = C-014
+    Amount = 1581.41 EUR
+    Channel = web
+2026-10-17 08:38:50.366 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10078
+    Items = 9
+2026-10-17 08:39:15.750 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10079
+    Customer = C-043
+    Amount = 2193.85 EUR
+    Channel = store
+2026-10-17 08:39:48.695 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10080
+    Customer = C-074
+    Amount = 386.48 GBP
+    Channel = app
+2026-10-17 08:39:49.125 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10080
+    Items = 8
+2026-10-17 08:40:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2400s
+2026-10-17 08:40:18.969 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10081
+    Customer = C-096
+    Amount = 108.68
+    Channel = store
+2026-10-17 08:40:19.581 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10081
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:40:19.915 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10081
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 08:40:20.208 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10081
+    Attempt = 4
+    Reason = Gateway timeout
+2026-10-17 08:40:20.433 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10081
+    Items = 4
+2026-10-17 08:40:37.457 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10082
+    Customer = C-018
+    Amount = 1072.50 EUR
+    Channel = web
+2026-10-17 08:40:37.879 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10082
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:40:38.578 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10082
+    Items = 1
+2026-10-17 08:41:03.511 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10083
+    Customer = C-074
+    Amount = 2325.83 GBP
+    Channel = web
+2026-10-17 08:41:04.009 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10083
+    Items = 8
+2026-10-17 08:41:46.755 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10084
+    Customer = C-072
+    Amount = 1596.42 GBP
+    Channel = web
+2026-10-17 08:41:46.973 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10084
+    Items = 9
+2026-10-17 08:42:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2520s
+2026-10-17 08:42:06.615 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10085
+    Customer = C-021
+    Amount = 13.28 GBP
+    Channel = app
+2026-10-17 08:42:07.236 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10085
+    Items = 2
+2026-10-17 08:42:30.220 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10086
+    Customer = C-055
+    Amount = 723.94 USD
+    Channel = web
+2026-10-17 08:42:31.554 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10086
+    Items = 5
+2026-10-17 08:43:07.990 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10087
+    Customer = C-025
+    Amount = 1482.65 EUR
+    Channel = store
+2026-10-17 08:43:13.042 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10087
+    Items = 8
+2026-10-17 08:43:49.958 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10088
+    Customer = C-117
+    Amount = 2405.99 GBP
+    Channel = app
+2026-10-17 08:43:51.350 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10088
+    Items = 1
+2026-10-17 08:44:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2640s
+2026-10-17 08:44:09.142 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10089
+    Customer = C-111
+    Amount = 917.77 EUR
+    Channel = app
+2026-10-17 08:44:09.996 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10089
+    Items = 4
+2026-10-17 08:44:44.217 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10090
+    Customer = C-106
+    Amount = 1767.65 EUR
+    Channel = app
+2026-10-17 08:44:44.604 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10090
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:44:44.949 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10090
+    Items = 9
+2026-10-17 08:45:09.875 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10091
+    Customer = C-059
+    Amount = 1443.09 EUR
+    Channel = store
+2026-10-17 08:45:11.040 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10091
+    Items = 2
+2026-10-17 08:45:41.614 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10092
+    Customer = C-107
+    Amount = 685.72 EUR
+    Channel = web
+2026-10-17 08:45:42.032 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10092
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:45:43.316 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10092
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10092
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 147
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:46:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2760s
+2026-10-17 08:46:13.512 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10093
+    Customer = C-054
+    Amount = 404.44
+    Channel = app
+2026-10-17 08:46:14.353 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10093
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:46:14.678 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10093
+    Items = 1
+2026-10-17 08:46:46.788 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10094
+    Customer = C-061
+    Amount = 1828.68 EUR
+    Channel = web
+2026-10-17 08:46:47.473 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10094
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:46:47.956 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10094
+    Items = 8
+2026-10-17 08:47:00.281 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10095
+    Customer = C-064
+    Amount = 1873.27 EUR
+    Channel = store
+2026-10-17 08:47:00.747 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10095
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:47:01.107 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10095
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 08:47:02.015 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10095
+    Items = 5
+2026-10-17 08:47:46.149 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10096
+    Customer = C-066
+    Amount = 1872.88 EUR
+    Channel = store
+2026-10-17 08:47:46.997 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10096
+    Items = 3
+2026-10-17 08:48:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 2880s
+2026-10-17 08:48:08.188 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10097
+    Customer = C-065
+    Amount = 300.70 USD
+    Channel = store
+2026-10-17 08:48:11.320 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10097
+    Items = 2
+2026-10-17 08:48:37.682 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10098
+    Customer = C-065
+    Amount = 1553.22 GBP
+    Channel = app
+2026-10-17 08:48:39.004 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10098
+    Items = 1
+2026-10-17 08:49:00.354 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10099
+    Customer = C-118
+    Amount = 1521.07 EUR
+    Channel = app
+2026-10-17 08:49:01.245 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10099
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:49:01.591 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10099
+    Items = 6
+2026-10-17 08:49:43.393 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10100
+    Customer = C-054
+    Amount = 2234.74 GBP
+    Channel = web
+2026-10-17 08:49:44.302 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10100
+    Items = 3
+2026-10-17 08:50:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3000s
+2026-10-17 08:50:00.836 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10101
+    Customer = C-013
+    Amount = 1741.88 USD
+    Channel = app
+2026-10-17 08:50:01.540 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10101
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:50:02.107 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10101
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 08:50:02.593 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10101
+    Items = 7
+2026-10-17 08:50:49.560 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10102
+    Customer = C-071
+    Amount = 1095.33 EUR
+    Channel = web
+2026-10-17 08:50:50.093 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10102
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:50:51.373 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10102
+    Items = 4
+2026-10-17 08:51:05.580 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10103
+    Customer = C-111
+    Amount = 2010.67 EUR
+    Channel = web
+2026-10-17 08:51:05.928 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10103
+    Items = 6
+2026-10-17 08:51:50.371 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10104
+    Customer = C-109
+    Amount = 295.35 GBP
+    Channel = web
+2026-10-17 08:52:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3120s
+2026-10-17 08:52:15.599 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10105
+    Customer = C-008
+    Amount = 1711.60 EUR
+    Channel = store
+2026-10-17 08:52:16.386 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10105
+    Items = 3
+2026-10-17 08:52:32.279 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10106
+    Customer = C-115
+    Amount = 797.68 EUR
+    Channel = store
+2026-10-17 08:52:33.496 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10106
+    Items = 3
+2026-10-17 08:53:05.278 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10107
+    Customer = C-036
+    Amount = 763.31 GBP
+    Channel = web
+2026-10-17 08:53:06.378 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10107
+    Items = 6
+2026-10-17 08:53:35.316 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10108
+    Customer = C-005
+    Amount = 1386.50 EUR
+    Channel = app
+2026-10-17 08:53:36.599 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10108
+    Items = 6
+2026-10-17 08:54:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3240s
+2026-10-17 08:54:11.616 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10109
+    Customer = C-109
+    Amount = 2433.12 USD
+    Channel = web
+2026-10-17 08:54:12.795 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10109
+    Items = 5
+2026-10-17 08:54:35.263 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10110
+    Customer = C-038
+    Amount = 1667.09 EUR
+    Channel = web
+2026-10-17 08:54:38.879 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10110
+    Items = 3
+2026-10-17 08:55:11.815 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10111
+    Customer = C-032
+    Amount = 300.87 USD
+    Channel = web
+2026-10-17 08:55:12.588 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10111
+    Items = 3
+2026-10-17 08:55:33.902 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10112
+    Customer = C-081
+    Amount = 137.02 USD
+    Channel = store
+2026-10-17 08:55:34.625 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10112
+    Items = 6
+2026-10-17 08:56:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3360s
+2026-10-17 08:56:02.677 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10113
+    Customer = C-014
+    Amount = 691.76
+    Channel = store
+2026-10-17 08:56:02.884 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10113
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 08:56:04.345 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10113
+    Items = 9
+2026-10-17 08:56:49.984 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10114
+    Customer = C-091
+    Amount = 880.84
+    Channel = app
+2026-10-17 08:56:50.557 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10114
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 08:56:50.842 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10114
+    Items = 9
+2026-10-17 08:57:10.607 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10115
+    Customer = C-106
+    Amount = 1608.51 EUR
+    Channel = app
+2026-10-17 08:57:11.273 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10115
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:57:11.811 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10115
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 08:57:12.550 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10115
+    Attempt = 4
+    Reason = Connection reset
+2026-10-17 08:57:13.308 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10115
+    Items = 3
+2026-10-17 08:57:50.269 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10116
+    Customer = C-041
+    Amount = 268.32
+    Channel = web
+2026-10-17 08:57:50.506 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10116
+    Items = 5
+2026-10-17 08:58:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3480s
+2026-10-17 08:58:13.158 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10117
+    Customer = C-100
+    Amount = 1319.53 EUR
+    Channel = store
+2026-10-17 08:58:14.210 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10117
+    Items = 9
+2026-10-17 08:58:47.987 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10118
+    Customer = C-039
+    Amount = 2205.76
+    Channel = web
+2026-10-17 08:58:48.703 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10118
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 08:58:49.416 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10118
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 08:58:50.156 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10118
+    Attempt = 4
+    Reason = Gateway timeout
+2026-10-17 08:58:50.726 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10118
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10118
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 45
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 08:59:01.737 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10119
+    Customer = C-051
+    Amount = 2018.27 EUR
+    Channel = store
+2026-10-17 08:59:03.009 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10119
+    Items = 8
+2026-10-17 08:59:40.709 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10120
+    Customer = C-113
+    Amount = 381.81 USD
+    Channel = app
+2026-10-17 08:59:41.884 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10120
+    Items = 6
+2026-10-17 09:00:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3600s
+2026-10-17 09:00:08.338 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10121
+    Customer = C-013
+    Amount = 2221.51 EUR
+    Channel = app
+2026-10-17 09:00:08.587 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10121
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:00:09.284 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10121
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 09:00:09.623 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10121
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10121
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 232
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:00:48.992 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10122
+    Customer = C-052
+    Amount = 192.37 EUR
+    Channel = web
+2026-10-17 09:00:50.304 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10122
+    Items = 3
+2026-10-17 09:01:03.698 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10123
+    Customer = C-015
+    Amount = 1085.95 EUR
+    Channel = web
+2026-10-17 09:01:04.376 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10123
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:01:05.529 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10123
+    Items = 1
+2026-10-17 09:01:40.543 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10124
+    Customer = C-115
+    Amount = 69.99 GBP
+    Channel = app
+2026-10-17 09:01:40.886 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10124
+    Items = 1
+2026-10-17 09:02:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3720s
+2026-10-17 09:02:16.756 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10125
+    Customer = C-087
+    Amount = 72.48 EUR
+    Channel = store
+2026-10-17 09:02:17.020 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10125
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10125
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 353
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:02:31.402 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10126
+    Customer = C-006
+    Amount = 1042.64 USD
+    Channel = app
+2026-10-17 09:02:31.949 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10126
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10126
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 133
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:03:11.119 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10127
+    Customer = C-034
+    Amount = 2498.02 EUR
+    Channel = app
+2026-10-17 09:03:11.664 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10127
+    Items = 9
+2026-10-17 09:03:46.147 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10128
+    Customer = C-104
+    Amount = 2030.10
+    Channel = app
+2026-10-17 09:03:47.588 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10128
+    Items = 3
+2026-10-17 09:04:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3840s
+2026-10-17 09:04:02.782 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10129
+    Customer = C-002
+    Amount = 1441.21 EUR
+    Channel = store
+2026-10-17 09:04:04.084 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10129
+    Items = 8
+2026-10-17 09:04:45.063 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10130
+    Customer = C-047
+    Amount = 1207.26 EUR
+    Channel = app
+2026-10-17 09:04:45.832 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10130
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10130
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 66
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:05:08.397 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10131
+    Customer = C-044
+    Amount = 2008.30 USD
+    Channel = app
+2026-10-17 09:05:09.865 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10131
+    Items = 3
+2026-10-17 09:05:50.579 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10132
+    Customer = C-038
+    Amount = 646.29 EUR
+    Channel = web
+2026-10-17 09:05:51.118 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10132
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:05:51.857 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10132
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 09:05:52.780 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10132
+    Items = 7
+2026-10-17 09:06:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 3960s
+2026-10-17 09:06:09.642 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10133
+    Customer = C-024
+    Amount = 715.30 EUR
+    Channel = app
+2026-10-17 09:06:10.768 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10133
+    Items = 4
+2026-10-17 09:06:32.946 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10134
+    Customer = C-052
+    Amount = 1013.95 EUR
+    Channel = app
+2026-10-17 09:06:36.680 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10134
+    Items = 1
+2026-10-17 09:07:04.299 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10135
+    Customer = C-039
+    Amount = 2410.97 EUR
+    Channel = web
+2026-10-17 09:07:04.658 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10135
+    Items = 3
+2026-10-17 09:07:39.458 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10136
+    Customer = C-029
+    Amount = 1217.05 EUR
+    Channel = app
+2026-10-17 09:07:39.743 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10136
+    Items = 5
+2026-10-17 09:08:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4080s
+2026-10-17 09:08:10.426 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10137
+    Customer = C-066
+    Amount = 1783.51 EUR
+    Channel = store
+2026-10-17 09:08:11.070 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10137
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:08:11.428 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10137
+    Items = 9
+2026-10-17 09:08:43.883 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10138
+    Customer = C-037
+    Amount = 2010.26 EUR
+    Channel = store
+2026-10-17 09:08:44.173 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10138
+    Error = AddressInvalid
+2026-10-17 09:09:19.842 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10139
+    Customer = C-109
+    Amount = 2108.86 EUR
+    Channel = store
+2026-10-17 09:09:21.154 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10139
+    Items = 4
+2026-10-17 09:09:30.351 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10140
+    Customer = C-069
+    Amount = 1401.26 EUR
+    Channel = web
+2026-10-17 09:09:30.832 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10140
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:09:31.874 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10140
+    Items = 6
+2026-10-17 09:10:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4200s
+2026-10-17 09:10:18.827 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10141
+    Customer = C-010
+    Amount = 1771.39 USD
+    Channel = web
+2026-10-17 09:10:19.372 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10141
+    Items = 3
+2026-10-17 09:10:34.577 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10142
+    Customer = C-091
+    Amount = 2312.57
+    Channel = store
+2026-10-17 09:10:34.945 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10142
+    Items = 5
+2026-10-17 09:11:00.844 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10143
+    Customer = C-013
+    Amount = 530.59 EUR
+    Channel = web
+2026-10-17 09:11:07.210 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10143
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10143
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 61
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:11:48.460 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10144
+    Customer = C-019
+    Amount = 766.35
+    Channel = store
+2026-10-17 09:11:49.388 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10144
+    Items = 9
+2026-10-17 09:12:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4320s
+2026-10-17 09:12:19.052 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10145
+    Customer = C-011
+    Amount = 637.07 GBP
+    Channel = web
+2026-10-17 09:12:20.407 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10145
+    Items = 3
+2026-10-17 09:12:42.712 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10146
+    Customer = C-024
+    Amount = 1534.37 EUR
+    Channel = web
+2026-10-17 09:12:43.663 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10146
+    Items = 3
+2026-10-17 09:13:16.325 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10147
+    Customer = C-119
+    Amount = 133.90 EUR
+    Channel = store
+2026-10-17 09:13:17.092 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10147
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:13:17.330 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10147
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 09:13:17.789 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10147
+    Attempt = 4
+    Reason = Gateway timeout
+2026-10-17 09:13:20.724 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10147
+    Items = 2
+2026-10-17 09:13:49.801 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10148
+    Customer = C-099
+    Amount = 2149.42 GBP
+    Channel = store
+2026-10-17 09:13:50.058 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10148
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:13:50.866 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10148
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 09:13:51.628 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10148
+    Attempt = 4
+    Reason = Connection reset
+2026-10-17 09:13:52.024 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10148
+    Items = 3
+2026-10-17 09:14:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4440s
+2026-10-17 09:14:03.715 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10149
+    Customer = C-097
+    Amount = 376.38 EUR
+    Channel = app
+2026-10-17 09:14:04.197 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10149
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:14:12.418 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10149
+    Items = 8
+2026-10-17 09:14:33.839 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10150
+    Customer = C-098
+    Amount = 1730.81 EUR
+    Channel = store
+2026-10-17 09:14:41.520 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10150
+    Items = 9
+2026-10-17 09:15:18.729 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10151
+    Customer = C-021
+    Amount = 998.98 EUR
+    Channel = app
+2026-10-17 09:15:25.978 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10151
+    Items = 9
+2026-10-17 09:15:50.661 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10152
+    Customer = C-030
+    Amount = 978.97 USD
+    Channel = store
+2026-10-17 09:15:51.414 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10152
+    Items = 7
+2026-10-17 09:16:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4560s
+2026-10-17 09:16:01.754 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10153
+    Customer = C-095
+    Amount = 2393.93 EUR
+    Channel = web
+2026-10-17 09:16:03.234 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10153
+    Items = 4
+2026-10-17 09:16:43.679 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10154
+    Customer = C-094
+    Amount = 198.80 EUR
+    Channel = app
+2026-10-17 09:16:44.602 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10154
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10154
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 47
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:17:03.568 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10155
+    Customer = C-115
+    Amount = 212.12 USD
+    Channel = app
+2026-10-17 09:17:46.227 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10156
+    Customer = C-098
+    Amount = 652.82 GBP
+    Channel = app
+2026-10-17 09:17:46.501 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10156
+    Items = 7
+2026-10-17 09:18:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4680s
+2026-10-17 09:18:14.371 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10157
+    Customer = C-068
+    Amount = 1882.79 EUR
+    Channel = store
+2026-10-17 09:18:37.592 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10158
+    Customer = C-079
+    Amount = 176.79 GBP
+    Channel = store
+2026-10-17 09:18:38.389 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10158
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10158
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 79
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:19:00.759 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10159
+    Customer = C-098
+    Amount = 50.64
+    Channel = store
+2026-10-17 09:19:02.170 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10159
+    Items = 2
+2026-10-17 09:19:48.256 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10160
+    Customer = C-019
+    Amount = 1400.02 EUR
+    Channel = web
+2026-10-17 09:20:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4800s
+2026-10-17 09:20:13.443 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10161
+    Customer = C-005
+    Amount = 898.19 EUR
+    Channel = app
+2026-10-17 09:20:14.234 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10161
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:20:14.913 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10161
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:20:15.165 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10161
+    Items = 1
+2026-10-17 09:20:33.383 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10162
+    Customer = C-011
+    Amount = 672.71
+    Channel = web
+2026-10-17 09:20:34.069 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10162
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:20:34.700 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10162
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:20:35.072 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10162
+    Attempt = 4
+    Reason = Connection reset
+2026-10-17 09:20:35.662 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10162
+    Error = AddressInvalid
+2026-10-17 09:21:18.504 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10163
+    Customer = C-002
+    Amount = 781.30 GBP
+    Channel = web
+2026-10-17 09:21:18.890 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10163
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:21:19.976 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10163
+    Items = 3
+2026-10-17 09:21:32.168 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10164
+    Customer = C-092
+    Amount = 1448.59 EUR
+    Channel = store
+2026-10-17 09:21:32.973 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10164
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:21:33.832 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10164
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:21:34.632 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10164
+    Attempt = 4
+    Reason = Connection reset
+2026-10-17 09:21:35.341 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10164
+    Items = 6
+2026-10-17 09:22:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 4920s
+2026-10-17 09:22:17.469 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10165
+    Customer = C-044
+    Amount = 1948.20 USD
+    Channel = app
+2026-10-17 09:22:18.228 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10165
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:22:24.168 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10165
+    Items = 5
+2026-10-17 09:22:42.447 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10166
+    Customer = C-010
+    Amount = 262.55 EUR
+    Channel = store
+2026-10-17 09:22:43.095 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10166
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:22:44.551 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10166
+    Items = 6
+2026-10-17 09:23:19.593 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10167
+    Customer = C-072
+    Amount = 690.21
+    Channel = store
+2026-10-17 09:23:20.165 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10167
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:23:20.650 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10167
+    Items = 5
+2026-10-17 09:23:30.103 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10168
+    Customer = C-035
+    Amount = 1389.41 USD
+    Channel = web
+2026-10-17 09:23:30.351 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10168
+    Error = InsufficientStock
+    Exception:
+      Shop.Orders.OrderException: InsufficientStock for ORD-10168
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 376
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:24:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5040s
+2026-10-17 09:24:04.957 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10169
+    Customer = C-020
+    Amount = 517.68 USD
+    Channel = web
+2026-10-17 09:24:05.567 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10169
+    Items = 4
+2026-10-17 09:24:45.675 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10170
+    Customer = C-028
+    Amount = 981.20 USD
+    Channel = store
+2026-10-17 09:24:45.928 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10170
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:24:46.545 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10170
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:24:46.806 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10170
+    Items = 8
+2026-10-17 09:25:12.476 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10171
+    Customer = C-096
+    Amount = 1570.68 EUR
+    Channel = store
+2026-10-17 09:25:12.698 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10171
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:25:13.679 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10171
+    Items = 2
+2026-10-17 09:25:40.750 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10172
+    Customer = C-073
+    Amount = 273.13
+    Channel = store
+2026-10-17 09:25:42.062 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10172
+    Items = 4
+2026-10-17 09:26:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5160s
+2026-10-17 09:26:04.346 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10173
+    Customer = C-041
+    Amount = 2250.62 EUR
+    Channel = store
+2026-10-17 09:26:09.223 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10173
+    Items = 3
+2026-10-17 09:26:30.659 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10174
+    Customer = C-090
+    Amount = 1026.18 EUR
+    Channel = web
+2026-10-17 09:26:31.374 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10174
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:26:31.665 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10174
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:26:32.865 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10174
+    Items = 9
+2026-10-17 09:27:07.920 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10175
+    Customer = C-077
+    Amount = 2406.32 GBP
+    Channel = app
+2026-10-17 09:27:08.884 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10175
+    Items = 4
+2026-10-17 09:27:48.311 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10176
+    Customer = C-111
+    Amount = 684.42 GBP
+    Channel = store
+2026-10-17 09:27:48.783 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10176
+    Items = 5
+2026-10-17 09:28:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5280s
+2026-10-17 09:28:16.129 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10177
+    Customer = C-070
+    Amount = 1169.01 EUR
+    Channel = app
+2026-10-17 09:28:16.799 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10177
+    Items = 3
+2026-10-17 09:28:50.553 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10178
+    Customer = C-035
+    Amount = 623.30
+    Channel = app
+2026-10-17 09:28:51.992 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10178
+    Error = AddressInvalid
+2026-10-17 09:29:01.611 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10179
+    Customer = C-094
+    Amount = 97.57 GBP
+    Channel = store
+2026-10-17 09:29:02.569 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10179
+    Items = 7
+2026-10-17 09:29:32.824 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10180
+    Customer = C-092
+    Amount = 832.92 GBP
+    Channel = app
+2026-10-17 09:29:33.042 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10180
+    Items = 1
+2026-10-17 09:30:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5400s
+2026-10-17 09:30:11.572 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10181
+    Customer = C-112
+    Amount = 2053.03 EUR
+    Channel = web
+2026-10-17 09:30:12.282 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10181
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:30:12.682 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10181
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:30:13.197 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10181
+    Items = 4
+2026-10-17 09:30:43.568 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10182
+    Customer = C-009
+    Amount = 2402.06 EUR
+    Channel = app
+2026-10-17 09:30:43.927 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10182
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:30:44.650 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10182
+    Items = 2
+2026-10-17 09:31:03.456 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10183
+    Customer = C-008
+    Amount = 2456.30 EUR
+    Channel = store
+2026-10-17 09:31:04.593 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10183
+    Items = 4
+2026-10-17 09:31:45.545 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10184
+    Customer = C-052
+    Amount = 852.03 EUR
+    Channel = app
+2026-10-17 09:31:46.395 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10184
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:31:47.602 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10184
+    Items = 6
+2026-10-17 09:32:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5520s
+2026-10-17 09:32:01.005 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10185
+    Customer = C-021
+    Amount = 1872.99 EUR
+    Channel = store
+2026-10-17 09:32:01.577 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10185
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:32:01.973 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10185
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:32:02.791 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10185
+    Attempt = 4
+    Reason = HTTP 503
+2026-10-17 09:32:10.177 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10185
+    Items = 5
+2026-10-17 09:32:44.284 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10186
+    Customer = C-113
+    Amount = 35.84 USD
+    Channel = store
+2026-10-17 09:32:44.804 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10186
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:32:45.009 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10186
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:32:45.763 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10186
+    Items = 5
+2026-10-17 09:33:13.961 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10187
+    Customer = C-039
+    Amount = 1660.20 EUR
+    Channel = app
+2026-10-17 09:33:14.558 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10187
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:33:15.092 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10187
+    Items = 5
+2026-10-17 09:33:33.160 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10188
+    Customer = C-063
+    Amount = 1718.35 EUR
+    Channel = app
+2026-10-17 09:33:33.916 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10188
+    Items = 1
+2026-10-17 09:34:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5640s
+2026-10-17 09:34:00.952 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10189
+    Customer = C-094
+    Amount = 621.60 EUR
+    Channel = store
+2026-10-17 09:34:05.109 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10189
+    Items = 8
+2026-10-17 09:34:40.935 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10190
+    Customer = C-102
+    Amount = 2485.82 GBP
+    Channel = app
+2026-10-17 09:35:07.421 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10191
+    Customer = C-049
+    Amount = 1741.05 USD
+    Channel = app
+2026-10-17 09:35:44.239 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10192
+    Customer = C-075
+    Amount = 1560.34 USD
+    Channel = store
+2026-10-17 09:35:49.255 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10192
+    Items = 9
+2026-10-17 09:36:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5760s
+2026-10-17 09:36:11.535 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10193
+    Customer = C-049
+    Amount = 382.81 GBP
+    Channel = app
+2026-10-17 09:36:11.789 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10193
+    Items = 2
+2026-10-17 09:36:40.521 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10194
+    Customer = C-007
+    Amount = 2065.56 EUR
+    Channel = web
+2026-10-17 09:36:40.755 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10194
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:36:41.041 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10194
+    Items = 4
+2026-10-17 09:37:08.904 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10195
+    Customer = C-062
+    Amount = 1470.64 EUR
+    Channel = app
+2026-10-17 09:37:09.814 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10195
+    Items = 7
+2026-10-17 09:37:47.201 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10196
+    Customer = C-045
+    Amount = 265.03 USD
+    Channel = app
+2026-10-17 09:37:47.576 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10196
+    Items = 5
+2026-10-17 09:38:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 5880s
+2026-10-17 09:38:07.544 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10197
+    Customer = C-013
+    Amount = 2316.59 GBP
+    Channel = app
+2026-10-17 09:38:08.185 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10197
+    Items = 9
+2026-10-17 09:38:39.934 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10198
+    Customer = C-079
+    Amount = 483.85 USD
+    Channel = app
+2026-10-17 09:38:41.004 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10198
+    Items = 3
+2026-10-17 09:39:20.361 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10199
+    Customer = C-036
+    Amount = 1391.58 EUR
+    Channel = store
+2026-10-17 09:39:20.770 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10199
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:39:21.435 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10199
+    Items = 6
+2026-10-17 09:39:39.030 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10200
+    Customer = C-038
+    Amount = 1412.96
+    Channel = app
+2026-10-17 09:39:39.232 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10200
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:39:39.632 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10200
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:39:40.000 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10200
+    Attempt = 4
+    Reason = Gateway timeout
+2026-10-17 09:39:40.893 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10200
+    Items = 6
+2026-10-17 09:40:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6000s
+2026-10-17 09:40:05.392 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10201
+    Customer = C-103
+    Amount = 1962.01 EUR
+    Channel = web
+2026-10-17 09:40:06.222 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10201
+    Items = 7
+2026-10-17 09:40:40.100 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10202
+    Customer = C-057
+    Amount = 1839.40 USD
+    Channel = app
+2026-10-17 09:40:40.316 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10202
+    Items = 6
+2026-10-17 09:41:17.470 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10203
+    Customer = C-026
+    Amount = 1061.34
+    Channel = app
+2026-10-17 09:41:18.048 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10203
+    Items = 1
+2026-10-17 09:41:32.325 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10204
+    Customer = C-066
+    Amount = 1587.23 GBP
+    Channel = app
+2026-10-17 09:41:32.893 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10204
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:41:34.212 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10204
+    Items = 7
+2026-10-17 09:42:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6120s
+2026-10-17 09:42:09.578 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10205
+    Customer = C-052
+    Amount = 2216.72 EUR
+    Channel = app
+2026-10-17 09:42:10.586 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10205
+    Items = 2
+2026-10-17 09:42:30.092 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10206
+    Customer = C-081
+    Amount = 1326.22 USD
+    Channel = app
+2026-10-17 09:42:30.991 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10206
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:42:32.397 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10206
+    Items = 2
+2026-10-17 09:43:11.974 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10207
+    Customer = C-082
+    Amount = 913.41
+    Channel = app
+2026-10-17 09:43:12.792 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10207
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:43:13.089 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10207
+    Attempt = 3
+    Reason = Connection reset
+2026-10-17 09:43:13.394 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10207
+    Attempt = 4
+    Reason = HTTP 503
+2026-10-17 09:43:14.301 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10207
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10207
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 244
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:43:48.622 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10208
+    Customer = C-029
+    Amount = 179.93 EUR
+    Channel = app
+2026-10-17 09:43:49.003 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10208
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:43:49.636 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10208
+    Attempt = 3
+    Reason = Gateway timeout
+2026-10-17 09:43:50.431 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10208
+    Items = 7
+2026-10-17 09:44:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6240s
+2026-10-17 09:44:20.612 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10209
+    Customer = C-038
+    Amount = 1645.07
+    Channel = web
+2026-10-17 09:44:34.357 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10210
+    Customer = C-008
+    Amount = 507.95 EUR
+    Channel = store
+2026-10-17 09:44:34.918 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10210
+    Items = 9
+2026-10-17 09:45:12.973 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10211
+    Customer = C-014
+    Amount = 1110.62
+    Channel = app
+2026-10-17 09:45:13.129 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10211
+    Items = 6
+2026-10-17 09:45:43.677 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10212
+    Customer = C-107
+    Amount = 251.58 EUR
+    Channel = web
+2026-10-17 09:45:44.190 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10212
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:45:44.978 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10212
+    Items = 8
+2026-10-17 09:46:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6360s
+2026-10-17 09:46:09.022 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10213
+    Customer = C-112
+    Amount = 1485.41
+    Channel = app
+2026-10-17 09:46:09.238 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10213
+    Items = 8
+2026-10-17 09:46:30.098 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10214
+    Customer = C-067
+    Amount = 732.80 EUR
+    Channel = store
+2026-10-17 09:46:30.687 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10214
+    Error = AddressInvalid
+2026-10-17 09:47:02.956 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10215
+    Customer = C-069
+    Amount = 88.05 USD
+    Channel = web
+2026-10-17 09:47:03.396 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10215
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:47:04.496 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10215
+    Items = 6
+2026-10-17 09:47:31.776 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10216
+    Customer = C-040
+    Amount = 598.67 EUR
+    Channel = web
+2026-10-17 09:47:32.480 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10216
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:47:41.276 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10216
+    Error = AddressInvalid
+2026-10-17 09:48:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6480s
+2026-10-17 09:48:19.127 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10217
+    Customer = C-003
+    Amount = 1815.63 EUR
+    Channel = web
+2026-10-17 09:48:20.151 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10217
+    Items = 8
+2026-10-17 09:48:39.174 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10218
+    Customer = C-036
+    Amount = 1963.87 GBP
+    Channel = app
+2026-10-17 09:48:40.066 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10218
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:48:40.593 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10218
+    Items = 4
+2026-10-17 09:49:17.313 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10219
+    Customer = C-074
+    Amount = 1521.90 GBP
+    Channel = store
+2026-10-17 09:49:18.032 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10219
+    Items = 2
+2026-10-17 09:49:32.250 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10220
+    Customer = C-012
+    Amount = 1139.29
+    Channel = app
+2026-10-17 09:49:33.070 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10220
+    Items = 2
+2026-10-17 09:50:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6600s
+2026-10-17 09:50:02.522 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10221
+    Customer = C-049
+    Amount = 2077.05 EUR
+    Channel = store
+2026-10-17 09:50:03.765 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10221
+    Items = 5
+2026-10-17 09:50:31.716 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10222
+    Customer = C-082
+    Amount = 491.46 EUR
+    Channel = store
+2026-10-17 09:50:32.804 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10222
+    Items = 2
+2026-10-17 09:51:20.180 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10223
+    Customer = C-013
+    Amount = 214.77 GBP
+    Channel = store
+2026-10-17 09:51:20.467 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10223
+    Items = 7
+2026-10-17 09:51:46.202 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10224
+    Customer = C-083
+    Amount = 172.85
+    Channel = store
+2026-10-17 09:51:47.079 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10224
+    Items = 7
+2026-10-17 09:52:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6720s
+2026-10-17 09:52:14.241 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10225
+    Customer = C-096
+    Amount = 1993.70 EUR
+    Channel = app
+2026-10-17 09:52:14.554 +00:00 [ERR] OrderService: OrderFailed
+    OrderId = ORD-10225
+    Error = PaymentDeclined
+    Exception:
+      Shop.Orders.OrderException: PaymentDeclined for ORD-10225
+         at Shop.Orders.OrderService.CompleteAsync(String orderId) in OrderService.cs:line 397
+         at Shop.Orders.Worker.ExecuteAsync(CancellationToken stoppingToken)
+2026-10-17 09:52:50.528 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10226
+    Customer = C-108
+    Amount = 2404.13
+    Channel = web
+2026-10-17 09:52:51.184 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10226
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 09:52:51.444 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10226
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:52:59.926 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10226
+    Items = 4
+2026-10-17 09:53:16.152 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10227
+    Customer = C-109
+    Amount = 897.34 EUR
+    Channel = app
+2026-10-17 09:53:16.683 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10227
+    Items = 7
+2026-10-17 09:53:30.004 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10228
+    Customer = C-114
+    Amount = 1271.14 GBP
+    Channel = app
+2026-10-17 09:53:30.330 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10228
+    Items = 6
+2026-10-17 09:54:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6840s
+2026-10-17 09:54:08.551 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10229
+    Customer = C-072
+    Amount = 1262.57 USD
+    Channel = web
+2026-10-17 09:54:09.371 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10229
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:54:10.025 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10229
+    Attempt = 3
+    Reason = HTTP 503
+2026-10-17 09:54:11.348 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10229
+    Items = 9
+2026-10-17 09:54:37.656 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10230
+    Customer = C-030
+    Amount = 922.94 GBP
+    Channel = store
+2026-10-17 09:54:38.210 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10230
+    Items = 1
+2026-10-17 09:55:11.083 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10231
+    Customer = C-032
+    Amount = 73.15 EUR
+    Channel = store
+2026-10-17 09:55:11.510 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10231
+    Items = 8
+2026-10-17 09:55:44.067 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10232
+    Customer = C-115
+    Amount = 1371.70 EUR
+    Channel = store
+2026-10-17 09:55:45.387 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10232
+    Items = 9
+2026-10-17 09:56:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 6960s
+2026-10-17 09:56:19.250 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10233
+    Customer = C-059
+    Amount = 1256.30
+    Channel = app
+2026-10-17 09:56:20.145 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10233
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:56:21.445 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10233
+    Items = 3
+2026-10-17 09:56:32.090 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10234
+    Customer = C-089
+    Amount = 1236.47 USD
+    Channel = app
+2026-10-17 09:56:32.426 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10234
+    Attempt = 2
+    Reason = Connection reset
+2026-10-17 09:56:39.400 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10234
+    Items = 1
+2026-10-17 09:57:04.987 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10235
+    Customer = C-059
+    Amount = 1784.54 USD
+    Channel = web
+2026-10-17 09:57:06.048 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10235
+    Items = 7
+2026-10-17 09:57:48.810 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10236
+    Customer = C-033
+    Amount = 54.74
+    Channel = web
+2026-10-17 09:57:49.854 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10236
+    Items = 6
+2026-10-17 09:58:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 7080s
+2026-10-17 09:58:07.059 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10237
+    Customer = C-074
+    Amount = 1627.39 EUR
+    Channel = store
+2026-10-17 09:58:07.455 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10237
+    Items = 6
+2026-10-17 09:58:32.941 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10238
+    Customer = C-066
+    Amount = 1978.13 EUR
+    Channel = web
+2026-10-17 09:58:33.831 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10238
+    Items = 2
+2026-10-17 09:59:08.371 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10239
+    Customer = C-018
+    Amount = 2223.97 USD
+    Channel = app
+2026-10-17 09:59:08.698 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10239
+    Attempt = 2
+    Reason = HTTP 503
+2026-10-17 09:59:13.086 +00:00 [INF] OrderService: OrderCompleted
+    OrderId = ORD-10239
+    Items = 4
+2026-10-17 09:59:41.955 +00:00 [INF] OrderService: OrderStarted
+    OrderId = ORD-10240
+    Customer = C-089
+    Amount = 762.61 GBP
+    Channel = app
+2026-10-17 09:59:42.655 +00:00 [WRN] PaymentGateway: PaymentRetry for ORD-10240
+    Attempt = 2
+    Reason = Gateway timeout
+2026-10-17 10:00:00.001 +00:00 [DBG] Health: Heartbeat
+    Uptime = 7200s

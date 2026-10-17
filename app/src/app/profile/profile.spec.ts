@@ -104,7 +104,7 @@ describe('ProfileDraft', () => {
     const exp = vi.spyOn(backend, 'exportProfile').mockResolvedValue();
     draft.update((m) => (m.name = '  My / Profile!! '));
     await draft.exportFile();
-    expect(exp).toHaveBeenCalledWith('/p/out.toml', draft.text());
+    expect(exp).toHaveBeenCalledWith('/p/out.toml', draft.text(), false);
     fakePlatform.openPath = null;
     fakePlatform.savePath = null;
     await draft.importFile();

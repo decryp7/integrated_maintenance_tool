@@ -4,7 +4,7 @@
 //! epoch seconds/milliseconds, plus user-supplied .NET or strftime formats.
 
 use anyhow::{bail, Result};
-use chrono::{DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -171,7 +171,29 @@ impl TimestampParser {
         if let Ok(date) = NaiveDate::parse_from_str(s, fmt) {
             return self.localize(date.and_hms_opt(0, 0, 0)?);
         }
+        if !fmt.contains("%Y") && !fmt.contains("%y") {
+            return self.parse_without_year(s, fmt, Utc::now().timestamp_millis());
+        }
         None
+    }
+
+    /// A format without a year (BSD syslog "Oct 14 10:41:00"): the current year, or the
+    /// previous one when that would put the event more than a day in the future.
+    fn parse_without_year(&self, s: &str, fmt: &str, now_ms: i64) -> Option<i64> {
+        let year = DateTime::from_timestamp_millis(now_ms)?.year();
+        let at = |y: i32| {
+            let text = format!("{y} {s}");
+            let with_year = format!("%Y {fmt}");
+            DateTime::parse_from_str(&text, &with_year)
+                .map(|d| d.timestamp_millis())
+                .ok()
+                .or_else(|| NaiveDateTime::parse_from_str(&text, &with_year).ok().and_then(|n| self.localize(n)))
+        };
+        let ms = at(year)?;
+        if ms > now_ms + 86_400_000 {
+            return at(year - 1);
+        }
+        Some(ms)
     }
 
     fn finish(&self, date: NaiveDate, time: Option<&str>, ampm: Option<&str>, zone: Option<&str>) -> Option<i64> {
@@ -490,6 +512,31 @@ mod tests {
         assert_eq!(p().parse_time_on("not a time", d), None);
         assert_eq!(utc_date_of(ms(2026, 10, 14, 23, 0, 0, 0)), Some(d));
         assert_eq!(detect_day_first(["2026/01/02", "nope", "01/02/2026"]), None);
+    }
+
+    #[test]
+    fn formats_without_a_year_use_the_current_or_previous_year() {
+        let p = TimestampParser::new(&["%b %e %H:%M:%S".to_string()], "UTC", None).unwrap();
+        let utc = |y, mo, d, h| Utc.with_ymd_and_hms(y, mo, d, h, 0, 0).unwrap().timestamp_millis();
+        let fmt = "%b %e %H:%M:%S";
+        assert_eq!(
+            p.parse_without_year("Oct 14 10:00:00", fmt, utc(2026, 10, 17, 0)),
+            Some(utc(2026, 10, 14, 10))
+        );
+        // Just after new year, December is last year.
+        assert_eq!(
+            p.parse_without_year("Dec 31 23:00:00", fmt, utc(2027, 1, 2, 0)),
+            Some(utc(2026, 12, 31, 23))
+        );
+        assert_eq!(p.parse_without_year("not a date", fmt, utc(2027, 1, 2, 0)), None);
+        assert_eq!(p.parse_without_year("Oct 14 10:00:00", fmt, i64::MAX), None);
+        // Through the public parser (the current year).
+        assert!(p.parse("Oct  4 09:00:00").is_some());
+        let zoned = TimestampParser::new(&["%b %e %H:%M:%S %z".to_string()], "UTC", None).unwrap();
+        assert_eq!(
+            zoned.parse_without_year("Oct 14 18:00:00 +0800", "%b %e %H:%M:%S %z", utc(2026, 10, 17, 0)),
+            Some(utc(2026, 10, 14, 10))
+        );
     }
 
     #[test]

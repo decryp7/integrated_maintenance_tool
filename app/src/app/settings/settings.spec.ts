@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
+import { OVERVIEW_AUTO_OPEN_KEY, OverviewPrefs } from '../overview/overview-prefs';
 import { DialogService } from '../ui/dialog.service';
 import { GeneralSettings } from './general-settings';
 import { EngineSettingsStore } from './engine-settings.store';
@@ -77,9 +78,15 @@ describe('GeneralSettings', () => {
     expect(settings.density()).toBe('compact');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
+    const overview = TestBed.inject(OverviewPrefs);
+    expect(overview.autoOpen()).toBe(true);
+    el<HTMLInputElement>(fixture, '[data-testid=overview-auto-open]').click();
+    expect(overview.autoOpen()).toBe(false);
+    expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'Local', 'ISO', 'compact']);
     expect(text(fixture)).toContain('Always show start/stop markers');
+    expect(text(fixture)).toContain('Overview: show after every import');
   });
 
   it('resets the layout and says so', async () => {

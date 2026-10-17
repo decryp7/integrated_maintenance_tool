@@ -1,6 +1,7 @@
 import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MemoryLogger } from '../../testing/helpers';
+import { activity } from './activity/runtime';
 import {
   ConsoleLogger,
   createLogger,
@@ -56,6 +57,7 @@ describe('log helpers', () => {
 });
 
 describe('loggers', () => {
+  beforeEach(() => activity.reset());
   afterEach(() => setTauri(false));
 
   it('sends events to the Rust log with SourceContext and never throws', async () => {
@@ -65,8 +67,8 @@ describe('loggers', () => {
     l.warn('ui.a', 'w');
     l.error('ui.a', 'e');
     await Promise.resolve();
-    expect(plugin.debug).toHaveBeenCalledWith('d', { keyValues: { SourceContext: 'ui.a', N: '1' } });
-    expect(plugin.info).toHaveBeenCalledWith('i', { keyValues: { SourceContext: 'ui.a' } });
+    expect(plugin.debug).toHaveBeenCalledWith('d', { keyValues: { SourceContext: 'ui.a', Window: 'main', N: '1' } });
+    expect(plugin.info).toHaveBeenCalledWith('i', { keyValues: { SourceContext: 'ui.a', Window: 'main' } });
     expect(plugin.warn).toHaveBeenCalled();
     expect(plugin.error).toHaveBeenCalled();
   });
@@ -78,8 +80,8 @@ describe('loggers', () => {
     l.info('ui.a', 'i', { X: 1 });
     l.warn('ui.a', 'w');
     l.error('ui.a', 'e');
-    expect(spies[0]).toHaveBeenCalledWith('[ui.a] d', {});
-    expect(spies[1]).toHaveBeenCalledWith('[ui.a] i', { X: 1 });
+    expect(spies[0]).toHaveBeenCalledWith('[ui.a] d', { Window: 'main' });
+    expect(spies[1]).toHaveBeenCalledWith('[ui.a] i', { Window: 'main', X: 1 });
     spies.forEach((s) => s.mockRestore());
   });
 
@@ -107,8 +109,8 @@ describe('LoggingErrorHandler', () => {
     handler.handleError(err);
     handler.handleError('plain');
     consoleError.mockRestore();
-    expect(logger.entries[0]).toEqual({ level: 'error', category: 'ui.error', message: 'boom reading <path>', props: { Stack: 'Error: boom\n    at f (<path>:1:1)' } });
-    expect(logger.entries[1]).toMatchObject({ message: 'plain', props: { Stack: undefined } });
+    expect(logger.entries[0]).toEqual({ level: 'error', category: 'ui.error', message: 'boom reading <path>', props: { ErrorType: 'Error', ErrorCode: 'E_FAILED', Stack: 'Error: boom\n    at f (<path>:1:1)' } });
+    expect(logger.entries[1]).toMatchObject({ message: 'plain', props: { ErrorType: 'string', Stack: undefined } });
   });
 });
 
@@ -133,7 +135,37 @@ describe('withFailureLogging', () => {
     expect(await svc.ok(1)).toBe('v1');
     expect(svc.sync()).toBe(42);
     await expect(svc.bad()).rejects.toBe('cannot open /etc/secret/file.log');
-    expect(logger.entries).toEqual([{ level: 'warn', category: 'ui.test', message: 'Backend command failed', props: { Command: 'bad', Error: 'cannot open <path>' } }]);
+    // Unexpected failures are errors; mistakes the user can fix are warnings.
+    expect(logger.entries).toEqual([{ level: 'error', category: 'ui.test', message: 'Backend command failed', props: { Command: 'bad', ErrorCode: 'E_FAILED', Error: 'cannot open <path>' } }]);
+  });
+
+  it('logs user mistakes as warnings with their code, and marks the proxy for the activity guard', async () => {
+    const logger = new MemoryLogger();
+    const svc = withFailureLogging({ check: () => Promise.reject(Object.assign(new Error('invalid regex'), { code: 'E_REGEX' })) }, logger);
+    await expect(svc.check()).rejects.toThrow('invalid regex');
+    expect(logger.entries[0]).toMatchObject({ level: 'warn', props: { Command: 'check', ErrorCode: 'E_REGEX' } });
+    expect((svc as unknown as Record<symbol, unknown>)[Symbol.for('imt.activity.tracked')]).toBe(true);
+  });
+
+  it('logs every event with the current operation id, and errors with breadcrumbs in the browser', async () => {
+    activity.reset();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const l = new ConsoleLogger();
+    await activity.track('export.csv', 'menu', {}, () => {
+      l.info('ui.export', 'Exporting');
+      l.error('ui.export', 'Export failed');
+    });
+    const id = activity.breadcrumbs(1)[0].operationId;
+    expect(info).toHaveBeenCalledWith('[ui.export] Exporting', { OperationId: id, Window: 'main' });
+    const props = spy.mock.calls[0][1] as Record<string, string>;
+    expect(props['OperationId']).toBe(id);
+    activity.record('later', 'button');
+    l.error('ui.x', 'boom');
+    expect(JSON.parse((spy.mock.calls[1][1] as Record<string, string>)['Breadcrumbs'])[1].operation).toBe('later');
+    spy.mockRestore();
+    info.mockRestore();
+    activity.reset();
   });
 
   it('calls onFailure after logging and before rethrowing, and ignores errors it throws', async () => {

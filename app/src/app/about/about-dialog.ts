@@ -3,6 +3,7 @@ import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { copyText } from '../tools/clipboard';
 import { DialogService } from '../ui/dialog.service';
 import { BUILD_INFO } from './build-info';
+import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 import { LEGAL_SOURCE, LegalDoc } from './legal-source';
 import { filterLines, LINE_HEIGHT, toLines, versionInfoText, VIEWPORT_HEIGHT, visibleRange } from './notices-text';
 
@@ -29,6 +30,10 @@ const DOC_TITLES: Record<LegalDoc, string> = { notices: 'Third-party notices', m
         </p>
       </div>
     </div>
+
+    <p class="promise" data-testid="read-only-promise">
+      <strong>{{ promise }}</strong> {{ promiseDetail }}
+    </p>
 
     <p class="licence">
       Licensed under <strong>MIT OR Apache-2.0</strong>, at your option.
@@ -66,6 +71,7 @@ const DOC_TITLES: Record<LegalDoc, string> = { notices: 'Third-party notices', m
     :host { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
     .id { display: flex; gap: 14px; align-items: center; }
     .name { margin: 0; font-size: 15px; }
+    .promise { margin: 0; padding: 8px 10px; border: 1px solid var(--border-2); border-left: 3px solid var(--ok); border-radius: 6px; background: var(--bg-3); color: var(--text-2); font-size: 12px; line-height: 1.45; }
     .meta, .licence { margin: 4px 0 0; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .viewer-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     h4 { margin: 0; font-size: 12px; flex: 1 1 auto; }
@@ -87,6 +93,8 @@ export class AboutDialog {
   protected readonly build = inject(BUILD_INFO);
   protected readonly lineHeight = LINE_HEIGHT;
   protected readonly viewportHeight = VIEWPORT_HEIGHT;
+  protected readonly promise = READ_ONLY_PROMISE;
+  protected readonly promiseDetail = READ_ONLY_DETAIL;
 
   protected readonly doc = signal<LegalDoc>('notices');
   protected readonly query = signal('');

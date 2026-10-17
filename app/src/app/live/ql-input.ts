@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { Completion, QlError } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { applyCompletion, charToByte } from '../analysis/ql-text';
+import { applyCompletion, applySuggestion, charToByte } from '../analysis/ql-text';
+import { QlSuggestions } from '../analysis/ql-suggestions';
 
 /** Delay before the engine checks the text and suggests completions. */
 export const QL_CHECK_MS = 150;
@@ -16,6 +17,7 @@ let nextId = 1;
 @Component({
   selector: 'imt-ql-input',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [QlSuggestions],
   template: `
     <div class="wrap">
       <input
@@ -47,7 +49,7 @@ let nextId = 1;
         </ul>
       }
     </div>
-    @if (error(); as e) { <div class="err" [id]="errorId">{{ e.message }}</div> }
+    @if (error(); as e) { <div class="err" [id]="errorId">{{ e.message }} <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" /></div> }
   `,
   styles: `
     :host { display: block; position: relative; min-width: 0; }
@@ -121,6 +123,20 @@ export class QlInput {
     el.value = next.text;
     el.setSelectionRange(next.cursor, next.cursor);
     this.active.set(0);
+    this.valueChange.emit(next.text);
+    this.schedule();
+  }
+
+  /** Replaces the unknown field the engine reported with the chosen suggestion. */
+  protected useSuggestion(name: string): void {
+    const error = this.error();
+    if (!error) return;
+    const el = this.el().nativeElement;
+    const next = applySuggestion(el.value, error, name);
+    el.value = next.text;
+    el.focus();
+    el.setSelectionRange(next.cursor, next.cursor);
+    this.error.set(null);
     this.valueChange.emit(next.text);
     this.schedule();
   }

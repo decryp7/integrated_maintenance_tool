@@ -4,16 +4,20 @@
 //!
 //! Paths inside the project's folder are stored relative to it, so a project
 //! folder can be moved or shared with its logs.
+//!
+//! Versions: 1 = sources, removed, profile, ui; 2 adds per-source clock
+//! offsets (`clock`). Version 1 files load with no offsets.
 
+use crate::skew::ClockOffsets;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 
 /// Current project format version. Older files are read; newer ones are refused.
-pub const PROJECT_VERSION: u32 = 1;
+pub const PROJECT_VERSION: u32 = 2;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectFile {
     pub version: u32,
@@ -28,6 +32,16 @@ pub struct ProjectFile {
     /// UI state, opaque to the engine.
     #[serde(default)]
     pub ui: Value,
+    /// Clock-skew offsets (ms) by source path (since version 2).
+    #[serde(default, skip_serializing_if = "ClockOffsets::is_empty")]
+    pub clock: ClockOffsets,
+    /// Incident reports; one that cannot be read is skipped, not fatal.
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "crate::report::tolerant_reports"
+    )]
+    pub reports: Vec<crate::report::Report>,
 }
 
 impl ProjectFile {
@@ -38,6 +52,7 @@ impl ProjectFile {
         stored.version = PROJECT_VERSION;
         stored.sources = self.sources.iter().map(|p| relativize(&base, p)).collect();
         stored.removed = self.removed.iter().map(|p| relativize(&base, p)).collect();
+        stored.clock = self.clock.map_keys(|p| relativize(&base, p));
         let json = serde_json::to_string_pretty(&stored)?;
         std::fs::write(path, json).with_context(|| format!("cannot write {}", path.display()))
     }
@@ -55,6 +70,7 @@ impl ProjectFile {
         let base = base_dir(path)?;
         p.sources = p.sources.iter().map(|s| resolve(&base, s)).collect();
         p.removed = p.removed.iter().map(|s| resolve(&base, s)).collect();
+        p.clock = p.clock.map_keys(|s| resolve(&base, s)).sanitized();
         Ok(p)
     }
 }
@@ -141,12 +157,15 @@ mod tests {
             removed: vec![dir.join("logs/old.log").to_string_lossy().into_owned()],
             profile: "name = 'P'".into(),
             ui: json!({ "query": { "text": "timeout" } }),
+            clock: serde_json::from_value(json!({ dir.join("logs/a.log").to_string_lossy(): 2350, elsewhere: -100 })).unwrap(),
+            reports: vec![],
         };
         p.save(&file).unwrap();
         let stored: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
         assert_eq!(stored["version"], PROJECT_VERSION);
         assert_eq!(stored["sources"], json!(["logs", ".", elsewhere, "logs/bundle.zip!/web01/app.log"]));
         assert_eq!(stored["removed"], json!(["logs/old.log"]));
+        assert_eq!(stored["clock"], json!({ "logs/a.log": 2350, elsewhere: -100 }));
 
         let back = ProjectFile::load(&file).unwrap();
         assert_eq!(back.sources[0], dir.join("logs").to_string_lossy());
@@ -154,6 +173,31 @@ mod tests {
         assert_eq!(back.sources[2], elsewhere);
         assert!(back.sources[3].ends_with("bundle.zip!/web01/app.log"));
         assert_eq!(back.ui["query"]["text"], "timeout");
+        assert_eq!(back.clock, p.clock);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn reads_version_1_and_drops_bad_offsets() {
+        let dir = std::env::temp_dir().join(format!("imt-project-v1-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = dir.join("old.imtproj");
+        std::fs::write(&old, r#"{"version": 1, "name": "x", "sources": ["a.log"], "profile": ""}"#).unwrap();
+        let p = ProjectFile::load(&old).unwrap();
+        assert!(p.clock.is_empty());
+        let v2 = dir.join("v2.imtproj");
+        std::fs::write(
+            &v2,
+            r#"{"version": 2, "name": "x", "sources": [], "profile": "", "clock": {"a.log": 5, "b.log": 99999999999999}}"#,
+        )
+        .unwrap();
+        let p = ProjectFile::load(&v2).unwrap();
+        let base = std::fs::canonicalize(&dir).unwrap();
+        assert_eq!(p.clock.iter().count(), 1);
+        assert_eq!(p.clock.get(&base.join("a.log").to_string_lossy()), 5);
+        // Saving without offsets leaves the key out.
+        ProjectFile::default().save(&v2).unwrap();
+        assert!(!std::fs::read_to_string(&v2).unwrap().contains("clock"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -175,6 +219,8 @@ mod tests {
             removed: vec![],
             profile: String::new(),
             ui: Value::Null,
+            clock: ClockOffsets::default(),
+            reports: vec![],
         };
         assert!(p.save(&dir.join("no/such/dir/x.imtproj")).is_err());
         std::fs::remove_dir_all(&dir).unwrap();

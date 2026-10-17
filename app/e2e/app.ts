@@ -25,3 +25,11 @@ export async function initialTotal(page: Page): Promise<string> {
 export function gridTotal(page: Page) {
   return page.locator('imt-events-grid .bar .total');
 }
+
+/**
+ * Resolves once the app has rendered what is already scheduled: after a frame and then a task (Angular renders on
+ * whichever comes first). The sync point for asserting that something did NOT happen, instead of a fixed sleep.
+ */
+export async function nextRender(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0))));
+}

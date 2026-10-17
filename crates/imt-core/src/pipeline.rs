@@ -140,6 +140,7 @@ impl Pipeline {
             let input = records.len();
             let applies = |r: &Record| when.iter().all(|c| c.eval(r, source_name));
             match step {
+                Step::Transform(t) if t.batched() => records = run_batched(t.as_ref(), records, &applies, &ctx),
                 Step::Transform(t) => records.retain_mut(|r| !applies(r) || t.apply(r, &ctx) == Verdict::Keep),
                 Step::Dedupe { fields, window_ms } => {
                     records = dedupe(records, fields, *window_ms, source_name, &applies);
@@ -152,6 +153,30 @@ impl Pipeline {
         }
         (records, stats)
     }
+}
+
+/// Runs a [`RecordTransform::batched`] step: the records its conditions
+/// select go to it in one call; the others pass through; order is kept.
+fn run_batched(t: &dyn RecordTransform, records: Vec<Record>, applies: &dyn Fn(&Record) -> bool, ctx: &TransformCtx) -> Vec<Record> {
+    let selected: Vec<bool> = records.iter().map(applies).collect();
+    let (mut batch, mut rest): (Vec<Record>, Vec<Record>) = (Vec::new(), Vec::new());
+    for (r, s) in records.into_iter().zip(&selected) {
+        if *s {
+            batch.push(r);
+        } else {
+            rest.push(r);
+        }
+    }
+    let verdicts = t.apply_batch(&mut batch, ctx);
+    let mut kept = batch
+        .into_iter()
+        .enumerate()
+        .map(|(i, r)| (verdicts.get(i).copied().unwrap_or(Verdict::Keep) == Verdict::Keep).then_some(r));
+    let mut rest = rest.into_iter();
+    selected
+        .into_iter()
+        .filter_map(|s| if s { kept.next().flatten() } else { rest.next() })
+        .collect()
 }
 
 fn need<'a>(v: &'a Option<String>, what: &str) -> Result<&'a str> {

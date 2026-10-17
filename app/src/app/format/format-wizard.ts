@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, OnInit, signal, untracked, viewChild } from '@angular/core';
+import { AiButton } from '../ai/ai-button';
+import { AiLauncher } from '../ai/ai-launcher';
 import { selectionWithin } from '../context/selection';
 import { ParsePreview } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
@@ -12,6 +14,7 @@ import { HelpHint } from '../ui/help-hint';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { DIALOG_FORM_STYLES } from '../context/dialog-styles';
 import { FormatPart, Marks, regexFromMarks } from './format-parse';
+import { TemplatesService } from '../templates/templates.service';
 
 /** Sample lines offered for marking, and records the engine previews. */
 const PREVIEW_LINES = 50;
@@ -28,10 +31,12 @@ const PARTS: { id: FormatPart; label: string }[] = [
 @Component({
   selector: 'imt-format-wizard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HelpHint],
+  imports: [HelpHint, AiButton],
   host: { '(document:selectionchange)': 'onSelection()' },
   template: `
     <p>IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on. <imt-help label="Format wizard" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
+
+    <p class="tpl-hint">Written by a common logging library or server? <button type="button" class="btn ghost" data-testid="start-from-template" (click)="fromTemplate()">Start from a template…</button></p>
 
     @if (loadError(); as e) {
       <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="loadHead()">Retry</button></div>
@@ -77,6 +82,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
     @if (mode() === 'marks') {
       <div class="status">Generated pattern</div>
       <div class="box" data-testid="format-regex">{{ regex() ?? 'Mark a timestamp and a message to generate a pattern.' }}</div>
+      <div><imt-ai-button label="Suggest regex with AI" hint="The local model proposes a pattern for these lines; the preview checks it" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
     }
 
     @if (mutation()) {
@@ -123,6 +129,8 @@ export class FormatWizard implements OnInit {
   private readonly settings = inject(SettingsStore);
   private readonly edits = inject(ProfileEdits);
   private readonly store = inject(WorkspaceStore);
+  private readonly templates = inject(TemplatesService);
+  private readonly ai = inject(AiLauncher);
 
   readonly path = input.required<string>();
   readonly name = input.required<string>();
@@ -146,7 +154,9 @@ export class FormatWizard implements OnInit {
 
   protected readonly sample = computed(() => this.lines()[this.sampleIndex()] ?? '');
   protected readonly hasMarks = computed(() => Object.keys(this.marks()).length > 0);
-  protected readonly regex = computed(() => (this.mode() === 'marks' ? regexFromMarks(this.sample(), this.marks()) : null));
+  /** A pattern the local AI suggested (replaces the one generated from the marks until they change). */
+  private readonly aiRegex = signal<string | null>(null);
+  protected readonly regex = computed(() => (this.mode() === 'marks' ? (this.aiRegex() ?? regexFromMarks(this.sample(), this.marks())) : null));
   /** The change to the profile this wizard would save; also what the engine previews. Null until there is something to try. */
   protected readonly mutation = computed<((m: ProfileModel) => void) | null>(() => {
     const template = this.template().trim();
@@ -197,6 +207,12 @@ export class FormatWizard implements OnInit {
       const timer = setTimeout(() => untracked(() => void this.runPreview(mutation, head)), PREVIEW_DEBOUNCE_MS);
       onCleanup(() => clearTimeout(timer));
     });
+  }
+
+  /** Swaps the wizard for the templates gallery, previewing them against this file. */
+  protected fromTemplate(): void {
+    this.ref.close();
+    void this.templates.open({ path: this.path(), name: this.name() });
   }
 
   ngOnInit(): void {
@@ -272,5 +288,11 @@ export class FormatWizard implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** "Suggest regex" with the local AI model, from the sample lines. */
+  protected async suggestWithAi(): Promise<void> {
+    const p = await this.ai.suggestRegex(this.lines());
+    if (p) this.aiRegex.set(p);
   }
 }

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend } from '../../testing/helpers';
 import { MockToolsBackend } from '../tools/mock/mock-tools-backend';
 import { FailureReporter } from './failure-reporter';
-import { CollectBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, provideToolsBackend, TauriToolsBackend, ToolsBackend } from './tools-backend';
+import { CollectBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, provideToolsBackend, TauriToolsBackend, ToolCatalogBackend, ToolsBackend } from './tools-backend';
 import { CollectorTemplate } from './tools.types';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
@@ -14,8 +14,12 @@ describe('TauriToolsBackend', () => {
     const b = new TauriToolsBackend(invoke as never, listen);
     const config = { targets: [{ name: 'a' }], intervalMs: 1000, cpu: 'machine' as const, counters: [], includeChildren: false };
     const calls: [() => Promise<unknown>, string, unknown?][] = [
+      [() => b.toolsList(), 'tools_list'],
+      [() => b.toolInvoke('perfmon.sets', 'outputs', { name: 'T' }), 'tool_invoke', { tool: 'perfmon.sets', op: 'outputs', args: { name: 'T' } }],
+      [() => b.toolInvoke('elevation', 'info'), 'tool_invoke', { tool: 'elevation', op: 'info', args: {} }],
       [() => b.perfmonPresets(), 'perfmon_presets'],
       [() => b.perfmonGenerate(template, '/x.xml'), 'perfmon_generate', { template, xmlPath: '/x.xml' }],
+      [() => b.perfmonGenerate(template, '/x.xml', true), 'perfmon_generate', { template, xmlPath: '/x.xml', overwrite: true }],
       [() => b.perfmonInstall(template), 'perfmon_install', { template }],
       [() => b.perfmonControl('T', 'start'), 'perfmon_control', { name: 'T', action: 'start' }],
       [() => b.perfmonOutputs('T'), 'perfmon_outputs', { name: 'T' }],
@@ -24,6 +28,7 @@ describe('TauriToolsBackend', () => {
       [() => b.monitorStatus(), 'monitor_status'],
       [() => b.collectDefaultPlan(), 'collect_default_plan'],
       [() => b.collectDiagnostics('{}', '/o'), 'collect_diagnostics', { plan: '{}', outDir: '/o' }],
+      [() => b.collectDiagnostics('{}', '/o', true), 'collect_diagnostics', { plan: '{}', outDir: '/o', overwrite: true }],
       [() => b.elevation(), 'elevation'],
       [() => b.restartElevated(['/s']), 'restart_elevated', { reopen: ['/s'] }],
       [() => b.appStatus(), 'app_status'],
@@ -63,6 +68,7 @@ describe('provideToolsBackend', () => {
     expect(TestBed.inject(CollectBackend)).toBe(full);
     expect(TestBed.inject(LifecycleBackend)).toBe(full);
     expect(TestBed.inject(ProjectBackend)).toBe(full);
+    expect(TestBed.inject(ToolCatalogBackend)).toBe(full);
     // The mock gets the workspace summary of the app's backend for open_project.
     await full.saveProject('/demo/p.imtproj', 'P', {});
     expect((await full.openProject('/demo/p.imtproj')).summary.sources.length).toBeGreaterThan(0);

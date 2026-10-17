@@ -1,13 +1,13 @@
 <mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
   <diagram id="C4-3---Components-imt-core" name="C4 3 - Components imt-core">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2160" pageHeight="1460" math="0" shadow="0">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2160" pageHeight="1860" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
         <mxCell id="title" value="C4 level 3: Components of imt-core (engine)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
         </mxCell>
-        <mxCell id="subtitle" value="Modules under crates/imt-core/src. Arrows point from user to used; the Workspace orchestrates the others. Every component uses model (Record, Level)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Modules under crates/imt-core/src. Arrows point from user to used; the Workspace orchestrates the others (the bottom row through workspace/*.rs). Every component uses model (Record, Level)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="b_core" value="imt-core  [Container: Rust library]" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;dashPattern=8 4;fontColor=#666666;fontSize=12;verticalAlign=top;align=right;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
@@ -175,7 +175,7 @@
           <mxGeometry relative="1" as="geometry">
           </mxGeometry>
         </mxCell>
-        <mxCell id="plug" value='&lt;b style="font-size:13px"&gt;Plugin crates&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust crates]&lt;/font&gt;&lt;br&gt;&lt;br&gt;RegistryPlugin, WindowsPlugin, WebPlugin, OtelPlugin, SyslogPlugin, MonitorPlugin implement Plugin.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="plug" value='&lt;b style="font-size:13px"&gt;Plugin crates&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust crates]&lt;/font&gt;&lt;br&gt;&lt;br&gt;RegistryPlugin, WindowsPlugin, WebPlugin, OtelPlugin, SyslogPlugin, ToolsPlugin (tools, CounterSource) and ProfilingPlugin (profiling.importers, using imt-profile) implement Plugin.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="1000" y="1375" width="1060" height="70" as="geometry"/>
         </mxCell>
         <mxCell id="e22" value="install(plugin) / register()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="reg">
@@ -196,6 +196,52 @@
         </mxCell>
         <mxCell id="lg_l1" value="Container outside imt-core" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="1740" y="100" width="220" height="20" as="geometry"/>
+        </mxCell>
+              <mxCell id="s_report" value="&lt;b style=&quot;font-size:13px&quot;&gt;report&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, report/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Versioned report model (sections, blocks); Markdown and HTML; ReportRenderer port (PDF in imt-pdf)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_redact" value="&lt;b style=&quot;font-size:13px&quot;&gt;redact&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, redact/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;One redactor (detectors, custom rules, hash/mask/drop) for the redacted view, exports, reports and bundles." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="565" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_dash" value="&lt;b style=&quot;font-size:13px&quot;&gt;dashboard&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, dashboard.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;[[dashboard]] tiles: chart, stat, table, top-N, alert, annotation; evaluated per window." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="790" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_bundle" value="&lt;b style=&quot;font-size:13px&quot;&gt;bundle&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, bundle.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;.imtz read/write: manifest with SHA-256, archive limits, read-only open; svg.rs sanitises images." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1015" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_skew" value="&lt;b style=&quot;font-size:13px&quot;&gt;skew&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, skew/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;ClockOffsets per source path, applied on load; suggest_offsets from correlation ids (ADR 0006)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_config" value="&lt;b style=&quot;font-size:13px&quot;&gt;config&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust, config/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;ConfigTree, parsers (JSON, XML, INI, TOML, YAML; plugins add .reg, .nfo), path-based diff, folder snapshots." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1620" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_tmpl" value="&lt;b style=&quot;font-size:13px&quot;&gt;templates, ql::suggest, overwrite&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Component: Rust]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Built-in format templates with previews; &quot;did you mean&quot; for fields; no silent overwrite of user files." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="1360" width="200" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="x_pdf" value="&lt;b style=&quot;font-size:13px&quot;&gt;imt-pdf&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Container: Rust crate (adapter)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;PdfRenderer implements ReportRenderer: selectable text, vector charts, embedded font subsets." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1700" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="x_agent" value="&lt;b style=&quot;font-size:13px&quot;&gt;imt-agent&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Container: Rust CLI / service]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Scheduled and triggered collection (ADR 0005); uses imt-core, imt-collect, imt-monitor and the tools plugin." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="1700" width="280" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="x_profile" value="&lt;b style=&quot;font-size:13px&quot;&gt;imt-profile&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;[Container: Rust library, pure]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Profiling engine (model, views, heap analysis); no dependency on imt-core. Used by the profiling plugin and the shell." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1700" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" value="redacts with" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_report" target="s_redact">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e27" value="implements ReportRenderer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="x_pdf" target="s_report">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e28" value="uses (tail, collect, monitor)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.2000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="x_agent" target="b_core">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+              <mxCell id="e29" value="ProfilingPlugin builds captures with" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.3800;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="x_profile">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

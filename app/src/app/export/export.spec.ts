@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
+import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { ExporterInfo } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { Platform } from '../core/platform';
@@ -7,6 +7,8 @@ import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { ExportDialog, exportQuery } from './export-dialog';
 import { ExportService, exporterForPath } from './export.service';
+import { provideMockShare } from '../share/redaction/share-testing';
+import { ShareBackend } from '../share/share-backend';
 
 const exporters: ExporterInfo[] = [
   { id: 'csv', name: 'CSV', extension: 'csv' },
@@ -39,7 +41,7 @@ describe('ExportDialog', () => {
     closed.mockClear();
     pick.mockReset();
     TestBed.configureTestingModule({
-      providers: [provideTinyBackend(), { provide: Platform, useValue: { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined, pickExportPath: pick } }, { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
+      providers: [provideTinyBackend(), provideMockShare(), { provide: Platform, useValue: { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined, pickExportPath: pick } }, { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve(undefined) } }],
     });
     const store = TestBed.inject(WorkspaceStore);
     await settle();
@@ -120,6 +122,76 @@ describe('ExportDialog', () => {
     el<HTMLInputElement>(fixture, 'input[value=all]').click();
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('count failed');
+  });
+});
+
+describe('ExportDialog redaction', () => {
+  async function setup(onExport: boolean) {
+    const backend = tinyBackend();
+    if (onExport) await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true'));
+    const pick = vi.fn(async () => '/out/events.csv');
+    TestBed.configureTestingModule({
+      providers: [provideTinyBackend(backend), provideMockShare(), { provide: Platform, useValue: { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined, pickExportPath: pick } }, { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } }],
+    });
+    const store = TestBed.inject(WorkspaceStore);
+    await settle();
+    const fixture = TestBed.createComponent(ExportDialog);
+    await settle(fixture);
+    return { fixture, store, backend };
+  }
+
+  const redactBox = (fixture: { nativeElement: HTMLElement }) => fixture.nativeElement.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+
+  it('starts from the profile default and previews what will be masked', async () => {
+    const { fixture } = await setup(true);
+    expect(redactBox(fixture).checked).toBe(true);
+    await settle(fixture);
+    expect(text(fixture)).toMatch(/\d+ of 11 events change/);
+    redactBox(fixture).click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('imt-redaction-summary')).toBeNull();
+  });
+
+  it('exports redacted and says how many values were masked', async () => {
+    const { fixture, store, backend } = await setup(false);
+    expect(redactBox(fixture).checked).toBe(false);
+    redactBox(fixture).click();
+    await settle(fixture);
+    const spy = vi.spyOn(backend, 'exportEvents').mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11, redactions: { email: 1 } });
+    buttonByText(fixture, 'Export…').click();
+    await settle(fixture);
+    expect(spy.mock.calls[0][0].redact).toBe(true);
+    expect(store.notice()).toBe('Exported 11 events to events.csv (redacted, 1 value masked)');
+    spy.mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11 });
+    buttonByText(fixture, 'Export…').click();
+    await settle(fixture);
+    expect(store.notice()).toBe('Exported 11 events to events.csv (redacted, 0 values masked)');
+  });
+
+  it('keeps the user\'s choice when the profile default arrives later', async () => {
+    const backend = tinyBackend();
+    await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true'));
+    TestBed.configureTestingModule({
+      providers: [provideTinyBackend(backend), provideMockShare(), { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } }],
+    });
+    const fixture = TestBed.createComponent(ExportDialog);
+    fixture.detectChanges();
+    redactBox(fixture).click();
+    redactBox(fixture).click();
+    await settle(fixture);
+    expect(redactBox(fixture).checked).toBe(false);
+  });
+
+  it('shows a failing preview', async () => {
+    const { fixture } = await setup(false);
+    const share = TestBed.inject(ShareBackend);
+    vi.spyOn(share, 'redactionSummary').mockRejectedValueOnce(new Error('no rules')).mockRejectedValueOnce('plain');
+    redactBox(fixture).click();
+    await settle(fixture);
+    expect(el(fixture, '[role=alert]').textContent).toContain('no rules');
+    el<HTMLInputElement>(fixture, 'input[value=all]').click();
+    await settle(fixture);
+    expect(el(fixture, '[role=alert]').textContent).toContain('plain');
   });
 });
 

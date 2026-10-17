@@ -10,6 +10,8 @@ import { RegexApi } from './regex-api';
 import { RegexAssist } from './regex-assist';
 import { GroupKind, InferredGroup, InferredRegex } from '../../core/api.types';
 import { qlQuote } from '../../analysis/ql-text';
+import { AiButton } from '../../ai/ai-button';
+import { AiLauncher } from '../../ai/ai-launcher';
 
 /** Extract field type for an inferred group kind. */
 export function fieldTypeFor(kind: GroupKind): ExtractFieldType {
@@ -27,7 +29,7 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 @Component({
   selector: 'imt-infer-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RegexAssist],
+  imports: [RegexAssist, AiButton],
   template: `
     <label class="lbl">Lines (one per line; edit to refine)
       <textarea class="input mono" rows="4" [value]="text()" (input)="text.set($any($event.target).value)"></textarea>
@@ -37,6 +39,7 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
       <label class="lbl">Pattern (editable)
         <input class="input mono" [value]="pattern()" (input)="pattern.set($any($event.target).value)" />
       </label>
+      <div><imt-ai-button label="Suggest with AI" hint="The local model proposes a pattern; the engine checks it against these lines" testId="ai-suggest-regex" (pressed)="suggestWithAi()" /></div>
       <imt-regex-assist [pattern]="pattern()" [preset]="pattern() === r.pattern ? r.explanation : null" />
       <table class="groups" aria-label="Captured groups">
         <thead><tr><th scope="col">Group</th><th scope="col">Kind</th><th scope="col">Examples</th></tr></thead>
@@ -87,6 +90,7 @@ export class InferDialog {
   private readonly dialogs = inject(DialogService);
   private readonly profile = inject(MarkerProfile);
   private readonly store = inject(WorkspaceStore);
+  private readonly ai = inject(AiLauncher);
 
   readonly lines = input<string[]>([]);
   protected readonly text = linkedSignal(() => this.lines().join('\n'));
@@ -107,6 +111,12 @@ export class InferDialog {
       clearTimeout(this.timer);
       this.timer = setTimeout(() => void this.run(lines), untracked(() => (this.result() ? 300 : 0)));
     });
+  }
+
+  /** "Suggest regex" with the local AI model: the accepted pattern replaces the inferred one. */
+  protected async suggestWithAi(): Promise<void> {
+    const p = await this.ai.suggestRegex(this.inputLines());
+    if (p) this.pattern.set(p);
   }
 
   protected nameOf(g: InferredGroup): string {

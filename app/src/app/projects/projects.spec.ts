@@ -124,6 +124,48 @@ describe('ProjectService', () => {
     expect(tools.calls).toEqual(['saveProject:/p/saved.imtproj']);
   });
 
+  it('an edit made while the save is in flight stays unsaved (the baseline is what was written)', async () => {
+    const { projects, tools, store } = await setup();
+    store.patchQuery({ text: 'saved' }); store.setTextInput('saved');
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const real = tools.saveProject.bind(tools);
+    vi.spyOn(tools, 'saveProject').mockImplementation(async (...args) => {
+      await gate;
+      return real(...args);
+    });
+    const saving = projects.save();
+    await settle();
+    store.patchQuery({ text: 'edited meanwhile' }); store.setTextInput('edited meanwhile');
+    release();
+    expect(await saving).toBe(true);
+    expect(projects.dirty()).toBe(true);
+    store.patchQuery({ text: 'saved' }); store.setTextInput('saved');
+    expect(projects.dirty()).toBe(false);
+  });
+
+  it('never replaces another file without asking; Save writes over the project\'s own file', async () => {
+    const { projects, tools } = await setup();
+    const dialogs = TestBed.inject(DialogService);
+    expect(await projects.saveAs()).toBe(true);
+    // Save to the project's own file: no question.
+    expect(await projects.save()).toBe(true);
+    expect(dialogs.stack()).toHaveLength(0);
+    // Save As onto an existing file asks; keeping the file leaves the project as it was.
+    tools.calls.length = 0;
+    let saving = projects.saveAs();
+    await settle();
+    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
+    dialogs.stack()[0].ref.close();
+    expect(await saving).toBe(false);
+    expect(tools.calls).toEqual([]);
+    saving = projects.saveAs();
+    await settle();
+    dialogs.stack()[0].ref.close(true);
+    expect(await saving).toBe(true);
+    expect(tools.calls).toEqual(['saveProject:/p/saved.imtproj']);
+  });
+
   it('keeps everything when the save dialog is cancelled or saving fails', async () => {
     const { projects, picker, tools, store } = await setup();
     picker.save = null;

@@ -264,7 +264,14 @@ export class MockEngine {
       line: r.line,
       group: this.groupKey(r, groupBy),
       markers: r.markers,
+      ...this.skewOf(r),
     };
+  }
+
+  /** `skewMs` of a timed record whose source has a clock offset (like the engine's page rows). */
+  private skewOf(r: MockRecord): { skewMs?: number } {
+    const off = this.sourceById.get(r.source)?.offsetMs ?? 0;
+    return off !== 0 && r.ts !== null ? { skewMs: off } : {};
   }
 
   page(req: PageRequest): Page {

@@ -7,9 +7,22 @@ import { provideDiagnostics } from './diagnostics/provide-diagnostics';
 import { provideAnalysis } from './analysis/analysis.plugin';
 import { provideLive } from './live/provide-live';
 import { provideTools } from './tools/provide-tools';
+import { provideSchedules } from './schedules/provide-schedules';
+import { provideConfigDiff } from './config-diff/provide-config-diff';
 import { provideMarkers } from './markers/markers.plugin';
 import { REGISTRY_PLUGIN } from './plugins/registry/registry.plugin';
 import { provideWindowing } from './windowing/provide-windowing';
+import { provideClockSkew } from './skew/skew.plugin';
+import { provideShare } from './share/share.plugin';
+import { provideProfiling } from './profiling/provide-profiling';
+import { provideHelp } from './help/help.commands';
+import { provideUndo } from './undo/provide-undo';
+import { provideOverview } from './overview/overview.plugin';
+import { provideOnboarding } from './onboarding/onboarding.plugin';
+import { provideDocking } from './dock/provide-docking';
+import { providePopout } from './popout/provide-popout';
+import { provideAi } from './ai/provide-ai';
+import { provideActivity } from './core/activity/provide-activity';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -22,8 +35,21 @@ export const appConfig: ApplicationConfig = {
     provideImtPlugin(REGISTRY_PLUGIN),
     provideMarkers(),
     provideTools(),
+    provideSchedules(),
+    provideConfigDiff(),
     provideAnalysis(),
     provideLive(),
     provideWindowing(),
+    provideClockSkew(),
+    provideShare(),
+    provideProfiling(),
+    provideHelp(),
+    provideUndo(),
+    provideOverview(),
+    provideOnboarding(),
+    provideDocking(),
+    providePopout(),
+    provideAi(),
+    provideActivity(),
   ],
 };

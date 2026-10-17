@@ -1,0 +1,5 @@
+<log4net:event logger="Billing.Service" timestamp="2026-10-14T10:41:00.1200000+00:00" level="INFO" thread="1" domain="Billing.exe" username="CONTOSO\svc-billing"><log4net:message>Billing service starting (v2.8.1)</log4net:message></log4net:event>
+<log4net:event logger="Billing.Invoices.InvoiceWriter" timestamp="2026-10-14T10:41:05.2490000+00:00" level="WARN" thread="15" domain="Billing.exe" username="CONTOSO\svc-billing"><log4net:message>Waiting for payment confirmation of order 88412 (12 s)</log4net:message></log4net:event>
+<log4net:event logger="Billing.Invoices.InvoiceWriter" timestamp="2026-10-14T10:41:24.0500000+00:00" level="ERROR" thread="15" domain="Billing.exe" username="CONTOSO\svc-billing"><log4net:message>Could not post invoice to ERP</log4net:message><log4net:exception>System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)</log4net:exception></log4net:event>
+<log4j:event logger="Billing.Cache" timestamp="1792233690000" level="DEBUG" thread="6"><log4j:message><![CDATA[Refreshed tariff cache (412 entries)]]></log4j:message></log4j:event>

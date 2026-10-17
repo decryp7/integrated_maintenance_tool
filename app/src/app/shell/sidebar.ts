@@ -9,6 +9,10 @@ import { Icon } from '../shared/icon';
 import { FieldsPanel } from '../workspace/fields-panel';
 import { groupSources } from '../live/source-groups';
 import { NotableState, stateHint, stateLabel, TailStatusStore } from '../live/tail-status.store';
+import { ContextMenuService } from '../ui/context-menu.service';
+import { ClockDialogService } from '../skew/clock-section';
+import { formatOffset } from '../skew/skew-format';
+import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -32,7 +36,8 @@ function shortPath(path: string): string {
       </span>
     </div>
 
-    <div class="sources">
+    <div class="sources" role="region" aria-label="Opened files" [title]="readOnly" aria-describedby="imt-sources-read-only">
+      <span id="imt-sources-read-only" class="sr">{{ readOnly }}</span>
       @for (item of items(); track item.kind === 'file' ? 'f' + item.source.id : 'g' + item.group.key) {
         @if (item.kind === 'file') {
           <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false }" />
@@ -89,14 +94,18 @@ function shortPath(path: string): string {
     <imt-fields-panel />
 
     <ng-template #file let-s let-member="member">
-      <div class="src" [class.member]="member" [title]="sourceTitle(s)">
+      <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
         <imt-icon name="file" [size]="13" class="faint" />
         <span class="ellipsis name">{{ member ? s.name : short(s.path) }}</span>
         @if (notable(s.id); as st) {
           <span class="state" [class]="'state ' + st.kind" [title]="hint(st)" [attr.aria-label]="label(st) + ': ' + hint(st)" role="img">{{ label(st) }}</span>
         }
+        @if (s.offsetMs) {
+          <span class="skew mono" data-testid="skew-badge" [title]="'Clock shifted by ' + offset(s.offsetMs)" [attr.aria-label]="'Clock shifted by ' + offset(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
+        }
         <span class="badge">{{ s.importer }}</span>
         <span class="mono count">{{ compact(s.records) }}</span>
+        <button class="icon-btn rm" [attr.aria-label]="'Adjust clock of ' + s.name" [attr.title]="'Adjust clock of ' + s.name + '…'" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
         <button class="icon-btn rm" [attr.aria-label]="'Remove ' + s.name" (click)="store.removeSource(s.id)" [attr.title]="'Remove ' + s.name"><imt-icon name="close" [size]="12" /></button>
       </div>
       @if (s.error) {
@@ -133,6 +142,7 @@ function shortPath(path: string): string {
     .state.rotated, .state.truncated { border-color: var(--warn-text); color: var(--warn-text); }
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
+    .skew { flex: none; font-size: 10px; padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
 export class Sidebar {
@@ -140,9 +150,14 @@ export class Sidebar {
   private readonly dialogs = inject(DialogService);
 
   protected readonly compact = formatCompact;
+  /** Tooltip of the source list: the read-only promise. */
+  protected readonly readOnly = `${READ_ONLY_PROMISE} ${READ_ONLY_DETAIL}`;
   protected readonly short = shortPath;
 
   private readonly tail = inject(TailStatusStore);
+  private readonly menu = inject(ContextMenuService);
+  private readonly clock = inject(ClockDialogService);
+  protected readonly offset = formatOffset;
   protected readonly sources = computed(() => this.store.summary()?.sources ?? []);
   /** Sources with rolling files of one log collapsed into expandable groups. */
   protected readonly items = computed(() => groupSources(this.sources()));
@@ -178,6 +193,24 @@ export class Sidebar {
 
   protected hint(state: TailFileStateOf): string {
     return stateHint(state);
+  }
+
+  /** Sources › Adjust clock… (clock-skew correction). */
+  protected adjustClock(s: SourceInfo): void {
+    this.clock.open(s.id, s.name);
+  }
+
+  protected sourceMenu(event: MouseEvent, s: SourceInfo): void {
+    event.preventDefault();
+    this.menu.open(
+      event.clientX,
+      event.clientY,
+      [
+        { label: 'Adjust clock…', run: () => this.adjustClock(s) },
+        { label: 'Remove', run: () => void this.store.removeSource(s.id) },
+      ],
+      event.currentTarget as HTMLElement | null,
+    );
   }
 
   protected async openLive(): Promise<void> {

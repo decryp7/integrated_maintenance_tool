@@ -1,0 +1,12 @@
+{
+  "orders": 240,
+  "completed": 205,
+  "failed": 26,
+  "open": 9,
+  "slow": 44,
+  "paymentRetries": 114,
+  "heartbeats": 61,
+  "records": 646,
+  "skipped": 2,
+  "withException": 19
+}

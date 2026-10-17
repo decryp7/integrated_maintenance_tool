@@ -6,6 +6,7 @@ use crate::model::Level;
 use crate::query::Query;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize)]
@@ -28,6 +29,8 @@ pub struct SourceInfo {
     pub error: Option<String>,
     pub from: Option<i64>,
     pub to: Option<i64>,
+    /// Clock-skew correction applied to this source's timestamps (ms; 0 = none).
+    pub offset_ms: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -98,6 +101,10 @@ pub struct WorkspaceSummary {
     pub pipeline: Vec<PipelineStepInfo>,
     pub plugins: Vec<crate::plugin::PluginInfo>,
     pub exporters: Vec<ExporterInfo>,
+    /// The profile's dashboards.
+    pub dashboards: Vec<crate::dashboard::DashboardCfg>,
+    /// Pages, facets and source context are redacted (the "Redacted view").
+    pub redacted_view: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -346,21 +353,42 @@ pub enum FindingAction {
     OpenPanel { panel: String },
 }
 
+/// What a finding of the health check is about (the UI picks an icon and counts crashes by it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FindingKind {
+    Crash,
+    ErrorSpike,
+    MemoryGrowth,
+    Silence,
+    SlowOutlier,
+    RateChange,
+    Exception,
+    UnreadLines,
+    NoTimestamps,
+    FileNotOpened,
+    Dropped,
+    PluginQuarantined,
+}
+
 /// One line of the automatic health check, in plain English.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Finding {
+    pub kind: FindingKind,
     pub severity: Severity,
     pub title: String,
     pub detail: String,
     pub action: Option<FindingAction>,
 }
 
-/// Opened paths and removed files, enough to rebuild the workspace.
+/// Opened paths, removed files and clock offsets, enough to rebuild the workspace.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkspaceState {
     pub roots: Vec<String>,
     pub removed: Vec<String>,
+    /// Clock-skew offsets by source path.
+    pub offsets: crate::skew::ClockOffsets,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -387,6 +415,12 @@ pub struct ExportRequest {
     pub path: String,
     #[serde(default)]
     pub descending: bool,
+    /// Redact the events with the profile's `[redact]` rules (a fresh salt per export).
+    #[serde(default)]
+    pub redact: bool,
+    /// Replace an existing file at `path` (confirmed by the user); otherwise it is refused.
+    #[serde(default)]
+    pub overwrite: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -394,6 +428,9 @@ pub struct ExportResult {
     pub format: String,
     pub path: String,
     pub events: usize,
+    /// Matches per redaction rule (empty when not redacted).
+    #[serde(default)]
+    pub redactions: crate::redact::Counts,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -421,15 +458,19 @@ pub struct RecordView<'a> {
     pub id: u32,
     pub ts: Option<i64>,
     pub level: Level,
-    pub message: &'a str,
-    pub template: Option<&'a str>,
-    pub exception: Option<&'a str>,
-    pub fields: &'a Map<String, Value>,
+    /// Borrowed from the record, or owned when the redacted view changed it.
+    pub message: Cow<'a, str>,
+    pub template: Option<Cow<'a, str>>,
+    pub exception: Option<Cow<'a, str>>,
+    pub fields: Cow<'a, Map<String, Value>>,
     pub source: u32,
     pub source_name: &'a str,
     pub line: u32,
     pub group: String,
     pub markers: Vec<&'a str>,
+    /// Clock-skew offset applied to `ts` (the original is `ts - skewMs`); absent when none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skew_ms: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]

@@ -2,6 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signa
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { RECENT_STORE } from './recent-store';
+import { DemoService } from '../onboarding/demo.service';
+import { HelpHint } from '../ui/help-hint';
+import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 
 /** Whether the welcome screen is shown: whenever the workspace is empty, or when asked for explicitly. */
 @Injectable({ providedIn: 'root' })
@@ -30,7 +33,7 @@ export function shortPath(path: string): string {
 @Component({
   selector: 'imt-welcome',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, HelpHint],
   template: `
     <section class="welcome" aria-labelledby="welcome-title">
       <h1 id="welcome-title">Welcome to IMT</h1>
@@ -38,7 +41,9 @@ export function shortPath(path: string): string {
       <div class="actions">
         <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="15" /> Open folder…</button>
         <button class="btn big" type="button" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="15" /> Open files…</button>
+        <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><imt-icon name="timeline" [size]="15" /> {{ demo.loading() ? 'Opening the demo…' : 'Try a demo' }}</button>
       </div>
+      <p class="safe" data-testid="read-only-promise"><imt-icon name="check" [size]="14" /> {{ promise }} <imt-help label="Your files are safe" [text]="detail" /></p>
       <p class="faint hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
 
       @if (recent().length) {
@@ -72,6 +77,8 @@ export function shortPath(path: string): string {
     .actions { display: flex; gap: 10px; margin-top: 6px; }
     .big { height: 34px; padding: 0 16px; gap: 8px; }
     .hint { margin: 0; font-size: 12px; }
+    .safe { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+    .safe imt-icon { color: var(--ok); }
     .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
     .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: 12px; }
     .link:hover { text-decoration: underline; }
@@ -85,6 +92,9 @@ export class Welcome {
   protected readonly store = inject(WorkspaceStore);
   protected readonly welcome = inject(WelcomeService);
   private readonly recentStore = inject(RECENT_STORE);
+  protected readonly demo = inject(DemoService);
+  protected readonly promise = READ_ONLY_PROMISE;
+  protected readonly detail = READ_ONLY_DETAIL;
   protected readonly short = shortPath;
   protected readonly workspaceHasSources = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
   protected readonly recent = computed(() => {

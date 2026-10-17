@@ -1,5 +1,6 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { Logger } from '../core/logger';
+import { POPOUT_ROUTE } from '../popout/popout-route';
 import { IMT_COMMANDS } from '../extensions/tokens';
 import { LocalStorageRecentProjects, RECENT_PROJECTS } from '../projects/recent-projects';
 import { TrayRecentProjects } from './tray-recent-projects';
@@ -22,8 +23,12 @@ export function provideWindowing(): EnvironmentProviders {
   ]);
 }
 
-/** Starts listening to window events and syncing the title. Not awaited: the first paint must not wait. */
+/**
+ * Starts listening to window events and syncing the title. Not awaited: the first paint must not wait. A pop-out
+ * panel window does neither: its host owns the title, the close and open prompts and the window list.
+ */
 export function startWindowing(): void {
+  if (inject(POPOUT_ROUTE)) return;
   void inject(WindowingService).init();
   inject(WindowTitleSync).start();
 }

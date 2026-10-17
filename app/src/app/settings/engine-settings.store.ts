@@ -1,3 +1,4 @@
+import { OverwriteGuard } from '../ui/overwrite-guard';
 import { computed, inject, Injector } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -70,7 +71,7 @@ export const EngineSettingsStore = signalStore(
     dirty: computed(() => store.dirtySections().length > 0),
     current: computed(() => store.sections().find((s) => s.id === store.selected()) ?? null),
   })),
-  withMethods((store, backend = inject(SettingsBackend), injector = inject(Injector)) => {
+  withMethods((store, backend = inject(SettingsBackend), injector = inject(Injector), overwrite = inject(OverwriteGuard)) => {
     const section = (id: string) => store.sections().find((s) => s.id === id);
     const replaceValues = (id: string, values: Record<string, SettingValue>) => {
       const overview = store.overview();
@@ -190,7 +191,7 @@ export const EngineSettingsStore = signalStore(
       keepEditing: () => patchState(store, { confirmDiscard: false }),
       exportTo: (path: string) =>
         run(async () => {
-          await backend.exportTo(path);
+          if ((await overwrite.write(path, (replace) => backend.exportTo(path, replace))) === null) return;
           patchState(store, { notice: `Settings exported to ${path}.` });
         }),
       importFrom: (path: string) =>

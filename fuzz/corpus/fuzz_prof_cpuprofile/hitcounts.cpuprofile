@@ -1,0 +1,1 @@
+{"nodes":[{"id":1,"callFrame":{"functionName":"a","url":"x.js"},"hitCount":4,"children":[2]},{"id":2,"callFrame":{"functionName":"b"},"hitCount":1}]}

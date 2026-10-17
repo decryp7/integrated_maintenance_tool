@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MyImtPlugin/MyImtPlugin.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MyImtPlugin.Tests/MyImtPlugin.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -4,6 +4,12 @@ import { FieldFilter, Query, RecordView, WorkspaceSummary } from '../core/api.ty
 /** Where a new view opens when the user has not placed it yet. */
 export type ViewPosition = 'center' | 'right' | 'bottom';
 
+/**
+ * Where a view is listed in the View menu: `core` views at the top level, the others in a submenu of that name.
+ * Views without a category are plugin views and land in View ▸ Plugins (grouped by `plugin`).
+ */
+export type ViewCategory = 'core' | 'Analysis' | 'Live' | 'Profiling' | 'Tools' | 'Sharing' | 'Diagnostics' | 'Plugins' | 'AI';
+
 /** A dockable panel contributed by a plugin (or built in). */
 export interface ImtView {
   /** Unique, stable id (also the dock panel id and the key in saved layouts). */
@@ -14,8 +20,27 @@ export interface ImtView {
   /** Lazily loads the standalone component rendered inside the panel. */
   component: () => Promise<Type<unknown>>;
   defaultPosition?: ViewPosition;
+  /** Its place in the View menu (see `ViewCategory`). Defaults to the Plugins submenu. */
+  category?: ViewCategory;
+  /** Name of the plugin that contributes the view; groups plugin views in View ▸ Plugins. */
+  plugin?: string;
+  /**
+   * `'palette'`: a granular view reached from inside another view; it is left out of the View menu but still offered
+   * by the palette and View ▸ Other windows…. Defaults to listed.
+   */
+  menu?: 'palette';
   /** The view is offered (View menu, palette) only while this returns true. Defaults to always. */
   when?: (summary: WorkspaceSummary) => boolean;
+  /**
+   * Opens the view (in the background) when `when` starts to hold, e.g. a viewer for the kind of file just opened.
+   * Without it, a view with `when` is only offered and opens on demand. It is always closed when `when` stops holding.
+   */
+  autoOpen?: boolean;
+  /**
+   * Like `when`, for a feature that may be absent (its engine plugin is disabled, or the app runs in safe mode): the
+   * view is offered only while this returns true, but it is never opened or closed automatically. Defaults to always.
+   */
+  enabled?: () => boolean;
 }
 
 /** The only handle plugins get on the app; deliberately small (see `ImtEvents` for reading state). */

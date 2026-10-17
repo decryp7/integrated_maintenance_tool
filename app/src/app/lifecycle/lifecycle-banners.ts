@@ -3,12 +3,14 @@ import { Icon } from '../shared/icon';
 import { ProjectService } from '../projects/project.service';
 import { baseName } from '../tools/tool-errors';
 import { LifecycleService } from './lifecycle.service';
+import { BundleBanner } from '../share/bundle/bundle-banner';
+import { RedactionBanner } from '../share/redaction/redaction-banner';
 
 /** Banners under the title bar: safe mode, crash recovery and project paths that were not found. */
 @Component({
   selector: 'imt-lifecycle-banners',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, BundleBanner, RedactionBanner],
   host: { style: 'display: contents' },
   template: `
     @if (life.safeMode()) {
@@ -34,6 +36,8 @@ import { LifecycleService } from './lifecycle.service';
         <button type="button" class="btn ghost" (click)="projects.dismissMissing()">Dismiss</button>
       </div>
     }
+    <imt-bundle-banner />
+    <imt-redaction-banner />
   `,
   styles: `
     .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); }

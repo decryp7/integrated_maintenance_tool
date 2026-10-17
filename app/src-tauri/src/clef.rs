@@ -10,6 +10,10 @@ pub struct Enrichment {
     pub application: &'static str,
     pub version: &'static str,
     pub process_id: u32,
+    /// Build commit, OS and the run's session id, so a log or report can be matched to the exact code.
+    pub commit: &'static str,
+    pub os: &'static str,
+    pub session_id: &'static str,
 }
 
 impl Enrichment {
@@ -18,6 +22,9 @@ impl Enrichment {
             application: "IMT",
             version: env!("CARGO_PKG_VERSION"),
             process_id: std::process::id(),
+            commit: crate::activity::build_commit(),
+            os: std::env::consts::OS,
+            session_id: crate::activity::session_id(),
         }
     }
 }
@@ -35,10 +42,25 @@ pub fn format(time: DateTime<Utc>, record: &log::Record, message: &str, enrich: 
     event.insert("Application".into(), Value::from(enrich.application));
     event.insert("Version".into(), Value::from(enrich.version));
     event.insert("ProcessId".into(), Value::from(enrich.process_id));
+    event.insert("Commit".into(), Value::from(enrich.commit));
+    event.insert("Os".into(), Value::from(enrich.os));
+    event.insert("SessionId".into(), Value::from(enrich.session_id));
 
     let mut props = Props(Map::new());
     let _ = record.key_values().visit(&mut props);
     for (k, v) in props.0 {
+        // `Severity = "Fatal"` raises the level beyond what the `log` crate has (crashes).
+        if k == "Severity" {
+            if let Some(level) = v.as_str().filter(|l| *l == "Fatal") {
+                event.insert("@l".into(), Value::from(level));
+                continue;
+            }
+        }
+        // A message template (`User {Operation} via {Trigger}`) becomes CLEF's `@mt`, next to the rendered `@m`.
+        if k == "MessageTemplate" {
+            event.insert("@mt".into(), v);
+            continue;
+        }
         // Keys starting with '@' are reserved by CLEF and escaped as '@@'.
         let k = if k.starts_with('@') { format!("@{k}") } else { k };
         event.insert(k, v);
@@ -84,6 +106,9 @@ mod tests {
             application: "IMT",
             version: "1.2.3",
             process_id: 42,
+            commit: "abc1234",
+            os: "macos",
+            session_id: "0123456789abcdef",
         }
     }
 
@@ -149,6 +174,38 @@ mod tests {
             .args(format_args!("m"))
             .build();
         assert_eq!(parse(&format(t, &r, "m", &enrich()))["SourceContext"], "ui.timeline");
+        let e = parse(&format(t, &r, "m", &enrich()));
+        assert_eq!(
+            (e["Commit"].clone(), e["Os"].clone(), e["SessionId"].clone()),
+            ("abc1234".into(), "macos".into(), "0123456789abcdef".into())
+        );
+        // Fatal severity and message templates.
+        let kvs: &[(&str, &str)] = &[
+            ("Severity", "Fatal"),
+            ("MessageTemplate", "User {Operation} via {Trigger}"),
+            ("Operation", "x"),
+        ];
+        let r = log::Record::builder()
+            .level(log::Level::Error)
+            .target("t")
+            .key_values(&kvs)
+            .args(format_args!("m"))
+            .build();
+        let e = parse(&format(t, &r, "User x via menu", &enrich()));
+        assert_eq!(
+            (e["@l"].clone(), e["@mt"].clone()),
+            ("Fatal".into(), "User {Operation} via {Trigger}".into())
+        );
+        assert!(!e.contains_key("Severity") && !e.contains_key("MessageTemplate"));
+        let kvs: &[(&str, &str)] = &[("Severity", "Minor")];
+        let r = log::Record::builder()
+            .level(log::Level::Warn)
+            .target("t")
+            .key_values(&kvs)
+            .args(format_args!("m"))
+            .build();
+        let e = parse(&format(t, &r, "m", &enrich()));
+        assert_eq!((e["@l"].clone(), e["Severity"].clone()), ("Warning".into(), "Minor".into()));
         assert_eq!(Enrichment::current().application, "IMT");
     }
 }

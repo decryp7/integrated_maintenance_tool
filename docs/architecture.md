@@ -16,6 +16,43 @@ text. The C4 container and engine component diagrams show the new modules; the U
 and the UML diagrams (for example `uml-seq-plugin-registration`, `uml-state-live-tail`) do not cover
 them yet.
 
+## Crates
+
+| Crate | Kind | Responsibility |
+|---|---|---|
+| `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `LogStore`, `Importer`, `ReportRenderer`, `ConfigParser`, tools. |
+| `imt-profile` | library, pure (no I/O, no `imt-core`) | The profiling engine: profile and heap-snapshot model, builders with limits, the `CaptureImporter` and `ProfileStore` ports with the in-memory `Captures` store, and every profiling view (hotspots, trees, butterfly, flame, diff, threads, findings, moment, heap analysis). See [profiling.md](profiling.md). |
+| `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) contributed to the `profiling.importers` extension point. |
+| `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, diagnostics collector, elevation; the `CounterSource` service (PDH on Windows, `sysinfo` elsewhere). |
+| `imt-api-perf` | plugin API | The `CounterSource` service trait and its contract tests. |
+| `imt-monitor` | library + CLI | Process sampling (and Windows PDH counters) into rolling CLEF files. |
+| `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
+| `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
+| `imt-pdf` | adapter | PDF output for incident reports, implementing `imt-core`'s `ReportRenderer` port, with embedded font subsets ([ADR 0007](adr/0007-reports-pdf-and-redaction.md)). |
+| `imt-plugin-registry`, `-windows`, `-web`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. |
+| `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
+
+The engine modules added for sharing and analysis are `redact/` (one redactor for the redacted
+view, exports, reports and bundles), `report/` (versioned report model, Markdown and HTML),
+`dashboard.rs`, `bundle.rs` (`.imtz` read and write with archive limits and hashes), `svg.rs`
+(SVG sanitiser), `skew/` ([ADR 0006](adr/0006-clock-skew-applied-on-load.md)), `config/`
+(configuration trees, parsers and diff), `templates.rs`, `ql/suggest.rs` ("did you mean") and
+`overwrite.rs` (no silent overwrite). The workspace exposes them through `workspace/*.rs` and the
+`LogStore` trait; the shell adds `share.rs`, `skew_commands.rs`, `config_diff.rs`,
+`agent_commands.rs`, `profiling.rs` and `demo.rs`.
+
+## Architecture decisions
+
+| ADR | Decision |
+|---|---|
+| [0001](adr/0001-architecture.md) | Desktop architecture: Rust engine, Tauri shell, Angular UI. |
+| [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. |
+| [0003](adr/0003-plugin-dependencies-services-events.md) | Plugin dependencies, services, extension points and events. |
+| [0004](adr/0004-stable-plugin-abi.md) | Stable plugin ABI: WIT for WebAssembly, protobuf for processes. |
+| [0005](adr/0005-headless-agent.md) | Headless collection agent (`imt-agent`). |
+| [0006](adr/0006-clock-skew-applied-on-load.md) | Clock-skew offsets are applied when records enter the workspace. |
+| [0007](adr/0007-reports-pdf-and-redaction.md) | Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor. |
+
 ## Plugin runtime (ADR 0003)
 
 Code lives in `crates/imt-core/src/plugin/` and `crates/imt-core/src/events.rs`; the extension guide is
@@ -112,7 +149,7 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 |---|---|
 | [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: log-producing applications, Windows Performance Monitor, Windows event log / msinfo32 / registry, Gitea, and the planned Seq/Elastic/Loki and opt-in Claude API. |
 | [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units: Angular UI in the webview, the Tauri shell (one workspace per window, window manager, single instance, tray, background tasks, notifications, lifecycle), `imt-core`, the plugin crates, the `imt-monitor` and `imt-collect` CLIs, and the files they exchange (logs, `.imtproj`, `.imtz`, CLEF output, the app log). |
-| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators. |
+| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators; the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`, templates / did-you-mean / overwrite); and the crates around the core: `imt-pdf`, `imt-agent`, `imt-profile` and the plugin crates (including the tools and profiling plugins). |
 | [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders of the Angular app: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views, extension tokens, docking, logger; plus the in-progress panels. |
 
 ## UML

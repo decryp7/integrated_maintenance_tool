@@ -1,5 +1,5 @@
 import { Type } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { DialogService } from '../ui/dialog.service';
 import { PaletteService } from '../palette/palette.service';
@@ -18,6 +18,9 @@ import { memoryHost, MockWindowingBackend } from '../windowing/mock-windowing-ba
 import { WindowCommands } from '../windowing/window-commands';
 import { WindowingBackend } from '../windowing/windowing-backend';
 import { WindowingService } from '../windowing/windowing.service';
+import { MENU_MODE } from './menu/app-menu.service';
+import { NATIVE_MENU_PORT, NativeMenuPort } from './menu/native-menu';
+import { NativeMenuModel } from './menu/native-menu.types';
 
 const DROP_DEBUG_PROFILE = `name = "p"\n[[pipeline]]\nstep = "drop"\nwhen = [{ field = "@level", op = "eq", value = "Debug" }]\n`;
 
@@ -37,59 +40,62 @@ function setup<T>(cmp: Type<T>, backend = tinyBackend()) {
 }
 
 describe('TitleBar', () => {
+  /** Menu items (menubar and open menus, which CDK renders in an overlay) by their label. */
+  const menuItem = (label: string): HTMLElement => {
+    const found = [...document.querySelectorAll<HTMLElement>('[role=menuitem], [role=menuitemcheckbox]')].find(
+      (e) => (e.querySelector('.label')?.textContent ?? e.textContent)?.trim() === label,
+    );
+    if (!found) throw new Error(`No menu item "${label}"`);
+    return found;
+  };
+  /** Opens the menus along the path and chooses its last item. */
+  const choose = async (fixture: ComponentFixture<unknown>, ...path: string[]) => {
+    for (const label of path) {
+      menuItem(label).click();
+      await settle(fixture);
+    }
+  };
+
   it('runs menu commands', async () => {
     const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
     expect(text(fixture)).toContain('Indexed');
-    const menu = (label: string, item: string) => {
-      buttonByText(fixture, label).click();
-      fixture.detectChanges();
-      buttonByText(fixture, new RegExp('^[✓\\u2003\\s]*' + item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).click();
-      fixture.detectChanges();
-    };
-    menu('View', 'Toggle sidebar');
+    await choose(fixture, 'View', 'Explorer');
     expect(store.sidebarOpen()).toBe(false);
-    menu('View', 'Metrics');
+    await choose(fixture, 'View', 'Metrics');
     expect(dock.calls).toContain('toggle:metrics');
-    menu('View', 'Inspector');
+    await choose(fixture, 'View', 'Inspector');
     expect(dock.calls).toContain('toggle:inspector');
-    menu('View', 'Reset layout');
-    expect(dock.calls).toContain('reset');
-    menu('View', 'Theme: light');
+    await choose(fixture, 'View', 'Theme', 'Light');
     expect(store.theme()).toBe('light');
-    menu('View', 'Theme: dark');
-    menu('View', 'Theme: system');
-    menu('Analyze', 'Marked events only');
+    await choose(fixture, 'View', 'Theme', 'System');
+    expect(store.theme()).toBe('system');
+    await choose(fixture, 'Analyze', 'Marked events only');
     expect(store.markedOnly()).toBe(true);
-    menu('Analyze', 'Clear all filters');
+    await choose(fixture, 'Analyze', 'Clear all filters');
     expect(store.markedOnly()).toBe(false);
-    menu('Analyze', 'Time in local zone');
+    await choose(fixture, 'Analyze', 'Time zone', 'Local');
     expect(store.timezone()).toBe('local');
-    menu('Analyze', 'Time in UTC');
-    menu('Analyze', 'Search events');
+    await choose(fixture, 'Analyze', 'Time zone', 'UTC');
+    expect(store.timezone()).toBe('utc');
+    await choose(fixture, 'Analyze', 'Search events');
     expect(store.focusSearchNonce()).toBe(1);
     TestBed.inject(TimelineZoom).zoomIn();
-    menu('Analyze', 'Previous time range');
+    await choose(fixture, 'Analyze', 'Previous time range');
     expect(store.hasRange()).toBe(false);
-    menu('Analyze', 'Next time range');
+    await choose(fixture, 'Analyze', 'Next time range');
     expect(store.hasRange()).toBe(true);
-    menu('Analyze', 'Fit time range');
+    await choose(fixture, 'Analyze', 'Fit time range');
     expect(store.hasRange()).toBe(false);
-    menu('Help', 'IMT 0.1.0');
-    menu('File', 'Open files…');
+    await choose(fixture, 'File', 'Open files…');
     await settle(fixture);
     expect(store.summary()?.sources.some((s) => s.path === '/picked/file.log')).toBe(true);
-    menu('File', 'Open folder…');
-    await settle(fixture);
-    menu('File', 'Re-import all');
-    await settle(fixture);
-    menu('File', 'Close workspace');
+    await choose(fixture, 'File', 'Re-import all');
+    await choose(fixture, 'File', 'Close workspace');
     await settle(fixture);
     expect(store.summary()?.total).toBe(0);
-    buttonByText(fixture, 'File').click();
-    buttonByText(fixture, 'File').click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.dropdown')).toBeNull();
+    // Choosing an item closes the menus.
+    expect(document.querySelector('.menu')).toBeNull();
   });
 
   it('focuses search with / unless typing, and opens it from the palette', async () => {
@@ -106,19 +112,24 @@ describe('TitleBar', () => {
     expect(TestBed.inject(PaletteService).isOpen()).toBe(true);
   });
 
-  it('lists panels as checkable menu items reflecting the dock', async () => {
+  it('lists the core views as checkable items at the top of View, and the rest in category submenus', async () => {
     const { fixture, dock } = setup(TitleBar);
     await settle(fixture);
-    buttonByText(fixture, 'View').click();
-    fixture.detectChanges();
-    const items = all<HTMLButtonElement>(fixture, '[role=menuitemcheckbox]');
-    expect(items.map((i) => i.textContent?.replace(/[✓\u2003\s]+/g, ' ').trim())).toEqual(['Timeline', 'Events', 'Inspector', 'Metrics', 'Profile', 'Plugins']);
-    expect(items[0].getAttribute('aria-checked')).toBe('true');
-    expect(items[1].getAttribute('aria-checked')).toBe('false');
-    expect(dock.isOpen('timeline')).toBe(true);
+    await choose(fixture, 'View');
+    const view = document.querySelector<HTMLElement>('[role=menu][data-menu=View]')!;
+    const top = [...view.children].filter((e) => e.matches('[role=menuitemcheckbox], [role=menuitem]'));
+    const label = (e: Element) => (e.querySelector('.label')?.textContent ?? '').trim();
+    expect(top.map(label)).toEqual(['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Profile editor', 'Plugins', 'Other windows…', 'Theme']);
+    expect(menuItem('Timeline').getAttribute('aria-checked')).toBe('true');
+    expect(menuItem('Events').getAttribute('aria-checked')).toBe('false');
+    expect(menuItem('Plugins').getAttribute('aria-haspopup')).toBe('menu');
+    await choose(fixture, 'Plugins', 'Manage plugins');
+    expect(dock.calls).toContain('toggle:plugins');
+    await choose(fixture, 'View', 'Other windows…');
+    expect(TestBed.inject(PaletteService).mode()).toBe('views');
   });
 
-  it('has a Window menu with new/close and one checkable item per window', async () => {
+  it('has a Window menu with one checkable item per window; New and Close window are in File', async () => {
     const windowing = new MockWindowingBackend(memoryHost());
     TestBed.configureTestingModule({
       providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: IMT_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
@@ -126,22 +137,48 @@ describe('TitleBar', () => {
     const { fixture } = setup(TitleBar);
     await TestBed.inject(WindowingService).init();
     await settle(fixture);
-    buttonByText(fixture, 'File').click();
-    await settle(fixture);
-    expect(all(fixture, '[role=menuitem]')[0].textContent).toContain('New window');
-    buttonByText(fixture, 'Window').click();
-    await settle(fixture);
-    expect(all(fixture, '[role=menuitem]').map((i) => i.textContent?.trim().split(/\s{2,}|Ctrl|⌘/)[0].trim())).toEqual(['New window', 'Close window']);
-    all<HTMLButtonElement>(fixture, '[role=menuitem]')[0].click();
-    await settle(fixture);
-    buttonByText(fixture, 'Window').click();
-    await settle(fixture);
-    const items = all<HTMLButtonElement>(fixture, '[role=menuitemcheckbox]');
+    await choose(fixture, 'File');
+    expect(menuItem('New window')).toBeTruthy();
+    expect(menuItem('Close window')).toBeTruthy();
+    await choose(fixture, 'New window');
+    await choose(fixture, 'Window');
+    const items = [...document.querySelectorAll<HTMLElement>('[role=menuitemcheckbox]')];
     expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
     expect(items[1].textContent).toContain('IMT — w-2');
     items[1].click();
     await settle(fixture);
     expect(windowing.calls).toEqual(['newWindow', 'focusWindow:w-2']);
+  });
+
+  it('hides the in-app menu bar in native mode (macOS) and mirrors the menus to the native menu bar', async () => {
+    const sent: NativeMenuModel[] = [];
+    let chosen: (id: string) => void = () => undefined;
+    const port: NativeMenuPort = {
+      setAppMenu: async (m) => void sent.push(m),
+      onMenu: async (h) => {
+        chosen = h;
+        return () => undefined;
+      },
+    };
+    TestBed.configureTestingModule({ providers: [{ provide: MENU_MODE, useValue: 'native' }, { provide: NATIVE_MENU_PORT, useValue: port }] });
+    const { fixture, dock } = setup(TitleBar);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('imt-menu-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role=menubar]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.palette')).not.toBeNull();
+    expect(sent.length).toBe(1);
+    expect(sent[0].menus.map((m) => m.id)).toEqual(['app', 'file', 'view', 'analyze', 'help']);
+    expect(JSON.stringify(sent[0].menus[0])).toContain('settings.open');
+    // About and Settings are in the app menu only.
+    expect(JSON.stringify(sent[0].menus.find((m) => m.id === 'help'))).not.toContain('help.about');
+    chosen('view:metrics');
+    expect(dock.calls).toContain('toggle:metrics');
+    // Unchanged menus are not sent again; a change is.
+    TestBed.inject(WorkspaceStore).setTheme('dark');
+    await settle(fixture);
+    expect(sent.length).toBe(2);
+    await settle(fixture);
+    expect(sent.length).toBe(2);
   });
 
   it('runs key-bound commands from the keyboard', async () => {

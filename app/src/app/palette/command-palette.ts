@@ -1,8 +1,12 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild } from '@angular/core';
 import { CommandRegistry } from '../extensions/command-registry';
+import { DockService } from '../dock/dock.service';
+import { fuzzyFilter } from '../extensions/fuzzy';
+import { ViewRegistry } from '../extensions/view-registry';
 import { formatKeybinding } from '../extensions/keybinding';
 import { ImtCommand } from '../extensions/tokens';
 import { PaletteService } from './palette.service';
+import { didYouMean } from './did-you-mean';
 
 let nextId = 0;
 
@@ -13,25 +17,28 @@ let nextId = 0;
   template: `
     @if (palette.isOpen()) {
       <div class="backdrop" (mousedown)="close()"></div>
-      <div class="box" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="box" role="dialog" aria-modal="true" [attr.aria-label]="views() ? 'Other windows' : 'Command palette'">
         <input
           #input
           class="input"
           role="combobox"
-          aria-label="Type a command"
+          [attr.aria-label]="views() ? 'Type a window name' : 'Type a command'"
           aria-autocomplete="list"
           aria-expanded="true"
           [attr.aria-controls]="listId"
           [attr.aria-activedescendant]="activeId()"
-          placeholder="Type a command…"
+          [placeholder]="views() ? 'Type a window name…' : 'Type a command…'"
           autocomplete="off"
           spellcheck="false"
           [value]="query()"
           (input)="onInput($any($event.target).value)"
           (keydown)="onKey($event)"
         />
-        <ul class="list" role="listbox" aria-label="Commands" [id]="listId">
-          @for (c of results(); track c.id; let i = $index) {
+        <ul class="list" role="listbox" [attr.aria-label]="views() ? 'Windows' : suggesting() ? 'Suggested commands' : 'Commands'" [id]="listId">
+          @if (suggesting()) {
+            <li class="none" role="presentation" data-testid="palette-did-you-mean">No commands match “{{ query() }}”. Did you mean:</li>
+          }
+          @for (c of options(); track c.id; let i = $index) {
             <li
               role="option"
               class="opt"
@@ -46,7 +53,7 @@ let nextId = 0;
               @if (c.keybinding) { <kbd class="kbd">{{ hint(c) }}</kbd> }
             </li>
           } @empty {
-            <li class="none" role="presentation">No matching commands</li>
+            <li class="none" role="presentation">{{ views() ? 'No matching windows' : 'No matching commands' }}</li>
           }
         </ul>
       </div>
@@ -68,26 +75,46 @@ let nextId = 0;
 export class CommandPalette {
   protected readonly palette = inject(PaletteService);
   private readonly registry = inject(CommandRegistry);
+  private readonly viewRegistry = inject(ViewRegistry);
   private readonly injector = inject(Injector);
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
 
   protected readonly listId = `imt-palette-list-${nextId++}`;
   protected readonly query = signal('');
   protected readonly index = signal(0);
-  protected readonly results = computed(() => this.registry.search(this.query()));
-  protected readonly activeId = computed(() => (this.results().length ? this.optionId(this.index()) : null));
+  /** Listing only the views (View ▸ Other windows…), each shown as an entry that opens it. */
+  protected readonly views = computed(() => this.palette.mode() === 'views');
+  private readonly viewEntries = computed<ImtCommand[]>(() =>
+    this.viewRegistry.available().map((v) => ({ id: `view:${v.id}`, title: v.title, category: v.category === 'core' ? 'View' : (v.category ?? 'Plugins'), run: () => this.injector.get(DockService).show(v.id) })),
+  );
+  protected readonly results = computed(() =>
+    this.views() ? fuzzyFilter(this.viewEntries(), this.query(), (c) => `${c.category}: ${c.title}`) : this.registry.search(this.query()),
+  );
+  /** Typo-tolerant suggestions, only when nothing matches. */
+  protected readonly suggestions = computed(() =>
+    this.results().length || this.views() || !this.query().trim() ? [] : didYouMean(this.registry.available(), this.query(), (c) => (c.category ? `${c.category} ${c.title}` : c.title)),
+  );
+  protected readonly suggesting = computed(() => this.suggestions().length > 0);
+  /** What the list shows and the keyboard moves through: the matches, else the suggestions. */
+  protected readonly options = computed(() => (this.results().length ? this.results() : this.suggestions()));
+  protected readonly activeId = computed(() => (this.options().length ? this.optionId(this.index()) : null));
   private returnFocus: HTMLElement | null = null;
 
   constructor() {
+    let wasOpen = false;
     effect(() => {
-      if (this.palette.isOpen()) {
+      const open = this.palette.isOpen();
+      // Switching between commands and windows while open starts a new search too.
+      this.palette.mode();
+      if (open) {
         untracked(() => {
-          this.returnFocus = document.activeElement as HTMLElement | null;
+          if (!wasOpen) this.returnFocus = document.activeElement as HTMLElement | null;
           this.query.set('');
           this.index.set(0);
         });
         afterNextRender(() => this.input()?.nativeElement.focus(), { injector: this.injector });
       }
+      wasOpen = open;
     });
   }
 
@@ -105,7 +132,7 @@ export class CommandPalette {
   }
 
   protected onKey(e: KeyboardEvent): void {
-    const n = this.results().length;
+    const n = this.options().length;
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -117,7 +144,7 @@ export class CommandPalette {
         break;
       case 'Enter': {
         e.preventDefault();
-        const c = this.results()[this.index()];
+        const c = this.options()[this.index()];
         if (c) this.run(c);
         break;
       }
@@ -140,6 +167,7 @@ export class CommandPalette {
   protected run(c: ImtCommand): void {
     this.palette.close();
     this.returnFocus = null;
-    void this.registry.run(c.id);
+    if (this.views()) this.injector.get(DockService).show(c.id.slice('view:'.length));
+    else void this.registry.run(c.id, 'palette');
   }
 }

@@ -3,11 +3,12 @@ import { formatCount, tzLabel } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
 import { BackgroundWork } from '../windowing/background-work';
+import { ImportStatus } from '../import/import-ui';
 
 @Component({
   selector: 'imt-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BackgroundWork],
+  imports: [BackgroundWork, ImportStatus],
   template: `
     @if (store.summary(); as s) {
       <span class="strong">{{ s.sources.length }} source{{ s.sources.length === 1 ? '' : 's' }}</span>
@@ -24,6 +25,7 @@ import { BackgroundWork } from '../windowing/background-work';
       <span>No workspace</span>
     }
     <span class="spacer"></span>
+    <imt-import-status />
     <button
       type="button"
       class="live"

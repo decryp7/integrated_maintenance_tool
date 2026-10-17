@@ -77,7 +77,7 @@ mod platform {
         // SAFETY: the handle is valid while `file` lives and `info` is a
         // properly sized, writable BY_HANDLE_FILE_INFORMATION.
         let ok = unsafe { GetFileInformationByHandle(file.as_raw_handle().cast(), &mut info) };
-        (ok != 0).then(|| FileIdentity {
+        (ok != 0).then_some(FileIdentity {
             device: info.volume_serial as u64,
             index: ((info.index_high as u64) << 32) | info.index_low as u64,
         })

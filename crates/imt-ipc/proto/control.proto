@@ -1,0 +1,28 @@
+// The control service every IMT child process (worker or plugin host) serves next to its own service:
+// a health check the supervisor polls and a polite shutdown. Like every call to a child, both require the
+// per-launch token (metadata `x-imt-token`).
+syntax = "proto3";
+
+package imt.ipc.v1;
+
+service Control {
+  // Liveness and resource use; the supervisor's health check.
+  rpc Status(StatusRequest) returns (StatusReply);
+  // Asks the process to stop serving and exit.
+  rpc Shutdown(ShutdownRequest) returns (ShutdownReply);
+}
+
+message StatusRequest {}
+
+message StatusReply {
+  uint32 pid = 1;
+  // Resident memory in bytes (0 when unknown).
+  uint64 rss_bytes = 2;
+  uint64 uptime_secs = 3;
+  // What the process is, e.g. "imt-plugin-host 0.1.0".
+  string name = 4;
+}
+
+message ShutdownRequest {}
+
+message ShutdownReply {}

@@ -7,6 +7,7 @@ import { LiveTail } from '../workspace/live-tail';
 import { AlertToasts } from './alert-toasts';
 import { AlertsStore } from './alerts.store';
 import { LiveAlerts } from './live-alerts';
+import { LiveAutoOpen } from './live-auto-open';
 import { LiveFeed } from './live-feed';
 import { LiveFollow } from './live-follow.store';
 import { LiveUiState } from './live-ui-state';
@@ -18,6 +19,7 @@ export const LIVE_VIEWS: ImtView[] = [
   {
     id: ALERTS_VIEW,
     title: 'Alerts',
+    category: 'Live',
     icon: 'alert',
     defaultPosition: 'bottom',
     component: () => import('./alerts-view').then((m) => m.AlertsView),
@@ -25,6 +27,7 @@ export const LIVE_VIEWS: ImtView[] = [
   {
     id: TAIL_STATUS_VIEW,
     title: 'Tail status',
+    category: 'Live',
     icon: 'refresh',
     defaultPosition: 'bottom',
     component: () => import('./tail-status-view').then((m) => m.TailStatusView),
@@ -76,6 +79,7 @@ export function startLive(): void {
   const ref = createComponent(AlertToasts, { environmentInjector: injector, hostElement: host });
   inject(ApplicationRef).attachView(ref.hostView);
   inject(LiveFeed);
+  inject(LiveAutoOpen);
   inject(LiveFollow);
   void inject(LiveAlerts).start();
   const alerts = inject(AlertsStore);

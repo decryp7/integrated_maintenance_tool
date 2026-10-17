@@ -34,6 +34,7 @@ export {
   type ImtFieldFormatter,
   type ImtInspectorSection,
   type ImtView,
+  type ViewCategory,
   type ViewPosition,
 } from './tokens';
 export { isViewAvailable, ViewRegistry } from './view-registry';

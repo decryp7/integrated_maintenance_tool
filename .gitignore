@@ -152,3 +152,11 @@ app/.angular/
 app/src-tauri/gen/schemas/
 !samples/**
 !crates/**/tests/fixtures/**
+# AI inference worker sidecar, built by scripts/build-worker.sh
+app/src-tauri/binaries/
+
+# Sample logs that are part of the source tree (the *.log rule above would hide them)
+!crates/imt-core/templates/samples/*.log
+!sdk/dotnet/samples/OrderAudit/data/*.log
+# .NET test output
+sdk/dotnet/TestResults/

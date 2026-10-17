@@ -176,8 +176,15 @@ impl BackgroundTasks {
                 self.remove(id);
                 Ok(())
             }
-            Ok(Err(e)) => Err(e),
-            Err(p) => Err(anyhow::anyhow!("stopping failed: {}", imt_core::guard::panic_message(&*p))),
+            Ok(Err(e)) => {
+                log::error!(Task = id; "Background task could not be stopped: {e:#}");
+                Err(e)
+            }
+            Err(p) => {
+                let message = imt_core::guard::panic_message(&*p);
+                log::error!(Task = id; "Stopping a background task crashed: {message}");
+                Err(anyhow::anyhow!("stopping failed: {message}"))
+            }
         }
     }
 
@@ -191,7 +198,9 @@ impl BackgroundTasks {
         let listeners = self.listeners.lock().unwrap_or_else(|p| p.into_inner()).clone();
         for l in listeners {
             // A failing listener (e.g. the tray is gone) must not break the producer.
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| l(&list)));
+            if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| l(&list))) {
+                log::error!("A background task listener crashed: {}", imt_core::guard::panic_message(&*p));
+            }
         }
     }
 }
@@ -260,6 +269,7 @@ mod tests {
 
     #[test]
     fn stop_runs_the_action_and_contains_failures() {
+        let _g = crate::activity::test_capture();
         let tasks = Arc::new(BackgroundTasks::default());
         let calls = Arc::new(AtomicUsize::new(0));
         let c = calls.clone();
@@ -287,17 +297,38 @@ mod tests {
         assert_eq!(tasks.stop("err").unwrap_err().to_string(), "locked");
         tasks.register(spec("boom", None), Some(Arc::new(|| panic!("kaboom")))).unwrap();
         assert!(tasks.stop("boom").unwrap_err().to_string().contains("kaboom"));
-        // Failed stops keep the task listed.
+        // Failed stops keep the task listed, and are logged.
         assert_eq!(tasks.running(), 3);
+        let logged = crate::activity::captured();
+        let failed = logged
+            .iter()
+            .find(|c| c.message.contains("could not be stopped: locked"))
+            .expect("stop error logged");
+        assert_eq!((failed.level, failed.props["Task"].as_str()), (log::Level::Error, "err"));
+        let crashed = logged
+            .iter()
+            .find(|c| c.message.contains("crashed: kaboom"))
+            .expect("stop crash logged");
+        assert_eq!(crashed.props["Task"], "boom");
     }
 
     #[test]
     fn listeners_that_panic_do_not_break_producers_and_the_size_is_capped() {
         let tasks = BackgroundTasks::default();
+        let _g = crate::activity::test_capture();
         tasks.subscribe(|_| panic!("listener bug"));
         for i in 0..MAX_TASKS {
             tasks.register(spec(&format!("t{i}"), None), None).unwrap();
         }
+        // Logged once, then deduplicated (the activity logger counts the repeats).
+        let logged = crate::activity::captured();
+        assert_eq!(
+            logged
+                .iter()
+                .filter(|c| c.message.contains("listener crashed: listener bug"))
+                .count(),
+            1
+        );
         assert!(tasks.register(spec("one-too-many", None), None).is_err());
         // Replacing an existing one is still fine at the cap.
         tasks.register(spec("t0", None), None).unwrap();

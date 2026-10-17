@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "popout",
+  "description": "extra permissions of pop-out panel windows only: their own title bar (moving the window from it, minimise, maximise, close, resizing from the edges of a frameless window)",
+  "windows": [
+    "p-*"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

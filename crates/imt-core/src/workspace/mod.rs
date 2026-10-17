@@ -1,13 +1,19 @@
 //! The set of opened files and everything the UI asks about them.
 
 mod annotate;
+mod bundle;
 mod chart;
 mod context;
+mod dashboard;
 mod export;
 mod facet;
 mod insights;
 mod page;
 mod preview;
+mod redaction;
+pub use redaction::{RedactionPreviewRequest, RedactionSample, RedactionSummary, RedactionSummaryRequest};
+mod report;
+mod skew;
 mod tail;
 mod timeline;
 
@@ -41,15 +47,44 @@ pub struct ImportProgress {
     running: std::sync::atomic::AtomicBool,
     done: std::sync::atomic::AtomicUsize,
     total: std::sync::atomic::AtomicUsize,
+    bytes_done: std::sync::atomic::AtomicU64,
+    bytes_total: std::sync::atomic::AtomicU64,
+    /// The file being read now, and when the import started (behind a lock: rarely contended).
+    detail: Mutex<ProgressDetail>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Default)]
+struct ProgressDetail {
+    current: Option<String>,
+    started: Option<Instant>,
+    finished_ms: Option<u64>,
+}
+
+/// Reason of the files a cancelled import did not read (listed as unrecognised, re-imported on the next open).
+pub const NOT_IMPORTED: &str = "Not imported: the import was cancelled";
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressSnapshot {
     pub running: bool,
     pub done: usize,
     pub total: usize,
     pub cancelled: bool,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
+    /// Path of the file being read now (`None` between files and after the import).
+    pub current: Option<String>,
+    pub elapsed_ms: u64,
+    /// Estimated time left from the bytes read so far; `None` until it can be estimated.
+    pub eta_ms: Option<u64>,
+}
+
+/// Time left at the observed rate; `None` before anything was read or after the end.
+fn eta(elapsed_ms: u64, done: u64, total: u64) -> Option<u64> {
+    if done == 0 || elapsed_ms == 0 || done >= total {
+        return None;
+    }
+    Some(((total - done) as u128 * elapsed_ms as u128 / done as u128).min(u64::MAX as u128) as u64)
 }
 
 impl ImportProgress {
@@ -60,20 +95,65 @@ impl ImportProgress {
 
     pub fn snapshot(&self) -> ProgressSnapshot {
         use std::sync::atomic::Ordering::SeqCst;
+        let running = self.running.load(SeqCst);
+        let (current, elapsed_ms) = {
+            let d = self.detail();
+            let elapsed = match (d.finished_ms, d.started) {
+                (Some(ms), _) => ms,
+                (None, Some(t)) => t.elapsed().as_millis() as u64,
+                (None, None) => 0,
+            };
+            (d.current.clone(), elapsed)
+        };
+        let (bytes_done, bytes_total) = (self.bytes_done.load(SeqCst), self.bytes_total.load(SeqCst));
         ProgressSnapshot {
-            running: self.running.load(SeqCst),
+            running,
             done: self.done.load(SeqCst),
             total: self.total.load(SeqCst),
             cancelled: self.cancel.load(SeqCst),
+            bytes_done,
+            bytes_total,
+            current: if running { current } else { None },
+            elapsed_ms,
+            eta_ms: if running { eta(elapsed_ms, bytes_done, bytes_total) } else { None },
         }
     }
 
-    fn start(&self, total: usize) {
+    fn detail(&self) -> std::sync::MutexGuard<'_, ProgressDetail> {
+        self.detail.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    fn start(&self, total: usize, bytes: u64) {
         use std::sync::atomic::Ordering::SeqCst;
         self.cancel.store(false, SeqCst);
         self.done.store(0, SeqCst);
         self.total.store(total, SeqCst);
+        self.bytes_done.store(0, SeqCst);
+        self.bytes_total.store(bytes, SeqCst);
+        *self.detail() = ProgressDetail {
+            current: None,
+            started: Some(Instant::now()),
+            finished_ms: None,
+        };
         self.running.store(true, SeqCst);
+    }
+
+    fn reading(&self, path: &Path) {
+        self.detail().current = Some(path.to_string_lossy().into_owned());
+    }
+
+    fn file_done(&self, bytes: u64) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.bytes_done.fetch_add(bytes, SeqCst);
+        self.done.fetch_add(1, SeqCst);
+    }
+
+    fn finish(&self) {
+        let mut d = self.detail();
+        d.current = None;
+        d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
+        drop(d);
+        self.running.store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
     fn is_cancelled(&self) -> bool {
@@ -108,6 +188,10 @@ pub struct Workspace {
     generation: u64,
     /// Live tail: per-file read positions, options, alert state.
     tail: tail::TailBook,
+    /// Clock-skew offsets by source path, applied to timestamps on import.
+    offsets: crate::skew::ClockOffsets,
+    /// The "Redacted view": pages, facets and source context pass through it.
+    view_redaction: Option<Arc<crate::redact::Redactor>>,
 }
 
 impl Workspace {
@@ -149,6 +233,8 @@ impl Workspace {
             field_index: tail::FieldIndex::default(),
             generation: 0,
             tail: tail::TailBook::default(),
+            offsets: crate::skew::ClockOffsets::default(),
+            view_redaction: None,
         })
     }
 
@@ -169,6 +255,8 @@ impl Workspace {
     /// their current end, skipping their history.
     pub fn open_with(&mut self, paths: &[PathBuf], options: &OpenOptions) -> Result<()> {
         let start = Instant::now();
+        // Files a cancelled import did not read are not "known": this open reads them.
+        self.unrecognized.retain(|u| u.reason != NOT_IMPORTED);
         let mut files = Vec::new();
         for p in paths {
             let p = std::fs::canonicalize(p).map_err(|e| anyhow!("{}: {e}", p.display()))?;
@@ -223,6 +311,7 @@ impl Workspace {
     /// Closes everything and notifies hooks.
     pub fn clear(&mut self) {
         self.reset();
+        self.offsets = crate::skew::ClockOffsets::default();
         self.registry.clear_annotations();
         for h in &self.registry.hooks {
             h.on_cleared();
@@ -264,6 +353,7 @@ impl Workspace {
         });
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
         self.profile = Arc::new(compiled);
+        self.refresh_view_redaction()?;
         self.reload()
     }
 
@@ -302,6 +392,7 @@ impl Workspace {
         WorkspaceState {
             roots: self.roots.iter().map(s).collect(),
             removed,
+            offsets: self.offsets.clone(),
         }
     }
 
@@ -314,8 +405,10 @@ impl Workspace {
             name: compiled.profile.name.clone(),
         });
         self.profile = Arc::new(compiled);
+        self.refresh_view_redaction()?;
         self.reset();
         self.removed = state.removed.iter().map(PathBuf::from).collect();
+        self.offsets = state.offsets.clone().sanitized();
         let (present, missing): (Vec<&String>, Vec<&String>) = state
             .roots
             .iter()
@@ -381,42 +474,46 @@ impl Workspace {
     /// workspace) and the new source ids.
     fn import_files(&mut self, files: Vec<PathBuf>) -> (Vec<Record>, Vec<u32>) {
         let progress = self.progress.clone();
-        progress.start(files.len());
         let profile = self.profile.clone();
         let importers = &self.registry.importers;
-        let named: Vec<(PathBuf, String)> = files
+        let named: Vec<(PathBuf, String, u64)> = files
             .into_iter()
             .map(|p| {
                 let name = display_name(&p, &self.roots);
-                (p, name)
+                let size = std::fs::metadata(&p).map_or(0, |m| m.len());
+                (p, name, size)
             })
             .collect();
+        progress.start(named.len(), named.iter().map(|f| f.2).sum());
         let removed = &self.removed;
         let results: Vec<(String, String, ImportResult)> = named
             .into_par_iter()
-            .flat_map_iter(|(path, name)| {
-                // Cancelled: skip the remaining files (they are simply not added).
+            .flat_map_iter(|(path, name, size)| {
+                // Cancelled: the remaining files are listed as not imported (the next open reads them).
                 let out = if progress.is_cancelled() {
-                    Vec::new()
+                    vec![(path.to_string_lossy().into_owned(), name, Err(NOT_IMPORTED.to_string()))]
                 } else {
+                    progress.reading(&path);
                     import_file(importers, &profile, &path, &name, removed)
                 };
-                progress.done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                progress.file_done(size);
                 out
             })
             .collect();
-        progress.running.store(false, std::sync::atomic::Ordering::SeqCst);
+        progress.finish();
 
         let mut records = Vec::new();
         let mut added = Vec::new();
         for (path_s, name, result) in results {
             match result {
-                Ok(loaded) => {
+                Ok(mut loaded) => {
+                    let offset = self.apply_offset(&path_s, &mut loaded.imported.records);
                     let id = self.add_source(path_s, name, loaded.importer, loaded.imported.skipped, loaded.stats);
                     let (from, to) = time_range(&loaded.imported.records);
                     if let Some(s) = self.sources.last_mut() {
                         s.records = loaded.imported.records.len();
                         (s.from, s.to) = (from, to);
+                        s.offset_ms = offset;
                     }
                     if let Some(seed) = loaded.seed {
                         let path = PathBuf::from(&self.sources[self.sources.len() - 1].path);
@@ -430,7 +527,9 @@ impl Workspace {
                     added.push(id);
                 }
                 Err(reason) => {
-                    self.tail.remember_unrecognized(source_file(&path_s));
+                    if reason != NOT_IMPORTED {
+                        self.tail.remember_unrecognized(source_file(&path_s));
+                    }
                     self.unrecognized.push(UnrecognizedFile {
                         path: path_s,
                         name,
@@ -469,6 +568,7 @@ impl Workspace {
             error: None,
             from: None,
             to: None,
+            offset_ms: 0,
         });
         id
     }
@@ -626,6 +726,8 @@ impl Workspace {
                     extension: e.extension().into(),
                 })
                 .collect(),
+            dashboards: self.profile.profile.dashboard.clone(),
+            redacted_view: self.view_redaction.is_some(),
         }
     }
 
@@ -869,5 +971,36 @@ fn explicit_name(path: &Path) -> String {
     match path.parent().and_then(Path::file_name) {
         Some(dir) => format!("{}/{file}", dir.to_string_lossy()),
         None => file,
+    }
+}
+
+#[cfg(test)]
+mod progress_tests {
+    use super::*;
+
+    #[test]
+    fn eta_follows_the_byte_rate() {
+        assert_eq!(eta(1000, 0, 100), None, "nothing read yet");
+        assert_eq!(eta(0, 10, 100), None);
+        assert_eq!(eta(1000, 100, 100), None, "finished");
+        assert_eq!(eta(1000, 25, 100), Some(3000));
+    }
+
+    #[test]
+    fn a_running_import_reports_the_file_in_flight() {
+        let p = ImportProgress::default();
+        let idle = p.snapshot();
+        assert_eq!((idle.running, idle.elapsed_ms, idle.current), (false, 0, None));
+        p.start(4, 400);
+        p.reading(Path::new("/logs/a.log"));
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        p.file_done(100);
+        let s = p.snapshot();
+        assert!(s.running && s.done == 1 && s.bytes_done == 100 && s.bytes_total == 400);
+        assert_eq!(s.current.as_deref(), Some("/logs/a.log"));
+        assert!(s.elapsed_ms >= 5 && s.eta_ms.is_some());
+        p.finish();
+        let s = p.snapshot();
+        assert!(!s.running && s.current.is_none() && s.eta_ms.is_none() && s.elapsed_ms >= 5);
     }
 }

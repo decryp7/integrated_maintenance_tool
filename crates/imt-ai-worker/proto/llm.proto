@@ -1,0 +1,102 @@
+// The IMT inference worker's service. IMT (the supervisor) is the client; the worker is the server. It
+// listens on a local socket only (a Unix domain socket in a private 0700 directory, or a named pipe that
+// only the current user can open) and every call carries the per-launch token in the `x-imt-token`
+// metadata. The generated code is built by `crates/imt-ai/build.rs` with `protox` (pure Rust, no protoc).
+//
+// Errors use gRPC status codes; the worker's typed error (code, message, data) travels as JSON in the
+// binary trailer `x-imt-error-bin`.
+syntax = "proto3";
+
+package imt.ai.v1;
+
+service Worker {
+  // Version handshake. Must be the first call.
+  rpc Hello(HelloRequest) returns (HelloReply);
+  // Loads a GGUF model (replacing any loaded model). GPU initialisation failures are reported as errors.
+  rpc Load(LoadRequest) returns (LoadReply);
+  // Generates text for an already rendered prompt; token deltas stream back, then one Done event.
+  rpc Chat(ChatRequest) returns (stream ChatEvent);
+  // Stops the running Chat with this request id between tokens.
+  rpc Cancel(CancelRequest) returns (Empty);
+  rpc Unload(Empty) returns (Empty);
+  // Health and memory use.
+  rpc Status(Empty) returns (StatusReply);
+  // Ends the worker process.
+  rpc Shutdown(Empty) returns (Empty);
+}
+
+message Empty {}
+
+message HelloRequest {
+  uint32 protocol_version = 1;
+  string client = 2;
+}
+
+message HelloReply {
+  uint32 protocol_version = 1;
+  string worker_version = 2;
+  uint32 pid = 3;
+}
+
+message LoadRequest {
+  string model_path = 1;
+  // -1 decide from the free GPU memory, 0 CPU only, n layers on the GPU.
+  int32 gpu_layers = 2;
+  uint64 context = 3;
+  // 0 = automatic.
+  uint32 threads = 4;
+}
+
+message LoadReply {
+  // "Metal", "Vulkan", "CUDA" or "CPU".
+  string backend = 1;
+  uint64 context = 2;
+  string name = 3;
+  uint64 rss_bytes = 4;
+}
+
+message ChatRequest {
+  // Chosen by the client; Cancel refers to it.
+  uint64 request_id = 1;
+  string prompt = 2;
+  uint64 max_tokens = 3;
+  float temperature = 4;
+  // JSON schema (as text) to constrain the output; empty = unconstrained.
+  string json_schema = 5;
+}
+
+message ChatEvent {
+  oneof event {
+    Delta delta = 1;
+    Done done = 2;
+  }
+}
+
+message Delta {
+  string text = 1;
+}
+
+enum Finish {
+  FINISH_STOP = 0;
+  FINISH_LENGTH = 1;
+  FINISH_CANCELLED = 2;
+}
+
+message Done {
+  string text = 1;
+  uint64 prompt_tokens = 2;
+  uint64 completion_tokens = 3;
+  Finish finish = 4;
+}
+
+message CancelRequest {
+  uint64 request_id = 1;
+}
+
+message StatusReply {
+  bool loaded = 1;
+  string backend = 2;
+  uint64 rss_bytes = 3;
+  uint32 pid = 4;
+  uint64 uptime_secs = 5;
+}

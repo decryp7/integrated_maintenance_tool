@@ -1,317 +1,445 @@
-//! Commands driving external tooling: Windows Performance Monitor (templates
-//! and `logman` control), the process monitor collector and the diagnostics
-//! collector. Long-running work happens off the UI thread. A running process
-//! monitor and started PerfMon collector sets are listed as background work
-//! (`crate::background`), which the tray can stop.
+//! Generic dispatch of plugin tools (ADR 0002): `tools_list` lists the tools
+//! of the calling window's plugins with their availability, and
+//! `tool_invoke { tool, op, args }` runs one operation. The shell knows no
+//! tool: arguments are validated by the host against the tool's schema, and
+//! the call runs under the plugin's guard and the operation's time budget.
+//!
+//! Background work a tool reports (a running process monitor, a started
+//! collector set, a diagnostics collection) is listed in
+//! [`BackgroundTasks`] (tray, status bar) through [`ShellTasks`]; stopping it
+//! there calls the tool back through the same host.
+//!
+//! The specific commands of earlier versions are thin, deprecated wrappers
+//! in [`crate::tools_compat`].
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
-use crate::{err, AppState, CmdResult, State};
-use imt_core::export::ClefFileSink;
-use imt_core::plugin::Collector;
-use imt_plugin_windows::command::SystemRunner;
-use imt_plugin_windows::perfmon_control::{output_files, PerfmonController};
-use imt_plugin_windows::perfmon_template::{guidance, presets, CollectorTemplate};
-use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use crate::windows::CurrentWindow;
+use crate::{AppState, CmdResult, State};
+use imt_core::plugin::tools::{TaskSink, ToolCtx, ToolEntry, ToolError, ToolHost, ToolTask, MAX_ID_LEN};
+use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tauri::{AppHandle, Manager, Runtime};
 
-/// A running process-monitor session.
-pub struct MonitorSession {
-    stop: Arc<AtomicBool>,
-    thread: std::thread::JoinHandle<anyhow::Result<()>>,
-    pub dir: PathBuf,
+/// Lists background work of tools in [`BackgroundTasks`]; its stop action
+/// calls [`ToolHost::stop`].
+pub(crate) struct ShellTasks<R: Runtime> {
+    app: AppHandle<R>,
+    host: ToolHost,
+    data_dir: Option<PathBuf>,
 }
 
-#[derive(Default)]
-pub struct Tools {
-    pub monitor: Mutex<Option<MonitorSession>>,
-}
-
-/// Counter presets with one line of guidance per counter.
-#[tauri::command]
-pub fn perfmon_presets() -> Value {
-    let list: Vec<Value> = presets()
-        .into_iter()
-        .map(|p| {
-            let counters: Vec<Value> = p.counters.iter().map(|c| json!({ "path": c, "guidance": guidance(c) })).collect();
-            json!({ "id": p.id, "name": p.name, "description": p.description, "counters": counters })
-        })
-        .collect();
-    Value::Array(list)
-}
-
-/// The Data Collector Set XML for a template, plus the matching `logman` commands.
-#[tauri::command]
-pub fn perfmon_generate(template: CollectorTemplate, xml_path: Option<String>) -> CmdResult<Value> {
-    let xml = template.to_xml().map_err(err)?;
-    let path = xml_path.unwrap_or_else(|| format!("{}.xml", template.name));
-    if let Some(dir) = Path::new(&path).parent().filter(|d| !d.as_os_str().is_empty()) {
-        if dir.exists() {
-            std::fs::write(&path, &xml).map_err(err)?;
+impl<R: Runtime> Clone for ShellTasks<R> {
+    fn clone(&self) -> Self {
+        ShellTasks {
+            app: self.app.clone(),
+            host: self.host.clone(),
+            data_dir: self.data_dir.clone(),
         }
     }
-    Ok(json!({ "xml": xml, "path": path, "commands": template.logman_commands(&path) }))
 }
 
-fn controller() -> PerfmonController<SystemRunner> {
-    PerfmonController::new(SystemRunner)
-}
-
-/// Creates (or replaces) the collector set in Performance Monitor from a template.
-#[tauri::command]
-pub async fn perfmon_install(template: CollectorTemplate) -> CmdResult<Value> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let xml = template.to_xml().map_err(err)?;
-        let file = std::env::temp_dir().join(format!("imt-{}.xml", template.name));
-        std::fs::write(&file, xml).map_err(err)?;
-        let c = controller();
-        c.import(&template.name, &file, true).map_err(err)?;
-        let _ = std::fs::remove_file(&file);
-        serde_json::to_value(c.query(&template.name).map_err(err)?).map_err(err)
-    })
-    .await
-    .map_err(err)?
-}
-
-/// `start`, `stop`, `delete` or `query` a collector set; returns its status (null after delete).
-#[tauri::command]
-pub async fn perfmon_control<R: tauri::Runtime>(app: tauri::AppHandle<R>, name: String, action: String) -> CmdResult<Value> {
-    let status = control(name.clone(), action.clone()).await?;
-    if let Some(tasks) = tauri::Manager::try_state::<BackgroundTasks>(&app) {
-        match action.as_str() {
-            "start" => register_perfmon(&tasks, &name),
-            "stop" | "delete" => {
-                tasks.remove(&perfmon_task(&name));
-            }
-            _ => {}
-        }
+impl<R: Runtime> ShellTasks<R> {
+    /// The context a call of `host` gets.
+    pub(crate) fn context(app: &AppHandle<R>, host: &ToolHost) -> ToolCtx {
+        let data_dir = app.path().app_data_dir().ok();
+        let sink = ShellTasks {
+            app: app.clone(),
+            host: host.clone(),
+            data_dir: data_dir.clone(),
+        };
+        ToolCtx::new(data_dir, Arc::new(sink))
     }
-    Ok(status)
-}
 
-fn perfmon_task(name: &str) -> String {
-    format!("perfmon:{name}")
-}
-
-/// Lists a started collector set as background work; stopping runs `logman stop`.
-fn register_perfmon(tasks: &BackgroundTasks, name: &str) {
-    let spec = TaskSpec {
-        id: perfmon_task(name),
-        label: format!("PerfMon collection \u{201c}{name}\u{201d}"),
-        kind: TaskKind::Perfmon,
-        window: None,
-    };
-    let set = name.to_string();
-    let stop = Arc::new(move || controller().stop(&set).map_err(anyhow::Error::from));
-    if let Err(e) = tasks.register(spec, Some(stop)) {
-        log::warn!("could not list PerfMon collection as background work: {e:#}");
+    fn tasks(&self) -> Option<tauri::State<'_, BackgroundTasks>> {
+        self.app.try_state::<BackgroundTasks>()
     }
 }
 
-async fn control(name: String, action: String) -> CmdResult<Value> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let c = controller();
-        match action.as_str() {
-            "start" => c.start(&name).map_err(err)?,
-            "stop" => c.stop(&name).map_err(err)?,
-            "delete" => {
-                c.delete(&name).map_err(err)?;
-                return Ok(Value::Null);
-            }
-            "query" => {}
-            other => return Err(format!("unknown action \"{other}\"")),
-        }
-        serde_json::to_value(c.query(&name).map_err(err)?).map_err(err)
-    })
-    .await
-    .map_err(err)?
-}
-
-/// The `.blg`/`.csv`/`.tsv` files a collector set produced, newest first.
-#[tauri::command]
-pub async fn perfmon_outputs(name: String) -> CmdResult<Vec<String>> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let status = controller().query(&name).map_err(err)?;
-        Ok(output_files(&status)
-            .into_iter()
-            .map(|p| p.to_string_lossy().into_owned())
-            .collect())
-    })
-    .await
-    .map_err(err)?
-}
-
-/// Starts the process monitor with a config (see imt-monitor), writing CLEF
-/// files to `dir` (default: the app's data folder). Returns the folder, which
-/// the UI opens with live tail on.
-#[tauri::command]
-pub fn monitor_start<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    tools: State<'_, Tools>,
-    config: Value,
-    dir: Option<String>,
-) -> CmdResult<String> {
-    use tauri::Manager;
-    let mut slot = tools.monitor.lock().map_err(err)?;
-    if slot.is_some() {
-        return Err("the process monitor is already running".into());
+/// The tray icon of a tool's task kind hint.
+fn task_kind(hint: &str) -> TaskKind {
+    match hint {
+        "process-monitor" => TaskKind::ProcessMonitor,
+        "perfmon" => TaskKind::Perfmon,
+        _ => TaskKind::Other,
     }
-    imt_monitor::config::Config::from_json(&config).map_err(err)?;
-    let dir = match dir {
-        Some(d) => PathBuf::from(d),
-        None => app
-            .path()
-            .app_data_dir()
-            .map_err(err)?
-            .join("monitor")
-            .join(chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string()),
-    };
-    let sink = ClefFileSink::new(&dir, "process-monitor", 10 * 1024 * 1024, 10).map_err(err)?;
-    let stop = Arc::new(AtomicBool::new(false));
-    let flag = stop.clone();
-    let thread = std::thread::spawn(move || imt_monitor::ProcessMonitor.run(&config, &sink, &flag));
-    log::info!("Process monitor started");
-    *slot = Some(MonitorSession {
-        stop,
-        thread,
-        dir: dir.clone(),
-    });
-    drop(slot);
-    if let Some(tasks) = app.try_state::<BackgroundTasks>() {
-        let handle = app.clone();
-        let stop = Arc::new(move || {
-            let tools = handle.try_state::<Tools>().ok_or_else(|| anyhow::anyhow!("IMT is shutting down"))?;
-            stop_monitor(&tools).map(|_| ()).map_err(|e| anyhow::anyhow!(e))
+}
+
+impl<R: Runtime> TaskSink for ShellTasks<R> {
+    fn started(&self, tool: &str, task: &ToolTask) {
+        let Some(tasks) = self.tasks() else { return };
+        let stop: Option<crate::background::StopFn> = task.stoppable.then(|| {
+            let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
+            let stop: crate::background::StopFn = Arc::new(move || {
+                let ctx = ToolCtx::new(sink.data_dir.clone(), Arc::new(sink.clone()));
+                sink.host.stop(&tool, &id, &ctx).map_err(anyhow::Error::from)
+            });
+            stop
         });
         let spec = TaskSpec {
-            id: MONITOR_TASK.into(),
-            label: "Process monitor".into(),
-            kind: TaskKind::ProcessMonitor,
+            id: task.id.clone(),
+            label: task.label.clone(),
+            kind: task_kind(&task.kind),
             window: None,
         };
-        if let Err(e) = tasks.register(spec, Some(stop)) {
-            log::warn!("could not list the process monitor as background work: {e:#}");
+        if let Err(e) = tasks.register(spec, stop) {
+            log::warn!(Tool = tool; "could not list background work: {e:#}");
         }
     }
-    Ok(dir.to_string_lossy().into_owned())
-}
 
-/// Id of the process monitor in the background task registry.
-const MONITOR_TASK: &str = "monitor";
-
-/// Stops the process monitor; returns its folder.
-#[tauri::command]
-pub fn monitor_stop<R: tauri::Runtime>(app: tauri::AppHandle<R>, tools: State<'_, Tools>) -> CmdResult<Option<String>> {
-    let out = stop_monitor(&tools);
-    if let Some(tasks) = tauri::Manager::try_state::<BackgroundTasks>(&app) {
-        tasks.remove(MONITOR_TASK);
+    fn progress(&self, _tool: &str, task: &str, fraction: Option<f32>) {
+        if let Some(tasks) = self.tasks() {
+            tasks.set_progress(task, fraction);
+        }
     }
-    out
+
+    fn finished(&self, _tool: &str, task: &str) {
+        if let Some(tasks) = self.tasks() {
+            tasks.remove(task);
+        }
+    }
 }
 
-fn stop_monitor(tools: &Tools) -> CmdResult<Option<String>> {
-    let Some(session) = tools.monitor.lock().unwrap_or_else(|p| p.into_inner()).take() else {
-        return Ok(None);
+/// What the user can do when a tool is missing.
+fn missing(error: ToolError, safe_mode: bool) -> String {
+    match error {
+        ToolError::UnknownTool(tool) if safe_mode => {
+            format!("\"{tool}\" is not available in safe mode (plugins are off); restart normally to use it")
+        }
+        ToolError::UnknownTool(tool) => {
+            format!("no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)")
+        }
+        other => other.to_string(),
+    }
+}
+
+/// Runs `tool`'s `op` for the calling window, off the UI thread.
+pub(crate) async fn invoke<R: Runtime>(
+    app: &AppHandle<R>,
+    window: &CurrentWindow,
+    safe_mode: bool,
+    tool: &str,
+    op: &str,
+    args: Value,
+) -> CmdResult<Value> {
+    if tool.len() > MAX_ID_LEN || op.len() > MAX_ID_LEN {
+        return Err("tool and operation names are at most 64 characters".into());
+    }
+    let Some(host) = window.tools.clone() else {
+        let e = ToolError::UnknownTool(tool.into());
+        log_failure(tool, op, &e);
+        return Err(missing(e, safe_mode));
     };
-    session.stop.store(true, Ordering::SeqCst);
-    let result = session.thread.join().map_err(|_| "the monitor thread panicked".to_string())?;
-    log::info!("Process monitor stopped");
-    result.map_err(err)?;
-    Ok(Some(session.dir.to_string_lossy().into_owned()))
-}
-
-#[tauri::command]
-pub fn monitor_status(tools: State<'_, Tools>) -> CmdResult<Value> {
-    let slot = tools.monitor.lock().map_err(err)?;
-    Ok(match slot.as_ref() {
-        Some(s) => json!({ "running": !s.thread.is_finished(), "dir": s.dir }),
-        None => json!({ "running": false, "dir": null }),
-    })
-}
-
-/// The default diagnostics-collection plan (JSON).
-#[tauri::command]
-pub fn collect_default_plan() -> String {
-    imt_collect::CollectPlan::default_json()
-}
-
-/// Collects a diagnostics bundle (.imtz) into `out_dir`; returns its path and manifest.
-#[tauri::command]
-pub async fn collect_diagnostics(_state: State<'_, AppState>, plan: String, out_dir: String) -> CmdResult<Value> {
+    let ctx = ShellTasks::context(app, &host);
+    let (tool, op) = (tool.to_string(), op.to_string());
     tauri::async_runtime::spawn_blocking(move || {
-        let plan = imt_collect::CollectPlan::parse(&plan).map_err(err)?;
-        let runner = imt_collect::SystemRunner;
-        let collector = imt_collect::Collector::new(plan, &runner, &imt_collect::NoProgress);
-        let result = collector.run(Path::new(&out_dir)).map_err(err)?;
-        log::info!("Diagnostics bundle collected");
-        Ok(json!({ "bundle": result.bundle, "manifest": result.manifest }))
+        host.invoke(&tool, &op, args, &ctx).map_err(|e| {
+            log_failure(&tool, &op, &e);
+            missing(e, safe_mode)
+        })
     })
     .await
-    .map_err(err)?
+    .map_err(crate::err)?
+}
+
+/// Longest tool error text logged (its tail: an external program's stderr ends with the cause).
+const MAX_ERROR_LOG: usize = 1024;
+
+/// The last `max` bytes of `text` (at a character boundary), marked when cut.
+fn tail(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_string();
+    }
+    let mut start = text.len() - max;
+    while !text.is_char_boundary(start) {
+        start += 1;
+    }
+    format!("…{}", &text[start..])
+}
+
+/// True for a failure the user can fix (missing rights, missing program), logged as a warning.
+fn user_fixable(message: &str) -> bool {
+    let m = message.to_ascii_lowercase();
+    [
+        "access is denied",
+        "access denied",
+        "elevat",
+        "administrator",
+        "permission denied",
+        "not found",
+        "not installed",
+    ]
+    .iter()
+    .any(|s| m.contains(s))
+}
+
+/// Logs a failed tool operation: bad requests and unavailable tools at Warning, failures of the tool or
+/// of the external program it runs (exit code, timeout, stderr) at Error unless the user can fix them.
+/// The text is redacted and bounded.
+fn log_failure(tool: &str, op: &str, e: &ToolError) {
+    let full = crate::activity::privacy::redact(&e.to_string());
+    let timeout = full.contains("did not finish within") || full.contains("timed out");
+    let message = tail(&full, MAX_ERROR_LOG);
+    let kind = match e {
+        ToolError::UnknownTool(_) => "unknown-tool",
+        ToolError::UnknownOp { .. } => "unknown-op",
+        ToolError::Unsupported(_) => "unsupported",
+        ToolError::InvalidArgs { .. } => "invalid-args",
+        ToolError::Failed(_) => "failed",
+    };
+    if matches!(e, ToolError::Failed(_)) && !user_fixable(&message) {
+        log::error!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
+    } else {
+        log::warn!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
+    }
+}
+
+/// Runs one operation of a plugin tool: `{ tool, op, args }`. `args` is
+/// validated against the operation's schema (see `tools_list`).
+#[tauri::command]
+pub async fn tool_invoke<R: Runtime>(
+    app: AppHandle<R>,
+    window: CurrentWindow,
+    state: State<'_, AppState>,
+    tool: String,
+    op: String,
+    args: Option<Value>,
+) -> CmdResult<Value> {
+    invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await
+}
+
+/// The tools of the calling window's plugins, with their availability
+/// (unsupported platform or inactive/quarantined plugin, with the reason).
+/// Empty in safe mode.
+#[tauri::command]
+pub fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
+    window.tools.as_ref().map(ToolHost::list).unwrap_or_default()
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::test_support::{test_app_with_commands, window};
+    use serde_json::json;
+    use tauri::test::MockRuntime;
 
-    #[test]
-    fn presets_and_templates() {
-        let p = perfmon_presets();
-        assert!(p.as_array().unwrap().iter().any(|x| x["id"] == "memory"));
-        assert!(p[0]["counters"][0]["guidance"].is_string());
-        let dir = std::env::temp_dir().join(format!("imt-perfmon-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("t.xml").to_string_lossy().into_owned();
-        let template: CollectorTemplate = serde_json::from_value(json!({ "name": "IMT-test", "processes": ["OrderService"] })).unwrap();
-        let out = perfmon_generate(template.clone(), Some(path.clone())).unwrap();
-        assert!(out["xml"].as_str().unwrap().contains("<DataCollectorSet>"));
-        assert!(std::fs::read_to_string(&path).unwrap().contains("OrderService"));
-        assert!(out["commands"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|c| c.as_str().unwrap().contains("logman import")));
-        let bad: CollectorTemplate = serde_json::from_value(json!({ "name": "", "sampleIntervalSecs": 0 })).unwrap();
-        assert!(perfmon_generate(bad, None).is_err());
-        std::fs::remove_dir_all(dir).unwrap();
-        #[cfg(not(windows))]
-        {
-            let r = tauri::async_runtime::block_on(control("IMT-test".into(), "query".into()));
-            assert!(r.unwrap_err().contains("only be managed on Windows"));
-            let r = tauri::async_runtime::block_on(control("IMT-test".into(), "explode".into()));
-            assert!(r.unwrap_err().contains("unknown action"));
-            assert!(tauri::async_runtime::block_on(perfmon_install(template)).is_err());
-            assert!(tauri::async_runtime::block_on(perfmon_outputs("IMT-test".into())).is_err());
-        }
-        assert!(collect_default_plan().contains("redact"));
+    /// Invokes a command through the real IPC path; `Err` carries the rejection.
+    pub fn ipc(w: &tauri::WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
+        use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
+        use tauri::test::{get_ipc_response, INVOKE_KEY};
+        use tauri::webview::InvokeRequest;
+        let res = get_ipc_response(
+            w,
+            InvokeRequest {
+                cmd: cmd.into(),
+                callback: CallbackFn(0),
+                error: CallbackFn(1),
+                url: "tauri://localhost".parse().unwrap(),
+                body: InvokeBody::Json(body),
+                headers: Default::default(),
+                invoke_key: INVOKE_KEY.to_string(),
+            },
+        );
+        res.map(|body| match body {
+            InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
+            InvokeResponseBody::Raw(_) => Value::Null,
+        })
+    }
+
+    /// Like [`ipc`], with the UI's operation id in the IPC header.
+    pub fn ipc_op(w: &tauri::WebviewWindow<MockRuntime>, cmd: &str, body: Value, op: &str) -> Result<Value, Value> {
+        use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
+        use tauri::test::{get_ipc_response, INVOKE_KEY};
+        let mut headers = tauri::http::HeaderMap::new();
+        headers.insert(crate::activity::OP_HEADER, op.parse().unwrap());
+        let res = get_ipc_response(
+            w,
+            tauri::webview::InvokeRequest {
+                cmd: cmd.into(),
+                callback: CallbackFn(0),
+                error: CallbackFn(1),
+                url: "tauri://localhost".parse().unwrap(),
+                body: InvokeBody::Json(body),
+                headers,
+                invoke_key: INVOKE_KEY.to_string(),
+            },
+        );
+        res.map(|body| match body {
+            InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
+            InvokeResponseBody::Raw(_) => Value::Null,
+        })
+    }
+
+    /// The domain events captured since `test_capture` (needs its guard held).
+    pub fn domain_events() -> Vec<crate::activity::Captured> {
+        crate::activity::captured()
+            .into_iter()
+            .filter(|c| c.props.get("Kind").is_some_and(|k| k == "domain"))
+            .collect()
+    }
+
+    /// The one domain event `event` of operation `op`.
+    pub fn domain_event(event: &str, op: &str) -> crate::activity::Captured {
+        let all = domain_events();
+        all.iter()
+            .find(|c| c.props["Operation"] == event && c.props.get("OperationId").is_some_and(|o| o == op))
+            .cloned()
+            .unwrap_or_else(|| panic!("no {event} for {op} in {all:?}"))
     }
 
     #[test]
-    fn collections_are_listed_as_background_work() {
-        let app = crate::test_support::test_app(None);
-        let h = app.handle().clone();
-        tauri::Manager::manage(&app, Tools::default());
-        let tasks = || tauri::Manager::state::<BackgroundTasks>(&app);
-        register_perfmon(&tasks(), "IMT-test");
-        let listed = tasks().list();
+    fn tools_are_listed_and_invoked_through_ipc() {
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let listed = ipc(&main, "tools_list", json!({})).unwrap();
+        let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
         assert_eq!(
-            (listed[0].id.as_str(), listed[0].kind, listed[0].stoppable),
-            ("perfmon:IMT-test", TaskKind::Perfmon, true)
+            ids,
+            ["perfmon.templates", "perfmon.sets", "process-monitor", "diagnostics", "elevation"]
         );
-        // Stopping runs `logman stop`; where that fails the task stays listed with the reason.
+        let sets = &listed[1];
+        assert_eq!(sets["plugin"], "net.decryptology.tools");
+        assert_eq!(sets["needsElevation"], true);
+        #[cfg(not(windows))]
+        assert_eq!(sets["availability"]["state"], "unsupported");
+        assert_eq!(listed[0]["availability"]["state"], "available");
+
+        let presets = ipc(&main, "tool_invoke", json!({ "tool": "perfmon.templates", "op": "presets" })).unwrap();
+        assert!(presets.as_array().unwrap().iter().any(|p| p["id"] == "memory"));
+        let status = ipc(
+            &main,
+            "tool_invoke",
+            json!({ "tool": "process-monitor", "op": "status", "args": {} }),
+        )
+        .unwrap();
+        assert_eq!(status["running"], false);
+        // Schema errors, unknown tools and operations are rejections with a message.
+        let bad = ipc(
+            &main,
+            "tool_invoke",
+            json!({ "tool": "perfmon.templates", "op": "generate", "args": { "template": 3 } }),
+        );
+        assert_eq!(
+            bad.unwrap_err(),
+            json!("perfmon.templates generate: args.template must be an object, not a number")
+        );
+        let unknown = ipc(&main, "tool_invoke", json!({ "tool": "nope", "op": "x" })).unwrap_err();
+        assert!(
+            unknown.as_str().unwrap().contains("is the System tools plugin disabled"),
+            "{unknown}"
+        );
+        let op = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "dance" })).unwrap_err();
+        assert!(op.as_str().unwrap().contains("has no operation \"dance\""), "{op}");
+        let long = ipc(&main, "tool_invoke", json!({ "tool": "x".repeat(65), "op": "x" })).unwrap_err();
+        assert!(long.as_str().unwrap().contains("at most 64"), "{long}");
         #[cfg(not(windows))]
         {
-            assert!(tasks().stop("perfmon:IMT-test").is_err());
-            assert_eq!(tasks().list().len(), 1);
-            // A failed start registers nothing; stop and delete remove the entry.
-            assert!(tauri::async_runtime::block_on(perfmon_control(h.clone(), "x".into(), "start".into())).is_err());
-            assert!(tauri::async_runtime::block_on(perfmon_control(h.clone(), "IMT-test".into(), "stop".into())).is_err());
+            let e = ipc(
+                &main,
+                "tool_invoke",
+                json!({ "tool": "perfmon.sets", "op": "outputs", "args": { "name": "IMT" } }),
+            )
+            .unwrap_err();
+            assert!(e.as_str().unwrap().contains("only available on Windows"), "{e}");
         }
-        tasks().remove("perfmon:IMT-test");
-        // Stopping a monitor that is not running is fine.
-        assert_eq!(monitor_stop(h.clone(), tauri::Manager::state::<Tools>(&app)).unwrap(), None);
-        let status = monitor_status(tauri::Manager::state::<Tools>(&app)).unwrap();
+    }
+
+    #[test]
+    fn a_disabled_tools_plugin_contributes_no_tools() {
+        let dir = crate::test_support::TempDir::new("tools-disabled");
+        std::fs::write(dir.0.join("plugins.json"), r#"{"disabled":["net.decryptology.tools"]}"#).unwrap();
+        let app = test_app_with_commands(Some(dir.0.join("profiles")));
+        let main = window(&app, "main");
+        assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
+        let e = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
+        assert!(e.as_str().unwrap().contains("is the System tools plugin disabled"), "{e}");
+    }
+
+    #[test]
+    fn background_work_is_listed_and_stopped_from_the_task_registry() {
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let dir = crate::test_support::TempDir::new("tool-monitor");
+        let started = ipc(
+            &main,
+            "tool_invoke",
+            json!({ "tool": "process-monitor", "op": "start", "args": { "config": { "targets": [{ "pid": std::process::id() }] }, "dir": dir.0 } }),
+        )
+        .unwrap();
+        assert_eq!(started, json!(dir.0.to_string_lossy()));
+        let tasks = app.state::<BackgroundTasks>();
+        let listed = tasks.list();
+        assert_eq!(
+            (listed[0].id.as_str(), listed[0].kind, listed[0].stoppable),
+            ("monitor", TaskKind::ProcessMonitor, true)
+        );
+        // The tray's Stop goes through the tool.
+        tasks.stop("monitor").unwrap();
+        assert!(tasks.list().is_empty());
+        let status = ipc(&main, "tool_invoke", json!({ "tool": "process-monitor", "op": "status" })).unwrap();
         assert_eq!(status["running"], false);
+        assert_eq!(task_kind("perfmon"), TaskKind::Perfmon);
+        assert_eq!(task_kind("collect"), TaskKind::Other);
+    }
+
+    #[test]
+    fn tool_failures_are_logged_with_severity() {
+        let _g = crate::activity::test_capture();
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let _ = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "dance-log-test" })).unwrap_err();
+        log_failure(
+            "perfmon.sets",
+            "start",
+            &ToolError::Failed("logman failed (exit code 3): boom password=hunter2".into()),
+        );
+        log_failure(
+            "perfmon.sets",
+            "stop",
+            &ToolError::Failed("logman failed: Access is denied.".into()),
+        );
+        log_failure(
+            "relog",
+            "convert",
+            &ToolError::Failed(format!("relog did not finish within 120s{}", "x".repeat(4000))),
+        );
+        let logged = crate::activity::captured();
+        let find = |op: &str| {
+            logged
+                .iter()
+                .find(|c| c.props.get("Op").is_some_and(|o| o == op))
+                .unwrap_or_else(|| panic!("{op} logged"))
+        };
+        let bad = find("dance-log-test");
+        assert_eq!((bad.level, bad.props["ErrorKind"].as_str()), (log::Level::Warn, "unknown-op"));
+        let failed = find("start");
+        assert_eq!(failed.level, log::Level::Error);
+        assert!(
+            failed.props["Error"].contains("exit code 3") && !failed.props["Error"].contains("hunter2"),
+            "{:?}",
+            failed.props
+        );
+        assert_eq!(find("stop").level, log::Level::Warn);
+        let slow = find("convert");
+        assert_eq!((slow.props["Timeout"].as_str(), slow.level), ("true", log::Level::Error));
+        assert!(slow.props["Error"].len() <= MAX_ERROR_LOG + 3);
+        assert_eq!(tail("abc", 10), "abc");
+        assert_eq!(tail("aé€", 3), "…€");
+    }
+
+    #[test]
+    fn safe_mode_has_no_tools_and_says_why() {
+        let app = crate::test_support::test_app_safe_mode();
+        let main = window(&app, "main");
+        assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
+        let e = ipc(&main, "tool_invoke", json!({ "tool": "process-monitor", "op": "status" })).unwrap_err();
+        assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
+        let e = ipc(&main, "monitor_status", json!({})).unwrap_err();
+        assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
+        // Elevation falls back to the shell's own token check (not a blanket "not elevated").
+        let info = ipc(&main, "elevation", json!({})).unwrap();
+        assert_eq!(info["canRestartElevated"], cfg!(windows));
+        assert_eq!(info["elevated"], crate::system::process_elevated());
+        assert!(missing(ToolError::Failed("x".into()), true) == "x");
     }
 }

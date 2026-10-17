@@ -16,6 +16,7 @@ import {
   mockTraces,
 } from './mock-insights';
 import { checkMockQl, MockQlError, mockCompletions, runMockQl } from '../../core/mock/mock-ql';
+import { mockUnknownField } from './mock-unknown-field';
 import { mockResolveWindow } from '../../core/mock/mock-live';
 
 /** Timestamp of the newest record (the "now" of live windows, as the engine's default data clock). */
@@ -62,7 +63,10 @@ export class MockAnalysisBackend extends AnalysisBackend {
     }
   }
   async checkQuery(text: string) {
-    return checkMockQl(text);
+    const syntax = checkMockQl(text);
+    if (syntax) return syntax;
+    const all = await this.records();
+    return mockUnknownField(text, [...new Set(all.slice(0, 500).flatMap((r) => Object.keys(r.fields)))]);
   }
   async completeQuery(text: string, cursor: number) {
     const all = await this.records();

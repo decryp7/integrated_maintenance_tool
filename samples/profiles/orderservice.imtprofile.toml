@@ -64,3 +64,106 @@ y = "max(Backlog)"
 bucket = "1m"
 type = "line"
 unit = "messages"
+
+# "OrderService health": the dashboard of this profile (View → Dashboards).
+# Tiles follow the window's filters and time range unless they set a `window`.
+[[dashboard]]
+id = "orderservice-health"
+title = "OrderService health"
+columns = 12
+
+[[dashboard.tile]]
+id = "errors"
+title = "Errors"
+type = "stat"
+query = 'level >= error | stats count() as errors'
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "warnings"
+title = "Warnings"
+type = "stat"
+query = 'level = warning | stats count() as warnings'
+x = 3
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "p95-latency"
+title = "p95 request time"
+type = "stat"
+query = 'exists(Elapsed) | stats p95(Elapsed) as p95'
+unit = "ms"
+x = 6
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "backlog"
+title = "Outbox backlog (max)"
+type = "stat"
+query = '| stats max(Backlog) as backlog'
+unit = "messages"
+x = 9
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "problems"
+title = "Warnings and errors"
+type = "chart"
+chart = "problems"
+y = 2
+w = 8
+h = 4
+
+[[dashboard.tile]]
+id = "noisy-sources"
+title = "Noisiest sources (warnings and errors)"
+type = "top"
+field = "SourceContext"
+query = 'level >= warning'
+limit = 8
+x = 8
+y = 2
+w = 4
+h = 4
+
+[[dashboard.tile]]
+id = "cpu"
+title = "CPU %"
+type = "chart"
+chart = "cpu"
+y = 6
+w = 6
+h = 4
+
+[[dashboard.tile]]
+id = "memory"
+title = "Working set"
+type = "chart"
+chart = "memory"
+x = 6
+y = 6
+w = 6
+h = 4
+
+[[dashboard.tile]]
+id = "slow-endpoints"
+title = "Slowest endpoints"
+type = "table"
+query = 'exists(Elapsed) | stats count() as requests, p95(Elapsed) as p95 by RequestPath | sort p95 desc | head 10'
+y = 10
+w = 6
+h = 4
+
+[[dashboard.tile]]
+id = "alerts"
+title = "Alerts"
+type = "alerts"
+limit = 10
+x = 6
+y = 10
+w = 6
+h = 4

@@ -1,0 +1,25 @@
+[package]
+name = "imt-ai-worker"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Inference worker for IMT: serves llama.cpp over gRPC on a private local socket (imt-ipc), in its own process so a native crash cannot take IMT down"
+
+[[bin]]
+name = "imt-ai-worker"
+path = "src/main.rs"
+
+[features]
+default = []
+# GPU backends. The app enables `metal` on macOS and `vulkan` on Windows and Linux (any vendor, normal
+# driver only). Without either, inference runs on the CPU.
+metal = ["llama-cpp-2/metal"]
+vulkan = ["llama-cpp-2/vulkan"]
+
+[dependencies]
+imt-ai = { path = "../imt-ai" }
+llama-cpp-2 = { version = "0.1.160", default-features = false, features = ["common"] }
+serde_json = "1.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

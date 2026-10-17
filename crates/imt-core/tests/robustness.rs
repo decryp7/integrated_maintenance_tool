@@ -240,6 +240,8 @@ fn crashing_plugins_are_contained_and_quarantined() {
                 format: "bad-export".into(),
                 path: out,
                 descending: false,
+                redact: false,
+                overwrite: false,
             })
             .unwrap_err();
         assert!(e.to_string().contains("disabled after repeated crashes"), "{e}");
@@ -258,6 +260,8 @@ fn crashing_plugins_are_contained_and_quarantined() {
                 format: "bad-export".into(),
                 path: out,
                 descending: false,
+                redact: false,
+                overwrite: false,
             })
             .unwrap_err();
         assert!(e.to_string().contains("export exploded"), "{e}");

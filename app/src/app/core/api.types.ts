@@ -69,6 +69,8 @@ export interface SourceInfo {
   error: string | null;
   from: number | null;
   to: number | null;
+  /** Clock-skew correction applied to this source's timestamps, in ms (0 = none; the engine always sends it). See `set_source_offset`. */
+  offsetMs?: number;
 }
 
 export interface UnrecognizedFile {
@@ -178,6 +180,10 @@ export interface WorkspaceSummary {
   icons: CustomIcon[];
   /** Events in/out of each `[[pipeline]]` step during the last import, summed over sources. */
   pipeline: PipelineStat[];
+  /** The profile's `[[dashboard]]`s. */
+  dashboards: DashboardCfg[];
+  /** Pages, facets and source context are redacted (the window's "Redacted view"). */
+  redactedView: boolean;
 }
 
 export interface PipelineStat {
@@ -262,12 +268,18 @@ export interface ExportRequest {
   format: string;
   path: string;
   descending?: boolean;
+  /** Redact with the profile's `[redact]` rules (a fresh salt per export). */
+  redact?: boolean;
+  /** Replace an existing file at `path`; without it the engine refuses with a `FILE_EXISTS` error (see `isFileExistsError`). */
+  overwrite?: boolean;
 }
 
 export interface ExportResult {
   format: string;
   path: string;
   events: number;
+  /** Matches per redaction rule (empty when not redacted). */
+  redactions?: Record<string, number>;
 }
 
 /**
@@ -344,6 +356,8 @@ export interface RecordView {
   group: string;
   /** Marker kinds, highest priority first. */
   markers: string[];
+  /** Clock-skew offset already applied to `ts` (the original is `ts - skewMs`); absent when none. */
+  skewMs?: number;
 }
 
 export interface Page {
@@ -592,6 +606,8 @@ export interface QlError {
   offset: number;
   /** Length in bytes; 0 marks a position (e.g. "unexpected end of query"). */
   len: number;
+  /** "Did you mean": closest known names for an unknown field, best first (absent or empty when none). */
+  suggestions?: string[];
 }
 
 export type QlResult =
@@ -835,6 +851,12 @@ export interface MomentSummary {
  *   export_diagnostics     { path, ids }          -> number (files written)
  *   diagnostics_settings   {}                     -> { snapshots: { enabled: boolean } }
  * Event "imt://error" carries an EngineError.
+ *
+ * Problem reports and the activity log (app/src-tauri/src/activity/report.rs):
+ *   problem_report_preview { description? }               -> ProblemReportPreview
+ *   save_problem_report    { path, description?, overwrite? } -> number (files in the zip)
+ *   open_activity_log      {}                              -> string (label of the new window showing IMT's own logs,
+ *                                                             filtered to SourceContext = "IMT.Activity")
  */
 
 /** Why a snapshot was taken. */
@@ -872,6 +894,41 @@ export interface SnapshotInfo {
   os: string;
   mime: string;
   bytes: number;
+  /** The operations leading up to the error (empty for snapshots taken before the activity log existed). */
+  breadcrumbs: SnapshotBreadcrumb[];
+  /** Human-readable steps to reproduce, generated from `breadcrumbs` by the engine. */
+  steps: string[];
+}
+
+/** One activity entry attached to a snapshot or report (Rust `activity::Breadcrumb`). */
+export interface SnapshotBreadcrumb {
+  time: string;
+  operation: string;
+  trigger: string;
+  operationId?: string;
+  outcome?: 'ok' | 'cancelled' | 'error';
+  errorCode?: string;
+  durationMs?: number;
+  view?: string;
+  window: string;
+  /** Absent when empty. */
+  params?: Record<string, string>;
+}
+
+/** One file of a problem report, as previewed before saving (Rust `ReportEntry`). */
+export interface ReportEntry {
+  /** Path inside the zip, e.g. `logs/activity.log`. */
+  name: string;
+  bytes: number;
+  summary: string;
+}
+
+/** What a problem report would contain (Rust `ProblemReportPreview`). Nothing is sent anywhere. */
+export interface ProblemReportPreview {
+  entries: ReportEntry[];
+  steps: string[];
+  /** OS, version, build commit, session id, memory, plugins and settings (secrets removed). */
+  systemInfo: Record<string, unknown>;
 }
 
 /** `plugin-inactive`: a plugin stopped running (a dependency became unavailable or activation failed). */
@@ -1091,4 +1148,1100 @@ export interface AnnotationsRequest {
   to?: number | null;
   /** Only those for this instance (plus those for every instance). */
   instance?: string | null;
+}
+
+// ---- Clock-skew correction (`set_source_offset`, `suggest_offsets`) ----
+
+/** How a source's new offset is given: an explicit value, or two events that happened at the same moment. */
+export type OffsetSpec =
+  | { kind: 'manual'; source: number; offsetMs: number }
+  /** Moves the target event's source so the target shows at the reference event's time. */
+  | { kind: 'align'; reference: number; target: number };
+
+/** `set_source_offset` request: the spec plus record ids whose new ids the UI needs (selection, bookmarks; at most 10 000). */
+export type SetOffsetRequest = OffsetSpec & { track?: number[] };
+
+/** What `set_source_offset` changed. */
+export interface OffsetChange {
+  source: number;
+  offsetMs: number;
+  previousMs: number;
+  /** Ids at and after this one were renumbered (records moved in time); null = none. */
+  idsChangedFrom: number | null;
+  /** New id of each tracked id, in request order (null: it no longer exists). */
+  tracked: (number | null)[];
+}
+
+/** `suggest_offsets` request; every key is optional. */
+export interface SuggestRequest {
+  /** Correlation-id fields; default CorrelationId, TraceId, RequestId. */
+  fields?: string[];
+  /** Source the others are aligned to; default: the best connected one. */
+  reference?: number | null;
+  /** Pairs further apart are ignored (default 3 600 000 = 1 h). */
+  maxDeltaMs?: number;
+  /** Pairs within this distance of the median agree (default 1000). */
+  toleranceMs?: number;
+}
+
+export interface OffsetSuggestion {
+  source: number;
+  reference: number;
+  currentMs: number;
+  /** Absolute offset that aligns the source with the reference. */
+  suggestedMs: number;
+  pairs: number;
+  agreeing: number;
+  /** Median absolute deviation of the paired deltas. */
+  spreadMs: number;
+  /** 0..1: share of agreeing pairs, scaled down below ten pairs. */
+  confidence: number;
+}
+
+export interface SuggestResult {
+  reference: number | null;
+  fields: string[];
+  suggestions: OffsetSuggestion[];
+  /** Sources sharing too few ids with the reference for a suggestion. */
+  insufficient: number[];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Profiling: CPU/allocation profiles and heap snapshots (crates/imt-profile/src/api.rs,
+// commands in app/src-tauri/src/profiling.rs). Per window. Ids are capture ids from
+// `profiling_open`. Times inside a profile are nanoseconds since its start; `*Ms` are Unix ms.
+// Every request is validated in Rust; commands reject with a `ProfilingError` ({ code, message }).
+// ---------------------------------------------------------------------------------------------
+
+/** What kind of failure a profiling command reports (act on the code, show the message). */
+export type ProfilingErrorCode = 'notACapture' | 'io' | 'limit' | 'unsupported' | 'invalid' | 'notFound';
+
+/** The rejection of every profiling command. */
+export interface ProfilingError {
+  code: ProfilingErrorCode;
+  message: string;
+}
+
+/** `profiling_sniff({ paths })` → SniffResult[]: what a file is, from its first 64 KiB, without opening it. */
+export type SniffKind = 'capture' | 'heap' | 'none';
+
+export interface SniffResult {
+  /** The path as passed. */
+  path: string;
+  kind: SniffKind;
+}
+
+/** What a metric counts. `calls` and `maxCallNs` are per node (not inclusive). */
+export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs';
+/** `sampled` values are statistical estimates (label them so); `exact` were all recorded. */
+export type Measurement = 'sampled' | 'exact';
+export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
+export type ProfileKind = 'cpu' | 'alloc' | 'wall' | 'mixed';
+export type FrameKind = 'managed' | 'native' | 'kernel' | 'unknown';
+export type ProfileEventKind = 'gc' | 'jit' | 'exception' | 'lockWait' | 'marker';
+/** Values per metric; only the profile's metrics are present. */
+export type MetricValues = Partial<Record<MetricId, number>>;
+
+export interface MetricDto {
+  id: MetricId;
+  measurement: Measurement;
+  unit: MetricUnit;
+  label: string;
+}
+
+export interface ProfileThread {
+  /** Index within the profile (use in `view.threads`). */
+  id: number;
+  osId: number | null;
+  name: string;
+}
+
+export interface ProfileSummary {
+  capture: 'profile';
+  id: number;
+  name: string;
+  path: string | null;
+  /** Importer id: speedscope, folded, cpuprofile, chrome-trace, pprof, perf-script, nettrace, ... */
+  format: string;
+  kind: ProfileKind;
+  /** Wall-clock start; null when the format does not record it. */
+  startedMs: number | null;
+  durationNs: number;
+  /** Samples have timestamps: thread timeline and time ranges work. */
+  hasTime: boolean;
+  sampleCount: number;
+  frameCount: number;
+  eventCount: number;
+  metrics: MetricDto[];
+  defaultMetric: MetricId;
+  threads: ProfileThread[];
+  eventKinds: ProfileEventKind[];
+  /** Import notes (truncations, unresolved addresses, skipped records). */
+  notes: string[];
+}
+
+export interface HeapSummary {
+  capture: 'heap';
+  id: number;
+  name: string;
+  path: string | null;
+  format: string;
+  takenMs: number | null;
+  typeCount: number;
+  objectCount: number;
+  totalBytes: number;
+  /** Object graph present: retained sizes, dominators, paths to roots. */
+  hasGraph: boolean;
+  notes: string[];
+}
+
+/** `profiling_open({ path })`, `profiling_list()` → CaptureSummary[]. */
+export type CaptureSummary = ProfileSummary | HeapSummary;
+
+/** `profiling_spans()`: captures with a wall-clock time, for the log timeline (heap: fromMs == toMs). */
+export interface ProfileSpan {
+  id: number;
+  name: string;
+  capture: 'profile' | 'heap';
+  kind: ProfileKind | null;
+  fromMs: number;
+  toMs: number;
+}
+
+/** Inclusive range in ns since the profile's start. */
+export interface ProfileTimeRange {
+  fromNs: number;
+  toNs: number;
+}
+
+export type RecursionMode = 'off' | 'direct' | 'all';
+
+export interface JustMyCode {
+  enabled?: boolean; // default true
+  /** `*` wildcard, case-insensitive, matched against module and function (max 64, 256 chars each). */
+  frameworkPatterns?: string[];
+  /** Also use the importer's framework flag on frames (default true). */
+  useFrameFlags?: boolean;
+}
+
+/** Filters/transforms shared by every view of a profile; all keys optional. */
+export interface ProfileView {
+  range?: ProfileTimeRange | null;
+  threads?: number[] | null;
+  justMyCode?: JustMyCode | null;
+  recursion?: RecursionMode;
+}
+
+export interface FrameDto {
+  id: number;
+  name: string;
+  module: string | null;
+  file: string | null;
+  line: number | null;
+  kind: FrameKind;
+  isFramework: boolean;
+}
+
+/** `avgPerCall`: the metric's total divided by calls (needs call counts; rows without calls sort last). */
+export type ValueOf = 'self' | 'total' | 'avgPerCall';
+export type ProfileGroupBy = 'function' | 'type' | 'namespace' | 'module' | 'thread';
+export type TreeDirection = 'topDown' | 'bottomUp';
+
+/** `metric: null` sorts by name. `descending` defaults to true for metrics, false for names. */
+export interface ProfileSortSpec {
+  metric?: MetricId | null;
+  of?: ValueOf;
+  descending?: boolean | null;
+}
+
+/** `profiling_hotspots({ request })` → HotspotsPage. Default sort: self of the metric, descending. */
+export interface HotspotsRequest {
+  profileId: number;
+  view?: ProfileView;
+  groupBy?: ProfileGroupBy;
+  /** Metric for percentages (default: the profile's defaultMetric). */
+  metric?: MetricId | null;
+  sort?: ProfileSortSpec | null;
+  search?: string | null;
+  offset?: number;
+  /** 1..10000, default 200. */
+  limit?: number;
+}
+
+export interface HotspotRow {
+  key: string;
+  name: string;
+  module: string | null;
+  /** Function grouping only. */
+  frame: FrameDto | null;
+  /** Thread grouping only. */
+  thread: number | null;
+  self: MetricValues;
+  total: MetricValues;
+  selfPct: number;
+  totalPct: number;
+  avgPerCallNs: number | null;
+  maxPerCallNs: number | null;
+}
+
+export interface HotspotsPage {
+  rows: HotspotRow[];
+  totalRows: number;
+  grandTotal: MetricValues;
+  metric: MetricId;
+  measurement: Measurement;
+  samplesInView: number;
+}
+
+/** `profiling_tree({ request })` → TreePage: children of the node at `path` (frame ids from the top). */
+export interface TreeRequest {
+  profileId: number;
+  view?: ProfileView;
+  direction?: TreeDirection;
+  path?: number[];
+  metric?: MetricId | null;
+  offset?: number;
+  limit?: number;
+}
+
+export interface TreeNode {
+  frame: FrameDto;
+  self: MetricValues;
+  total: MetricValues;
+  selfPct: number;
+  totalPct: number;
+  hasChildren: boolean;
+}
+
+export interface TreePage {
+  /** Sorted by the metric's total, descending. */
+  nodes: TreeNode[];
+  totalChildren: number;
+  grandTotal: MetricValues;
+  metric: MetricId;
+  measurement: Measurement;
+}
+
+/** `profiling_hot_path({ request })` → HotPath ("expand hottest path"). */
+/** `profiling_frame_paths({ request })` → FramePaths: hottest top-down paths to a function. */
+export interface FramePathsRequest {
+  profileId: number;
+  view?: ProfileView;
+  /** A frame id; every frame of the same function (name and module) counts. */
+  frame: number;
+  metric?: MetricId | null;
+  /** Default 5, at most 50. */
+  limit?: number | null;
+}
+
+export interface FramePath {
+  /** Frame ids from the root: a call-tree path and a flame graph focus. */
+  path: number[];
+  frames: FrameDto[];
+  value: number;
+  /** Share of the view total (percent). */
+  pct: number;
+}
+
+export interface FramePaths {
+  /** Hottest first; nested recursive occurrences are part of the outer one. */
+  paths: FramePath[];
+  /** Occurrences before the limit; 0 when the function is not in this view. */
+  totalPaths: number;
+  metric: MetricId;
+}
+
+export interface HotPathRequest {
+  profileId: number;
+  view?: ProfileView;
+  direction?: TreeDirection;
+  path?: number[];
+  metric?: MetricId | null;
+  /** Stop below this share of the grand total (0..1, default 0.01). */
+  minFraction?: number | null;
+}
+
+export interface HotPath {
+  /** Full path from the top (request path + expansion). */
+  path: number[];
+  nodes: TreeNode[];
+}
+
+/** `profiling_butterfly({ request })` → Butterfly (callers/callees of a function). */
+export interface ButterflyRequest {
+  profileId: number;
+  view?: ProfileView;
+  frame: number;
+  metric?: MetricId | null;
+  limit?: number;
+}
+
+export interface ButterflyRow {
+  /** null = the function was at the top of the stack. */
+  frame: FrameDto | null;
+  values: MetricValues;
+  /** Share of the function's total. */
+  pct: number;
+}
+
+export interface Butterfly {
+  function: HotspotRow;
+  callers: ButterflyRow[];
+  callees: ButterflyRow[];
+  metric: MetricId;
+}
+
+export type FlameOrder = 'name' | 'value';
+
+/** Visible part of the focused node's width: 0 ≤ start < end ≤ 1. */
+export interface FlameViewport {
+  start: number;
+  end: number;
+}
+
+/** `profiling_flame({ request })` → FlameGraph. Draw depth upwards (flame) or downwards (icicle). */
+export interface FlameRequest {
+  profileId: number;
+  view?: ProfileView;
+  direction?: TreeDirection;
+  /** Path of the zoomed node; empty = everything. */
+  focus?: number[];
+  viewport?: FlameViewport;
+  widthPx: number;
+  /** Default 0.5. */
+  minWidthPx?: number | null;
+  maxDepth?: number | null;
+  metric?: MetricId | null;
+  order?: FlameOrder;
+  search?: string | null;
+  searchRegex?: boolean;
+  /** Default 50000, max 200000. */
+  maxRects?: number | null;
+}
+
+export interface FlameRect {
+  frame: number;
+  /** Index of the enclosing rectangle in `rects`; null at depth 0. */
+  parent: number | null;
+  /** 0 = focus level. */
+  depth: number;
+  /** Fractions of the drawing width, viewport applied (may extend past 0..1 at the edges). */
+  x: number;
+  w: number;
+  value: number;
+  selfValue: number;
+  matched: boolean;
+  /** Differential only: target share − baseline share (−1..1); colour red > 0, blue < 0. */
+  delta?: number;
+  /** Differential only: baseline value scaled to the target total. */
+  baselineValue?: number;
+}
+
+export interface FlameGraph {
+  rects: FlameRect[];
+  frames: FrameDto[];
+  /** Frames of the request's `focus` path, in order (zoom breadcrumbs). */
+  focusFrames: FrameDto[];
+  focusValue: number;
+  grandTotal: number;
+  matchedValue: number;
+  matchedPct: number;
+  truncated: boolean;
+  maxDepth: number;
+  metric: MetricId;
+  measurement: Measurement;
+}
+
+/** `profiling_diff_flame({ request })` → FlameGraph with `delta`/`baselineValue` (top-down, target layout). */
+export interface DiffFlameRequest {
+  baselineId: number;
+  targetId: number;
+  view?: ProfileView;
+  focus?: number[];
+  viewport?: FlameViewport;
+  widthPx: number;
+  minWidthPx?: number | null;
+  maxDepth?: number | null;
+  metric?: MetricId | null;
+  order?: FlameOrder;
+  search?: string | null;
+  searchRegex?: boolean;
+  maxRects?: number | null;
+}
+
+export type DiffSort = 'absDeltaSelf' | 'absDeltaTotal' | 'deltaSelf' | 'deltaTotal' | 'name';
+export type DiffStatus = 'new' | 'removed' | 'changed' | 'same';
+
+/** `profiling_function_diff({ request })` → FunctionDiffPage. Shares are normalised per profile. */
+export interface FunctionDiffRequest {
+  baselineId: number;
+  targetId: number;
+  view?: ProfileView;
+  groupBy?: ProfileGroupBy;
+  metric?: MetricId | null;
+  sort?: DiffSort;
+  search?: string | null;
+  offset?: number;
+  limit?: number;
+}
+
+export interface DiffSide {
+  self: number;
+  total: number;
+  selfPct: number;
+  totalPct: number;
+}
+
+export interface FunctionDiffRow {
+  key: string;
+  name: string;
+  module: string | null;
+  targetFrame: number | null;
+  baseline: DiffSide;
+  target: DiffSide;
+  /** Percentage points. */
+  deltaSelfPct: number;
+  deltaTotalPct: number;
+  status: DiffStatus;
+}
+
+export interface FunctionDiffPage {
+  rows: FunctionDiffRow[];
+  totalRows: number;
+  baselineTotal: number;
+  targetTotal: number;
+  metric: MetricId;
+}
+
+/** `profiling_threads({ request })` → ThreadTimeline. Error when the profile has no timestamps. */
+export interface ThreadTimelineRequest {
+  profileId: number;
+  /** range and threads apply. */
+  view?: ProfileView;
+  /** 1..4000, default 400. */
+  buckets?: number;
+  /** Default samples (else the default metric). */
+  metric?: MetricId | null;
+  eventKinds?: ProfileEventKind[] | null;
+  maxEvents?: number | null;
+}
+
+export interface ThreadLane {
+  thread: ProfileThread;
+  total: number;
+  buckets: number[];
+}
+
+export interface ProfileEventDto {
+  kind: ProfileEventKind;
+  thread: number | null;
+  startNs: number;
+  durNs: number;
+  label: string;
+}
+
+export interface ThreadTimeline {
+  fromNs: number;
+  toNs: number;
+  bucketNs: number;
+  /** Busiest first. */
+  threads: ThreadLane[];
+  events: ProfileEventDto[];
+  eventsTruncated: boolean;
+  metric: MetricId;
+  startedMs: number | null;
+}
+
+/** Percent of the view's total unless noted; all optional. */
+export interface FindingThresholds {
+  topSelfPct?: number; // 5
+  topSelfCount?: number; // 5
+  gcPct?: number; // 10
+  lockPct?: number; // 5
+  exceptionCount?: number; // 1
+  exceptionPct?: number; // 1
+  /** Percentage points of growth. */
+  regressionPct?: number; // 5
+  starvationBlockedPct?: number; // 50
+}
+
+/** `profiling_findings({ request })` → ProfileFinding[] (most severe first). */
+export interface FindingsRequest {
+  profileId: number;
+  baselineId?: number | null;
+  view?: ProfileView;
+  thresholds?: FindingThresholds;
+}
+
+export type ProfileFindingKind = 'topSelf' | 'gcPressure' | 'lockContention' | 'exceptionHotPath' | 'threadPoolStarvation' | 'regression';
+export type FindingSeverity = 'info' | 'warning' | 'critical';
+export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
+
+/** Open `view` on `profileId` with this selection. */
+export interface Evidence {
+  view: EvidenceView;
+  profileId: number;
+  baselineId: number | null;
+  frame: FrameDto | null;
+  /** Top-down path to expand. */
+  path: number[];
+  metric: MetricId;
+  range: ProfileTimeRange | null;
+  threads: number[] | null;
+  eventKind: ProfileEventKind | null;
+}
+
+export interface ProfileFinding {
+  kind: ProfileFindingKind;
+  severity: FindingSeverity;
+  title: string;
+  detail: string;
+  valuePct: number | null;
+  evidence: Evidence;
+}
+
+/** `profiling_moment({ request })` → ProfileMoment[]: profile samples in a log window. */
+export interface ProfileMomentRequest {
+  fromMs: number;
+  toMs: number;
+  /** Top functions per profile, default 5, max 50. */
+  top?: number | null;
+}
+
+export interface ProfileMoment {
+  profileId: number;
+  name: string;
+  /** Pass as `view.range` to open the window in the profile views. */
+  range: ProfileTimeRange;
+  samples: number;
+  metric: MetricId;
+  measurement: Measurement;
+  value: number;
+  top: HotspotRow[];
+}
+
+export type HeapSort = 'name' | 'count' | 'bytes' | 'retained';
+
+/** `profiling_heap_types({ request })` → HeapTypesPage. `retained` needs the graph. */
+export interface HeapTypesRequest {
+  snapshotId: number;
+  sort?: HeapSort;
+  search?: string | null;
+  offset?: number;
+  limit?: number;
+}
+
+export interface HeapTypeRow {
+  name: string;
+  count: number;
+  bytes: number;
+  retained: number | null;
+  bytesPct: number;
+}
+
+export interface HeapTypesPage {
+  rows: HeapTypeRow[];
+  totalRows: number;
+  totalBytes: number;
+  totalCount: number;
+  hasGraph: boolean;
+}
+
+export type HeapDiffSort = 'bytesDelta' | 'countDelta' | 'name';
+
+/** `profiling_heap_diff({ request })` → HeapDiffPage (default: bytes growth first). */
+export interface HeapDiffRequest {
+  baselineId: number;
+  targetId: number;
+  search?: string | null;
+  sort?: HeapDiffSort;
+  offset?: number;
+  limit?: number;
+}
+
+export interface HeapDiffRow {
+  name: string;
+  countBefore: number;
+  countAfter: number;
+  countDelta: number;
+  bytesBefore: number;
+  bytesAfter: number;
+  bytesDelta: number;
+  isNew: boolean;
+  isGone: boolean;
+}
+
+export interface HeapDiffPage {
+  rows: HeapDiffRow[];
+  totalRows: number;
+  bytesBefore: number;
+  bytesAfter: number;
+  countBefore: number;
+  countAfter: number;
+}
+
+/** `profiling_heap_growth({ request })` → HeapGrowthPage (≥ 3 snapshots, oldest first). */
+export interface HeapGrowthRequest {
+  snapshotIds: number[];
+  search?: string | null;
+  steadyOnly?: boolean;
+  offset?: number;
+  limit?: number;
+}
+
+export interface HeapGrowthRow {
+  name: string;
+  bytes: number[];
+  counts: number[];
+  slopeBytes: number;
+  growthBytes: number;
+  /** Never shrank and grew overall: a leak candidate. */
+  steady: boolean;
+}
+
+export interface HeapGrowthPage {
+  /** Steady first, then by slope. */
+  rows: HeapGrowthRow[];
+  totalRows: number;
+  steadyCount: number;
+}
+
+/** `profiling_heap_dominators({ request })` → HeapObjectsPage (children of `parent`, null = top). */
+export interface HeapDominatorsRequest {
+  snapshotId: number;
+  parent?: number | null;
+  offset?: number;
+  limit?: number;
+}
+
+/** `profiling_heap_instances({ request })` → HeapObjectsPage (objects of a type by retained size). */
+export interface HeapInstancesRequest {
+  snapshotId: number;
+  typeName: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface HeapObjectRow {
+  object: number;
+  typeName: string;
+  shallow: number;
+  retained: number;
+  childCount: number;
+}
+
+export interface HeapObjectsPage {
+  rows: HeapObjectRow[];
+  totalRows: number;
+  totalBytes: number;
+}
+
+/** `profiling_heap_paths({ request })` → HeapPaths ("why is this alive"). */
+export interface HeapPathsRequest {
+  snapshotId: number;
+  object: number;
+  /** Default 5, max 20. */
+  maxPaths?: number | null;
+  /** Default and max 256. */
+  maxDepth?: number | null;
+}
+
+export interface PathStep {
+  object: number;
+  typeName: string;
+  /** Reference from the previous step (field, `[index]`); null on the first. */
+  edge: string | null;
+}
+
+export interface HeapPaths {
+  /** Root-referenced object first, requested object last; shortest first. */
+  paths: PathStep[][];
+  unreachable: boolean;
+  truncated: boolean;
+}
+// ---------------------------------------------------------------------------------------------
+// Explain and share: redaction, dashboards, reports, images, bundles
+// (crates/imt-core/src/{redact,dashboard,report,bundle}, app/src-tauri/src/share.rs)
+//   overview           { request: { query } }    -> Finding[]   (the health check)
+//   set_redacted_view  { enabled }               -> WorkspaceSummary
+//   preview_redaction  { request }               -> RedactionPreview
+//   redaction_summary  { request }               -> RedactionSummary
+//   dashboard_tile     { request: TileRequest }  -> TileData
+//   export_report      { request }               -> ReportExported
+//   save_visual        { request }               -> VisualSaved
+//   estimate_bundle    { options }               -> BundleEstimate
+//   create_bundle      { options, path }         -> BundleManifest
+//   open_bundle        { path }                  -> BundleOpened
+// ---------------------------------------------------------------------------------------------
+
+/** What the UI does when the user follows a health-check finding (Rust `FindingAction`). */
+export type FindingAction =
+  | { kind: 'zoom'; from: number; to: number; recordId: number | null }
+  | { kind: 'exception'; fingerprint: string; recordId: number | null }
+  | { kind: 'setupFormat'; path: string }
+  | { kind: 'openPanel'; panel: string };
+
+/** What a health-check finding is about (Rust `FindingKind`); unknown kinds from a newer engine are shown as they are. */
+export type FindingKind =
+  | 'crash'
+  | 'errorSpike'
+  | 'memoryGrowth'
+  | 'silence'
+  | 'slowOutlier'
+  | 'rateChange'
+  | 'exception'
+  | 'unreadLines'
+  | 'noTimestamps'
+  | 'fileNotOpened'
+  | 'dropped'
+  | 'pluginQuarantined';
+
+/** One line of the automatic health check (`overview { request: { query } } -> Finding[]`), most severe first. */
+export interface Finding {
+  /** Absent from engines older than the UX pass. */
+  kind?: FindingKind | string;
+  severity: Severity;
+  title: string;
+  detail: string;
+  action: FindingAction | null;
+}
+
+/** Built-in redaction detectors, in the order the engine applies them (`[redact] detectors`). */
+export type RedactDetector =
+  | 'bearer-token'
+  | 'jwt'
+  | 'api-key'
+  | 'connection-string'
+  | 'password'
+  | 'user-path'
+  | 'email'
+  | 'credit-card'
+  | 'ipv4'
+  | 'ipv6'
+  | 'guid'
+  | 'phone'
+  | 'hostname';
+export const REDACT_DETECTORS: readonly RedactDetector[] = [
+  'bearer-token',
+  'jwt',
+  'api-key',
+  'connection-string',
+  'password',
+  'user-path',
+  'email',
+  'credit-card',
+  'ipv4',
+  'ipv6',
+  'guid',
+  'phone',
+  'hostname',
+];
+
+/** mask: `<email>` · hash: `<email:1a2b3c4d5e>` (salted per export) · drop: removed. */
+export type RedactMode = 'mask' | 'hash' | 'drop';
+
+/** Matches of one rule (detector name or custom rule name). */
+export interface RuleHits {
+  rule: string;
+  count: number;
+}
+
+export interface RedactionPreviewRequest {
+  sample: string;
+  /** A candidate (unsaved) profile; absent = the active profile. */
+  toml?: string | null;
+}
+
+export interface RedactionPreview {
+  before: string;
+  after: string;
+  /** Every active rule in order, zero counts included. */
+  hits: RuleHits[];
+  /** Why the `[redact]` section does not compile. */
+  error: string | null;
+}
+
+export interface RedactionSummaryRequest {
+  query: Query;
+  samples?: number;
+}
+
+export interface RedactionSample {
+  recordId: number;
+  before: string;
+  after: string;
+}
+
+/** What redaction would change in the events of a query (shown before an export, report or bundle). */
+export interface RedactionSummary {
+  /** Events looked at (at most 200,000). */
+  scanned: number;
+  /** Events with at least one match. */
+  changed: number;
+  truncated: boolean;
+  hits: RuleHits[];
+  samples: RedactionSample[];
+}
+
+/** What a dashboard tile shows (`[[dashboard.tile]] type`). */
+export type TileKind = 'chart' | 'stat' | 'table' | 'top' | 'alerts' | 'annotations';
+export const TILE_KINDS: readonly TileKind[] = ['chart', 'stat', 'table', 'top', 'alerts', 'annotations'];
+
+/** `[[dashboard.tile]]` (keys are the same in the profile TOML and on the wire). Position and size are in grid units. */
+export interface TileCfg {
+  id: string;
+  title: string;
+  type: TileKind;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** stat/table: a query-language program; chart/top/alerts: a filter. */
+  query?: string;
+  /** chart: id of a profile `[[chart]]`. */
+  chart?: string;
+  /** chart: inline aggregate (`count()`, `avg(cpu)`) when there is no `chart`. */
+  value?: string;
+  /** chart: inline split fields. */
+  by?: string[];
+  style?: 'line' | 'bar' | 'stacked';
+  /** top: the field. */
+  field?: string;
+  limit?: number;
+  /** stat: unit shown next to the value. */
+  unit?: string;
+  /** A sliding window of its own ("15m"); absent = the window's query. */
+  window?: string;
+}
+
+/** `[[dashboard]]`. */
+export interface DashboardCfg {
+  id: string;
+  title: string;
+  /** Grid columns (1–24). */
+  columns: number;
+  tile: TileCfg[];
+}
+
+export interface TileRequest {
+  tile: TileCfg;
+  /** The window's query (filters, time range or live window). */
+  query: Query;
+}
+
+/** One sparkline point: bucket start and value (null when the bucket is empty). */
+export type SparkPoint = [number, number | null];
+
+export type TileData =
+  | { kind: 'chart'; data: ChartData }
+  | { kind: 'stat'; value: number | null; text: string; label: string; unit: string | null; sparkline: SparkPoint[] }
+  | { kind: 'table'; columns: string[]; rows: unknown[][]; truncated: boolean }
+  | { kind: 'top'; facet: Facet }
+  | { kind: 'alerts'; items: Anomaly[] }
+  | { kind: 'annotations'; items: AnnotationDto[] };
+
+/** An annotation copied into a report. */
+export interface ReportAnnotation {
+  from: number;
+  to?: number | null;
+  label: string;
+  kind?: string;
+}
+
+/** A report block; `id` is stable within the report. Unknown types (a newer IMT's) are kept as they are. */
+export type ReportBlock =
+  | { id: string; type: 'text'; markdown: string }
+  | { id: string; type: 'events'; caption?: string; ids: number[] }
+  | { id: string; type: 'chart'; caption?: string; title?: string; spec?: ChartDef | null; svg?: string | null }
+  | { id: string; type: 'timeline'; caption?: string; svg?: string | null; from?: number | null; to?: number | null }
+  | { id: string; type: 'table'; caption?: string; query?: string; columns: string[]; rows: unknown[][] }
+  | { id: string; type: 'finding'; severity: string; title: string; detail: string }
+  | { id: string; type: 'annotations'; caption?: string; items: ReportAnnotation[] };
+
+export type ReportBlockType = ReportBlock['type'];
+
+export interface ReportSection {
+  id: string;
+  title: string;
+  blocks: ReportBlock[];
+}
+
+/** An incident report (crates/imt-core/src/report), saved in the project. */
+export interface Report {
+  version: number;
+  id: string;
+  title: string;
+  /** Markdown subset: headings, lists, quotes, code, **strong**, *em*, `code`, [links](https://…). */
+  summary: string;
+  createdAt: number;
+  updatedAt: number;
+  sections: ReportSection[];
+}
+
+export type ReportFormat = 'html' | 'pdf';
+export type ExportTheme = 'light' | 'dark';
+
+export interface ReportExportRequest {
+  report: Report;
+  format: ReportFormat;
+  path: string;
+  redact: boolean;
+  theme: ExportTheme;
+  /** Replace an existing file (see `ExportRequest.overwrite`). */
+  overwrite?: boolean;
+}
+
+export interface ReportExported {
+  path: string;
+  bytes: number;
+  /** Matches per redaction rule (empty when not redacted). */
+  redaction: RuleHits[];
+}
+
+/** A chart or timeline image to save: a `data:image/png;base64,` URL, or SVG markup (sanitised by the engine). */
+export interface VisualRequest {
+  path: string;
+  kind: 'png' | 'svg';
+  data: string;
+  /** Replace an existing file (see `ExportRequest.overwrite`). */
+  overwrite?: boolean;
+}
+
+export interface VisualSaved {
+  path: string;
+  bytes: number;
+}
+
+/** Raw files as they are, or the events matching a query (as CLEF). */
+export type BundleContent = 'raw' | 'events';
+
+export interface BundleOptions {
+  name: string;
+  content: BundleContent;
+  /** The events to include (for `events`). */
+  query: Query;
+  redact: boolean;
+  /** UI state saved in the bundle's project. */
+  ui: unknown;
+  reports: Report[];
+}
+
+export interface SkippedSource {
+  path: string;
+  reason: string;
+}
+
+export interface BundleEstimate {
+  files: number;
+  /** Uncompressed bytes (zip compresses text well). */
+  bytes: number;
+  events: number;
+  parts: { name: string; bytes: number }[];
+  skipped: SkippedSource[];
+}
+
+export interface BundleEntry {
+  path: string;
+  kind: 'project' | 'profile' | 'log' | 'events' | 'report' | 'dashboards';
+  bytes: number;
+  sha256: string;
+}
+
+export interface BundleManifest {
+  format: string;
+  schema: number;
+  name: string;
+  createdAt: number;
+  imtVersion: string;
+  content: BundleContent;
+  redacted: boolean;
+  redaction: Record<string, number>;
+  events: number | null;
+  entries: BundleEntry[];
+  skipped: SkippedSource[];
+}
+
+/** `open_bundle`: like `open_project`, read-only, with the bundle's manifest (null for other `.imtz` files). */
+export interface BundleOpened {
+  path: string;
+  name: string;
+  summary: WorkspaceSummary;
+  profile?: ProfileDoc;
+  ui: unknown;
+  reports: Report[];
+  missing: string[];
+  readOnly: true;
+  bundle: BundleManifest | null;
+  /** Where the bundle was extracted. */
+  folder: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ease of use: import progress, profile history and templates, the demo, overwrite protection
+// (crates/imt-core/src/{workspace,templates}, app/src-tauri/src/{workspace_commands,profile}.rs)
+//   import_progress    {}                         -> ImportProgress   (readable while an import runs)
+//   cancel_import      {}                         -> void             (stops after the files in flight)
+//   profile_history    {}                         -> ProfileVersionInfo[]  (newest first, at most 20)
+//   profile_version    { file }                   -> ProfileDoc       (not applied until saved again)
+//   profile_templates  {}                         -> ProfileTemplate[]  (ready-made profiles, built into the engine)
+//   demo_paths         {}                         -> string[]         (the bundled sample folders; empty when not installed)
+//
+// Every command that writes a file the user chose takes `overwrite` (default false): export_events
+// (`request.overwrite`), export_profile, save_project, export_report (`request.overwrite`), save_visual
+// (`request.overwrite`), create_bundle, export_config_diff, export_settings, export_diagnostics. Without it an
+// existing file is never replaced: the command fails with `"<path> already exists; confirm to replace it"`.
+// ---------------------------------------------------------------------------------------------
+
+/** Suffix of the error a write command returns instead of replacing an existing file. */
+export const FILE_EXISTS_SUFFIX = ' already exists; confirm to replace it';
+
+/** The path a `FILE_EXISTS` error refers to, or null for any other error. */
+export function fileExistsPath(error: unknown): string | null {
+  const text = typeof error === 'string' ? error : error instanceof Error ? error.message : '';
+  return text.endsWith(FILE_EXISTS_SUFFIX) ? text.slice(0, -FILE_EXISTS_SUFFIX.length) : null;
+}
+
+/** Progress of the running (or last) import. */
+export interface ImportProgress {
+  running: boolean;
+  /** Files read so far, of `total`. */
+  done: number;
+  total: number;
+  /** The user cancelled the import: the files not read yet are listed as unrecognised ("not imported"). */
+  cancelled: boolean;
+  bytesDone: number;
+  bytesTotal: number;
+  /** Path of a file being read now; null between files and after the import. */
+  current: string | null;
+  elapsedMs: number;
+  /** Estimated time left from the bytes read so far; null until it can be estimated. */
+  etaMs: number | null;
+}
+
+/** A saved previous version of the active profile. */
+export interface ProfileVersionInfo {
+  /** Opaque file name to pass to `profile_version`. */
+  file: string;
+  /** The profile's `name` in that version ("(unreadable)" when it does not parse). */
+  name: string;
+  /** Stamp of the save, `YYYYMMDD-HHMMSSmmm` (UTC). */
+  savedAt: string;
+  /** The same instant in epoch ms; null when the stamp cannot be read. */
+  savedAtMs: number | null;
+}
+
+/** A ready-made profile for a common log format (crates/imt-core/templates). */
+export interface ProfileTemplate {
+  id: string;
+  name: string;
+  /** One or two sentences: which logs it reads and what it sets up. */
+  description: string;
+  /** Groups templates in the gallery, e.g. ".NET", "Web servers", "System", "Generic". */
+  category: string;
+  /** The profile. Applied only through validate + save. */
+  toml: string;
+  /** File name of its sample, used as `fileName` when previewing `sampleText`. */
+  sampleName: string;
+  /** A few lines in the format, for a preview when no file of the user's is chosen. */
+  sampleText: string;
 }

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "IMT contributors",
+  "classifications": ["IMT", "Plugin", "Importer", "Console"],
+  "identity": "Imt.Plugin.Importer.CSharp",
+  "groupIdentity": "Imt.Plugin.Importer",
+  "name": "IMT importer plugin",
+  "description": "An IMT process plugin (imt.plugin.v1) with an importer for a simple line format, xUnit tests and single-file publishing into IMT's plugin folder layout.",
+  "shortName": "imt-plugin",
+  "sourceName": "MyImtPlugin",
+  "preferNameDirectory": true,
+  "tags": { "language": "C#", "type": "solution" },
+  "symbols": {
+    "pluginId": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "The plugin's reverse-DNS id.",
+      "defaultValue": "com.example.myimtplugin",
+      "replaces": "com.example.myimtplugin"
+    },
+    "sdkVersion": {
+      "type": "parameter",
+      "datatype": "text",
+      "description": "The Imt.Plugin.Sdk package version.",
+      "defaultValue": "1.0.0",
+      "replaces": "IMT_SDK_VERSION"
+    }
+  },
+  "sources": [{ "exclude": [".template.config/**", "**/bin/**", "**/obj/**"] }],
+  "primaryOutputs": [{ "path": "src/MyImtPlugin/MyImtPlugin.csproj" }, { "path": "tests/MyImtPlugin.Tests/MyImtPlugin.Tests.csproj" }],
+  "postActions": []
+}

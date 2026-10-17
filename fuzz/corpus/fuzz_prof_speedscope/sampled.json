@@ -1,0 +1,1 @@
+{"$schema":"https://www.speedscope.app/file-format-schema.json","shared":{"frames":[{"name":"main","file":"app.js","line":1},{"name":"work"},{"name":"(garbage collector)"}]},"profiles":[{"type":"sampled","name":"t","unit":"milliseconds","startValue":0,"endValue":4,"samples":[[0,1],[0],[2]],"weights":[1,2,1]}]}

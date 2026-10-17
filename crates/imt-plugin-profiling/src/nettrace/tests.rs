@@ -1,0 +1,719 @@
+//! Unit tests over writer-generated traces: every block type, symbolisation,
+//! runtime events, version handling and hostile input.
+
+use super::runtime::{ids, RUNDOWN, RUNTIME, SAMPLE_PROFILER};
+use super::writer::{payload as p, Meta, Row, TraceHeader, Writer};
+use super::*;
+use std::io::Write as _;
+
+const MAIN: u64 = 0x7f00_0000_1000;
+const PLACE: u64 = 0x7f00_0000_2000;
+const SAVE: u64 = 0x7f00_0000_3000;
+const UNKNOWN: u64 = 0xdead_beef;
+
+const M_SAMPLE: u32 = 1;
+const M_LOAD: u32 = 2;
+const M_DCEND: u32 = 3;
+const M_MODULE: u32 = 4;
+const M_GC_START: u32 = 5;
+const M_GC_END: u32 = 6;
+const M_EXC: u32 = 7;
+const M_CONT_START: u32 = 8;
+const M_CONT_STOP: u32 = 9;
+const M_JIT: u32 = 10;
+const M_OTHER: u32 = 11;
+
+fn metas() -> Vec<Meta<'static>> {
+    vec![
+        Meta {
+            id: M_SAMPLE,
+            provider: SAMPLE_PROFILER,
+            event_id: ids::THREAD_SAMPLE,
+            name: "ThreadSample",
+        },
+        Meta {
+            id: M_LOAD,
+            provider: RUNTIME,
+            event_id: ids::METHOD_LOAD_VERBOSE,
+            name: "",
+        },
+        Meta {
+            id: M_DCEND,
+            provider: RUNDOWN,
+            event_id: ids::METHOD_DC_END_VERBOSE,
+            name: "",
+        },
+        Meta {
+            id: M_MODULE,
+            provider: RUNDOWN,
+            event_id: ids::MODULE_DC_END,
+            name: "",
+        },
+        Meta {
+            id: M_GC_START,
+            provider: RUNTIME,
+            event_id: ids::GC_START,
+            name: "",
+        },
+        Meta {
+            id: M_GC_END,
+            provider: RUNTIME,
+            event_id: ids::GC_END,
+            name: "",
+        },
+        Meta {
+            id: M_EXC,
+            provider: RUNTIME,
+            event_id: ids::EXCEPTION_THROWN,
+            name: "",
+        },
+        Meta {
+            id: M_CONT_START,
+            provider: RUNTIME,
+            event_id: ids::CONTENTION_START,
+            name: "",
+        },
+        Meta {
+            id: M_CONT_STOP,
+            provider: RUNTIME,
+            event_id: ids::CONTENTION_STOP,
+            name: "",
+        },
+        Meta {
+            id: M_JIT,
+            provider: RUNTIME,
+            event_id: ids::METHOD_JITTING_STARTED,
+            name: "",
+        },
+        Meta {
+            id: M_OTHER,
+            provider: "MyCompany-Shop",
+            event_id: 1,
+            name: "OrderPlaced",
+        },
+    ]
+}
+
+fn row(metadata_id: u32, thread: u64, stack_id: u32, ts: i64, payload: Vec<u8>) -> Row {
+    Row {
+        metadata_id,
+        sequence: 0,
+        thread,
+        capture_thread: thread,
+        processor: 0,
+        stack_id,
+        ts,
+        sorted: false,
+        payload,
+    }
+}
+
+/// QPC ticks (10 MHz) for `ms` after the sync time (1_000_000).
+fn at(ms: i64) -> i64 {
+    1_000_000 + ms * 10_000
+}
+
+/// A complete trace: modules, JIT, samples on two threads, GC, an exception,
+/// contention, a sequence point, then rundown.
+fn trace(compressed: bool) -> Vec<u8> {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(compressed, &metas());
+    w.stacks(1, &[vec![PLACE + 4, MAIN + 8], vec![UNKNOWN, SAVE + 1, PLACE, MAIN]]);
+    let mut seq = 0u32;
+    let mut rows = vec![
+        row(
+            M_JIT,
+            10,
+            0,
+            at(0),
+            p::jitting_started(3, 50, "Shop.Orders.OrderRepository", "Save"),
+        ),
+        row(
+            M_LOAD,
+            10,
+            0,
+            at(2),
+            p::method_verbose(3, 50, SAVE, 0x80, "Shop.Orders.OrderRepository", "Save"),
+        ),
+        row(M_SAMPLE, 10, 1, at(1), p::sample(true)),
+        row(M_SAMPLE, 10, 1, at(2), p::sample(true)),
+        row(M_SAMPLE, 11, 2, at(3), p::sample(false)),
+        row(M_SAMPLE, 11, 0, at(4), p::sample(true)),
+        row(M_GC_START, 11, 0, at(5), p::gc_start(1, 0, 0)),
+        row(M_GC_END, 11, 0, at(7), p::gc_end(1, 0)),
+        row(M_EXC, 10, 1, at(8), p::exception("Shop.Orders.InvalidOrderException", "bad order")),
+        row(M_CONT_START, 11, 2, at(9), p::contention(false)),
+        row(M_CONT_STOP, 11, 2, at(12), p::contention(false)),
+        row(M_OTHER, 10, 0, at(12), vec![1, 2, 3]),
+        row(99, 10, 0, at(12), vec![]),
+    ];
+    for r in &mut rows {
+        seq += 1;
+        r.sequence = seq;
+    }
+    rows[0].sorted = true;
+    w.events(compressed, &rows);
+    w.sequence_point(at(13), &[(10, 5), (11, 7)]);
+    // Stack id 1 is reused for a different stack after the sequence point.
+    w.stacks(1, &[vec![SAVE, PLACE, MAIN]]);
+    w.events(compressed, &[row(M_SAMPLE, 10, 1, at(20), p::sample(true))]);
+    let rundown = vec![
+        row(M_MODULE, 12, 0, at(30), p::module_load(50, r"C:\app\Shop.dll")),
+        row(
+            M_DCEND,
+            12,
+            0,
+            at(30),
+            p::method_verbose(1, 50, MAIN, 0x100, "Shop.Program", "Main"),
+        ),
+        row(
+            M_DCEND,
+            12,
+            0,
+            at(30),
+            p::method_verbose(2, 50, PLACE, 0x100, "Shop.Orders.OrderService", "PlaceOrder"),
+        ),
+        row(
+            M_DCEND,
+            12,
+            0,
+            at(30),
+            p::method_verbose(3, 50, SAVE, 0x80, "Shop.Orders.OrderRepository", "Save"),
+        ),
+    ];
+    w.events(compressed, &rundown);
+    w.finish()
+}
+
+fn import(bytes: &[u8]) -> Result<Profile> {
+    import_with(bytes, &Limits::default())
+}
+
+fn import_with(bytes: &[u8], limits: &Limits) -> Result<Profile> {
+    match NettraceImporter.import("orders.nettrace", bytes, limits)? {
+        Capture::Profile(p) => Ok(p),
+        Capture::Heap(_) => panic!("a nettrace is a profile"),
+    }
+}
+
+fn names(p: &Profile, stack: u32) -> Vec<String> {
+    p.stack_frames(stack)
+        .iter()
+        .map(|&f| p.frames[f as usize].function.clone())
+        .collect()
+}
+
+#[test]
+fn imports_samples_symbols_and_runtime_events() {
+    let p = import(&trace(true)).unwrap();
+    assert_eq!(p.name, "orders");
+    assert_eq!(p.source, "nettrace");
+    assert!(p.has_time);
+    let ids: Vec<MetricId> = p.metrics.iter().map(|m| m.id).collect();
+    assert_eq!(ids, [MetricId::Samples, MetricId::TimeNs, MetricId::Exceptions, MetricId::WaitNs]);
+    assert_eq!(p.metrics[0].measurement, Measurement::Sampled);
+    assert_eq!(p.metrics[2].measurement, Measurement::Exact);
+    // 5 CPU samples + one exception + one wait sample.
+    assert_eq!(p.samples.len(), 7);
+    let threads: Vec<(Option<u64>, &str)> = p.threads.iter().map(|t| (t.os_id, t.name.as_str())).collect();
+    assert!(
+        threads.contains(&(Some(10), "Thread 10")) && threads.contains(&(Some(11), "Thread 11")),
+        "{threads:?}"
+    );
+    // Samples are in time order with nanoseconds since the sync time.
+    assert_eq!(p.samples.time[0], 1_000_000);
+    let first = p.samples.stack[0];
+    assert_eq!(names(&p, first), ["Shop.Program.Main", "Shop.Orders.OrderService.PlaceOrder"]);
+    let main = &p.frames[p.stack_frames(first)[0] as usize];
+    assert_eq!(main.module.as_deref(), Some("Shop.dll"));
+    assert_eq!(main.kind, FrameKind::Managed);
+    // Thread 11's first sample has an unresolved leaf.
+    let i = p.samples.time.iter().position(|&t| t == 3_000_000).unwrap();
+    let s = names(&p, p.samples.stack[i]);
+    assert_eq!(
+        s,
+        [
+            "Shop.Program.Main",
+            "Shop.Orders.OrderService.PlaceOrder",
+            "Shop.Orders.OrderRepository.Save",
+            "0xdeadbeef"
+        ]
+    );
+    let leaf = *p.stack_frames(p.samples.stack[i]).last().unwrap();
+    assert_eq!(p.frames[leaf as usize].kind, FrameKind::Native);
+    // A sample without a stack.
+    let i = p.samples.time.iter().position(|&t| t == 4_000_000).unwrap();
+    assert_eq!(names(&p, p.samples.stack[i]), ["(no stack)"]);
+    // After the sequence point stack id 1 means the new stack.
+    let i = p.samples.time.iter().position(|&t| t == 20_000_000).unwrap();
+    assert_eq!(names(&p, p.samples.stack[i]).len(), 3);
+    // Values: one sample of 1 ms each.
+    let stride = p.metrics.len();
+    assert_eq!(&p.samples.values[..stride], &[1, 1_000_000, 0, 0]);
+
+    let kinds: Vec<(EventKind, u64, u64, &str)> = p.events.iter().map(|e| (e.kind, e.start_ns, e.dur_ns, e.label.as_str())).collect();
+    assert!(
+        kinds.contains(&(EventKind::Jit, 0, 2_000_000, "Shop.Orders.OrderRepository.Save")),
+        "{kinds:?}"
+    );
+    assert!(kinds.contains(&(EventKind::Gc, 5_000_000, 2_000_000, "GC #1 gen 0 (small object allocation)")));
+    assert!(kinds.contains(&(EventKind::Exception, 8_000_000, 0, "Shop.Orders.InvalidOrderException")));
+    assert!(kinds.contains(&(EventKind::LockWait, 9_000_000, 3_000_000, "Monitor lock contention")));
+    let gc = p.events.iter().find(|e| e.kind == EventKind::Gc).unwrap();
+    assert_eq!(gc.thread, None);
+    let exc = p.events.iter().find(|e| e.kind == EventKind::Exception).unwrap();
+    assert_eq!(
+        names(&p, exc.stack.unwrap()),
+        ["Shop.Program.Main", "Shop.Orders.OrderService.PlaceOrder"]
+    );
+    let wait = p.metric_index(MetricId::WaitNs).unwrap();
+    let total_wait: u64 = p.samples.values.chunks(stride).map(|v| v[wait]).sum();
+    assert_eq!(total_wait, 3_000_000);
+
+    // 2026-10-17 09:30:00 UTC.
+    assert_eq!(p.started_ms, Some(1_792_229_400_000));
+    assert_eq!(p.duration_ns, 30_000_000);
+    assert!(
+        p.notes.iter().any(|n| n.starts_with("1 code addresses are not covered")),
+        "{:?}",
+        p.notes
+    );
+    assert!(
+        p.notes.iter().any(|n| n.starts_with("1 events with undefined metadata")),
+        "{:?}",
+        p.notes
+    );
+}
+
+#[test]
+fn uncompressed_headers_give_the_same_profile() {
+    let a = import(&trace(true)).unwrap();
+    let b = import(&trace(false)).unwrap();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn gzip_input_is_inflated() {
+    let mut e = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    e.write_all(&trace(true)).unwrap();
+    let z = e.finish().unwrap();
+    assert_eq!(NettraceImporter.sniff("x.nettrace.gz", &z), 90);
+    assert_eq!(NettraceImporter.sniff("x.gz", &z), 0);
+    assert_eq!(import(&z).unwrap().samples.len(), 7);
+}
+
+#[test]
+fn sniffs_the_magic_only() {
+    let t = trace(true);
+    assert_eq!(NettraceImporter.sniff("a.bin", &t), 100);
+    assert_eq!(NettraceImporter.sniff("a.nettrace", b"Nettrac"), 0);
+    assert_eq!(NettraceImporter.sniff("a.nettrace", b"{}"), 0);
+    assert_eq!(NettraceImporter.id(), "nettrace");
+    assert_eq!(NettraceImporter.name(), ".NET nettrace (EventPipe)");
+}
+
+fn header(f: impl FnOnce(&mut TraceHeader)) -> TraceHeader {
+    let mut h = TraceHeader::default();
+    f(&mut h);
+    h
+}
+
+fn minimal(h: &TraceHeader) -> Vec<u8> {
+    let mut w = Writer::new(h);
+    w.metadata(true, &metas());
+    w.events(true, &[row(M_SAMPLE, 1, 0, h.sync_qpc + 100, p::sample(true))]);
+    w.finish()
+}
+
+fn err(bytes: &[u8]) -> String {
+    import(bytes).unwrap_err().to_string()
+}
+
+#[test]
+fn versions_are_checked() {
+    assert!(import(&minimal(&header(|h| h.version = 5))).is_ok(), "V5");
+    for v in [3, 6] {
+        let e = import(&minimal(&header(|h| h.version = v))).unwrap_err();
+        assert!(matches!(e, ProfileError::Unsupported { .. }), "{e}");
+        assert!(e.to_string().contains(&format!("version {v}")), "{e}");
+    }
+    let e = import(&minimal(&header(|h| h.min_version = 6))).unwrap_err();
+    assert!(matches!(e, ProfileError::Unsupported { .. }));
+    // NetTrace V6 stream header.
+    let mut v6 = b"Nettrace".to_vec();
+    v6.extend_from_slice(&[0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0]);
+    let e = import(&v6).unwrap_err();
+    assert!(
+        matches!(e, ProfileError::Unsupported { .. }) && e.to_string().contains("version 6"),
+        "{e}"
+    );
+    let e = import(b"Nettrace\0\0\0\0").unwrap_err();
+    assert!(e.to_string().contains("version 0"), "{e}");
+    // A block that needs a newer reader.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.block("EventBlock", 3, &[20, 0, 0, 0]);
+    let e = import(&w.finish()).unwrap_err();
+    assert!(e.to_string().contains("EventBlock version 3"), "{e}");
+}
+
+#[test]
+fn rejects_bad_headers() {
+    assert!(err(b"").contains("Nettrace signature"));
+    assert!(err(b"NetPerf!").contains("Nettrace signature"));
+    let mut bad = b"Nettrace".to_vec();
+    bad.extend_from_slice(&20u32.to_le_bytes());
+    bad.extend_from_slice(b"!FastSerialization.2");
+    assert!(err(&bad).contains("FastSerialization header"));
+    assert!(err(&minimal(&header(|h| h.qpc_freq = 0))).contains("frequency"));
+    assert!(err(&minimal(&header(|h| h.pointer_size = 3))).contains("pointer size"));
+    // No Trace object at all.
+    let t = minimal(&TraceHeader::default());
+    let mut only_end = t[..32].to_vec();
+    only_end.push(1);
+    assert!(err(&only_end).contains("no Trace object"));
+    // A block before the Trace object.
+    let mut early = t[..32].to_vec();
+    early.extend_from_slice(&[5, 5, 1, 2, 0, 0, 0, 2, 0, 0, 0, 7, 0, 0, 0]);
+    early.extend_from_slice(b"SPBlock");
+    early.push(6);
+    assert!(err(&early).contains("must come first"));
+    // Unexpected tags.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&[9]);
+    assert!(err(&w.finish()).contains("unexpected tag 9"));
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&[5, 1]);
+    assert!(err(&w.finish()).contains("expected tag 5, found 1"));
+    // Type name length.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&[5, 5, 1, 2, 0, 0, 0, 2, 0, 0, 0, 0xff, 0xff, 0, 0]);
+    assert!(err(&w.finish()).contains("too long"));
+    // A second Trace object.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&t[32..32 + 23 + 48 + 1]);
+    assert!(err(&w.finish()).contains("second Trace"));
+}
+
+#[test]
+fn every_truncation_is_an_error() {
+    let t = trace(true);
+    for cut in 0..t.len() {
+        assert!(import(&t[..cut]).is_err(), "cut at {cut} of {}", t.len());
+    }
+    let u = trace(false);
+    for cut in (0..u.len()).step_by(7) {
+        assert!(import(&u[..cut]).is_err());
+    }
+}
+
+#[test]
+fn hostile_sizes_and_counts_are_errors() {
+    let lim = Limits::default();
+    // Block size larger than the file.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&[5, 5, 1, 2, 0, 0, 0, 2, 0, 0, 0, 10, 0, 0, 0]);
+    w.raw(b"EventBlock");
+    w.raw(&[6, 0xff, 0xff, 0xff, 0x7f]);
+    assert!(err(&w.finish()).contains("ends unexpectedly"));
+    // Negative block size.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.raw(&[5, 5, 1, 2, 0, 0, 0, 2, 0, 0, 0, 10, 0, 0, 0]);
+    w.raw(b"EventBlock");
+    w.raw(&[6, 0xff, 0xff, 0xff, 0xff]);
+    assert!(err(&w.finish()).contains("negative block size"));
+    // A stack block claiming four billion stacks.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut sb = 1u32.to_le_bytes().to_vec();
+    sb.extend_from_slice(&u32::MAX.to_le_bytes());
+    sb.extend_from_slice(&8u32.to_le_bytes());
+    sb.extend_from_slice(&[0; 8]);
+    w.block("StackBlock", 2, &sb);
+    assert!(err(&w.finish()).contains("declares 4294967295 stacks"));
+    // A stack larger than its block.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut sb = 1u32.to_le_bytes().to_vec();
+    sb.extend_from_slice(&1u32.to_le_bytes());
+    sb.extend_from_slice(&0x7fff_ffffu32.to_le_bytes());
+    w.block("StackBlock", 2, &sb);
+    assert!(err(&w.finish()).contains("ends unexpectedly"));
+    // A sequence point with too many threads.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut sp = 0i64.to_le_bytes().to_vec();
+    sp.extend_from_slice(&u32::MAX.to_le_bytes());
+    w.block("SPBlock", 2, &sp);
+    assert!(err(&w.finish()).contains("4294967295 threads"));
+    // Event payload length larger than the block.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut eb = vec![20, 0, 1, 0];
+    eb.extend_from_slice(&[0; 16]);
+    eb.extend_from_slice(&[0x81, 1, 0, 0xff, 0xff, 0xff, 0xff, 0x0f]);
+    w.block("EventBlock", 2, &eb);
+    assert!(err(&w.finish()).contains("ends unexpectedly"));
+    // Block header size too small, or bigger than the block.
+    for hs in [2u16, 400] {
+        let mut w = Writer::new(&TraceHeader::default());
+        let mut eb = hs.to_le_bytes().to_vec();
+        eb.extend_from_slice(&[1, 0, 0, 0]);
+        w.block("EventBlock", 2, &eb);
+        assert!(import_with(&w.finish(), &lim).is_err());
+    }
+    // An uncompressed event shorter than its header.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut eb = vec![20, 0, 0, 0];
+    eb.extend_from_slice(&[0; 16]);
+    eb.extend_from_slice(&8u32.to_le_bytes());
+    eb.extend_from_slice(&[0; 8]);
+    w.block("EventBlock", 2, &eb);
+    assert!(err(&w.finish()).contains("shorter than its header"));
+    // An uncompressed payload larger than the event.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut eb = super::writer::rows_block(false, &[row(1, 1, 0, 5, vec![])]);
+    let n = eb.len();
+    eb[n - 4..].copy_from_slice(&1000u32.to_le_bytes());
+    w.block("EventBlock", 2, &eb);
+    assert!(err(&w.finish()).contains("ends unexpectedly"));
+    // Metadata with an unterminated provider name.
+    let mut w = Writer::new(&TraceHeader::default());
+    let mut r = row(0, 0, 0, 0, vec![1, 0, 0, 0, 0x41, 0]);
+    r.sorted = true;
+    w.block("MetadataBlock", 2, &super::writer::rows_block(true, &[r]));
+    assert!(err(&w.finish()).contains("no terminating NUL"));
+}
+
+#[test]
+fn compressed_rows_can_repeat_headers_without_hanging() {
+    // Rows of two bytes (flags 0 + timestamp delta 0) reuse the previous header.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    let mut eb = super::writer::rows_block(true, &[row(M_SAMPLE, 1, 0, 2_000_000, vec![])]);
+    eb.extend(std::iter::repeat_n([0u8, 0u8], 5000).flatten());
+    w.block("EventBlock", 2, &eb);
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.samples.len(), 5001);
+    let small = Limits {
+        max_samples: 100,
+        ..Limits::default()
+    };
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.block("EventBlock", 2, &eb);
+    assert!(matches!(
+        import_with(&w.finish(), &small),
+        Err(ProfileError::LimitExceeded { what: "samples", .. })
+    ));
+}
+
+#[test]
+fn limits_are_enforced() {
+    let t = trace(true);
+    let tiny = Limits {
+        max_input_bytes: 10,
+        ..Limits::default()
+    };
+    assert!(matches!(
+        import_with(&t, &tiny),
+        Err(ProfileError::LimitExceeded { what: "file size", .. })
+    ));
+    let few_stacks = Limits {
+        max_stack_nodes: 1,
+        ..Limits::default()
+    };
+    assert!(matches!(import_with(&t, &few_stacks), Err(ProfileError::LimitExceeded { .. })));
+    let few_events = Limits {
+        max_events: 1,
+        ..Limits::default()
+    };
+    let p = import_with(&t, &few_events).unwrap();
+    assert!(p.notes.iter().any(|n| n.contains("beyond the event limit")), "{:?}", p.notes);
+    let few_frames = Limits {
+        max_frames: 1,
+        ..Limits::default()
+    };
+    assert!(matches!(import_with(&t, &few_frames), Err(ProfileError::LimitExceeded { .. })));
+}
+
+#[test]
+fn method_and_module_tables_are_bounded() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    let mut rows = vec![row(M_SAMPLE, 1, 0, at(1), p::sample(true))];
+    for i in 0..5u64 {
+        rows.push(row(M_DCEND, 1, 0, at(2), p::method_verbose(i, 1, 0x1000 * (i + 1), 16, "N", "M")));
+        rows.push(row(M_MODULE, 1, 0, at(2), p::module_load(i, "m.dll")));
+    }
+    w.events(true, &rows);
+    let lim = Limits {
+        max_frames: 3,
+        ..Limits::default()
+    };
+    let p = import_with(&w.finish(), &lim).unwrap();
+    assert!(p.notes.iter().any(|n| n.starts_with("4 method or module records")), "{:?}", p.notes);
+}
+
+#[test]
+fn damaged_payloads_unknown_objects_and_missing_stacks_are_noted() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.block("FutureBlock", 2, &[1, 2, 3]);
+    w.events(
+        true,
+        &[
+            row(M_SAMPLE, 1, 77, at(1), p::sample(true)),
+            row(M_GC_START, 1, 0, at(2), vec![1]),
+            row(M_GC_END, 1, 0, at(2), vec![]),
+            row(M_EXC, 1, 0, at(2), vec![0x41]),
+            row(M_CONT_START, 1, 0, at(2), vec![]),
+            row(M_JIT, 1, 0, at(2), vec![1]),
+            row(M_LOAD, 1, 0, at(2), vec![1]),
+            row(M_MODULE, 1, 0, at(2), vec![1]),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    for n in ["1 events referred to stacks", "7 runtime events had damaged", "1 unknown objects"] {
+        assert!(p.notes.iter().any(|x| x.starts_with(n)), "{n}: {:?}", p.notes);
+    }
+    assert_eq!(names(&p, p.samples.stack[0]), ["(no stack)"]);
+}
+
+#[test]
+fn traces_without_samples_or_methods() {
+    // Only runtime events: an exception (metric) and unpaired starts (instants).
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.events(
+        true,
+        &[
+            row(M_GC_START, 1, 0, at(1), p::gc_start(4, 2, 1)),
+            row(M_JIT, 1, 0, at(2), p::jitting_started(9, 1, "", "Lambda")),
+            row(M_LOAD, 2, 0, at(3), p::method_verbose(8, 1, 0x10, 0, "A", "B")),
+            row(M_CONT_START, 1, 0, at(4), p::contention(true)),
+            row(M_CONT_STOP, 2, 0, at(5), p::contention(true)),
+            row(M_GC_END, 1, 0, at(6), p::gc_end(5, 0)),
+            row(M_CONT_START, 3, 0, at(7), p::contention(true)),
+            row(M_CONT_STOP, 3, 0, at(8), p::contention(true)),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.metrics.iter().map(|m| m.id).collect::<Vec<_>>(), [MetricId::WaitNs]);
+    assert_eq!(p.samples.values, [1_000_000]);
+    let labels: Vec<(&str, u64)> = p.events.iter().map(|e| (e.label.as_str(), e.dur_ns)).collect();
+    assert_eq!(
+        labels,
+        [
+            ("GC #4 gen 2 (induced)", 0),
+            ("Lambda", 0),
+            ("A.B", 0),
+            ("Native lock contention", 1_000_000)
+        ]
+    );
+
+    // Only unpaired events: a placeholder metric.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.events(true, &[row(M_GC_START, 1, 0, at(1), p::gc_start(4, 2, 1))]);
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.metrics.len(), 1);
+    assert!(p.samples.is_empty());
+
+    // Exceptions only.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.events(true, &[row(M_EXC, 1, 0, at(1), p::exception("E", ""))]);
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.metrics.iter().map(|m| m.id).collect::<Vec<_>>(), [MetricId::Exceptions]);
+    assert_eq!(names(&p, p.samples.stack[0]), ["(no stack)"]);
+
+    // Samples with stacks but no rundown at all; 32-bit pointers; odd sampling rate.
+    let h = header(|h| {
+        h.pointer_size = 4;
+        h.sampling_ns = 0;
+    });
+    let mut w = Writer::new(&h);
+    w.metadata(false, &metas());
+    w.stacks(1, &[vec![0x1234, 0x5678]]);
+    w.events(false, &[row(M_SAMPLE, 1, 1, h.sync_qpc + 10, p::sample(true))]);
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(names(&p, p.samples.stack[0]), ["0x5678", "0x1234"]);
+    assert_eq!(p.samples.values, [1, DEFAULT_INTERVAL_NS]);
+    assert!(p.notes.iter().any(|n| n.contains("no method load or rundown")), "{:?}", p.notes);
+
+    // The same stack in two sequence-point regions is interned once.
+    let mut w = Writer::new(&h);
+    w.metadata(true, &metas());
+    for k in 0..2 {
+        w.stacks(1, &[vec![0x1234, 0x5678]]);
+        w.events(true, &[row(M_SAMPLE, 1, 1, h.sync_qpc + 10 + k, p::sample(true))]);
+        w.sequence_point(h.sync_qpc + 20 + k, &[]);
+    }
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.samples.stack[0], p.samples.stack[1]);
+
+    // Nothing usable.
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(true, &metas());
+    w.events(true, &[row(M_OTHER, 1, 0, at(1), vec![])]);
+    assert!(err(&w.finish()).contains("no CPU samples"));
+}
+
+#[test]
+fn clock_and_dates() {
+    let c = Clock {
+        origin: 100,
+        freq: 1_000_000_000,
+    };
+    assert_eq!(c.ns(50), 0);
+    assert_eq!(c.ns(150), 50);
+    let c = Clock { origin: i64::MIN, freq: 1 };
+    assert_eq!(c.ns(i64::MAX), u64::MAX, "saturates");
+    assert_eq!(Clock { origin: 0, freq: 0 }.ns(5), 0);
+    assert_eq!(system_time_ms([1970, 1, 4, 1, 0, 0, 0, 0]), Some(0));
+    assert_eq!(system_time_ms([2000, 3, 3, 1, 0, 0, 1, 5]), Some(951_868_801_005));
+    assert_eq!(system_time_ms([1601, 1, 1, 1, 0, 0, 0, 0]), Some(-11_644_473_600_000));
+    for bad in [
+        [1600, 1, 0, 1, 0, 0, 0, 0],
+        [2000, 13, 0, 1, 0, 0, 0, 0],
+        [2000, 1, 0, 0, 0, 0, 0, 0],
+        [2000, 1, 0, 1, 24, 0, 0, 0],
+        [2000, 1, 0, 1, 0, 60, 0, 0],
+        [2000, 1, 0, 1, 0, 0, 60, 0],
+        [2000, 1, 0, 1, 0, 0, 0, 1000],
+    ] {
+        assert_eq!(system_time_ms(bad), None, "{bad:?}");
+    }
+    // Events before the sync time move the origin (and the start) back.
+    let h = TraceHeader::default();
+    let mut w = Writer::new(&h);
+    w.metadata(true, &metas());
+    w.events(
+        true,
+        &[
+            row(M_SAMPLE, 1, 0, h.sync_qpc - 10_000, p::sample(true)),
+            row(M_SAMPLE, 1, 0, h.sync_qpc, p::sample(true)),
+        ],
+    );
+    let p = NettraceImporter.import("", &w.finish(), &Limits::default()).unwrap();
+    let Capture::Profile(p) = p else { panic!() };
+    assert_eq!(p.samples.time, [0, 1_000_000]);
+    assert_eq!(p.started_ms, Some(1_792_229_400_000 - 1));
+    assert_eq!(p.name, "Process 4242");
+}
+
+#[test]
+fn symbol_lookup_handles_edges() {
+    let m = |start, size| runtime::MethodInfo {
+        method_id: 0,
+        module_id: 0,
+        start,
+        size,
+        name: String::new(),
+    };
+    let s = Symbols::new(&[m(100, 10), m(100, 10), m(200, 0), m(u64::MAX - 1, 100)]);
+    assert_eq!(s.ranges.len(), 3, "duplicates removed");
+    assert_eq!(s.lookup(99), None);
+    assert_eq!(s.lookup(100), Some(0));
+    assert_eq!(s.lookup(109), Some(0));
+    assert_eq!(s.lookup(110), None);
+    assert_eq!(s.lookup(200), Some(2), "size 0 covers its start");
+    assert_eq!(s.lookup(201), None);
+    assert_eq!(s.lookup(u64::MAX - 1), Some(3));
+}

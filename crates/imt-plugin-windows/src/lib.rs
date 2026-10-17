@@ -15,8 +15,8 @@
 //!
 //! * **Performance Monitor** (`.csv`/`.tsv` PDH logs, `.blg` on Windows via `relog`):
 //!   [`PerfmonCsvImporter`] and [`BlgImporter`] produce one record per row and counter
-//!   (see [`perfmon`]). [`perfmon_template`] builds Data Collector Set XML and
-//!   [`perfmon_control`] runs `logman` to import, start, stop and query a set.
+//!   (see [`perfmon`]). Creating and controlling Data Collector Sets is a tool of the
+//!   tools plugin (`imt-plugin-tools`), which can be disabled on its own.
 //!
 //! * **Markers and annotators**: [`markers::kinds`] marks crashes, hangs,
 //!   unexpected shutdowns, boots, disk errors, updates and logon failures in
@@ -38,13 +38,11 @@ mod evtx_import;
 pub mod markers;
 mod nfo;
 pub mod perfmon;
-pub mod perfmon_control;
-pub mod perfmon_template;
 pub mod settings;
 
 pub use blg::BlgImporter;
 pub use evtx_import::{is_evtx, read_evtx, EvtxImporter};
-pub use nfo::NfoImporter;
+pub use nfo::{NfoConfigParser, NfoImporter};
 pub use perfmon::PerfmonCsvImporter;
 
 use anyhow::Result;
@@ -77,6 +75,7 @@ impl Plugin for WindowsPlugin {
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         registry.add_binary_importer(Box::new(EvtxImporter));
         registry.add_importer(Box::new(NfoImporter));
+        registry.contribute::<dyn imt_core::config::ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(NfoConfigParser));
         registry.add_importer(Box::new(PerfmonCsvImporter));
         registry.add_binary_importer(Box::<BlgImporter>::default());
         registry.add_marker_kinds(markers::kinds())?;
@@ -102,12 +101,13 @@ mod tests {
         registry.install(&WindowsPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 4 + markers::kinds().len() + 2 + 1);
+        assert_eq!(info.contributes.len(), 4 + 1 + markers::kinds().len() + 2 + 1);
+        assert!(info.contributes.contains(&"contribution:config.parsers".to_string()));
         assert_eq!(info.contributes.last().unwrap(), "settings");
         assert!(info.contributes.contains(&"marker:app-crash".to_string()));
         assert!(info.contributes.contains(&"annotator:windows.reboots".to_string()));
         let section = registry.plugin_settings()[0].configurable.settings_section();
-        assert_eq!((section.id.as_str(), section.fields.len()), ("net.decryptology.windows", 2));
+        assert_eq!((section.id.as_str(), section.fields.len()), ("net.decryptology.windows", 1));
         assert_eq!(WindowsPlugin.name(), "Windows diagnostics");
         assert_eq!(WindowsPlugin.version(), env!("CARGO_PKG_VERSION"));
     }

@@ -486,20 +486,38 @@ fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Result<()> {
 /// Every compiled-in plugin. Add new plugins here; install order does not
 /// matter (activation follows the dependency graph).
 pub fn builtin_plugins() -> Vec<Arc<dyn Plugin>> {
-    vec![
-        Arc::new(imt_plugin_registry::RegistryPlugin),
-        Arc::new(imt_plugin_otel::OtelPlugin),
-        Arc::new(imt_plugin_syslog::SyslogPlugin),
-        Arc::new(imt_plugin_windows::WindowsPlugin),
-        Arc::new(imt_plugin_web::WebPlugin),
-    ]
+    // One list for the app and the `imt-plugin-host` binary that runs them isolated.
+    imt_plugin_host::builtins::all()
 }
 
 /// The engine's plugins: none in safe mode, else every compiled-in plugin
 /// except those the user disabled, resolved (dependencies checked, activation
 /// hooks run in dependency order).
+// The app installs `plugins_with` (it shares the tools plugin); tests use this.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn plugins(safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    install(builtin_plugins(), safe_mode, disabled)
+    plugins_with(safe_mode, disabled, &[])
+}
+
+/// [`plugins`] plus `shared`: plugins whose state is app-wide, so one value
+/// is installed in every window's registry (the tools plugin, see `AppState`).
+// The app installs `plugins_from` (isolated plugins replaced by their process); tests use this.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn plugins_with(safe_mode: bool, disabled: &[String], shared: &[Arc<dyn Plugin>]) -> anyhow::Result<PluginRegistry> {
+    plugins_from(safe_mode, disabled, builtin_plugins(), shared)
+}
+
+/// [`plugins_with`] with the built-in plugins given (some may be plugin processes, see
+/// `plugin_isolation`).
+pub fn plugins_from(
+    safe_mode: bool,
+    disabled: &[String],
+    builtins: Vec<Arc<dyn Plugin>>,
+    shared: &[Arc<dyn Plugin>],
+) -> anyhow::Result<PluginRegistry> {
+    let mut all = builtins;
+    all.extend(shared.iter().cloned());
+    install(all, safe_mode, disabled)
 }
 
 /// Installs `all` and resolves them. A plugin that fails to install does not
@@ -529,14 +547,60 @@ fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[String]) -> a
     Ok(registry)
 }
 
-/// Logs panics (message and location) to IMT's own CLEF log before the default handler runs.
+/// Longest backtrace logged with a panic (bytes, cut at a line boundary).
+pub const MAX_BACKTRACE: usize = 8 * 1024;
+/// Panics logged with a backtrace per run (capturing one is slow; a panic loop must not stall IMT).
+const MAX_BACKTRACES: u32 = 20;
+static PANICS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// `text` cut to at most `max` bytes at a line boundary, with a note of what was left out.
+pub fn bounded_lines(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_string();
+    }
+    let mut cut = max;
+    while !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    let cut = text[..cut].rfind('\n').unwrap_or(cut);
+    format!("{}\n… ({} more bytes)", &text[..cut], text.len() - cut)
+}
+
+/// The panicking thread's name, or its id when it has none.
+fn thread_name() -> String {
+    let t = std::thread::current();
+    t.name().map(str::to_string).unwrap_or_else(|| format!("{:?}", t.id()))
+}
+
+/// Logs a panic on any thread (UI, Tauri's async runtime, rayon pools, watcher and event-bus threads,
+/// helper threads): the panic hook is process-wide. Logged at Error with `Severity = "Fatal"`, the
+/// thread, the location, a bounded backtrace and, inside a command, its window and operation id (the
+/// activity logger attaches the breadcrumbs). Panics that a guard contains (plugin code) are logged too:
+/// they are bugs, and the guard reports the containment separately. Then the previous hook runs.
 pub fn install_panic_logging() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        let location = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
-        log::error!(Location = location.as_str(); "IMT crashed: {}", imt_core::guard::panic_message(info.payload()));
+        log_panic(info);
         previous(info);
     }));
+}
+
+fn log_panic(info: &std::panic::PanicHookInfo<'_>) {
+    let location = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_default();
+    let thread = thread_name();
+    let n = PANICS.fetch_add(1, Ordering::Relaxed);
+    let backtrace = if n < MAX_BACKTRACES {
+        bounded_lines(&std::backtrace::Backtrace::force_capture().to_string(), MAX_BACKTRACE)
+    } else {
+        "(not captured: too many panics in this run)".into()
+    };
+    let op = crate::activity::current_op().unwrap_or_default();
+    let window = crate::activity::current_window().unwrap_or_default();
+    log::error!(
+        Severity = "Fatal", Thread = thread.as_str(), Location = location.as_str(), Backtrace = backtrace.as_str(),
+        OperationId = op.as_str(), Window = window.as_str();
+        "IMT crashed on thread {thread}: {}", imt_core::guard::panic_message(info.payload())
+    );
 }
 
 #[derive(Serialize)]
@@ -577,11 +641,14 @@ pub fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>, safe_mode: bool,
 
 /// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
 #[tauri::command]
-pub fn plugin_reset(windows: State<'_, Windows>, id: String) -> CmdResult<()> {
+pub fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    // An isolated plugin's process may be quarantined too.
+    state.isolation.isolation.reset(&id);
     for w in windows.all() {
         w.store_read().reset_plugin(&id);
     }
     log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
+    crate::activity::domain_event("plugin.reset", None, &[("Plugin", &id)]);
     Ok(())
 }
 
@@ -596,14 +663,22 @@ pub fn plugin_set_enabled(state: State<'_, AppState>, id: String, enabled: bool)
     }
     save_plugin_settings(dir, &s).map_err(err)?;
     log::info!(Plugin = id.as_str(), Enabled = enabled; "Plugin setting changed");
+    let event = if enabled { "plugin.enabled" } else { "plugin.disabled" };
+    crate::activity::domain_event(event, None, &[("Plugin", &id)]);
     Ok(true)
 }
 
 /// Autosaves the calling window's session (open files, profile, UI state) for crash recovery.
 #[tauri::command]
-pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value) -> CmdResult<()> {
+pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
     let Some(store) = &lifecycle.sessions else { return Ok(()) };
-    let project = crate::workspace_commands::project_of(&state, "Last session".into(), ui);
+    let mut project = crate::workspace_commands::project_of(&state, "Last session".into(), ui);
+    // Autosave never fails over a report: one that does not parse is left out.
+    project.reports = reports
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|r| imt_core::report::Report::parse(r).ok())
+        .collect();
     store.save(state.label(), &project).map(|_| ()).map_err(err)
 }
 
@@ -642,6 +717,123 @@ pub fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Installs the panic logging hook once for this test process (it chains the previous hook).
+    fn panic_logging() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(install_panic_logging);
+    }
+
+    fn crashes(marker: &str) -> Vec<crate::activity::Captured> {
+        crate::activity::captured()
+            .into_iter()
+            .filter(|c| c.message.contains(marker))
+            .collect()
+    }
+
+    #[test]
+    fn panics_on_any_thread_are_logged_as_fatal_with_thread_and_backtrace() {
+        let _g = crate::activity::test_capture();
+        panic_logging();
+        // A named std thread (watcher, event-bus subscriber and helper threads are std threads).
+        let t = std::thread::Builder::new()
+            .name("imt-test-worker".into())
+            .spawn(|| panic!("boom on a worker (hook test)"))
+            .unwrap();
+        assert!(t.join().is_err());
+        let c = crashes("boom on a worker (hook test)");
+        assert_eq!(c.len(), 1);
+        let e = &c[0];
+        assert_eq!(
+            (e.level, e.props["Severity"].as_str(), e.props["Thread"].as_str()),
+            (log::Level::Error, "Fatal", "imt-test-worker")
+        );
+        assert!(e.props["Location"].contains("lifecycle.rs"), "{:?}", e.props);
+        assert!(!e.props["Backtrace"].is_empty() && e.props["Backtrace"].len() <= MAX_BACKTRACE + 40);
+        // A task on Tauri's async runtime (tokio worker threads).
+        let task = tauri::async_runtime::spawn(async { panic!("boom in an async task (hook test)") });
+        assert!(crate::test_support::block(task).is_err());
+        assert_eq!(crashes("boom in an async task (hook test)").len(), 1);
+        // A blocking-pool task (where commands do their work).
+        let blocking = tauri::async_runtime::spawn_blocking(|| panic!("boom in a blocking task (hook test)"));
+        assert!(crate::test_support::block(blocking).is_err());
+        assert_eq!(crashes("boom in a blocking task (hook test)").len(), 1);
+        // A thread without a name is identified by its id.
+        assert!(std::thread::spawn(|| panic!("boom unnamed (hook test)")).join().is_err());
+        assert!(crashes("boom unnamed (hook test)")[0].props["Thread"].starts_with("ThreadId("));
+    }
+
+    #[test]
+    fn contained_plugin_crashes_quarantines_and_overruns_are_logged() {
+        let _g = crate::activity::test_capture();
+        let health = imt_core::guard::Health::default();
+        for i in 0..imt_core::guard::QUARANTINE_AFTER {
+            health.fail("t.flaky-log", &format!("bad record {i}"));
+        }
+        let logged = crate::activity::captured();
+        let crash = logged
+            .iter()
+            .find(|c| c.message.contains("t.flaky-log crashed (contained): bad record 0"))
+            .expect("crash logged");
+        assert_eq!(
+            (crash.level, crash.target.as_str(), crash.props["Plugin"].as_str()),
+            (log::Level::Error, imt_core::guard::LOG_TARGET, "t.flaky-log")
+        );
+        assert!(logged.iter().any(|c| c.message.contains("t.flaky-log quarantined")));
+    }
+
+    #[test]
+    fn plugin_setting_changes_are_domain_events() {
+        let _g = crate::activity::test_capture();
+        let dir = crate::test_support::TempDir::new("plugin-events");
+        let app = crate::test_support::test_app_with_commands(Some(dir.0.join("profiles")));
+        let main = crate::test_support::window(&app, "main");
+        let ipc = |cmd: &str, body: Value, op: &str| crate::tools::tests::ipc_op(&main, cmd, body, op);
+        ipc(
+            "plugin_set_enabled",
+            serde_json::json!({"id": "net.decryptology.web", "enabled": false}),
+            "op-disable",
+        )
+        .unwrap();
+        ipc(
+            "plugin_set_enabled",
+            serde_json::json!({"id": "net.decryptology.web", "enabled": true}),
+            "op-enable",
+        )
+        .unwrap();
+        ipc("plugin_reset", serde_json::json!({"id": "net.decryptology.web"}), "op-reset").unwrap();
+        let events: Vec<(String, String, String)> = crate::activity::captured()
+            .into_iter()
+            .filter(|c| c.props.get("Kind").is_some_and(|k| k == "domain"))
+            .map(|c| {
+                (
+                    c.props["Operation"].clone(),
+                    c.props["OperationId"].clone(),
+                    c.props["Plugin"].clone(),
+                )
+            })
+            .collect();
+        let want = |e: &str, op: &str| (e.to_string(), op.to_string(), "net.decryptology.web".to_string());
+        assert_eq!(
+            events,
+            vec![
+                want("plugin.disabled", "op-disable"),
+                want("plugin.enabled", "op-enable"),
+                want("plugin.reset", "op-reset")
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&dir.0);
+    }
+
+    #[test]
+    fn backtraces_are_bounded_at_line_boundaries() {
+        assert_eq!(bounded_lines("short", 100), "short");
+        let text = "frame one\nframe two\nframe three\n";
+        let cut = bounded_lines(text, 15);
+        assert!(cut.starts_with("frame one\n…") || cut.starts_with("frame one\n"), "{cut}");
+        assert!(cut.contains("more bytes"));
+        assert!(bounded_lines("ééééé", 3).contains("more bytes"));
+    }
 
     struct Needy(&'static str, Option<&'static str>);
     impl Plugin for Needy {
@@ -965,6 +1157,7 @@ mod tests {
             removed: vec![],
             profile: "name = 'x'".into(),
             ui: Value::Null,
+            ..Default::default()
         }
     }
 
@@ -1080,16 +1273,23 @@ mod tests {
         // Autosave of this run, per window.
         let csv = samples().join("csv").to_string_lossy().into_owned();
         block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv])).unwrap();
-        save_session(main_window(&app), life(), serde_json::json!({ "k": 1 })).unwrap();
-        save_session(w2.clone(), life(), Value::Null).unwrap();
+        save_session(
+            main_window(&app),
+            life(),
+            serde_json::json!({ "k": 1 }),
+            Some(vec![serde_json::json!({"id": "r"}), Value::Null]),
+        )
+        .unwrap();
+        save_session(w2.clone(), life(), Value::Null, None).unwrap();
         let saved = ProjectFile::load(&last_session(main_window(&app), life()).map(PathBuf::from).unwrap()).unwrap();
         assert_eq!((saved.sources.len(), saved.ui["k"].as_i64()), (1, Some(1)));
+        assert_eq!(saved.reports.len(), 1, "an unreadable report is left out of the autosave");
         assert!(last_session(w2, life()).is_some());
         life().forget_session("w-7");
         // Without a data folder sessions are off.
         let app2 = test_app(None);
         app2.manage(Lifecycle::begin(None, false));
-        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null).unwrap();
+        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None).unwrap();
         assert_eq!(
             restore_windows(app2.handle().clone(), main_window(&app2), app2.state::<Lifecycle>()).unwrap(),
             0

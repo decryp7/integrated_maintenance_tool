@@ -3,6 +3,7 @@ import { WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
+import { ProfileUndo } from '../undo/profile-undo';
 import { parseProfile, stringifyProfile } from '../profile/toml';
 import { RuleRow, SaveFailure } from './markers.types';
 import { readRows } from './marker-rules';
@@ -17,6 +18,7 @@ export type CommitResult = { ok: true; summary: WorkspaceSummary } | { ok: false
 export class MarkerProfile {
   private readonly backend = inject(ImtBackend);
   private readonly store = inject(WorkspaceStore);
+  private readonly undo = inject(ProfileUndo);
 
   /** The marker rules (active and disabled) in priority order, and the model they came from. */
   async load(): Promise<{ model: ProfileModel; rows: RuleRow[] }> {
@@ -25,10 +27,12 @@ export class MarkerProfile {
     return { model, rows: readRows(model) };
   }
 
-  /** Applies `mutate` to a fresh copy of the profile and saves it. Never throws. */
-  async commit(mutate: (model: ProfileModel, rows: RuleRow[]) => void): Promise<CommitResult> {
+  /** Applies `mutate` to a fresh copy of the profile and saves it (undoable as `label`). Never throws. */
+  async commit(mutate: (model: ProfileModel, rows: RuleRow[]) => void, label = 'marker rule edit'): Promise<CommitResult> {
     try {
-      const { model, rows } = await this.load();
+      const before = (await this.backend.getProfile()).toml;
+      const model = parseProfile(before);
+      const rows = readRows(model);
       mutate(model, rows);
       const toml = stringifyProfile(model);
       const validation = await this.backend.validateProfile(toml);
@@ -39,6 +43,7 @@ export class MarkerProfile {
       }
       const summary = await this.backend.saveProfile(toml);
       this.store.profileSaved(summary);
+      this.undo.record(label, before, toml);
       return { ok: true, summary };
     } catch (e) {
       return { ok: false, failure: { message: e instanceof Error ? e.message : String(e), line: null, excerpt: null } };

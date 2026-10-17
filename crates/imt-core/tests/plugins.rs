@@ -138,6 +138,8 @@ fn plugin_contributions_flow_through_the_workspace() {
             format: "lines".into(),
             path: out.to_string_lossy().into_owned(),
             descending: true,
+            redact: false,
+            overwrite: false,
         })
         .unwrap();
     assert_eq!(res.events, ws.summary().total);
@@ -183,6 +185,8 @@ fn built_in_exporters_and_errors() {
                 format: format.into(),
                 path: path.to_string_lossy().into_owned(),
                 descending: false,
+                redact: false,
+                overwrite: false,
             })
             .unwrap();
         assert!(res.events > 0);
@@ -194,6 +198,8 @@ fn built_in_exporters_and_errors() {
         format: "pdf".into(),
         path: "x".into(),
         descending: false,
+        redact: false,
+        overwrite: false,
     };
     assert!(ws.export(&bad_format).unwrap_err().to_string().contains("unknown export format"));
     let bad_path = ExportRequest {
@@ -201,8 +207,28 @@ fn built_in_exporters_and_errors() {
         format: "csv".into(),
         path: "/no/such/dir/out.csv".into(),
         descending: false,
+        redact: false,
+        overwrite: false,
     };
     assert!(ws.export(&bad_path).unwrap_err().to_string().contains("cannot create"));
+    // An existing file is never replaced unless the user confirmed it.
+    let existing = dir.join(format!("imt-export-exists-{}.csv", std::process::id()));
+    std::fs::write(&existing, "keep me").unwrap();
+    let mut req = ExportRequest {
+        query: Query::default(),
+        format: "csv".into(),
+        path: existing.to_string_lossy().into_owned(),
+        descending: false,
+        redact: false,
+        overwrite: false,
+    };
+    let refused = format!("{:#}", ws.export(&req).unwrap_err());
+    assert_eq!(refused, format!("{} already exists; confirm to replace it", existing.display()));
+    assert_eq!(std::fs::read_to_string(&existing).unwrap(), "keep me");
+    req.overwrite = true;
+    assert!(ws.export(&req).unwrap().events > 0);
+    assert_ne!(std::fs::read_to_string(&existing).unwrap(), "keep me");
+    std::fs::remove_file(existing).unwrap();
     let bad_query = ExportRequest {
         query: Query {
             text: "(".into(),
@@ -212,6 +238,8 @@ fn built_in_exporters_and_errors() {
         format: "csv".into(),
         path: "x".into(),
         descending: false,
+        redact: false,
+        overwrite: false,
     };
     assert!(ws.export(&bad_query).is_err());
     let summary = ws.summary();
@@ -343,6 +371,8 @@ fn importer_plugins_and_default_hooks_through_the_store_trait() {
             format: "csv".into(),
             path: out.to_string_lossy().into_owned(),
             descending: false,
+            redact: false,
+            overwrite: false,
         })
         .unwrap();
     assert_eq!(res.events, 2);

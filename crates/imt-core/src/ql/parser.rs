@@ -14,6 +14,9 @@ const MAX_DEPTH: usize = 64;
 pub struct Program {
     pub filter: Filter,
     pub stages: Vec<Stage>,
+    /// Every field the query names, in order, with the part it is in: 0 for the leading filter,
+    /// `i + 1` for `stages[i]` (used to check names against the data, see [`super::unknown_field`]).
+    pub field_refs: Vec<(usize, FieldRef)>,
 }
 
 /// A field named in the query, with its source span for error reporting.
@@ -81,6 +84,8 @@ pub fn parse(text: &str) -> Result<Program, QlError> {
         pos: 0,
         text,
         depth: 0,
+        part: 0,
+        refs: Vec::new(),
     };
     let filter = if matches!(p.peek(), None | Some(Tok::Pipe)) {
         Filter { expr: None }
@@ -91,10 +96,15 @@ pub fn parse(text: &str) -> Result<Program, QlError> {
     let mut stages = Vec::new();
     while p.peek() == Some(&Tok::Pipe) {
         p.pos += 1;
+        p.part = stages.len() + 1;
         stages.push(p.stage()?);
         p.expect_stage_end()?;
     }
-    Ok(Program { filter, stages })
+    Ok(Program {
+        filter,
+        stages,
+        field_refs: p.refs,
+    })
 }
 
 struct Parser<'a> {
@@ -102,11 +112,25 @@ struct Parser<'a> {
     pos: usize,
     text: &'a str,
     depth: usize,
+    /// The query part being parsed (see `Program::field_refs`).
+    part: usize,
+    refs: Vec<(usize, FieldRef)>,
 }
 
 impl Parser<'_> {
     fn peek(&self) -> Option<&Tok> {
         self.toks.get(self.pos).map(|t| &t.tok)
+    }
+
+    /// Remembers a field the query names (filters name fields without going through `field_ref`).
+    fn note(&mut self, name: &str, label: &str, t: &Token) {
+        let r = FieldRef {
+            name: name.to_string(),
+            label: label.to_string(),
+            offset: t.start,
+            len: t.end - t.start,
+        };
+        self.refs.push((self.part, r));
     }
 
     fn peek_at(&self, n: usize) -> Option<&Tok> {
@@ -217,6 +241,7 @@ impl Parser<'_> {
             Tok::Str(s) => Ok(Expr::Text(s.to_lowercase())),
             Tok::Tick(name) => {
                 if self.is_comparison_next() {
+                    self.note(name, name, &t);
                     self.comparison(name.clone(), &t)
                 } else {
                     Err(self.err_here(format!("expected an operator after field `{name}`")))
@@ -237,6 +262,7 @@ impl Parser<'_> {
             return self.function(&lower, t);
         }
         if self.is_comparison_next() {
+            self.note(&canonical(w), w, t);
             return self.comparison(canonical(w), t);
         }
         Ok(Expr::Text(w.to_lowercase()))
@@ -362,6 +388,12 @@ impl Parser<'_> {
     }
 
     fn field_ref(&mut self) -> Result<FieldRef, QlError> {
+        let r = self.field_ref_unnoted()?;
+        self.refs.push((self.part, r.clone()));
+        Ok(r)
+    }
+
+    fn field_ref_unnoted(&mut self) -> Result<FieldRef, QlError> {
         match self.next() {
             Some(Token {
                 tok: Tok::Word(w),

@@ -3,7 +3,7 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { SnapshotBackend } from './snapshot-backend';
 import { SETTINGS_COMMAND } from './error-snapshots-view';
-import { SNAPSHOT_NOTICE } from './snapshot.types';
+import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
 
 /** "Error captured — View", plus the one-time notice that the screenshot is local. Mounted once over the app. */
 @Component({
@@ -14,7 +14,8 @@ import { SNAPSHOT_NOTICE } from './snapshot.types';
     @if (service.toast(); as t) {
       <div class="toast" role="status" aria-live="polite" data-testid="snapshot-toast">
         @if (t.kind === 'captured') {
-          <span class="line"><strong>Error captured</strong> — <button type="button" class="link" (click)="view()">View</button></span>
+          <span class="line"><strong>Error captured</strong> — <button type="button" class="link" (click)="view()">View</button> ·
+            <button type="button" class="link" (click)="report()" data-testid="toast-report-problem">Report a problem…</button></span>
           @if (t.firstTime) {
             <span class="note" data-testid="snapshot-notice">{{ notice }}
               <button type="button" class="link" (click)="folder()">Open folder</button> ·
@@ -44,6 +45,11 @@ export class SnapshotToast {
 
   protected view(): void {
     void this.commands.run('diagnostics.snapshots.show');
+    this.service.dismissToast();
+  }
+
+  protected report(): void {
+    void this.commands.run(REPORT_PROBLEM_COMMAND);
     this.service.dismissToast();
   }
 

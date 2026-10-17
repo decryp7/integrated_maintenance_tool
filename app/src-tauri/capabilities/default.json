@@ -1,16 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions for every IMT window (main, and w-2, w-3, ... opened later)",
+  "description": "enables the default permissions for every IMT window (main, and w-2, w-3, ... opened later) and for panels popped out of them (p-main-1, p-w-2-3, ...); set-fullscreen backs Window > Full screen",
   "windows": [
     "main",
-    "w-*"
+    "w-*",
+    "p-*"
   ],
   "permissions": [
     "core:default",
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-message",
-    "log:default"
+    "log:default",
+    "core:window:allow-set-fullscreen"
   ]
 }

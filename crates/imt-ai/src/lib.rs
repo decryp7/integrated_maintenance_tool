@@ -1,0 +1,25 @@
+//! IMT's local AI layer. Inference runs in a separate worker process (`imt-ai-worker`, llama.cpp) so a native
+//! crash cannot take IMT down; nothing about the logs leaves the machine except web searches the user approves. The LLM only proposes: every proposal is validated and previewed by `imt-core`
+//! before the user can apply it.
+
+pub mod access;
+pub mod assistant;
+pub mod catalog;
+pub mod chat;
+#[cfg(windows)]
+mod dxgi;
+pub mod error;
+pub mod gguf;
+pub mod hardware;
+pub mod llm;
+pub mod models;
+pub mod recommend;
+pub mod runtime;
+pub mod settings;
+pub mod setup;
+pub mod testing;
+pub mod web;
+pub mod worker;
+
+pub use access::{StoreAccess, StoreRef};
+pub use error::{AiError, Result};

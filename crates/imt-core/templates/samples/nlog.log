@@ -1,0 +1,5 @@
+2026-10-14 10:41:00.1204|INFO|Shop.Startup|Application started
+2026-10-14 10:41:02.5400|WARN|Shop.Orders|Slow request /api/orders took 1500 ms
+2026-10-14 10:41:24.0501|ERROR|Shop.Payments|Payment failed for order 88412 System.TimeoutException: The operation has timed out.
+   at Shop.Payments.Gateway.Capture()
+2026-10-14 10:41:30.0000|DEBUG|Shop.Cache|Cache refreshed

@@ -9,6 +9,7 @@ use crate::runner::{CommandError, CommandOutput, CommandRunner};
 use crate::select::select_logs;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
+use imt_core::overwrite::check_overwrite;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
@@ -74,6 +75,9 @@ pub struct Collector<'a> {
     pub host: String,
     /// Reported as the installed IMT version in the environment snapshot.
     pub imt_version: String,
+    /// Whether an existing bundle of the same name may be replaced (the user confirmed it).
+    /// Without it, [`Collector::run`] fails with [`imt_core::overwrite::FileExists`].
+    pub overwrite: bool,
 }
 
 impl<'a> Collector<'a> {
@@ -86,6 +90,7 @@ impl<'a> Collector<'a> {
             now: Local::now(),
             host: env::host_name().unwrap_or_else(|| "unknown-host".into()),
             imt_version: env!("CARGO_PKG_VERSION").into(),
+            overwrite: false,
         }
     }
 
@@ -117,8 +122,10 @@ impl<'a> Collector<'a> {
     pub fn run(&self, out_dir: &Path) -> Result<CollectResult> {
         self.plan.validate()?;
         let redactor = Redactor::new(&self.plan.redact)?;
-        std::fs::create_dir_all(out_dir).with_context(|| format!("cannot create {}", out_dir.display()))?;
         let final_path = out_dir.join(self.bundle_file_name());
+        // Refused before any work, and again before the move (the file may appear meanwhile).
+        check_overwrite(&final_path, self.overwrite)?;
+        std::fs::create_dir_all(out_dir).with_context(|| format!("cannot create {}", out_dir.display()))?;
         let part = final_path.with_extension("imtz.part");
         let budget = self.plan.max_bundle_mb.saturating_mul(1 << 20);
         let scratch = tempfile::tempdir().context("cannot create a scratch folder")?;
@@ -153,6 +160,7 @@ impl<'a> Collector<'a> {
         bundle.add_meta("project.imtproj", self.project_json(top_folders(&manifest))?.as_bytes())?;
         bundle.add_meta("manifest.json", serde_json::to_string_pretty(&manifest)?.as_bytes())?;
         bundle.finish()?;
+        check_overwrite(final_path, self.overwrite)?;
         std::fs::rename(part, final_path).with_context(|| format!("cannot move the bundle to {}", final_path.display()))?;
         Ok(CollectResult {
             bundle: final_path.to_path_buf(),
@@ -192,6 +200,7 @@ impl<'a> Collector<'a> {
             removed: Vec::new(),
             profile: imt_core::DEFAULT_PROFILE_TOML.to_string(),
             ui: serde_json::json!({}),
+            ..Default::default()
         };
         Ok(serde_json::to_string_pretty(&project)?)
     }

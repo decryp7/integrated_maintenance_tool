@@ -58,6 +58,15 @@ The app reads untrusted, possibly huge files and renders their content:
   sent in one reply.
 - Logs must not contain file contents by default; any crash reporting is opt-in.
 
+## Languages
+
+- All code that ships inside IMT is Rust (engine, shell, plugins, workers, profiler agent) plus the
+  Angular UI. Don't add C#, C++, Python or other runtimes to the app itself.
+- Other languages are supported for plugins through the stable contracts (docs/adr/0004): any
+  language that speaks gRPC (`imt.plugin.v1`) or compiles to a WebAssembly component
+  (`imt:plugin@1`). The Rust and C#/.NET (`sdk/dotnet`) SDKs are official; SDKs for further languages are added to
+  `sdk/<language>/` only when a real plugin needs one, are conformance-tested in CI, and are never bundled into the app.
+
 ## Where logic lives
 
 - **The Rust engine is the single source of truth** for data and behaviour: parsing, timestamp
@@ -160,6 +169,13 @@ The app reads untrusted, possibly huge files and renders their content:
   (max_width 140).
 - UI: standalone components, signals, CSS custom properties for theme tokens (dark and
   light), accessible markup (real buttons, labels, aria-labels on icon buttons).
+- UI building blocks: use **Angular CDK** (`@angular/cdk`: menu, overlay, dialog, a11y, listbox,
+  scrolling, drag-drop) for behaviour and accessibility instead of hand-rolling them, and
+  **Angular Material** selectively for complex inputs (e.g. slide toggle, tooltip, datepicker,
+  autocomplete), themed through IMT's CSS tokens so the look stays consistent. Icons use Angular
+  Material's `MatIconRegistry` with IMT's own themed SVG icon set registered as literals in the
+  `imt` namespace (`<mat-icon svgIcon="imt:timeline">`, wrapped by `<imt-icon>`); no icon fonts
+  and no icon URLs fetched at runtime (the CSP forbids it).
 - Charts use Apache ECharts; the timeline is custom. Validate categorical palettes for
   colour-vision deficiency before adding series colours.
 

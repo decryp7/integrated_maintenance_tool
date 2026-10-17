@@ -1,0 +1,186 @@
+import { invoke } from '../core/activity/ipc';
+import { listenHere } from '../windowing/window-events';
+import { AiBackend, toAiError, Unlisten } from './ai-backend';
+import {
+  AI_CHAT_EVENT,
+  AI_SETUP_EVENT,
+  AI_STATUS_EVENT,
+  AiStatus,
+  ApprovalDecision,
+  ChatContext,
+  ChatEnvelope,
+  ChatEventEnvelope,
+  ChatHistoryRecord,
+  ChatRecord,
+  ExtractorsProposal,
+  Hardware,
+  InstalledModel,
+  MarkersProposal,
+  Narrative,
+  PipelineProposal,
+  ProfileProposal,
+  QueryProposal,
+  Recommendation,
+  Recommendations,
+  RegexProposal,
+  RestoreResult,
+  SampleSource,
+  SessionInfo,
+  SetupEvent,
+  SetupPlan,
+} from './ai.types';
+
+/** Subscribes to an event with its payload; tests pass fakes. */
+export type ListenFn = (event: string, handler: (payload: unknown) => void) => Promise<Unlisten>;
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Talks to the Rust shell; `call` is Tauri's `invoke` and `listen` the window-scoped listener (tests pass fakes). */
+export class TauriAiBackend extends AiBackend {
+  constructor(
+    private readonly call: typeof invoke = invoke,
+    private readonly listen: ListenFn = listenHere,
+  ) {
+    super();
+  }
+
+  private async run<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+    try {
+      return await this.call<T>(cmd, args);
+    } catch (e) {
+      throw toAiError(e);
+    }
+  }
+
+  status() {
+    return this.run<AiStatus>('ai_status');
+  }
+  hardware() {
+    return this.run<Hardware>('ai_hardware');
+  }
+  recommend() {
+    return this.run<Recommendations>('ai_recommend');
+  }
+  catalog() {
+    return this.run<Recommendation[]>('ai_catalog');
+  }
+  setupPlan(modelId?: string | null) {
+    return this.run<SetupPlan>('ai_setup_plan', { modelId: modelId ?? null });
+  }
+  setupRun(modelId: string) {
+    return this.run<void>('ai_setup_run', { modelId });
+  }
+  setupCancel() {
+    return this.run<boolean>('ai_setup_cancel');
+  }
+  models() {
+    return this.run<InstalledModel[]>('ai_models');
+  }
+  activateModel(fileName: string) {
+    return this.run<void>('ai_model_activate', { fileName });
+  }
+  deleteModel(fileName: string) {
+    return this.run<void>('ai_model_delete', { fileName });
+  }
+  addLocalModel(path: string) {
+    return this.run<InstalledModel>('ai_model_add_local', { path });
+  }
+  reset() {
+    return this.run<AiStatus>('ai_reset');
+  }
+  proposeRegex(lines: string[], intent?: string | null) {
+    return this.run<RegexProposal>('ai_propose_regex', { lines, intent: intent ?? null });
+  }
+  proposeProfile(source: SampleSource) {
+    return this.run<ProfileProposal>('ai_propose_profile', { ...source });
+  }
+  proposePipeline(goal: string, source: SampleSource) {
+    return this.run<PipelineProposal>('ai_propose_pipeline', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+  }
+  proposeMarkers(goal: string, source: SampleSource) {
+    return this.run<MarkersProposal>('ai_propose_markers', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+  }
+  proposeExtractors(goal: string, source: SampleSource) {
+    return this.run<ExtractorsProposal>('ai_propose_extractors', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+  }
+  nlToQuery(question: string) {
+    return this.run<QueryProposal>('ai_nl_to_query', { question });
+  }
+  explainEvent(recordId: number) {
+    return this.run<Narrative>('ai_explain_event', { recordId });
+  }
+  summarize(from: number, to: number) {
+    return this.run<Narrative>('ai_summarize', { from, to });
+  }
+  rootCauses() {
+    return this.run<Narrative>('ai_root_causes');
+  }
+  cancel() {
+    return this.run<number>('ai_cancel');
+  }
+  chatSessions() {
+    return this.run<SessionInfo[]>('ai_chat_sessions');
+  }
+  chatNew() {
+    return this.run<SessionInfo>('ai_chat_new');
+  }
+  chatGet(sessionId: string) {
+    return this.run<ChatRecord>('ai_chat_get', { sessionId });
+  }
+  chatDelete(sessionId: string) {
+    return this.run<boolean>('ai_chat_delete', { sessionId });
+  }
+  chatSend(sessionId: string, text: string, context: ChatContext) {
+    return this.run<void>('ai_chat_send', { sessionId, text, context });
+  }
+  chatCancel(sessionId: string) {
+    return this.run<boolean>('ai_chat_cancel', { sessionId });
+  }
+  chatEventsSince(sessionId: string, seq: number) {
+    return this.run<ChatEnvelope[] | null>('ai_chat_events_since', { sessionId, seq });
+  }
+  chatHistory() {
+    return this.run<ChatHistoryRecord>('ai_chat_history');
+  }
+  chatRestore(record: unknown) {
+    return this.run<RestoreResult>('ai_chat_restore', { record: record ?? null });
+  }
+  chatExportMarkdown(sessionId: string, path: string, overwrite = false) {
+    return this.run<string>('ai_chat_export_markdown', { sessionId, path, ...(overwrite ? { overwrite } : {}) });
+  }
+  suggestedPrompts() {
+    return this.run<string[]>('ai_suggested_prompts');
+  }
+  approvalRespond(sessionId: string, requestId: number, decision: ApprovalDecision) {
+    return this.run<boolean>('ai_approval_respond', { sessionId, requestId, decision });
+  }
+  openLink(url: string) {
+    return this.run<void>('ai_open_link', { url });
+  }
+  setBraveKey(key: string) {
+    return this.run<void>('ai_set_brave_key', { key });
+  }
+  clearBraveKey() {
+    return this.run<void>('ai_clear_brave_key');
+  }
+  braveKeySet() {
+    return this.run<boolean>('ai_brave_key_set');
+  }
+
+  onSetup(handler: (e: SetupEvent) => void) {
+    return this.listen(AI_SETUP_EVENT, (p) => {
+      if (isObject(p) && typeof p['stage'] === 'string') handler(p as unknown as SetupEvent);
+    });
+  }
+  onStatus(handler: (s: AiStatus) => void) {
+    return this.listen(AI_STATUS_EVENT, (p) => {
+      if (isObject(p) && typeof p['state'] === 'string' && typeof p['available'] === 'boolean') handler(p as unknown as AiStatus);
+    });
+  }
+  onChat(handler: (e: ChatEventEnvelope) => void) {
+    return this.listen(AI_CHAT_EVENT, (p) => {
+      if (isObject(p) && typeof p['sessionId'] === 'string' && typeof p['type'] === 'string' && typeof p['seq'] === 'number') handler(p as unknown as ChatEventEnvelope);
+    });
+  }
+}
+

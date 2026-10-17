@@ -11,6 +11,8 @@ const ERROR_SNAPSHOTS = '**/error-snapshots.e2e.ts';
 const SETTINGS = '**/settings.e2e.ts';
 const WINDOWING = '**/windowing.e2e.ts';
 const ABOUT = '**/about.e2e.ts';
+const DOCKING = ['**/popout*.e2e.ts', '**/dock*.e2e.ts'];
+const MENUS = '**/menus*.e2e.ts';
 
 // End-to-end tests run against the browser build, where the app injects the in-memory MockBackend.
 // The "prod-csp" project runs against the production build served with the Tauri CSP header.
@@ -35,14 +37,16 @@ export default defineConfig({
       : [
           {
             name: 'prod-csp',
-            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, '**/live-*.e2e.ts'],
+            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, MENUS, ...DOCKING, '**/live-*.e2e.ts', '**/share-*.e2e.ts', '**/profiling-*.e2e.ts', '**/ux-*.e2e.ts', '**/ai-*.e2e.ts'],
             use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${PROD_PORT}` },
           },
         ]),
   ],
   webServer: [
     {
-      command: `npx ng serve --port ${PORT}`,
+      // No file watching: an edit made while the suite runs (another terminal, another agent) would reload every
+      // open page through HMR mid-test and fail whatever was running. Tests run against the build they started with.
+      command: `npx ng serve --port ${PORT} --watch=false`,
       url: `http://localhost:${PORT}`,
       reuseExistingServer: !CI,
       timeout: 180_000,

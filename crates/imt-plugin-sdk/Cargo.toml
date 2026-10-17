@@ -1,0 +1,52 @@
+[package]
+name = "imt-plugin-sdk"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "SDK for IMT process plugins: the imt.plugin.v1 gRPC contract (Arrow record batches), serve(plugin), and the conformance test kit (imt-plugin-check)"
+
+[[bin]]
+name = "imt-plugin-check"
+path = "src/bin/imt_plugin_check.rs"
+
+[[example]]
+name = "toy-plugin"
+path = "examples/toy_plugin.rs"
+
+# The same example as a binary, so the tests (and coverage runs, which build no examples) can start it.
+[[bin]]
+name = "imt-toy-plugin"
+path = "src/bin/toy_plugin_bin.rs"
+test = false
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+imt-ipc = { path = "../imt-ipc" }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+# float_roundtrip: f64 field values must survive JSON text exactly (Record ↔ Arrow is lossless).
+serde_json = { version = "1.0", features = ["preserve_order", "float_roundtrip"] }
+bytes = "1"
+chrono = "0.4.45"
+semver = "1"
+prost = "0.14"
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+tonic-prost = "0.14"
+tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-stream = { version = "0.1", default-features = false }
+# Arrow IPC for record batches (Apache-2.0). No compression codecs: batches cross a local socket, where
+# encoding speed matters more than size.
+arrow-array = { version = "60", default-features = false }
+arrow-buffer = { version = "60", default-features = false }
+arrow-ipc = { version = "60", default-features = false, features = ["lz4"] }
+arrow-schema = { version = "60", default-features = false }
+
+[build-dependencies]
+protox = "0.9"
+tonic-prost-build = "0.14"
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
+tokio-stream = { version = "0.1", default-features = false }

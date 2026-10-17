@@ -163,4 +163,99 @@ bucket = "1m"
 split_by = ["MachineName", "ProcessId"]
 type = "line"
 unit = "MB"
+
+# Redaction for the redacted view, exports, reports and bundles.
+[redact]
+detectors = ["bearer-token", "jwt", "api-key", "connection-string", "password", "user-path", "email", "credit-card", "ipv4", "ipv6", "guid"]
+mode = "mask"
+fields = ["@message", "@exception", "CorrelationId", "MessageId", "Address"]
+on_export = false
+
+[[dashboard]]
+id = "orderservice-health"
+title = "OrderService health"
+columns = 12
+
+[[dashboard.tile]]
+id = "errors"
+title = "Errors"
+type = "stat"
+query = 'level >= error | stats count() as errors'
+x = 0
+y = 0
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "warnings"
+title = "Warnings"
+type = "stat"
+query = 'level = warning | stats count() as warnings'
+x = 3
+y = 0
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "p95"
+title = "p95 request time"
+type = "stat"
+query = '| stats p95(Elapsed) as p95'
+unit = "ms"
+x = 6
+y = 0
+w = 3
+h = 2
+
+[[dashboard.tile]]
+id = "noisy"
+title = "Noisiest sources"
+type = "top"
+field = "SourceContext"
+query = 'level >= warning'
+limit = 6
+x = 9
+y = 0
+w = 3
+h = 4
+
+[[dashboard.tile]]
+id = "levels"
+title = "Events by level"
+type = "chart"
+chart = "events-by-level"
+x = 0
+y = 2
+w = 9
+h = 4
+
+[[dashboard.tile]]
+id = "cpu"
+title = "CPU %"
+type = "chart"
+chart = "cpu"
+x = 0
+y = 6
+w = 6
+h = 4
+
+[[dashboard.tile]]
+id = "slow"
+title = "Slowest endpoints"
+type = "table"
+query = '| stats count() as requests, p95(Elapsed) as p95 by RequestPath | sort p95 desc | head 8'
+x = 6
+y = 6
+w = 6
+h = 4
+
+[[dashboard.tile]]
+id = "alerts"
+title = "Alerts"
+type = "alerts"
+limit = 8
+x = 9
+y = 4
+w = 3
+h = 2
 `;

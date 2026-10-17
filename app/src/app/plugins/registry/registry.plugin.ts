@@ -9,10 +9,13 @@ export const REGISTRY_PLUGIN: ImtPlugin = {
     {
       id: 'registry',
       title: 'Registry',
+      plugin: 'Windows registry',
       icon: 'folder',
       defaultPosition: 'center',
       component: () => import('./registry-view').then((m) => m.RegistryView),
       when: (summary) => summary.sources.some((s) => s.importer === 'registry'),
+      // A viewer for the file just opened, like a document: it opens with the registry export.
+      autoOpen: true,
     },
   ],
   commands: [

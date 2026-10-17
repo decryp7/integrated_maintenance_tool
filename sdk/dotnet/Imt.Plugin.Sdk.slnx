@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/examples/" />
+  <Folder Name="/examples/ToyFormatImporter/" />
+  <Folder Name="/examples/ToyFormatImporter/src/">
+    <Project Path="examples/ToyFormatImporter/src/ToyFormatImporter.csproj" />
+  </Folder>
+  <Folder Name="/examples/ToyFormatImporter/tests/">
+    <Project Path="examples/ToyFormatImporter/tests/ToyFormatImporter.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/" />
+  <Folder Name="/samples/OrderAudit/" />
+  <Folder Name="/samples/OrderAudit/src/">
+    <Project Path="samples/OrderAudit/src/OrderAudit.csproj" />
+  </Folder>
+  <Folder Name="/samples/OrderAudit/tests/">
+    <Project Path="samples/OrderAudit/tests/OrderAudit.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/templates/">
+    <Project Path="templates/Imt.Plugin.Templates.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Imt.Plugin.Sdk.KitchenSink/Imt.Plugin.Sdk.KitchenSink.csproj" />
+    <Project Path="tests/Imt.Plugin.Sdk.Tests/Imt.Plugin.Sdk.Tests.csproj" />
+  </Folder>
+  <Project Path="src/Imt.Plugin.Sdk/Imt.Plugin.Sdk.csproj" />
+</Solution>

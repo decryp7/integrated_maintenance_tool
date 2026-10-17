@@ -10,7 +10,8 @@ import { BookmarkCommands } from '../projects/bookmark-commands';
 import { OpenRequests } from '../projects/open-requests';
 import { ProjectCommands } from '../projects/project-commands';
 import { ProjectUiState } from '../projects/project-ui-state';
-import { ToolsCommands, TOOLS_VIEWS } from './tools-commands';
+import { ToolCatalog } from './tool-catalog.store';
+import { ToolsCommands, toolsViews } from './tools-commands';
 
 /**
  * Registers the tools (Performance Monitor, process monitor, diagnostics collector, plugin
@@ -20,7 +21,7 @@ import { ToolsCommands, TOOLS_VIEWS } from './tools-commands';
 export function provideTools(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideToolsBackend(),
-    { provide: IMT_VIEWS, multi: true, useValue: TOOLS_VIEWS },
+    { provide: IMT_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LifecycleCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProjectCommands).commands },
@@ -36,6 +37,8 @@ export function startTools(): void {
   const life = inject(LifecycleService);
   const session = inject(SessionService);
   const requests = inject(OpenRequests);
+  // Reads which tools the engine offers (and keeps it current); views and commands follow.
+  inject(ToolCatalog);
   void life.init().then(() => {
     session.start();
     return requests.start();

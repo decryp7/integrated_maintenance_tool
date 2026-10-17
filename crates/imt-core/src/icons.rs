@@ -6,47 +6,10 @@
 
 use anyhow::{anyhow, Result};
 use base64::Engine;
-use quick_xml::events::{BytesStart, Event};
-use quick_xml::{Reader, Writer};
 use serde::{Deserialize, Serialize};
 
 /// Largest accepted icon source (SVG text or decoded PNG), in bytes.
 pub const MAX_ICON_BYTES: usize = 16 * 1024;
-
-const ELEMENTS: &[&str] = &[
-    "svg", "g", "path", "circle", "ellipse", "rect", "line", "polyline", "polygon", "title",
-];
-const ATTRIBUTES: &[&str] = &[
-    "xmlns",
-    "viewBox",
-    "width",
-    "height",
-    "d",
-    "cx",
-    "cy",
-    "r",
-    "rx",
-    "ry",
-    "x",
-    "y",
-    "x1",
-    "y1",
-    "x2",
-    "y2",
-    "points",
-    "fill",
-    "fill-rule",
-    "fill-opacity",
-    "stroke",
-    "stroke-width",
-    "stroke-linecap",
-    "stroke-linejoin",
-    "stroke-opacity",
-    "stroke-dasharray",
-    "clip-rule",
-    "opacity",
-    "transform",
-];
 
 /// An `[[icon]]` entry as written in a profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -93,72 +56,9 @@ pub fn compile(cfg: &IconCfg) -> Result<CustomIcon> {
     }
 }
 
-/// Rebuilds SVG markup keeping only allowed elements and attributes.
+/// Rebuilds SVG markup keeping only plain drawing elements and attributes.
 pub fn sanitize_svg(svg: &str) -> Result<String> {
-    if svg.len() > MAX_ICON_BYTES {
-        return Err(anyhow!("SVG icons are limited to {} KB", MAX_ICON_BYTES / 1024));
-    }
-    let mut reader = Reader::from_str(svg);
-    reader.config_mut().trim_text(true);
-    let mut writer = Writer::new(Vec::new());
-    // Depth inside a dropped element (its whole subtree is dropped).
-    let mut skipping = 0usize;
-    let mut saw_root = false;
-    loop {
-        let event = reader.read_event().map_err(|e| anyhow!("not valid SVG: {e}"))?;
-        match event {
-            // Inside a dropped element: track nesting, emit nothing.
-            Event::Start(_) if skipping > 0 => skipping += 1,
-            Event::End(_) if skipping > 0 => skipping -= 1,
-            Event::Empty(_) | Event::Text(_) if skipping > 0 => {}
-            Event::Start(e) => match clean(&e, &mut saw_root)? {
-                Some(el) => writer.write_event(Event::Start(el))?,
-                None => skipping = 1,
-            },
-            Event::Empty(e) => {
-                if let Some(el) = clean(&e, &mut saw_root)? {
-                    writer.write_event(Event::Empty(el))?;
-                }
-            }
-            Event::End(e) => writer.write_event(Event::End(e))?,
-            Event::Text(t) => writer.write_event(Event::Text(t))?,
-            Event::Eof => break,
-            // Comments, processing instructions, doctypes, CDATA: dropped.
-            _ => {}
-        }
-    }
-    if !saw_root {
-        return Err(anyhow!("an SVG icon must have an <svg> root element"));
-    }
-    Ok(String::from_utf8(writer.into_inner())?)
-}
-
-/// The element with only allowed attributes, or `None` to drop it (and its children).
-fn clean<'a>(e: &BytesStart<'a>, saw_root: &mut bool) -> Result<Option<BytesStart<'static>>> {
-    let name = String::from(e.local_name().as_ref());
-    if !*saw_root {
-        if name != "svg" {
-            return Err(anyhow!("an SVG icon must have an <svg> root element"));
-        }
-        *saw_root = true;
-    }
-    if !ELEMENTS.contains(&name.as_str()) {
-        return Ok(None);
-    }
-    let mut out = BytesStart::new(name);
-    for attr in e.attributes().flatten() {
-        let key = String::from(attr.key.as_ref());
-        let value = attr
-            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-            .map(|v| v.into_owned())
-            .unwrap_or_default();
-        let lower = value.to_ascii_lowercase();
-        let dangerous = lower.contains("url(") || lower.contains("javascript:") || lower.contains("expression(") || lower.contains("data:");
-        if ATTRIBUTES.contains(&key.as_str()) && !dangerous {
-            out.push_attribute((key.as_str(), value.as_str()));
-        }
-    }
-    Ok(Some(out))
+    crate::svg::sanitize(svg, &crate::svg::ICON)
 }
 
 /// Checks a base64 PNG (signature, size) and returns it as a data URL.

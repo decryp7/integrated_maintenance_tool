@@ -19,6 +19,8 @@ test.describe('bookmarks, saved queries and highlight rules', () => {
     await expect(page.locator('imt-events-grid .row.sel')).toBeVisible();
 
     await runCommand(page, 'Save project as');
+    // Edit only once the save has written the bookmark.
+    await expect(page.getByRole('status').filter({ hasText: /^Saved / })).toBeVisible();
     await list.getByRole('button', { name: /^Delete bookmark/ }).click();
     await expect(list).toHaveCount(0);
     await runCommand(page, 'Open project');

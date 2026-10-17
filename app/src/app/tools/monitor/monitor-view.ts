@@ -4,6 +4,7 @@ import { HelpHint } from '../../ui/help-hint';
 import { CpuMode } from '../../core/tools.types';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { ToolError } from '../elevation-hint';
+import { ToolUnavailable } from '../tool-unavailable';
 import { TargetKind } from './monitor-model';
 import { MonitorStore } from './monitor.store';
 
@@ -13,10 +14,11 @@ const KIND_LABEL: Record<TargetKind, string> = { name: 'Process name (glob)', pa
 @Component({
   selector: 'imt-monitor-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, HelpHint, ToolError],
+  imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
     <div class="scroll" role="region" aria-label="Process monitor" tabindex="0">
       <p class="intro">Sample the resource use of processes at an interval. The samples are written as log events and opened here with live tail, so they show up on the timeline and in Metrics.</p>
+      <imt-tool-unavailable tool="process-monitor" />
       <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
 
@@ -83,7 +85,7 @@ const KIND_LABEL: Record<TargetKind, string> = { name: 'Process name (glob)', pa
         @if (store.running()) {
           <button type="button" class="btn primary" [disabled]="!!store.busy()" (click)="store.stop()">Stop</button>
         } @else {
-          <button type="button" class="btn primary" [disabled]="!!store.busy() || store.problems().length > 0" (click)="store.start()">Start</button>
+          <button type="button" class="btn primary" [disabled]="!!store.busy() || store.problems().length > 0 || !store.canRun()" (click)="store.start()">Start</button>
         }
         @if (store.busy(); as busy) { <span class="faint" role="status">{{ busy }}</span> }
       </div>

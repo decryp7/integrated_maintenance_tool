@@ -1,0 +1,182 @@
+use super::*;
+use crate::fake::{ok, FakeRunner};
+use imt_core::export::EventSink;
+use imt_core::plugin::tools::{Availability, NoTasks, Platform, ToolCtx};
+use imt_core::plugin::PluginStatus;
+use serde_json::json;
+use std::sync::atomic::AtomicBool;
+use std::time::Duration;
+
+/// A monitor that idles until stopped.
+struct IdleMonitor;
+
+impl Collector for IdleMonitor {
+    fn id(&self) -> &str {
+        "process-monitor"
+    }
+    fn name(&self) -> &str {
+        "idle"
+    }
+    fn run(&self, _: &serde_json::Value, _: &dyn EventSink, stop: &AtomicBool) -> Result<()> {
+        while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Ok(())
+    }
+}
+
+fn fake_plugin(runner: Arc<FakeRunner>, windows: bool) -> ToolsPlugin {
+    ToolsPlugin::with_env(ToolsEnv {
+        runner,
+        monitor: Arc::new(IdleMonitor),
+        windows,
+    })
+}
+
+fn registry(plugin: &ToolsPlugin) -> PluginRegistry {
+    let mut r = PluginRegistry::empty();
+    r.install_shared(Arc::new(plugin.clone())).unwrap();
+    r.resolve();
+    r
+}
+
+fn ctx() -> ToolCtx {
+    ToolCtx::new(None, Arc::new(NoTasks))
+}
+
+#[test]
+fn registers_its_tools_service_and_settings() {
+    let plugin = fake_plugin(Arc::new(FakeRunner::new(|_, _| ok(""))), true);
+    let r = registry(&plugin);
+    let info = &r.plugins()[0];
+    assert_eq!((info.id.as_str(), info.status), (PLUGIN_ID, PluginStatus::Active));
+    assert_eq!(
+        info.contributes,
+        [
+            "tool:perfmon.templates",
+            "tool:perfmon.sets",
+            "tool:process-monitor",
+            "tool:diagnostics",
+            "tool:elevation",
+            "service:net.decryptology.perf.counters",
+            "settings"
+        ]
+    );
+    assert_eq!(info.provides[0].id, imt_api_perf::SERVICE_ID);
+    assert!(info.requires.iter().any(|d| d.id == "net.decryptology.windows" && d.optional));
+    // Optional: missing Windows plugin is only a warning.
+    assert!(
+        info.warnings.iter().any(|w| w.contains("net.decryptology.windows")),
+        "{:?}",
+        info.warnings
+    );
+    assert_eq!(plugin.name(), "System tools");
+    assert_eq!(plugin.version(), env!("CARGO_PKG_VERSION"));
+    let section = r.plugin_settings()[0].configurable.settings_section();
+    assert_eq!(section.id, PLUGIN_ID);
+}
+
+#[test]
+fn the_counter_service_passes_the_contract_through_the_registry() {
+    let r = registry(&ToolsPlugin::default());
+    let counters = r
+        .service::<dyn imt_api_perf::CounterSource>(imt_api_perf::SERVICE_ID, "^1")
+        .unwrap();
+    assert_eq!(counters.provider(), PLUGIN_ID);
+    let names = counters.try_call(|c| c.counters()).unwrap();
+    assert!(names.iter().all(|n| imt_api_perf::is_counter_path(n)));
+    counters
+        .call(imt_api_perf::contract_tests)
+        .unwrap()
+        .unwrap_or_else(|bad| panic!("{bad:?}"));
+}
+
+#[test]
+fn platform_gating_and_dispatch_through_the_host() {
+    let fake = Arc::new(FakeRunner::new(|_, _| ok("Status: Stopped\n")));
+    let r = registry(&fake_plugin(fake.clone(), false));
+    let mac = r.tools().on_platform(Platform::Macos);
+    let listed = mac.list();
+    let sets = listed.iter().find(|t| t.info.id == ids::PERFMON_SETS).unwrap();
+    assert!(
+        matches!(&sets.availability, Availability::Unsupported { reason } if reason.contains("only available on Windows (this is macOS)"))
+    );
+    let others: Vec<_> = listed.iter().filter(|t| t.info.id != ids::PERFMON_SETS).collect();
+    assert!(others.iter().all(|t| t.availability == Availability::Available), "{others:?}");
+    assert!(mac.invoke(ids::PERFMON_SETS, "outputs", json!({ "name": "IMT" }), &ctx()).is_err());
+    let presets = mac.invoke(ids::PERFMON_TEMPLATES, "presets", json!({}), &ctx()).unwrap();
+    assert!(presets.as_array().unwrap().len() >= 4);
+    let bad = mac
+        .invoke(ids::PERFMON_SETS, "control", json!({ "name": "IMT", "action": "explode" }), &ctx())
+        .unwrap_err();
+    assert!(bad.to_string().contains("Windows"), "platform first: {bad}");
+    let win = r.tools().on_platform(Platform::Windows);
+    let bad = win
+        .invoke(ids::PERFMON_SETS, "control", json!({ "name": "IMT", "action": "explode" }), &ctx())
+        .unwrap_err();
+    assert_eq!(
+        bad.to_string(),
+        "perfmon.sets control: args.action \"explode\" is not one of: start, stop, delete, query"
+    );
+    assert!(fake.calls().is_empty());
+}
+
+#[test]
+fn clones_share_state_across_registries_and_settings_reach_logman() {
+    let fake = Arc::new(FakeRunner::new(|_, _| ok("Status: Running\n")));
+    let plugin = fake_plugin(fake.clone(), true);
+    let (a, b) = (registry(&plugin), registry(&plugin));
+    let dir = std::env::temp_dir().join(format!("imt-tools-shared-{}", std::process::id()));
+    let started = a
+        .tools()
+        .invoke(
+            ids::PROCESS_MONITOR,
+            "start",
+            json!({ "config": { "targets": [{ "pid": 1 }] }, "dir": dir }),
+            &ctx(),
+        )
+        .unwrap();
+    assert_eq!(started, json!(dir.to_string_lossy()));
+    // The other window sees the same run.
+    assert_eq!(
+        b.tools().invoke(ids::PROCESS_MONITOR, "status", json!({}), &ctx()).unwrap()["running"],
+        true
+    );
+    assert_eq!(b.tools().invoke(ids::PROCESS_MONITOR, "stop", json!({}), &ctx()).unwrap(), started);
+    let _ = std::fs::remove_dir_all(dir);
+
+    let settings = a.plugin_settings()[0].configurable.clone();
+    let values = imt_core::settings::validate(&settings.settings_section(), &json!({ "logmanTimeout": 9_000 })).unwrap();
+    settings.apply_settings(&values).unwrap();
+    b.tools()
+        .on_platform(Platform::Windows)
+        .invoke(ids::PERFMON_SETS, "control", json!({ "name": "IMT", "action": "query" }), &ctx())
+        .unwrap();
+    assert_eq!(fake.timeouts().last(), Some(&Duration::from_secs(9)));
+}
+
+#[test]
+fn a_quarantined_plugin_lists_its_tools_as_unavailable_with_the_reason() {
+    let r = registry(&fake_plugin(Arc::new(FakeRunner::new(|_, _| ok(""))), true));
+    for _ in 0..imt_core::guard::QUARANTINE_AFTER {
+        r.health().fail(PLUGIN_ID, "boom");
+    }
+    let listed = r.tools().on_platform(Platform::Windows).list();
+    assert!(listed
+        .iter()
+        .all(|t| matches!(&t.availability, Availability::PluginUnavailable { reason } if reason.contains("repeated crashes"))));
+    let e = r.tools().invoke(ids::ELEVATION, "info", json!({}), &ctx()).unwrap_err();
+    assert!(e.to_string().contains("repeated crashes"), "{e}");
+    assert!(r
+        .service::<dyn imt_api_perf::CounterSource>(imt_api_perf::SERVICE_ID, "^1")
+        .is_err());
+}
+
+#[test]
+fn disabled_or_safe_mode_means_no_tools() {
+    let mut r = PluginRegistry::empty();
+    r.disable([PLUGIN_ID]);
+    r.install_shared(Arc::new(ToolsPlugin::default())).unwrap();
+    assert!(r.tools().is_empty());
+    assert!(PluginRegistry::empty().tools().is_empty());
+}

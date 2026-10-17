@@ -30,12 +30,13 @@ test.describe('filters', () => {
     const all = await initialTotal(page);
     const search = page.getByRole('textbox', { name: 'Search messages and exceptions' });
     await search.fill('timed out');
-    await expect(total).not.toHaveText(all);
+    // Wait for the narrowed total itself (not just "different": the bar can be between two states).
+    await expect.poll(async () => {
+      const n = parseCount(await total.innerText());
+      return n > 0 && n < parseCount(all);
+    }).toBe(true);
     await expect(page.locator('imt-status-bar')).toContainText('matching');
     await expect(page.locator('imt-events-grid [role=row].row').first()).toContainText(/time/i);
-    const narrowed = (await total.innerText()).replace(/\D/g, '');
-    expect(Number(narrowed)).toBeGreaterThan(0);
-    expect(Number(narrowed)).toBeLessThan(parseCount(all));
 
     await search.fill('');
     await expect(total).toHaveText(all);

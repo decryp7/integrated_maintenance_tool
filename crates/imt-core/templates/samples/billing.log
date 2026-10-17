@@ -1,0 +1,6 @@
+2026-10-14 10:41:00,120 [1] INFO  Billing.Service - Billing service starting (v2.8.1, CLR 4.0.30319)
+2026-10-14 10:41:05,249 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88412 (12 s)
+2026-10-14 10:41:24,050 [15] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+2026-10-14 10:41:30,000 [6] DEBUG Billing.Cache [tariffs] - Refreshed tariff cache (412 entries)

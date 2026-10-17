@@ -46,7 +46,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
     </div>
 
     @if (mode() === 'traces') {
-      <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." (retry)="traces.retry()">
+      <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." suggest (retry)="traces.retry()">
         <div class="split">
           <ul class="list tlist" aria-label="Traces">
             @for (t of traces.data()?.traces ?? []; track t.traceId) {

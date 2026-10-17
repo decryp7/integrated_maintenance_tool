@@ -10,9 +10,24 @@ fn samples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples")
 }
 
+/// Folders of `/samples` that are not logs: `profiling` holds profiler
+/// captures (opened by the profiling plugin, tested in `imt-plugin-profiling`).
+const NOT_LOGS: &[&str] = &["profiling"];
+
+/// Every entry of `/samples` that the log engine is expected to open.
+fn log_samples() -> Vec<PathBuf> {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(samples())
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| !p.file_name().is_some_and(|n| NOT_LOGS.iter().any(|x| n == *x)))
+        .collect();
+    paths.sort();
+    paths
+}
+
 fn workspace(profile: Profile) -> Workspace {
     let mut ws = Workspace::new(profile).unwrap();
-    ws.open(&[samples()]).unwrap();
+    ws.open(&log_samples()).unwrap();
     ws
 }
 
@@ -31,6 +46,10 @@ fn every_sample_format_is_recognised() {
     assert_eq!(importer("worker01/worker-20261014.txt"), Some("text"));
     assert_eq!(importer("billing.log.2026-10-14"), Some("text"));
     assert_eq!(importer("perfmon-export.csv"), Some("csv"));
+    assert!(
+        s.sources.iter().all(|x| !x.name.contains("profiling")),
+        "profiler captures are not log samples"
+    );
     for s in &s.sources {
         assert_eq!(s.skipped, 0, "{} skipped lines", s.name);
         assert!(s.from.is_some(), "{} has no timestamps", s.name);

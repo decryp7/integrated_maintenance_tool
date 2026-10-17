@@ -255,6 +255,20 @@ impl MarkIndex {
         }
     }
 
+    /// An index of `owner`'s `kinds` (short names) on bits 0, 1, ... (at most
+    /// [`MAX_MARKER_KINDS`]), for hosts that run a plugin's transforms outside
+    /// a workspace and report its marks by name (the plugin host process).
+    pub fn of_kinds(owner: &str, kinds: &[String]) -> MarkIndex {
+        MarkIndex {
+            kinds: kinds
+                .iter()
+                .take(MAX_MARKER_KINDS)
+                .enumerate()
+                .map(|(i, k)| (format!("{owner}/{k}"), owner.to_string(), i as u32))
+                .collect(),
+        }
+    }
+
     fn bit(&self, owner: &str, kind: &str) -> Option<u32> {
         let full = if kind.contains('/') {
             kind.to_string()
@@ -289,6 +303,11 @@ impl<'a> MarkScope<'a> {
             }
             None => self.reject(kind),
         }
+    }
+
+    /// The bit of `kind` if it is one of this plugin's kinds (nothing is recorded).
+    pub fn bit_of(&self, marks: &MarkIndex, kind: &str) -> Option<MarkerMask> {
+        marks.bit(self.owner, kind).map(|b| 1 << b)
     }
 
     pub fn reject(&self, kind: &str) -> bool {

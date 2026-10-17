@@ -1,9 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 import { initialTotal, openApp } from './app';
+import { showProfileEditor } from './menu-support';
 
 async function openProfile(page: Page) {
   await openApp(page);
-  await page.getByRole('tab', { name: 'Profile' }).click();
+  await showProfileEditor(page);
   await expect(page.locator('imt-profile-editor')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Form', exact: true })).toHaveAttribute('aria-selected', 'true');
   // The profile loads asynchronously; edits made before it arrives would be overwritten.

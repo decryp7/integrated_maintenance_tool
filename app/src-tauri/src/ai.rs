@@ -1,0 +1,97 @@
+//! The local AI assistant (`imt-ai`): set-up and models, the use cases, chat with approvals for web
+//! search, and the Settings → AI section. Inference runs in one `imt-ai-worker` process shared by every
+//! window (llama.cpp, never a cloud service); each window has its own chats.
+//!
+//! Everything is optional: in safe mode, without the worker binary or before a model is set up, every
+//! command fails with a typed [`AiCmdError`] (`code` = `unavailable` / `noModel`) and the UI hides or greys
+//! its AI features.
+//!
+//! Events: `imt://ai-setup` (set-up and activation stages, all windows), `imt://ai-status` (engine state
+//! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat).
+
+mod approvals;
+mod chats;
+pub(crate) mod commands;
+mod core;
+mod error;
+mod settings_section;
+#[cfg(test)]
+mod tests;
+
+pub use self::core::{AiCore, AiDeps};
+pub use chats::WindowChats;
+pub use settings_section::AiSettingsSection;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Manager, Runtime};
+
+pub const SETUP_EVENT: &str = "imt://ai-setup";
+pub const STATUS_EVENT: &str = "imt://ai-status";
+pub const CHAT_EVENT: &str = "imt://ai-chat";
+
+/// The app-wide AI runtime, managed as Tauri state.
+pub struct AiState(pub Arc<AiCore>);
+
+/// A window's AI state: its chats and the use cases it is running (to cancel them).
+#[derive(Default)]
+pub struct WindowAi {
+    pub chats: WindowChats,
+    ops: Mutex<Vec<Arc<AtomicBool>>>,
+}
+
+impl WindowAi {
+    /// Registers a running use case; the returned flag cancels it.
+    pub fn begin_op(&self) -> Arc<AtomicBool> {
+        let flag = Arc::new(AtomicBool::new(false));
+        self.ops.lock().unwrap_or_else(|p| p.into_inner()).push(flag.clone());
+        flag
+    }
+
+    pub fn end_op(&self, flag: &Arc<AtomicBool>) {
+        self.ops.lock().unwrap_or_else(|p| p.into_inner()).retain(|f| !Arc::ptr_eq(f, flag));
+    }
+
+    /// Cancels every running use case of the window; returns how many there were.
+    pub fn cancel_ops(&self) -> usize {
+        let ops = self.ops.lock().unwrap_or_else(|p| p.into_inner());
+        for f in ops.iter() {
+            f.store(true, Ordering::Relaxed);
+        }
+        ops.len()
+    }
+}
+
+impl Drop for WindowAi {
+    fn drop(&mut self) {
+        self.cancel_ops();
+        self.chats.cancel_all();
+    }
+}
+
+/// Creates the AI runtime and registers Settings → AI. Call from `setup` after `settings::init`.
+/// Never fails: problems leave the AI unavailable with a reason the UI shows.
+pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
+    let dir = app.path().app_config_dir().ok().map(|d| d.join("ai"));
+    let models = app
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("models"))
+        .unwrap_or_else(|_| std::env::temp_dir().join("imt-models"));
+    let deps = AiDeps::system(imt_ai::worker::default_worker_path());
+    let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
+    manage(app, core.clone());
+    core.autoload();
+    match core.status() {
+        s if s.available => log::info!(State = format!("{:?}", s.state).as_str(); "AI assistant ready to use"),
+        s => log::info!("AI assistant unavailable: {}", s.reason.unwrap_or_default()),
+    }
+}
+
+/// Manages `core` and registers its settings section (separate from [`init`] so tests can pass fakes).
+pub fn manage<R: Runtime>(app: &AppHandle<R>, core: Arc<AiCore>) {
+    app.manage(AiState(core.clone()));
+    if let Err(e) = crate::settings::register(app, Arc::new(AiSettingsSection { core }), crate::settings::SectionGroup::Ai) {
+        log::warn!("AI settings section not registered: {e:#}");
+    }
+}

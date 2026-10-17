@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { chooseMenu } from './menu-support';
 
 test.describe('About IMT', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -40,8 +41,7 @@ test.describe('About IMT', () => {
   });
 
   test('Help menu opens it too', async ({ page }) => {
-    await page.getByRole('button', { name: 'Help', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'About IMT' }).click();
+    await chooseMenu(page, 'Help', 'About IMT');
     await expect(page.getByRole('dialog', { name: 'About IMT' })).toBeVisible();
   });
 });

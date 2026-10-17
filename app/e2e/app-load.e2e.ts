@@ -13,11 +13,11 @@ test.describe('app load', () => {
     await expect(page.getByRole('tab', { name: 'Timeline', selected: true })).toBeVisible();
   });
 
-  test('default layout: Query pinned above the grid, analysis views stacked behind Timeline', async ({ page }) => {
+  test('default layout: only the core views; Query pinned above the grid, the registry viewer stacked behind Timeline', async ({ page }) => {
     const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-    // Each group shows one tab: Timeline (with Metrics, Profile and Registry behind it), Query, Events, Inspector.
+    // Each group shows one tab: Timeline (with Metrics and the viewer of the opened registry export behind it), Query, Events, Inspector.
     await expect.poll(() => names(true)).toEqual(['Events', 'Inspector', 'Query', 'Timeline']);
-    expect(await names()).toEqual(['Events', 'Inspector', 'Metrics', 'Profile', 'Query', 'Registry', 'Timeline']);
+    expect(await names()).toEqual(['Events', 'Inspector', 'Metrics', 'Query', 'Registry', 'Timeline']);
     // The query bar sits directly above the events grid, in its own short group.
     const query = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Query' }) }).boundingBox();
     const events = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Events' }) }).boundingBox();

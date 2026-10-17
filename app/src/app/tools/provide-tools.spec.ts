@@ -15,7 +15,9 @@ import { DialogService } from '../ui/dialog.service';
 import { FakeDock } from '../../testing/helpers';
 import { CollectorDialog } from './collector/collector-dialog';
 import { provideTools, startTools } from './provide-tools';
-import { TOOLS_VIEWS } from './tools-commands';
+import { toolsViews } from './tools-commands';
+
+const TOOLS_VIEWS = toolsViews({ listed: () => true });
 
 function configure() {
   TestBed.configureTestingModule({
@@ -56,8 +58,8 @@ describe('provideTools', () => {
 
   it('opens views and the collector dialog from commands', async () => {
     configure();
-    await settle();
     const commands = TestBed.inject(CommandRegistry);
+    await settle();
     const dock = TestBed.inject(DockService) as unknown as FakeDock;
     await commands.run('tools.perfmon.show');
     await commands.run('tools.monitor.show');

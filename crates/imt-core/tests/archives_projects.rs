@@ -235,6 +235,7 @@ fn saves_and_restores_projects() {
         removed: state.removed.clone(),
         profile: "name = 'Saved profile'".into(),
         ui: serde_json::json!({ "bookmarks": [1, 2] }),
+        ..Default::default()
     };
     project.save(&file).unwrap();
 
@@ -248,6 +249,7 @@ fn saves_and_restores_projects() {
             &WorkspaceState {
                 roots: loaded.sources.clone(),
                 removed: loaded.removed.clone(),
+                ..Default::default()
             },
         )
         .unwrap();
@@ -259,7 +261,8 @@ fn saves_and_restores_projects() {
         store.state(),
         WorkspaceState {
             roots: loaded.sources.clone(),
-            removed: loaded.removed.clone()
+            removed: loaded.removed.clone(),
+            ..Default::default()
         }
     );
 
@@ -271,6 +274,7 @@ fn saves_and_restores_projects() {
             &WorkspaceState {
                 roots: loaded.sources.clone(),
                 removed: vec![],
+                ..Default::default()
             },
         )
         .unwrap();
@@ -335,6 +339,8 @@ fn imports_report_progress_and_can_be_cancelled() {
     ws.open(std::slice::from_ref(&d.0)).unwrap();
     let snap = progress.snapshot();
     assert_eq!((snap.running, snap.done, snap.total, snap.cancelled), (false, 20, 20, false));
+    assert!(snap.bytes_total > 0 && snap.bytes_done == snap.bytes_total);
+    assert_eq!((snap.current, snap.eta_ms), (None, None), "nothing in flight after the import");
 
     // Cancel while importing: an importer pulls the brake on the first file it reads.
     struct Brake(std::sync::Mutex<Option<std::sync::Arc<imt_core::workspace::ImportProgress>>>);
@@ -388,8 +394,17 @@ fn imports_report_progress_and_can_be_cancelled() {
     assert!(snap.cancelled && !snap.running && snap.done == 200);
     let imported = ws.summary().total;
     assert!((1..200).contains(&imported), "cancel stopped the import early ({imported} of 200)");
+    // The files not read are listed, so the user sees what is missing.
+    let not_read = ws
+        .summary()
+        .unrecognized
+        .iter()
+        .filter(|u| u.reason == imt_core::workspace::NOT_IMPORTED)
+        .count();
+    assert_eq!(not_read, 200 - imported);
     // Opening again imports the files that were skipped.
     *brake.0.lock().unwrap() = None;
     ws.open(std::slice::from_ref(&d2.0)).unwrap();
     assert_eq!(ws.summary().total, 200);
+    assert!(ws.summary().unrecognized.is_empty());
 }

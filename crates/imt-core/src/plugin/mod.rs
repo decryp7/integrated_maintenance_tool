@@ -13,6 +13,7 @@
 //! | Services | any trait, via [`PluginRegistry::provide`] | APIs other plugins call ([`Service`]) |
 //! | Extension points | any trait, via [`PluginRegistry::declare_extension_point`] | plugin-defined contribution points |
 //! | Events | [`crate::events::EventBus`] | reacting to records, profile, alerts and plugin state |
+//! | Tool | [`tools::Tool`] | typed operations the shell dispatches generically (PerfMon, process monitor, ...) |
 //!
 //! Plugins declare a [`Manifest`] (version, dependencies, provided services).
 //! The registry resolves the dependency graph ([`graph`]): plugins with an
@@ -22,10 +23,12 @@
 
 pub mod annotate;
 mod graph;
+pub mod hosting;
 pub mod manifest;
 pub mod markers;
 mod runtime;
 pub mod services;
+pub mod tools;
 pub mod watchdog;
 
 pub use manifest::{Dep, DepInfo, Manifest, ServiceDecl, ServiceInfo};
@@ -107,7 +110,9 @@ impl<'a> TransformCtx<'a> {
         }
     }
 
-    pub(crate) fn with_marks(source_name: &'a str, marks: &'a markers::MarkIndex) -> Self {
+    /// A context whose transforms may mark records with the kinds in
+    /// `marks` that their plugin declared (see [`markers::MarkIndex::of_kinds`]).
+    pub fn with_marks(source_name: &'a str, marks: &'a markers::MarkIndex) -> Self {
         TransformCtx {
             source_name,
             marks: Some(marks),
@@ -136,6 +141,22 @@ impl<'a> TransformCtx<'a> {
             (None, _) => false,
         }
     }
+
+    /// [`TransformCtx::mark`] for [`RecordTransform::apply_batch`]: marks
+    /// `record` (one of the batch) instead of the record being transformed.
+    pub fn mark_record(&self, record: &mut Record, kind: &str) -> bool {
+        match (self.scope, self.marks) {
+            (Some(scope), Some(marks)) => match scope.bit_of(marks, kind) {
+                Some(bit) => {
+                    record.markers |= bit;
+                    true
+                }
+                None => scope.reject(kind),
+            },
+            (Some(scope), None) => scope.reject(kind),
+            (None, _) => false,
+        }
+    }
 }
 
 /// A record-level pipeline step, referenced from a profile as
@@ -145,6 +166,19 @@ impl<'a> TransformCtx<'a> {
 pub trait RecordTransform: Send + Sync {
     fn id(&self) -> &str;
     fn apply(&self, record: &mut Record, ctx: &TransformCtx) -> Verdict;
+    /// Whether the pipeline should hand this transform all records of a
+    /// step at once ([`RecordTransform::apply_batch`]) instead of one by one.
+    /// True for transforms whose per-call cost dominates, such as those of a
+    /// plugin running out of process (one round trip per batch, not per record).
+    fn batched(&self) -> bool {
+        false
+    }
+    /// Applies the step to many records, returning one verdict per record
+    /// (missing verdicts mean [`Verdict::Keep`]). Marks go through
+    /// [`TransformCtx::mark_record`]. The default calls `apply` on each.
+    fn apply_batch(&self, records: &mut [Record], ctx: &TransformCtx) -> Vec<Verdict> {
+        records.iter_mut().map(|r| self.apply(r, ctx)).collect()
+    }
 }
 
 /// Notifications about the workspace. Called synchronously on the thread that
@@ -284,6 +318,7 @@ pub struct PluginRegistry {
     annotations: annotate::Store,
     /// Notes (owner, text) from the last annotator run.
     annotate_notes: std::sync::Mutex<Vec<(String, String)>>,
+    tools: Vec<Arc<tools::Registered>>,
 }
 
 impl Default for PluginRegistry {
@@ -298,6 +333,9 @@ impl PluginRegistry {
         let mut r = Self::empty();
         r.importers = Importers::new();
         r.exporters = vec![Arc::new(CsvExporter), Arc::new(ClefExporter)];
+        // Configuration formats plugins add (see `crate::config`); the host declares the point.
+        let _ = r.declare_extension_point::<dyn crate::config::ConfigParser>(crate::config::PARSERS_POINT);
+        r.pending.clear();
         r
     }
 
@@ -319,6 +357,7 @@ impl PluginRegistry {
             annotators: Vec::new(),
             annotations: Default::default(),
             annotate_notes: Default::default(),
+            tools: Vec::new(),
         }
     }
 
@@ -659,6 +698,28 @@ impl PluginRegistry {
         self.pending.push(format!("annotator:{id}"));
         self.annotators.push(annotate::Registered { owner, guard, annotator });
         Ok(self)
+    }
+
+    /// Adds a tool (call from `register`). Its description is checked and
+    /// its id must be unique across plugins.
+    pub fn add_tool(&mut self, tool: Arc<dyn tools::Tool>) -> Result<&mut Self> {
+        let info = tool.describe();
+        info.check().map_err(|e| anyhow!(e))?;
+        if info.id != tool.id() {
+            return Err(anyhow!("tool \"{}\" describes itself as \"{}\"", tool.id(), info.id));
+        }
+        if let Some(t) = self.tools.iter().find(|t| t.info.id == info.id) {
+            return Err(anyhow!("a tool with id \"{}\" is already registered by \"{}\"", info.id, t.owner));
+        }
+        let (owner, guard, _) = self.owner();
+        self.pending.push(format!("tool:{}", info.id));
+        self.tools.push(Arc::new(tools::Registered { owner, guard, info, tool }));
+        Ok(self)
+    }
+
+    /// The registered tools, for listing and dispatch by the shell.
+    pub fn tools(&self) -> tools::ToolHost {
+        tools::ToolHost::new(&self.tools)
     }
 
     /// Compiles a profile against the installed plugins: their transforms

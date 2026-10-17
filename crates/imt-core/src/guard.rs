@@ -32,6 +32,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
+/// Log target of guard events (contained crashes, quarantines, overruns).
+pub const LOG_TARGET: &str = "imt_core::guard";
+
 /// A plugin is quarantined (no longer called) after this many crashes.
 pub const QUARANTINE_AFTER: u32 = 3;
 
@@ -77,6 +80,9 @@ pub enum CallKind {
     Event,
     /// `activate` / `deactivate`; allowed while the plugin is inactive.
     Lifecycle,
+    /// One operation of a [`crate::plugin::tools::Tool`]; its budget is
+    /// declared per operation by the tool, not in [`Budgets`].
+    Tool,
 }
 
 impl CallKind {
@@ -93,6 +99,7 @@ impl CallKind {
             CallKind::Service => "service",
             CallKind::Event => "event",
             CallKind::Lifecycle => "lifecycle",
+            CallKind::Tool => "tool",
         }
     }
 }
@@ -166,6 +173,8 @@ impl Budgets {
             CallKind::Service => self.service,
             CallKind::Event => self.event,
             CallKind::Lifecycle => self.lifecycle,
+            // Declared per operation by the tool (`OpSpec::budget`).
+            CallKind::Tool => None,
         }
     }
 }
@@ -243,7 +252,10 @@ impl Health {
 
     /// Records a crash; quarantines the plugin after [`QUARANTINE_AFTER`] of them.
     pub fn fail(&self, plugin: &str, error: &str) {
-        if self.with(|l| Self::count(l, plugin, error)) {
+        let quarantined = self.with(|l| Self::count(l, plugin, error));
+        log::error!(target: LOG_TARGET, Plugin = plugin, Contained = true; "Plugin {plugin} crashed (contained): {error}");
+        if quarantined {
+            log::error!(target: LOG_TARGET, Plugin = plugin, Crashes = QUARANTINE_AFTER; "Plugin {plugin} quarantined after repeated crashes");
             self.notify();
         }
     }
@@ -323,7 +335,9 @@ impl Health {
             *l.hung.entry(plugin.to_string()).or_default() += 1;
             Self::count(l, plugin, error)
         });
+        log::error!(target: LOG_TARGET, Plugin = plugin, Hung = true; "Plugin {plugin} overran its time budget: {error}");
         if quarantined {
+            log::error!(target: LOG_TARGET, Plugin = plugin, Crashes = QUARANTINE_AFTER; "Plugin {plugin} quarantined after repeated failures");
             self.notify();
         }
     }
@@ -430,7 +444,31 @@ impl Guard {
         what: &str,
         f: impl FnOnce() -> Result<T> + Send + 'static,
     ) -> Result<T> {
-        let Some(budget) = self.health.admit(&self.owner, kind)? else {
+        let budget = self.health.admit(&self.owner, kind)?;
+        self.detached(kind, budget, what, f)
+    }
+
+    /// [`Guard::call_detached`] with an explicit budget instead of the
+    /// kind's (used for tool operations, which declare their own).
+    pub fn call_detached_within<T: Send + 'static>(
+        &self,
+        kind: CallKind,
+        budget: Option<Duration>,
+        what: &str,
+        f: impl FnOnce() -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        self.health.admit(&self.owner, kind)?;
+        self.detached(kind, budget, what, f)
+    }
+
+    fn detached<T: Send + 'static>(
+        &self,
+        kind: CallKind,
+        budget: Option<Duration>,
+        what: &str,
+        f: impl FnOnce() -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let Some(budget) = budget else {
             return self.catch(what, f);
         };
         let (tx, rx) = mpsc::channel();
@@ -614,6 +652,31 @@ impl RecordTransform for GuardedTransform {
             );
         }
         verdict
+    }
+    fn batched(&self) -> bool {
+        self.guard.quiet(CallKind::Transform, "batched", false, || self.inner.batched())
+    }
+    /// One guarded call for the whole batch, budgeted like an import (a
+    /// batch can hold a whole file). A crash or overrun keeps every record.
+    fn apply_batch(&self, records: &mut [Record], ctx: &TransformCtx) -> Vec<Verdict> {
+        if !self.inner.batched() {
+            // One guarded call (and mark scope) per record, exactly like `apply`.
+            return records.iter_mut().map(|r| self.apply(r, ctx)).collect();
+        }
+        let scope = crate::plugin::markers::MarkScope::new(self.guard.owner());
+        let n = records.len();
+        let mut verdicts = self.guard.quiet(CallKind::Import, "transform", Vec::new(), || {
+            self.inner.apply_batch(records, &ctx.scoped(&scope))
+        });
+        verdicts.resize(n, Verdict::Keep);
+        let (_, rejected) = scope.finish();
+        for kind in rejected {
+            self.guard.health.note(
+                self.guard.owner(),
+                &format!("mark(\"{kind}\") was refused: not a marker kind of this plugin (or switched off by the profile)"),
+            );
+        }
+        verdicts
     }
 }
 

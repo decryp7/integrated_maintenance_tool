@@ -3,6 +3,7 @@
 //! ([`CurrentWindow`]); the names and payloads are documented in
 //! app/src/app/core/api.types.ts.
 
+use crate::activity::{domain_event, privacy, OpId};
 use crate::live;
 use crate::profile::ProfileDoc;
 use crate::windows::{read, write, write_reporting, CurrentWindow};
@@ -26,8 +27,10 @@ pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<Value> 
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
     let summary = write_reporting(&app, &state, move |ws| {
+        let before = unrecognized_paths(&ws.summary());
         ws.open(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
         let summary = ws.summary();
+        log_unrecognized(&summary.unrecognized, &before);
         // Counts only: file names and contents stay out of the logs.
         log::info!(
             Sources = summary.sources.len() as u64,
@@ -41,6 +44,32 @@ pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWind
     .await?;
     crate::window_manager::import_finished(&app, state.label(), &summary);
     Ok(summary)
+}
+
+/// Files logged per import as not imported (the rest are counted).
+const MAX_LOGGED_FILES: usize = 20;
+
+fn unrecognized_paths(summary: &imt_core::api::WorkspaceSummary) -> std::collections::HashSet<String> {
+    summary.unrecognized.iter().map(|u| u.path.clone()).collect()
+}
+
+/// Logs each file an import could not use (not in `before`), with why: a crashed importer at Error, an
+/// unknown format or unreadable file at Warning. The path as the privacy settings allow; the reason is
+/// redacted and capped (it never carries file contents, but may quote a path or a value).
+pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile], before: &std::collections::HashSet<String>) {
+    let new: Vec<_> = files.iter().filter(|u| !before.contains(&u.path)).collect();
+    for u in new.iter().take(MAX_LOGGED_FILES) {
+        let file = privacy::safe_path(std::path::Path::new(&u.path));
+        let reason: String = privacy::redact(&u.reason).chars().take(300).collect();
+        if u.reason.contains(" crashed: ") {
+            log::error!(File = file.as_str(), Reason = reason.as_str(); "Importer crashed on a file");
+        } else {
+            log::warn!(File = file.as_str(), Reason = reason.as_str(); "File not imported");
+        }
+    }
+    if new.len() > MAX_LOGGED_FILES {
+        log::warn!(More = (new.len() - MAX_LOGGED_FILES) as u64; "More files not imported");
+    }
 }
 
 #[tauri::command]
@@ -66,6 +95,7 @@ pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Value> {
 pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<Value> {
     let summary = write_reporting(&app, &state, |ws| {
         ws.reload()?;
+        log_unrecognized(&ws.summary().unrecognized, &Default::default());
         serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
     })
     .await?;
@@ -151,10 +181,17 @@ pub(crate) fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
 
 /// Writes the events matching the query to a file chosen by the user.
 #[tauri::command]
-pub(crate) async fn export_events(state: CurrentWindow, request: ExportRequest) -> CmdResult<Value> {
+pub(crate) async fn export_events(state: CurrentWindow, op: OpId, request: ExportRequest) -> CmdResult<Value> {
     read(&state, move |ws| {
         let result = ws.export(&request)?;
         log::info!(Format = result.format.as_str(), Events = result.events as u64; "Events exported");
+        let path = privacy::safe_path(std::path::Path::new(&result.path));
+        let rows = result.events.to_string();
+        domain_event(
+            "export.written",
+            op.as_deref(),
+            &[("Export", "events"), ("Format", &result.format), ("Path", &path), ("Rows", &rows)],
+        );
         serde_json::to_value(result).map_err(anyhow::Error::from)
     })
     .await
@@ -173,28 +210,44 @@ pub(crate) fn project_of(state: &CurrentWindow, name: String, ui: Value) -> Proj
     let profile = state.profile_doc().toml;
     let ws = state.store_read().state();
     ProjectFile {
-        version: 1,
+        version: imt_core::project::PROJECT_VERSION,
         name,
         sources: ws.roots,
         removed: ws.removed,
         profile,
         ui,
+        clock: ws.offsets,
+        reports: Vec::new(),
     }
 }
 
 /// Saves the open files, the active profile and the UI's state to a `.imtproj`.
 #[tauri::command]
-pub(crate) async fn save_project(state: CurrentWindow, path: String, name: String, ui: Value) -> CmdResult<Value> {
-    let project = project_of(&state, name, ui);
+pub(crate) async fn save_project(
+    state: CurrentWindow,
+    op: OpId,
+    path: String,
+    name: String,
+    ui: Value,
+    reports: Option<Vec<Value>>,
+    overwrite: Option<bool>,
+) -> CmdResult<Value> {
+    crate::share::refuse_bundle_folder(&path)?;
+    // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
+    imt_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    let mut project = project_of(&state, name, ui);
+    project.reports = crate::share::parse_reports(reports.unwrap_or_default())?;
     project.save(std::path::Path::new(&path)).map_err(err)?;
     state.set_project(Some(path.clone()));
     log::info!(Sources = project.sources.len() as u64; "Project saved");
+    let (safe, sources) = (privacy::safe_path(std::path::Path::new(&path)), project.sources.len().to_string());
+    domain_event("project.saved", op.as_deref(), &[("Path", &safe), ("Sources", &sources)]);
     Ok(serde_json::json!({ "path": path, "name": project.name }))
 }
 
 /// Opens a `.imtproj`: applies its profile, reopens its files and returns the UI state.
 #[tauri::command]
-pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, path: String) -> CmdResult<Value> {
+pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, path: String) -> CmdResult<Value> {
     let project = ProjectFile::load(std::path::Path::new(&path)).map_err(err)?;
     let profile = Profile::from_toml(&project.profile).map_err(err)?;
     let doc = ProfileDoc {
@@ -205,6 +258,7 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
     let ws_state = WorkspaceState {
         roots: project.sources.clone(),
         removed: project.removed.clone(),
+        offsets: project.clock.clone(),
     };
     let (summary, missing) = write_reporting(&app, &state, move |ws| {
         let missing = ws.restore(profile, &ws_state)?;
@@ -214,6 +268,13 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
     state.set_profile_doc(doc.clone());
     state.set_project(Some(path.clone()));
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
+    let safe = privacy::safe_path(std::path::Path::new(&path));
+    let (sources, missing_n) = (project.sources.len().to_string(), missing.len().to_string());
+    domain_event(
+        "project.opened",
+        op.as_deref(),
+        &[("Path", &safe), ("Sources", &sources), ("Missing", &missing_n)],
+    );
     crate::window_manager::import_finished(&app, state.label(), &summary);
     Ok(serde_json::json!({
         "path": path,
@@ -221,6 +282,7 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
         "summary": summary,
         "profile": doc,
         "ui": project.ui,
+        "reports": project.reports,
         "missing": missing,
     }))
 }
@@ -402,12 +464,17 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let res = block(export_events(st(), req)).unwrap();
+        let res = block(export_events(st(), OpId::default(), req)).unwrap();
         assert_eq!(res["events"], summary["total"]);
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
-        assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
-        assert_eq!(crate::lifecycle::plugins(false, &[]).unwrap().plugins().len(), 5);
+        assert!(block(export_events(st(), OpId::default(), bad))
+            .unwrap_err()
+            .contains("unknown export format"));
+        assert_eq!(
+            crate::lifecycle::plugins(false, &[]).unwrap().plugins().len(),
+            crate::lifecycle::builtin_plugins().len()
+        );
     }
 
     #[test]
@@ -416,10 +483,46 @@ mod tests {
         let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
         let st = || main_window(&app);
         let shared = || app.state::<crate::AppState>();
-        block(crate::profile::save_profile(shared(), st(), "name = 'Project profile'".into())).unwrap();
+        block(crate::profile::save_profile(
+            shared(),
+            st(),
+            OpId::default(),
+            "name = 'Project profile'".into(),
+        ))
+        .unwrap();
         let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
-        let saved = block(save_project(st(), file.clone(), "Incident".into(), json!({"bookmarks": [3]}))).unwrap();
+        let saved = block(save_project(
+            st(),
+            OpId::default(),
+            file.clone(),
+            "Incident".into(),
+            json!({"bookmarks": [3]}),
+            Some(vec![json!({"id": "r1", "title": "R"})]),
+            None,
+        ))
+        .unwrap();
         assert_eq!(saved["name"], "Incident");
+        // "Save As" over an existing file is refused until confirmed; "Save" to it passes `overwrite`.
+        let again = block(save_project(
+            st(),
+            OpId::default(),
+            file.clone(),
+            "Incident".into(),
+            json!({"bookmarks": [3]}),
+            None,
+            None,
+        ));
+        assert_eq!(again.unwrap_err(), format!("{file} already exists; confirm to replace it"));
+        block(save_project(
+            st(),
+            OpId::default(),
+            file.clone(),
+            "Incident".into(),
+            json!({"bookmarks": [3]}),
+            Some(vec![json!({"id": "r1", "title": "R"})]),
+            Some(true),
+        ))
+        .unwrap();
         assert_eq!(st().project().as_deref(), Some(file.as_str()));
 
         let ctx: ContextRequest = serde_json::from_value(json!({"recordId": 5, "before": 1, "after": 1})).unwrap();
@@ -427,25 +530,135 @@ mod tests {
 
         block(clear_workspace(st())).unwrap();
         assert!(st().project().is_none());
-        block(crate::profile::save_profile(shared(), st(), "name = 'Other'".into())).unwrap();
-        let opened = block(open_project(app.handle().clone(), st(), file.clone())).unwrap();
+        block(crate::profile::save_profile(
+            shared(),
+            st(),
+            OpId::default(),
+            "name = 'Other'".into(),
+        ))
+        .unwrap();
+        let opened = block(open_project(app.handle().clone(), st(), OpId::default(), file.clone())).unwrap();
         assert_eq!(opened["name"], "Incident");
         assert_eq!(opened["ui"]["bookmarks"][0], 3);
+        assert_eq!(opened["reports"][0]["title"], "R");
         assert_eq!(opened["profile"]["name"], "Project profile");
         assert_eq!(opened["summary"]["profileName"], "Project profile");
         assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
         assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
         assert_eq!(crate::profile::get_profile(st()).unwrap().name, "Project profile");
         let missing = dir.0.join("nope.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(app.handle().clone(), st(), missing)).is_err());
+        assert!(block(open_project(app.handle().clone(), st(), OpId::default(), missing)).is_err());
         std::fs::write(
             dir.0.join("bad.imtproj"),
             r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
         )
         .unwrap();
         let bad = dir.0.join("bad.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(app.handle().clone(), st(), bad)).is_err());
-        assert!(block(save_project(st(), "/no/such/dir/x.imtproj".into(), "x".into(), Value::Null)).is_err());
+        assert!(block(open_project(app.handle().clone(), st(), OpId::default(), bad)).is_err());
+        assert!(block(save_project(
+            st(),
+            OpId::default(),
+            "/no/such/dir/x.imtproj".into(),
+            "x".into(),
+            Value::Null,
+            None,
+            None
+        ))
+        .is_err());
+        assert!(block(save_project(
+            st(),
+            OpId::default(),
+            file.clone(),
+            "x".into(),
+            Value::Null,
+            Some(vec![json!({})]),
+            Some(true)
+        ))
+        .is_err());
+    }
+
+    #[test]
+    fn exports_and_projects_are_domain_events_with_the_operation_id() {
+        let _g = crate::activity::test_capture();
+        let dir = TempDir::new("domain-events");
+        let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
+        let st = || main_window(&app);
+        let op = |id: &str| OpId(Some(id.into()));
+        let out = dir.0.join("events.clef");
+        let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
+        block(export_events(st(), op("op-export"), req)).unwrap();
+        let e = crate::tools::tests::domain_event("export.written", "op-export");
+        assert_eq!((e.props["Export"].as_str(), e.props["Format"].as_str()), ("events", "clef"));
+        assert!(
+            e.props["Path"].ends_with("/events.clef") && e.props["Path"].starts_with("<dir#"),
+            "{:?}",
+            e.props
+        );
+        assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
+        let file = dir.0.join("p.imtproj").to_string_lossy().into_owned();
+        block(save_project(st(), op("op-save"), file.clone(), "P".into(), json!({}), None, None)).unwrap();
+        assert_eq!(crate::tools::tests::domain_event("project.saved", "op-save").props["Sources"], "1");
+        block(open_project(app.handle().clone(), st(), op("op-open"), file)).unwrap();
+        let opened = crate::tools::tests::domain_event("project.opened", "op-open");
+        assert_eq!(
+            (opened.props["Path"].starts_with("<dir#"), opened.props["Missing"].as_str()),
+            (true, "0")
+        );
+        // Nothing of the files' content or folders is logged.
+        let all = format!("{:?}", crate::activity::captured());
+        assert!(!all.contains(&dir.0.to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn files_that_were_not_imported_are_logged_one_by_one() {
+        let _g = crate::activity::test_capture();
+        let dir = TempDir::new("unrecognized-log");
+        std::fs::write(dir.0.join("mystery.bin"), [0u8, 159, 146, 150, 1, 2, 3]).unwrap();
+        let files = vec![
+            imt_core::api::UnrecognizedFile {
+                path: "/secret/a.bin".into(),
+                name: "a.bin".into(),
+                reason: "not a recognised format".into(),
+            },
+            imt_core::api::UnrecognizedFile {
+                path: "/secret/b.log".into(),
+                name: "b.log".into(),
+                reason: "importer x crashed: index out of bounds".into(),
+            },
+            imt_core::api::UnrecognizedFile {
+                path: "/secret/old.log".into(),
+                name: "old.log".into(),
+                reason: "not a recognised format".into(),
+            },
+        ];
+        let before: std::collections::HashSet<String> = ["/secret/old.log".to_string()].into();
+        log_unrecognized(&files, &before);
+        let logged: Vec<_> = crate::activity::captured()
+            .into_iter()
+            .filter(|c| c.props.contains_key("File"))
+            .collect();
+        assert_eq!(logged.len(), 2, "{logged:?}");
+        assert_eq!(
+            (logged[0].level, logged[0].message.as_str()),
+            (log::Level::Warn, "File not imported")
+        );
+        assert_eq!(
+            (logged[1].level, logged[1].message.as_str()),
+            (log::Level::Error, "Importer crashed on a file")
+        );
+        assert!(logged.iter().all(|c| !c.props["File"].contains("secret")));
+        let many: Vec<_> = (0..MAX_LOGGED_FILES + 3)
+            .map(|i| imt_core::api::UnrecognizedFile {
+                path: format!("/x/{i}"),
+                name: i.to_string(),
+                reason: "r".into(),
+            })
+            .collect();
+        log_unrecognized(&many, &Default::default());
+        assert!(crate::activity::captured()
+            .iter()
+            .any(|c| c.message == "More files not imported" && c.props["More"] == "3"));
+        let _ = dir;
     }
 
     #[test]

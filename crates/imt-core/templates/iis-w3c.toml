@@ -1,0 +1,50 @@
+# IIS W3C extended log format with the default fields
+# (date time s-ip cs-method cs-uri-stem cs-uri-query s-port cs-username c-ip
+# cs(User-Agent) cs(Referer) sc-status sc-substatus sc-win32-status time-taken).
+# IIS writes UTC. The #Software/#Fields header lines are not events.
+name = "IIS W3C extended"
+
+[parse]
+format = "text"
+output_templates = []
+regexes = [
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?) (?P<ServerIp>\S+) (?P<message>(?P<Method>[A-Z]+) (?P<UriStem>\S+)) (?P<UriQuery>\S+) (?P<ServerPort>\d+) (?P<UserName>\S+) (?P<ClientIp>\S+) (?P<UserAgent>\S+) (?P<Referer>\S+) (?P<Status>\d{3}) (?P<SubStatus>\d+) (?P<Win32Status>\d+) (?P<TimeTaken>\d+)\s*$',
+]
+
+[instance]
+candidates = ["ServerIp"]
+key = []
+
+[activity]
+user = ["UserName", "ClientIp"]
+action = ["UriStem"]
+metrics = ["TimeTaken"]
+
+# Server errors (5xx) as errors, client errors (4xx) as warnings.
+[[pipeline]]
+step = "set_level"
+level = "Warning"
+when = [{ field = "Status", op = "gt", value = 399 }]
+
+[[pipeline]]
+step = "set_level"
+level = "Error"
+when = [{ field = "Status", op = "gt", value = 499 }]
+
+[[chart]]
+id = "events-by-level"
+title = "Events per interval by level"
+y = "count()"
+bucket = "auto"
+split_by = ["@level"]
+type = "stacked"
+unit = "events"
+
+[[chart]]
+id = "requests-by-status"
+title = "Requests per interval by status"
+y = "count()"
+bucket = "auto"
+split_by = ["Status"]
+type = "stacked"
+unit = "requests"

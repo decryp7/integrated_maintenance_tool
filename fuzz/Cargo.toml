@@ -18,6 +18,8 @@ imt-plugin-windows = { path = "../crates/imt-plugin-windows" }
 imt-plugin-web = { path = "../crates/imt-plugin-web" }
 imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
 imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
+imt-profile = { path = "../crates/imt-profile" }
+imt-plugin-profiling = { path = "../crates/imt-plugin-profiling", default-features = false }
 serde_json = "1"
 chrono = "0.4"
 
@@ -111,6 +113,62 @@ bench = false
 [[bin]]
 name = "fuzz_w3c_access_har"
 path = "fuzz_targets/fuzz_w3c_access_har.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_speedscope"
+path = "fuzz_targets/fuzz_prof_speedscope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_folded"
+path = "fuzz_targets/fuzz_prof_folded.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_cpuprofile"
+path = "fuzz_targets/fuzz_prof_cpuprofile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_chrome_trace"
+path = "fuzz_targets/fuzz_prof_chrome_trace.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_pprof"
+path = "fuzz_targets/fuzz_prof_pprof.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_perf_script"
+path = "fuzz_targets/fuzz_prof_perf_script.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_nettrace"
+path = "fuzz_targets/fuzz_prof_nettrace.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_prof_heapsnapshot"
+path = "fuzz_targets/fuzz_prof_heapsnapshot.rs"
 test = false
 doc = false
 bench = false

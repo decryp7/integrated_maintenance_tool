@@ -141,6 +141,8 @@ export class MockWindowingBackend implements WindowingBackend {
     if (onClose === 'ask') this.closeRequested.emit();
     else if (onClose === 'quit') this.host.close();
     // 'tray': the window would hide into the tray; nothing to show in a browser tab.
+    // Visible to end-to-end tests, which cannot read `calls` (and need a sign that the close was handled).
+    console.info(`[mock windowing] close_window ${onClose}`);
   }
 
   async listWindows(): Promise<WindowInfo[]> {

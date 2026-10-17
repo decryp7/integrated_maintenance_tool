@@ -24,16 +24,31 @@ const ICONS = {
   restore: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
   float: 'M8 8h12v12H8zM4 16V4h12',
   dock: 'M4 5h16v14H4zM4 10h16',
+  popout: 'M14 4h6v6M20 4l-8 8M18 14v6H4V6h6',
+  autoHide: 'M12 17v5M8 3h8l-1 7 3 3H6l3-3z',
+  menu: 'M6 9l6 6 6-6',
 };
 
 export interface GroupActionsHost {
   /** Floats a docked group, or docks a floating one back into the grid. */
   toggleFloat(group: DockviewGroupPanel): void;
+  /** Pops the group's active panel out into a window of its own. */
+  popOut(group: DockviewGroupPanel): void;
+  /** Auto-hides the group's active tool window. */
+  autoHide(group: DockviewGroupPanel): void;
+  /** Is the group's active panel a tool window (which can auto-hide)? */
+  isTool(group: DockviewGroupPanel): boolean;
+  canPopOut(): boolean;
+  /** Opens the active panel's menu under `anchor`. */
+  openMenu(group: DockviewGroupPanel, anchor: HTMLElement): void;
 }
 
-/** Maximize and float/dock buttons shown at the right of every group's tab strip. */
+/** Panel menu, auto hide, pop out, float/dock and maximize buttons at the right of every group's tab strip. */
 export class GroupActions implements IHeaderActionsRenderer {
   readonly element = document.createElement('div');
+  private readonly menu = this.button();
+  private readonly autoHide = this.button();
+  private readonly popout = this.button();
   private readonly maximize = this.button();
   private readonly float = this.button();
   private cleanup: (() => void)[] = [];
@@ -42,7 +57,11 @@ export class GroupActions implements IHeaderActionsRenderer {
 
   constructor(private readonly host: GroupActionsHost) {
     this.element.className = 'imt-dock-actions';
-    this.element.append(this.float, this.maximize);
+    this.menu.setAttribute('aria-haspopup', 'menu');
+    this.set(this.menu, 'Panel menu', ICONS.menu);
+    this.set(this.autoHide, 'Auto hide', ICONS.autoHide);
+    this.set(this.popout, 'Pop out to window', ICONS.popout);
+    this.element.append(this.menu, this.autoHide, this.popout, this.float, this.maximize);
   }
 
   private button(): HTMLButtonElement {
@@ -57,8 +76,11 @@ export class GroupActions implements IHeaderActionsRenderer {
     this.api = params.containerApi;
     this.maximize.addEventListener('click', () => this.toggleMaximize());
     this.float.addEventListener('click', () => this.host.toggleFloat(this.group!));
+    this.popout.addEventListener('click', () => this.host.popOut(this.group!));
+    this.autoHide.addEventListener('click', () => this.host.autoHide(this.group!));
+    this.menu.addEventListener('click', () => this.host.openMenu(this.group!, this.menu));
     const refresh = () => this.refresh();
-    const subs = [params.api.onDidLocationChange(refresh), params.containerApi.onDidMaximizedGroupChange(refresh)];
+    const subs = [params.api.onDidLocationChange(refresh), params.containerApi.onDidMaximizedGroupChange(refresh), params.api.onDidActivePanelChange(refresh)];
     this.cleanup = subs.map((s) => () => s.dispose());
     this.refresh();
   }
@@ -75,6 +97,8 @@ export class GroupActions implements IHeaderActionsRenderer {
     this.set(this.maximize, maximized ? 'Restore panel size' : 'Maximize panel', maximized ? ICONS.restore : ICONS.maximize);
     const floating = group.api.location.type === 'floating';
     this.set(this.float, floating ? 'Dock panel back into the window' : 'Float panel', floating ? ICONS.dock : ICONS.float);
+    this.autoHide.hidden = floating || !this.host.isTool(group);
+    this.popout.hidden = !this.host.canPopOut();
   }
 
   private set(button: HTMLButtonElement, label: string, path: string): void {

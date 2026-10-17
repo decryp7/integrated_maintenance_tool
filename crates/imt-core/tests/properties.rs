@@ -895,7 +895,7 @@ proptest! {
             })
             .collect();
         let mut out = Vec::new();
-        let mut rows = records.iter().map(|r| ExportRow { record: r, source_name: "s", group: String::new() });
+        let mut rows = records.iter().map(|r| ExportRow { record: std::borrow::Cow::Borrowed(r), source_name: "s", group: String::new() });
         let n = imt_core::export::ClefExporter.export(&mut rows, &mut out).unwrap();
         prop_assert_eq!(n, records.len());
 

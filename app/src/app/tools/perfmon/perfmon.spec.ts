@@ -4,6 +4,7 @@ import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { LiveTail } from '../../workspace/live-tail';
+import { DialogService } from '../../ui/dialog.service';
 import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { MockToolsOptions } from '../mock/mock-tools-backend';
 import { PerfmonStore } from './perfmon.store';
@@ -56,6 +57,26 @@ describe('PerfmonStore', () => {
     await store.saveXml();
     expect(store.generated()?.path).toBe('/x/IMT.xml');
     expect(store.notice()).toBe('Saved /x/IMT.xml');
+  });
+
+  it('never replaces an existing XML file without asking', async () => {
+    const { store } = await setup();
+    const dialogs = TestBed.inject(DialogService);
+    await store.saveXml();
+    store.patchDraft({ intervalSecs: 30 });
+    // The same file again (the browser build's dialog does not ask): the app asks, and "Keep" saves nothing.
+    let saving = store.saveXml();
+    await vi.waitFor(() => expect(dialogs.stack()[0]?.options.title).toBe('Replace file?'));
+    dialogs.stack()[0].ref.close(false);
+    await saving;
+    expect(store.generated()).toBeNull();
+    expect(store.error()).toBeNull();
+    saving = store.saveXml();
+    await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
+    dialogs.stack()[0].ref.close(true);
+    await saving;
+    expect(store.notice()).toBe('Saved /x/IMT.xml');
+    expect(store.generated()?.xml).toContain('<DataCollectorSet>');
   });
 
   it('does nothing when the save dialog is cancelled', async () => {

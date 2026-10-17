@@ -7,6 +7,7 @@ import { ImtEvents } from '../../extensions/events';
 import { Icon } from '../../shared/icon';
 import { loadRegistryRows } from './registry-loader';
 import { buildRegistryTree, expandableIds, flattenTree, FlatNode, REGISTRY_ROW_CAP, RegistryNode } from './registry-tree';
+import { NextSteps } from '../../ui/next-steps';
 
 /** Trees up to this many nodes open fully; bigger ones open only down to the hives. */
 const AUTO_EXPAND_LIMIT = 400;
@@ -15,7 +16,7 @@ const AUTO_EXPAND_LIMIT = 400;
 @Component({
   selector: 'imt-registry-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, NextSteps],
   template: `
     <div class="bar">
       <span class="section-title">Registry</span>
@@ -31,7 +32,11 @@ const AUTO_EXPAND_LIMIT = 400;
     @if (loading()) {
       <div class="empty-state">Loading registry…</div>
     } @else if (!rows().length) {
-      <div class="empty-state">No registry data in the workspace.</div>
+      <div class="empty-state">
+        <div>No registry data in the workspace.</div>
+        <div class="faint">Open a Windows registry export (.reg) to browse its keys and values here.</div>
+        <imt-next-steps />
+      </div>
     } @else {
       <div class="tree" role="tree" aria-label="Registry" (keydown)="onKey($event)">
         @for (item of flat(); track item.node.id) {

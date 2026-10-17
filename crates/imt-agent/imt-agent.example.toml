@@ -1,0 +1,118 @@
+# imt-agent.toml — configuration of the headless IMT agent.
+#
+#   imt-agent validate --config imt-agent.toml   check this file
+#   imt-agent once --config imt-agent.toml       run every enabled schedule once, now
+#   imt-agent run --config imt-agent.toml        run schedules until stopped (Ctrl+C / service stop)
+#
+# Keys are camelCase. Relative paths are relative to this file's folder. The agent only
+# reads and writes local files; it never listens on the network.
+
+# Format version (required). Files with a newer version are refused.
+version = 1
+
+[agent]
+# Where each run gets its own folder ("<yyyyMMdd-HHmmss>-<schedule>") with a manifest.json.
+outputDir = "runs"
+# Lock files and state.json (default: <outputDir>/.imt-agent).
+# stateDir = "state"
+# The agent's own logs, as CLEF (default: <stateDir>/logs).
+# logDir = "logs"
+# A run is skipped (and logged) when the output volume has less free space than this.
+minFreeMb = 1024
+# How often schedules and triggers are evaluated, in seconds (1-3600).
+tickSecs = 15
+# Cron expressions are read in "local" time or "utc".
+timezone = "local"
+# Windows: how long one logman call of a PerfMon capture may take, in seconds (5-600).
+# logmanTimeoutSecs = 120
+
+[agent.log]
+level = "information"   # debug | information | warning | error
+maxFileMb = 10          # roll the log file at this size
+keepFiles = 5           # rolled files kept
+maxAgeDays = 30         # older log files are deleted
+
+# Old runs are deleted after each run: beyond maxRuns, older than maxAgeDays, then the
+# oldest until all runs fit in maxTotalMb. Remove a key to turn that limit off.
+[retention]
+maxRuns = 50
+maxTotalMb = 5120
+maxAgeDays = 30
+
+# Each schedule has a name (letters, digits, space, - _ .), exactly one of
+# `cron`, `every` or `trigger`, and one or more actions run in order.
+# A schedule never overlaps itself: while it runs, further firings are skipped.
+
+[[schedules]]
+name = "nightly"
+# Cron: minute hour day-of-month month day-of-week (optional leading seconds field);
+# aliases @hourly, @daily, @weekly, @monthly; L, W and # are supported.
+cron = "0 2 * * *"
+
+  # The diagnostics collector (an .imtz bundle). Use `planFile` for a plan file
+  # (as `imt-collect --plan`), or an inline `plan` with the same keys; neither = default plan.
+  [[schedules.actions]]
+  kind = "collect"
+  plan = { name = "nightly", eventLogDays = 1, msinfo = false }
+
+  # Copy log files, newest first, up to maxTotalMb.
+  [[schedules.actions]]
+  kind = "copyLogs"
+  from = "/var/log/myapp"
+  include = ["*.log", "*.clef"]
+  maxAgeDays = 2
+  maxTotalMb = 200
+
+[[schedules]]
+name = "hourly-sample"
+enabled = false
+# A fixed interval: 1m to 31d (s, m, h, d).
+every = "1h"
+
+  # Record the process monitor for a while (CLEF files IMT opens and charts).
+  # Targets: process names (globs), executable paths (with / or \) or PIDs.
+  [[schedules.actions]]
+  kind = "monitor"
+  targets = ["OrderService*"]
+  duration = "5m"
+  intervalMs = 1000
+  includeChildren = false
+
+[[schedules]]
+name = "memory-spike"
+  # Fires when a matching process stays above the threshold for forSecs.
+  # metric: privateBytes | workingSet | virtualBytes (MB), cpu (% of the machine), handles, threads.
+  # After firing it waits cooldownSecs and for the value to drop below the threshold again.
+  [schedules.trigger]
+  kind = "process"
+  process = "OrderService*"
+  metric = "privateBytes"
+  above = 1500
+  forSecs = 30
+  sampleSecs = 5
+  cooldownSecs = 1800
+
+  [[schedules.actions]]
+  kind = "monitor"
+  targets = ["OrderService*"]
+  duration = "10m"
+
+  # Windows only: start an installed Performance Monitor Data Collector Set, stop it after
+  # `duration` and copy its log files into the run. Skipped (with a note) elsewhere.
+  [[schedules.actions]]
+  kind = "perfmon"
+  collector = "IMT-Default"
+  duration = "10m"
+
+[[schedules]]
+name = "on-crash"
+  # Fires when a new event in the watched log (or folder) matches an IMT query.
+  [schedules.trigger]
+  kind = "log"
+  path = "/var/log/myapp/app.log"
+  ql = "level >= Error and @message ~ \"OutOfMemory\""
+  pollSecs = 5
+  cooldownSecs = 900
+
+  [[schedules.actions]]
+  kind = "collect"

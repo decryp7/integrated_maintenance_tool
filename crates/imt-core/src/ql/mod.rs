@@ -31,6 +31,7 @@ mod expr;
 mod lexer;
 mod parser;
 mod stats;
+mod suggest;
 
 pub use complete::{completions, Completion, CompletionKind};
 pub use error::QlError;
@@ -38,6 +39,7 @@ pub use exec::run;
 pub use expr::{Filter, Row};
 pub use parser::{parse, AggFn, AggSpec, FieldRef, Program, SortKeySpec, Stage};
 pub use stats::MAX_PERCENTILE_VALUES;
+pub use suggest::{closest, distance, unknown_field, PSEUDO_FIELDS};
 
 use serde::Serialize;
 use serde_json::Value;

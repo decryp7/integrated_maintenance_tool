@@ -10,6 +10,7 @@
 
 use crate::background::BackgroundTasks;
 use crate::notify::{notify, NotificationKind};
+use crate::panel_windows;
 use crate::window_prefs::{OnClose, SharedPrefs, WINDOW_SECTION};
 use crate::windows::{emit_to_window, label_order, queue_open, CurrentWindow, Windows, MAIN};
 use crate::{err, CmdResult};
@@ -82,6 +83,7 @@ pub fn list<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowInfo> {
     let mut out: Vec<WindowInfo> = app
         .webview_windows()
         .into_iter()
+        .filter(|(label, _)| !panel_windows::is_popout(label))
         .map(|(label, w)| {
             let title = windows
                 .as_ref()
@@ -111,7 +113,7 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 /// its UI on startup. Returns the window's label.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
     let windows = app.try_state::<Windows>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
-    if app.webview_windows().len() >= MAX_WINDOWS {
+    if app.webview_windows().keys().filter(|l| !panel_windows::is_popout(l)).count() >= MAX_WINDOWS {
         anyhow::bail!("IMT already has {MAX_WINDOWS} windows open; close one first");
     }
     let label = windows.next_label();
@@ -138,6 +140,7 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
 pub fn reveal<R: Runtime>(app: &AppHandle<R>, label: &str) -> CmdResult<()> {
     let w = app.get_webview_window(label).ok_or("this window was closed")?;
     show(&w);
+    panel_windows::set_visible(app, label, true);
     changed(app);
     Ok(())
 }
@@ -215,6 +218,55 @@ pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Va
     );
 }
 
+/// A webview whose content process died is reloaded at most this often per window within
+/// [`RELOAD_WINDOW`]; beyond that it is left as is (a page that crashes on load must not loop).
+const MAX_RELOADS: usize = 3;
+const RELOAD_WINDOW: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Whether a window whose web content process terminated may be reloaded now (records the reload).
+fn may_reload(history: &mut std::collections::HashMap<String, Vec<std::time::Instant>>, label: &str, now: std::time::Instant) -> bool {
+    let times = history.entry(label.to_string()).or_default();
+    times.retain(|t| now.duration_since(*t) < RELOAD_WINDOW);
+    if times.len() >= MAX_RELOADS {
+        return false;
+    }
+    times.push(now);
+    true
+}
+
+/// The web content process of a window died (out of memory, a WebKit crash): logs it as a crash and
+/// reloads the page, which restores the session from the autosave. Wired with
+/// `Builder::on_web_content_process_terminate` (macOS/iOS only: Tauri 2 exposes no such event for
+/// WebView2 or WebKitGTK).
+#[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(dead_code))]
+pub fn web_content_terminated<R: Runtime>(webview: &tauri::Webview<R>) {
+    let label = webview.label().to_string();
+    content_terminated(&label, std::time::Instant::now(), || webview.reload().map_err(anyhow::Error::from));
+}
+
+fn content_terminated(label: &str, now: std::time::Instant, reload: impl FnOnce() -> anyhow::Result<()>) -> bool {
+    static HISTORY: std::sync::Mutex<Option<std::collections::HashMap<String, Vec<std::time::Instant>>>> = std::sync::Mutex::new(None);
+    let allowed = may_reload(
+        HISTORY
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get_or_insert_with(Default::default),
+        label,
+        now,
+    );
+    log::error!(Severity = "Fatal", Window = label, Reload = allowed; "The web content process of window {label} terminated");
+    if !allowed {
+        return false;
+    }
+    match reload() {
+        Ok(()) => true,
+        Err(e) => {
+            log::error!(Window = label; "Could not reload window {label} after its web content process terminated: {e:#}");
+            false
+        }
+    }
+}
+
 /// Applies the close decision; called for every window event.
 pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let app = window.app_handle();
@@ -227,9 +279,15 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         }
         WindowEvent::Focused(true) => {
             if let Some(windows) = app.try_state::<Windows>() {
-                windows.note_focus(label);
+                // A pop-out panel stands for its host (files from other apps go there).
+                windows.note_focus(panel_windows::resolve(label));
             }
         }
+        WindowEvent::Moved(_) if panel_windows::is_popout(label) => {
+            panel_windows::moved(app, label);
+            panel_windows::dragged(app, label);
+        }
+        WindowEvent::Resized(_) if panel_windows::is_popout(label) => panel_windows::moved(app, label),
         WindowEvent::Destroyed => destroyed(app, label),
         _ => {}
     }
@@ -242,13 +300,14 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
     let Some(windows) = app.try_state::<Windows>() else {
         return CloseDecision::Close;
     };
-    if windows.exiting() {
+    // Closing a pop-out panel window docks the panel back; the app is not affected.
+    if windows.exiting() || panel_windows::is_popout(label) {
         return CloseDecision::Close;
     }
     let other_visible = app
         .webview_windows()
         .iter()
-        .filter(|(l, w)| l.as_str() != label && w.is_visible().unwrap_or(false))
+        .filter(|(l, w)| l.as_str() != label && !panel_windows::is_popout(l) && w.is_visible().unwrap_or(false))
         .count();
     let pref = app.try_state::<SharedPrefs>().map(|p| p.get().on_close).unwrap_or_default();
     let state = windows.get(label);
@@ -258,6 +317,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
         CloseDecision::Close => {}
         CloseDecision::Hide => {
             let _ = window.hide();
+            panel_windows::set_visible(app, label, false);
             log::info!("Last window hidden; IMT keeps running in the tray");
             changed(app);
         }
@@ -275,6 +335,11 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
 /// A window is gone: free its workspace, stop its background work and, unless
 /// IMT is quitting, forget its session (a closed window is not restored).
 pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    if panel_windows::is_popout(label) {
+        panel_windows::on_destroyed(app, label);
+        return;
+    }
+    panel_windows::close_all_of(app, label);
     let Some(windows) = app.try_state::<Windows>() else { return };
     let exiting = windows.exiting();
     // Dropping the state stops its live tail and frees the workspace.
@@ -363,6 +428,7 @@ pub fn resolve_close<R: Runtime>(
         CloseChoice::Quit => quit(&app),
         CloseChoice::Tray if crate::tray::available(&app) => {
             window.hide().map_err(err)?;
+            panel_windows::set_visible(&app, window.label(), false);
             changed(&app);
         }
         // Nothing to keep running in.
@@ -407,6 +473,29 @@ mod tests {
     use crate::test_support::{main_window, test_app, window};
     use std::sync::{Arc, Mutex};
     use tauri::Listener;
+
+    #[test]
+    fn terminated_web_content_is_logged_and_reloaded_without_looping() {
+        let _g = crate::activity::test_capture();
+        let t0 = std::time::Instant::now();
+        let reloads = std::cell::Cell::new(0);
+        for i in 0..5 {
+            content_terminated("w-crashy", t0 + std::time::Duration::from_secs(i), || {
+                reloads.set(reloads.get() + 1);
+                Ok(())
+            });
+        }
+        assert_eq!(reloads.get(), MAX_RELOADS);
+        assert!(content_terminated("w-crashy", t0 + RELOAD_WINDOW * 2, || Ok(())));
+        assert!(!content_terminated("w-broken", t0, || Err(anyhow::anyhow!("gone"))));
+        let logged = crate::activity::captured();
+        let crash = logged.iter().find(|c| c.message.contains("w-crashy terminated")).expect("logged");
+        assert_eq!(
+            (crash.props["Severity"].as_str(), crash.props["Window"].as_str()),
+            ("Fatal", "w-crashy")
+        );
+        assert!(logged.iter().any(|c| c.message.contains("Could not reload window w-broken")));
+    }
 
     #[test]
     fn close_decisions() {

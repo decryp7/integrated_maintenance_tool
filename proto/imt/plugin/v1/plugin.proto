@@ -1,0 +1,513 @@
+// imt.plugin.v1: the stable contract between IMT and an out-of-process plugin (ADR 0002, ADR 0004).
+//
+// Transport: gRPC over a private local socket (Unix domain socket in a 0700 directory, or a named pipe
+// only the current user can open), never TCP. IMT starts the plugin process and writes one JSON line
+// `{"address": "...", "token": "..."}` to its stdin; the plugin serves `Plugin` (and `imt.ipc.v1.Control`)
+// on that address and exits when stdin closes. Every call carries the token in the `x-imt-token`
+// metadata. A failed call may carry a typed error (JSON `{code, message, data?}`) in the binary trailer
+// `x-imt-error-bin`.
+//
+// Data: records cross the boundary as Apache Arrow IPC *stream* bytes (`RecordBatch.arrow`), one schema
+// message plus one record batch per message. The schema is documented in docs/plugins.md
+// ("Arrow record schema"): ts Int64?, level UInt8, message Utf8, template Utf8?, exception Utf8?,
+// fields Utf8? (a JSON object), line UInt32, id UInt32, source UInt32, markers UInt64, plus extra Utf8
+// columns where a call says so (`source_name`, `group`, `instance`).
+//
+// Versioning: minor versions only add (RPCs, optional fields, enum values that both sides must
+// tolerate). A breaking change is a new package `imt.plugin.v2`. `Handshake` negotiates the version and
+// the capabilities a plugin implements; an RPC for a capability the plugin did not declare is never
+// called, and a plugin answers an unknown one with UNIMPLEMENTED.
+syntax = "proto3";
+
+package imt.plugin.v1;
+
+service Plugin {
+  // First call on every connection. The plugin checks `contract_major` and answers with its manifest.
+  rpc Handshake(HandshakeRequest) returns (Manifest);
+
+  // Importers.
+  rpc Sniff(SniffRequest) returns (SniffReply);
+  // The file's content streams in (ImportStart first, then data chunks); records stream out as batches,
+  // then ImportDone.
+  rpc Import(stream ImportChunk) returns (stream ImportReply);
+  // Live tail: ImportStart with `tail`, then the head chunks (part HEAD) and the appended text (part TAIL).
+  rpc ImportTail(stream ImportChunk) returns (stream ImportReply);
+
+  // Record transforms: batches stream in after TransformStart; for each, the plugin answers with the
+  // transformed batch (same row count and order) plus a verdict per row and the marks it set.
+  rpc Transform(stream TransformIn) returns (stream TransformOut);
+
+  // Marker kinds the plugin contributes (style and default rules).
+  rpc MarkerKinds(MarkerKindsRequest) returns (MarkerKindsReply);
+
+  // Annotators: AnnotateStart, then the records the annotator declared interest in (`AnnotatorCap.interest`)
+  // as batches with `source_name` and `instance` columns. The reply is the annotator's complete set.
+  rpc Annotate(stream AnnotateIn) returns (AnnotateReply);
+
+  // Exporters: ExportStart, then batches with `source_name` and `group` columns; the plugin streams the
+  // output file's bytes back, then ExportDone.
+  rpc Export(stream ExportIn) returns (stream ExportOut);
+
+  // Settings: the section's schema, and applying values IMT has validated against it.
+  rpc SettingsSection(SettingsSectionRequest) returns (SettingsSectionReply);
+  rpc ApplySettings(ApplySettingsRequest) returns (ApplySettingsReply);
+
+  // Services other plugins call: opaque payloads typed by the API crate of `service_id` (ADR 0003).
+  rpc CallService(ServiceCall) returns (ServiceReply);
+
+  // Events from IMT's event bus, streamed by IMT for the kinds in `EventsCap.kinds`.
+  rpc Events(stream HostEvent) returns (EventsAck);
+}
+
+// ---- Handshake and manifest ----
+
+message HandshakeRequest {
+  // The contract version IMT speaks (1.0 for this file).
+  uint32 contract_major = 1;
+  uint32 contract_minor = 2;
+  // IMT's version, e.g. "0.1.0".
+  string host_version = 3;
+  // Permissions the user granted (see Permission); the plugin should not attempt anything else.
+  repeated Permission granted = 4;
+}
+
+message Manifest {
+  // Reverse-DNS id, e.g. "com.example.toy".
+  string id = 1;
+  string name = 2;
+  // Semver.
+  string version = 3;
+  // The contract version the plugin implements; the major must match IMT's.
+  uint32 contract_major = 4;
+  uint32 contract_minor = 5;
+  repeated Dependency requires = 6;
+  repeated ServiceDecl provides = 7;
+  // What the plugin asks the user to allow.
+  repeated Permission permissions = 8;
+  repeated Capability capabilities = 9;
+}
+
+message Dependency {
+  string id = 1;
+  // Semver requirement, e.g. "^1.2".
+  string req = 2;
+  bool optional = 3;
+}
+
+message ServiceDecl {
+  string id = 1;
+  string version = 2;
+}
+
+message Permission {
+  PermissionKind kind = 1;
+  // NETWORK: the host name (e.g. "example.com"); empty for any.
+  string target = 2;
+  // Why the plugin needs it, shown to the user.
+  string reason = 3;
+}
+
+enum PermissionKind {
+  PERMISSION_UNSPECIFIED = 0;
+  // Receive the paths of files the user opened (and read them directly). Without it the plugin only
+  // receives the bytes IMT read itself.
+  READ_OPENED_FILES = 1;
+  // Connect to the network (`target` names the host).
+  NETWORK = 2;
+}
+
+message Capability {
+  oneof kind {
+    ImporterCap importer = 1;
+    TransformCap transform = 2;
+    ExporterCap exporter = 3;
+    MarkerKindsCap marker_kinds = 4;
+    AnnotatorCap annotator = 5;
+    SettingsCap settings = 6;
+    ServiceCap service = 7;
+    EventsCap events = 8;
+  }
+}
+
+message ImporterCap {
+  string id = 1;
+  // Binary importers receive raw bytes; text importers receive UTF-8 text IMT decoded.
+  bool binary = 2;
+  // Implements ImportTail.
+  bool tail = 3;
+  // A record may span several lines (live tail re-reads from the start of the last record).
+  bool multiline = 4;
+}
+
+message TransformCap {
+  string id = 1;
+}
+
+message ExporterCap {
+  string id = 1;
+  string name = 2;
+  // Without the dot.
+  string extension = 3;
+}
+
+message MarkerKindsCap {}
+
+message AnnotatorCap {
+  string id = 1;
+  // Which records IMT sends (conditions in the profile condition language; all must match; none = every
+  // record), newest last, at most `limit` (IMT caps it at 100000).
+  repeated Condition interest = 2;
+  uint32 limit = 3;
+}
+
+message SettingsCap {}
+
+message ServiceCap {
+  string id = 1;
+  string version = 2;
+}
+
+message EventsCap {
+  // Event kinds, e.g. "recordsAppended", "profileChanged".
+  repeated string kinds = 1;
+}
+
+// ---- Records ----
+
+message RecordBatch {
+  // Arrow IPC stream bytes: a schema message and one record batch.
+  bytes arrow = 1;
+  // Rows in the batch (redundant with the Arrow data; lets either side check it cheaply).
+  uint32 rows = 2;
+}
+
+// ---- Importers ----
+
+message ImportContext {
+  // The file's display name (no directory).
+  string file_name = 1;
+  // Full path: only sent when the plugin was granted READ_OPENED_FILES.
+  string path = 2;
+  // Last modification date "YYYY-MM-DD", for logs that only carry a time of day; empty if unknown.
+  string file_date = 3;
+  // The active parsing profile as JSON (the schema of crates/imt-core/src/default_profile.toml), without
+  // its pipeline.
+  string profile_json = 4;
+}
+
+message SniffRequest {
+  string importer_id = 1;
+  ImportContext ctx = 2;
+  // The first bytes of the file (text importers: UTF-8 text IMT decoded).
+  bytes head = 3;
+}
+
+message SniffReply {
+  // 0 (cannot read it) to 100 (certain).
+  uint32 score = 1;
+}
+
+message ImportStart {
+  string importer_id = 1;
+  ImportContext ctx = 2;
+  // Total bytes that will follow (of the head and the tail for ImportTail).
+  uint64 total_bytes = 3;
+  // Rows per reply batch IMT prefers (0: the plugin's default).
+  uint32 batch_rows = 4;
+}
+
+enum ChunkPart {
+  CONTENT = 0;
+  HEAD = 1;
+  TAIL = 2;
+}
+
+message ImportChunk {
+  oneof item {
+    ImportStart start = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message Chunk {
+  ChunkPart part = 1;
+  bytes data = 2;
+}
+
+message ImportReply {
+  oneof item {
+    RecordBatch batch = 1;
+    ImportDone done = 2;
+  }
+}
+
+message ImportDone {
+  // Lines or entries the importer skipped.
+  uint64 skipped = 1;
+  // ImportTail only: the importer cannot append; IMT re-imports the whole file.
+  bool tail_unsupported = 2;
+}
+
+// ---- Transforms ----
+
+message TransformStart {
+  string transform_id = 1;
+  // Display name of the file the records came from.
+  string source_name = 2;
+}
+
+message TransformIn {
+  oneof item {
+    TransformStart start = 1;
+    RecordBatch batch = 2;
+  }
+}
+
+enum Verdict {
+  KEEP = 0;
+  DROP = 1;
+}
+
+message RowMarks {
+  // Row index within the batch.
+  uint32 row = 1;
+  // Marker kinds of this plugin (short or full name).
+  repeated string kinds = 2;
+}
+
+message TransformOut {
+  RecordBatch batch = 1;
+  // One per row; missing entries mean KEEP.
+  repeated Verdict verdicts = 2;
+  repeated RowMarks marks = 3;
+  // Problems worth showing on the plugin (e.g. a refused mark), at most a few per batch.
+  repeated string notes = 4;
+}
+
+// ---- Marker kinds ----
+
+message MarkerKindsRequest {}
+
+message Condition {
+  // A field name or pseudo-field (@level, @message, ...).
+  string field = 1;
+  // eq, ne, contains, regex, in, gt, ...
+  string op = 2;
+  // The value as JSON (a string, number, boolean or list of strings); empty for none.
+  string value_json = 3;
+}
+
+enum MarkerRole {
+  ROLE_NONE = 0;
+  ROLE_START = 1;
+  ROLE_STOP = 2;
+  ROLE_CRASH = 3;
+}
+
+message MarkerKind {
+  string kind = 1;
+  string label = 2;
+  string description = 3;
+  string color = 4;
+  string icon = 5;
+  string badge = 6;
+  string shape = 7;
+  MarkerRole role = 8;
+  repeated Condition when = 9;
+}
+
+message MarkerKindsReply {
+  repeated MarkerKind kinds = 1;
+}
+
+// ---- Annotators ----
+
+message AnnotateStart {
+  string annotator_id = 1;
+  // The first record that is new since the previous run, if any.
+  bool has_since = 2;
+  uint32 since_id = 3;
+  // Milliseconds since the Unix epoch; meaningful when `since_has_ts`.
+  int64 since_ts = 4;
+  bool since_has_ts = 5;
+  // Oldest and newest record time of the whole workspace (has_range false when unknown).
+  bool has_range = 6;
+  int64 range_from = 7;
+  int64 range_to = 8;
+  // Every instance key of the workspace, in first-seen order.
+  repeated string instances = 9;
+}
+
+message AnnotateIn {
+  oneof item {
+    AnnotateStart start = 1;
+    RecordBatch batch = 2;
+  }
+}
+
+enum Severity {
+  INFO = 0;
+  WARNING = 1;
+  CRITICAL = 2;
+}
+
+message Annotation {
+  string kind = 1;
+  int64 from = 2;
+  int64 to = 3;
+  // Empty: every instance.
+  string instance = 4;
+  // Records with on_field == on_value (empty: none).
+  string on_field = 5;
+  string on_value = 6;
+  string label = 7;
+  Severity severity = 8;
+  // The evidence query as JSON (IMT's query schema).
+  string evidence_query_json = 9;
+}
+
+message AnnotateReply {
+  repeated Annotation annotations = 1;
+}
+
+// ---- Exporters ----
+
+message ExportStart {
+  string exporter_id = 1;
+}
+
+message ExportIn {
+  oneof item {
+    ExportStart start = 1;
+    RecordBatch batch = 2;
+  }
+}
+
+message ExportOut {
+  oneof item {
+    bytes data = 1;
+    ExportDone done = 2;
+  }
+}
+
+message ExportDone {
+  uint64 rows = 1;
+}
+
+// ---- Settings ----
+
+message SettingsSectionRequest {}
+
+message SettingsSectionReply {
+  SettingsSection section = 1;
+}
+
+message SettingsSection {
+  string title = 1;
+  string description = 2;
+  repeated SettingField fields = 3;
+}
+
+message SettingField {
+  string key = 1;
+  string label = 2;
+  string description = 3;
+  FieldKind kind = 4;
+  // The default as JSON.
+  string default_json = 5;
+  bool restart_required = 6;
+  bool advanced = 7;
+}
+
+message FieldKind {
+  oneof kind {
+    BoolKind bool = 1;
+    IntKind int = 2;
+    FloatKind float = 3;
+    TextKind text = 4;
+    EnumKind enum = 5;
+    PathKind path = 6;
+    DurationKind duration = 7;
+    SizeKind size = 8;
+    StringListKind string_list = 9;
+  }
+}
+
+message BoolKind {}
+
+message IntKind {
+  int64 min = 1;
+  int64 max = 2;
+  int64 step = 3;
+  string unit = 4;
+}
+
+message FloatKind {
+  double min = 1;
+  double max = 2;
+  double step = 3;
+  string unit = 4;
+}
+
+message TextKind {
+  uint64 max_len = 1;
+  string pattern = 2;
+}
+
+message EnumOption {
+  string value = 1;
+  string label = 2;
+}
+
+message EnumKind {
+  repeated EnumOption options = 1;
+}
+
+message PathKind {
+  bool dir = 1;
+}
+
+message DurationKind {
+  uint64 min_ms = 1;
+  uint64 max_ms = 2;
+}
+
+message SizeKind {
+  uint64 min_bytes = 1;
+  uint64 max_bytes = 2;
+}
+
+message StringListKind {
+  uint64 max_items = 1;
+}
+
+message ApplySettingsRequest {
+  // The values as a JSON object, already validated by IMT against the section (the plugin validates again).
+  string values_json = 1;
+}
+
+message ApplySettingsReply {}
+
+// ---- Services and events ----
+
+message ServiceCall {
+  string service_id = 1;
+  // Semver of the API the caller was built against.
+  string version = 2;
+  string method = 3;
+  bytes payload = 4;
+}
+
+message ServiceReply {
+  bytes payload = 1;
+}
+
+message HostEvent {
+  string kind = 1;
+  // The event as JSON (the event bus' schema).
+  string payload_json = 2;
+}
+
+message EventsAck {
+  uint64 received = 1;
+}

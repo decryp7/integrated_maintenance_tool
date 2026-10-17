@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { ExporterInfo, Query } from '../core/api.types';
+import { ExporterInfo, Query, RedactionSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount } from '../core/format';
 import { Platform } from '../core/platform';
@@ -7,6 +7,10 @@ import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { HelpHint } from '../ui/help-hint';
 import { exporterForPath } from './exporters';
+import { RedactionService } from '../share/redaction/redaction.service';
+import { RedactionSummaryView } from '../share/redaction/redaction-summary';
+import { ShareBackend } from '../share/share-backend';
+import { OverwriteGuard } from '../ui/overwrite-guard';
 
 /** What to export: the events matching the filters, the same without the time range, or everything. */
 export type ExportScope = 'filter' | 'filterAnyTime' | 'all';
@@ -26,7 +30,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
 @Component({
   selector: 'imt-export-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HelpHint],
+  imports: [HelpHint, RedactionSummaryView],
   template: `
     <div class="field">
       <label for="exp-format">Format</label>
@@ -50,6 +54,14 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
       <legend>Order</legend>
       <label class="opt"><input type="radio" name="order" value="asc" [checked]="!descending()" (change)="descending.set(false)" /> Oldest first</label>
       <label class="opt"><input type="radio" name="order" value="desc" [checked]="descending()" (change)="descending.set(true)" /> Newest first</label>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Privacy <imt-help label="Redaction" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
+      <label class="opt"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
+      @if (redact()) {
+        <imt-redaction-summary [summary]="redaction()" />
+      }
     </fieldset>
 
     <p class="count" role="status" aria-live="polite">
@@ -77,6 +89,9 @@ export class ExportDialog {
   private readonly store = inject(WorkspaceStore);
   private readonly backend = inject(ImtBackend);
   private readonly platform = inject(Platform);
+  private readonly share = inject(ShareBackend);
+  private readonly overwrite = inject(OverwriteGuard);
+  private readonly redactionService = inject(RedactionService);
 
   protected readonly exporters = computed<ExporterInfo[]>(() => this.store.summary()?.exporters ?? []);
   protected readonly format = signal(this.exporters()[0]?.id ?? '');
@@ -87,6 +102,12 @@ export class ExportDialog {
   protected readonly error = signal<string | null>(null);
   protected readonly fmt = formatCount;
   protected readonly hasRange = computed(() => this.store.hasRange());
+  /** Redact the export (defaults to the profile's `[redact] on_export`). */
+  protected readonly redact = signal(false);
+  /** The user ticked or unticked Redact: the profile default (loaded asynchronously) no longer applies. */
+  private redactChosen = false;
+  protected readonly redaction = signal<RedactionSummary | null>(null);
+  private redactionSeq = 0;
 
   private readonly query = computed(() => exportQuery(this.store.effectiveQuery(), this.scope()));
   private seq = 0;
@@ -96,6 +117,23 @@ export class ExportDialog {
       const query = this.query();
       untracked(() => void this.recount(query));
     });
+    void this.redactionService.onExportDefault().then((on) => this.redactChosen || this.redact.set(on));
+    effect(() => {
+      const query = this.query();
+      if (!this.redact()) return;
+      untracked(() => void this.previewRedaction(query));
+    });
+  }
+
+  private async previewRedaction(query: Query): Promise<void> {
+    const mine = ++this.redactionSeq;
+    this.redaction.set(null);
+    try {
+      const summary = await this.share.redactionSummary({ query, samples: 2 });
+      if (mine === this.redactionSeq) this.redaction.set(summary);
+    } catch (e) {
+      if (mine === this.redactionSeq) this.error.set(e instanceof Error ? e.message : String(e));
+    }
   }
 
   private async recount(query: Query): Promise<void> {
@@ -109,6 +147,11 @@ export class ExportDialog {
     }
   }
 
+  protected chooseRedact(on: boolean): void {
+    this.redactChosen = true;
+    this.redact.set(on);
+  }
+
   protected async export(): Promise<void> {
     const exporters = this.exporters();
     const chosen = exporters.find((e) => e.id === this.format()) ?? exporters[0];
@@ -119,8 +162,13 @@ export class ExportDialog {
       const path = await this.platform.pickExportPath(`events.${chosen.extension}`, [chosen, ...exporters.filter((e) => e !== chosen)]);
       if (!path) return;
       const format = exporterForPath(path, exporters)?.id ?? chosen.id;
-      const result = await this.backend.exportEvents({ query: this.query(), format, path, descending: this.descending() });
-      this.store.setNotice(`Exported ${formatCount(result.events)} events to ${result.path.split(/[\\/]/).pop()}`);
+      const result = await this.overwrite.write(path, (overwrite) =>
+        this.backend.exportEvents({ query: this.query(), format, path, descending: this.descending(), redact: this.redact(), overwrite }),
+      );
+      if (!result) return;
+      const masked = Object.values(result.redactions ?? {}).reduce((a, b) => a + b, 0);
+      const redacted = this.redact() ? ` (redacted, ${formatCount(masked)} value${masked === 1 ? '' : 's'} masked)` : '';
+      this.store.setNotice(`Exported ${formatCount(result.events)} events to ${result.path.split(/[\\/]/).pop()}${redacted}`);
       this.ref.close();
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));

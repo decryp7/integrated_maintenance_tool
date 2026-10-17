@@ -34,7 +34,6 @@ test.describe('analysis views', () => {
     const view = page.locator('imt-anomalies-view');
     const rows = view.getByRole('list', { name: 'Anomalies' }).getByRole('button');
     await expect(rows.first()).toBeVisible();
-    expect(await rows.count()).toBeGreaterThan(0);
     await expectNoSeriousViolations(page, testInfo, 'anomalies', 'imt-anomalies-view');
     await rows.first().click();
     // The range chip of the filter bar shows the zoomed range with a way to reset it.

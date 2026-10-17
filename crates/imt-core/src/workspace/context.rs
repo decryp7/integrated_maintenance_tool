@@ -45,7 +45,7 @@ impl Workspace {
             .take(last + 1 - first)
             .map(|(i, l)| SourceLine {
                 line: i as u32 + 1,
-                text: l.trim_end_matches('\r').chars().take(10_000).collect(),
+                text: self.view_line(l.trim_end_matches('\r').chars().take(10_000).collect()),
             })
             .collect();
         Ok(SourceContext {

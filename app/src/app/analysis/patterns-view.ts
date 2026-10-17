@@ -23,7 +23,7 @@ import { AsyncResource } from './async-resource';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." emptyHint="Patterns group the matching events by message template, most frequent first." suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Patterns">
         @for (p of res.data() ?? []; track p.id) {
           <li>

@@ -102,8 +102,9 @@ pub struct CounterValue {
     pub value: f64,
 }
 
-/// Where counter values come from (PDH on Windows; fakes in tests).
-pub trait CounterSource {
+/// Where counter values come from (PDH on Windows; fakes in tests). Sources move between
+/// threads (a sampling thread, a shared service behind a lock) but are used by one at a time.
+pub trait CounterSource: Send {
     /// Collects every configured counter once; counters that cannot be computed yet are omitted.
     fn collect(&mut self) -> Result<Vec<CounterValue>>;
 }

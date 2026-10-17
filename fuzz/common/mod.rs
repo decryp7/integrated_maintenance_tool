@@ -38,3 +38,21 @@ pub fn binary_importer(imp: &dyn BinaryImporter, data: &[u8]) {
     assert!(imp.sniff(&c, &data[..data.len().min(4096)]) <= 100);
     let _ = imp.import(&c, data);
 }
+
+/// Sniffs and imports a profile or heap snapshot with small limits (import
+/// runs even when sniff says no), then runs the views over what came out.
+pub fn capture_importer(imp: &dyn imt_profile::CaptureImporter, data: &[u8]) {
+    let limits = imt_profile::Limits {
+        max_input_bytes: 4 << 20,
+        max_frames: 20_000,
+        max_stack_nodes: 50_000,
+        max_samples: 200_000,
+        max_objects: 50_000,
+        max_edges: 200_000,
+        ..imt_profile::Limits::default()
+    };
+    assert!(imp.sniff("fuzz", &data[..data.len().min(64 * 1024)]) <= 100);
+    if let Ok(capture) = imp.import("fuzz", data, &limits) {
+        imt_profile::fuzz_views(capture);
+    }
+}

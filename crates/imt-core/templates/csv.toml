@@ -1,0 +1,14 @@
+# Comma, semicolon, tab or pipe separated files with a header row. The
+# timestamp, level and message columns are found by name; every other column
+# becomes a field.
+name = "CSV with a header row"
+
+[parse]
+format = "csv"
+
+[parse.csv]
+delimiter = "auto"
+has_header = true
+timestamp = "auto"
+level = "auto"
+message = "auto"

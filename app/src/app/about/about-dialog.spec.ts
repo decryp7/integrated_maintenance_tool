@@ -28,6 +28,7 @@ describe('AboutDialog', () => {
     const f = await setup();
     expect(el(f, '.version').textContent).toBe('1.2.3');
     expect(text(f)).toContain('MIT OR Apache-2.0');
+    expect(el(f, '[data-testid=read-only-promise]').textContent).toContain('IMT never modifies your files.');
     expect(rows(f)).toContain('- serde 1.0.0 — MIT');
     expect(el(f, '.viewport').getAttribute('aria-label')).toBe('Third-party notices text');
     expect(text(f)).toContain('4 of 4 lines');

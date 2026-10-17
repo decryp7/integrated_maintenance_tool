@@ -1,0 +1,1018 @@
+//! The AI command layer through the real IPC path (`tauri::test`), with the fakes of `imt-ai`: a scripted
+//! model, a fake engine runtime, a fake model host and in-memory secrets. Set-up, models, use cases, chat
+//! streaming, approvals, background tasks, the settings section and saved chats.
+
+use super::commands::{check_link, markdown_target, sample_of, DOWNLOAD_TASK};
+use super::core::{AiCore, AiDeps};
+use super::{AiState, SETUP_EVENT};
+use crate::test_support::{samples, test_app_safe_mode, test_app_with_commands, window, TempDir};
+use crate::tools::tests::ipc;
+use imt_ai::hardware::{Gpu, Hardware, HardwareProbe};
+use imt_ai::llm::{LlmProvider, Reply, ScriptedProvider};
+use imt_ai::models::source::{ModelSource, Progress, RemoteFile};
+use imt_ai::models::DiskSpace;
+use imt_ai::runtime::{LoadRequest, Loaded, ModelRuntime};
+use imt_ai::web::MemorySecretStore;
+use imt_ai::AiError;
+use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use tauri::test::MockRuntime;
+use tauri::{Listener, Manager};
+
+/// The laptop of the UI mock: 16 GB RAM and a GPU with 8 GB.
+fn laptop() -> Hardware {
+    Hardware {
+        os: "linux".into(),
+        arch: "x86_64".into(),
+        cpu_cores: 8,
+        total_ram_gb: 16.0,
+        available_ram_gb: 12.0,
+        gpus: vec![Gpu {
+            name: "Laptop GPU".into(),
+            vram_gb: Some(8.0),
+            unified: false,
+        }],
+    }
+}
+
+struct Probe;
+impl HardwareProbe for Probe {
+    fn probe(&self) -> Hardware {
+        laptop()
+    }
+}
+
+/// An engine that "loads" any model into a scripted provider (first reply: the warm-up).
+struct FakeRuntime {
+    replies: Mutex<Vec<Reply>>,
+    loads: Mutex<usize>,
+}
+
+impl FakeRuntime {
+    fn new(replies: Vec<Reply>) -> Arc<FakeRuntime> {
+        Arc::new(FakeRuntime {
+            replies: Mutex::new(replies),
+            loads: Mutex::new(0),
+        })
+    }
+}
+
+impl ModelRuntime for FakeRuntime {
+    fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
+        *self.loads.lock().unwrap() += 1;
+        let mut replies = vec![Reply::Text("OK".into())];
+        replies.extend(self.replies.lock().unwrap().drain(..));
+        Ok(Loaded {
+            provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
+            backend: "Fake GPU".into(),
+        })
+    }
+}
+
+/// A model host serving one file slowly, honouring cancel.
+struct FakeHost {
+    remote: RemoteFile,
+    bytes: Vec<u8>,
+    delay: Duration,
+}
+
+impl ModelSource for FakeHost {
+    fn describe(&self, _: &str, _: &str) -> imt_ai::Result<RemoteFile> {
+        Ok(self.remote.clone())
+    }
+    fn fetch(
+        &self,
+        _: &RemoteFile,
+        offset: u64,
+        sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+        cancel: &AtomicBool,
+    ) -> imt_ai::Result<()> {
+        for chunk in self.bytes[offset as usize..].chunks(8 * 1024) {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(AiError::Cancelled);
+            }
+            std::thread::sleep(self.delay);
+            sink(chunk)?;
+        }
+        Ok(())
+    }
+}
+
+struct BigDisk;
+impl DiskSpace for BigDisk {
+    fn available_bytes(&self, _: &Path) -> Option<u64> {
+        Some(1 << 40)
+    }
+}
+
+const TEST_MODEL: &str = "test-4b";
+const TEST_FILE: &str = "Test-4B-Q4_K_M.gguf";
+
+fn model_bytes() -> Vec<u8> {
+    imt_ai::testing::gguf::qwen_like()
+}
+
+fn sha256_of(bytes: &[u8], dir: &Path) -> String {
+    let p = dir.join("hash.bin");
+    std::fs::write(&p, bytes).unwrap();
+    let h = imt_ai::models::download::sha256_file(&p, &Progress::new()).unwrap();
+    std::fs::remove_file(&p).unwrap();
+    h
+}
+
+/// An AI folder with a catalog naming the test model (so the fake host's bytes verify).
+fn ai_dir(tmp: &TempDir) -> PathBuf {
+    let dir = tmp.0.join("ai");
+    std::fs::create_dir_all(&dir).unwrap();
+    let bytes = model_bytes();
+    let catalog = json!({"version": 1, "models": [{
+        "id": TEST_MODEL, "name": "Test 4B", "family": "qwen3", "paramsB": 4.0, "quant": "Q4_K_M",
+        "hfRepo": "test/Test-4B-GGUF", "file": TEST_FILE, "sha256": sha256_of(&bytes, &tmp.0),
+        "sizeBytes": bytes.len(), "license": "apache-2.0", "toolCalling": true, "contextDefault": 4096
+    }]});
+    std::fs::write(dir.join("local-models.json"), catalog.to_string()).unwrap();
+    dir
+}
+
+struct Fixture {
+    tmp: TempDir,
+    runtime: Arc<FakeRuntime>,
+    host_delay: Duration,
+    worker: Option<PathBuf>,
+    safe_mode: bool,
+}
+
+impl Fixture {
+    fn new(tag: &str) -> Fixture {
+        Fixture {
+            tmp: TempDir::new(&format!("ai-{tag}")),
+            runtime: FakeRuntime::new(vec![]),
+            host_delay: Duration::ZERO,
+            worker: None,
+            safe_mode: false,
+        }
+    }
+
+    fn deps(&self) -> AiDeps {
+        let bytes = model_bytes();
+        let remote = RemoteFile {
+            repo: "test/Test-4B-GGUF".into(),
+            file: TEST_FILE.into(),
+            size: bytes.len() as u64,
+            sha256: sha256_of(&bytes, &self.tmp.0),
+            license: Some("apache-2.0".into()),
+            gated: false,
+        };
+        let delay = self.host_delay;
+        AiDeps {
+            runtime: self.runtime.clone(),
+            health: None,
+            probe: Arc::new(Probe),
+            source: Arc::new(move |_| {
+                Ok(Box::new(FakeHost {
+                    remote: remote.clone(),
+                    bytes: bytes.clone(),
+                    delay,
+                }) as Box<dyn ModelSource>)
+            }),
+            disk: Arc::new(BigDisk),
+            secrets: Arc::new(MemorySecretStore::new()),
+            worker_path: self.worker.clone(),
+            download_backoff: Duration::from_millis(1),
+        }
+    }
+
+    fn core(&self) -> Arc<AiCore> {
+        Arc::new(AiCore::new(
+            Some(ai_dir(&self.tmp)),
+            self.tmp.0.join("models"),
+            self.safe_mode,
+            self.deps(),
+        ))
+    }
+
+    fn app(&self, core: Arc<AiCore>) -> tauri::App<MockRuntime> {
+        let app = test_app_with_commands(Some(self.tmp.0.join("config/profiles")));
+        super::manage(app.handle(), core);
+        app
+    }
+}
+
+fn scripted(replies: Vec<Reply>) -> Arc<dyn LlmProvider> {
+    Arc::new(ScriptedProvider::new(replies))
+}
+
+fn text(s: &str) -> Reply {
+    Reply::Text(s.to_string())
+}
+
+fn open_samples(w: &tauri::WebviewWindow<MockRuntime>) {
+    let dir = samples().join("serilog-clef");
+    ipc(w, "open_paths", json!({ "paths": [dir.to_string_lossy()] })).unwrap();
+}
+
+fn wait_until(what: &str, mut f: impl FnMut() -> bool) {
+    let start = Instant::now();
+    while !f() {
+        assert!(start.elapsed() < Duration::from_secs(20), "timed out waiting for {what}");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn code(e: Value) -> String {
+    e["code"].as_str().unwrap_or_default().to_string()
+}
+
+/// Waits for the chat's turn to end and returns its events.
+fn finish_turn(w: &tauri::WebviewWindow<MockRuntime>, sid: &str) -> Vec<Value> {
+    wait_until("the turn to end", || {
+        ipc(w, "ai_chat_sessions", json!({}))
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["running"] == false)
+    });
+    ipc(w, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0}))
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .clone()
+}
+
+fn kinds(events: &[Value]) -> Vec<String> {
+    events.iter().map(|e| e["type"].as_str().unwrap().to_string()).collect()
+}
+
+#[test]
+fn use_cases_route_through_ipc_to_the_model_and_the_engine() {
+    let f = Fixture::new("usecases");
+    let core = f.core();
+    core.set_fixed_provider(scripted(vec![
+        text(r#"{"ql": "level >= error", "explanation": "All errors and worse."}"#),
+        text("The most likely root cause: not found in the logs."),
+    ]));
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    assert_eq!(
+        (status["available"].as_bool(), status["state"].as_str()),
+        (Some(true), Some("ready"))
+    );
+    let q = ipc(&main, "ai_nl_to_query", json!({"question": "show me the errors"})).unwrap();
+    assert_eq!(q["ql"], "level >= error");
+    assert!(q["estimatedMatches"].as_u64().unwrap() > 0);
+    let n = ipc(&main, "ai_root_causes", json!({})).unwrap();
+    assert!(n["text"].as_str().unwrap().contains("not found in the logs"));
+    // Arguments are validated before anything runs.
+    assert_eq!(
+        code(ipc(&main, "ai_nl_to_query", json!({"question": "  "})).unwrap_err()),
+        "invalid"
+    );
+    assert_eq!(code(ipc(&main, "ai_propose_regex", json!({"lines": []})).unwrap_err()), "invalid");
+    assert_eq!(
+        code(ipc(&main, "ai_propose_pipeline", json!({"goal": "drop health checks"})).unwrap_err()),
+        "invalid",
+        "no sample and no event"
+    );
+    // The scripted model has no more replies: an engine error, typed.
+    assert_eq!(
+        code(ipc(&main, "ai_summarize", json!({"from": 0, "to": i64::MAX})).unwrap_err()),
+        "engine"
+    );
+    assert_eq!(ipc(&main, "ai_cancel", json!({})).unwrap(), 0);
+    let hw = ipc(&main, "ai_hardware", json!({})).unwrap();
+    assert_eq!(hw["gpus"][0]["vramGb"], 8.0);
+    let rec = ipc(&main, "ai_recommend", json!({})).unwrap();
+    assert_eq!(rec["best"]["model"]["id"], TEST_MODEL);
+    assert_eq!(ipc(&main, "ai_catalog", json!({})).unwrap().as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn proposal_samples_come_from_the_ui_or_the_selected_event() {
+    let ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
+    let mut ws = ws;
+    ws.open(&[samples().join("serilog-text")]).unwrap();
+    let direct: &dyn imt_core::LogStore = &ws;
+    let store: imt_ai::StoreRef = direct.into();
+    let (s, f) = sample_of(store, None, Some("a\nb".into()), Some("x.log".into())).unwrap();
+    assert_eq!((s.as_str(), f.as_str()), ("a\nb", "x.log"));
+    assert_eq!(sample_of(store, None, Some("a".into()), None).unwrap().1, "sample.log");
+    assert!(sample_of(store, None, Some("a".repeat(70_000)), None).is_err());
+    let (s, f) = sample_of(store, Some(0), None, None).unwrap();
+    assert!(!s.is_empty() && !f.is_empty(), "{f}");
+    assert_eq!(
+        sample_of(store, Some(u32::MAX), None, None).unwrap_err().code,
+        super::error::AiErrorCode::NotFound
+    );
+    assert_eq!(
+        sample_of(store, None, Some(" ".into()), None).unwrap_err().code,
+        super::error::AiErrorCode::Invalid
+    );
+}
+
+#[test]
+fn a_missing_worker_safe_mode_or_no_runtime_are_typed_errors() {
+    let mut f = Fixture::new("missing");
+    f.worker = Some(f.tmp.0.join("no-such-worker"));
+    let app = f.app(f.core());
+    let main = window(&app, "main");
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    assert_eq!(
+        (status["available"].as_bool(), status["state"].as_str()),
+        (Some(false), Some("unavailable"))
+    );
+    assert!(status["reason"].as_str().unwrap().contains("not installed"));
+    for (cmd, body) in [
+        ("ai_nl_to_query", json!({"question": "errors"})),
+        ("ai_recommend", json!({})),
+        ("ai_setup_plan", json!({})),
+        ("ai_setup_run", json!({"modelId": TEST_MODEL})),
+        ("ai_suggested_prompts", json!({})),
+        ("ai_chat_send", json!({"sessionId": "chat-1", "text": "hi"})),
+    ] {
+        let e = ipc(&main, cmd, body).unwrap_err();
+        assert_eq!(code(e.clone()), "unavailable", "{cmd}: {e}");
+    }
+
+    // Safe mode: no AI at all.
+    let safe = test_app_safe_mode();
+    let mut f = Fixture::new("safe");
+    f.safe_mode = true;
+    super::manage(safe.handle(), f.core());
+    let s = ipc(&window(&safe, "main"), "ai_status", json!({})).unwrap();
+    assert!(s["reason"].as_str().unwrap().contains("safe mode") && s["safeMode"] == true);
+
+    // A build without the AI runtime: every command says so.
+    let bare = test_app_with_commands(None);
+    let e = ipc(&window(&bare, "main"), "ai_status", json!({})).unwrap_err();
+    assert_eq!(code(e), "unavailable");
+}
+
+#[test]
+fn before_set_up_there_is_no_model() {
+    let f = Fixture::new("nomodel");
+    let app = f.app(f.core());
+    let main = window(&app, "main");
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "noModel");
+    assert_eq!(
+        code(ipc(&main, "ai_nl_to_query", json!({"question": "errors"})).unwrap_err()),
+        "noModel"
+    );
+    let chat = ipc(&main, "ai_chat_new", json!({})).unwrap();
+    let e = ipc(&main, "ai_chat_send", json!({"sessionId": chat["id"], "text": "hi"})).unwrap_err();
+    assert_eq!(code(e), "noModel");
+    let plan = ipc(&main, "ai_setup_plan", json!({})).unwrap();
+    assert_eq!(plan["chosen"]["model"]["id"], TEST_MODEL);
+    assert!(plan["downloadBytes"].as_u64().unwrap() > 0);
+    assert_eq!(
+        code(ipc(&main, "ai_setup_plan", json!({"modelId": "nope"})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_setup_run", json!({"modelId": "nope"})).unwrap_err()),
+        "notFound"
+    );
+}
+
+fn setup_events(app: &tauri::App<MockRuntime>) -> Arc<Mutex<Vec<Value>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let e = events.clone();
+    app.listen_any(SETUP_EVENT, move |ev| {
+        e.lock().unwrap().push(serde_json::from_str::<Value>(ev.payload()).unwrap());
+    });
+    events
+}
+
+fn stages(events: &Arc<Mutex<Vec<Value>>>) -> Vec<String> {
+    let mut s: Vec<String> = events
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|e| e["stage"].as_str().unwrap().to_string())
+        .collect();
+    s.dedup();
+    s
+}
+
+#[test]
+fn set_up_downloads_as_a_background_task_and_becomes_ready() {
+    let mut f = Fixture::new("setup");
+    f.host_delay = Duration::from_millis(15);
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    assert_eq!(
+        code(ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap_err()),
+        "busy"
+    );
+    wait_until("the download task", || {
+        ipc(&main, "background_tasks", json!({}))
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["id"] == DOWNLOAD_TASK && t["kind"] == "download" && t["stoppable"] == true)
+    });
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["setupRunning"], true);
+    wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
+    let s = stages(&events);
+    assert_eq!(&s[..3], ["probing", "recommending", "downloading"], "{s:?}");
+    assert!(
+        s.contains(&"verifying".to_string()) && s.contains(&"warmingUp".to_string()),
+        "{s:?}"
+    );
+    wait_until("the task to go", || {
+        ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty() && !core.setup_running()
+    });
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    assert_eq!(status["model"], TEST_FILE);
+    wait_until("the primed model", || {
+        ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready"
+    });
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["backend"], "Fake GPU");
+    assert_eq!(*f.runtime.loads.lock().unwrap(), 1, "the set-up's model is used, not loaded twice");
+    let models = ipc(&main, "ai_models", json!({})).unwrap();
+    assert_eq!(models[0]["active"], true);
+    assert_eq!(models[0]["catalogId"], TEST_MODEL);
+    assert_eq!(models[0]["assessment"]["fit"], "comfortable");
+    // The choice is remembered in ai.json.
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(f.tmp.0.join("ai/ai.json")).unwrap()).unwrap();
+    assert_eq!(saved["active_model"], TEST_FILE);
+}
+
+#[test]
+fn a_set_up_can_be_cancelled_from_the_app_or_the_tray() {
+    let mut f = Fixture::new("cancel");
+    f.host_delay = Duration::from_millis(40);
+    let app = f.app(f.core());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    assert_eq!(ipc(&main, "ai_setup_cancel", json!({})).unwrap(), false);
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("downloading", || stages(&events).contains(&"downloading".to_string()));
+    // Stop it like the tray does.
+    ipc(&main, "stop_background_task", json!({"id": DOWNLOAD_TASK})).unwrap();
+    wait_until("cancelled", || stages(&events).last().is_some_and(|s| s == "cancelled"));
+    wait_until("no task", || {
+        ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty()
+    });
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "noModel");
+}
+
+#[test]
+fn local_models_are_added_activated_and_deleted() {
+    let f = Fixture::new("models");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    let src = f.tmp.0.join("My Model.gguf");
+    std::fs::write(&src, model_bytes()).unwrap();
+    let added = ipc(&main, "ai_model_add_local", json!({"path": src.to_string_lossy()})).unwrap();
+    assert_eq!(added["fileName"], "My_Model.gguf");
+    assert_eq!(added["active"], false);
+    for bad in [
+        json!("relative.gguf"),
+        json!(f.tmp.0.join("x.bin").to_string_lossy()),
+        json!(f.tmp.0.join("none.gguf").to_string_lossy()),
+        json!(""),
+    ] {
+        assert!(ipc(&main, "ai_model_add_local", json!({ "path": bad })).is_err());
+    }
+    assert_eq!(
+        code(ipc(&main, "ai_model_activate", json!({"fileName": "../x.gguf"})).unwrap_err()),
+        "invalid"
+    );
+    ipc(&main, "ai_model_activate", json!({"fileName": "My_Model.gguf"})).unwrap();
+    wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
+    wait_until("idle setup", || !core.setup_running());
+    assert_eq!(ipc(&main, "ai_models", json!({})).unwrap()[0]["active"], true);
+    // A failed activation reports a typed failure event.
+    ipc(&main, "ai_model_activate", json!({"fileName": "missing.gguf"})).unwrap();
+    wait_until("failed", || stages(&events).last().is_some_and(|s| s == "failed"));
+    assert!(events.lock().unwrap().last().unwrap()["message"].as_str().is_some());
+    wait_until("idle setup", || !core.setup_running());
+    // Deleting the active model leaves no model.
+    ipc(&main, "ai_model_delete", json!({"fileName": "My_Model.gguf"})).unwrap();
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "noModel");
+    assert!(ipc(&main, "ai_models", json!({})).unwrap().as_array().unwrap().is_empty());
+    assert_eq!(
+        code(ipc(&main, "ai_model_delete", json!({"fileName": "My_Model.gguf"})).unwrap_err()),
+        "notFound"
+    );
+    // Reset is harmless without a quarantine.
+    assert_eq!(ipc(&main, "ai_reset", json!({})).unwrap()["state"], "noModel");
+}
+
+#[test]
+fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
+    let f = Fixture::new("chat");
+    let core = f.core();
+    core.set_fixed_provider(scripted(vec![
+        Reply::Tools(String::new(), vec![("run_query".into(), json!({"ql": "level = fatal"}))]),
+        text("The service crashed; see `level = fatal`."),
+    ]));
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let chat = ipc(&main, "ai_chat_new", json!({})).unwrap();
+    let sid = chat["id"].as_str().unwrap().to_string();
+    ipc(
+        &main,
+        "ai_chat_send",
+        json!({"sessionId": sid, "text": "What crashed?", "context": {"openView": "grid", "selectedIds": [999999]}}),
+    )
+    .unwrap();
+    let ev = finish_turn(&main, &sid);
+    let k = kinds(&ev);
+    assert_eq!(&k[..2], ["toolStarted", "toolFinished"], "{k:?}");
+    assert_eq!(k.last().unwrap(), "done");
+    let done = ev.last().unwrap();
+    assert!(done["citations"].as_array().unwrap().iter().any(|c| c["kind"] == "query"));
+    assert!(done["notes"][0].as_str().unwrap().contains("do not exist"));
+    assert!(ev.iter().all(|e| e["sessionId"].is_null()), "replayed envelopes are the library's");
+    let since = ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 2})).unwrap();
+    assert_eq!(since.as_array().unwrap()[0]["seq"], 3);
+    let sessions = ipc(&main, "ai_chat_sessions", json!({})).unwrap();
+    assert_eq!(
+        (sessions[0]["title"].as_str(), sessions[0]["turns"].as_u64()),
+        (Some("What crashed?"), Some(1))
+    );
+    let rec = ipc(&main, "ai_chat_get", json!({"sessionId": sid})).unwrap();
+    assert!(rec["turns"][0]["assistant"].as_str().unwrap().contains("crashed"));
+    assert_eq!(
+        code(ipc(&main, "ai_chat_get", json!({"sessionId": "nope"})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(code(ipc(&main, "ai_chat_get", json!({"sessionId": ""})).unwrap_err()), "invalid");
+    assert_eq!(
+        code(ipc(&main, "ai_chat_send", json!({"sessionId": "nope", "text": "x"})).unwrap_err()),
+        "notFound"
+    );
+    // The model has no more replies: the turn ends with an error event, and the chat is free again.
+    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "And then?"})).unwrap();
+    assert_eq!(kinds(&finish_turn(&main, &sid)).last().unwrap(), "error");
+
+    // Export to Markdown, with the overwrite guard.
+    let md = f.tmp.0.join("chat.md");
+    let path = md.to_string_lossy().to_string();
+    ipc(&main, "ai_chat_export_markdown", json!({"sessionId": sid, "path": path})).unwrap();
+    assert!(std::fs::read_to_string(&md).unwrap().contains("**You:** What crashed?"));
+    assert_eq!(
+        code(ipc(&main, "ai_chat_export_markdown", json!({"sessionId": sid, "path": path})).unwrap_err()),
+        "fileExists"
+    );
+    ipc(
+        &main,
+        "ai_chat_export_markdown",
+        json!({"sessionId": sid, "path": path, "overwrite": true}),
+    )
+    .unwrap();
+
+    // Saved in the project's UI state under `chats`, reopened in another window.
+    let history = ipc(&main, "ai_chat_history", json!({})).unwrap();
+    assert_eq!(history["version"], 1);
+    let project = f.tmp.0.join("p.imtproj");
+    let file = imt_core::project::ProjectFile {
+        version: imt_core::project::PROJECT_VERSION,
+        name: "p".into(),
+        sources: vec![],
+        removed: vec![],
+        profile: String::new(),
+        ui: json!({ "version": 1, "chats": history }),
+        clock: Default::default(),
+        reports: vec![],
+    };
+    file.save(&project).unwrap();
+    let loaded = imt_core::project::ProjectFile::load(&project).unwrap();
+    let other = window(&app, "w-2");
+    let r = ipc(&other, "ai_chat_restore", json!({"record": loaded.ui["chats"]})).unwrap();
+    assert!(r["warning"].is_null());
+    assert_eq!(ipc(&other, "ai_chat_history", json!({})).unwrap(), history);
+    // Old projects (no chats), damaged and newer records.
+    assert_eq!(ipc(&other, "ai_chat_restore", json!({})).unwrap()["sessions"], json!([]));
+    assert!(
+        ipc(&other, "ai_chat_restore", json!({"record": {"version": "x"}})).unwrap()["warning"]
+            .as_str()
+            .unwrap()
+            .contains("damaged")
+    );
+    assert!(
+        ipc(&other, "ai_chat_restore", json!({"record": {"version": 9}})).unwrap()["warning"]
+            .as_str()
+            .unwrap()
+            .contains("newer")
+    );
+    assert_eq!(ipc(&main, "ai_chat_delete", json!({"sessionId": sid})).unwrap(), true);
+    assert!(ipc(&main, "ai_suggested_prompts", json!({})).unwrap().as_array().unwrap().len() >= 3);
+}
+
+#[test]
+fn web_searches_wait_for_approval_and_deny_or_cancel_ends_them() {
+    let f = Fixture::new("approval");
+    let core = f.core();
+    let app = f.app(core.clone());
+    // Settings → AI is the source of truth for these values (registering applied the stored defaults).
+    let mut s = core.settings();
+    s.web_search.provider = imt_ai::web::WebProvider::Searxng;
+    s.web_search.searxng_url = "http://127.0.0.1:9".into();
+    core.apply_settings(s).unwrap();
+    let search = || {
+        Reply::Tools(
+            String::new(),
+            vec![(
+                "web_search".into(),
+                json!({"query_intent": {"exception_type": "System.TimeoutException"}}),
+            )],
+        )
+    };
+    core.set_fixed_provider(scripted(vec![
+        search(),
+        text("Nothing was searched."),
+        search(),
+        text("The search failed."),
+        search(),
+    ]));
+    let main = window(&app, "main");
+    open_samples(&main);
+    let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
+    let wait_for_question = || {
+        let start = Instant::now();
+        while core.approvals.waiting() != 1 {
+            if start.elapsed() > Duration::from_secs(20) {
+                panic!(
+                    "no approval request: {}",
+                    ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0})).unwrap()
+                );
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    };
+
+    // Deny: nothing leaves the machine.
+    ipc(
+        &main,
+        "ai_chat_send",
+        json!({"sessionId": sid, "text": "look up the timeout on the web"}),
+    )
+    .unwrap();
+    wait_for_question();
+    let pending = ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0})).unwrap();
+    let ask = pending
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["type"] == "approvalRequired")
+        .unwrap()
+        .clone();
+    assert_eq!((ask["kind"].as_str(), ask["editable"].as_bool()), (Some("search"), Some(true)));
+    assert!(ask["text"].as_str().unwrap().contains("TimeoutException"));
+    let id = ask["requestId"].clone();
+    assert_eq!(
+        ipc(
+            &main,
+            "ai_approval_respond",
+            json!({"sessionId": "other", "requestId": id, "decision": {"kind": "deny"}})
+        )
+        .unwrap(),
+        false
+    );
+    assert_eq!(
+        code(
+            ipc(
+                &main,
+                "ai_approval_respond",
+                json!({"sessionId": sid, "requestId": id, "decision": {"kind": "allowEdited", "text": ""}})
+            )
+            .unwrap_err()
+        ),
+        "invalid"
+    );
+    assert_eq!(
+        ipc(
+            &main,
+            "ai_approval_respond",
+            json!({"sessionId": sid, "requestId": id, "decision": {"kind": "deny"}})
+        )
+        .unwrap(),
+        true
+    );
+    let ev = finish_turn(&main, &sid);
+    let finished = ev
+        .iter()
+        .find(|e| e["type"] == "toolFinished" && e["name"] == "web_search")
+        .unwrap();
+    assert_eq!(finished["summary"], "declined", "{finished}");
+
+    // Allow: the (unreachable) search is attempted and its failure reported to the model.
+    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "try again"})).unwrap();
+    wait_for_question();
+    let id = ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0}))
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|e| e["type"] == "approvalRequired")
+        .unwrap()["requestId"]
+        .clone();
+    ipc(
+        &main,
+        "ai_approval_respond",
+        json!({"sessionId": sid, "requestId": id, "decision": {"kind": "allow"}}),
+    )
+    .unwrap();
+    let ev = finish_turn(&main, &sid);
+    let last_search = ev
+        .iter()
+        .rev()
+        .find(|e| e["type"] == "toolFinished" && e["name"] == "web_search")
+        .unwrap();
+    assert_eq!(last_search["error"], true, "{last_search}");
+
+    // Cancel while waiting: the question is denied and the turn ends.
+    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "once more"})).unwrap();
+    wait_for_question();
+    assert_eq!(ipc(&main, "ai_chat_cancel", json!({"sessionId": sid})).unwrap(), true);
+    finish_turn(&main, &sid);
+    assert_eq!(core.approvals.waiting(), 0);
+}
+
+#[test]
+fn the_ai_settings_section_is_registered_and_applies() {
+    let f = Fixture::new("settings");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let main = window(&app, "main");
+    let overview = ipc(&main, "settings_sections", json!({})).unwrap();
+    let ai = overview["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["id"] == "ai")
+        .unwrap()
+        .clone();
+    assert_eq!((ai["group"].as_str(), ai["status"].as_str()), (Some("ai"), Some("active")));
+    let keys: Vec<&str> = ai["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["key"].as_str().unwrap())
+        .collect();
+    assert!(
+        keys.contains(&"web_search.provider") && keys.contains(&"context_length"),
+        "{keys:?}"
+    );
+    assert!(!keys.contains(&"web_search.brave_key"), "secrets are never settings values");
+    let r = ipc(
+        &main,
+        "set_settings",
+        json!({"section": "ai", "values": {"web_search.provider": "manual", "max_tokens": 512}}),
+    )
+    .unwrap();
+    assert_eq!(r["applied"], true, "{r}");
+    assert_eq!(core.settings().web_search.provider, imt_ai::web::WebProvider::Manual);
+    assert_eq!(core.settings().max_tokens, 512);
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(f.tmp.0.join("ai/ai.json")).unwrap()).unwrap();
+    assert_eq!(saved["web_search"]["provider"], "manual");
+    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["webSearch"], "manual");
+    // Values the library refuses are not applied.
+    let mut bad = core.settings();
+    bad.hf_endpoint = "http://insecure".into();
+    assert_eq!(core.apply_settings(bad).unwrap_err().code, super::error::AiErrorCode::Invalid);
+    // The Brave key is write-only and lives in the (here: memory) keychain.
+    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), false);
+    assert_eq!(
+        code(ipc(&main, "ai_set_brave_key", json!({"key": "has space"})).unwrap_err()),
+        "invalid"
+    );
+    ipc(&main, "ai_set_brave_key", json!({"key": "BSA-123"})).unwrap();
+    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), true);
+    ipc(&main, "ai_clear_brave_key", json!({})).unwrap();
+    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), false);
+    assert!(app.try_state::<AiState>().is_some());
+}
+
+#[test]
+fn chat_exports_go_only_to_markdown_files_in_existing_folders() {
+    let tmp = TempDir::new("ai-md");
+    let ok = tmp.0.join("a.md");
+    assert!(markdown_target(&ok.to_string_lossy(), false).is_ok());
+    std::fs::write(&ok, "x").unwrap();
+    assert_eq!(
+        markdown_target(&ok.to_string_lossy(), false).unwrap_err().code,
+        super::error::AiErrorCode::FileExists
+    );
+    assert!(markdown_target(&ok.to_string_lossy(), true).is_ok());
+    for bad in ["", "rel.md", "/x/\0.md"] {
+        assert_eq!(
+            markdown_target(bad, false).unwrap_err().code,
+            super::error::AiErrorCode::Invalid,
+            "{bad}"
+        );
+    }
+    assert!(markdown_target(&tmp.0.join("a.txt").to_string_lossy(), false).is_err());
+    assert!(markdown_target(&tmp.0.join("nope/a.md").to_string_lossy(), false).is_err());
+    let dir = tmp.0.join("d.md");
+    std::fs::create_dir(&dir).unwrap();
+    assert!(markdown_target(&dir.to_string_lossy(), true).is_err());
+}
+
+#[test]
+fn only_public_https_links_from_answers_are_opened() {
+    for ok in ["https://learn.example.com/a?b=c#d", "https://example.com:8443/x"] {
+        assert!(check_link(ok).is_ok(), "{ok}");
+    }
+    for bad in [
+        "http://example.com",
+        "file:///etc/passwd",
+        "https://localhost/x",
+        "https://127.0.0.1/",
+        "https://[::1]/",
+        "https://10.0.0.5/",
+        "https://user@example.com/",
+        "https:///x",
+        "https://exa mple.com",
+        "javascript:alert(1)",
+    ] {
+        assert!(check_link(bad).is_err(), "{bad}");
+    }
+    assert!(check_link(&format!("https://example.com/{}", "a".repeat(3000))).is_err());
+    // A public link that no answer showed is refused before anything is opened.
+    let f = Fixture::new("links");
+    let app = f.app(f.core());
+    let main = window(&app, "main");
+    let e = ipc(&main, "ai_open_link", json!({"url": "https://example.com/"})).unwrap_err();
+    assert_eq!(code(e), "refused");
+    assert!(!main
+        .state::<crate::windows::Windows>()
+        .get("main")
+        .unwrap()
+        .ai
+        .chats
+        .knows_url("https://example.com/"));
+}
+
+/// A model that, from its second answer on, keeps "thinking" until the test opens the gate (at most 20 s), to
+/// show the workspace is free while it generates.
+struct SlowModel {
+    inner: ScriptedProvider,
+    calls: std::sync::atomic::AtomicUsize,
+    gate: Arc<(Mutex<bool>, std::sync::Condvar)>,
+}
+
+impl LlmProvider for SlowModel {
+    fn id(&self) -> &str {
+        "slow"
+    }
+    fn display_name(&self) -> String {
+        "Slow scripted model".into()
+    }
+    fn context_length(&self) -> usize {
+        self.inner.context_length()
+    }
+    fn chat(&self, req: &imt_ai::llm::ChatRequest, on_delta: &mut dyn FnMut(&str)) -> imt_ai::Result<imt_ai::llm::ChatResponse> {
+        if self.calls.fetch_add(1, Ordering::SeqCst) > 0 {
+            let (open, cv) = &*self.gate;
+            let guard = open.lock().unwrap();
+            let _unused = cv.wait_timeout_while(guard, Duration::from_secs(20), |o| !*o).unwrap();
+        }
+        self.inner.chat(req, on_delta)
+    }
+}
+
+#[test]
+fn imports_do_not_wait_for_a_slow_turn_and_changed_citations_are_flagged() {
+    let f = Fixture::new("slow");
+    let core = f.core();
+    let gate = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+    core.set_fixed_provider(Arc::new(SlowModel {
+        inner: ScriptedProvider::new(vec![
+            Reply::Tools(String::new(), vec![("get_events".into(), json!({"ids": [10]}))]),
+            text("The failure is event 10."),
+        ]),
+        calls: Default::default(),
+        gate: gate.clone(),
+    }));
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
+    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "What failed?"})).unwrap();
+    // The model read event 10 and is now writing its answer (until the gate opens).
+    wait_until("the tool result", || {
+        ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0}))
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["type"] == "toolFinished")
+    });
+    // An import into the same window (a write, like a live tail append) completes while the turn still runs,
+    // and its files interleave with the open ones, so the ids are re-sorted.
+    let start = Instant::now();
+    let more = samples().join("serilog-text");
+    ipc(&main, "open_paths", json!({ "paths": [more.to_string_lossy()] })).unwrap();
+    let import_took = start.elapsed();
+    let running = ipc(&main, "ai_chat_sessions", json!({})).unwrap()[0]["running"] == true;
+    assert!(running, "the import finished in {import_took:?}, before the answer");
+    *gate.0.lock().unwrap() = true;
+    gate.1.notify_all();
+    let ev = finish_turn(&main, &sid);
+    let done = ev.iter().find(|e| e["type"] == "done").unwrap();
+    let cited = done["citations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["kind"] == "record")
+        .unwrap();
+    assert_eq!(
+        (cited["id"].as_u64(), cited["verified"].as_bool()),
+        (Some(10), Some(false)),
+        "{done}"
+    );
+    assert!(
+        done["notes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n.as_str().unwrap().contains("changed")),
+        "{done}"
+    );
+}
+
+/// The real engine through the command layer:
+///
+///   scripts/build-worker.sh --release
+///   cargo test -p imt-app ai::tests::real -- --ignored --nocapture
+///
+/// `IMT_TEST_GGUF` picks the model (default: Qwen3.5 4B in /private/tmp/claude-501/models); `IMT_AI_WORKER`
+/// the worker binary (default: the one `build-worker.sh` puts in `app/src-tauri/binaries`).
+#[test]
+#[ignore]
+fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
+    let model = std::env::var("IMT_TEST_GGUF").unwrap_or_else(|_| "/private/tmp/claude-501/models/Qwen3.5-4B-Q4_K_M.gguf".into());
+    let worker = std::env::var("IMT_AI_WORKER").map(PathBuf::from).unwrap_or_else(|_| {
+        let bins = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
+        std::fs::read_dir(&bins)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("imt-ai-worker-")))
+            .expect("run scripts/build-worker.sh first")
+    });
+    let tmp = TempDir::new("ai-real");
+    let core = Arc::new(AiCore::new(
+        Some(tmp.0.join("ai")),
+        tmp.0.join("models"),
+        false,
+        AiDeps::system(worker),
+    ));
+    let app = test_app_with_commands(None);
+    super::manage(app.handle(), core.clone());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let t = Instant::now();
+    let added = ipc(&main, "ai_model_add_local", json!({ "path": model })).unwrap();
+    let file = added["fileName"].as_str().unwrap().to_string();
+    println!("added {file} ({} bytes) in {:?}", added["sizeBytes"], t.elapsed());
+    ipc(&main, "ai_model_activate", json!({ "fileName": file })).unwrap();
+    let start = Instant::now();
+    while !stages(&events).last().is_some_and(|s| s == "ready" || s == "failed") {
+        assert!(
+            start.elapsed() < Duration::from_secs(600),
+            "activation timed out: {:?}",
+            stages(&events)
+        );
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    println!("stages {:?} in {:?}", stages(&events), start.elapsed());
+    assert_eq!(stages(&events).last().unwrap(), "ready", "{:?}", events.lock().unwrap().last());
+    while core.setup_running() {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    println!("status {status}");
+    let t = Instant::now();
+    let q = ipc(
+        &main,
+        "ai_nl_to_query",
+        json!({"question": "Which errors came from the billing service?"}),
+    )
+    .unwrap();
+    println!("nl_to_query in {:?}: {q}", t.elapsed());
+    assert!(!q["ql"].as_str().unwrap().is_empty());
+    assert!(q["estimatedMatches"].as_u64().is_some());
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    println!("status after {status}");
+    assert_eq!(status["state"], "ready");
+    assert!(status["rssBytes"].as_u64().unwrap() > 0);
+}

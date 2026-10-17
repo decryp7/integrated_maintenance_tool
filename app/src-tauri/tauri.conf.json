@@ -38,9 +38,14 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "resources": [
-      "resources/THIRD_PARTY_NOTICES.md"
-    ],
+    "resources": {
+      "resources/THIRD_PARTY_NOTICES.md": "resources/THIRD_PARTY_NOTICES.md",
+      "../../samples/serilog-clef/": "samples/serilog-clef/",
+      "../../samples/serilog-json/": "samples/serilog-json/",
+      "../../samples/serilog-text/": "samples/serilog-text/",
+      "../../samples/log4net/": "samples/log4net/",
+      "../../samples/csv/": "samples/csv/"
+    },
     "shortDescription": "Analyse logs and diagnostic files",
     "fileAssociations": [
       {
@@ -51,6 +56,15 @@
         "description": "IMT analysis project",
         "role": "Editor",
         "mimeType": "application/x-imt-project"
+      },
+      {
+        "ext": [
+          "imtz"
+        ],
+        "name": "IMT Bundle",
+        "description": "Shareable IMT bundle (project, profile, logs and reports)",
+        "role": "Viewer",
+        "mimeType": "application/x-imt-bundle"
       }
     ]
   },

@@ -1,13 +1,15 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { WorkspaceSummary } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { withInjectedFaults } from '../core/activity/fault-injection';
 import { flattenContributions, IMT_VIEWS, ImtView } from './tokens';
 
 /** Every registered view and which of them the current workspace offers. */
 @Injectable({ providedIn: 'root' })
 export class ViewRegistry {
   private readonly store = inject(WorkspaceStore);
-  readonly all: readonly ImtView[] = dedupe(flattenContributions<ImtView>(inject(IMT_VIEWS, { optional: true })));
+  // `withInjectedFaults`: the error-capture test hook (browser builds only, see core/activity/fault-injection.ts).
+  readonly all: readonly ImtView[] = withInjectedFaults(dedupe(flattenContributions<ImtView>(inject(IMT_VIEWS, { optional: true }))));
 
   /** Views whose `when` holds for the current workspace (views without `when` always). */
   readonly available = computed(() => {
@@ -21,6 +23,11 @@ export class ViewRegistry {
 }
 
 export function isViewAvailable(view: ImtView, summary: WorkspaceSummary | null): boolean {
+  try {
+    if (view.enabled && !view.enabled()) return false;
+  } catch {
+    return false;
+  }
   if (!view.when) return true;
   if (!summary) return false;
   try {

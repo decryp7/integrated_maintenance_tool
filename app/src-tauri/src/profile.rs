@@ -3,6 +3,7 @@
 //! shared by all windows; each window's workspace applies its own copy (a
 //! project can carry a different one).
 
+use crate::activity::{domain_event, privacy, OpId};
 use crate::windows::{write, CurrentWindow};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
@@ -87,7 +88,7 @@ fn find_line(toml: &str, e: &anyhow::Error) -> Option<usize> {
 /// Saves the profile as the active one (for new windows and the next start)
 /// and applies it to the calling window.
 #[tauri::command]
-pub(crate) async fn save_profile(app_state: State<'_, AppState>, state: CurrentWindow, toml: String) -> CmdResult<Value> {
+pub(crate) async fn save_profile(app_state: State<'_, AppState>, state: CurrentWindow, op: OpId, toml: String) -> CmdResult<Value> {
     let profile = Profile::from_toml(&toml).map_err(err)?;
     // Never replace a working profile on disk with one that does not compile.
     state.store_read().validate_profile(profile.clone()).map_err(err)?;
@@ -98,6 +99,7 @@ pub(crate) async fn save_profile(app_state: State<'_, AppState>, state: CurrentW
         archive_profile(p);
         std::fs::write(p, &toml).map_err(err)?;
     }
+    domain_event("profile.saved", op.as_deref(), &[("Profile", &name)]);
     state.set_profile_doc(ProfileDoc {
         name,
         path: path.map(|p| p.to_string_lossy().into_owned()),
@@ -129,7 +131,14 @@ fn archive_profile(active: &Path) {
     }
 }
 
-/// Previous profile versions, newest first: `[{ file, name, savedAt }]`.
+/// Epoch ms of a history stamp (`YYYYMMDD-HHMMSSmmm`, UTC); `None` when it is not one.
+fn stamp_ms(stamp: &str) -> Option<i64> {
+    let (date_time, millis) = stamp.split_at_checked(stamp.len().checked_sub(3)?)?;
+    let t = chrono::NaiveDateTime::parse_from_str(date_time, "%Y%m%d-%H%M%S").ok()?;
+    Some(t.and_utc().timestamp_millis() + millis.parse::<i64>().ok()?)
+}
+
+/// Previous profile versions, newest first: `[{ file, name, savedAt, savedAtMs }]`.
 #[tauri::command]
 pub(crate) fn profile_history(app_state: State<'_, AppState>) -> Vec<Value> {
     let Some(dir) = app_state.profile_dir.as_ref().map(|d| d.join("history")) else {
@@ -146,7 +155,8 @@ pub(crate) fn profile_history(app_state: State<'_, AppState>) -> Vec<Value> {
             let toml = std::fs::read_to_string(f).unwrap_or_default();
             let name = Profile::from_toml(&toml).map(|p| p.name).unwrap_or_else(|_| "(unreadable)".into());
             let stem = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            serde_json::json!({ "file": stem, "name": name, "savedAt": stem.split('.').next().unwrap_or("") })
+            let saved_at = stem.split('.').next().unwrap_or("");
+            serde_json::json!({ "file": stem, "name": name, "savedAt": saved_at, "savedAtMs": stamp_ms(saved_at) })
         })
         .collect()
 }
@@ -163,6 +173,12 @@ pub(crate) fn profile_version(app_state: State<'_, AppState>, file: String) -> C
     Ok(ProfileDoc { name, path: None, toml })
 }
 
+/// The built-in profile templates (applied only through validate + save).
+#[tauri::command]
+pub(crate) fn profile_templates() -> &'static [imt_core::templates::ProfileTemplate] {
+    imt_core::templates::TEMPLATES
+}
+
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
 pub(crate) fn import_profile(path: String) -> CmdResult<ProfileDoc> {
@@ -175,9 +191,14 @@ pub(crate) fn import_profile(path: String) -> CmdResult<ProfileDoc> {
     })
 }
 
+/// Writes the profile text to a file the user chose; an existing file only with `overwrite`.
 #[tauri::command]
-pub(crate) fn export_profile(path: String, toml: String) -> CmdResult<()> {
-    std::fs::write(path, toml).map_err(err)
+pub(crate) fn export_profile(path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    std::fs::write(&path, &toml).map_err(err)?;
+    let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
+    domain_event("export.written", None, &[("Export", "profile"), ("Path", &safe), ("Bytes", &bytes)]);
+    Ok(())
 }
 
 /// The saved profile if it still compiles against the installed plugins,
@@ -233,8 +254,19 @@ mod tests {
         drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
-        assert!(block(save_profile(shared(), st(), "[parse".into())).is_err());
-        let summary = block(save_profile(shared(), st(), "name = 'Saved'".into())).unwrap();
+        assert!(block(save_profile(shared(), st(), OpId::default(), "[parse".into())).is_err());
+        let _log = crate::activity::test_capture();
+        let summary = block(save_profile(
+            shared(),
+            st(),
+            OpId(Some("op-profile".into())),
+            "name = 'Saved'".into(),
+        ))
+        .unwrap();
+        assert_eq!(
+            crate::tools::tests::domain_event("profile.saved", "op-profile").props["Profile"],
+            "Saved"
+        );
         assert_eq!(summary["profileName"], "Saved");
         let doc = get_profile(st()).unwrap();
         assert_eq!(doc.name, "Saved");
@@ -249,13 +281,23 @@ mod tests {
         assert_eq!(load_profile(None, &fresh()).1.path, None);
 
         let exported = dir.0.join("out.imtprofile.toml");
-        export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into()).unwrap();
+        export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap();
+        let written = crate::tools::tests::domain_events();
+        let w = written
+            .iter()
+            .find(|c| c.props["Operation"] == "export.written" && c.props["Export"] == "profile")
+            .expect("profile export");
+        assert_eq!(w.props["Bytes"], "17");
+        // Replacing the file needs the user's confirmation.
+        let again = export_profile(exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None).unwrap_err();
+        assert_eq!(again, format!("{} already exists; confirm to replace it", exported.display()));
+        export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), Some(true)).unwrap();
         let imported = import_profile(exported.to_string_lossy().into_owned()).unwrap();
         assert_eq!(imported.name, "Exported");
         assert!(import_profile(dir.0.join("missing.toml").to_string_lossy().into_owned()).is_err());
         std::fs::write(&exported, "[parse").unwrap();
         assert!(import_profile(exported.to_string_lossy().into_owned()).is_err());
-        assert!(export_profile(dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(), String::new()).is_err());
+        assert!(export_profile(dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(), String::new(), None).is_err());
     }
 
     #[test]
@@ -264,6 +306,7 @@ mod tests {
         let summary = block(save_profile(
             app.state::<AppState>(),
             main_window(&app),
+            OpId::default(),
             "name = 'Memory only'".into(),
         ))
         .unwrap();
@@ -278,19 +321,45 @@ mod tests {
         let st = || main_window(&app);
         let shared = || app.state::<AppState>();
         // An invalid profile is refused and nothing is written.
-        assert!(block(save_profile(shared(), st(), "[[pipeline]]\nstep='plugin'\nid='nope'".into())).is_err());
+        assert!(block(save_profile(
+            shared(),
+            st(),
+            OpId::default(),
+            "[[pipeline]]\nstep='plugin'\nid='nope'".into()
+        ))
+        .is_err());
         assert!(!dir.0.join(PROFILE_FILE).exists());
         for name in ["One", "Two", "Three"] {
-            block(save_profile(shared(), st(), format!("name = '{name}'"))).unwrap();
+            block(save_profile(shared(), st(), OpId::default(), format!("name = '{name}'"))).unwrap();
         }
         let history = profile_history(shared());
         assert_eq!(history.len(), 2, "the first save had nothing to archive");
         assert_eq!(history[0]["name"], "Two");
+        let at = history[0]["savedAtMs"].as_i64().unwrap();
+        assert!((chrono::Utc::now().timestamp_millis() - at).abs() < 60_000, "saved just now");
         let file = history[1]["file"].as_str().unwrap().to_string();
         assert_eq!(profile_version(shared(), file).unwrap().name, "One");
         assert!(profile_version(shared(), "../x".into()).is_err());
         let none = test_app(None);
         assert!(profile_history(none.state::<AppState>()).is_empty());
         assert!(profile_version(none.state::<AppState>(), "x".into()).is_err());
+    }
+
+    #[test]
+    fn templates_are_listed_with_their_samples() {
+        let list = serde_json::to_value(profile_templates()).unwrap();
+        let list = list.as_array().unwrap();
+        assert!(list.len() >= 13);
+        assert!(list
+            .iter()
+            .all(|t| t["id"].is_string() && t["toml"].is_string() && t["sampleName"].is_string()));
+    }
+
+    #[test]
+    fn history_stamps_are_read_as_utc_milliseconds() {
+        assert_eq!(stamp_ms("20261017-095244123"), Some(1_792_230_764_123));
+        for bad in ["", "12", "nope-stamp-xyz", "20261017-095244abc", "2026101x-095244123"] {
+            assert_eq!(stamp_ms(bad), None, "{bad}");
+        }
     }
 }

@@ -182,6 +182,49 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 
 ![Compare view: two windows with changed fields](docs/screenshots/compare.png)
 
+### Clock-skew correction
+
+Logs from several machines only line up when their clocks agree. *Adjust clock…* on a source shifts
+its timestamps by a typed offset, by aligning the selected event on a reference event in another
+source (*Use selected event as clock reference*), or by the engine's suggestion: the median delta of
+events that share a `CorrelationId`, `TraceId` or `RequestId`, shown with the number of pairs, their
+spread and a confidence. The engine applies the offset when records are loaded, so every view,
+filter and analysis follows it; offsets are kept per source path (they survive reloads, rotation and
+projects), bounded to ±7 days, and shown in the inspector's *Clock* section. See
+[ADR 0006](docs/adr/0006-clock-skew-applied-on-load.md).
+
+### Configuration diff
+
+*Compare configuration files…* (Tools) diffs two configuration-like files or folders by path, not by
+line: JSON, XML, INI, TOML and YAML are built in, the registry plugin adds `.reg` exports and the
+Windows plugin `msinfo32` `.nfo` reports. Changed, added and removed values are listed with their
+typed old and new values; volatile keys (install dates, last-write and boot times, timestamps) are
+ignored by default and the ignore list is editable. Two folders (for example two snapshots of one
+machine) are compared file by file. Parsers enforce size, depth and node limits, and the diff
+exports to CSV or HTML.
+
+### Profiling
+
+Profiler captures open next to the logs (drag them onto the window or use *Open profile…*); IMT tells
+captures from logs by content, so a mixed drop goes to the right place. Formats: `.nettrace`
+(dotnet-trace / EventPipe), `perf script` text, collapsed ("folded") stacks, pprof (`.pb.gz`),
+Chrome trace and `.cpuprofile`, speedscope JSON, and V8/Chromium `.heapsnapshot` files. All analysis
+runs in the `imt-profile` engine:
+
+- **Hotspots** sortable by self/total time, samples, calls, average per call, allocations,
+  exceptions and wait time; **call tree** and **inverted tree** with expand-hottest-path,
+  "just my code" and recursion folding; the **caller/callee** (butterfly) view.
+- **Flame graph and icicle** with search, zoom and *Flame (focus)*, a **differential flame graph**
+  and a per-function comparison of two captures (baseline vs regression).
+- **Thread timeline** (CPU, GC, JIT, exceptions, lock waits); brushing a range re-aggregates every
+  view. Captures with a wall-clock start appear on the log timeline and in the Moment view.
+- **Automatic findings** linking to the evidence, and **heap snapshots**: top types, snapshot diff,
+  growth over three or more snapshots, dominator tree with retained sizes and paths to GC roots.
+
+Values are labelled *sampled* (an estimate) or *exact*. Open captures and the profiling view state
+are kept in projects and sessions. Details, limits and how to regenerate the sample captures are in
+[docs/profiling.md](docs/profiling.md).
+
 ### Performance Monitor, process monitor and diagnostics collector
 
 <table>
@@ -202,6 +245,28 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 
 Windows-only collectors are skipped with a clear note on other platforms.
 
+These tools come from the built-in **tools plugin** (`imt-plugin-tools`): Performance Monitor
+templates and collector sets, the process monitor, the diagnostics collector, elevation checks and
+the live counter source. Like any plugin it can be disabled or quarantined, and it is left out in
+safe mode; the shell then still checks administrator rights itself, and the tools say why they are
+unavailable. Files the tools write (collector-set XML, bundles, agent configuration) are never
+replaced without confirmation.
+
+### Scheduled and triggered collection (`imt-agent`)
+
+`imt-agent` collects unattended on servers, without the IMT app running: schedules are cron
+expressions, fixed intervals, or triggers (a process metric above a threshold for a while; a new
+log event matching a query). Actions run the diagnostics collector, record the process monitor,
+copy logs or run a Performance Monitor capture. Each run gets its own folder with a manifest; old
+runs are pruned by count, age and size; a schedule never overlaps itself; low disk space skips a
+run; every external tool has a timeout; and the agent opens no network connection. It runs once
+(`imt-agent once`), in the foreground (`imt-agent run`) or as a service (Windows Service,
+generated systemd unit or launchd plist). In IMT, *Open collection schedules* edits
+`imt-agent.toml` with validation per field (comments in the file are kept) and *Open collection
+runs* browses and opens the output. See [ADR 0005](docs/adr/0005-headless-agent.md) and
+[`imt-agent.example.toml`](crates/imt-agent/imt-agent.example.toml). The Windows service has been
+type-checked but only exercised on the Windows CI runner.
+
 ### Projects, sessions and export
 
 - **Projects** (`.imtproj`): sources, profile, filters, time range, zoom history, columns and
@@ -209,6 +274,30 @@ Windows-only collectors are skipped with a clear note on other platforms.
 - **Bookmarks** on events and time ranges (`Ctrl/⌘+D`).
 - **Export** the filtered events to CSV or Serilog CLEF (re-importable), and query results to CSV.
 - **Sessions are autosaved** per window: after a crash IMT offers to restore your work.
+
+### Explain and share
+
+- **Redaction**: the profile's `[redact]` section picks built-in detectors (bearer tokens, JWTs,
+  API keys, passwords, connection-string secrets, user names in home folders, e-mail, card
+  numbers with a Luhn check, IPv4/IPv6, GUIDs, phone numbers, host names) and custom regex rules,
+  where they apply (message, exception, fields or all) and how values are replaced: `<email>`,
+  a salted hash `<email:1a2b3c4d5e>` that stays equal within one export (a new salt per export),
+  or nothing. *Toggle redacted view* masks the grid, facets and source context of a window;
+  exports, reports and bundles can be redacted too, with a preview of what will be masked.
+- **Images**: charts and the timeline export as PNG or SVG (light or dark). The timeline SVG is
+  drawn from the timeline model, not a screenshot; every SVG is sanitised by the engine.
+- **Incident reports**: collect bookmarks, events, charts, timeline snapshots, query results,
+  health-check findings and annotations into sections with Markdown notes, reorder them, and
+  export a self-contained HTML file (no scripts) or a PDF with selectable text and vector charts.
+  Reports are saved in the project.
+- **Dashboards** per profile (`[[dashboard]]`): grids of chart, stat (with sparkline), table,
+  top-N, alert and annotation tiles that follow the window's filters or a sliding window of their
+  own; edit with the mouse or keyboard (arrows move, Shift+arrows resize) and show them full
+  screen in wall mode. The sample profile has an "OrderService health" dashboard.
+- **Shareable bundles** (`.imtz`): the project, the effective profile, the raw logs or the
+  filtered (optionally redacted) events as CLEF, reports, dashboards and a manifest with SHA-256
+  hashes, with a size estimate before writing. Opening one extracts it to a temporary folder
+  (archive limits, no path may leave it), checks the hashes and opens it read-only.
 
 ### Dockable workspace
 
@@ -272,6 +361,26 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 - **Bounded resources.** Limits on line length, regex size, archive expansion and result sizes;
   external tools run with timeouts; locked files and missing rights produce a message and a next step
   (retry, restart as administrator) instead of an error dialog.
+
+### Easy to start, hard to get wrong
+
+- **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
+  guided tour of the timeline, grid, query bar, Moment view, markers and overview.
+- **Overview after every import:** a health check lists crashes, error spikes, exceptions, unread lines,
+  files that could not be opened (with the reason) and plugins with problems, each with a button to jump
+  to the time, show the events or fix the cause. It can be turned off.
+- **Import progress with Cancel:** files, bytes, the current file and the time left; a cancelled import
+  says clearly what was not read, and *Re-import all* loads the rest.
+- **Undo and redo** for user edits; changes to the profile are undone by saving the previous version
+  through the normal, validated save. The profile editor keeps the last 20 saved versions with a diff
+  and *Restore*.
+- **Templates** for common formats (Serilog, log4net, NLog, Microsoft.Extensions.Logging, IIS, Apache/Nginx,
+  syslog, Windows events, CSV, plain text) with a live preview against your own file.
+- **"Did you mean"** for unknown field names in the query language (computed by the engine) and for
+  commands in the palette; helpful empty states say what to do next.
+- **IMT never modifies your files.** Opened logs and folders are only read. IMT writes only where you
+  explicitly save or export, and never replaces an existing file without asking: every write command
+  refuses to overwrite unless the user confirmed it (in the system's save dialog or in IMT).
 
 ### Privacy
 
@@ -429,6 +538,8 @@ export as CSV. The full grammar is in
 | Shortcut | Action |
 |---|---|
 | `Mod+K` | Command palette (every action is in it) |
+| `F1` | Keyboard shortcuts (searchable, printable; generated from the commands) |
+| `Mod+Z` / `Mod+Shift+Z` | Undo / redo the last edit (filters, marker and highlight rules, bookmarks, profile edits, dashboards, reports) |
 | `Mod+O` / `Mod+Shift+O` | Open files / open folder |
 | `Mod+/` | Focus the query bar |
 | `Mod+Enter` | Run the query (in the query bar) |
@@ -437,6 +548,7 @@ export as CSV. The full grammar is in
 | `Mod+S` / `Mod+Shift+S` | Save project / save project as |
 | `Mod+D` | Bookmark the selected event |
 | `Mod+Shift+E` | Export events |
+| `Mod+Shift+X` | Toggle the redacted view |
 | `Mod+B` | Toggle the sidebar |
 | `Mod+,` | Settings |
 | `Alt+←` / `Alt+→` | Previous / next time range |
@@ -467,13 +579,6 @@ imt-monitor --config <monitor.json> --out <dir> [--duration <10m|30s|2h|1500ms>]
 `imt-collect` writes an `.imtz` bundle that IMT opens directly; `imt-monitor` writes rolling CLEF files.
 Run them from a checkout with `cargo run -p imt-collect -- --help` or `cargo run -p imt-monitor -- --config monitor.json --out ./logs`.
 
-The original `imt` command-line filter still exists at the workspace root. It takes a path, loads its
-regexes from a `confy` configuration file and writes `*-filtered.log` files:
-
-```sh
-cargo run -p imt -- <file-or-folder>
-```
-
 ## Architecture
 
 The Rust engine is the single source of truth for data and behaviour; Angular only presents what the
@@ -483,7 +588,7 @@ engine returns. The Tauri shell depends on the `LogStore` trait and importers on
 ```mermaid
 flowchart LR
   files["Log files<br/>(untrusted)"] --> imp["Importers<br/>(Importer trait)"]
-  plugins["Plugins<br/>(registry, windows, web, otel, syslog)"] -. "guarded adapters" .-> imp
+  plugins["Plugins<br/>(registry, windows, web, otel, syslog,<br/>tools, profiling)"] -. "guarded adapters" .-> imp
   subgraph core["imt-core (Rust engine)"]
     imp --> prof["Profile: extract, pipeline, markers"]
     prof --> ws["Workspace<br/>(LogStore)"]
@@ -512,11 +617,21 @@ flowchart LR
   lifecycle (safe mode, crash detection, per-window session autosave).
 - **UI** (`app/src`): standalone Angular components and signals, `@ngrx/signals` stores, dockview
   panels, ECharts. Components never call `invoke` directly; they use the injected backend service.
+- **Around the core:** `imt-profile` (the profiling engine, a pure library), `imt-pdf` (PDF reports
+  behind the engine's `ReportRenderer` port), the plugin crates (including the tools and profiling
+  plugins), and the `imt-monitor`, `imt-collect` and `imt-agent` command-line tools.
 - **Contracts:** the wire contract is [`app/src/app/core/api.types.ts`](app/src/app/core/api.types.ts)
   (camelCase JSON), mirrored by the Rust DTOs.
 
-Read more in [docs/architecture.md](docs/architecture.md) (C4 and UML diagrams as editable
-[draw.io files](docs/diagrams/)) and [ADR 0001](docs/adr/0001-architecture.md).
+Read more in [docs/architecture.md](docs/architecture.md) (crates, C4 and UML diagrams as editable
+[draw.io files](docs/diagrams/)). Architecture decisions:
+[0001 architecture](docs/adr/0001-architecture.md) ·
+[0002 microkernel and process isolation](docs/adr/0002-microkernel-and-process-isolation.md) ·
+[0003 plugin dependencies, services, events](docs/adr/0003-plugin-dependencies-services-events.md) ·
+[0004 stable plugin ABI](docs/adr/0004-stable-plugin-abi.md) ·
+[0005 headless agent](docs/adr/0005-headless-agent.md) ·
+[0006 clock skew applied on load](docs/adr/0006-clock-skew-applied-on-load.md) ·
+[0007 reports, PDF and redaction](docs/adr/0007-reports-pdf-and-redaction.md).
 
 ## Plugins
 
@@ -691,21 +806,28 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   └── scripts/                   README screenshot generator, build info for the About dialog
 ├── crates/
 │   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
-│   │                              export, plugin runtime, event bus
+│   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
+│   │                              templates, plugin runtime, event bus
 │   ├── imt-api-perf/              plugin service API: performance counter sources (+ contract tests)
 │   ├── imt-plugin-registry/       .reg importer
-│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg) and logman control,
+│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg) import,
 │   │                              Windows marker kinds and annotators (reboots, service uptime)
+│   ├── imt-plugin-tools/          tools plugin: Performance Monitor templates and logman control, process
+│   │                              monitor, diagnostics collector, elevation, live counter source
+│   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
+│   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
+│   │                              heapsnapshot
 │   ├── imt-plugin-web/            IIS/W3C, Apache/Nginx, HAR
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
 │   ├── imt-monitor/               process monitor (library and `imt-monitor` CLI)
-│   └── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
+│   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
+│   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)
+│   └── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
 ├── docs/                          architecture, roadmap, backlog, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
 ├── fuzz/                          cargo-fuzz targets
-├── samples/                       generated sample logs and an example profile
+├── samples/                       generated sample logs, profiler captures (profiling/) and an example profile
 ├── scripts/notices/               third-party notices generator (cargo-about + npm)
-├── src/                           the original `imt` command-line filter
 └── .gitea/workflows/              CI (build, release, fuzz)
 ```
 
@@ -714,15 +836,16 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 Highlights; the full list is in [docs/roadmap.md](docs/roadmap.md) and engineering follow-ups are in
 [docs/backlog.md](docs/backlog.md). Nothing in this section is available yet unless stated.
 
-- **Profilers (planned):** .NET Framework 4.6.2+ via ETW (production-safe) and the CLR Profiling API
-  ("deep mode"), .NET Core/5+ through `dotnet-counters`/`dotnet-trace`/`dotnet-gcdump`, and C++
-  (UMDH, WPR, `perf`, `heaptrack`), with a shared flame graph and allocation snapshot diff.
+- **Profiler collectors (planned):** .NET Framework 4.6.2+ via ETW (production-safe) and the CLR
+  Profiling API ("deep mode"), .NET Core/5+ through `dotnet-counters`/`dotnet-trace`/`dotnet-gcdump`,
+  and C++ (UMDH, WPR, `perf`, `heaptrack`), feeding the profiling views that already analyse imported
+  captures (see [Profiling](#profiling)).
 - **Local-only AI assistant (in progress):** an embedded GGUF model chosen from the machine's hardware
   that proposes regexes, pipelines and markers, which the engine validates before they are used. It
   runs locally and sends nothing off the machine.
 - **Persistent store:** a DuckDB/DataFusion spike behind the `LogStore` port for data larger than RAM.
-- **More sources and sharing:** remote sources (SSH, Seq, Elasticsearch, Loki), redaction rules,
-  incident report builder, WASM plugins, auto-update and signed releases.
+- **More sources:** remote sources (SSH, Seq, Elasticsearch, Loki), WASM plugins, auto-update and
+  signed releases.
 
 ## Contributing
 

@@ -55,7 +55,7 @@ test.describe('query bar', () => {
     await expect(results.getByRole('columnheader', { name: 'level' })).toBeVisible();
     await expect(results.getByRole('columnheader', { name: 'count()' })).toBeVisible();
     const rows = results.locator('tbody tr');
-    expect(await rows.count()).toBeGreaterThan(1);
+    await expect(rows.nth(1)).toBeVisible();
 
     await results.getByRole('button', { name: /count\(\)/ }).click();
     await expect(results.getByRole('columnheader', { name: /count\(\)/ })).toHaveAttribute('aria-sort', 'ascending');

@@ -121,7 +121,7 @@ describe('Welcome', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.recent')).toBeNull();
-    expect(all(fixture, 'button').map((b) => b.textContent?.trim())).toEqual(['Open folder…', 'Open files…']);
+    expect(all(fixture, 'button').map((b) => b.textContent?.trim())).toEqual(['Open folder…', 'Open files…', 'Try a demo', '?']);
   });
 
   it('does not remember paths that failed to open', async () => {

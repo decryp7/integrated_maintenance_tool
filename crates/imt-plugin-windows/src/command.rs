@@ -129,11 +129,11 @@ pub(crate) mod fake {
     }
 }
 
-#[cfg(test)]
+// The only test drives `sh`, so the module exists on Unix only.
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn system_runner_captures_output_and_codes() {
         let sh = |script: &str, secs: u64| SystemRunner.run("sh", &["-c".into(), script.into()], Duration::from_secs(secs));

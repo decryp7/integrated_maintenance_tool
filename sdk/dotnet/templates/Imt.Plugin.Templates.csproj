@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- `dotnet new install Imt.Plugin.Templates` then `dotnet new imt-plugin -n MyPlugin`. -->
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageId>Imt.Plugin.Templates</PackageId>
+    <Title>IMT plugin templates</Title>
+    <Description>dotnet new templates for IMT process plugins (imt.plugin.v1): an importer plugin with tests.</Description>
+    <PackageTags>imt;plugin;template;dotnet-new</PackageTags>
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="content/**/*" Exclude="content/**/bin/**;content/**/obj/**" />
+  </ItemGroup>
+</Project>

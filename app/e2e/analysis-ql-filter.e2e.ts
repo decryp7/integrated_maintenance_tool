@@ -14,10 +14,12 @@ test.describe('query language filters the workspace', () => {
     await expect(page.locator('imt-query-view .applied')).toContainText('level >= error');
 
     await page.getByRole('tab', { name: 'Events', exact: true }).click();
-    await expect(gridTotal(page)).not.toHaveText(before);
-    const filtered = parseCount(await gridTotal(page).innerText());
-    expect(filtered).toBeGreaterThan(0);
-    expect(filtered).toBeLessThan(parseCount(before));
+    // Wait for the narrowed total itself (not just "different": the bar can be between two states).
+    const all = parseCount(before);
+    await expect.poll(async () => {
+      const n = parseCount(await gridTotal(page).innerText());
+      return n > 0 && n < all;
+    }).toBe(true);
     const rows = page.locator('imt-events-grid [role=row].row');
     await expect(rows.first()).toContainText(/ERR|FTL/);
     await expect(rows.filter({ hasText: /INF|WRN|DBG|VRB/ })).toHaveCount(0);

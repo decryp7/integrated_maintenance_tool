@@ -1,3 +1,4 @@
+import { OverwriteGuard } from '../ui/overwrite-guard';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { describeError } from '../core/logger';
@@ -28,7 +29,7 @@ export const SnapshotsStore = signalStore(
     current: computed(() => s.items().find((i) => i.id === s.open()) ?? null),
     allSelected: computed(() => s.items().length > 0 && s.selected().length === s.items().length),
   })),
-  withMethods((store, backend = inject(SnapshotBackend), service = inject(ErrorSnapshotService), target = inject(ExportTarget)) => {
+  withMethods((store, backend = inject(SnapshotBackend), service = inject(ErrorSnapshotService), target = inject(ExportTarget), overwrite = inject(OverwriteGuard)) => {
     const fail = (e: unknown) => patchState(store, { error: describeError(e), info: null });
     const loadImage = async (id: string) => {
       if (store.images()[id]) return;
@@ -93,8 +94,8 @@ export const SnapshotsStore = signalStore(
         try {
           const path = await target.pickZip('imt-diagnostics.zip');
           if (path) {
-            const files = await backend.exportDiagnostics(path, ids);
-            patchState(store, { info: `Exported ${ids.length} snapshot${ids.length === 1 ? '' : 's'} (${files} files) to ${path}` });
+            const files = await overwrite.write(path, (replace) => backend.exportDiagnostics(path, ids, replace));
+            if (files !== null) patchState(store, { info: `Exported ${ids.length} snapshot${ids.length === 1 ? '' : 's'} (${files} files) to ${path}` });
           }
         } catch (e) {
           fail(e);

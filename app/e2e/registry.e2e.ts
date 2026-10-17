@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { chooseMenu, menuItem, openMenuPath } from './menu-support';
 
 test.describe('registry viewer plugin', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -44,8 +45,7 @@ test.describe('registry viewer plugin', () => {
     await tab.focus();
     await page.keyboard.press('Delete');
     await expect(tab).toHaveCount(0);
-    await page.getByRole('button', { name: 'View', exact: true }).click();
-    await page.getByRole('menuitemcheckbox', { name: /Registry/ }).click();
+    await chooseMenu(page, 'View', 'Plugins', 'Registry');
     await expect(tab).toHaveAttribute('aria-selected', 'true');
     await tab.focus();
     await page.keyboard.press('Delete');
@@ -60,7 +60,8 @@ test.describe('registry viewer plugin', () => {
     await sidebar.locator('.src', { hasText: 'registry-export.reg' }).hover();
     await sidebar.getByRole('button', { name: 'Remove registry-export.reg' }).click();
     await expect(page.getByRole('tab', { name: 'Registry', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'View', exact: true }).click();
-    await expect(page.getByRole('menuitemcheckbox', { name: /Registry/ })).toHaveCount(0);
+    const plugins = await openMenuPath(page, 'View', 'Plugins');
+    await expect(menuItem(plugins, 'Manage plugins')).toBeVisible();
+    await expect(menuItem(plugins, 'Registry')).toHaveCount(0);
   });
 });

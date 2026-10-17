@@ -92,6 +92,17 @@ fn query_language_filters_everything_and_runs_stats() {
     assert!(err.offset > 0);
     assert!(s.check_query("level >= warning").is_none());
     assert!(s.check_query("level >=").is_some());
+    // Did you mean: an unknown field comes back with the closest names in the samples.
+    let e = s.check_query("level >= error and machinename = WEB01").unwrap();
+    assert_eq!(e.message, "unknown field \"machinename\"");
+    assert_eq!(&"level >= error and machinename = WEB01"[e.offset..e.offset + e.len], "machinename");
+    assert_eq!(e.suggestions.first().map(String::as_str), Some("MachineName"), "{e:?}");
+    assert!(serde_json::to_value(&e).unwrap()["suggestions"].is_array());
+    assert!(s.check_query("MachineName = WEB01 | stats count() by MachineName").is_none());
+    assert!(serde_json::to_value(s.check_query("level >=").unwrap())
+        .unwrap()
+        .get("suggestions")
+        .is_none());
     let bad = s.page(&PageRequest {
         query: q("(("),
         offset: 0,
@@ -328,4 +339,14 @@ fn overview_lists_findings_most_severe_first() {
         .iter()
         .any(|f| f.title == "File not opened" && matches!(f.action, Some(FindingAction::SetupFormat { .. }))));
     assert!(findings.iter().any(|f| f.title == "Memory growth"));
+    use imt_core::api::FindingKind;
+    assert_eq!(findings[0].kind, FindingKind::Crash);
+    assert!(findings
+        .iter()
+        .any(|f| f.kind == FindingKind::Exception && f.title.starts_with("TimeoutException")));
+    assert!(findings.iter().any(|f| f.kind == FindingKind::FileNotOpened));
+    assert!(findings.iter().any(|f| f.kind == FindingKind::MemoryGrowth));
+    let json = serde_json::to_value(&findings[0]).unwrap();
+    assert_eq!(json["kind"], "crash");
+    assert_eq!(json["action"]["kind"], "zoom");
 }

@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input, output, signal, untracked } from '@angular/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import { ChartData, ChartDef, ChartSeries, LEVELS } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
@@ -10,6 +10,8 @@ import { EChart } from './echart';
 import { TimelineZoom } from '../timeline/zoom';
 import { TimeCursor, TimeCursorSource, TimeRange, timeToFrac } from '../analysis/time-cursor';
 import { LiveTail } from '../workspace/live-tail';
+import { VisualExportService, VisualFormat } from '../share/visuals/visual-export.service';
+import { ReportActions } from '../share/report/report-actions';
 
 /** Live charts animate their updates briefly (none with reduced motion). */
 export const LIVE_UPDATE_MS = 200;
@@ -164,6 +166,11 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
           }
         </span>
       }
+      <span class="actions">
+        <button class="icon-btn small" type="button" [attr.aria-label]="'Add chart ' + def().title + ' to report'" title="Add to report" [disabled]="!option()" (click)="addToReport()"><imt-icon name="plus" [size]="13" /></button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="'Export chart ' + def().title + ' as PNG'" title="Export PNG" [disabled]="!option()" (click)="exportImage('png')">PNG</button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="'Export chart ' + def().title + ' as SVG'" title="Export SVG" [disabled]="!option()" (click)="exportImage('svg')">SVG</button>
+      </span>
       @if (removable()) {
         <button class="icon-btn" [attr.aria-label]="'Remove chart ' + def().title" (click)="remove.emit()" [attr.title]="'Remove chart ' + def().title"><imt-icon name="close" [size]="14" /></button>
       }
@@ -187,6 +194,8 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     .title { font-weight: 600; }
     .sub { font-size: 11px; }
     .spacer { flex: 1; }
+    .actions { display: inline-flex; gap: 2px; align-self: center; }
+    .small { font-size: 10px; font-family: var(--font-mono); min-width: 22px; }
     .lc { display: flex; gap: 10px; font-size: 11px; }
     .lc-item { display: inline-flex; align-items: center; gap: 4px; }
     .dash { width: 0; height: 10px; border-left: 1px dashed; }
@@ -262,6 +271,20 @@ export class ChartCard {
     const { left, right } = this.grid();
     return `calc(${left}px + (100% - ${left + right}px) * ${frac.toFixed(5)})`;
   });
+
+  /** Resolves the export and report services on first use (they need the share and analysis backends). */
+  private readonly injector = inject(Injector);
+
+  /** Saves what the chart shows as an image (theme-aware; re-rendered off screen). */
+  protected exportImage(kind: VisualFormat): void {
+    const o = this.option();
+    if (o) void this.injector.get(VisualExportService).exportChart(o, this.def().title, kind);
+  }
+
+  /** Adds the chart (its definition and an SVG snapshot) to the active report. */
+  protected addToReport(): void {
+    void this.injector.get(ReportActions).addChart(this.def(), this.option());
+  }
 
   /** A brush selects the range (for "Analyse this moment") and zooms to it. */
   protected brushed([from, to]: [number, number]): void {

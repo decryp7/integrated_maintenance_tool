@@ -1,8 +1,10 @@
-import { computed } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { RecordView } from '../../core/api.types';
 import { HighlightOp, HighlightRule } from '../../core/tools.types';
 import { newId } from './ids';
+import { UndoStack } from '../../undo/undo-stack';
+import { recordSnapshot } from '../../undo/snapshot-undo';
 
 export const HIGHLIGHT_OPS: { id: HighlightOp; label: string; needsValue: boolean }[] = [
   { id: 'eq', label: 'equals', needsValue: true },
@@ -88,16 +90,21 @@ export const HighlightRules = signalStore(
     /** Enabled rules in order. */
     rules: computed(() => store.items().filter((r) => r.enabled)),
   })),
-  withMethods((store) => ({
-    add(rule: Omit<HighlightRule, 'id' | 'enabled'>): void {
-      patchState(store, (s) => ({ items: [...s.items, { ...rule, id: newId('hl'), enabled: true }] }));
-    },
-    update: (id: string, patch: Partial<Omit<HighlightRule, 'id'>>) => patchState(store, (s) => ({ items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
-    remove: (id: string) => patchState(store, (s) => ({ items: s.items.filter((r) => r.id !== id) })),
-    replace: (items: HighlightRule[]) => patchState(store, { items }),
-    /** The row colour (CSS colour) for a record, or null when no rule matches. */
-    colorFor(record: RecordView): string | null {
-      return store.rules().find((r) => matchesRule(r, record))?.color ?? null;
-    },
-  })),
+  withMethods((store, undo = inject(UndoStack)) => {
+    const state = { read: () => store.items(), write: (v: HighlightRule[]) => patchState(store, { items: v }) };
+    const edit = (label: string, mutate: () => void, mergeKey?: string) => recordSnapshot(undo, state, label, mutate, { mergeKey });
+    return {
+      add(rule: Omit<HighlightRule, 'id' | 'enabled'>): void {
+        edit('new highlight rule', () => patchState(store, (s) => ({ items: [...s.items, { ...rule, id: newId('hl'), enabled: true }] })));
+      },
+      update: (id: string, patch: Partial<Omit<HighlightRule, 'id'>>) =>
+        edit('highlight rule edit', () => patchState(store, (s) => ({ items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) })), `highlight:${id}:${Object.keys(patch).join(',')}`),
+      remove: (id: string) => edit('highlight rule removal', () => patchState(store, (s) => ({ items: s.items.filter((r) => r.id !== id) }))),
+      replace: (items: HighlightRule[]) => patchState(store, { items }),
+      /** The row colour (CSS colour) for a record, or null when no rule matches. */
+      colorFor(record: RecordView): string | null {
+        return store.rules().find((r) => matchesRule(r, record))?.color ?? null;
+      },
+    };
+  }),
 );

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { openApp, gridTotal, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith } from './mock-url';
+import { chooseMenu } from './menu-support';
 
 test.describe('context view', () => {
   test.beforeEach(async ({ page }) => openApp(page));
@@ -49,6 +50,8 @@ test('a failed context request shows an inline error with Retry', async ({ page 
 
 test.describe('live tail', () => {
   test('refreshes the grid as the engine reports changes, and stops when turned off', async ({ page }) => {
+    // A controllable clock (running normally until paused) makes "nothing more arrives" checkable without sleeps.
+    await page.clock.install();
     await openAppWith(page, '?mockLiveMs=300');
     const live = page.getByRole('button', { name: 'Live tail', exact: true });
     await expect(gridTotal(page)).toHaveText(/^\d[\d,]*$/);
@@ -59,11 +62,14 @@ test.describe('live tail', () => {
     await expect.poll(async () => parseCount(await gridTotal(page).innerText()), { timeout: 10_000 }).toBeGreaterThan(start + 1);
     await live.click();
     await expect(live).toHaveAttribute('aria-pressed', 'false');
-    // A refresh already under way may still land.
-    await page.waitForTimeout(600);
-    const stopped = parseCount(await gridTotal(page).innerText());
-    await page.waitForTimeout(1200);
-    expect(parseCount(await gridTotal(page).innerText())).toBe(stopped);
+    // Freeze time a little ahead (time keeps running until the pause lands, so leave room), running what is due on
+    // the way, then 2 s more: a refresh already under way lands...
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 5000));
+    await page.clock.runFor(2000);
+    const stopped = await gridTotal(page).innerText();
+    // ...and in 10 s more (over 30 live ticks) nothing else arrives.
+    await page.clock.runFor(10_000);
+    await expect(gridTotal(page)).toHaveText(stopped);
   });
 
   test('newest first and scrolled to the top keeps following new events; the query is kept', async ({ page }) => {
@@ -98,8 +104,7 @@ test.describe('live tail', () => {
     await live.click();
     await expect(live).toHaveAttribute('aria-pressed', 'false');
 
-    await page.getByRole('button', { name: 'File', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Close workspace' }).click();
+    await chooseMenu(page, 'File', 'Close workspace');
     await expect(live).toBeDisabled();
   });
 });

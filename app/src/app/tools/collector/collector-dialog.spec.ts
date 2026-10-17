@@ -136,6 +136,32 @@ describe('CollectorDialog', () => {
     expect(text(fixture)).not.toContain('unknown key');
   });
 
+  it('asks before replacing a bundle that already exists, and keeps it when declined', async () => {
+    const { fixture, backend } = await setup();
+    const run = vi.spyOn(backend, 'collectDiagnostics');
+    const dialogs = TestBed.inject(DialogService);
+    typeInto(el(fixture, 'input[aria-label="Output folder"]'), '/out');
+    buttonByText(fixture, 'Collect').click();
+    await settle(fixture);
+    expect(text(fixture)).toContain('Open bundle');
+    // The same bundle name again: the engine refuses, the app asks.
+    buttonByText(fixture, 'Collect again').click();
+    await settle(fixture);
+    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
+    dialogs.stack()[0].ref.close(false);
+    await settle(fixture);
+    expect(run.mock.calls.map((c) => c[2])).toEqual([false, false]);
+    expect(fixture.nativeElement.querySelector('.err')).toBeNull();
+    expect(buttonByText(fixture, 'Collect').disabled).toBe(false);
+    // Confirmed: written again with permission.
+    buttonByText(fixture, 'Collect').click();
+    await settle(fixture);
+    dialogs.stack()[0].ref.close(true);
+    await settle(fixture);
+    expect(run.mock.calls.map((c) => c[2])).toEqual([false, false, false, true]);
+    expect(text(fixture)).toContain('Open bundle');
+  });
+
   it('shows progress while collecting', async () => {
     const { fixture, backend } = await setup();
     let finish!: (v: Awaited<ReturnType<typeof backend.collectDiagnostics>>) => void;

@@ -72,3 +72,25 @@ Write down the platform, build and anything that differs from the expected resul
 |---|-------|----------|
 | 34 | Open three windows with different files, wait 10 s (autosave), close one, then kill IMT. Start it again. | The main window shows the crash banner. *Restore last session* restores it and reopens the other open window with its files. The window closed before the crash is not restored. |
 | 35 | Upgrade from a build that had a single `last-session.imtproj`, after a crash. | The main window offers that session. |
+
+## Docking, pop-out windows and file drops
+
+Tabs and groups are dragged with pointer events (dockview `dndStrategy: 'pointer'`), not HTML5 drag-and-drop.
+The windows keep Tauri's native file-drop handler (`dragDropEnabled: true`), because only it gives the dropped
+files' paths, which the engine needs. HTML5 drops in WebView2 and WKWebView give `File` objects without paths.
+On Windows the native handler takes over HTML5 drag-and-drop in WebView2, and a native drag inside the page
+never reaches the page. Pointer events are not affected, so the tab drags are the same on all platforms. Run
+these checks on Windows (WebView2) and macOS (WKWebView). Rows 36 and 39 were checked on macOS with `cliclick`
+when the feature was added.
+
+| # | Steps | Expected |
+|---|-------|----------|
+| 36 | Drag the Metrics tab onto the right arrow of the compass in the middle of the Events panel. | Guides show while dragging: a compass over the panel under the pointer and one arrow at the middle of each window edge. A dashed preview shows the result. Metrics docks to the right of Events. |
+| 37 | Drag a tab onto the left edge arrow. | It docks along the whole left edge. |
+| 38 | Drag a tab and release it away from any arrow. | Nothing moves. |
+| 39 | Drag a tab out of the window (to the desktop or another monitor) and release it. | The panel opens in its own OS window under the pointer, with the title "<panel> — <project>". On Windows check that releasing over the desktop, the taskbar and another app each pops it out. |
+| 40 | Drop log files from Explorer or Finder onto the main window, then onto a pop-out window. | Both open the files in the main window's workspace. |
+| 41 | Drag a pop-out window by its title bar over the main window and rest it on a guide for half a second. | The main window shows its guides under the pointer. The panel docks at the guide and the pop-out closes. |
+| 42 | Use the pop-out's "Drag to dock" handle to drag the window over a guide and release it. | Same as 41. On Windows the release docks it at once; on macOS it docks once the window has rested on the guide. |
+| 43 | Shift+Alt+Enter with the default "Full screen does" setting, then press Escape, then Shift+Alt+Enter again. | The window goes OS full screen with the chrome and tool windows hidden. Escape does not leave full screen. The shortcut restores both. |
+| 44 | Close the main window while two panels are popped out. | The pop-outs close with it. Start IMT again: they reopen where they were, or on the primary display when their monitor is gone. |

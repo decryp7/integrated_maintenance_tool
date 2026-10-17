@@ -5,6 +5,9 @@
 //! Every key and value becomes one record (no timestamp) with the fields
 //! `Hive`, `Key`, `ValueName`, `ValueType` and `Data`.
 //!
+//! The same parser ([`parse_reg`]) also feeds the configuration diff: the
+//! plugin contributes [`config::RegConfigParser`] to `config.parsers`.
+//!
 //! Register it with:
 //! ```
 //! let mut registry = imt_core::PluginRegistry::new();
@@ -16,6 +19,9 @@ use imt_core::importers::{ImportCtx, Imported, Importer};
 use imt_core::model::Record;
 use imt_core::{Plugin, PluginRegistry};
 use serde_json::Value;
+use std::sync::Arc;
+
+pub mod config;
 
 pub struct RegistryPlugin;
 
@@ -39,6 +45,7 @@ impl Plugin for RegistryPlugin {
 
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         registry.add_importer(Box::new(RegistryImporter));
+        registry.contribute::<dyn imt_core::config::ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(config::RegConfigParser));
         Ok(())
     }
 }
@@ -61,44 +68,140 @@ impl Importer for RegistryImporter {
     }
 
     fn import(&self, _ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        let mut out = Imported::default();
-        let mut key: Option<(String, String)> = None;
-        for (line_no, line) in logical_lines(content) {
-            let line = line.trim().trim_start_matches('\u{feff}');
-            if line.is_empty() || line.starts_with(';') || line.starts_with("Windows Registry Editor") || line == "REGEDIT4" {
-                continue;
+        let parsed = parse_reg(content);
+        let mut out = Imported {
+            skipped: parsed.skipped,
+            ..Imported::default()
+        };
+        for entry in parsed.entries {
+            match entry {
+                RegEntry::Key { line, hive, path, deleted } => {
+                    let mut r = record(line, &hive, &path);
+                    r.message = if path.is_empty() { hive } else { format!("{hive}\\{path}") };
+                    r.fields
+                        .insert("ValueType".into(), Value::from(if deleted { "DELETE" } else { "KEY" }));
+                    out.records.push(r);
+                }
+                RegEntry::Value {
+                    line,
+                    hive,
+                    path,
+                    name,
+                    kind,
+                    data,
+                } => {
+                    let value = data.to_json();
+                    let mut r = record(line, &hive, &path);
+                    r.message = format!("{path}\\{name} = {}", display(&value));
+                    r.fields.insert("ValueName".into(), Value::from(name));
+                    r.fields.insert("ValueType".into(), Value::from(kind));
+                    r.fields.insert("Data".into(), value);
+                    out.records.push(r);
+                }
             }
-            if let Some(path) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
-                let (deleted, path) = match path.strip_prefix('-') {
-                    Some(p) => (true, p),
-                    None => (false, path),
-                };
-                let (hive, rest) = path.split_once('\\').unwrap_or((path, ""));
-                let mut r = record(line_no, hive, rest);
-                r.message = path.to_string();
-                r.fields
-                    .insert("ValueType".into(), Value::from(if deleted { "DELETE" } else { "KEY" }));
-                out.records.push(r);
-                key = (!deleted).then(|| (hive.to_string(), rest.to_string()));
-                continue;
-            }
-            let (Some((hive, path)), Some((name, data))) = (&key, parse_value_line(line)) else {
-                out.skipped += 1;
-                continue;
-            };
-            let Some((kind, value)) = decode(data) else {
-                out.skipped += 1;
-                continue;
-            };
-            let mut r = record(line_no, hive, path);
-            r.message = format!("{path}\\{name} = {}", display(&value));
-            r.fields.insert("ValueName".into(), Value::from(name));
-            r.fields.insert("ValueType".into(), Value::from(kind));
-            r.fields.insert("Data".into(), value);
-            out.records.push(r);
         }
         Ok(out)
     }
+}
+
+/// One item of a `.reg` file, in file order.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegEntry {
+    /// `[HIVE\path]`, or `[-HIVE\path]` when `deleted`.
+    Key {
+        line: u32,
+        hive: String,
+        path: String,
+        deleted: bool,
+    },
+    /// `"name"=data` (or `@=data`, named `(Default)`) under the current key.
+    Value {
+        line: u32,
+        hive: String,
+        path: String,
+        name: String,
+        /// `REG_SZ`, `REG_DWORD`, ..., or `DELETE` for `"name"=-`.
+        kind: &'static str,
+        data: RegData,
+    },
+}
+
+/// Decoded value data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RegData {
+    Text(String),
+    Number(u64),
+    Multi(Vec<String>),
+    Bytes(Vec<u8>),
+    /// `"name"=-`: the value is deleted.
+    Delete,
+}
+
+impl RegData {
+    /// The JSON form records carry (`Data`): numbers, strings, string lists,
+    /// bytes as space-separated hex, null for a deletion.
+    pub fn to_json(&self) -> Value {
+        match self {
+            RegData::Text(s) => Value::from(s.as_str()),
+            RegData::Number(n) => Value::from(*n),
+            RegData::Multi(items) => Value::Array(items.iter().map(|s| Value::from(s.as_str())).collect()),
+            RegData::Bytes(b) => Value::from(b.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ")),
+            RegData::Delete => Value::Null,
+        }
+    }
+}
+
+/// A parsed `.reg` file: its entries and how many lines could not be read.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ParsedReg {
+    pub entries: Vec<RegEntry>,
+    pub skipped: usize,
+}
+
+/// Parses a registry export (the one parser behind the importer and the
+/// configuration-diff format). Values under a deleted key, values without a
+/// key and undecodable lines are skipped and counted.
+pub fn parse_reg(content: &str) -> ParsedReg {
+    let mut out = ParsedReg::default();
+    let mut key: Option<(String, String)> = None;
+    for (line_no, line) in logical_lines(content) {
+        let line = line.trim().trim_start_matches('\u{feff}');
+        if line.is_empty() || line.starts_with(';') || line.starts_with("Windows Registry Editor") || line == "REGEDIT4" {
+            continue;
+        }
+        if let Some(path) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
+            let (deleted, path) = match path.strip_prefix('-') {
+                Some(p) => (true, p),
+                None => (false, path),
+            };
+            let (hive, rest) = path.split_once('\\').unwrap_or((path, ""));
+            out.entries.push(RegEntry::Key {
+                line: line_no,
+                hive: hive.to_string(),
+                path: rest.to_string(),
+                deleted,
+            });
+            key = (!deleted).then(|| (hive.to_string(), rest.to_string()));
+            continue;
+        }
+        let (Some((hive, path)), Some((name, data))) = (&key, parse_value_line(line)) else {
+            out.skipped += 1;
+            continue;
+        };
+        let Some((kind, data)) = decode(data) else {
+            out.skipped += 1;
+            continue;
+        };
+        out.entries.push(RegEntry::Value {
+            line: line_no,
+            hive: hive.clone(),
+            path: path.clone(),
+            name,
+            kind,
+            data,
+        });
+    }
+    out
 }
 
 fn record(line: u32, hive: &str, key: &str) -> Record {
@@ -165,18 +268,18 @@ fn parse_quoted(s: &str) -> Option<(String, &str)> {
     None
 }
 
-/// Decodes a value's data into its registry type and a JSON value.
-fn decode(data: &str) -> Option<(&'static str, Value)> {
+/// Decodes a value's data into its registry type and value.
+fn decode(data: &str) -> Option<(&'static str, RegData)> {
     let data = data.trim();
     if data == "-" {
-        return Some(("DELETE", Value::Null));
+        return Some(("DELETE", RegData::Delete));
     }
     if data.starts_with('"') {
         let (s, rest) = parse_quoted(data)?;
-        return rest.trim().is_empty().then(|| ("REG_SZ", Value::from(s)));
+        return rest.trim().is_empty().then_some(("REG_SZ", RegData::Text(s)));
     }
     if let Some(hex) = data.strip_prefix("dword:") {
-        return Some(("REG_DWORD", Value::from(u32::from_str_radix(hex.trim(), 16).ok()?)));
+        return Some(("REG_DWORD", RegData::Number(u32::from_str_radix(hex.trim(), 16).ok()?.into())));
     }
     let (kind, hex) = if let Some(h) = data.strip_prefix("hex:") {
         ("REG_BINARY", h)
@@ -201,11 +304,11 @@ fn decode(data: &str) -> Option<(&'static str, Value)> {
         .map(|b| u8::from_str_radix(b, 16).ok())
         .collect::<Option<_>>()?;
     let value = match kind {
-        "REG_EXPAND_SZ" => Value::from(utf16(&bytes).trim_end_matches('\0').to_string()),
-        "REG_MULTI_SZ" => Value::Array(utf16(&bytes).split('\0').filter(|s| !s.is_empty()).map(Value::from).collect()),
-        "REG_QWORD" if bytes.len() == 8 => Value::from(u64::from_le_bytes(bytes.try_into().ok()?)),
-        "REG_DWORD" if bytes.len() == 4 => Value::from(u32::from_le_bytes(bytes.try_into().ok()?)),
-        _ => Value::from(bytes.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ")),
+        "REG_EXPAND_SZ" => RegData::Text(utf16(&bytes).trim_end_matches('\0').to_string()),
+        "REG_MULTI_SZ" => RegData::Multi(utf16(&bytes).split('\0').filter(|s| !s.is_empty()).map(String::from).collect()),
+        "REG_QWORD" if bytes.len() == 8 => RegData::Number(u64::from_le_bytes(bytes.try_into().ok()?)),
+        "REG_DWORD" if bytes.len() == 4 => RegData::Number(u32::from_le_bytes(bytes.try_into().ok()?).into()),
+        _ => RegData::Bytes(bytes),
     };
     Some((kind, value))
 }
@@ -311,7 +414,8 @@ mod tests {
         registry.install(&RegistryPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.registry");
-        assert_eq!(info.contributes, vec!["importer:registry".to_string()]);
+        assert_eq!(info.contributes, ["importer:registry", "contribution:config.parsers"]);
+        assert!(info.warnings.is_empty(), "{:?}", info.warnings);
         assert_eq!(RegistryPlugin.name(), "Windows registry exports");
         assert_eq!(RegistryPlugin.version(), env!("CARGO_PKG_VERSION"));
     }

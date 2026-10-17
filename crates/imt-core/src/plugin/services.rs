@@ -15,6 +15,7 @@ use anyhow::{anyhow, Result};
 use semver::{Version, VersionReq};
 use std::any::{Any, TypeId};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// Plugin id recorded for services and points registered outside a plugin.
 pub const HOST: &str = "host";
@@ -94,6 +95,28 @@ impl<T: ?Sized + Send + Sync + 'static> Service<T> {
                 .call_detached(CallKind::Service, &self.id, move || Ok(f(&inner)))
                 .map_err(|e| self.context(e)),
             None => Ok(f(&inner)),
+        }
+    }
+
+    /// [`Service::call_detached`] with its own time budget instead of the
+    /// service budget, for calls known to take long (importing a large file).
+    /// Past `budget` the call is abandoned and the provider marked hung.
+    pub fn call_detached_within<R: Send + 'static>(&self, budget: Duration, f: impl FnOnce(&T) -> R + Send + 'static) -> Result<R> {
+        self.try_call_detached_within(budget, move |t| Ok(f(t)))
+    }
+
+    /// [`Service::call_detached_within`] for closures that return a `Result` themselves.
+    pub fn try_call_detached_within<R: Send + 'static>(
+        &self,
+        budget: Duration,
+        f: impl FnOnce(&T) -> Result<R> + Send + 'static,
+    ) -> Result<R> {
+        let inner = self.inner.clone();
+        match &self.guard {
+            Some(g) => g
+                .call_detached_within(CallKind::Service, Some(budget), &self.id, move || f(&inner))
+                .map_err(|e| self.context(e)),
+            None => f(&inner),
         }
     }
 }
@@ -374,4 +397,60 @@ mod tests {
 
     struct OtherImpl;
     impl Other for OtherImpl {}
+
+    struct Slow(Duration);
+    impl Greeter for Slow {
+        fn greet(&self) -> String {
+            std::thread::sleep(self.0);
+            "late".into()
+        }
+    }
+
+    #[test]
+    fn calls_with_their_own_budget_finish_or_are_abandoned() {
+        let health = Arc::new(Health::default());
+        let mut t = ServiceTable::default();
+        let g = Some(Guard::new("p", health.clone()));
+        t.provide::<dyn Greeter>("p", g.clone(), "quick", Version::new(1, 0, 0), Arc::new(Hello))
+            .unwrap();
+        let s = t.service::<dyn Greeter>("quick", &VersionReq::STAR, &ok).unwrap();
+        assert_eq!(s.call_detached_within(Duration::from_secs(5), |g| g.greet()).unwrap(), "hello");
+        let e = s
+            .try_call_detached_within(Duration::from_secs(5), |_| Err::<(), _>(anyhow!("refused")))
+            .unwrap_err();
+        assert!(e.to_string().contains("refused"), "{e}");
+        assert!(!health.is_quarantined("p"), "ordinary errors are not failures");
+
+        // Past its budget the call is abandoned and the provider marked hung until it returns.
+        let health = Arc::new(Health::default());
+        let mut t = ServiceTable::default();
+        t.provide::<dyn Greeter>(
+            "slow",
+            Some(Guard::new("slow", health.clone())),
+            "slow",
+            Version::new(1, 0, 0),
+            Arc::new(Slow(Duration::from_millis(300))),
+        )
+        .unwrap();
+        let s = t.service::<dyn Greeter>("slow", &VersionReq::STAR, &ok).unwrap();
+        let e = s
+            .call_detached_within(Duration::from_millis(20), |g| g.greet())
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("did not finish within"), "{e}");
+        assert!(health.availability("slow").is_err(), "hung while the abandoned call runs");
+        // A longer budget lets the same call finish (once the abandoned one returned).
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while health.availability("slow").is_err() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(s.call_detached_within(Duration::from_secs(10), |g| g.greet()).unwrap(), "late");
+
+        // Host services are not guarded: no budget.
+        let mut t = ServiceTable::default();
+        t.provide::<dyn Greeter>(HOST, None, "h", Version::new(1, 0, 0), Arc::new(Hello))
+            .unwrap();
+        let s = t.service::<dyn Greeter>("h", &VersionReq::STAR, &ok).unwrap();
+        assert_eq!(s.call_detached_within(Duration::from_millis(1), |g| g.greet()).unwrap(), "hello");
+    }
 }

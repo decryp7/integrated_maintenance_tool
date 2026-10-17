@@ -1,0 +1,3 @@
+{"Timestamp":"2026-10-14T10:41:00.1200000+00:00","Level":"Information","MessageTemplate":"Request {Method} {Path} started","RenderedMessage":"Request \"GET\" \"/api/orders\" started","Properties":{"Method":"GET","Path":"/api/orders","MachineName":"GW01"}}
+{"Timestamp":"2026-10-14T10:41:03.0000000+00:00","Level":"Warning","MessageTemplate":"Upstream {Destination} slow","RenderedMessage":"Upstream \"orders\" slow","Properties":{"Destination":"orders","MachineName":"GW01"}}
+{"Timestamp":"2026-10-14T10:41:25.0000000+00:00","Level":"Error","MessageTemplate":"Upstream {Destination} failed","RenderedMessage":"Upstream \"orders\" failed","Exception":"System.Net.Http.HttpRequestException: 502 (Bad Gateway)","Properties":{"Destination":"orders","MachineName":"GW01"}}

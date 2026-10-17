@@ -35,6 +35,7 @@ mod index;
 mod mutes;
 mod reader;
 mod rolling;
+mod shift;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -610,8 +611,10 @@ impl Workspace {
                     if remove_from.is_some() {
                         delta.remove_from(id, remove_from);
                     }
+                    let offset = self.source_offset(id);
                     delta.insert.extend(records.into_iter().map(|mut r| {
                         r.source = id;
+                        r.ts = crate::skew::shift(r.ts, offset);
                         r
                     }));
                     if !more {

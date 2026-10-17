@@ -12,14 +12,17 @@ import { ContextMenuHost } from './ui/context-menu-host';
 import { DialogHost } from './ui/dialog-host';
 import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
+import { ImportToast, PartialImportBanner } from './import/import-ui';
+import { TourOverlay } from './onboarding/tour-overlay';
 
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon],
+  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay],
   template: `
     <imt-title-bar />
     <imt-lifecycle-banners />
+    <imt-partial-import-banner />
     <div class="body">
       <imt-activity-bar />
       @if (store.sidebarOpen()) {
@@ -39,6 +42,8 @@ import { LifecycleBanners } from './lifecycle/lifecycle-banners';
     <imt-command-palette />
     <imt-dialog-host />
     <imt-context-menu-host />
+    <imt-import-toast />
+    <imt-tour-overlay />
 
     @if (store.error(); as error) {
       <div class="toast" role="alert">

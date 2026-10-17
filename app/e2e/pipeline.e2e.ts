@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
+import { showProfileEditor } from './menu-support';
 
 /** Fails on any serious or critical WCAG 2.1 A/AA violation. */
 async function expectNoSeriousViolations(page: Page, label: string): Promise<void> {
@@ -13,7 +14,7 @@ async function expectNoSeriousViolations(page: Page, label: string): Promise<voi
 
 test('a drop step added in the pipeline flow removes events and shows its effect', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('tab', { name: 'Profile' }).click();
+  await showProfileEditor(page);
   await page.getByRole('button', { name: /^Pipeline/ }).first().click();
   await expect(page.getByText('No steps yet')).toBeVisible();
 
@@ -38,7 +39,7 @@ test('a drop step added in the pipeline flow removes events and shows its effect
 
 test('steps can be reordered with the keyboard-accessible buttons and disabled', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('tab', { name: 'Profile' }).click();
+  await showProfileEditor(page);
   await page.getByRole('button', { name: /^Pipeline/ }).first().click();
   const palette = page.getByRole('group', { name: 'Add an activity' });
   await palette.getByRole('button', { name: 'Drop' }).click();

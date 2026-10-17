@@ -1,0 +1,13 @@
+# Serilog compact JSON (CLEF): Serilog.Formatting.Compact, one JSON object per line.
+name = "Serilog CLEF"
+
+[parse]
+format = "json"
+
+[parse.json]
+timestamp = ["@t"]
+level = ["@l"]
+message = ["@m"]
+template = ["@mt"]
+exception = ["@x"]
+default_level = "Information"

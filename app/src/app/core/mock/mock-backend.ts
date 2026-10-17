@@ -49,6 +49,12 @@ import { MOCK_PROFILE_TOML } from './mock-profile';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
+import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashboards';
+import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
+import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
+import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
+import { ImportProgress, ProfileVersionInfo } from '../api.types';
+import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
 const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
@@ -78,6 +84,8 @@ export interface MockBackendOptions {
   exposeLiveCalls?: boolean;
   /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
   pluginMarkerKinds?: readonly MockPluginKind[];
+  /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
+  slowImportMs?: number;
 }
 
 /** One recorded `setLive` call. */
@@ -112,6 +120,16 @@ export class MockBackend implements ImtBackend {
   private evicted = 0;
   /** Every `setLive` call, in order (tests spy on it). */
   readonly liveCalls: MockLiveCall[] = [];
+  /** The redacted view (see `setMockRedaction`); null while off. */
+  private redactor: MockRedactor | null = null;
+  /** The slow import of `slowImportMs` (null: opening is quick and reports no progress). */
+  private readonly importSim: MockImportSim | null;
+  /** Progress of the last quick open (a slow one reports its own). */
+  private quickProgress: ImportProgress = IDLE_PROGRESS;
+  /** Profiles replaced by `saveProfile`, like the shell's profile history. */
+  private readonly history = new MockProfileHistory();
+  /** Files "written" by exports (a second export to a path needs `overwrite`). */
+  readonly files = new MockFiles();
 
   constructor(options: MockBackendOptions = {}) {
     this.options = options;
@@ -122,6 +140,7 @@ export class MockBackend implements ImtBackend {
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
+    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
@@ -190,6 +209,7 @@ export class MockBackend implements ImtBackend {
         error: null,
         from: perSource.get(s.id)?.from ?? null,
         to: perSource.get(s.id)?.to ?? null,
+        offsetMs: s.offsetMs ?? 0,
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,
@@ -208,25 +228,133 @@ export class MockBackend implements ImtBackend {
       plugins: MOCK_PLUGINS,
       exporters: MOCK_EXPORTERS,
       pipeline: e.pipelineStats,
+      dashboards: mockDashboards(this.profile),
+      redactedView: this.redactor !== null,
     };
+  }
+
+  /**
+   * Switches the redacted view (used by the mock share backend): pages, facets and source context are
+   * redacted with the profile's `[redact]` rules until switched off. Throws when there are no rules.
+   */
+  setMockRedaction(on: boolean): void {
+    if (!on) {
+      this.redactor = null;
+      return;
+    }
+    const redactor = new MockRedactor(mockRedactCfg(this.profile), String(Math.random()));
+    if (redactor.empty) throw new Error('the profile has no redaction rules: add detectors or [[redact.rule]] to its [redact] section');
+    this.redactor = redactor;
+  }
+
+  /** The profile's `[redact]` rules with a fresh salt (exports). */
+  mockExportRedactor(): MockRedactor {
+    return new MockRedactor(mockRedactCfg(this.profile), String(Math.random()));
+  }
+
+  private redactPage(page: Page): Page {
+    const r = this.redactor;
+    if (!r) return page;
+    const fields = (f: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(f).map(([k, v]) => [k, typeof v === 'string' ? r.field(k, v) : v]));
+    return {
+      ...page,
+      rows: page.rows.map((row) => ({
+        ...row,
+        message: r.field('@message', row.message),
+        template: row.template === null ? null : r.field('@template', row.template),
+        exception: row.exception === null ? null : r.field('@exception', row.exception),
+        fields: fields(row.fields),
+      })),
+    };
+  }
+
+  private redactFacet(facet: Facet): Facet {
+    const r = this.redactor;
+    if (!r) return facet;
+    const merged = new Map<string, number>();
+    for (const v of facet.values) {
+      const key = r.field(facet.field, v.value);
+      merged.set(key, (merged.get(key) ?? 0) + v.count);
+    }
+    const values = [...merged].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+    return { ...facet, values, distinct: values.length };
   }
 
   workspaceSummary() {
     return this.failing('workspaceSummary') ?? this.delay(() => this.summary());
   }
 
-  openPaths(paths: string[]) {
+  openPaths(paths: string[]): Promise<WorkspaceSummary> {
+    const demo = paths.filter(isMockDemoPath);
+    const others = paths.filter((p) => !isMockDemoPath(p));
+    if (demo.length) this.addDemo();
+    if (this.importSim) return this.openSlowly(others);
     return this.delay(() => {
-      for (const path of paths) {
-        if (this.dataset.sources.some((s) => s.path === path)) continue;
-        const id = this.nextSourceId++;
-        const extra = generateExtraSource(id, path, id);
-        this.dataset.sources.push(extra.source);
-        this.dataset.records.push(...extra.records);
-      }
+      for (const path of others) this.addExtra(path);
       this.apply();
+      this.quickProgress = { ...IDLE_PROGRESS, done: paths.length, total: paths.length };
       return this.summary();
     }, 300);
+  }
+
+  /** Adds one generated source for `path` (once). */
+  private addExtra(path: string): void {
+    if (this.dataset.sources.some((s) => s.path === path)) return;
+    const id = this.nextSourceId++;
+    const extra = generateExtraSource(id, path, id);
+    this.dataset.sources.push(extra.source);
+    this.dataset.records.push(...extra.records);
+  }
+
+  /** The demo incident (the bundled samples' stand-in), merged into the workspace unless it is already there. */
+  private addDemo(): void {
+    const demo = generateDemo();
+    if (!this.dataset.sources.length) {
+      this.dataset = { ...demo, unrecognized: [...demo.unrecognized] };
+      return;
+    }
+    const ids = new Map<number, number>();
+    for (const s of demo.sources) {
+      if (this.dataset.sources.some((x) => x.path === s.path)) continue;
+      const id = this.nextSourceId++;
+      ids.set(s.id, id);
+      this.dataset.sources.push({ ...s, id });
+    }
+    this.dataset.records.push(...demo.records.filter((r) => ids.has(r.source)).map((r) => ({ ...r, source: ids.get(r.source)! })));
+  }
+
+  /** A slow, cancellable import: the files not read before a cancel are listed as not imported. */
+  private async openSlowly(paths: string[]): Promise<WorkspaceSummary> {
+    const sim = this.importSim!;
+    const files = slowImportFiles(paths);
+    const { skipped } = await sim.run(files, (file) => this.addExtra(file));
+    for (const file of skipped) {
+      if (!this.dataset.unrecognized.some((u) => u.path === file)) this.dataset.unrecognized.push({ path: file, name: file.split('/').pop() ?? file, reason: NOT_IMPORTED_REASON });
+    }
+    this.apply();
+    return this.summary();
+  }
+
+  /** `import_progress`: the slow import's progress, or that of the last quick open. */
+  importProgress(): Promise<ImportProgress> {
+    return Promise.resolve(this.importSim ? this.importSim.progress() : { ...this.quickProgress });
+  }
+
+  /** `cancel_import`. */
+  cancelImport(): Promise<void> {
+    this.importSim?.cancel();
+    return Promise.resolve();
+  }
+
+  /** `profile_history`. */
+  profileHistory(): Promise<ProfileVersionInfo[]> {
+    return this.delay(() => this.history.list(), 20);
+  }
+
+  /** `profile_version`. */
+  profileVersion(file: string): Promise<ProfileDoc> {
+    return this.delay(() => ({ ...this.history.get(file), path: null }), 20);
   }
 
   removeSource(sourceId: number) {
@@ -258,7 +386,7 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('queryPage') ??
       this.delay(() => {
-        const page = this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(this.windowed(request));
+        const page = this.redactPage(this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(this.windowed(request)));
         return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
       }, 20)
     );
@@ -271,7 +399,7 @@ export class MockBackend implements ImtBackend {
   queryFacet(request: FacetRequest): Promise<Facet> {
     return (
       this.failing('queryFacet') ??
-      this.delay(() => (this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(this.windowed(request))), 20)
+      this.delay(() => this.redactFacet(this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(this.windowed(request))), 20)
     );
   }
 
@@ -291,8 +419,13 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       const { validation, model } = validate(toml);
       if (!validation.ok || !model) throw new Error(validation.error ?? 'Invalid profile');
+      this.history.archive(this.profileToml, this.profile.name ?? 'Unnamed profile');
       this.profileToml = toml;
       this.profile = model;
+      if (this.redactor) {
+        const next = new MockRedactor(mockRedactCfg(model), String(Math.random()));
+        this.redactor = next.empty ? null : next;
+      }
       this.apply();
       return this.summary();
     }, 250);
@@ -316,8 +449,18 @@ export class MockBackend implements ImtBackend {
   exportEvents(request: ExportRequest): Promise<ExportResult> {
     return this.delay(() => {
       if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
+      this.files.write(request.path, request.overwrite);
       // The browser demo writes nothing: it only reports what the desktop app would export.
-      return { format: request.format, path: request.path, events: this.engine.matching(this.windowed(request).query).length };
+      const matched = this.engine.matching(this.windowed(request).query);
+      const redactions: Record<string, number> = {};
+      if (request.redact) {
+        const r = this.mockExportRedactor();
+        for (const id of matched) {
+          const rec = this.engine.records[id];
+          if (rec) r.apply(`${rec.message}\n${rec.exception ?? ''}`, redactions);
+        }
+      }
+      return { format: request.format, path: request.path, events: matched.length, redactions };
     }, 100);
   }
 
@@ -334,7 +477,8 @@ export class MockBackend implements ImtBackend {
         for (let n = first; n <= rec.line + after; n++) {
           lines.push({ line: n, text: n === rec.line ? `${rec.ts === null ? '' : new Date(rec.ts).toISOString()} [${rec.level}] ${rec.message}` : `context line ${n} of ${this.engine.sources.find((s) => s.id === rec.source)?.name ?? ''}` });
         }
-        return { sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '', line: rec.line, lines };
+        const r = this.redactor;
+        return { sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '', line: rec.line, lines: r ? lines.map((l) => ({ ...l, text: r.apply(l.text) })) : lines };
       }, 20)
     );
   }
@@ -513,12 +657,37 @@ export class MockBackend implements ImtBackend {
     );
   }
 
+  /** Clock-skew correction (`set_source_offset`); see mock-skew.ts. */
+  setSourceOffset(request: SetOffsetRequest): Promise<OffsetChange> {
+    return this.delay(() => {
+      const before = this.engine.records;
+      const { source, offsetMs } = resolveOffset(request, before, this.dataset.sources);
+      const keys = (request.track ?? []).map((id) => (before[id] ? recordKey(before[id]) : null));
+      const previousMs = shiftSource(this.dataset.records, this.dataset.sources, source, offsetMs);
+      this.apply();
+      const after = new Map(this.engine.records.map((r) => [recordKey(r), r.id]));
+      return {
+        source,
+        offsetMs,
+        previousMs,
+        idsChangedFrom: previousMs === offsetMs ? null : firstChanged(before, this.engine.records),
+        tracked: keys.map((k) => (k === null ? null : (after.get(k) ?? null))),
+      };
+    });
+  }
+
+  /** Offset suggestions from shared correlation ids (`suggest_offsets`). */
+  suggestOffsets(request: SuggestRequest = {}): Promise<SuggestResult> {
+    return this.delay(() => mockSuggest(this.engine.records, this.dataset.sources, request));
+  }
+
   pluginEvents(): Promise<SubscriberMetrics[]> {
     return this.delay(() => MOCK_EVENT_METRICS.map((m) => ({ ...m, delivered: m.delivered + this.liveAdded })));
   }
 
-  exportProfile(path: string, toml: string): Promise<void> {
+  exportProfile(path: string, toml: string, overwrite = false): Promise<void> {
     return this.delay(() => {
+      this.files.write(path, overwrite);
       const url = URL.createObjectURL(new Blob([toml], { type: 'application/toml' }));
       const a = document.createElement('a');
       a.href = url;
@@ -622,6 +791,13 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
   }
   const live = validateLiveSection(model, lineOf);
   if (live) return { validation: live, model };
+  try {
+    mockRedactCfg(model);
+  } catch (e) {
+    return { validation: { ok: false, error: e instanceof Error ? e.message : String(e), line: lineOf('[redact]') }, model };
+  }
+  const dashboards = mockDashboardsError(mockDashboards(model));
+  if (dashboards) return { validation: { ok: false, error: `[[dashboard]]: ${dashboards}`, line: lineOf('[[dashboard]]') }, model };
   for (const c of model.chart ?? []) {
     if (!c.id || !c.y) return { validation: { ok: false, error: '[[chart]] needs id and y', line: lineOf('[[chart]]') }, model };
     if (!/^(count|avg|min|max|sum|last)\(\s*[^)]*\)$/.test(c.y)) return { validation: { ok: false, error: `Chart '${c.id}': y must look like avg(field)`, line: lineOf(c.y) }, model };

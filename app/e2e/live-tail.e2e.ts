@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { gridTotal, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith } from './mock-url';
+import { chooseMenu } from './menu-support';
 
 /** Realistic live simulation: 40 events/s, no rotations or alerts unless a test asks for them. */
 const LIVE = '?mockLive=1&mockLiveRate=40&mockLiveRotateMs=0&mockLiveAlertMs=0';
@@ -20,9 +21,8 @@ function liveCalls(page: Page) {
   return page.evaluate(() => (globalThis as unknown as { __imtMockLiveCalls?: { enabled: boolean; options: Record<string, unknown> | null }[] }).__imtMockLiveCalls ?? []);
 }
 
-async function openView(page: Page, name: RegExp): Promise<void> {
-  await page.getByRole('button', { name: 'View', exact: true }).click();
-  await page.getByRole('menuitemcheckbox', { name }).click();
+async function openView(page: Page, name: 'Alerts' | 'Tail status'): Promise<void> {
+  await chooseMenu(page, 'View', 'Live', name);
 }
 
 test.describe('live tail: follow now', () => {
@@ -104,20 +104,26 @@ test.describe('live tail: alerts', () => {
 
   test('mute this kind for 15 min stops its toasts', async ({ page }) => {
     await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1000');
+    // The alerts panel lists every alert received, so the test can tell when the next error spike was due.
+    await openView(page, 'Alerts');
     await liveOn(page);
     const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike' }).first();
     await expect(toast).toBeVisible({ timeout: 10_000 });
     await toast.getByRole('button', { name: 'Mute this kind for 15 min' }).click();
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
-    // The next alerts of other kinds still toast; error spikes come back muted (listed, not toasted).
+    // The next alerts of other kinds still toast.
     await expect(page.getByTestId('alert-toast').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible({ timeout: 10_000 });
-    await page.waitForTimeout(3500);
+    // The simulation raises error spike, rule, silence in turn: two more rule alerts mean an error spike was due in
+    // between, and it was not toasted (the engine holds muted kinds back).
+    const ruleRows = page.locator('imt-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
+    const rules = await ruleRows.count();
+    await expect.poll(() => ruleRows.count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(rules + 2);
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
   });
 
   test('the alerts panel lists, filters, clears, counts on its tab, and passes axe', async ({ page }, testInfo) => {
     await openAppWith(page, '?mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=700');
-    await openView(page, /Alerts/);
+    await openView(page, 'Alerts');
     const panel = page.locator('imt-alerts-view');
     await expect(panel).toContainText('No alerts yet');
     await liveOn(page);
@@ -130,9 +136,9 @@ test.describe('live tail: alerts', () => {
     await filters.getByRole('button', { name: /Critical/ }).click();
     await expect(filters.getByRole('button', { name: /Critical/ })).toHaveAttribute('aria-pressed', 'true');
     const rows = panel.getByTestId('alert-row');
-    const n = await rows.count();
-    expect(n).toBeGreaterThan(0);
-    for (let i = 0; i < n; i++) await expect(rows.nth(i)).toContainText('Critical');
+    // Web-first: the filtered list has rows, and none of another severity (a count read at once may predate the filter).
+    await expect(rows.first()).toContainText('Critical');
+    await expect(rows.filter({ hasNotText: 'Critical' })).toHaveCount(0);
     await filters.getByRole('button', { name: /^All/ }).click();
     await panel.getByRole('button', { name: 'Show evidence: Error spike' }).first().click();
     await expect(page.getByRole('group', { name: 'Levels' }).locator('button[title=Error]')).toHaveAttribute('aria-pressed', 'true');
@@ -145,7 +151,7 @@ test.describe('live tail: alerts', () => {
 
   test('the alert rules editor shows the engine error next to the rule and saves a valid rule', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
-    await openView(page, /Alerts/);
+    await openView(page, 'Alerts');
     await page.locator('imt-alerts-view').getByRole('button', { name: 'Alert rules…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Live alert rules' });
     await expect(dialog).toBeVisible();
@@ -170,7 +176,7 @@ test.describe('live tail: alerts', () => {
 test.describe('live tail: status, sources and opening', () => {
   test('the tail status panel shows each file and its controls call set_live', async ({ page }, testInfo) => {
     await openAppWith(page, LIVE);
-    await openView(page, /Tail status/);
+    await openView(page, 'Tail status');
     const panel = page.locator('imt-tail-status-view');
     await expect(panel.getByTestId('tail-file').first()).toBeVisible();
     await panel.getByRole('button', { name: 'Live tail off' }).click();

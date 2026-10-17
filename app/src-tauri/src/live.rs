@@ -125,7 +125,10 @@ impl WatcherFactory for NotifyFactory {
             // Opening or reading a file changes nothing.
             Ok(ev) if matches!(ev.kind, notify::EventKind::Access(_)) => {}
             Ok(ev) => sink(WatchSignal::Paths(ev.paths)),
-            Err(e) => sink(WatchSignal::Error(e.to_string())),
+            Err(e) => {
+                log_watcher_error(&e, std::time::Instant::now());
+                sink(WatchSignal::Error(e.to_string()))
+            }
         };
         Ok(match mode {
             WatchMode::Polling => Box::new(Notified(notify::PollWatcher::new(
@@ -135,6 +138,29 @@ impl WatcherFactory for NotifyFactory {
             WatchMode::Events | WatchMode::Off => Box::new(Notified(notify::recommended_watcher(handler)?)),
         })
     }
+}
+
+/// File watcher errors are logged at most once per this interval (a broken watcher reports continuously).
+const WATCHER_ERROR_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Logs a file watcher error: its kind only (the message may name paths), throttled, with how many were
+/// left out since the last entry. Returns whether it logged.
+fn log_watcher_error(e: &notify::Error, now: std::time::Instant) -> bool {
+    static LAST: std::sync::Mutex<(Option<std::time::Instant>, u64)> = std::sync::Mutex::new((None, 0));
+    let mut last = LAST.lock().unwrap_or_else(|p| p.into_inner());
+    if last.0.is_some_and(|t| now.duration_since(t) < WATCHER_ERROR_INTERVAL) {
+        last.1 += 1;
+        return false;
+    }
+    let suppressed = std::mem::take(&mut last.1);
+    last.0 = Some(now);
+    drop(last);
+    let kind = match &e.kind {
+        notify::ErrorKind::Io(io) => format!("Io({:?})", io.kind()),
+        other => format!("{other:?}").chars().take(80).collect(),
+    };
+    log::warn!(ErrorKind = kind.as_str(), Suppressed = suppressed; "File watcher error; live tail may fall back to polling");
+    true
 }
 
 /// Watcher settings from the user's debounce setting and the request.
@@ -269,7 +295,7 @@ pub(crate) fn stop<R: Runtime>(app: &AppHandle<R>, label: &str) {
 /// Reads what changed in `paths`; a failure is logged and reported as no change.
 pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
     state.store_write().refresh_tail(paths).unwrap_or_else(|e| {
-        log::warn!("live tail refresh failed: {e:#}");
+        log::warn!(Files = paths.len() as u64; "Live tail refresh failed: {}", crate::activity::privacy::redact(&format!("{e:#}")));
         TailReport::default()
     })
 }
@@ -574,5 +600,30 @@ mod tests {
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "polling");
         set_live(app.handle().clone(), st(), false, None).unwrap();
+    }
+
+    #[test]
+    fn watcher_errors_are_logged_by_kind_and_throttled() {
+        let _g = crate::activity::test_capture();
+        let t0 = std::time::Instant::now() + Duration::from_secs(3600);
+        let e = notify::Error::path_not_found().add_path(PathBuf::from("/secret/dir/a.log"));
+        assert!(log_watcher_error(&e, t0));
+        assert!(!log_watcher_error(&e, t0 + Duration::from_secs(1)));
+        let io = notify::Error::io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "/secret/dir"));
+        assert!(log_watcher_error(&io, t0 + WATCHER_ERROR_INTERVAL * 2));
+        let logged: Vec<_> = crate::activity::captured()
+            .into_iter()
+            .filter(|c| c.message.starts_with("File watcher error"))
+            .collect();
+        assert_eq!(logged.len(), 2);
+        assert_eq!(
+            (logged[0].level, logged[0].props["ErrorKind"].as_str()),
+            (log::Level::Warn, "PathNotFound")
+        );
+        assert_eq!(
+            (logged[1].props["ErrorKind"].as_str(), logged[1].props["Suppressed"].as_str()),
+            ("Io(PermissionDenied)", "1")
+        );
+        assert!(logged.iter().all(|c| !format!("{:?}", c.props).contains("secret")));
     }
 }

@@ -1,0 +1,11 @@
+# log4net PatternLayout "%date [%thread] %-5level %logger - %message%newline"
+# (also with %ndc). Times without an offset are read as UTC: change
+# [parse] assume_timezone to "local" if the logs were written in local time.
+name = "log4net pattern layout"
+
+[parse]
+format = "text"
+output_templates = []
+regexes = [
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[(?P<Ndc>[^\]]*)\]\s+)?-\s(?P<message>.*)$',
+]

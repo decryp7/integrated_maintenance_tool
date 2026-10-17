@@ -59,6 +59,10 @@ impl Pdh {
     }
 }
 
+// SAFETY: PDH query and counter handles are process-wide handles, not tied to the thread that
+// opened them; `Pdh` is not `Sync`, so its `&mut self` methods never run concurrently.
+unsafe impl Send for Pdh {}
+
 impl Drop for Pdh {
     fn drop(&mut self) {
         // SAFETY: closes the query opened in `open`; counters are closed with it.
@@ -70,7 +74,8 @@ impl Drop for Pdh {
 unsafe fn single(counter: PDH_HCOUNTER) -> Option<f64> {
     let mut value = PDH_FMT_COUNTERVALUE::default();
     let status = PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, None, &mut value);
-    (status == 0 && value.CStatus == 0).then(|| value.Anonymous.doubleValue)
+    // Every bit pattern is a valid f64, so reading the union field eagerly is sound.
+    (status == 0 && value.CStatus == 0).then_some(value.Anonymous.doubleValue)
 }
 
 /// SAFETY: `counter` must belong to an open, collected query.

@@ -7,6 +7,7 @@ import { Icon } from '../shared/icon';
 import { TimelineZoom } from '../timeline/zoom';
 import { AdhocCharts } from './adhoc-charts';
 import { ChartCard } from './chart-card';
+import { NextSteps } from '../ui/next-steps';
 
 const AGGREGATES = ['avg', 'max', 'min', 'sum', 'last', 'count'] as const;
 const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
@@ -14,7 +15,7 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
 @Component({
   selector: 'imt-metrics-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ChartCard, Icon],
+  imports: [ChartCard, Icon, NextSteps],
   template: `
     <div class="bar">
       <span class="section-title">Metrics</span>
@@ -80,6 +81,11 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
         <div class="empty-state">
           <div>No charts defined.</div>
           <div class="faint">Add [[chart]] sections to the profile, or build one here from any numeric field.</div>
+          @if (store.summary()?.sources?.length) {
+            <button type="button" class="btn" (click)="dock.show('profile')">Open the profile</button>
+          } @else {
+            <imt-next-steps />
+          }
         </div>
       }
     </div>

@@ -4,6 +4,7 @@ import { HelpHint } from '../../ui/help-hint';
 import { LogFormat } from '../../core/tools.types';
 import { copyText } from '../clipboard';
 import { ToolError } from '../elevation-hint';
+import { ToolUnavailable } from '../tool-unavailable';
 import { optionalNumber } from '../collector/plan-model';
 import { presetState } from './perfmon-model';
 import { PerfmonStore } from './perfmon.store';
@@ -12,15 +13,16 @@ import { PerfmonStore } from './perfmon.store';
 @Component({
   selector: 'imt-perfmon-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, HelpHint, ToolError],
+  imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
     <div class="scroll" role="region" aria-label="Performance Monitor" tabindex="0">
       <p class="intro">
         Record Windows performance counters while you reproduce a problem, then open the result here next to your logs.
-        @if (!store.canManage()) {
+        @if (!store.onWindows()) {
           <strong>Collector sets can only be created on Windows.</strong> Here you can still generate the XML and the commands to run on the Windows machine.
         }
       </p>
+      <imt-tool-unavailable tool="perfmon.templates" />
 
       <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
@@ -104,7 +106,7 @@ import { PerfmonStore } from './perfmon.store';
         <h2 id="pm-gen" class="section-title">4 · Generate</h2>
         @for (p of store.problems(); track p) { <div class="problem">{{ p }}</div> }
         <div class="inline">
-          <button type="button" class="btn primary" [disabled]="!!store.busy() || store.problems().length > 0" (click)="store.generate()">Generate XML</button>
+          <button type="button" class="btn primary" [disabled]="!!store.busy() || store.problems().length > 0 || !store.canGenerate()" (click)="store.generate()">Generate XML</button>
           @if (store.canManage()) {
             <button type="button" class="btn" [disabled]="!!store.busy() || store.problems().length > 0" (click)="store.installAndStart()">Install &amp; start</button>
           }

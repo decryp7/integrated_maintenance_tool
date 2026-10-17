@@ -1,10 +1,10 @@
 //! The contract tests, against a test-only provider plugin installed in a
 //! real `PluginRegistry` and reached through the guarded service handle.
 //!
-//! No production plugin provides `CounterSource` yet: the Windows plugin
-//! imports PerfMon logs as records but has no live counter access, and the
-//! PDH binding lives in `imt-monitor`'s collector. `TestCounters` is a test
-//! double with fixed, made-up values; it is never registered by the app.
+//! The production provider is the tools plugin (`imt-plugin-tools`), which
+//! runs `contract_tests` against its live sampler in its own tests.
+//! `TestCounters` is a test double with fixed, made-up values; it is never
+//! registered by the app.
 
 use anyhow::{anyhow, Result};
 use imt_api_perf::{contract_tests, CounterSample, CounterSource, SERVICE_ID, VERSION};

@@ -85,6 +85,8 @@ pub struct DiagnosticsSettings {
     pub version: u32,
     pub log: LogLimits,
     pub snapshots: SnapshotLimits,
+    /// What the activity log records (see `crate::activity`).
+    pub activity: crate::activity::ActivitySettings,
 }
 
 impl Default for DiagnosticsSettings {
@@ -93,6 +95,7 @@ impl Default for DiagnosticsSettings {
             version: VERSION,
             log: LogLimits::default(),
             snapshots: SnapshotLimits::default(),
+            activity: crate::activity::ActivitySettings::default(),
         }
     }
 }
@@ -175,7 +178,8 @@ pub fn set_diagnostics_settings(state: State<'_, AppState>, settings: Diagnostic
     let settings = settings.clamped();
     save(dir, &settings).map_err(err)?;
     log::set_max_level(settings.log.level.filter());
-    log::info!(Level = format!("{:?}", settings.log.level), MaxFileMb = settings.log.max_file_mb, KeepFiles = settings.log.keep_files; "Diagnostics settings changed");
+    crate::activity::set_config(settings.activity);
+    log::info!(Detail = format!("{:?}", settings.activity.detail).as_str(), Level = format!("{:?}", settings.log.level), MaxFileMb = settings.log.max_file_mb, KeepFiles = settings.log.keep_files; "Diagnostics settings changed");
     let restart_required = before.log.max_file_mb != settings.log.max_file_mb || before.log.keep_files != settings.log.keep_files;
     Ok(SettingsApplied {
         settings,

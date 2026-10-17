@@ -17,13 +17,21 @@ tauri-build = { version = "2.7.3", features = [] }
 
 [dependencies]
 imt-core = { path = "../../crates/imt-core" }
+imt-pdf = { path = "../../crates/imt-pdf" }
 imt-plugin-registry = { path = "../../crates/imt-plugin-registry" }
 imt-plugin-otel = { path = "../../crates/imt-plugin-otel" }
 imt-plugin-syslog = { path = "../../crates/imt-plugin-syslog" }
 imt-plugin-windows = { path = "../../crates/imt-plugin-windows" }
 imt-plugin-web = { path = "../../crates/imt-plugin-web" }
-imt-monitor = { path = "../../crates/imt-monitor" }
+imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling" }
+imt-profile = { path = "../../crates/imt-profile" }
+imt-plugin-tools = { path = "../../crates/imt-plugin-tools" }
+imt-agent = { path = "../../crates/imt-agent" }
+imt-plugin-host = { path = "../../crates/imt-plugin-host" }
+imt-plugin-sdk = { path = "../../crates/imt-plugin-sdk" }
+imt-ai = { path = "../../crates/imt-ai" }
 imt-collect = { path = "../../crates/imt-collect" }
+open = "5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"

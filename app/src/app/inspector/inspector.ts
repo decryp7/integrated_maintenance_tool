@@ -13,6 +13,8 @@ import { Icon } from '../shared/icon';
 import { MarkerIcon } from '../shared/marker-icon';
 import { ContextSection } from './context-section';
 import { TimelineZoom } from '../timeline/zoom';
+import { formatOffset } from '../skew/skew-format';
+import { NextSteps } from '../ui/next-steps';
 
 /** Fields that tie events of one request/operation together, in order of preference. */
 const CORRELATION_FIELDS = ['CorrelationId', 'RequestId', 'TraceId', 'OperationId', 'ActivityId', 'ConnectionId'];
@@ -21,7 +23,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
 @Component({
   selector: 'imt-inspector',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection],
+  imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection, NextSteps],
   host: { '(document:selectionchange)': 'onSelectionChange()' },
   template: `
     <div class="head">
@@ -40,6 +42,9 @@ const CONTEXT_MS = 2 * 60 * 1000;
             }
           </div>
           <div class="mono ts">{{ fullTime() }}</div>
+          @if (r.skewMs && r.ts !== null) {
+            <div class="mono skew" data-testid="skew-note">Shifted by {{ skewText(r.skewMs) }} · original {{ originalTime(r.ts, r.skewMs) }}</div>
+          }
           <div class="mono inst">{{ r.group }}</div>
           <div class="message">{{ r.message }}</div>
           @if (r.template && r.template !== r.message) {
@@ -96,8 +101,13 @@ const CONTEXT_MS = 2 * 60 * 1000;
       </div>
     } @else {
       <div class="empty-state">
-        <div>Select an event in the grid or click a marker on the timeline.</div>
-        <div class="faint">↑ / ↓ move through events.</div>
+        @if (store.summary()?.sources?.length) {
+          <div>Select an event in the grid or click a marker on the timeline.</div>
+          <div class="faint">↑ / ↓ move through events.</div>
+        } @else {
+          <div>Every property of an event shows here once you select it.</div>
+          <imt-next-steps />
+        }
       </div>
     }
   `,
@@ -110,6 +120,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
     .badges { display: flex; gap: 6px; flex-wrap: wrap; }
     .badge-lvl, .badge-mk { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 4px; background: var(--bg-active); border: 1px solid var(--border-3); font-size: 12px; }
     .ts { font-size: 12px; color: var(--muted); }
+    .skew { font-size: 11px; color: var(--warn-text); }
     .inst { font-size: 12px; color: var(--text-2); }
     .message { font-size: 14px; line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
     .template { font-size: 11px; color: var(--faint); line-height: 1.5; word-break: break-word; }
@@ -182,6 +193,11 @@ export class Inspector {
     const r = this.rec();
     return r ? LEVEL_VARS[r.level] : '';
   });
+  protected readonly skewText = formatOffset;
+  /** The timestamp before clock-skew correction. */
+  protected originalTime(ts: number, skewMs: number): string {
+    return formatFull(ts - skewMs, this.store.timezone(), this.settings.dateFormat());
+  }
   protected readonly fullTime = computed(() => formatFull(this.rec()?.ts ?? null, this.store.timezone(), this.settings.dateFormat()));
   private readonly formatters = inject(FieldFormatters);
   private readonly settings = inject(SettingsStore);

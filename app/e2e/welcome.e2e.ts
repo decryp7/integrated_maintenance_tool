@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { chooseMenu } from './menu-support';
 
 async function closeWorkspace(page: import('@playwright/test').Page): Promise<void> {
-  await page.getByRole('button', { name: 'File', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Close workspace' }).click();
+  await chooseMenu(page, 'File', 'Close workspace');
 }
 
 test.describe('welcome', () => {

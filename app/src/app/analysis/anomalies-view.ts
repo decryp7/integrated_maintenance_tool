@@ -22,7 +22,7 @@ import { TimeCursor } from './time-cursor';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Anomalies">
         @for (a of res.data() ?? []; track $index) {
           <li>

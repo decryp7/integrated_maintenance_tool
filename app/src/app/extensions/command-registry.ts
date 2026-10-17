@@ -1,6 +1,8 @@
 import { computed, inject, Injectable, InjectionToken } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Logger } from '../core/logger';
+import { ActivityLog } from '../core/activity/activity-log';
+import { Trigger } from '../core/activity/types';
 import { fuzzyFilter } from './fuzzy';
 import { matchesKeybinding } from './keybinding';
 import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from './tokens';
@@ -19,6 +21,7 @@ export class CommandRegistry {
   private readonly store = inject(WorkspaceStore);
   private readonly logger = inject(Logger);
   private readonly context = inject(COMMAND_CONTEXT);
+  private readonly activity = inject(ActivityLog);
 
   /** Commands whose `when` currently holds. Re-evaluated when the workspace changes. */
   readonly available = computed(() => {
@@ -39,12 +42,16 @@ export class CommandRegistry {
     return fuzzyFilter(this.available(), query, (c) => (c.category ? `${c.category}: ${c.title}` : c.title));
   }
 
-  /** Runs a command by id. Failures are shown to the user, never thrown to the caller. */
-  async run(id: string): Promise<boolean> {
+  /**
+   * Runs a command by id. Failures are shown to the user, never thrown to the caller. Every run is one entry in
+   * the activity log (`User <id> via <trigger>`); without a `trigger` it is inferred from the latest user input
+   * (menu, palette, shortcut, context menu, button, native menu event), see `core/activity/trigger.ts`.
+   */
+  async run(id: string, trigger: Trigger | 'auto' = 'auto'): Promise<boolean> {
     const command = this.find(id);
     if (!command || !this.isAvailable(command)) return false;
     try {
-      await command.run(this.context);
+      await this.activity.track(id, trigger, { Title: command.title, Category: command.category }, () => command.run(this.context));
       return true;
     } catch (e) {
       this.logger.warn('ui.command', 'Command failed', { Command: id });
@@ -58,7 +65,7 @@ export class CommandRegistry {
     const command = this.available().find((c) => c.keybinding && matchesKeybinding(c.keybinding, e));
     if (!command) return false;
     e.preventDefault();
-    void this.run(command.id);
+    void this.run(command.id, 'shortcut');
     return true;
   }
 

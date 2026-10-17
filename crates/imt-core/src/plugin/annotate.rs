@@ -132,6 +132,24 @@ pub struct AnnotationsRequest {
     pub instance: Option<String>,
 }
 
+/// An annotator under its plugin's guard (panics become errors and count
+/// towards quarantine; runs are watched against the annotate budget). Used
+/// when an annotator is called outside [`super::PluginRegistry::run_annotators`],
+/// e.g. by the plugin host process.
+pub(crate) struct GuardedAnnotator {
+    pub inner: Arc<dyn Annotator>,
+    pub guard: Guard,
+}
+
+impl Annotator for GuardedAnnotator {
+    fn id(&self) -> &str {
+        self.inner.id()
+    }
+    fn annotate(&self, view: &dyn AnnotationView, since: Option<RecordCursor>) -> Result<Vec<Annotation>> {
+        self.guard.call(CallKind::Annotate, "annotate", || self.inner.annotate(view, since))
+    }
+}
+
 pub(crate) struct Registered {
     pub owner: String,
     pub guard: Option<Guard>,

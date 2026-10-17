@@ -1,0 +1,2 @@
+[{"ph":"X","name":"outer","pid":1,"tid":2,"ts":100,"dur":100},{"ph":"X","name":"inner","pid":1,"tid":2,"ts":120,"dur":30},
+{"ph":"B","name":"span","pid":1,"tid":2,"ts":160},{"ph":"E","pid":1,"tid":2,"ts":170},{"ph":"X","name":"MajorGC","pid":1,"tid":3,"ts":150,"dur":10},

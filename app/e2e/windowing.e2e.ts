@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { nextRender, openApp } from './app';
+import { chooseMenu, openMenu } from './menu-support';
 
 // Windows, the close prompt and background work against the browser build's mock windowing backend
 // (src/app/windowing/mock-windowing-backend.ts): each window is a tab with `?window=<label>` and its
@@ -14,9 +15,9 @@ function watchProblems(page: Page): string[] {
   return problems;
 }
 
+/** New window and Close window are in the File menu. */
 async function windowMenu(page: Page, item: string): Promise<void> {
-  await page.locator('imt-title-bar').getByRole('button', { name: 'Window', exact: true }).click();
-  await page.getByRole('menu').getByRole('menuitem', { name: item }).click();
+  await chooseMenu(page, 'File', item);
 }
 
 const statusBar = (page: Page) => page.locator('imt-status-bar');
@@ -35,16 +36,15 @@ test('New window opens a second window with its own workspace', async ({ page, c
   expect(sources).not.toBe('0 sources');
 
   // Closing the workspace in the new window leaves the first one alone.
-  await second.locator('imt-title-bar').getByRole('button', { name: 'File', exact: true }).click();
-  await second.getByRole('menuitem', { name: 'Close workspace' }).click();
+  await chooseMenu(second, 'File', 'Close workspace');
   await expect(statusBar(second).locator('.strong')).toHaveText('0 sources');
   await page.bringToFront();
   await expect(statusBar(page).locator('.strong')).toHaveText(sources);
   await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
 
   // The first window lists the new one in its Window menu.
-  await page.locator('imt-title-bar').getByRole('button', { name: 'Window', exact: true }).click();
-  await expect(page.getByRole('menu').getByRole('menuitemcheckbox')).toHaveCount(2);
+  const windows = await openMenu(page, 'Window');
+  await expect(windows.getByRole('group', { name: 'Windows' }).getByRole('menuitemcheckbox')).toHaveCount(2);
   await page.keyboard.press('Escape');
   expect([...problems, ...secondProblems]).toEqual([]);
 });
@@ -68,8 +68,11 @@ test('closing the last window asks once, then remembers "Keep running in tray"',
   await prompt.getByRole('button', { name: 'Keep running in tray' }).click();
   await expect(prompt).toHaveCount(0);
 
+  // The remembered choice: the mock reports the close it handled (hide into the tray), and nothing asks again.
+  const handled = page.waitForEvent('console', (m) => m.text() === '[mock windowing] close_window tray');
   await windowMenu(page, 'Close window');
-  await page.waitForTimeout(300);
+  await handled;
+  await nextRender(page);
   await expect(prompt).toHaveCount(0);
   await expect(statusBar(page)).toContainText('events');
   expect(problems).toEqual([]);
@@ -133,7 +136,8 @@ test('files from another app: the open-ask dialog opens here, or drops the files
   await page.reload();
   await ask.getByRole('button', { name: 'This window' }).click();
   await expect(ask).toHaveCount(0);
-  await page.waitForTimeout(200);
+  // A cancel on close would be logged as the dialog closes, before it leaves the page: the list is final now.
+  await nextRender(page);
   expect(resolved).toEqual(['cancel', 'cancel', 'cancel', 'here']);
   expect(problems).toEqual([]);
 });

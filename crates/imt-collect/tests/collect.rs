@@ -354,7 +354,7 @@ fn unix_extras_use_stdout() {
 
     let fake = Fake::new(vec![("log", Behavior::Stdout(br#"[{"m":"user a@b.com"}]"#.to_vec()))]);
     let res = collector(plan.clone(), &fake, &NoProgress, Platform::MacOs)
-        .run(out.path())
+        .run(&out.path().join("macos"))
         .unwrap();
     assert_eq!(fake.calls.borrow()[0].1, vec!["show", "--last", "3h", "--style", "json"]);
     assert!(names(&res.bundle).contains(&"system/unified-log.json".to_string()));
@@ -365,13 +365,15 @@ fn unix_extras_use_stdout() {
 
     let fake = Fake::new(vec![("journalctl", Behavior::Stdout(b"{\"MESSAGE\":\"hi\"}\n".to_vec()))]);
     let res = collector(plan.clone(), &fake, &NoProgress, Platform::Linux)
-        .run(out.path())
+        .run(&out.path().join("linux"))
         .unwrap();
     assert_eq!(fake.calls.borrow()[0].1, vec!["-o", "json", "--since", "-3h"]);
     assert!(names(&res.bundle).contains(&"system/journal.json".to_string()));
 
     let fake = Fake::new(vec![("journalctl", Behavior::Fail("boom".into()))]);
-    let res = collector(plan, &fake, &NoProgress, Platform::Linux).run(out.path()).unwrap();
+    let res = collector(plan, &fake, &NoProgress, Platform::Linux)
+        .run(&out.path().join("failed"))
+        .unwrap();
     assert!(res
         .manifest
         .skipped
@@ -527,6 +529,45 @@ fn run_rejects_invalid_plan_and_unwritable_output() {
     let clash = out.path().join(c.bundle_file_name().replace(".imtz", ".imtz.part"));
     fs::create_dir(&clash).unwrap();
     assert!(c.run(out.path()).unwrap_err().to_string().contains("cannot create"));
+}
+
+/// Creates the bundle file while the collection runs (another process, a second run).
+struct Racer(PathBuf);
+impl Progress for Racer {
+    fn step(&self, _name: &str, _done: usize, _total: usize) {
+        let _ = fs::write(&self.0, "late");
+    }
+}
+
+#[test]
+fn an_existing_bundle_is_never_replaced_without_confirmation() {
+    use imt_core::overwrite::{FileExists, FILE_EXISTS_SUFFIX};
+    let d = logs_dir();
+    let out = tempfile::tempdir().unwrap();
+    let fake = Fake::new(vec![]);
+    let c = collector(plan_for(d.path(), ""), &fake, &NoProgress, Platform::Linux);
+    let target = out.path().join(c.bundle_file_name());
+    fs::write(&target, "mine").unwrap();
+    // Refused before any work, with the error the UI recognises.
+    let e = c.run(out.path()).unwrap_err();
+    assert_eq!(e.downcast_ref::<FileExists>(), Some(&FileExists(target.clone())));
+    assert_eq!(format!("{e:#}"), format!("{}{FILE_EXISTS_SUFFIX}", target.display()));
+    assert_eq!(fs::read(&target).unwrap(), b"mine");
+    assert!(fake.calls.borrow().is_empty(), "nothing ran");
+
+    // Confirmed: the bundle replaces the file.
+    let mut c = collector(plan_for(d.path(), ""), &fake, &NoProgress, Platform::Linux);
+    c.overwrite = true;
+    assert_eq!(c.run(out.path()).unwrap().bundle, target);
+    assert!(names(&target).contains(&"manifest.json".to_string()));
+
+    // A file that appears while collecting is not replaced either; the partial bundle is removed.
+    fs::remove_file(&target).unwrap();
+    let racer = Racer(target.clone());
+    let c = collector(plan_for(d.path(), ""), &fake, &racer, Platform::Linux);
+    assert!(c.run(out.path()).unwrap_err().downcast_ref::<FileExists>().is_some());
+    assert_eq!(fs::read(&target).unwrap(), b"late");
+    assert!(!target.with_extension("imtz.part").exists());
 }
 
 #[test]

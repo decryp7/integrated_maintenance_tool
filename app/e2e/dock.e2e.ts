@@ -1,12 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { chooseMenu, menuItem, openMenu } from './menu-support';
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const groups = (page: Page) => page.locator('.dv-groupview');
 /** The group (tabs and its header actions) that holds the panel with this tab name. */
 const groupOf = (page: Page, name: string) => groups(page).filter({ has: tab(page, name) });
-const layout = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null') as { version: number; layout: { panels: Record<string, unknown>; floatingGroups?: unknown[] } } | null);
+const layout = (page: Page) =>
+  page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null') as { version: number; layout: { panels: Record<string, unknown>; floatingGroups?: unknown[] }; extras?: unknown } | null);
 
 async function box(page: Page, selector: string) {
   const b = await page.locator(selector).first().boundingBox();
@@ -27,23 +29,25 @@ test.describe('dock layout', () => {
     expect(inspector.x).toBeGreaterThanOrEqual(Math.max(timeline.x + timeline.width, events.x + events.width) - 2);
     expect(inspector.width).toBeGreaterThan(300);
     await expect(groups(page)).toHaveCount(4);
-    for (const name of ['Timeline', 'Metrics', 'Profile', 'Registry']) await expect(tab(page, name)).toBeVisible();
+    for (const name of ['Timeline', 'Metrics', 'Registry']) await expect(tab(page, name)).toBeVisible();
+    // The profile editor and the analysis and tool windows open on demand.
+    await expect(tab(page, 'Profile')).toHaveCount(0);
     await expect(tab(page, 'Timeline')).toHaveAttribute('aria-selected', 'true');
   });
 
-  test('dragging a tab to the edge of another group splits the layout', async ({ page, browserName }) => {
-    // Playwright cannot start a native HTML5 drag from mouse events in WebKit; Chromium covers the real drag.
-    test.skip(browserName === 'webkit', 'native drag and drop is not simulated by Playwright in WebKit');
+  test('dragging a tab onto the right guide of another group splits the layout', async ({ page }) => {
+    // Tabs are dragged with pointer events (dockview `dndStrategy: 'pointer'`), so the real drag runs in WebKit too.
     await expect(groups(page)).toHaveCount(4);
     const source = tab(page, 'Metrics');
-    const target = page.locator('imt-events-grid');
-    const t = (await target.boundingBox())!;
+    // The right cell of the VS-style compass in the middle of the events group (see dock-geometry `compassCells`).
+    const c = (await page.locator('.dv-groupview:has(imt-events-grid) .dv-content-container').boundingBox())!;
+    const right = { x: c.x + c.width / 2 + 36, y: c.y + c.height / 2 };
     const s = (await source.boundingBox())!;
     await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
     await page.mouse.down();
     await page.mouse.move(s.x + s.width / 2 + 20, s.y + s.height / 2 + 20, { steps: 5 });
-    await page.mouse.move(t.x + t.width - 30, t.y + t.height / 2, { steps: 15 });
-    await page.mouse.move(t.x + t.width - 24, t.y + t.height / 2, { steps: 3 });
+    await page.mouse.move(right.x - 6, right.y, { steps: 15 });
+    await page.mouse.move(right.x, right.y, { steps: 3 });
     await page.mouse.up();
     await expect(groups(page)).toHaveCount(5);
     // Metrics now sits in its own group, to the right of the events grid.
@@ -80,16 +84,15 @@ test.describe('dock layout', () => {
   });
 
   test('panels can be toggled from the View menu and the layout reset', async ({ page }) => {
-    await page.getByRole('button', { name: 'View', exact: true }).click();
-    const inspectorItem = page.getByRole('menuitemcheckbox', { name: /Inspector/ });
+    const inspectorItem = menuItem(await openMenu(page, 'View'), 'Inspector');
     await expect(inspectorItem).toHaveAttribute('aria-checked', 'true');
     await inspectorItem.click();
     await expect(page.locator('imt-inspector')).toHaveCount(0);
     await expect(groups(page)).toHaveCount(3);
 
-    await page.getByRole('button', { name: 'View', exact: true }).click();
-    await expect(page.getByRole('menuitemcheckbox', { name: /Inspector/ })).toHaveAttribute('aria-checked', 'false');
-    await page.getByRole('menuitem', { name: /Reset layout/ }).click();
+    await expect(menuItem(await openMenu(page, 'View'), 'Inspector')).toHaveAttribute('aria-checked', 'false');
+    await page.keyboard.press('Escape');
+    await chooseMenu(page, 'Window', 'Layouts', 'Reset window layout');
     await expect(page.locator('imt-inspector')).toBeVisible();
     await expect(groups(page)).toHaveCount(4);
     await expect(tab(page, 'Metrics')).toBeVisible();
@@ -100,11 +103,11 @@ test.describe('dock layout', () => {
     await page.keyboard.press('Delete');
     await expect(tab(page, 'Metrics')).toHaveCount(0);
     await expect.poll(async () => (await layout(page)) !== null && !Object.keys((await layout(page))!.layout.panels).includes('metrics'), { timeout: 5000 }).toBe(true);
-    expect((await layout(page))?.version).toBe(1);
+    expect((await layout(page))?.version).toBe(2);
 
     await page.reload();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
-    await expect(tab(page, 'Profile')).toBeVisible();
+    await expect(tab(page, 'Registry')).toBeVisible();
     await expect(tab(page, 'Metrics')).toHaveCount(0);
 
     // Seed before the app starts so a pending save of the running page cannot overwrite it.

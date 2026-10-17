@@ -1,0 +1,349 @@
+//! `PromptedProvider`: turns any raw text-generation engine into an `LlmProvider` by rendering the
+//! prompt for the model family, teaching it the tool protocol, hiding thinking and protocol markup
+//! from the stream, and parsing tool calls. All engine-independent, so it is fully testable.
+
+use super::prompt_format::PromptFormat;
+use super::provider::LlmProvider;
+use super::tool_protocol::{parse_output, render_message, tools_prompt, StreamFilter};
+use super::types::*;
+use crate::error::Result;
+use serde_json::Value;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Finish {
+    Stop,
+    Length,
+    Cancelled,
+}
+
+pub struct GenParams {
+    pub max_tokens: usize,
+    pub temperature: f32,
+    pub json_schema: Option<Value>,
+    pub cancel: Option<Arc<AtomicBool>>,
+}
+
+pub struct Generated {
+    pub text: String,
+    pub prompt_tokens: usize,
+    pub completion_tokens: usize,
+    pub finish: Finish,
+}
+
+/// A raw engine: prompt text in, text out. `on_text` receives decoded pieces as they are produced.
+/// Contract: returns `AiError::ContextOverflow` when the prompt does not fit, stops between tokens when
+/// `cancel` is set (`Finish::Cancelled`), and never panics.
+pub trait TextEngine: Send + Sync {
+    fn name(&self) -> String;
+    fn context_length(&self) -> usize;
+    fn generate(&self, prompt: &str, params: &GenParams, on_text: &mut dyn FnMut(&str)) -> Result<Generated>;
+}
+
+pub const DEFAULT_MAX_TOKENS: usize = 1024;
+pub const DEFAULT_TEMPERATURE: f32 = 0.2;
+
+pub struct PromptedProvider<E: TextEngine> {
+    engine: E,
+    format: PromptFormat,
+}
+
+impl<E: TextEngine> PromptedProvider<E> {
+    pub fn new(engine: E, format: PromptFormat) -> Self {
+        PromptedProvider { engine, format }
+    }
+}
+
+/// Removes `<think>…</think>` blocks (an unterminated one removes the rest).
+pub fn strip_think(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("<think>") {
+        out.push_str(&rest[..i]);
+        match rest[i..].find("</think>") {
+            Some(j) => rest = &rest[i + j + "</think>".len()..],
+            None => {
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out.trim().to_string()
+}
+
+/// Drops a leading `<think>…</think>` block from a stream, deciding as soon as enough text arrives.
+struct ThinkFilter {
+    state: ThinkState,
+}
+
+enum ThinkState {
+    Deciding(String),
+    InThink(String),
+    Pass,
+}
+
+impl ThinkFilter {
+    fn new() -> Self {
+        ThinkFilter {
+            state: ThinkState::Deciding(String::new()),
+        }
+    }
+
+    fn feed(&mut self, piece: &str, out: &mut dyn FnMut(&str)) {
+        match &mut self.state {
+            ThinkState::Pass => out(piece),
+            ThinkState::Deciding(buf) => {
+                buf.push_str(piece);
+                let t = buf.trim_start();
+                if t.starts_with("<think>") {
+                    let b = std::mem::take(buf);
+                    self.state = ThinkState::InThink(b);
+                    self.feed("", out);
+                } else if !"<think>".starts_with(t) {
+                    let b = std::mem::take(buf);
+                    self.state = ThinkState::Pass;
+                    out(&b);
+                }
+            }
+            ThinkState::InThink(buf) => {
+                buf.push_str(piece);
+                if let Some(j) = buf.find("</think>") {
+                    let rest = buf[j + "</think>".len()..].trim_start().to_string();
+                    self.state = ThinkState::Pass;
+                    if !rest.is_empty() {
+                        out(&rest);
+                    }
+                }
+            }
+        }
+    }
+
+    fn finish(&mut self, out: &mut dyn FnMut(&str)) {
+        if let ThinkState::Deciding(buf) = &mut self.state {
+            if !buf.is_empty() {
+                out(buf);
+            }
+        }
+        self.state = ThinkState::Pass;
+    }
+}
+
+impl<E: TextEngine> LlmProvider for PromptedProvider<E> {
+    fn id(&self) -> &str {
+        "embedded"
+    }
+
+    fn display_name(&self) -> String {
+        self.engine.name()
+    }
+
+    fn context_length(&self) -> usize {
+        self.engine.context_length()
+    }
+
+    fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
+        let with_tools = !req.tools.is_empty() && req.json_schema.is_none();
+        let mut system = req.system.clone();
+        if with_tools {
+            system.push_str("\n\n");
+            system.push_str(&tools_prompt(&req.tools));
+        }
+        let turns: Vec<(&str, String)> = req.messages.iter().map(render_message).collect();
+        let prompt = self.format.render(&system, &turns);
+        let params = GenParams {
+            max_tokens: if req.max_tokens == 0 { DEFAULT_MAX_TOKENS } else { req.max_tokens },
+            temperature: req.temperature.unwrap_or(DEFAULT_TEMPERATURE),
+            json_schema: req.json_schema.clone(),
+            cancel: req.cancel.clone(),
+        };
+        let json_mode = req.json_schema.is_some();
+        let mut think = ThinkFilter::new();
+        let mut tags = StreamFilter::new();
+        let generated = {
+            let mut sink = |piece: &str| {
+                if json_mode {
+                    on_delta(piece);
+                } else if with_tools {
+                    think.feed(piece, &mut |p| tags.feed(p, on_delta));
+                } else {
+                    think.feed(piece, on_delta);
+                }
+            };
+            self.engine.generate(&prompt, &params, &mut sink)?
+        };
+        if !json_mode {
+            if with_tools {
+                think.finish(&mut |p| tags.feed(p, on_delta));
+                tags.finish(on_delta);
+            } else {
+                think.finish(on_delta);
+            }
+        }
+        let cleaned = if json_mode {
+            generated.text.trim().to_string()
+        } else {
+            strip_think(&generated.text)
+        };
+        let (text, tool_calls) = if with_tools { parse_output(&cleaned) } else { (cleaned, vec![]) };
+        let stop_reason = match generated.finish {
+            Finish::Cancelled => StopReason::Cancelled,
+            _ if !tool_calls.is_empty() => StopReason::ToolUse,
+            Finish::Length => StopReason::MaxTokens,
+            Finish::Stop => StopReason::EndTurn,
+        };
+        Ok(ChatResponse {
+            text,
+            tool_calls,
+            stop_reason,
+            usage: Some(Usage {
+                input_tokens: generated.prompt_tokens,
+                output_tokens: generated.completion_tokens,
+            }),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::sync::Mutex;
+
+    struct Fake {
+        output: String,
+        finish: Finish,
+        prompts: Mutex<Vec<String>>,
+        schema_seen: Mutex<Option<Value>>,
+    }
+
+    fn fake(output: &str, finish: Finish) -> Fake {
+        Fake {
+            output: output.into(),
+            finish,
+            prompts: Mutex::new(vec![]),
+            schema_seen: Mutex::new(None),
+        }
+    }
+
+    impl TextEngine for Fake {
+        fn name(&self) -> String {
+            "fake".into()
+        }
+        fn context_length(&self) -> usize {
+            2048
+        }
+        fn generate(&self, prompt: &str, p: &GenParams, on_text: &mut dyn FnMut(&str)) -> Result<Generated> {
+            self.prompts.lock().unwrap().push(prompt.to_string());
+            *self.schema_seen.lock().unwrap() = p.json_schema.clone();
+            for chunk in self.output.as_bytes().chunks(5) {
+                on_text(&String::from_utf8_lossy(chunk));
+            }
+            Ok(Generated {
+                text: self.output.clone(),
+                prompt_tokens: 10,
+                completion_tokens: 3,
+                finish: self.finish,
+            })
+        }
+    }
+
+    fn run(engine: Fake, req: ChatRequest) -> (ChatResponse, String, Fake) {
+        let p = PromptedProvider::new(engine, PromptFormat::ChatMl { no_think: false });
+        let mut streamed = String::new();
+        let r = p.chat(&req, &mut |d| streamed.push_str(d)).unwrap();
+        (r, streamed, p.engine)
+    }
+
+    fn tool() -> ToolSpec {
+        ToolSpec {
+            name: "run_query".into(),
+            description: "q".into(),
+            input_schema: json!({"type":"object"}),
+        }
+    }
+
+    #[test]
+    fn plain_answer_streams_and_reports_usage() {
+        let req = ChatRequest {
+            system: "be brief".into(),
+            messages: vec![ChatMessage::user("hello")],
+            ..ChatRequest::default()
+        };
+        let (r, streamed, e) = run(fake("Hi there, friend.", Finish::Stop), req);
+        assert_eq!((r.text.as_str(), streamed.as_str()), ("Hi there, friend.", "Hi there, friend."));
+        assert_eq!(r.stop_reason, StopReason::EndTurn);
+        assert_eq!(
+            r.usage,
+            Some(Usage {
+                input_tokens: 10,
+                output_tokens: 3
+            })
+        );
+        assert!(e.prompts.lock().unwrap()[0].contains("be brief") && !e.prompts.lock().unwrap()[0].contains("<tools>"));
+        let p = PromptedProvider::new(fake("", Finish::Stop), PromptFormat::Phi);
+        assert_eq!(
+            (p.id(), p.display_name(), p.context_length()),
+            ("embedded", "fake".to_string(), 2048)
+        );
+    }
+
+    #[test]
+    fn tool_calls_are_parsed_and_hidden_from_the_stream() {
+        let out = "Let me check.\n<tool_call>{\"name\":\"run_query\",\"arguments\":{\"ql\":\"level=error\"}}</tool_call>";
+        let req = ChatRequest {
+            messages: vec![ChatMessage::user("why")],
+            tools: vec![tool()],
+            ..ChatRequest::default()
+        };
+        let (r, streamed, e) = run(fake(out, Finish::Stop), req);
+        assert_eq!(r.stop_reason, StopReason::ToolUse);
+        assert_eq!(r.tool_calls[0].name, "run_query");
+        assert_eq!(r.text, "Let me check.");
+        assert_eq!(streamed.trim(), "Let me check.");
+        assert!(e.prompts.lock().unwrap()[0].contains("<tools>"));
+    }
+
+    #[test]
+    fn thinking_is_hidden_in_stream_and_result() {
+        let req = ChatRequest {
+            messages: vec![ChatMessage::user("x")],
+            ..ChatRequest::default()
+        };
+        let (r, streamed, _) = run(fake("<think>\nhmm, let me see\n</think>\n\nThe answer.", Finish::Stop), req.clone());
+        assert_eq!((r.text.as_str(), streamed.as_str()), ("The answer.", "The answer."));
+        let (r, streamed, _) = run(fake("  <thi", Finish::Stop), req.clone());
+        assert_eq!((r.text.as_str(), streamed.as_str()), ("<thi", "  <thi"));
+        let (r, streamed, _) = run(fake("<think>never closed", Finish::Length), req);
+        assert_eq!((r.text.as_str(), streamed.as_str()), ("", ""));
+        assert_eq!(r.stop_reason, StopReason::MaxTokens);
+        assert_eq!(strip_think("a<think>b</think>c<think>d"), "ac");
+    }
+
+    #[test]
+    fn json_mode_passes_the_schema_and_skips_filters() {
+        let schema = json!({"type":"object"});
+        let req = ChatRequest {
+            messages: vec![ChatMessage::user("x")],
+            json_schema: Some(schema.clone()),
+            tools: vec![tool()],
+            ..ChatRequest::default()
+        };
+        let (r, streamed, e) = run(fake("{\"a\": 1}", Finish::Stop), req);
+        assert_eq!(r.text, "{\"a\": 1}");
+        assert_eq!(streamed, "{\"a\": 1}");
+        assert!(r.tool_calls.is_empty());
+        assert_eq!(e.schema_seen.lock().unwrap().clone(), Some(schema));
+        assert!(!e.prompts.lock().unwrap()[0].contains("<tools>"));
+    }
+
+    #[test]
+    fn finish_reasons() {
+        let req = ChatRequest {
+            messages: vec![ChatMessage::user("x")],
+            ..ChatRequest::default()
+        };
+        assert_eq!(run(fake("a", Finish::Cancelled), req.clone()).0.stop_reason, StopReason::Cancelled);
+        assert_eq!(run(fake("a", Finish::Length), req).0.stop_reason, StopReason::MaxTokens);
+    }
+}

@@ -5,6 +5,8 @@ import { UiStateRegistry } from '../lifecycle/ui-state';
 import { baseName, errorMessage } from '../tools/tool-errors';
 import { ProjectPicker } from './project-picker';
 import { RECENT_PROJECTS } from './recent-projects';
+import { ReportStore } from '../share/report/report.store';
+import { OverwriteGuard } from '../ui/overwrite-guard';
 
 export const PROJECT_EXTENSION = '.imtproj';
 export const UNTITLED = 'Untitled';
@@ -29,6 +31,8 @@ export class ProjectService {
   private readonly registry = inject(UiStateRegistry);
   private readonly picker = inject(ProjectPicker);
   private readonly recentStore = inject(RECENT_PROJECTS);
+  private readonly reports = inject(ReportStore);
+  private readonly overwrite = inject(OverwriteGuard);
 
   readonly path = signal<string | null>(null);
   readonly name = signal(UNTITLED);
@@ -38,7 +42,7 @@ export class ProjectService {
   readonly recent = signal(this.recentStore.list());
 
   /** Identity of what a project would save; compared with the key at the last save/open. */
-  private readonly key = computed(() => `${(this.store.summary()?.sources ?? []).map((s) => s.path).join('|')}\n${this.registry.trackedSnapshot()}`);
+  private readonly key = computed(() => `${(this.store.summary()?.sources ?? []).map((s) => s.path).join('|')}\n${this.registry.trackedSnapshot()}\n${this.reports.json()}`);
   private readonly baseline = signal<string | null>(null);
 
   readonly dirty = computed(() => this.baseline() !== null && this.baseline() !== this.key());
@@ -59,6 +63,7 @@ export class ProjectService {
   async newProject(): Promise<void> {
     await this.store.clearWorkspace();
     this.registry.restore(null);
+    this.reports.replace([]);
     this.path.set(null);
     this.name.set(UNTITLED);
     this.missing.set([]);
@@ -80,6 +85,7 @@ export class ProjectService {
       const opened = await this.backend.openProject(path);
       this.store.profileSaved(opened.summary);
       this.registry.restore(opened.ui);
+      this.reports.replace(opened.reports ?? []);
       this.missing.set(opened.missing);
       if (!options.session) {
         this.path.set(opened.path);
@@ -103,12 +109,24 @@ export class ProjectService {
   /** Saves to the project's file; asks for one when the project is new. */
   async save(): Promise<boolean> {
     const path = this.path();
-    return path ? this.write(path, this.name()) : this.saveAs();
+    // The project's own file: saving over it is the point of Save.
+    return path ? this.write(path, this.name(), 'own-file') : this.saveAs();
   }
 
   async saveAs(): Promise<boolean> {
     const path = await this.picker.pickSave(`${this.name()}${PROJECT_EXTENSION}`);
-    return path ? this.write(path, projectNameFor(path)) : false;
+    return path ? this.write(path, projectNameFor(path), 'save-dialog') : false;
+  }
+
+  /**
+   * Shows what was just opened from a read-only source (a shared bundle) as an unsaved project with
+   * this name: there is no project file, so Save asks where to save it.
+   */
+  adoptReadOnly(name: string, missing: string[] = []): void {
+    this.path.set(null);
+    this.name.set(name || UNTITLED);
+    this.missing.set(missing);
+    this.markClean();
   }
 
   dismissMissing(): void {
@@ -120,14 +138,21 @@ export class ProjectService {
     this.recent.set([]);
   }
 
-  private async write(path: string, name: string): Promise<boolean> {
+  private async write(path: string, name: string, origin: 'own-file' | 'save-dialog'): Promise<boolean> {
     this.busy.set(true);
     try {
-      const saved = await this.backend.saveProject(path, name, this.registry.serialize());
+      // What is written is what this key describes: edits made while the save is in flight stay unsaved.
+      let written = this.key();
+      const save = (overwrite: boolean) => {
+        written = this.key();
+        return this.backend.saveProject(path, name, this.registry.serialize(), this.reports.reports(), overwrite);
+      };
+      const saved = origin === 'own-file' ? await save(true) : await this.overwrite.write(path, save);
+      if (!saved) return false;
       this.path.set(saved.path);
       this.name.set(saved.name);
       this.remember(saved.path, saved.name);
-      this.markClean();
+      this.baseline.set(written);
       this.store.setNotice(`Saved ${saved.name}`);
       return true;
     } catch (e) {

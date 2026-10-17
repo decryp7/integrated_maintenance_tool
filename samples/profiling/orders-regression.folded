@@ -1,0 +1,15 @@
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder 80
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderService.Validate 80
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderService.Validate;System.Text.RegularExpressions.Regex.IsMatch 40
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderRepository.Save;Microsoft.Data.SqlClient.SqlCommand.ExecuteNonQuery 220
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderRepository.Save;Microsoft.Data.SqlClient.SqlConnection.Open 60
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.PricingEngine.Quote 120
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.PricingEngine.Quote;Shop.Orders.DiscountRules.Apply 90
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderService.Serialize;System.Text.Json.JsonSerializer.Serialize 240
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.OrderService.Serialize;System.Text.Json.JsonSerializer.Serialize;System.Text.Json.Utf8JsonWriter.WriteString 150
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.Inventory.Reserve 50
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.Inventory.Reserve;System.Threading.Monitor.Enter 70
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.AuditLog.Write 20
+Shop.Program.Main;Shop.Orders.OrderService.PlaceOrder;Shop.Orders.AuditLog.Write;System.IO.FileStream.Write 60
+Shop.Program.Main;Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run;System.Threading.Tasks.Task.Wait 30
+System.Threading.ThreadPoolWorkQueue.Dispatch;Shop.Orders.EmailSender.SendConfirmation;System.Net.Mail.SmtpClient.Send 60

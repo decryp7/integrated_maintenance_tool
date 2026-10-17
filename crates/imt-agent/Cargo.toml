@@ -1,0 +1,43 @@
+[package]
+name = "imt-agent"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Headless IMT agent: scheduled and triggered diagnostics collection, as a CLI or an OS service"
+
+[lib]
+name = "imt_agent"
+path = "src/lib.rs"
+
+[[bin]]
+name = "imt-agent"
+path = "src/bin/imt-agent.rs"
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+imt-collect = { path = "../imt-collect" }
+imt-monitor = { path = "../imt-monitor" }
+# PerfMon Data Collector Set control (`logman`), shared with the tools plugin.
+imt-plugin-tools = { path = "../imt-plugin-tools" }
+anyhow = "1.0"
+chrono = "0.4.45"
+# Cron expressions (MIT): 5/6-field POSIX/Vixie patterns, aliases, L/W/#, time zones via chrono.
+croner = "4.0.1"
+globset = "0.4.20"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# Free disk space and PID liveness (already in the dependency tree).
+sysinfo = { version = "0.39", default-features = false, features = ["system", "disk"] }
+thiserror = "2.0"
+toml = "1"
+# Saving imt-agent.toml in place, keeping the user's comments (MIT OR Apache-2.0).
+toml_edit = "0.25"
+ctrlc = { version = "3", features = ["termination"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows Service Control Manager integration (MIT OR Apache-2.0).
+windows-service = "0.8.1"
+
+[dev-dependencies]
+tempfile = "3"

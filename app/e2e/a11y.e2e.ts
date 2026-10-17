@@ -27,7 +27,7 @@ test('metrics and profile tabs have no serious accessibility violations', async 
   await page.getByRole('tab', { name: /Metrics/ }).click();
   await expect(page.locator('imt-chart-card').first()).toBeVisible();
   await expectNoSeriousViolations(page, testInfo, 'metrics');
-  await page.getByRole('tab', { name: /Profile/ }).click();
+  await page.getByRole('button', { name: 'Profile editor' }).click();
   await expect(page.getByText('Parsing profile')).toBeVisible();
   await expectNoSeriousViolations(page, testInfo, 'profile');
 });

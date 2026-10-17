@@ -152,3 +152,13 @@ export function andQl(current: string, clause: string): string {
   if (filter === add) return cur;
   return `${wrap(filter)} and ${wrap(add)}${rest}`;
 }
+
+/**
+ * Applies a "did you mean" suggestion: the span the engine reported (an unknown field) is replaced by
+ * `name` as a field reference. Returns the new text and the caret (UTF-16) after the inserted name.
+ */
+export function applySuggestion(text: string, error: QlError, name: string): { text: string; cursor: number } {
+  const span = errorSpan(text, error)!;
+  const insert = qlField(name);
+  return { text: text.slice(0, span.start) + insert + text.slice(span.end), cursor: span.start + insert.length };
+}

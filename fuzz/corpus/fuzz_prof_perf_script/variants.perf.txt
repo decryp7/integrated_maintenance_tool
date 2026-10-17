@@ -1,0 +1,6 @@
+prog 10 1.0: 100 cycles:  7f12 malloc+0x1e (/usr/lib/libc.so.6)
+Web Content 4242/4244 [001] 2.500000: 1000000 cpu-clock:u:
+	ffffffff8a2001a0 entry_SYSCALL_64_after_hwframe+0x63 ([kernel.kallsyms])
+	7f3a2b1c4d5e [unknown] ([unknown])
+	1234 jit_fn (/tmp/perf-42.map)
+

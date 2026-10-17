@@ -22,13 +22,13 @@
  *   plugin_set_enabled{ id, enabled }             -> boolean (restart needed)
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
- *   save_project      { path, name, ui }          -> { path, name }
+ *   save_project      { path, name, ui, reports? } -> { path, name }
  *   open_project      { path }                    -> ProjectOpened
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]
  * Events: "imt://open" (take_pending_open has paths), "imt://workspace-changed" (live tail refreshed).
  */
-import { Level, WorkspaceSummary } from './api.types';
+import { Level, Report, WorkspaceSummary } from './api.types';
 
 // ---- Performance Monitor -------------------------------------------------------------------
 
@@ -193,6 +193,60 @@ export interface ElevationInfo {
   platform: Platform;
 }
 
+/** The plugin that contributes the system tools (PerfMon, process monitor, diagnostics, elevation). */
+export const TOOLS_PLUGIN = 'net.decryptology.tools';
+
+/** Ids of the tools the UI uses (`tool_invoke { tool }`). */
+export const TOOL_IDS = {
+  perfmonTemplates: 'perfmon.templates',
+  perfmonSets: 'perfmon.sets',
+  processMonitor: 'process-monitor',
+  diagnostics: 'diagnostics',
+  elevation: 'elevation',
+} as const;
+
+/** The shape of a tool operation's arguments (checked by the engine before the tool runs). */
+export type ToolSchema =
+  | { type: 'any' }
+  | { type: 'bool' }
+  | { type: 'int'; min: number; max: number }
+  | { type: 'text'; maxLen: number }
+  | { type: 'enum'; values: string[] }
+  | { type: 'list'; items: ToolSchema; maxItems: number }
+  | { type: 'object'; fields: ToolField[]; additional: boolean };
+
+export interface ToolField {
+  name: string;
+  schema: ToolSchema;
+  /** Optional fields may be missing or null. */
+  required: boolean;
+}
+
+export interface ToolOp {
+  name: string;
+  title: string;
+  args: ToolSchema;
+  /** Time the operation may take before it is abandoned; null = unlimited. */
+  budgetMs: number | null;
+}
+
+/** Whether a tool can be used now, and if not, why. */
+export type ToolAvailability = { state: 'available' } | { state: 'unsupported'; reason: string } | { state: 'pluginUnavailable'; reason: string };
+
+/** A tool as `tools_list` reports it. */
+export interface ToolEntry {
+  id: string;
+  title: string;
+  description: string;
+  /** Platforms it runs on; empty = all. */
+  platforms: Platform[];
+  needsElevation: boolean;
+  ops: ToolOp[];
+  /** The plugin that contributes it. */
+  plugin: string;
+  availability: ToolAvailability;
+}
+
 export interface AppStatus {
   version: string;
   safeMode: boolean;
@@ -216,6 +270,8 @@ export interface ProjectOpened {
   ui: unknown;
   /** Source paths of the project that no longer exist. */
   missing: string[];
+  /** Incident reports saved in the project (absent from older shells). */
+  reports?: Report[];
 }
 
 /**

@@ -1,15 +1,17 @@
 //! Elevation (run as administrator) and reading the start of a workspace file.
+//! Whether IMT runs elevated is answered by the tools plugin's `elevation`
+//! tool; restarting elevated is the shell's (it owns the process).
 
 use crate::windows::CurrentWindow;
-use crate::{err, CmdResult};
-use serde::Serialize;
+use crate::{err, AppState, CmdResult, State};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Largest preview returned by `read_file_head`.
 const MAX_HEAD_BYTES: usize = 256 * 1024;
 
 /// The operating system IMT runs on, so the UI can offer platform-specific tools.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Platform {
     Windows,
@@ -30,7 +32,7 @@ impl Platform {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ElevationInfo {
     pub elevated: bool,
@@ -39,13 +41,76 @@ pub struct ElevationInfo {
     pub platform: Platform,
 }
 
+/// Asks the `elevation` tool; without it (safe mode, plugin disabled or
+/// quarantined) the shell checks its own process token, so "Restart as
+/// administrator" is not offered to an elevated IMT.
 #[tauri::command]
-pub fn elevation() -> ElevationInfo {
-    ElevationInfo {
-        elevated: is_elevated(),
-        can_restart_elevated: cfg!(windows),
-        platform: Platform::current(),
+pub async fn elevation<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: CurrentWindow,
+    state: State<'_, AppState>,
+) -> CmdResult<ElevationInfo> {
+    let answer = crate::tools::invoke(&app, &window, state.safe_mode, "elevation", "info", serde_json::json!({})).await;
+    Ok(elevation_from(answer, process_elevated))
+}
+
+/// The tool's answer, or what the shell knows itself (`elevated` asks the process token).
+fn elevation_from(answer: CmdResult<serde_json::Value>, elevated: impl FnOnce() -> bool) -> ElevationInfo {
+    match answer.and_then(|v| serde_json::from_value::<ElevationInfo>(v).map_err(err)) {
+        Ok(info) => info,
+        Err(e) => {
+            log::debug!("Elevation tool unavailable ({e}); checking the process token");
+            ElevationInfo {
+                elevated: elevated(),
+                can_restart_elevated: cfg!(windows),
+                platform: Platform::current(),
+            }
+        }
     }
+}
+
+/// Whether this process runs elevated: the UAC token on Windows.
+#[cfg(windows)]
+pub(crate) fn process_elevated() -> bool {
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+    // SAFETY: plain Win32 calls with owned, correctly sized buffers; the token handle is closed.
+    unsafe {
+        let mut token = HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return false;
+        }
+        let mut elevation = TOKEN_ELEVATION::default();
+        let mut len = 0u32;
+        let ok = GetTokenInformation(
+            token,
+            TokenElevation,
+            Some(&mut elevation as *mut _ as *mut core::ffi::c_void),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut len,
+        )
+        .is_ok();
+        let _ = CloseHandle(token);
+        ok && elevation.TokenIsElevated != 0
+    }
+}
+
+/// Whether this process runs elevated: its effective user is root.
+#[cfg(not(windows))]
+pub(crate) fn process_elevated() -> bool {
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+    let pid = Pid::from_u32(std::process::id());
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[pid]),
+        false,
+        ProcessRefreshKind::nothing().with_user(UpdateKind::Always),
+    );
+    let root: Option<sysinfo::Uid> = "0".parse().ok();
+    sys.process(pid)
+        .and_then(|p| p.effective_user_id().or_else(|| p.user_id()))
+        .is_some_and(|uid| Some(uid) == root.as_ref())
 }
 
 /// Relaunches IMT as administrator (Windows UAC prompt) with `reopen` paths
@@ -84,42 +149,6 @@ pub fn read_file_head(state: CurrentWindow, path: String, max_bytes: Option<usiz
         .read_to_end(&mut bytes)
         .map_err(err)?;
     imt_core::importers::decode(&bytes).ok_or_else(|| "this file is binary".to_string())
-}
-
-#[cfg(windows)]
-fn is_elevated() -> bool {
-    use windows::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
-    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
-    // SAFETY: plain Win32 calls with owned, correctly sized buffers; the token handle is closed.
-    unsafe {
-        let mut token = HANDLE::default();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
-            return false;
-        }
-        let mut elevation = TOKEN_ELEVATION::default();
-        let mut len = 0u32;
-        let ok = GetTokenInformation(
-            token,
-            TokenElevation,
-            Some(&mut elevation as *mut _ as *mut core::ffi::c_void),
-            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
-            &mut len,
-        )
-        .is_ok();
-        let _ = CloseHandle(token);
-        ok && elevation.TokenIsElevated != 0
-    }
-}
-
-#[cfg(not(windows))]
-fn is_elevated() -> bool {
-    // Root on Unix-like systems.
-    std::process::Command::new("id")
-        .arg("-u")
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
-        .unwrap_or(false)
 }
 
 #[cfg(windows)]
@@ -163,13 +192,32 @@ mod tests {
 
     #[test]
     fn elevation_reports_platform_support() {
-        let info = elevation();
+        let app = crate::test_support::test_app_with_commands(None);
+        let main = crate::test_support::window(&app, "main");
+        let info = crate::tools::tests::ipc(&main, "elevation", serde_json::json!({})).unwrap();
+        let info: ElevationInfo = serde_json::from_value(info).unwrap();
         assert_eq!(info.can_restart_elevated, cfg!(windows));
         assert_eq!(info.platform == Platform::Windows, cfg!(windows));
         #[cfg(target_os = "macos")]
         assert_eq!(info.platform, Platform::Macos);
         #[cfg(not(windows))]
         assert!(relaunch_elevated(Path::new("x"), &[]).is_err());
+        // An answer that is not elevation info, or none, falls back to the process token.
+        let fallback = elevation_from(Ok(serde_json::json!(3)), || false);
+        assert!(!fallback.elevated && fallback.platform == Platform::current());
+        assert!(elevation_from(Err("no tool".into()), || true).elevated);
+        assert!(!elevation_from(Err("no tool".into()), || false).elevated);
+        // The tool's answer wins; the token is not even asked.
+        let answer = serde_json::json!({ "elevated": true, "canRestartElevated": false, "platform": "linux" });
+        assert!(elevation_from(Ok(answer), || panic!("not asked")).elevated);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn the_process_check_matches_the_effective_user() {
+        let out = std::process::Command::new("id").arg("-u").output().unwrap();
+        let root = String::from_utf8_lossy(&out.stdout).trim() == "0";
+        assert_eq!(process_elevated(), root);
     }
 
     #[test]
@@ -179,7 +227,7 @@ mod tests {
             .map(|p| serde_json::to_string(p).unwrap())
             .collect();
         assert_eq!(names, ["\"windows\"", "\"macos\"", "\"linux\""]);
-        let json = serde_json::to_value(elevation()).unwrap();
+        let json = serde_json::to_value(elevation_from(Err("x".into()), || false)).unwrap();
         assert!(json["platform"].is_string() && json.get("canRestartElevated").is_some());
     }
 }

@@ -60,9 +60,11 @@ when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
 | `plugin::WorkspaceHook` | `add_hook` | be told when files are loaded, the workspace is cleared, or the profile changes |
 | `plugin::markers::PluginMarkerKind` | `add_marker_kinds` | mark events on the timeline (crashes, boots, …) with rules or from a transform |
 | `plugin::annotate::Annotator` | `add_annotator` | derive ranges and points (reboot windows, service uptime) from the records |
+| `plugin::tools::Tool` | `add_tool` | typed operations the shell dispatches generically (see [Tools](#tools)) |
 | any trait | `provide` / `service` | an API other plugins call (see [Services](#services)) |
 | any trait | `declare_extension_point` / `contribute` | let other plugins extend yours (see [Extension points](#extension-points)) |
 | typed events | `events().subscribe` | react to imports, appends, alerts, profile and plugin state (see [Events](#events)) |
+| `imt_profile::CaptureImporter` | `contribute` to `profiling.importers` | read a profile or heap snapshot format (declared by the profiling plugin; see [Profiling](profiling.md)) |
 
 All of them live in `imt_core` and are bundled by a `Plugin`:
 
@@ -433,11 +435,14 @@ that says which one did not match (`service "x" ^2 is not available: plugin "p" 
 1.4.0`). The `Service` handle never exposes the bare `Arc`: a panicking provider becomes an
 error counted against the provider (and quarantines it), and a quarantined, hung or inactive
 provider is refused (`service "x": provider "p" is quarantined`). `call_detached` runs the call on
-a helper thread and stops waiting when the service budget runs out.
+a helper thread and stops waiting when the service budget (10 s) runs out;
+`call_detached_within(budget, f)` and `try_call_detached_within` take a budget for one call, for
+service work known to take longer (profiling imports use 600 s).
 
-No built-in plugin provides `CounterSource` yet: the Windows plugin imports PerfMon logs as
-records (data over calls), and live PDH sampling lives in `imt-monitor`'s collector. The contract
-tests run against a test-only provider.
+The tools plugin (`crates/imt-plugin-tools`, `net.decryptology.tools`) provides `CounterSource`
+from live system sampling (`counters::SystemCounters`: CPU, available and committed memory, swap,
+under their Performance Monitor names) and passes `contract_tests` through the registry's guarded
+handle. The Windows plugin imports PerfMon logs as records (data over calls).
 
 ### Extension points
 
@@ -457,6 +462,17 @@ for r in ctx.contributions::<dyn SymbolResolver>("acme.profiler.symbols") {
 
 A contribution to a point nobody declares (or with another trait) is not an error: the
 contributing plugin stays active, shows a warning, and the contribution is not returned.
+
+The host declares `config.parsers` (`imt_core::config::PARSERS_POINT`, trait
+`dyn imt_core::config::ConfigParser`): configuration formats for the diff view. A parser sniffs
+a file (0–100 from its name and first text) and turns it into a `ConfigTree` of typed values by
+path, using `TreeBuilder` so the size, depth and node limits hold. JSON, XML, INI, TOML and YAML
+are built in; the registry plugin adds `.reg` and the Windows plugin `.nfo`, each reusing its
+importer's parser.
+
+```rust
+registry.contribute::<dyn ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(MyFormat));
+```
 
 ### Events
 
@@ -548,6 +564,53 @@ new record); each run returns the annotator's complete set, which replaces the p
 are guarded with the `annotate` budget and capped at 10,000 annotations per annotator. The UI
 reads them with `LogStore::annotations({ from, to, instance })`.
 
+### Tools
+
+A tool is a set of typed operations the shell runs on the user's request: controlling Performance
+Monitor, running the process monitor, collecting a diagnostics bundle. The shell knows no tool; it
+has two generic commands, `tools_list` and `tool_invoke { tool, op, args }`, so a tool can be
+disabled, quarantined and left out in safe mode like any contribution (ADR 0002).
+
+```rust
+use imt_core::plugin::tools::{OpSpec, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+
+impl Tool for Sets {
+    fn id(&self) -> &str { "perfmon.sets" }
+    fn describe(&self) -> ToolInfo {
+        ToolInfo::new("perfmon.sets", "Performance Monitor collector sets")
+            .only_on(&[Platform::Windows])          // listed elsewhere as unsupported, with the reason
+            .needs_elevation()
+            .op(OpSpec::new("control", "Start or stop a set")
+                .args(Schema::object().field("name", Schema::text(256)).field("action", Schema::one_of(["start", "stop"])))
+                .budget(Some(Duration::from_secs(900))))
+    }
+    fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> anyhow::Result<Value> {
+        // `args` already matched the op's schema; parse it into your own types.
+        ctx.task_started(ToolTask { id: "perfmon:IMT".into(), label: "PerfMon collection".into(), kind: "perfmon".into(), stoppable: true });
+        Ok(Value::Null)
+    }
+    fn stop(&self, task: &str, ctx: &ToolCtx) -> anyhow::Result<()> { /* stop it */ ctx.task_finished(task); Ok(()) }
+}
+// register(): registry.add_tool(Arc::new(Sets))?;
+```
+
+- `ToolHost::list` (the `tools_list` command) reports every tool with its `availability`:
+  `available`, `unsupported` (another platform; the reason names it) or `pluginUnavailable` (the
+  plugin is inactive, quarantined or not responding; the plugin's reason).
+- `ToolHost::invoke` checks the arguments against the op's `Schema` (errors name the location:
+  `perfmon.sets control: args.action "x" is not one of: start, stop`), then runs the op on a helper
+  thread under the plugin's guard: a panic is an error counted towards quarantine, and an op that
+  runs past its `budget` (default 30 s) is abandoned and marks the plugin hung.
+- Background work is reported with `ctx.task_started/task_progress/task_finished`; the shell lists
+  it in the tray and status bar and stops it through `Tool::stop`.
+- A plugin whose state must be app-wide (one running monitor for every window) is installed as one
+  shared value in every window's registry (`lifecycle::plugins_with`, see `AppState`).
+
+The UI reads `tools_list` (`ToolCatalog`): panels and commands of tools that are not listed are
+hidden (safe mode, plugin disabled), and a listed tool whose plugin cannot serve it shows the
+reason (`imt-tool-unavailable`). The older specific commands (`perfmon_*`, `monitor_*`,
+`collect_*`) are deprecated wrappers over `tool_invoke` (`app/src-tauri/src/tools_compat.rs`).
+
 ### Time budgets, the watchdog and isolation tiers
 
 Every guarded call has a time budget per kind (`guard::Budgets`, set with
@@ -569,9 +632,115 @@ isolation (ADR 0002):
 | Tier | For | Crash | Hang |
 |---|---|---|---|
 | In-process, guarded (today) | first-party safe Rust plugins | panic → error, quarantine | watchdog: hung, fail fast, abandon where possible |
-| Plugin host process (next) | any Rust plugin, opt-in or after a quarantine | process dies, restarted with backoff | call cancelled by deadline, host killed |
+| Plugin host process (`imt-plugin-host`) | any built-in Rust plugin, opt-in, after a quarantine, or all in isolated mode; third-party process plugins | process dies, restarted with backoff, counted towards quarantine | call fails at its deadline (90% of the budget), process killed and replaced |
 | Worker process (`imt-ai-worker`) | native code (llama.cpp, PDH, profilers) | as above | as above |
 | WebAssembly (planned) | third-party plugins | trapped | fuel/epoch interruption |
+
+## Level 3: process plugins (`imt.plugin.v1`)
+
+A plugin can run in a process of its own, so a crash (including an abort, a stack overflow or running
+out of memory), a hang or a memory leak in it cannot take IMT down (ADR 0002, ADR 0004). The contract is
+the protobuf package `imt.plugin.v1` (`proto/imt/plugin/v1/plugin.proto`); the transport is the one
+every IMT child process uses (`crates/imt-ipc`): gRPC over a private Unix socket (in a 0700
+directory) or an owner-only named pipe, never TCP, with a random per-launch token on every call.
+
+### Writing one (Rust)
+
+Write an ordinary engine plugin (Level 2) and serve it from a `main` with `imt-plugin-sdk`:
+
+```rust
+fn main() {
+    let opts = imt_plugin_sdk::ServeOptions {
+        permissions: vec![], // e.g. PermissionRequest { permission: Permission::ReadOpenedFiles, reason }
+        ..Default::default()
+    };
+    if let Err(e) = imt_plugin_sdk::serve_with(std::sync::Arc::new(MyPlugin), opts) {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+}
+```
+
+`crates/imt-plugin-sdk/examples/toy_plugin.rs` is a complete example (an importer for a toy format,
+a transform that marks records, a setting). Any language with gRPC and Arrow can implement the same
+contract.
+
+What crosses the boundary: importers (`Sniff`, `Import`, `ImportTail`), transforms (`Transform`,
+batched), exporters (`Export`, streamed both ways), marker kinds, annotators (`Annotate`: IMT sends the
+records the annotator declared interest in, `AnnotatorCap.interest`; `AnnotationView::query` is not
+available out of process), settings (`SettingsSection`, `ApplySettings`), services (`CallService`,
+opaque bytes) and events (`Events`, streamed by IMT). In-process extension points, collectors, tools,
+hooks and typed Rust services do not cross: a plugin that only has those cannot run isolated, one that
+also has those runs isolated without them (the Plugin isolation settings say which).
+
+### Checking one
+
+```sh
+cargo run -p imt-plugin-sdk --bin imt-plugin-check -- path/to/plugin [plugin args] [--grant read-opened-files]
+```
+
+`imt-plugin-check` starts the plugin the way IMT does and runs the conformance kit
+(`imt_plugin_sdk::conformance`): handshake (and refusing an incompatible version or calls before it),
+the control service, every declared capability, typed errors for unknown ids, fuzzed input (random
+bytes, invalid UTF-8, huge lines, odd records) that must never kill the process, deadlines (an expired
+call fails fast and the plugin keeps answering), and that the process never restarted. CI runs it
+against every built-in plugin through the host binary (`crates/imt-plugin-host/tests/builtins.rs`).
+
+### Arrow record schema
+
+Records travel as Arrow IPC streams (one schema message and one record batch per `RecordBatch`
+message, LZ4-frame compressed buffers; readers accept compressed and uncompressed):
+
+| Column | Arrow type | Record |
+|---|---|---|
+| `ts` | Int64, nullable | ms since the Unix epoch (UTC) |
+| `level` | UInt8 | 0 Verbose, 1 Debug, 2 Information, 3 Warning, 4 Error, 5 Fatal |
+| `message` | Utf8 | message |
+| `template`, `exception` | Utf8, nullable | message template, exception text |
+| `line` | UInt32 | line in the file |
+| `id`, `source`, `markers` | UInt32, UInt32, UInt64 | assigned by IMT (0 from importers) |
+| `f:<name>` | Utf8, Int64, UInt64, Float64 or Boolean, nullable | field `<name>` when all its values in the batch have that type (null: absent) |
+| `j:<name>` | Utf8, nullable | field `<name>` as JSON text (null values, objects, arrays, mixed types) |
+| `field_order` | Utf8, nullable | column indexes of the record's fields, when its order differs from the column order |
+| `fields` | Utf8, nullable | instead of the `f:`/`j:` columns when a batch has more than 256 field names (or sparse ones): fields as a JSON object |
+| `source_name`, `group`, `instance` | Utf8 | extra columns of export and annotate batches |
+
+The mapping is lossless (property-tested: every JSON type, integer vs. float, field order). Columns
+per field instead of one JSON column made out-of-process imports about twice as fast: most values
+are strings and cross as plain Arrow strings.
+
+### Permissions and their limits
+
+A plugin declares the permissions it needs in its manifest (`Permission`: "read the files you open",
+"network to `host`"). IMT shows them under Settings → Plugin isolation and runs the plugin only when
+every one is granted (otherwise it is listed inactive with the missing permission). Built-in plugins
+are first-party: their permissions are granted until the user revokes them.
+
+Enforced by IMT: the plugin process starts with an empty environment and the temporary folder as its
+working directory; it receives only the bytes IMT read from the files the user opened, plus the file's
+name, never its path, unless "read the files you open" is granted; it cannot reach IMT's memory, and
+every call needs the per-launch token. **Not enforced by the operating system:** a native plugin
+process runs with the user's rights, so it *could* open files or the network on its own. The
+permission model is a declaration the user approves and the host honours, not a sandbox; untrusted
+third-party code belongs in the WebAssembly tier (ADR 0004), where WASI capabilities do enforce it.
+OS sandboxing of plugin processes (AppContainer on Windows, a network namespace or seccomp on Linux,
+the App Sandbox on macOS) is future work.
+
+### Isolation settings
+
+Settings → Plugin isolation (`settings.json`, section `plugin-isolation`, effective after a restart):
+"Isolated mode" (every plugin that can runs out of process; also `--isolated` on the command line),
+"Isolate a plugin after it is quarantined" (default on: a built-in quarantined in process runs isolated
+from the next start), "Run *plugin* isolated" per plugin, and the permission grants. One process runs
+per isolated plugin, shared by every window; `plugin_isolation_status` reports how each plugin runs.
+Isolated built-ins are served by the bundled `imt-plugin-host` binary (`imt-plugin-host --plugin <id>`).
+
+### Performance
+
+`cargo bench -p imt-plugin-host` compares in-process and out-of-process work on 1M records (see the
+benchmark's header for what it measures). Records cross in batches (32k rows for imports, 16k for
+transforms), encoded on up to 4 threads and decoded on up to 8; the protobuf envelope costs
+microseconds per batch (the payload is a zero-copy `bytes::Bytes`).
 
 ### Plugin rules
 

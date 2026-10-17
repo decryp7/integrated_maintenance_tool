@@ -1,0 +1,22 @@
+[package]
+name = "imt-plugin-tools"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "IMT tools plugin: Performance Monitor collector sets, the process monitor, the diagnostics collector and elevation info"
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+imt-api-perf = { path = "../imt-api-perf" }
+imt-monitor = { path = "../imt-monitor" }
+imt-collect = { path = "../imt-collect" }
+anyhow = "1.0"
+chrono = "0.4.45"
+quick-xml = "0.42"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }

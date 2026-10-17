@@ -1,0 +1,43 @@
+# ========
+# captured on    : Wed Oct 14 09:00:00 2026
+# hostname : orders-01
+# cmdline : /usr/bin/perf record -F 1000 -g -p 4242
+# event : name = cpu-clock, , id = { 11, 12 }, type = 1, size = 136, { sample_period, sample_freq } = 1000
+# ========
+#
+       orders-io 4242/4251 [002] 81234.101164:    1000000 cpu-clock:
+	ffffffff817ce4c0 tcp_sendmsg+0x3d8 ([kernel.kallsyms])
+	ffffffff814cd540 sock_write_iter+0x25b ([kernel.kallsyms])
+	ffffffff8111eb70 vfs_write+0x2c1 ([kernel.kallsyms])
+	ffffffff815e9510 ksys_write+0x154 ([kernel.kallsyms])
+	ffffffff81989ad0 do_syscall_64+0x10e ([kernel.kallsyms])
+	ffffffff815ad800 entry_SYSCALL_64_after_hwframe+0x38d ([kernel.kallsyms])
+	    7f3a2bd410b0 __libc_write+0x2d4 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    55d4c3adad00 orders::IoWorker::flush()+0x31e (/opt/orders/bin/orders-svc)
+	    55d4c3ad36c0 orders::IoWorker::loop()+0x29a (/opt/orders/bin/orders-svc)
+	    7f3a2be892e0 std::execute_native_thread_routine+0x194 (/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30)
+	    7f3a2be8a510 start_thread+0x1dc (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7f3a2bc8f620 clone3+0x150 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+
+      orders-svc 4242/4242 [002] 81234.102454:    1000000 cpu-clock:
+	    7f3a2bf1c320 __memmove_avx_unaligned_erms+0x99 (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    7f3a2be75c60 std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_append(char const*, unsigned long)+0x52 (/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30)
+	    55d4c3a11880 orders::Json::serialize(orders::Order const&)+0x399 (/opt/orders/bin/orders-svc)
+	    55d4c3ac7a10 orders::OrderService::placeOrder(orders::Order const&)+0xe4 (/opt/orders/bin/orders-svc)
+	    55d4c3a27950 orders::Server::handle(orders::Request const&)+0x20e (/opt/orders/bin/orders-svc)
+	    55d4c3aaf1f0 orders::Server::run()+0x1cc (/opt/orders/bin/orders-svc)
+	    55d4c3a803c0 main+0x2a2 (/opt/orders/bin/orders-svc)
+	    7f3a2b6b1640 __libc_start_main+0x20c (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    55d4c3a62930 _start+0x281 (/opt/orders/bin/orders-svc)
+
+      orders-svc 4242/4242 [002] 81234.103465:    1000000 cpu-clock:
+	    7f3a2b929940 pqParseInput3+0x146 (/usr/lib/x86_64-linux-gnu/libpq.so.5.14)
+	    7f3a2bf98540 PQexec+0x3cc (/usr/lib/x86_64-linux-gnu/libpq.so.5.14)
+	    55d4c3a72af0 orders::OrderRepo::save(orders::Order const&)+0x46 (/opt/orders/bin/orders-svc)
+	    55d4c3ac7a10 orders::OrderService::placeOrder(orders::Order const&)+0xe4 (/opt/orders/bin/orders-svc)
+	    55d4c3a27950 orders::Server::handle(orders::Request const&)+0x20e (/opt/orders/bin/orders-svc)
+	    55d4c3aaf1f0 orders::Server::run()+0x1cc (/opt/orders/bin/orders-svc)
+	    55d4c3a803c0 main+0x2a2 (/opt/orders/bin/orders-svc)
+	    7f3a2b6b1640 __libc_start_main+0x20c (/usr/lib/x86_64-linux-gnu/libc.so.6)
+	    55d4c3a62930 _start+0x281 (/opt/orders/bin/orders-svc)
+

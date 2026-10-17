@@ -4,6 +4,8 @@ import { CollectBackend } from '../../core/tools-backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { LiveTail } from '../../workspace/live-tail';
+import { TOOL_IDS } from '../../core/tools.types';
+import { ToolCatalog } from '../tool-catalog.store';
 import { errorMessage } from '../tool-errors';
 import { DEFAULT_MONITOR_DRAFT, MonitorDraft, TargetKind, toMonitorConfig, validateMonitor } from './monitor-model';
 
@@ -24,7 +26,9 @@ export const ACCESS_DENIED_FIELD = 'AccessDenied';
 export const MonitorStore = signalStore(
   { providedIn: 'root' },
   withState<MonitorState>({ draft: DEFAULT_MONITOR_DRAFT, running: false, dir: null, busy: null, error: null, notice: null }),
-  withComputed((store, workspace = inject(WorkspaceStore), life = inject(LifecycleService)) => ({
+  withComputed((store, workspace = inject(WorkspaceStore), life = inject(LifecycleService), catalog = inject(ToolCatalog)) => ({
+    /** The tools plugin serves the monitor now (not inactive, quarantined, disabled or in safe mode). */
+    canRun: computed(() => catalog.usable(TOOL_IDS.processMonitor)),
     problems: computed(() => validateMonitor(store.draft())),
     /** Performance counters (and elevation) are a Windows feature. */
     countersAvailable: life.isWindows,

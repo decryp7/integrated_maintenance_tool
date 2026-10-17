@@ -25,6 +25,7 @@ function nonNegativeInt(v: string | null): number | undefined {
  *   ?mockLiveRate=50          records per second while live tail is on (default 20 with mockLive)
  *   ?mockLiveRotateMs=30000   rotate the tailed file this often (0 = never)
  *   ?mockLiveAlertMs=10000    raise a live alert this often (0 = never)
+ *   ?mockSlowImport=600       opening is slow and cancellable: each path is a folder of files read this many ms apart
  */
 export function mockOptionsFromSearch(search: string): MockBackendOptions {
   const p = new URLSearchParams(search);
@@ -45,6 +46,8 @@ export function mockOptionsFromSearch(search: string): MockBackendOptions {
     if (alert !== undefined) options.liveAlertMs = alert;
   }
   if (p.get('mockCorrupt') === 'markers') options.corruptMarkers = true;
+  const slow = positiveInt(p.get('mockSlowImport'));
+  if (slow) options.slowImportMs = Math.min(slow, 10_000);
   const fail: Partial<Record<Failable, number>> = {};
   for (const part of (p.get('mockFail') ?? '').split(',')) {
     const [name, count] = part.split(':');

@@ -1,0 +1,49 @@
+[package]
+name = "imt-ai"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Local AI assistant for IMT: engine supervisor, model download, hardware-aware recommendations, engine-validated proposals and chat (no llama.cpp linkage; see imt-ai-worker)"
+
+# A fake inference worker (crash, hang, malformed output, ...) used only by the supervisor tests.
+# It is not part of the app and is never bundled.
+[[bin]]
+name = "imt-ai-fake-worker"
+path = "src/bin/fake_worker.rs"
+test = false
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+imt-collect = { path = "../imt-collect" }
+imt-ipc = { path = "../imt-ipc" }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
+thiserror = "2.0"
+toml = "1"
+log = "0.4"
+keyring = "4"
+regex = "1.13"
+prost = "0.14"
+tokio = { version = "1", default-features = false, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
+tokio-stream = { version = "0.1", default-features = false, features = ["net"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+tonic-prost = "0.14"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+getrandom = "0.3"
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security_Authorization", "Win32_System_Memory"] }
+
+[build-dependencies]
+protox = "0.9"
+tonic-prost-build = "0.14"
+
+[dev-dependencies]
+tempfile = "3"
+proptest = "1"

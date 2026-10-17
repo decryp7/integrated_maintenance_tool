@@ -172,6 +172,31 @@ describe('tail status', () => {
     await live.set(false);
   });
 
+  it('renders an applied setting at once, so the next render cannot overwrite what the user types next', async () => {
+    const { backend, live } = await setup();
+    const setLive = vi.spyOn(backend, 'setLive');
+    const fixture = TestBed.createComponent(TailStatusView);
+    await settle(fixture);
+    await live.set(true);
+    await settle(fixture);
+    const detect = el<HTMLInputElement>(fixture, '[data-testid=detect-every]');
+    const [poll] = all<HTMLInputElement>(fixture, 'input');
+    for (const [input, first, next, key, expected] of [
+      [detect, '250', '99999999', 'detectEveryMs', MAX_DETECT_EVERY_MS],
+      [poll, '500', '700', 'pollIntervalMs', 700],
+    ] as const) {
+      // A change is applied, and before the app renders again (a busy app renders late) the user types the next value.
+      typeInto(input, first, 'change');
+      input.value = next;
+      await settle(fixture);
+      expect(input.value).toBe(next);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      await settle(fixture);
+      expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ [key]: expected }));
+    }
+    await live.set(false);
+  });
+
   it('polls while live tail is on, and offers Retry when the status cannot be loaded', async () => {
     const { backend, live } = await setup();
     const tail = vi.spyOn(backend, 'tailStatus').mockRejectedValueOnce('no status');

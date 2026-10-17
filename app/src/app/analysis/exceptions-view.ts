@@ -21,7 +21,7 @@ import { AsyncResource } from './async-resource';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups">
         @for (g of res.data() ?? []; track g.fingerprint) {
           <li class="group">

@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { openApp, parseCount } from './app';
+import { gridTotal, initialTotal, openApp, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { chooseMenu } from './menu-support';
 
 test('export dialog counts events, exports through the backend and reports it', async ({ page }, testInfo) => {
   await openApp(page);
-  await page.getByRole('button', { name: 'File', exact: true }).click();
-  await page.getByRole('menuitem', { name: /^Export events/ }).click();
+  await chooseMenu(page, 'File', 'Export events…');
 
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await expect(dialog).toBeVisible();
@@ -25,10 +25,14 @@ test('export dialog counts events, exports through the backend and reports it', 
 
 test('export dialog counts only what matches the current filter and closes with Escape', async ({ page }) => {
   await openApp(page);
-  const total = parseCount(await page.locator('imt-events-grid .bar .total').innerText());
+  const total = parseCount(await initialTotal(page));
   await page.getByPlaceholder(/Search messages/).fill('timeout');
-  await expect(page.locator('imt-events-grid .bar .total')).not.toHaveText(String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-  const filtered = parseCount(await page.locator('imt-events-grid .bar .total').innerText());
+  // The narrowed total itself, read once it has settled (not a transient "different" value).
+  let filtered = 0;
+  await expect.poll(async () => {
+    filtered = parseCount(await gridTotal(page).innerText());
+    return filtered > 0 && filtered < total;
+  }).toBe(true);
   await page.keyboard.press('ControlOrMeta+Shift+e');
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await expect(dialog.getByRole('status')).toContainText(`${filtered.toLocaleString('en-US')} events will be exported`);

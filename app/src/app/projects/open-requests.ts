@@ -4,6 +4,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { ProjectBackend, Unlisten } from '../core/tools-backend';
 import { baseName, errorMessage } from '../tools/tool-errors';
 import { isProjectPath, ProjectService } from './project.service';
+import { BundleService, isBundlePath } from '../share/bundle/bundle.service';
 
 const LOAD_WAIT_TRIES = 100;
 const LOAD_WAIT_MS = 20;
@@ -13,7 +14,7 @@ export const SESSION_FILE_NAME = 'last-session.imtproj';
 
 /**
  * Files the OS asks IMT to open (file association, "open with", command line). `.imtproj` files
- * open as projects; everything else is added to the workspace. (Live-tail refreshes are handled
+ * open as projects, `.imtz` bundles open read-only; everything else is added to the workspace. (Live-tail refreshes are handled
  * by `LiveTail` only.)
  */
 @Injectable({ providedIn: 'root' })
@@ -22,6 +23,7 @@ export class OpenRequests {
   private readonly projects = inject(ProjectService);
   private readonly store = inject(WorkspaceStore);
   private readonly logger = inject(Logger);
+  private readonly bundles = inject(BundleService);
   private unlisten: Unlisten | null = null;
 
   /** Handles what is already waiting and subscribes to new requests. Idempotent. */
@@ -51,11 +53,13 @@ export class OpenRequests {
     }
   }
 
-  /** Opens the first project, then adds the remaining files to the workspace. */
+  /** Opens the first project (or else the first `.imtz` bundle, read-only), then adds the remaining files to the workspace. */
   async handle(paths: string[]): Promise<void> {
     const project = paths.find(isProjectPath);
+    const bundle = paths.find(isBundlePath);
     if (project) await this.projects.open(project, { session: baseName(project).toLowerCase() === SESSION_FILE_NAME });
-    const others = paths.filter((p) => !isProjectPath(p));
+    else if (bundle) await this.bundles.open(bundle);
+    const others = paths.filter((p) => !isProjectPath(p) && !isBundlePath(p));
     if (others.length) await this.store.openPaths(others);
   }
 

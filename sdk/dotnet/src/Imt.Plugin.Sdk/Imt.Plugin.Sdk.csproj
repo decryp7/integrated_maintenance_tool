@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RootNamespace>Imt.Plugin</RootNamespace>
+    <AssemblyName>Imt.Plugin.Sdk</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <PackageId>Imt.Plugin.Sdk</PackageId>
+    <Description>SDK for IMT process plugins in C#/.NET: the imt.plugin.v1 gRPC contract, hosting on IMT's private local transport, idiomatic capability interfaces, Arrow record batches and a test host.</Description>
+    <PackageTags>imt;plugin;grpc;arrow;logs</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Apache.Arrow" />
+    <PackageReference Include="Apache.Arrow.Compression" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- C# is generated from the contract at build time, so the SDK always matches the .proto files. -->
+  <ItemGroup>
+    <Protobuf Include="$(ImtProtoRoot)/imt/plugin/v1/plugin.proto" ProtoRoot="$(ImtProtoRoot)" GrpcServices="Both" Link="Protos/plugin.proto" />
+    <Protobuf Include="$(ImtIpcProtoRoot)/control.proto" ProtoRoot="$(ImtIpcProtoRoot)" GrpcServices="Both" Link="Protos/control.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="build/Imt.Plugin.Sdk.targets" Pack="true" PackagePath="buildTransitive/Imt.Plugin.Sdk.targets" />
+    <InternalsVisibleTo Include="Imt.Plugin.Sdk.Tests" />
+  </ItemGroup>
+</Project>

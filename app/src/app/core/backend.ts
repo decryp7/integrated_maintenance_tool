@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
 import {
   AlertTarget,
@@ -57,7 +57,8 @@ export abstract class ImtBackend {
   abstract saveProfile(toml: string): Promise<WorkspaceSummary>;
   abstract previewExtractor(request: ExtractPreviewRequest): Promise<ExtractPreview>;
   abstract importProfile(path: string): Promise<ProfileDoc>;
-  abstract exportProfile(path: string, toml: string): Promise<void>;
+  /** Writes the profile to a file the user chose; refuses to replace an existing file unless `overwrite` (see `fileExistsPath`). */
+  abstract exportProfile(path: string, toml: string, overwrite?: boolean): Promise<void>;
   abstract exportEvents(request: ExportRequest): Promise<ExportResult>;
   /** The original lines around an event. */
   abstract sourceContext(request: ContextRequest): Promise<SourceContext>;
@@ -149,8 +150,8 @@ export class TauriBackend extends ImtBackend {
   importProfile(path: string) {
     return this.call<ProfileDoc>('import_profile', { path });
   }
-  exportProfile(path: string, toml: string) {
-    return this.call<void>('export_profile', { path, toml });
+  exportProfile(path: string, toml: string, overwrite = false) {
+    return this.call<void>('export_profile', overwrite ? { path, toml, overwrite } : { path, toml });
   }
   exportEvents(request: ExportRequest) {
     return this.call<ExportResult>('export_events', { request });

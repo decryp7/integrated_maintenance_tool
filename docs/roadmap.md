@@ -5,21 +5,21 @@ IMT aims to cover the whole maintenance loop: **collect** diagnostics from a mac
 result. Phases are ordered by value and by what later features build on. Engineering
 follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 
-## Phase 1: make analyses reusable (next)
+## Phase 1: make analyses reusable *(done)*
 
 - **Projects:** `.imtproj` save/load with sources, profile, filters, time range, zoom history,
-  columns and tabs; recent projects; file association.
+  columns and tabs; recent projects; file association. *(Done.)*
 - **Bookmarks and notes** on events and time ranges, listed in a side panel and kept in the
-  project.
+  project. *(Done.)*
 - **Export:** filtered events (CSV, CLEF), charts and timeline (PNG/SVG), incident report
-  (HTML/PDF), shareable `.imtz` bundle (project + profile + logs).
+  (HTML/PDF), shareable `.imtz` bundle (project + profile + logs). *(Done.)*
 - **Saved queries and filter presets**, plus **highlight rules** (colour rows matching a
-  condition, e.g. `ElapsedMs > 5000`).
+  condition, e.g. `ElapsedMs > 5000`). *(Done.)*
 - **Context view:** jump from an event to the surrounding lines of its source file, or ±N
-  events of the same instance.
-- **Compressed and archived input:** read `.gz`, `.zip` and rotated log sets transparently.
+  events of the same instance. *(Done.)*
+- **Compressed and archived input:** read `.gz`, `.zip` and rotated log sets transparently. *(Done.)*
 
-## Phase 2: find the problem faster
+## Phase 2: find the problem faster *(done, except calculated fields)*
 
 - **Query language** with autocomplete and syntax help (fields, operators, functions), e.g.
   `level >= Warning and RequestPath ~ "/capture" and ElapsedMs > 5000`, alongside the
@@ -35,32 +35,38 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 - **Compare windows:** "before vs. after deploy" or "good vs. bad instance": what patterns,
   errors and metrics changed.
 - **Field statistics:** histograms and percentiles for numeric fields, top values, value
-  over time; calculated fields from expressions.
+  over time; calculated fields from expressions. *(Done, except calculated
+  fields.)*
 - **Clock-skew correction:** shift a source's timestamps by an offset (or align on a
-  shared event) so multi-machine timelines line up.
-- **Live tail:** follow growing files (rotation-aware) with the timeline scrolling live.
+  shared event) so multi-machine timelines line up. *(Done: manual, aligned on an event, or
+  suggested from shared correlation ids; ADR 0006.)*
+- **Live tail:** follow growing files (rotation-aware) with the timeline scrolling live. *(Done.)*
 
 ## Phase 3: more sources (importer plugins)
 
 - Windows: **Event Logs** (`.evtx` and live), **registry exports** (`.reg`, tree view and
   diff), **msinfo32** (`.nfo`, tree view), Process Monitor CSV/PML, ETW `.etl`, IIS / W3C
-  logs, SQL Server ERRORLOG, minidump summaries.
+  logs, SQL Server ERRORLOG, minidump summaries. *(Done: `.evtx` files, `.reg`, `.nfo`, IIS / W3C;
+  the rest is planned.)*
 - Cross-platform: syslog / journald, Apache/Nginx access logs, NLog/log4j XML layouts,
-  OpenTelemetry (OTLP JSON), Docker/Kubernetes logs, HAR files.
+  OpenTelemetry (OTLP JSON), Docker/Kubernetes logs, HAR files. *(Done: syslog / journald,
+  Apache/Nginx, OTLP JSON, HAR, and NLog through a built-in template; the rest is planned.)*
 - Remote: fetch from SSH/SFTP and SMB shares; query Seq, Elasticsearch/OpenSearch, Grafana
   Loki and Azure Application Insights and treat results as sources.
 - **Diff view** for configuration-like data (registry exports, JSON/XML configs, msinfo of
-  two machines).
+  two machines). *(Done: JSON, XML, INI, TOML, YAML, `.reg`, `.nfo`, and folder snapshots.)*
 
 ## Phase 4: collect, not just read
 
 - **Process monitor** with system-tray mode (see backlog): CPU, memory, handles and I/O per
   process; Windows performance counters; .NET runtime counters (GC, exceptions/sec, thread
-  pool); process start/exit and crash detection; elevated helper only when needed.
+  pool); process start/exit and crash detection; elevated helper only when needed. *(Done: process
+  monitor with tray mode and Windows counters via PDH; .NET runtime counters are still planned.)*
 - **Diagnostics collector:** one action (or a small standalone/CLI collector to run on a
   customer machine) that gathers app logs, event logs, msinfo, selected registry keys, a
-  performance-counter snapshot and environment info into an `.imtz` bundle, with redaction.
-- **Scheduled collection** and a headless/service mode for servers.
+  performance-counter snapshot and environment info into an `.imtz` bundle, with redaction. *(Done.)*
+- **Scheduled collection** and a headless/service mode for servers. *(Done: `imt-agent`, ADR 0005;
+  the Windows service is type-checked here and exercised on the Windows CI runner only.)*
 
 ## Phase 4b: profiling
 
@@ -110,6 +116,9 @@ speedscope / collapsed-stack formats) and an **allocation table with snapshot di
 
 ### Profiler analysis UI (shared by every profiler plugin)
 
+*(Done: the engine (`imt-profile`) and every view below except source/line heat, over imported
+captures; see [profiling.md](profiling.md). The collectors above are still planned.)*
+
 The engine owns a common profile model (samples or exact events → call tree with per-frame
 self/total time, samples, calls, allocations, exceptions, lock waits) and does all aggregation;
 the UI shows virtualised, sortable views over it:
@@ -140,7 +149,10 @@ labels which kind each column is.
 Import of existing captures as well as IMT's own: `.nettrace` (dotnet-trace/EventPipe), `.etl`
 (WPR/PerfView via the Windows helper), `perf script`/collapsed stacks, pprof, Chrome trace /
 `.cpuprofile`, speedscope JSON, `.gcdump`. Native collectors run as supervised worker processes
-(ADR 0002) and expose the shared profile model through plugin services (ADR 0003).
+(ADR 0002) and expose the shared profile model through plugin services (ADR 0003). *(Done:
+`.nettrace`, `perf script`, collapsed stacks, pprof, Chrome trace / `.cpuprofile`, speedscope and
+V8 `.heapsnapshot` in `imt-plugin-profiling`; `.etl` and `.gcdump` need the Windows helper and are
+planned.)*
 
 ## Phase 5: explain and share
 
@@ -151,10 +163,11 @@ Import of existing captures as well as IMT's own: `.nettrace` (dotnet-trace/Even
   the engine validates and previews before the user applies them. Optional web search for error
   codes is off by default, uses engine-built redacted queries and needs approval per request.
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
-  exports and bundles.
+  exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.
+  *(Done: HTML and PDF export, saved in the project.)*
 - **Dashboards:** arrange charts, counters and tables per profile (e.g. "OrderService
-  health").
+  health"). *(Done: `[[dashboard]]`, edit and wall modes.)*
 
 ## Phase 6: scale and platform
 

@@ -114,6 +114,16 @@ impl Importers {
         self
     }
 
+    /// Every text importer, in registration order.
+    pub fn text_importers(&self) -> impl Iterator<Item = &dyn Importer> {
+        self.list.iter().map(|b| b.as_ref())
+    }
+
+    /// Every binary importer, in registration order.
+    pub fn binary_importers(&self) -> impl Iterator<Item = &dyn BinaryImporter> {
+        self.binary.iter().map(|b| b.as_ref())
+    }
+
     /// The text importer with this id.
     pub fn find(&self, id: &str) -> Option<&dyn Importer> {
         self.list.iter().find(|i| i.id() == id).map(|b| b.as_ref())

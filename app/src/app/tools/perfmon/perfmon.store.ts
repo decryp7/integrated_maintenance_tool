@@ -6,6 +6,9 @@ import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { LiveTail } from '../../workspace/live-tail';
+import { TOOL_IDS } from '../../core/tools.types';
+import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { ToolCatalog } from '../tool-catalog.store';
 import { errorMessage } from '../tool-errors';
 import { addProcess, DEFAULT_DRAFT, PerfmonDraft, toggleCounter, togglePreset, toTemplate, validateDraft } from './perfmon-model';
 
@@ -26,12 +29,16 @@ const XML_FORMATS = [{ name: 'Data Collector Set XML', extension: 'xml' }];
 export const PerfmonStore = signalStore(
   { providedIn: 'root' },
   withState<PerfmonState>({ presets: [], draft: DEFAULT_DRAFT, generated: null, status: null, busy: null, error: null, notice: null, liveTail: true }),
-  withComputed((store, life = inject(LifecycleService)) => ({
+  withComputed((store, life = inject(LifecycleService), catalog = inject(ToolCatalog)) => ({
     /** Collector sets can only be managed on Windows; elsewhere the wizard generates XML and instructions. */
-    canManage: life.isWindows,
+    onWindows: life.isWindows,
+    /** Collector sets can be managed here: Windows, and the tools plugin serves them. */
+    canManage: computed(() => life.isWindows() && catalog.usable(TOOL_IDS.perfmonSets)),
+    /** Templates can be generated (the tools plugin serves them). */
+    canGenerate: computed(() => catalog.usable(TOOL_IDS.perfmonTemplates)),
     problems: computed(() => validateDraft(store.draft())),
   })),
-  withMethods((store, backend = inject(PerfmonBackend), live = inject(LiveTail), workspace = inject(WorkspaceStore), platform = inject(Platform)) => {
+  withMethods((store, backend = inject(PerfmonBackend), live = inject(LiveTail), workspace = inject(WorkspaceStore), platform = inject(Platform), guard = inject(OverwriteGuard)) => {
     const template = () => toTemplate(store.draft(), store.presets());
 
     /** Runs an operation with the busy label; failures become `error`. */
@@ -74,12 +81,13 @@ export const PerfmonStore = signalStore(
           patchState(store, { generated: await backend.perfmonGenerate(template()) });
         }),
 
-      /** Asks for a file and has the engine write the XML there. */
+      /** Asks for a file and has the engine write the XML there (an existing file only after confirming). */
       async saveXml(): Promise<void> {
         const path = await platform.pickExportPath(`${store.draft().name.trim() || 'IMT'}.xml`, XML_FORMATS);
         if (!path) return;
         await run('Saving…', async () => {
-          patchState(store, { generated: await backend.perfmonGenerate(template(), path), notice: `Saved ${path}` });
+          const generated = await guard.write(path, (overwrite) => backend.perfmonGenerate(template(), path, overwrite));
+          if (generated) patchState(store, { generated, notice: `Saved ${path}` });
         });
       },
 

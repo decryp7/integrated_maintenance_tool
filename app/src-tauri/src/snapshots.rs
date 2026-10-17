@@ -8,6 +8,7 @@
 //! shared `snapshots` section of the diagnostics settings (`crate::diagnostics`). Event: `imt://error` (see [`EngineError`]). The wire contract is
 //! `app/src/app/diagnostics/snapshot.types.ts`.
 
+use crate::activity::Breadcrumb;
 use crate::{err, CmdResult};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
@@ -95,7 +96,7 @@ impl ImageFormat {
             Self::Jpeg => "image/jpeg",
         }
     }
-    fn extension(self) -> &'static str {
+    pub(crate) fn extension(self) -> &'static str {
         match self {
             Self::Png => "png",
             Self::Jpeg => "jpg",
@@ -156,6 +157,9 @@ pub struct SnapshotContext {
     /// The user asked for it (works even when automatic snapshots are off).
     #[serde(default)]
     pub manual: bool,
+    /// What the user did just before (filled by the shell from the activity log, never by the UI).
+    #[serde(skip)]
+    pub breadcrumbs: Vec<Breadcrumb>,
 }
 
 /// What the app adds on its own.
@@ -212,6 +216,12 @@ pub struct Sidecar {
     pub mime: String,
     pub bytes: u64,
     pub log_refs: Vec<LogRef>,
+    /// The operations leading up to the error (absent in sidecars written before the activity log).
+    #[serde(default)]
+    pub breadcrumbs: Vec<Breadcrumb>,
+    /// Human-readable steps to reproduce, generated from `breadcrumbs`.
+    #[serde(default)]
+    pub steps: Vec<String>,
 }
 
 /// One snapshot as listed to the UI.
@@ -229,6 +239,8 @@ pub struct SnapshotInfo {
     pub os: String,
     pub mime: String,
     pub bytes: u64,
+    pub breadcrumbs: Vec<Breadcrumb>,
+    pub steps: Vec<String>,
 }
 
 impl From<Sidecar> for SnapshotInfo {
@@ -245,6 +257,8 @@ impl From<Sidecar> for SnapshotInfo {
             os: s.os,
             mime: s.mime,
             bytes: s.bytes,
+            breadcrumbs: s.breadcrumbs,
+            steps: s.steps,
         }
     }
 }
@@ -308,6 +322,8 @@ impl SnapshotStore {
             mime: format.mime().to_string(),
             bytes: image.len() as u64,
             log_refs: self.log_refs(),
+            steps: snapshot_steps(&ctx.breadcrumbs, &ctx.message),
+            breadcrumbs: last_breadcrumbs(&ctx.breadcrumbs),
         };
         let image_path = self.image_path(&id, format);
         std::fs::write(&image_path, image)?;
@@ -378,6 +394,12 @@ impl SnapshotStore {
             zip.start_file(format!("snapshots/{stem}.json"), opts).map_err(zerr)?;
             zip.write_all(&std::fs::read(self.sidecar_path(stem))?)?;
             count += 2;
+        }
+        let steps = steps_document(chosen.iter().map(|(s, _)| s));
+        if !steps.is_empty() {
+            zip.start_file("steps-to-reproduce.txt", opts).map_err(zerr)?;
+            zip.write_all(steps.as_bytes())?;
+            count += 1;
         }
         if let Some(tail) = self.log_file.as_deref().and_then(|p| tail_of(p, EXPORT_LOG_TAIL)) {
             zip.start_file(format!("logs/{}", log_file_name()), opts).map_err(zerr)?;
@@ -468,8 +490,38 @@ impl SnapshotStore {
     }
 }
 
+/// The last [`crate::activity::BREADCRUMBS_PER_ERROR`] breadcrumbs.
+fn last_breadcrumbs(all: &[Breadcrumb]) -> Vec<Breadcrumb> {
+    all[all.len().saturating_sub(crate::activity::BREADCRUMBS_PER_ERROR)..].to_vec()
+}
+
+/// Steps to reproduce ending in the error; none when nothing was recorded before it.
+fn snapshot_steps(crumbs: &[Breadcrumb], message: &str) -> Vec<String> {
+    if crumbs.is_empty() {
+        return Vec::new();
+    }
+    crate::activity::steps(
+        &last_breadcrumbs(crumbs),
+        Some(&format!("Error: {}", truncate(message, MAX_MESSAGE))),
+    )
+}
+
+/// The steps to reproduce of each snapshot that has any, one section per snapshot.
+pub fn steps_document<'a>(sidecars: impl Iterator<Item = &'a Sidecar>) -> String {
+    let mut out = String::new();
+    for s in sidecars.filter(|s| !s.steps.is_empty()) {
+        out.push_str(&format!("Snapshot {} ({}, {}): {}\n", s.id, s.created_at, s.reason, s.message));
+        for step in &s.steps {
+            out.push_str(step);
+            out.push('\n');
+        }
+        out.push('\n');
+    }
+    out
+}
+
 /// The export destination must be a `.zip` in an existing folder.
-fn checked_destination(dest: &Path) -> Result<PathBuf, SnapshotError> {
+pub(crate) fn checked_destination(dest: &Path) -> Result<PathBuf, SnapshotError> {
     let is_zip = dest.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip"));
     if !is_zip {
         return Err(SnapshotError::BadDestination("the file name must end in .zip".into()));
@@ -488,7 +540,7 @@ fn checked_destination(dest: &Path) -> Result<PathBuf, SnapshotError> {
 }
 
 /// The last `max_bytes` of a file, starting at a line boundary.
-fn tail_of(path: &Path, max_bytes: u64) -> Option<Vec<u8>> {
+pub(crate) fn tail_of(path: &Path, max_bytes: u64) -> Option<Vec<u8>> {
     use std::io::{Read, Seek, SeekFrom};
     let mut file = std::fs::File::open(path).ok()?;
     let len = file.metadata().ok()?.len();
@@ -546,10 +598,19 @@ pub enum EngineErrorKind {
     ImportCrash,
 }
 
-/// Tells the window whose workspace contained a failure, so it can take an error snapshot. Never fails.
+/// Tells the window whose workspace contained a failure (and its pop-out panels), so it can take an error
+/// snapshot. Never fails.
 pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str, error: &EngineError) {
-    use tauri::Emitter;
-    let _ = app.emit_to(window, ERROR_EVENT, error);
+    // Logged here too (with the window's breadcrumbs, attached by the activity logger to errors), so a
+    // contained failure is in the log even when no UI is listening.
+    let kind = format!("{:?}", error.kind);
+    let plugin = error.plugin.as_deref().unwrap_or("");
+    let message = crate::activity::privacy::redact(&error.message);
+    match error.kind {
+        EngineErrorKind::PluginInactive => log::warn!(Kind = kind.as_str(), Plugin = plugin, Window = window; "{message}"),
+        _ => log::error!(Kind = kind.as_str(), Plugin = plugin, Window = window; "{message}"),
+    }
+    crate::windows::emit_to_window(app, window, ERROR_EVENT, error);
 }
 
 /// The active IMT log file's name (owned by the diagnostics module).
@@ -587,11 +648,11 @@ fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) -> std::io:
     Ok(())
 }
 
-fn config_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
+pub(crate) fn config_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
     app.path().app_config_dir().ok()
 }
 
-fn store<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> CmdResult<SnapshotStore> {
+pub(crate) fn store<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> CmdResult<SnapshotStore> {
     let dir = app.path().app_log_dir().map_err(err)?;
     let limits = Limits::from(&crate::diagnostics::load(config_dir(app).as_deref()).snapshots);
     Ok(SnapshotStore::new(dir.join("snapshots"), Some(dir.join(log_file_name())), limits))
@@ -626,10 +687,24 @@ pub struct SaveResult {
 #[tauri::command]
 pub fn save_error_snapshot<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    webview: tauri::Webview<R>,
     image: String,
     mime: String,
     context: SnapshotContext,
 ) -> CmdResult<SaveResult> {
+    save_snapshot(&app, webview.label(), image, mime, context)
+}
+
+/// `save_error_snapshot` for the window `label`: the snapshot records that window's latest activity.
+pub(crate) fn save_snapshot<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    image: String,
+    mime: String,
+    mut context: SnapshotContext,
+) -> CmdResult<SaveResult> {
+    let app = app.clone();
+    context.breadcrumbs = crate::activity::breadcrumbs(Some(label), crate::activity::BREADCRUMBS_PER_ERROR);
     allowed(&crate::diagnostics::load(config_dir(&app).as_deref()).snapshots, &context).map_err(|e| e.to_string())?;
     let (format, bytes) = validate_image(&mime, &image).map_err(|e| e.to_string())?;
     let store = store(&app)?;
@@ -697,7 +772,13 @@ pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Cmd
 
 /// Zips the chosen snapshots and the recent IMT log to `path` (chosen in the save dialog).
 #[tauri::command]
-pub async fn export_diagnostics<R: tauri::Runtime>(app: tauri::AppHandle<R>, path: String, ids: Vec<String>) -> CmdResult<usize> {
+pub async fn export_diagnostics<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    path: String,
+    ids: Vec<String>,
+    overwrite: Option<bool>,
+) -> CmdResult<usize> {
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let store = store(&app)?;
     let count = tauri::async_runtime::spawn_blocking(move || store.export(&ids, Path::new(&path)))
         .await
@@ -735,6 +816,7 @@ mod tests {
             stack: Some("at x".into()),
             view: Some("grid".into()),
             manual: false,
+            breadcrumbs: Vec::new(),
         }
     }
 
@@ -960,6 +1042,7 @@ mod tests {
             stack: Some("s".repeat(50_000)),
             view: Some("v".repeat(500)),
             manual: true,
+            ..Default::default()
         };
         store.save(ImageFormat::Png, &png(1), &long, &env()).unwrap();
         let info = &store.list()[0];
@@ -1105,6 +1188,70 @@ mod tests {
         std::fs::remove_dir_all(d).unwrap();
     }
 
+    fn crumb(op: &str) -> Breadcrumb {
+        Breadcrumb {
+            time: "2026-10-17T08:00:00Z".into(),
+            operation: op.into(),
+            trigger: "menu".into(),
+            operation_id: Some("op-1".into()),
+            outcome: None,
+            error_code: None,
+            duration_ms: None,
+            view: None,
+            window: "main".into(),
+            params: [("Title".to_string(), "Export CSV".to_string())].into(),
+        }
+    }
+
+    #[test]
+    fn snapshots_keep_breadcrumbs_and_steps_and_export_them() {
+        let d = temp("crumbs");
+        let store = store_in(&d, Limits::default());
+        let mut c = ctx("panel-failed");
+        c.breadcrumbs = (0..40).map(|i| crumb(&format!("op{i}"))).collect();
+        c.breadcrumbs.push(crumb("export.csv"));
+        let id = store.save(ImageFormat::Png, &png(1), &c, &env()).unwrap();
+        let info = store.list().into_iter().find(|i| i.id == id).unwrap();
+        assert_eq!(info.breadcrumbs.len(), crate::activity::BREADCRUMBS_PER_ERROR);
+        assert_eq!(info.breadcrumbs.last().unwrap().operation, "export.csv");
+        assert_eq!(info.steps.last().unwrap(), &format!("{}. Error: boom", info.steps.len()));
+        assert!(
+            info.steps.iter().any(|s| s.contains("Clicked 'Export CSV' from the menu")),
+            "{:?}",
+            info.steps
+        );
+        // Without breadcrumbs there are no steps.
+        let plain = store.save(ImageFormat::Png, &png(2), &ctx("x"), &env()).unwrap();
+        assert!(store.list().into_iter().find(|i| i.id == plain).unwrap().steps.is_empty());
+
+        let out = d.join("crumbs.zip");
+        assert_eq!(store.export(&[id.clone(), plain], &out).unwrap(), 5);
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
+        let mut steps = String::new();
+        std::io::Read::read_to_string(&mut zip.by_name("steps-to-reproduce.txt").unwrap(), &mut steps).unwrap();
+        assert!(
+            steps.starts_with(&format!("Snapshot {id}")) && steps.contains("Error: boom"),
+            "{steps}"
+        );
+        std::fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn old_sidecars_without_breadcrumbs_still_list() {
+        let d = temp("old");
+        let store = store_in(&d, Limits::default());
+        let id = store.save(ImageFormat::Png, &png(1), &ctx("x"), &env()).unwrap();
+        let path = store.sidecar_path(&id);
+        let mut v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let o = v.as_object_mut().unwrap();
+        o.remove("breadcrumbs");
+        o.remove("steps");
+        std::fs::write(&path, v.to_string()).unwrap();
+        let info = store.list().into_iter().find(|i| i.id == id).unwrap();
+        assert!(info.breadcrumbs.is_empty() && info.steps.is_empty());
+        std::fs::remove_dir_all(d).unwrap();
+    }
+
     #[test]
     fn notice_is_reported_once() {
         let d = temp("notice");
@@ -1140,22 +1287,33 @@ mod tests {
         let app = tauri::test::mock_app();
         let handle = app.handle().clone();
         let image = STANDARD.encode(png(20));
-        let saved = save_error_snapshot(handle.clone(), image.clone(), "image/png".into(), ctx("cmd")).unwrap();
+        let saved = save_snapshot(&handle, "main", image.clone(), "image/png".into(), ctx("cmd")).unwrap();
         let listed = list_error_snapshots(handle.clone()).unwrap();
         assert!(listed.iter().any(|i| i.id == saved.id));
         assert!(read_error_snapshot(handle.clone(), saved.id.clone())
             .unwrap()
             .starts_with("data:image/png;base64,"));
-        let bad = save_error_snapshot(handle.clone(), "AAAA".into(), "image/png".into(), ctx("bad"));
+        let bad = save_snapshot(&handle, "main", "AAAA".into(), "image/png".into(), ctx("bad"));
         assert!(bad.is_err());
         let out = std::env::temp_dir().join(format!("imt-snap-cmd-{}.zip", std::process::id()));
         let n = tauri::async_runtime::block_on(export_diagnostics(
             handle.clone(),
             out.to_string_lossy().into(),
             vec![saved.id.clone()],
+            Some(true),
         ))
         .unwrap();
         assert!(n >= 2);
+        let refused = tauri::async_runtime::block_on(export_diagnostics(
+            handle.clone(),
+            out.to_string_lossy().into(),
+            vec![saved.id.clone()],
+            None,
+        ));
+        assert_eq!(
+            refused.unwrap_err(),
+            format!("{} already exists; confirm to replace it", out.display())
+        );
         let _ = std::fs::remove_file(out);
         prune_on_startup(&handle);
         delete_error_snapshot(handle.clone(), saved.id).unwrap();

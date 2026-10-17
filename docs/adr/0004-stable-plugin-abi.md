@@ -56,6 +56,27 @@ Rules:
 - **Built-in plugins** keep using Rust traits (no serialisation cost) but must stay expressible
   through the contracts, so they could be moved out without changing behaviour.
 
+### Rollout order (2026-10-17)
+
+The gRPC contract is the **primary, stable** path for third-party plugins now: gRPC/protobuf and
+their toolchains are mature in every language, including C#. The WebAssembly contract is added
+later as a **preview** and becomes stable only after **WASI 1.0** ships. As of October 2026, core
+WebAssembly is stable, WASI 0.2 (2024) and 0.3 (ratified June 2026) are stable snapshots, but WASI
+1.0 has not been released and language tooling is uneven (e.g. C# components are still preview).
+Until then a WASM plugin may need rebuilding when IMT moves to a newer WASI version.
+
+### First-party code is Rust only (2026-10-17)
+
+Everything IMT builds itself is Rust: the engine, shell, built-in plugins, workers (AI, plugin
+host) and profiling components, including the .NET CLR profiler agent (a Rust `cdylib` COM
+server via the `windows` crate) and ETW/`.etl` decoding (Windows TDH/ETW APIs from Rust). No
+first-party C#, C++ or other runtimes ship with IMT. Plugins in other languages are supported
+through the protobuf contract (and WIT later): any language with gRPC can implement
+`imt.plugin.v1` and be checked with the conformance kit. IMT ships official Rust and C#/.NET SDKs
+(the latter with a template and sample plugins, `sdk/dotnet`); SDKs for further languages are
+built when a real plugin needs one. SDKs are developer
+tooling, not part of the app.
+
 ## Consequences
 
 - Third-party plugins work across IMT versions without recompiling IMT, in any language that

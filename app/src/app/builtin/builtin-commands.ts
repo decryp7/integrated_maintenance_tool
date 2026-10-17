@@ -39,6 +39,8 @@ export class BuiltinCommands {
     },
     { id: 'help.welcome', title: 'Show welcome', category: 'Help', run: () => this.welcome.show() },
     { id: 'help.about', title: 'About IMT', category: 'Help', run: () => this.about.open() },
+    // The About dialog opens on the third-party notices viewer.
+    { id: 'help.notices', title: 'Third-party notices', category: 'Help', run: () => this.about.open() },
     { id: 'settings.open', title: 'Open settings', category: 'View', keybinding: 'Mod+,', run: () => this.settings.open() },
     { id: SETTINGS_DIAGNOSTICS_COMMAND, title: 'Open settings: Diagnostics', category: 'View', run: () => this.settings.open(DIAGNOSTICS_SECTION) },
     { id: 'view.toggleSidebar', title: 'Toggle sidebar', category: 'View', keybinding: 'Mod+B', run: () => this.store.toggleSidebar() },

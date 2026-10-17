@@ -1,0 +1,11 @@
+# Serilog console/file sink text with the default output template (optionally
+# followed by {Properties:j}); exceptions on the following lines.
+name = "Serilog text"
+
+[parse]
+format = "text"
+output_templates = [
+  "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+  "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+]
+regexes = []

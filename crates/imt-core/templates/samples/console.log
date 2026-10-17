@@ -1,0 +1,12 @@
+2026-10-14 10:41:00.120 info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+2026-10-14 10:41:00.130 info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+2026-10-14 10:41:02.540 warn: Shop.Orders.OrderController[1002]
+      Slow request /api/orders took 1500 ms
+2026-10-14 10:41:24.050 fail: Shop.Payments.CaptureHandler[1001]
+      Payment failed for order 88412
+      System.TimeoutException: The operation has timed out.
+         at Shop.Payments.Gateway.Capture()
+2026-10-14 10:41:30.000 dbug: Shop.Cache[0]
+      Cache refreshed

@@ -1,32 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
-import { ClickOutside } from '../shared/click-outside';
 import { Icon } from '../shared/icon';
-import { DockService } from '../dock/dock.service';
 import { CommandRegistry } from '../extensions/command-registry';
-import { formatKeybinding } from '../extensions/keybinding';
-import { ViewRegistry } from '../extensions/view-registry';
 import { PaletteService } from '../palette/palette.service';
 import { TitleExtras } from '../lifecycle/title-extras';
-import { WindowingService } from '../windowing/windowing.service';
-
-interface MenuItem {
-  label: string;
-  hint?: string;
-  /** Present for toggles (panels): the menu item is a checkbox. */
-  checked?: boolean;
-  run: () => void;
-}
-
-interface Menu {
-  label: string;
-  items: MenuItem[];
-}
+import { MenuBar } from './menu/menu-bar';
+import { MENU_MODE } from './menu/app-menu.service';
+import { NativeMenuBridge } from './menu/native-menu';
 
 @Component({
   selector: 'imt-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside, TitleExtras],
+  imports: [Icon, MenuBar, TitleExtras],
   template: `
     <div class="brand">
       <span class="logo" aria-hidden="true">
@@ -34,28 +19,9 @@ interface Menu {
       </span>
       <span class="name">IMT</span>
     </div>
-    <nav class="menus" (imtClickOutside)="open.set(null)">
-      @for (menu of menus(); track menu.label) {
-        <div class="menu">
-          <button class="menu-btn" [class.on]="open() === menu.label" (click)="toggle(menu.label)" [attr.aria-expanded]="open() === menu.label">{{ menu.label }}</button>
-          @if (open() === menu.label) {
-            <div class="popover dropdown" role="menu">
-              @for (item of menu.items; track item.label) {
-                <button
-                  [attr.role]="item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'"
-                  [attr.aria-checked]="item.checked === undefined ? null : item.checked"
-                  class="item"
-                  (click)="item.run(); open.set(null)"
-                >
-                  <span>{{ item.checked === undefined ? '' : item.checked ? '✓ ' : '\u2003' }}{{ item.label }}</span>
-                  @if (item.hint) { <span class="faint">{{ item.hint }}</span> }
-                </button>
-              }
-            </div>
-          }
-        </div>
-      }
-    </nav>
+    @if (mode === 'in-app') {
+      <imt-menu-bar class="menus" />
+    }
     <div class="palette-wrap">
       <button class="palette" (click)="openPalette()" title="Command palette (Ctrl/⌘+K)">
         <imt-icon name="search" [size]="13" />
@@ -79,13 +45,6 @@ interface Menu {
     .brand { display: flex; align-items: center; gap: 8px; }
     .logo { width: 20px; height: 20px; border-radius: 5px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; }
     .name { font-weight: 600; letter-spacing: 0.04em; }
-    .menus { display: flex; gap: 2px; }
-    .menu { position: relative; }
-    .menu-btn { height: 26px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; }
-    .menu-btn:hover, .menu-btn.on { background: var(--bg-hover); color: var(--text); }
-    .dropdown { top: 30px; left: 0; min-width: 220px; padding: 4px; display: flex; flex-direction: column; }
-    .item { display: flex; justify-content: space-between; gap: 16px; height: 28px; align-items: center; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: left; }
-    .item:hover { background: var(--bg-hover); color: var(--text); }
     .palette-wrap { flex: 1; display: flex; justify-content: center; min-width: 0; }
     .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: 12px; cursor: text; }
     .palette span:nth-child(2) { flex: 1; text-align: left; }
@@ -98,55 +57,12 @@ interface Menu {
 export class TitleBar {
   protected readonly store = inject(WorkspaceStore);
   private readonly registry = inject(CommandRegistry);
-  private readonly dock = inject(DockService);
-  private readonly views = inject(ViewRegistry);
   private readonly palette = inject(PaletteService);
-  private readonly windowing = inject(WindowingService);
-  protected readonly open = signal<string | null>(null);
+  /** On macOS the menus are in the native menu bar and the in-app bar is hidden. */
+  protected readonly mode = inject(MENU_MODE);
 
-  protected readonly menus = computed<Menu[]>(() => {
-    // Re-evaluate when panels open/close or the workspace changes.
-    this.dock.openIds();
-    const cmd = (id: string): MenuItem[] => {
-      const c = this.registry.find(id);
-      const available = this.registry.available().some((a) => a.id === id);
-      return c && available ? [{ label: c.title, hint: c.keybinding ? formatKeybinding(c.keybinding) : undefined, run: () => void this.registry.run(id) }] : [];
-    };
-    const panels: MenuItem[] = this.views.available().map((v) => ({
-      label: v.title,
-      checked: this.dock.isOpen(v.id),
-      run: () => this.dock.toggle(v.id),
-    }));
-    return [
-      { label: 'File', items: ['window.new', 'file.openFiles', 'file.openFolder', 'file.reimport', 'file.export', 'file.close'].flatMap(cmd) },
-      {
-        label: 'View',
-        items: [
-          ...cmd('palette.open'),
-          ...cmd('view.toggleSidebar'),
-          ...panels,
-          ...cmd('view.resetLayout'),
-          ...cmd('settings.open'),
-          ...['view.theme.system', 'view.theme.dark', 'view.theme.light'].flatMap(cmd),
-        ],
-      },
-      {
-        label: 'Analyze',
-        items: ['analyze.search', 'analyze.markedOnly', 'analyze.fit', 'analyze.back', 'analyze.forward', 'analyze.clearFilters', 'analyze.utc', 'analyze.local'].flatMap(cmd),
-      },
-      {
-        label: 'Window',
-        items: [
-          ...['window.new', 'window.close'].flatMap(cmd),
-          ...this.windowing.windows().map((w) => ({ label: w.title || w.label, checked: w.label === this.windowing.label(), run: () => void this.windowing.focus(w.label) })),
-        ],
-      },
-      { label: 'Help', items: [...cmd('help.welcome'), ...cmd('help.about'), { label: 'IMT 0.1.0 — Integrated Maintenance Tool', run: () => undefined }] },
-    ];
-  });
-
-  protected toggle(label: string): void {
-    this.open.update((o) => (o === label ? null : label));
+  constructor() {
+    if (this.mode === 'native') inject(NativeMenuBridge).start();
   }
 
   protected openPalette(): void {
@@ -161,6 +77,17 @@ export class TitleBar {
       this.store.focusSearch();
       return;
     }
+    // Inside a text field, Mod+Z / Mod+Shift+Z undo the typing (the browser's own undo), not the last edit.
+    if (isTextEntry(target) && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z') return;
     this.registry.runForKey(e);
   }
+}
+
+const TEXT_INPUTS = new Set(['', 'text', 'search', 'email', 'url', 'tel', 'password', 'number']);
+
+/** Is the element a place where text is typed (so the browser's own undo applies)? */
+export function isTextEntry(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+  return el.tagName === 'INPUT' && TEXT_INPUTS.has((el.getAttribute('type') ?? '').toLowerCase());
 }

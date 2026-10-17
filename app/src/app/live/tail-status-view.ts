@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { DeletedFiles, LiveOptions, MAX_DETECT_EVERY_MS, TailFileStatus, WatchPreference } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { LiveTail } from '../workspace/live-tail';
 import { parseDetectEvery } from './live-ui-state';
 import { stateHint, stateLabel, TailStatusStore } from './tail-status.store';
+import { NextSteps } from '../ui/next-steps';
 
 /** The status table refreshes this often while the panel is open and live tail runs. */
 export const STATUS_POLL_MS = 2000;
@@ -43,6 +44,7 @@ export function parseLimit(text: string): number | null {
 @Component({
   selector: 'imt-tail-status-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NextSteps],
   template: `
     <form class="controls" (submit)="$event.preventDefault()" aria-label="Live tail settings">
       <button
@@ -123,7 +125,7 @@ export function parseLimit(text: string): number | null {
                 <td [title]="hint(f)"><span class="state" [class]="f.state.kind">{{ label(f) }}</span>@if (f.state.kind === 'error') { <span class="err-msg">{{ errorOf(f) }}</span> }</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" class="faint">No files are open.</td></tr>
+              <tr><td colspan="7" class="faint">No files are open. <imt-next-steps /></td></tr>
             }
           </tbody>
         </table>
@@ -158,6 +160,7 @@ export function parseLimit(text: string): number | null {
 export class TailStatusView {
   protected readonly live = inject(LiveTail);
   protected readonly status = inject(TailStatusStore);
+  private readonly cdr = inject(ChangeDetectorRef);
   protected readonly opts = computed(() => this.live.options());
   protected readonly maxAgeMinutes = computed(() => {
     const ms = this.opts().retention?.maxAgeMs;
@@ -248,7 +251,12 @@ export class TailStatusView {
     this.apply({ detectEveryMs: ms });
   }
 
+  /**
+   * Applies the settings and renders them at once: the inputs' `[value]` bindings changed, and a render left for later
+   * (late when the app is busy with live data) would overwrite whatever the user has typed into the field meanwhile.
+   */
   private apply(patch: Partial<LiveOptions>): void {
     void this.live.setOptions({ ...this.opts(), ...patch });
+    this.cdr.detectChanges();
   }
 }

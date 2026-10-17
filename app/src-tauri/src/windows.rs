@@ -21,7 +21,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tauri::ipc::{CommandArg, CommandItem, InvokeError};
-use tauri::{Emitter, Manager, Runtime};
+use tauri::{Emitter, EventTarget, Manager, Runtime};
 
 /// Label of the window created at startup (tauri.conf.json).
 pub const MAIN: &str = "main";
@@ -44,6 +44,8 @@ pub struct WindowState {
     pub(crate) progress: Arc<ImportProgress>,
     /// The store's event bus (no lock needed to publish or read metrics).
     pub(crate) events: Option<Arc<imt_core::events::EventBus>>,
+    /// The tools of the store's plugins (no lock needed to list or invoke them).
+    pub(crate) tools: Option<imt_core::plugin::tools::ToolHost>,
     /// The running live tail session, if any.
     pub(crate) live: LiveSlot,
     /// The window title the UI set (project name), for the tray's window list.
@@ -52,6 +54,10 @@ pub struct WindowState {
     project: Mutex<Option<String>>,
     /// "Close" was asked of the UI and not answered yet.
     pub(crate) close_asked: AtomicBool,
+    /// Open profiles and heap snapshots (see `profiling`).
+    pub(crate) profiling: crate::profiling::ProfilingSlot,
+    /// The window's AI chats and running AI use cases.
+    pub(crate) ai: crate::ai::WindowAi,
 }
 
 impl WindowState {
@@ -59,6 +65,7 @@ impl WindowState {
         WindowState {
             label: label.to_string(),
             events: store.event_bus(),
+            tools: store.tool_host(),
             workspace: Arc::new(RwLock::new(store)),
             profile: RwLock::new(profile),
             pending: Mutex::default(),
@@ -68,6 +75,8 @@ impl WindowState {
             title: Mutex::new(String::new()),
             project: Mutex::default(),
             close_asked: AtomicBool::new(false),
+            profiling: crate::profiling::ProfilingSlot::default(),
+            ai: crate::ai::WindowAi::default(),
         }
     }
 
@@ -290,10 +299,14 @@ pub fn label_order(label: &str) -> (u8, u32, String) {
 pub struct CurrentWindow(Arc<WindowState>);
 
 impl CurrentWindow {
-    /// The state of window `label` (created on first use).
+    /// The state of window `label` (created on first use). A pop-out panel
+    /// window (`p-<host>-<n>`) has no workspace of its own: it gets its host's.
     pub fn of<R: Runtime, M: Manager<R>>(manager: &M, label: &str) -> CmdResult<CurrentWindow> {
         let windows = manager.try_state::<Windows>().ok_or("IMT is not ready yet")?;
-        windows.get_or_create(label).map(CurrentWindow).map_err(err)
+        windows
+            .get_or_create(crate::panel_windows::resolve(label))
+            .map(CurrentWindow)
+            .map_err(err)
     }
 
     pub fn arc(&self) -> &Arc<WindowState> {
@@ -316,9 +329,29 @@ impl<'de, R: Runtime> CommandArg<'de, R> for CurrentWindow {
     }
 }
 
-/// Sends an event to one window only. Never fails (a closed window just misses it).
+/// Events only the window itself acts on (files to open, its close and open
+/// prompts); its pop-out panels do not get them.
+pub const HOST_ONLY_EVENTS: [&str; 3] = [
+    OPEN_EVENT,
+    crate::window_manager::CLOSE_REQUESTED_EVENT,
+    crate::window_manager::OPEN_ASK_EVENT,
+];
+
+/// Sends an event to one window and its pop-out panels (they show the same
+/// workspace), never to other windows. Never fails (a closed window just misses it).
 pub fn emit_to_window<R: Runtime, S: Serialize + Clone>(app: &tauri::AppHandle<R>, label: &str, event: &str, payload: S) {
-    let _ = app.emit_to(label, event, payload);
+    if HOST_ONLY_EVENTS.contains(&event) {
+        let _ = app.emit_to(label, event, payload);
+        return;
+    }
+    // Like `emit_to(label)` (any target kind with that label), for the whole group.
+    let _ = app.emit_filter(event, payload, |target| match target {
+        EventTarget::Window { label: l }
+        | EventTarget::Webview { label: l }
+        | EventTarget::WebviewWindow { label: l }
+        | EventTarget::AnyLabel { label: l } => l == label || crate::panel_windows::host_of(l) == Some(label),
+        _ => false,
+    });
 }
 
 /// Queues paths for a window's UI and tells it to take them.

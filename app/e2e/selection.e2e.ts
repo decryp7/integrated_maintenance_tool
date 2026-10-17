@@ -39,14 +39,19 @@ test.describe('selection and inspector', () => {
     const sel = page.locator('imt-events-grid .row.sel');
     const id = page.locator('imt-inspector .head .faint').first();
     await expect(sel).toHaveCount(1);
-    const first = await id.innerText();
+    /** The inspector's id once it shows a record other than `previous` (never a transient empty one). */
+    const nextId = async (previous: string) => {
+      let text = '';
+      await expect.poll(async () => (text = (await id.innerText()).trim()) !== '' && text !== previous).toBe(true);
+      return text;
+    };
+    const first = await nextId('');
 
     await page.getByRole('grid', { name: 'Events' }).focus();
     await page.keyboard.press('ArrowDown');
-    await expect(id).not.toHaveText(first);
-    const second = await id.innerText();
+    const second = await nextId(first);
     await page.keyboard.press('ArrowDown');
-    await expect(id).not.toHaveText(second);
+    await nextId(second);
 
     await page.keyboard.press('ArrowUp');
     await expect(id).toHaveText(second);

@@ -12,7 +12,10 @@ base64 = "0.22"
 chrono = "0.4.45"
 csv = "1.4"
 flate2 = "1.1"
+getrandom = "0.3"
 globset = "0.4.20"
+# Logging facade only: guard events (contained crashes, quarantines, abandoned calls) reach the app's log.
+log = { version = "0.4", features = ["kv"] }
 quick-xml = "0.42"
 rayon = "1.12"
 regex = "1.13"
@@ -20,7 +23,12 @@ regex-syntax = "0.8"
 semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+thiserror = "2"
 toml = "1"
+# YAML for the config diff: maintained, MIT/Apache-2.0, YAML 1.2, with a public event
+# API so aliases and nesting are bounded by our own limits (serde_yaml/serde_yml are deprecated).
+yaml-rust2 = { version = "0.13", default-features = false }
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]

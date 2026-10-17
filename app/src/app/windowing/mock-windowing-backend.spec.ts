@@ -94,7 +94,11 @@ describe('MockWindowingBackend', () => {
     await b.closeWindow();
     expect(asked).toHaveBeenCalledTimes(2);
     await b.resolveClose('tray', true);
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     await b.closeWindow();
+    // End-to-end tests wait for this line to know the close was handled.
+    expect(info).toHaveBeenCalledWith('[mock windowing] close_window tray');
+    info.mockRestore();
     expect(asked).toHaveBeenCalledTimes(2);
     expect(h.closed).toBe(0);
     await b.resolveClose('quit', true);

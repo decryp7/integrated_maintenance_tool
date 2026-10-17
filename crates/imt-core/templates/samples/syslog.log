@@ -1,0 +1,6 @@
+<30>Oct 14 10:41:00 web01 orders[4211]: Service started
+<28>Oct 14 10:41:02 web01 orders[4211]: Slow request /api/orders took 1500 ms
+<27>Oct 14 10:41:24 web01 orders[4211]: Payment failed for order 88412
+<2>Oct 14 10:41:25 web01 kernel: Out of memory: Killed process 4211 (orders)
+<30>Oct 14 10:41:30 web01 systemd[1]: orders.service: Scheduled restart job, restart counter is at 1.
+<79>Oct  4 09:00:00 web01 cron[812]: (root) CMD (run-parts /etc/cron.hourly)

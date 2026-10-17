@@ -1,0 +1,4 @@
+{"traceEvents":[{"ph":"M","name":"thread_name","pid":1,"tid":7,"args":{"name":"main"}},
+{"ph":"P","name":"Profile","id":"0x1","pid":1,"tid":7,"ts":1000,"args":{"data":{"startTime":1000}}},
+{"ph":"P","name":"ProfileChunk","id":"0x1","pid":1,"tid":9,"ts":1100,"args":{"data":{"cpuProfile":{"nodes":[{"id":1,"callFrame":{"functionName":"(root)","scriptId":0,"url":""}},{"id":2,"parent":1,"callFrame":{"functionName":"main","scriptId":1,"url":"https://x/app.js","lineNumber":3}}],"samples":[2,2,1]},"timeDeltas":[10,10,-2]}}},
+{"ph":"i","name":"MinorGC","pid":1,"tid":7,"ts":1020,"s":"t"}]}

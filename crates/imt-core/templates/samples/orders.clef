@@ -1,0 +1,4 @@
+{"@t":"2026-10-14T10:41:00.1200000Z","@mt":"Application starting — {Application} {Version}","Application":"OrderService","Version":"3.14.2","MachineName":"WEB01","ProcessId":4120}
+{"@t":"2026-10-14T10:41:02.5400000Z","@l":"Warning","@mt":"Slow request {RequestPath} took {ElapsedMs} ms","RequestPath":"/api/orders","ElapsedMs":1500,"MachineName":"WEB01","ProcessId":4120}
+{"@t":"2026-10-14T10:41:24.0500000Z","@l":"Error","@mt":"Failed to capture payment for order {OrderId}","@x":"System.TimeoutException: The operation has timed out.\n   at OrderService.Payments.CaptureHandler.Handle()","OrderId":88412,"MachineName":"WEB01","ProcessId":4120}
+{"@t":"2026-10-14T10:41:24.0600000Z","@l":"Fatal","@mt":"Host terminated unexpectedly","MachineName":"WEB01","ProcessId":4120}

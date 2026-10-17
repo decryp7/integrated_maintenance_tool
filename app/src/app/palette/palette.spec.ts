@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { all, el, FakeDock, provideFakeDock, provideTinyBackendBare, settle, typeInto } from '../../testing/helpers';
+import { all, el, FakeDock, provideFakeDock, provideTinyBackendBare, settle, text, typeInto } from '../../testing/helpers';
+import { provideImtPlugin } from '../extensions/provide';
+import { DockService } from '../dock/dock.service';
 import { COMMAND_CONTEXT } from '../extensions';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { CommandPalette } from './command-palette';
@@ -41,6 +43,45 @@ describe('CommandPalette', () => {
     expect(input.getAttribute('aria-activedescendant')).toBe(el(fixture, '[role=option]').id);
   });
 
+  it('in views mode (View ▸ Other windows…) lists only the views, searchable by name and category, and opens the chosen one', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideImtPlugin({
+          views: [
+            { id: 'anomalies', title: 'Anomalies', icon: 'alert', category: 'Analysis', component: async () => CommandPalette },
+            { id: 'flame', title: 'Flame graph', icon: 'chart', category: 'Profiling', component: async () => CommandPalette },
+            { id: 'timeline', title: 'Timeline', icon: 'timeline', category: 'core', component: async () => CommandPalette },
+            { id: 'stray', title: 'Stray', icon: 'file', component: async () => CommandPalette },
+          ],
+        }),
+      ],
+    });
+    const { fixture, palette } = await render();
+    const dock = TestBed.inject(DockService) as unknown as FakeDock;
+    palette.open('views');
+    await settle(fixture);
+    expect(el(fixture, '[role=dialog]').getAttribute('aria-label')).toBe('Other windows');
+    expect(el(fixture, 'input').getAttribute('aria-label')).toBe('Type a window name');
+    expect(options(fixture)).toEqual(['Anomalies', 'Flame graph', 'Timeline', 'Stray']);
+    expect([...fixture.nativeElement.querySelectorAll('[role=option] .cat')].map((c) => (c as HTMLElement).textContent)).toEqual(['Analysis', 'Profiling', 'View', 'Plugins']);
+    typeInto(el<HTMLInputElement>(fixture, 'input'), 'profiling');
+    await settle(fixture);
+    expect(options(fixture)).toEqual(['Flame graph']);
+    press(fixture, 'Enter');
+    expect(dock.calls).toEqual(['show:flame']);
+    expect(palette.isOpen()).toBe(false);
+    palette.open('views');
+    await settle(fixture);
+    typeInto(el<HTMLInputElement>(fixture, 'input'), 'zzzz');
+    await settle(fixture);
+    expect(text(fixture)).toContain('No matching windows');
+    fixture.nativeElement.querySelector('[role=option]')?.click();
+    palette.open();
+    await settle(fixture);
+    expect(options(fixture)).toContain('Alpha thing');
+    void ran;
+  });
+
   it('filters fuzzily as you type and shows an empty message', async () => {
     const { fixture, palette } = await render();
     palette.open();
@@ -57,6 +98,22 @@ describe('CommandPalette', () => {
     press(fixture, 'ArrowUp');
     press(fixture, 'Enter');
     expect(ran).toEqual([]);
+  });
+
+  it('suggests close commands ("did you mean") when nothing matches, navigable and runnable', async () => {
+    const { fixture, palette } = await render();
+    palette.open();
+    await settle(fixture);
+    typeInto(el<HTMLInputElement>(fixture, 'input'), 'betta thign');
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=palette-did-you-mean]').textContent).toContain('Did you mean');
+    expect(el(fixture, '[role=listbox]').getAttribute('aria-label')).toBe('Suggested commands');
+    expect(options(fixture)).toEqual(['Beta thing']);
+    expect(fixture.nativeElement.textContent).not.toContain('No matching commands');
+    press(fixture, 'ArrowDown');
+    press(fixture, 'Enter');
+    await settle(fixture);
+    expect(ran).toEqual(['t.beta']);
   });
 
   it('navigates with arrows (wrapping) and runs the highlighted command with Enter', async () => {

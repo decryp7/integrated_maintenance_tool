@@ -1,0 +1,26 @@
+[package]
+name = "imt-plugin-profiling"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "IMT plugin: profile and heap snapshot importers (speedscope, folded stacks, Chrome, pprof, perf script, nettrace, V8 heap snapshots) and the profiling.importers extension point"
+
+[dependencies]
+imt-core = { path = "../imt-core", optional = true }
+imt-profile = { path = "../imt-profile" }
+anyhow = { version = "1.0", optional = true }
+flate2 = "1.1"
+prost = "0.14"
+regex = "1.13"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+proptest = "1"
+
+[features]
+# The plugin adapter (imt-core). Without it the crate is the pure importers,
+# which is what the fuzz targets build.
+default = ["plugin"]
+plugin = ["dep:imt-core", "dep:anyhow"]

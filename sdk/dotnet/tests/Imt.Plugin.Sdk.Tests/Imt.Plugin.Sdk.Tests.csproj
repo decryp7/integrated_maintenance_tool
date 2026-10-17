@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Imt.Plugin.Tests</RootNamespace>
+    <!-- Tests name things freely and use the generated clients directly. -->
+    <NoWarn>$(NoWarn);CA1707;CA1515;CA2007;CA1861;CA1849;CA2000;xUnit1051</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="coverlet.MTP" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Imt.Plugin.Sdk/Imt.Plugin.Sdk.csproj" />
+    <ProjectReference Include="../Imt.Plugin.Sdk.KitchenSink/Imt.Plugin.Sdk.KitchenSink.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

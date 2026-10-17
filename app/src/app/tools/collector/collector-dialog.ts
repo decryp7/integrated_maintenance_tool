@@ -6,7 +6,11 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { Icon } from '../../shared/icon';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { HelpHint } from '../../ui/help-hint';
+import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { ToolError } from '../elevation-hint';
+import { TOOL_IDS } from '../../core/tools.types';
+import { ToolCatalog } from '../tool-catalog.store';
+import { ToolUnavailable } from '../tool-unavailable';
 import { errorMessage } from '../tool-errors';
 import { DEFAULT_PLAN, formatBytes, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
 
@@ -25,9 +29,10 @@ type Phase = 'idle' | 'running' | 'done';
 @Component({
   selector: 'imt-collector-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, HelpHint, ToolError],
+  imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
     <p class="intro">Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</p>
+    <imt-tool-unavailable tool="diagnostics" />
     <imt-tool-error [message]="error()" (dismissed)="error.set(null)" />
 
     <div class="bar">
@@ -172,7 +177,7 @@ type Phase = 'idle' | 'running' | 'done';
       @if (result()) {
         <button type="button" class="btn" (click)="openBundle()">Open bundle</button>
       }
-      <button type="button" class="btn primary" [disabled]="phase() === 'running' || !!jsonError()" (click)="collect()">{{ result() ? 'Collect again' : 'Collect' }}</button>
+      <button type="button" class="btn primary" [disabled]="phase() === 'running' || !!jsonError() || !canCollect()" (click)="collect()">{{ result() ? 'Collect again' : 'Collect' }}</button>
     </div>
   `,
   styles: `
@@ -206,6 +211,10 @@ export class CollectorDialog implements OnInit {
   private readonly backend = inject(CollectBackend);
   private readonly workspace = inject(WorkspaceStore);
   private readonly platform = inject(Platform);
+  private readonly catalog = inject(ToolCatalog);
+  private readonly overwrite = inject(OverwriteGuard);
+  /** The tools plugin serves the collector now. */
+  protected readonly canCollect = computed(() => this.catalog.usable(TOOL_IDS.diagnostics));
 
   protected readonly plan = signal<CollectPlan>(structuredClone(DEFAULT_PLAN));
   protected readonly jsonMode = signal(false);
@@ -315,8 +324,11 @@ export class CollectorDialog implements OnInit {
     this.result.set(null);
     try {
       // The engine parses and validates the plan; the JSON text is sent exactly as the form/JSON editor shows it.
-      this.result.set(await this.backend.collectDiagnostics(JSON.stringify(this.plan()), dir));
-      this.phase.set('done');
+      // The bundle name is the app's, so a bundle that already exists is replaced only after asking.
+      const plan = JSON.stringify(this.plan());
+      const result = await this.overwrite.write(dir, (overwrite) => this.backend.collectDiagnostics(plan, dir, overwrite), 'app');
+      this.result.set(result);
+      this.phase.set(result ? 'done' : 'idle');
     } catch (e) {
       this.error.set(errorMessage(e));
       this.phase.set('idle');

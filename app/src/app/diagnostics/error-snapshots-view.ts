@@ -3,7 +3,7 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { SnapshotsStore } from './snapshots.store';
 import { SnapshotInfo } from '../core/api.types';
-import { SNAPSHOT_NOTICE } from './snapshot.types';
+import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
 import { SETTINGS_DIAGNOSTICS_COMMAND } from '../settings/settings-dialog';
 
 /** Opens the Settings screen at its Diagnostics section (error snapshot switch and limits). */
@@ -72,6 +72,15 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
               <dt>App</dt><dd>IMT {{ c.appVersion }} on {{ c.os }}</dd>
               <dt>Id</dt><dd class="mono">{{ c.id }}</dd>
             </dl>
+            @if (c.steps.length) {
+              <h4 id="snapshot-steps-title">Steps to reproduce</h4>
+              <ol class="steps" aria-labelledby="snapshot-steps-title" data-testid="snapshot-steps">
+                @for (step of c.steps; track $index) {
+                  <li>{{ stripNumber(step) }}</li>
+                }
+              </ol>
+            }
+            <button type="button" class="btn report" (click)="report()">Report a problem…</button>
           </section>
         }
       </div>
@@ -107,6 +116,9 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
     dt { color: var(--text-2); }
     dd { margin: 0; overflow-wrap: anywhere; }
     .pre { white-space: pre-wrap; max-height: 160px; overflow: auto; }
+    h4 { margin: 4px 0 0; font-size: 12px; }
+    .steps { margin: 0; padding-left: 22px; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+    .report { align-self: flex-start; }
   `,
 })
 export class ErrorSnapshotsView implements OnInit {
@@ -132,6 +144,15 @@ export class ErrorSnapshotsView implements OnInit {
 
   protected openSettings(): void {
     void this.commands.run(SETTINGS_COMMAND);
+  }
+
+  protected report(): void {
+    void this.commands.run(REPORT_PROBLEM_COMMAND);
+  }
+
+  /** The engine numbers its steps; the list numbers them again. */
+  protected stripNumber(step: string): string {
+    return step.replace(/^\d+\.\s*/, '');
   }
 
   protected when(s: SnapshotInfo): string {

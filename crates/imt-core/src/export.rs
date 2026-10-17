@@ -9,7 +9,8 @@ use std::io::Write;
 
 /// One event handed to an exporter, with what the workspace knows about it.
 pub struct ExportRow<'a> {
-    pub record: &'a Record,
+    /// The event, borrowed from the workspace, or owned when it was redacted.
+    pub record: std::borrow::Cow<'a, Record>,
     pub source_name: &'a str,
     /// Instance key under the current group-by.
     pub group: String,
@@ -64,7 +65,7 @@ impl Exporter for CsvExporter {
         ])?;
         let mut n = 0;
         for row in rows {
-            let r = row.record;
+            let r = &*row.record;
             w.write_record([
                 iso(r.ts).as_str(),
                 r.level.as_str(),
@@ -201,7 +202,7 @@ impl Exporter for ClefExporter {
     fn export(&self, rows: &mut dyn Iterator<Item = ExportRow<'_>>, out: &mut dyn Write) -> Result<usize> {
         let mut n = 0;
         for row in rows {
-            serde_json::to_writer(&mut *out, &clef_value(row.record))?;
+            serde_json::to_writer(&mut *out, &clef_value(&row.record))?;
             out.write_all(b"\n")?;
             n += 1;
         }
@@ -231,7 +232,7 @@ mod tests {
     fn run(e: &dyn Exporter, records: &[Record]) -> (usize, String) {
         let mut out = Vec::new();
         let mut rows = records.iter().map(|r| ExportRow {
-            record: r,
+            record: std::borrow::Cow::Borrowed(r),
             source_name: "a/b.clef",
             group: "WEB01".into(),
         });
@@ -275,7 +276,7 @@ mod tests {
         big.message = "x".repeat(64 * 1024);
         for e in [&CsvExporter as &dyn Exporter, &ClefExporter] {
             let mut rows = std::iter::once(ExportRow {
-                record: &big,
+                record: std::borrow::Cow::Borrowed(&big),
                 source_name: "a.clef",
                 group: "WEB01".into(),
             });

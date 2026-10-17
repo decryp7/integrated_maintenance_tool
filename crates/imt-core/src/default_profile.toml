@@ -37,6 +37,8 @@ regexes = [
 # Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
 # ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always
 # recognised.
+# A format without a year ("%b %e %H:%M:%S", BSD syslog) takes the current year,
+# or the previous one when that would be more than a day in the future.
 timestamp_formats = []
 # Timezone for timestamps without an offset: "UTC", "local" or "+08:00".
 assume_timezone = "UTC"
@@ -234,3 +236,64 @@ clock = "data"
 # threshold = 5
 # window = "1m"
 # severity = "critical"
+
+# Redaction of secrets and personal data. Used by the "Redacted view" toggle
+# (the grid, facets and source context show redacted text), by exports
+# (CSV/CLEF), incident reports, `.imtz` bundles and error snapshots. All keys
+# are optional.
+[redact]
+# Built-in detectors, applied in this order: bearer-token, jwt, api-key,
+# connection-string, password, user-path (Windows/Unix home folder names),
+# email, credit-card (Luhn checked), ipv4, ipv6, guid, phone, hostname
+# (lower-case names with 3+ labels, e.g. db01.corp.contoso.com).
+detectors = ["bearer-token", "jwt", "api-key", "connection-string", "password", "user-path", "email", "credit-card", "ipv4", "ipv6"]
+# mask: <email> · hash: <email:1a2b3c4d5e>, a salted hash so equal values stay
+# equal within one export (a new salt per export, so not across exports) · drop: removed.
+mode = "mask"
+# Where: "@message" (with its template), "@exception", "@template", property
+# names, or "*" for every field. Source lines in the context view are always
+# fully redacted.
+fields = ["@message", "@exception"]
+# Exports, reports and bundles start with redaction switched on.
+on_export = false
+#
+# Custom rules run after the detectors. With a group named `value` only that
+# group is replaced; `replace` (with $1 / $name) replaces the whole match
+# instead of masking it.
+# [[redact.rule]]
+# name = "customer"
+# regex = 'Customer (?P<value>[A-Z]{3}\d{4})'
+#
+# [[redact.rule]]
+# name = "ticket"
+# regex = 'TCK-(\d+)'
+# replace = "TCK-#"
+
+# Dashboards: a grid of tiles per dashboard, laid out in `columns` (default
+# 12, at most 24) column units. Every tile has an `id`, `type`, optional
+# `title`, a position `x`/`y` and a size `w`/`h` (default 4 x 3), and an
+# optional sliding `window` ("15m") of its own; without one it follows the
+# window's filters and time range (including a live window).
+#
+#   type = "chart"        chart = "<[[chart]] id>", or inline value = "avg(cpu)",
+#                         by = ["@level"], style = "line" | "bar" | "stacked";
+#                         query = an optional filter ('level >= warning')
+#   type = "stat"         query = a `stats` query giving one value
+#                         ('level >= error | stats count()'), unit; with a sparkline
+#   type = "table"        query = any query ('| stats count() by SourceContext
+#                         | sort count() desc | head 10'), limit (rows, max 100)
+#   type = "top"          field = "SourceContext", limit (default 10), query = filter
+#   type = "alerts"       anomalies found by the live alert detectors, limit
+#   type = "annotations"  reboots, service lifetimes... from plugins, limit
+#
+# [[dashboard]]
+# id = "health"
+# title = "Service health"
+# [[dashboard.tile]]
+# id = "errors"
+# title = "Errors (15 min)"
+# type = "stat"
+# query = 'level >= error | stats count()'
+# window = "15m"
+# w = 3
+# h = 2

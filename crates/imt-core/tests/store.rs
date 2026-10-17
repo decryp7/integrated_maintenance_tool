@@ -107,6 +107,8 @@ fn workspace_exposes_its_event_bus_and_shuts_its_plugins_down() {
     store.shutdown_plugins();
     store.shutdown_plugins();
     assert_eq!(store.summary().total, 0);
+    // A workspace without tool plugins has an empty tool host.
+    assert!(store.tool_host().expect("a workspace has a tool host").is_empty());
 }
 
 /// A store implementing only the required methods (delegating to a workspace),
@@ -243,6 +245,15 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
     assert_eq!(store.tail_status(), Default::default());
     assert!(store.annotations(&Default::default()).is_empty());
     assert!(store.event_bus().is_none());
+    // Clock-skew correction: refused, and nothing to suggest.
+    let req: imt_core::skew::SetOffsetRequest = serde_json::from_str(r#"{"kind": "manual", "source": 0, "offsetMs": 5}"#).unwrap();
+    assert!(store
+        .set_source_offset(&req)
+        .unwrap_err()
+        .to_string()
+        .contains("cannot correct clock skew"));
+    assert!(store.suggest_offsets(&Default::default()).suggestions.is_empty());
+    assert!(store.tool_host().is_none());
     store.shutdown_plugins();
     // Tail options are accepted and ignored: nothing is evicted.
     store.set_tail_options(TailOptions {
@@ -257,4 +268,46 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
     let target = imt_core::workspace::AlertTarget::Rule("r".into());
     store.mute_alerts(target.clone(), 0).unwrap();
     store.unmute_alerts(&target);
+}
+
+#[test]
+fn stores_without_sharing_features_say_so() {
+    use imt_core::workspace::{RedactionPreviewRequest, RedactionSummaryRequest};
+    let profile = Profile::from_toml("[redact]\ndetectors = ['email']").unwrap();
+    let mut store: Box<dyn LogStore> = Box::new(Minimal(Workspace::new(profile).unwrap()));
+    assert!(store.set_view_redaction(true).unwrap_err().to_string().contains("no redacted view"));
+    store.set_view_redaction(false).unwrap();
+    // Previews only need the profile, so every store has them.
+    let p = store.preview_redaction(&RedactionPreviewRequest {
+        sample: "a@b.io".into(),
+        toml: None,
+    });
+    assert_eq!(p.after, "<email>");
+    let p = store.preview_redaction(&RedactionPreviewRequest {
+        sample: "a@b.io".into(),
+        toml: Some("[redact]\nmode = 'drop'\ndetectors = ['email']".into()),
+    });
+    assert_eq!(p.after, "");
+    let p = store.preview_redaction(&RedactionPreviewRequest {
+        sample: "s".into(),
+        toml: Some("[".into()),
+    });
+    assert!(p.error.is_some());
+    let q = RedactionSummaryRequest {
+        query: Default::default(),
+        samples: 1,
+    };
+    assert!(store.redaction_summary(&q).is_err());
+    let tile: imt_core::dashboard::TileCfg = toml::from_str("id='a'\ntype='annotations'").unwrap();
+    assert!(store
+        .dashboard_tile(&imt_core::dashboard::TileRequest {
+            tile,
+            query: Default::default()
+        })
+        .is_err());
+    let report = imt_core::report::Report::parse(serde_json::json!({"id": "r"})).unwrap();
+    assert!(store.resolve_report(&report, false).is_err());
+    let opts: imt_core::bundle::BundleOptions = serde_json::from_value(serde_json::json!({})).unwrap();
+    assert!(store.estimate_bundle(&opts, "").is_err());
+    assert!(store.write_bundle(&opts, "", std::path::Path::new("x.imtz")).is_err());
 }

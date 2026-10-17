@@ -79,7 +79,14 @@ All workers and the plugin host share one transport:
   and data. Bulk data is batched (Arrow batches, never per-record calls), which keeps gRPC's
   per-call overhead negligible. Raw sockets, Cap'n Proto and shared memory were considered and are
   kept out unless a benchmark shows a batched gRPC path is more than ~10% slower than in-process
-  for a real workload.
+  for a real workload. FlatBuffers is not used (beyond Arrow's own metadata): bulk data is
+  zero-copy Arrow in `bytes` fields and control messages are protobuf, which keeps one schema
+  language and the best tooling.
+- **Benchmark result (2026-10-17, 1M access-log lines, loaded machine):** out-of-process import
+  +14–16%, batched transform +26–36% vs in-process. The protobuf envelope costs ~0.9 ms in total;
+  the overhead is Arrow encode/decode and re-materialising records in IMT's memory, which any
+  out-of-process transport would pay. The transport decision therefore stands; isolation stays
+  opt-in for built-in plugins (in-process by default), so the default path pays nothing.
 
 ## Consequences
 

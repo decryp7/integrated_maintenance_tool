@@ -3,6 +3,7 @@ import { provideTinyBackend, settle, SEC, T0, testLogger, tinyBackend } from '..
 import { ImtBackend } from './backend';
 import { MockBackend } from './mock/mock-backend';
 import { Platform } from './platform';
+import { DROPPED_FILES_HANDLERS } from './dropped-files';
 import { EMPTY_QUERY, loadPrefs, savePrefs, WorkspaceStore } from './workspace.store';
 
 const fakePlatform = {
@@ -229,6 +230,32 @@ describe('WorkspaceStore', () => {
     fakePlatform.dropHandler!(['/dropped.log']);
     await settle();
     expect(store.summary()?.sources.some((s) => s.path === '/dropped.log')).toBe(true);
+  });
+
+  it('opens as logs only the dropped files no feature claims', async () => {
+    const claimed: string[][] = [];
+    const backend = tinyBackend();
+    const openPaths = vi.spyOn(backend, 'openPaths');
+    TestBed.configureTestingModule({
+      providers: [
+        provideTinyBackend(backend),
+        { provide: Platform, useValue: fakePlatform },
+        { provide: DROPPED_FILES_HANDLERS, multi: true, useValue: async (paths: string[]) => (claimed.push(paths), paths.filter((p) => p.endsWith('.nettrace'))) },
+      ],
+    });
+    const store = TestBed.inject(WorkspaceStore);
+    await settle();
+    fakePlatform.dropHandler!(['/dropped.log', '/orders.nettrace']);
+    await settle();
+    expect(claimed).toEqual([['/dropped.log', '/orders.nettrace']]);
+    const sources = () => store.summary()?.sources.map((x) => x.path) ?? [];
+    expect(sources()).toContain('/dropped.log');
+    expect(sources()).not.toContain('/orders.nettrace');
+    expect(openPaths).toHaveBeenCalledTimes(1);
+    expect(openPaths).toHaveBeenCalledWith(['/dropped.log']);
+    fakePlatform.dropHandler!(['/only.nettrace']);
+    await settle();
+    expect(openPaths).toHaveBeenCalledTimes(1);
   });
 
   it('tracks selection, anchors and totals', async () => {

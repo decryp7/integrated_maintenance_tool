@@ -46,18 +46,21 @@ impl Workspace {
             ql: String::new(),
             ..req.query.clone()
         };
-        let records = self.matched(&base).map_err(|e| QlError {
-            message: format!("{e:#}"),
-            offset: 0,
-            len: 0,
-        })?;
+        let records = self.matched(&base).map_err(|e| QlError::new(format!("{e:#}"), 0, 0))?;
         let mut it = records.iter().map(|r| (*r, self.source_name(r.source)));
         ql::run(&program, &mut it)
     }
 
-    /// Checks a query-language text; `None` when it parses.
+    /// Checks a query-language text: syntax, then field names against the loaded data (an unknown
+    /// field comes back with the closest known names). `None` when it is fine.
     pub fn check_query(&self, text: &str) -> Option<QlError> {
-        ql::parse(text).err()
+        match ql::parse(text) {
+            Err(e) => Some(e),
+            Ok(program) => {
+                let fields: Vec<String> = self.fields.iter().map(|f| f.name.clone()).collect();
+                ql::unknown_field(&program, &fields)
+            }
+        }
     }
 
     pub fn complete_query(&self, req: &CompletionRequest) -> Vec<Completion> {
@@ -396,7 +399,7 @@ impl Workspace {
     /// most severe first, each with a suggested action.
     pub fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>> {
         use crate::analysis::AnomalyKind;
-        use crate::api::{Finding, FindingAction, Severity};
+        use crate::api::{Finding, FindingAction, FindingKind, Severity};
         let mut out = Vec::new();
         let zoom = |a: &Anomaly| FindingAction::Zoom {
             from: a.from,
@@ -409,15 +412,16 @@ impl Workspace {
                 AnomalyKind::ErrorSpike | AnomalyKind::MemoryGrowth | AnomalyKind::Silence => Severity::Warning,
                 AnomalyKind::SlowOutlier | AnomalyKind::RateChange => Severity::Info,
             };
-            let title = match a.kind {
-                AnomalyKind::Crash => "Crash",
-                AnomalyKind::ErrorSpike => "Error spike",
-                AnomalyKind::MemoryGrowth => "Memory growth",
-                AnomalyKind::Silence => "Went silent",
-                AnomalyKind::SlowOutlier => "Slow outliers",
-                AnomalyKind::RateChange => "Rate change",
+            let (kind, title) = match a.kind {
+                AnomalyKind::Crash => (FindingKind::Crash, "Crash"),
+                AnomalyKind::ErrorSpike => (FindingKind::ErrorSpike, "Error spike"),
+                AnomalyKind::MemoryGrowth => (FindingKind::MemoryGrowth, "Memory growth"),
+                AnomalyKind::Silence => (FindingKind::Silence, "Went silent"),
+                AnomalyKind::SlowOutlier => (FindingKind::SlowOutlier, "Slow outliers"),
+                AnomalyKind::RateChange => (FindingKind::RateChange, "Rate change"),
             };
             out.push(Finding {
+                kind,
                 severity,
                 title: title.into(),
                 detail: a.message.clone(),
@@ -427,6 +431,7 @@ impl Workspace {
         for g in self.exception_groups(req)?.into_iter().filter(|g| g.count >= 5).take(5) {
             let instances = g.instances.len();
             out.push(Finding {
+                kind: FindingKind::Exception,
                 severity: Severity::Warning,
                 title: format!("{} ×{}", short_type(&g.type_name), g.count),
                 detail: format!(
@@ -446,6 +451,7 @@ impl Workspace {
             let lines = s.records + s.skipped;
             if s.skipped > 0 && s.skipped * 5 > lines {
                 out.push(Finding {
+                    kind: FindingKind::UnreadLines,
                     severity: Severity::Warning,
                     title: "Lines not understood".into(),
                     detail: format!(
@@ -458,6 +464,7 @@ impl Workspace {
             }
             if s.from.is_none() && s.records > 0 {
                 out.push(Finding {
+                    kind: FindingKind::NoTimestamps,
                     severity: Severity::Info,
                     title: "No timestamps".into(),
                     detail: format!("{} has no recognisable timestamps, so it is missing from the timeline", s.name),
@@ -467,6 +474,7 @@ impl Workspace {
         }
         for u in &self.unrecognized {
             out.push(Finding {
+                kind: FindingKind::FileNotOpened,
                 severity: Severity::Info,
                 title: "File not opened".into(),
                 detail: format!("{}: {}", u.name, u.reason),
@@ -476,6 +484,7 @@ impl Workspace {
         let dropped: usize = self.sources.iter().map(|s| s.dropped).sum();
         if dropped > 0 {
             out.push(Finding {
+                kind: FindingKind::Dropped,
                 severity: Severity::Info,
                 title: "Events removed by the pipeline".into(),
                 detail: format!("{dropped} events were dropped by the profile's cleaning steps (your files are unchanged)"),
@@ -489,6 +498,7 @@ impl Workspace {
             .filter(|p| p.status == crate::plugin::PluginStatus::Quarantined)
         {
             out.push(Finding {
+                kind: FindingKind::PluginQuarantined,
                 severity: Severity::Warning,
                 title: "Plugin disabled after crashes".into(),
                 detail: format!("{}: {}", p.name, p.last_error.unwrap_or_default()),

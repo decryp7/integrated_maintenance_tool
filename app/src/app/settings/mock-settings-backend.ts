@@ -1,3 +1,4 @@
+import { FILE_EXISTS_SUFFIX } from '../core/api.types';
 import type { SettingsBackend } from './settings-backend';
 import { FieldError, FieldKind, ImportResult, SetResult, SettingField, SettingsOverview, SettingsSection, SettingValue } from './settings.types';
 import { formatBytes, formatMs } from './settings-model';
@@ -57,6 +58,14 @@ export function mockSections(): SettingsSection[] {
         f('logMaxFileMb', 'Log file size', int(1, 100, 'MB'), 10, { description: 'A new log file is started when the current one reaches this size.', restartRequired: true }),
         f('logKeepFiles', 'Old log files kept', int(1, 50), 5, { description: 'How many rotated log files are kept besides the current one.', restartRequired: true }),
         f('logMaxAgeDays', 'Delete logs older than', int(0, 3650, 'days'), 30, { description: 'Old log files are deleted at startup. 0 keeps them regardless of age.', restartRequired: true, advanced: true }),
+        f('activityDetail', 'Activity log detail', { type: 'enum', options: [{ value: 'normal', label: 'Normal' }, { value: 'detailed', label: 'Detailed' }] }, 'normal', {
+          description:
+            'What the activity log records about your operations. Normal keeps only a fingerprint of query text and the file name of paths; Detailed records full query text and file paths. File contents, log lines and AI text are never recorded.',
+        }),
+        f('activityQueriesAtDebug', 'Log read-only requests at Debug', { type: 'bool' }, true, {
+          description: 'Frequent read-only requests (pages, timeline, charts) are logged only at the Debug level.',
+          advanced: true,
+        }),
         f('snapshotsEnabled', 'Error snapshots', { type: 'bool' }, true, { description: 'Save a screenshot of IMT locally when an error is shown, to attach to a bug report.' }),
         f('snapshotsMaxCount', 'Snapshots kept', int(1, 500), 50, { description: 'The newest snapshots are kept; older ones are deleted.' }),
         f('snapshotsMaxTotalMb', 'Snapshot storage', int(10, 2000, 'MB'), 100, { description: 'Total disk space snapshots may use.', advanced: true }),
@@ -222,8 +231,9 @@ export class MockSettingsBackend implements SettingsBackend {
     return this.set(id, {});
   }
 
-  async exportTo(path: string): Promise<void> {
+  async exportTo(path: string, overwrite = false): Promise<void> {
     await this.guard(`export:${path}`);
+    if (!overwrite && this.files.has(path)) throw `${path}${FILE_EXISTS_SUFFIX}`;
     this.files.set(path, JSON.stringify({ version: 1, sections: Object.fromEntries(this.data.map((s) => [s.id, s.values])) }));
   }
 

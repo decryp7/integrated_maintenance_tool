@@ -29,6 +29,7 @@ import { SeverityBadge } from '../live/severity-badge';
 import { layoutAnnotations } from './annotation-layout';
 import { AnnotationHover, AnnotationTrack } from './annotation-track';
 import { TimelineAnnotations } from './annotations.store';
+import { ProfileSpanTrack } from '../profiling/integration/profile-span-track';
 
 const LABEL_W = 250;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
@@ -71,7 +72,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, TimeCursorSource, LiveWindowControls, AnnotationTrack, SeverityBadge],
+  imports: [Icon, MarkerGlyph, TimeCursorSource, LiveWindowControls, AnnotationTrack, SeverityBadge, ProfileSpanTrack],
   host: { '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
   template: `
     <div class="head">
@@ -215,6 +216,7 @@ interface Hover {
         @if (annLayout().global.length) {
           <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
         }
+        <imt-profile-span-track [view]="range()" [width]="plotWidth()" />
         @for (x of fatalLines(); track $index) {
           <div class="fatal-line" [style.left.%]="x"></div>
         }

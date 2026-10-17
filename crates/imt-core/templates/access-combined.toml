@@ -1,0 +1,49 @@
+# Apache httpd / Nginx access logs in the "combined" format (also "common",
+# without referrer and user agent).
+name = "Apache / Nginx access (combined)"
+
+[parse]
+format = "text"
+output_templates = []
+regexes = [
+  '^(?P<ClientIp>\S+) \S+ (?P<User>\S+) \[(?P<timestamp>[^\]]+)\] "(?P<message>(?P<Method>[A-Z]+) (?P<Path>\S+)[^"]*)" (?P<Status>\d{3}) (?P<Bytes>\S+)(?: "(?P<Referer>[^"]*)" "(?P<UserAgent>[^"]*)")?',
+]
+timestamp_formats = ["%d/%b/%Y:%H:%M:%S %z"]
+
+[instance]
+candidates = ["ClientIp"]
+key = []
+
+[activity]
+user = ["User", "ClientIp"]
+action = ["Path"]
+metrics = []
+
+# Server errors (5xx) as errors, client errors (4xx) as warnings.
+[[pipeline]]
+step = "set_level"
+level = "Warning"
+when = [{ field = "Status", op = "gt", value = 399 }]
+
+[[pipeline]]
+step = "set_level"
+level = "Error"
+when = [{ field = "Status", op = "gt", value = 499 }]
+
+[[chart]]
+id = "events-by-level"
+title = "Events per interval by level"
+y = "count()"
+bucket = "auto"
+split_by = ["@level"]
+type = "stacked"
+unit = "events"
+
+[[chart]]
+id = "requests-by-status"
+title = "Requests per interval by status"
+y = "count()"
+bucket = "auto"
+split_by = ["Status"]
+type = "stacked"
+unit = "requests"

@@ -71,6 +71,9 @@ import { SeverityBadge } from './severity-badge';
           } @else {
             <div>No alerts yet.</div>
             <div class="faint">While live tail is on, error spikes, silences, crashes and your alert rules appear here.</div>
+            @if (!live.enabled() && live.available()) {
+              <button type="button" class="btn" (click)="live.toggle()">Turn on live tail</button>
+            }
           }
         </div>
       }

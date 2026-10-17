@@ -1,0 +1,318 @@
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { DIALOG_REF } from '../../ui/dialog.service';
+import { AiBackend, toAiError } from '../ai-backend';
+import { fitLabel, formatBytes, formatEta, formatRate, hardwareLines, percent, speedLabel } from '../ai-format';
+import { AiStatusStore } from '../ai-status.store';
+import { Recommendation, SetupEvent } from '../ai.types';
+import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, WizardEvent, WizardState } from './wizard';
+
+/**
+ * "Set up AI assistant": shows this computer's hardware and the models that fit it, downloads and
+ * verifies the chosen one, loads it (GPU first, CPU fallback) and warms it up. Opened in a dialog.
+ */
+@Component({
+  selector: 'imt-ai-setup-wizard',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <p class="local" data-testid="ai-local-note">
+      The assistant runs <strong>fully on this computer</strong>. Nothing about your logs leaves it: only the model file is downloaded,
+      once, from Hugging Face.
+    </p>
+    <div class="sr-only" aria-live="polite" data-testid="ai-setup-live">{{ liveText() }}</div>
+    @switch (state().kind) {
+      @case ('loading') {
+        <p class="muted" role="status">Checking this computer…</p>
+      }
+      @case ('plan') {
+        @if (plan(); as p) {
+          <section aria-labelledby="ai-hw-title">
+            <h3 id="ai-hw-title">This computer</h3>
+            <ul class="hw" data-testid="ai-hardware">
+              @for (line of hwLines(); track $index) {
+                <li>{{ line }}</li>
+              }
+            </ul>
+            <p class="muted">{{ p.recommendations.message }}</p>
+          </section>
+          <section aria-labelledby="ai-models-title">
+            <h3 id="ai-models-title">Choose a model</h3>
+            <div class="models" role="radiogroup" aria-labelledby="ai-models-title">
+              @for (r of ranked(); track r.model.id) {
+                <label class="model" [class.picked]="r.model.id === selectedId()" [class.too-large]="r.assessment.fit === 'tooLarge'" [attr.data-testid]="'ai-model-' + r.model.id">
+                  <input type="radio" name="ai-model" [value]="r.model.id" [checked]="r.model.id === selectedId()" (change)="dispatch({ type: 'select', modelId: r.model.id })" />
+                  <span class="name">
+                    {{ r.model.name }}
+                    @if (r.model.id === p.recommendations.best?.model?.id) {
+                      <span class="badge best">Best</span>
+                    }
+                    @if (r.model.id === p.recommendations.fastest?.model?.id) {
+                      <span class="badge fastest">Fastest</span>
+                    }
+                    @if (r.installed) {
+                      <span class="badge">Installed</span>
+                    }
+                  </span>
+                  <span class="facts">
+                    <span class="fit" [class]="'fit fit-' + r.assessment.fit">{{ fit(r) }}</span>
+                    <span>{{ speed(r) }}</span>
+                    <span>{{ size(r.model.sizeBytes) }}</span>
+                    <span>Licence: {{ r.model.license }}</span>
+                    <span>{{ r.model.toolCalling ? 'Tool calling' : 'No tool calling' }}</span>
+                  </span>
+                  @if (r.model.notes) {
+                    <span class="notes muted">{{ r.model.notes }}</span>
+                  }
+                </label>
+              }
+            </div>
+          </section>
+          @if (picked(); as r) {
+            <p class="summary" data-testid="ai-plan-summary">
+              @if (r.installed) {
+                {{ r.model.name }} is already downloaded; it will be loaded and checked.
+              } @else {
+                {{ r.model.name }}: {{ size(r.model.sizeBytes) }} will be downloaded from huggingface.co/{{ r.model.hfRepo }} (licence {{ r.model.license }}).
+              }
+            </p>
+          }
+          @if (p.note) {
+            <p class="note" role="note">{{ p.note }}</p>
+          }
+          <div class="foot">
+            <button type="button" class="btn ghost" (click)="close()">Not now</button>
+            <button type="button" class="btn primary" data-testid="ai-setup-start" [disabled]="!startable()" (click)="start()">
+              {{ picked()?.installed ? 'Set up' : 'Download and set up' }}
+            </button>
+          </div>
+        }
+      }
+      @case ('running') {
+        @if (running(); as r) {
+          <p class="step" data-testid="ai-setup-stage">Step {{ step() }} of 5 · {{ label() }}</p>
+          @if (r.stage.stage === 'downloading' || r.stage.stage === 'verifying') {
+            <div
+              class="bar"
+              role="progressbar"
+              [attr.aria-label]="r.stage.stage === 'downloading' ? 'Download progress' : 'Verification progress'"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuenow]="pct()"
+            >
+              <span class="fill" [style.width.%]="pct()"></span>
+            </div>
+            <p class="muted" data-testid="ai-setup-bytes">{{ progressText() }}</p>
+          }
+          @if (r.note) {
+            <p class="note" role="note" data-testid="ai-setup-fallback">{{ r.note }}</p>
+          }
+          <div class="foot">
+            <button type="button" class="btn" data-testid="ai-setup-cancel" [disabled]="r.cancelling" (click)="cancel()">
+              {{ r.cancelling ? 'Cancelling…' : 'Cancel' }}
+            </button>
+          </div>
+        }
+      }
+      @case ('ready') {
+        @if (ready(); as r) {
+          <p class="ok" role="status" data-testid="ai-setup-ready">Ready: {{ r.model }} runs on {{ r.backend }}.</p>
+          @if (r.note) {
+            <p class="note" role="note">{{ r.note }}</p>
+          }
+          <div class="foot">
+            <button type="button" class="btn ghost" (click)="close()">Close</button>
+            <button type="button" class="btn primary" data-testid="ai-open-chat" (click)="openChat()">Open the assistant</button>
+          </div>
+        }
+      }
+      @case ('failed') {
+        @if (failed(); as f) {
+          <p class="err" role="alert" data-testid="ai-setup-error">{{ f.message }}</p>
+          <div class="foot">
+            <button type="button" class="btn ghost" (click)="close()">Close</button>
+            <button type="button" class="btn primary" (click)="retry()">Retry</button>
+          </div>
+        }
+      }
+      @case ('cancelled') {
+        <p role="status" data-testid="ai-setup-cancelled">The set-up was cancelled. Nothing was changed.</p>
+        <div class="foot">
+          <button type="button" class="btn ghost" (click)="close()">Close</button>
+          <button type="button" class="btn primary" (click)="retry()">Start again</button>
+        </div>
+      }
+    }
+  `,
+  styles: `
+    :host { display: flex; flex-direction: column; gap: 12px; }
+    h3 { margin: 0 0 6px; font-size: 13px; }
+    p { margin: 0; }
+    .local { color: var(--text-2); padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); }
+    .hw { margin: 0 0 4px; padding-left: 18px; color: var(--text-2); }
+    .models { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; }
+    .model { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+    .model input { grid-row: span 3; margin-top: 3px; }
+    .model.picked { border-color: var(--accent); }
+    .model.too-large { border-style: dashed; }
+    .name { font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .facts { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-2); font-size: 12px; }
+    .notes { font-size: 12px; }
+    .fit-comfortable::before, .fit-tight::before, .fit-tooLarge::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    .fit-comfortable::before { background: var(--ok); }
+    .fit-tight::before { background: var(--lvl-warn); }
+    .fit-tooLarge::before { background: var(--lvl-error); }
+    .badge.best, .badge.fastest { font-weight: 600; }
+    .summary { color: var(--text-2); }
+    .note { color: var(--muted); font-size: 12px; }
+    .bar { height: 8px; border-radius: 4px; background: var(--bg-2); overflow: hidden; }
+    .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+    .ok { color: var(--ok); }
+    .err { color: var(--danger-text, var(--lvl-error)); }
+    .foot { display: flex; justify-content: flex-end; gap: 8px; }
+  `,
+})
+export class AiSetupWizard implements OnInit {
+  private readonly backend = inject(AiBackend);
+  private readonly status = inject(AiStatusStore);
+  private readonly ctx = inject(COMMAND_CONTEXT);
+  private readonly ref = inject(DIALOG_REF, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
+  /** Preselect this catalog model (from the model manager's "Download another model"). */
+  readonly modelId = input<string | null>(null);
+
+  readonly state = signal<WizardState>(INITIAL);
+  protected readonly plan = computed(() => (this.state().kind === 'plan' ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan : null));
+  protected readonly ranked = computed(() => {
+    const p = this.plan();
+    return p ? choices(p) : [];
+  });
+  protected readonly selectedId = computed(() => {
+    const s = this.state();
+    return s.kind === 'plan' ? s.selectedId : null;
+  });
+  protected readonly picked = computed(() => selected(this.state()));
+  protected readonly startable = computed(() => canStart(this.state()));
+  protected readonly hwLines = computed(() => {
+    const p = this.plan();
+    return p ? hardwareLines(p.hardware) : [];
+  });
+  protected readonly running = computed(() => {
+    const s = this.state();
+    return s.kind === 'running' ? s : null;
+  });
+  protected readonly ready = computed(() => {
+    const s = this.state();
+    return s.kind === 'ready' ? s : null;
+  });
+  protected readonly failed = computed(() => {
+    const s = this.state();
+    return s.kind === 'failed' ? s : null;
+  });
+  protected readonly step = computed(() => {
+    const r = this.running();
+    return r ? stageStep(r.stage) : 0;
+  });
+  protected readonly label = computed(() => {
+    const r = this.running();
+    return r ? stageLabel(r.stage) : '';
+  });
+  protected readonly pct = computed(() => {
+    const st = this.running()?.stage;
+    return st && (st.stage === 'downloading' || st.stage === 'verifying') ? percent(st.bytes, st.total) : 0;
+  });
+  protected readonly progressText = computed(() => {
+    const st = this.running()?.stage;
+    if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
+    const base = `${formatBytes(st.bytes)} of ${formatBytes(st.total)}`;
+    if (st.stage === 'verifying') return base;
+    return [base, formatRate(st.bytesPerSec), formatEta(st.etaSecs) && `${formatEta(st.etaSecs)} left`].filter(Boolean).join(' · ');
+  });
+  /** Announced to screen readers when the stage changes. */
+  protected readonly liveText = computed(() => {
+    const s = this.state();
+    switch (s.kind) {
+      case 'running':
+        return stageLabel(s.stage);
+      case 'ready':
+        return 'The AI assistant is ready.';
+      case 'failed':
+        return `The set-up failed: ${s.message}`;
+      case 'cancelled':
+        return 'The set-up was cancelled.';
+      default:
+        return '';
+    }
+  });
+
+  protected readonly fit = (r: Recommendation) => fitLabel(r.assessment.fit);
+  protected readonly speed = (r: Recommendation) => speedLabel(r.assessment.speed);
+  protected readonly size = formatBytes;
+
+  ngOnInit(): void {
+    let off: (() => void) | null = null;
+    let destroyed = false;
+    this.destroyRef.onDestroy(() => {
+      destroyed = true;
+      off?.();
+    });
+    void this.backend
+      .onSetup((e) => this.onSetup(e))
+      .then((u) => (destroyed ? u() : (off = u)))
+      .catch(() => undefined);
+    void this.load();
+  }
+
+  dispatch(e: WizardEvent): void {
+    this.state.update((s) => next(s, e));
+  }
+
+  private onSetup(e: SetupEvent): void {
+    this.dispatch({ type: 'setup', event: e });
+    if (e.stage === 'ready') void this.status.refresh();
+  }
+
+  async load(): Promise<void> {
+    try {
+      const plan = await this.backend.setupPlan(this.modelId());
+      this.dispatch({ type: 'planLoaded', plan, preferred: this.modelId() });
+    } catch (e) {
+      const err = toAiError(e);
+      this.dispatch({ type: 'failed', code: err.code, message: err.message });
+    }
+  }
+
+  async start(): Promise<void> {
+    const id = this.selectedId();
+    if (!id || !this.startable()) return;
+    this.dispatch({ type: 'start' });
+    try {
+      await this.backend.setupRun(id);
+    } catch (e) {
+      const err = toAiError(e);
+      this.dispatch({ type: 'failed', code: err.code, message: err.message });
+    }
+  }
+
+  async cancel(): Promise<void> {
+    this.dispatch({ type: 'cancelRequested' });
+    try {
+      await this.backend.setupCancel();
+    } catch {
+      /* the stage event still ends the set-up */
+    }
+  }
+
+  retry(): void {
+    this.dispatch({ type: 'retry' });
+    void this.load();
+  }
+
+  openChat(): void {
+    this.ctx.showView('ai-chat');
+    this.close();
+  }
+
+  close(): void {
+    this.ref?.close();
+  }
+}

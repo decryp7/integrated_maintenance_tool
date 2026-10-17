@@ -617,6 +617,31 @@ impl Configurable for DiagnosticsSection {
                 .as_advanced(),
             )
             .field(
+                SettingField::new(
+                    "activityDetail",
+                    "Activity log detail",
+                    FieldKind::Enum {
+                        options: vec![EnumOption::new("normal", "Normal"), EnumOption::new("detailed", "Detailed")],
+                    },
+                    "normal",
+                )
+                .describe(
+                    "What the activity log records about your operations. Normal keeps only a fingerprint of query \
+                     text and the file name of paths; Detailed records full query text and file paths. File contents, \
+                     log lines and AI text are never recorded.",
+                ),
+            )
+            .field(
+                SettingField::new(
+                    "activityQueriesAtDebug",
+                    "Log read-only requests at Debug",
+                    FieldKind::Bool,
+                    d.activity.queries_at_debug,
+                )
+                .describe("Frequent read-only requests (pages, timeline, charts) are logged only at the Debug level.")
+                .as_advanced(),
+            )
+            .field(
                 SettingField::new("snapshotsEnabled", "Error snapshots", FieldKind::Bool, d.snapshots.enabled)
                     .describe("Save a screenshot of IMT locally when an error is shown, to attach to a bug report."),
             )
@@ -654,6 +679,7 @@ impl Configurable for DiagnosticsSection {
         let s = diagnostics_from(values)?;
         diagnostics::save(dir, &s)?;
         log::set_max_level(s.log.level.filter());
+        crate::activity::set_config(s.activity);
         Ok(())
     }
 }
@@ -670,6 +696,8 @@ impl ExternalValues for DiagnosticsSection {
             "snapshotsMaxCount": s.snapshots.max_count,
             "snapshotsMaxTotalMb": s.snapshots.max_total_mb,
             "snapshotsMaxAgeDays": s.snapshots.max_age_days,
+            "activityDetail": if s.activity.detail == crate::activity::Detail::Detailed { "detailed" } else { "normal" },
+            "activityQueriesAtDebug": s.activity.queries_at_debug,
         })
     }
 }
@@ -689,6 +717,11 @@ fn diagnostics_from(values: &ValidValues) -> anyhow::Result<diagnostics::Diagnos
     s.snapshots.max_count = n("snapshotsMaxCount")?;
     s.snapshots.max_total_mb = n("snapshotsMaxTotalMb")?;
     s.snapshots.max_age_days = n("snapshotsMaxAgeDays")?;
+    s.activity.detail = match values.text("activityDetail") {
+        Some("detailed") => crate::activity::Detail::Detailed,
+        _ => crate::activity::Detail::Normal,
+    };
+    s.activity.queries_at_debug = values.bool("activityQueriesAtDebug").unwrap_or(true);
     Ok(s.clamped())
 }
 
@@ -929,17 +962,42 @@ pub fn settings_sections<R: Runtime>(app: AppHandle<R>) -> CmdResult<SettingsOve
 
 #[tauri::command]
 pub fn set_settings<R: Runtime>(app: AppHandle<R>, section: String, values: Value) -> CmdResult<SetResult> {
-    service(&app).set(&section, &values)
+    let result = service(&app).set(&section, &values)?;
+    if result.applied {
+        settings_changed("settings.changed", &section, &values);
+    }
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn reset_settings<R: Runtime>(app: AppHandle<R>, section: String) -> CmdResult<SetResult> {
-    service(&app).reset(&section)
+    let result = service(&app).reset(&section)?;
+    if result.applied {
+        settings_changed("settings.reset", &section, &Value::Null);
+    }
+    Ok(result)
+}
+
+/// Most changed keys named in one `settings.changed` event.
+const MAX_LOGGED_KEYS: usize = 12;
+
+/// The `settings.changed` domain event: the section and the names of the changed keys, never their values
+/// (a value may be a secret or a path).
+fn settings_changed(event: &str, section: &str, values: &Value) {
+    let keys: Vec<&str> = values
+        .as_object()
+        .map(|o| o.keys().map(String::as_str).take(MAX_LOGGED_KEYS).collect())
+        .unwrap_or_default();
+    let keys = keys.join(",");
+    let section: String = section.chars().take(MAX_ID_LEN).collect();
+    crate::activity::domain_event(event, None, &[("Section", &section), ("Fields", &keys)]);
 }
 
 #[tauri::command]
-pub fn export_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<()> {
-    let path = checked_path(&path, false)?;
+pub fn export_settings<R: Runtime>(app: AppHandle<R>, path: String, overwrite: Option<bool>) -> CmdResult<()> {
+    let target = checked_path(&path, false)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    let path = target;
     service(&app).export(&path).map_err(err)?;
     log::info!("Settings exported");
     Ok(())
@@ -950,6 +1008,8 @@ pub fn import_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult
     let path = checked_path(&path, true)?;
     let result = service(&app).import(&path)?;
     log::info!(Applied = result.applied.len() as u64, Rejected = result.rejected.len() as u64; "Settings imported");
+    let (applied, rejected) = (result.applied.join(","), result.rejected.len().to_string());
+    crate::activity::domain_event("settings.imported", None, &[("Sections", &applied), ("Rejected", &rejected)]);
     Ok(result)
 }
 
@@ -1330,7 +1390,7 @@ pub(crate) mod tests {
         let o = fx.service.overview();
         let w = view(&o, "net.decryptology.windows");
         assert_eq!((w.status, w.read_only), (SectionStatus::Disabled, true));
-        assert_eq!(w.section.fields.len(), 2);
+        assert_eq!(w.section.fields.len(), 1);
         assert!(fx
             .service
             .set("net.decryptology.windows", &json!({}))
@@ -1344,13 +1404,13 @@ pub(crate) mod tests {
         let t = Temp::new("start");
         std::fs::write(
             t.0.join(FILE),
-            r#"{"version":1,"sections":{"workspace":{"liveTailDebounce":1500},"t.fragile":{"n":"bad"},"net.decryptology.windows":{"logmanTimeout":60000}}}"#,
+            r#"{"version":1,"sections":{"workspace":{"liveTailDebounce":1500},"t.fragile":{"n":"bad"},"net.decryptology.windows":{"relogTimeout":60000}}}"#,
         )
         .unwrap();
         let fx = fixture(Some(&t.0), false, &[]);
         fx.service.start();
         assert_eq!(fx.service.live_tail_debounce(), Duration::from_millis(1500));
-        assert_eq!(imt_plugin_windows::settings::logman_timeout(), Duration::from_secs(60));
+        assert_eq!(imt_plugin_windows::settings::relog_timeout(), Duration::from_secs(60));
         assert_eq!(view(&fx.service.overview(), "t.fragile").values["n"], 1);
         fx.service.reset("net.decryptology.windows").unwrap();
         // A crash at startup is contained too.
@@ -1563,6 +1623,7 @@ pub(crate) mod tests {
     #[test]
     fn commands_through_the_tauri_app() {
         let _serial = serial();
+        let _log = crate::activity::test_capture();
         let t = Temp::new("commands");
         let app = crate::test_support::test_app(Some(t.0.join("profiles")));
         app.manage(lifecycle::Lifecycle::begin(Some(t.0.join("data")), false));
@@ -1578,13 +1639,34 @@ pub(crate) mod tests {
         assert_eq!(lifecycle::load_plugin_settings(Some(&t.0)).disabled, ["net.decryptology.web"]);
         set_settings(h.clone(), WORKSPACE_SECTION.into(), json!({ "liveTailDebounce": 400 })).unwrap();
         assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
+        // A domain event names the section and the changed fields, never their values.
+        let changed = crate::tools::tests::domain_events();
+        let e = changed
+            .iter()
+            .find(|c| c.props.get("Section").is_some_and(|s| s == WORKSPACE_SECTION))
+            .expect("settings.changed");
+        assert_eq!(
+            (e.props["Operation"].as_str(), e.props["Fields"].as_str()),
+            ("settings.changed", "liveTailDebounce")
+        );
+        assert!(!format!("{changed:?}").contains("400"));
         let out = t.0.join("export.json").to_string_lossy().into_owned();
-        export_settings(h.clone(), out.clone()).unwrap();
+        export_settings(h.clone(), out.clone(), None).unwrap();
+        assert_eq!(
+            export_settings(h.clone(), out.clone(), None).unwrap_err(),
+            format!("{out} already exists; confirm to replace it")
+        );
+        export_settings(h.clone(), out.clone(), Some(true)).unwrap();
         reset_settings(h.clone(), WORKSPACE_SECTION.into()).unwrap();
         let r = import_settings(h.clone(), out).unwrap();
         assert!(r.applied.contains(&WORKSPACE_SECTION.to_string()));
+        let events = crate::tools::tests::domain_events();
+        assert!(events
+            .iter()
+            .any(|c| c.props["Operation"] == "settings.reset" && c.props.get("Section").is_some_and(|s| s == WORKSPACE_SECTION)));
+        assert!(events.iter().any(|c| c.props["Operation"] == "settings.imported"));
         assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
-        assert!(export_settings(h.clone(), "relative.json".into()).is_err());
+        assert!(export_settings(h.clone(), "relative.json".into(), None).is_err());
         assert!(import_settings(h.clone(), t.0.join("none.json").to_string_lossy().into_owned()).is_err());
         let bad = t.0.join("bad.json");
         std::fs::write(&bad, "[]").unwrap();
@@ -1598,7 +1680,7 @@ pub(crate) mod tests {
         // The plugin sections come from the workspace's registry (nothing is quarantined here).
         let web = settings_sections(h.clone()).unwrap();
         assert_eq!(view(&web, "net.decryptology.windows").status, SectionStatus::Active);
-        let failing = export_settings(h, t.0.join("missing/dir/x.json").to_string_lossy().into_owned());
+        let failing = export_settings(h, t.0.join("missing/dir/x.json").to_string_lossy().into_owned(), None);
         assert!(failing.is_err());
     }
 

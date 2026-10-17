@@ -3,6 +3,7 @@ import { ImtBackend } from '../core/backend';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ProfileEdits } from '../profile/profile-edits';
+import { ProfileUndo } from '../undo/profile-undo';
 import { LiveSettingsDraft, readLive, writeLive } from './live-rules.model';
 
 /** An engine validation failure, with the line of the generated TOML it points at. */
@@ -23,6 +24,7 @@ export class LiveRulesProfile {
   private readonly edits = inject(ProfileEdits);
   private readonly backend = inject(ImtBackend);
   private readonly store = inject(WorkspaceStore);
+  private readonly undo = inject(ProfileUndo);
 
   async load(): Promise<LiveSettingsDraft> {
     const { model } = await this.edits.current();
@@ -41,7 +43,7 @@ export class LiveRulesProfile {
 
   private async run(draft: LiveSettingsDraft, save: boolean): Promise<RulesResult> {
     try {
-      const { model } = await this.edits.current();
+      const { toml: before, model } = await this.edits.current();
       writeLive(model, draft);
       const toml = this.edits.toToml(model);
       const validation = await this.backend.validateProfile(toml);
@@ -50,7 +52,10 @@ export class LiveRulesProfile {
         const excerpt = line ? (toml.split('\n')[line - 1]?.trim().slice(0, 160) ?? null) : null;
         return { ok: false, failure: { message: validation.error ?? 'The profile is not valid.', line, excerpt } };
       }
-      if (save) this.store.profileSaved(await this.backend.saveProfile(toml));
+      if (save) {
+        this.store.profileSaved(await this.backend.saveProfile(toml));
+        this.undo.record('live rules edit', before, toml);
+      }
       return { ok: true };
     } catch (e) {
       return { ok: false, failure: { message: describeError(e), line: null, excerpt: null } };

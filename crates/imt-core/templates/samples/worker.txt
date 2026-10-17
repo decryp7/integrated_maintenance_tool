@@ -1,0 +1,6 @@
+2026-10-14 10:41:00.120 +00:00 [INF] Application started — OrderWorker 3.14.2 {"MachineName":"WORKER01","ProcessId":2208}
+2026-10-14 10:41:05.002 +00:00 [WRN] Outbox dispatch timed out; backlog 1,204 messages {"MachineName":"WORKER01","ProcessId":2208}
+2026-10-14 10:41:24.050 +00:00 [ERR] Message handler failed for OrderCaptured {"MachineName":"WORKER01","ProcessId":2208}
+System.Net.Http.HttpRequestException: Response status code does not indicate success: 504 (Gateway Timeout).
+   at OrderService.Payments.GatewayClient.CaptureAsync(Guid orderId)
+2026-10-14 10:41:30.000 +00:00 [DBG] Retrying in 5 s {"MachineName":"WORKER01","ProcessId":2208}

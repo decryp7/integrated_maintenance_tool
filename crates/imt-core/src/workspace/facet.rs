@@ -20,7 +20,8 @@ impl Workspace {
             };
             if let Some(v) = value {
                 total += 1;
-                *counts.entry(v.into_owned()).or_default() += 1;
+                // Redacted values that mask alike are counted together.
+                *counts.entry(self.view_text(&req.field, v).into_owned()).or_default() += 1;
             }
         }
         let distinct = counts.len();

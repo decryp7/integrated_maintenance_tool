@@ -2,6 +2,7 @@ import { computed, effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { FieldFilter, Level, MarkerKind, Query, RecordView, Timeline, WorkspaceSummary } from './api.types';
 import { ImtBackend } from './backend';
+import { DROPPED_FILES_HANDLERS, routeDroppedFiles } from './dropped-files';
 import { TimeZoneMode } from './format';
 import { Logger } from './logger';
 import { Platform } from './platform';
@@ -28,6 +29,8 @@ interface WorkspaceState {
   dataVersion: number;
   /** Bumped whenever the profile is saved and applied. */
   profileVersion: number;
+  /** Bumped after files or folders were opened successfully (the overview opens after an import). */
+  importVersion: number;
   query: Query;
   /** Raw search box text; copied into query.text after a debounce. */
   textInput: string;
@@ -80,6 +83,7 @@ const initialState: WorkspaceState = {
   summary: null,
   dataVersion: 0,
   profileVersion: 0,
+  importVersion: 0,
   query: EMPTY_QUERY,
   textInput: '',
   selected: null,
@@ -179,14 +183,20 @@ export const WorkspaceStore = signalStore(
       },
       openPaths: async (paths: string[]): Promise<void> => {
         await run(`Opening ${paths.length} item${paths.length === 1 ? '' : 's'}…`, () => backend.openPaths(paths), 'opened');
-        if (!store.error()) recent.add(paths);
+        if (!store.error()) {
+          recent.add(paths);
+          patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
+        }
       },
       async pickAndOpen(directory: boolean) {
         try {
           const paths = await platform.pickPaths(directory);
           if (paths.length) {
             await run(`Opening ${paths.length} item${paths.length === 1 ? '' : 's'}…`, () => backend.openPaths(paths), 'opened');
-            if (!store.error()) recent.add(paths);
+            if (!store.error()) {
+              recent.add(paths);
+              patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
+            }
           }
         } catch (e) {
           patchState(store, { error: errorText(e) });
@@ -230,6 +240,11 @@ export const WorkspaceStore = signalStore(
       clearQuery() {
         clearTimeout(textTimer);
         patchState(store, { query: EMPTY_QUERY, textInput: '' });
+      },
+      /** Puts back a whole query, search box included (undo/redo of filter changes). */
+      restoreQuery(query: Query) {
+        clearTimeout(textTimer);
+        patchState(store, { query, textInput: query.text });
       },
 
       select: (selected: RecordView | null) => patchState(store, { selected, anchorMissed: false }),
@@ -292,8 +307,10 @@ export const WorkspaceStore = signalStore(
         }),
       );
 
+      // Features claim their files first (profiling: captures); the rest open as logs, once.
+      const dropHandlers = inject(DROPPED_FILES_HANDLERS, { optional: true }) ?? [];
       void inject(Platform).onFilesDropped(
-        (paths) => void store.openPaths(paths),
+        (paths) => void routeDroppedFiles(dropHandlers, paths).then((rest) => (rest.length ? store.openPaths(rest) : undefined)),
         (over) => store.setDropHover(over),
       );
       void store.init();

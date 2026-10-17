@@ -1,5 +1,6 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
+import { Report } from './api.types';
 import { ImtBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
@@ -19,7 +20,9 @@ import {
   MonitorStatus,
   ProjectOpened,
   ProjectSaved,
+  ToolEntry,
 } from './tools.types';
+import { hasSkew } from './skew-backend';
 
 /** Names of the events the shell emits. */
 export const OPEN_EVENT = 'imt://open';
@@ -27,10 +30,23 @@ export const OPEN_EVENT = 'imt://open';
 /** Stops listening to an event. */
 export type Unlisten = () => void;
 
+/** Plugin tools: what is installed and usable, and the generic call. */
+export abstract class ToolCatalogBackend {
+  /** The tools of this window's plugins with their availability (empty in safe mode). */
+  abstract toolsList(): Promise<ToolEntry[]>;
+  /** Runs one operation of a tool (`tool_invoke`); `args` must match the op's schema. */
+  abstract toolInvoke<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
+}
+
 /** Performance Monitor templates and `logman` control. */
 export abstract class PerfmonBackend {
   abstract perfmonPresets(): Promise<CounterPreset[]>;
-  abstract perfmonGenerate(template: CollectorTemplate, xmlPath?: string): Promise<GeneratedCollector>;
+  /** Builds the XML; with `xmlPath` also writes it there, replacing an existing file only with `overwrite`. */
+  abstract perfmonGenerate(
+    template: CollectorTemplate,
+    xmlPath?: string,
+    overwrite?: boolean,
+  ): Promise<GeneratedCollector>;
   abstract perfmonInstall(template: CollectorTemplate): Promise<CollectorStatus>;
   abstract perfmonControl(name: string, action: CollectorAction): Promise<CollectorStatus | null>;
   abstract perfmonOutputs(name: string): Promise<string[]>;
@@ -42,7 +58,12 @@ export abstract class CollectBackend {
   abstract monitorStop(): Promise<string | null>;
   abstract monitorStatus(): Promise<MonitorStatus>;
   abstract collectDefaultPlan(): Promise<string>;
-  abstract collectDiagnostics(plan: string, outDir: string): Promise<CollectResult>;
+  /** Writes a bundle into `outDir`; an existing bundle of the same name is replaced only with `overwrite`. */
+  abstract collectDiagnostics(
+    plan: string,
+    outDir: string,
+    overwrite?: boolean,
+  ): Promise<CollectResult>;
 }
 
 /** App lifetime: elevation, safe mode, plugin settings and session recovery. */
@@ -53,13 +74,21 @@ export abstract class LifecycleBackend {
   abstract restartApp(safeMode: boolean, reopen: string[]): Promise<void>;
   abstract pluginReset(id: string): Promise<void>;
   abstract pluginSetEnabled(id: string, enabled: boolean): Promise<boolean>;
-  abstract saveSession(ui: unknown): Promise<void>;
+  /** Autosaves the session; `reports` are the project's incident reports. */
+  abstract saveSession(ui: unknown, reports?: Report[]): Promise<void>;
   abstract lastSession(): Promise<string | null>;
 }
 
 /** Projects and OS "open with" requests (live tail lives on `ImtBackend`). */
 export abstract class ProjectBackend {
-  abstract saveProject(path: string, name: string, ui: unknown): Promise<ProjectSaved>;
+  /** Saves the project; `reports` are its incident reports (validated by the engine). Never replaces a file unless `overwrite`. */
+  abstract saveProject(
+    path: string,
+    name: string,
+    ui: unknown,
+    reports?: Report[],
+    overwrite?: boolean,
+  ): Promise<ProjectSaved>;
   abstract openProject(path: string): Promise<ProjectOpened>;
   abstract takePendingOpen(): Promise<string[]>;
   /** Calls `handler` whenever the shell queued paths to open (`imt://open`). */
@@ -70,9 +99,18 @@ export abstract class ProjectBackend {
  * Everything the tools, lifecycle and project features ask of the backend. Consumers inject the
  * narrow part they use (`PerfmonBackend`, ...); `ToolsBackend` is the full class registered for DI.
  */
-export abstract class ToolsBackend implements PerfmonBackend, CollectBackend, LifecycleBackend, ProjectBackend {
+export abstract class ToolsBackend
+  implements ToolCatalogBackend, PerfmonBackend, CollectBackend, LifecycleBackend, ProjectBackend
+{
+  abstract toolsList(): Promise<ToolEntry[]>;
+  abstract toolInvoke<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
   abstract perfmonPresets(): Promise<CounterPreset[]>;
-  abstract perfmonGenerate(template: CollectorTemplate, xmlPath?: string): Promise<GeneratedCollector>;
+  /** Builds the XML; with `xmlPath` also writes it there, replacing an existing file only with `overwrite`. */
+  abstract perfmonGenerate(
+    template: CollectorTemplate,
+    xmlPath?: string,
+    overwrite?: boolean,
+  ): Promise<GeneratedCollector>;
   abstract perfmonInstall(template: CollectorTemplate): Promise<CollectorStatus>;
   abstract perfmonControl(name: string, action: CollectorAction): Promise<CollectorStatus | null>;
   abstract perfmonOutputs(name: string): Promise<string[]>;
@@ -80,16 +118,29 @@ export abstract class ToolsBackend implements PerfmonBackend, CollectBackend, Li
   abstract monitorStop(): Promise<string | null>;
   abstract monitorStatus(): Promise<MonitorStatus>;
   abstract collectDefaultPlan(): Promise<string>;
-  abstract collectDiagnostics(plan: string, outDir: string): Promise<CollectResult>;
+  /** Writes a bundle into `outDir`; an existing bundle of the same name is replaced only with `overwrite`. */
+  abstract collectDiagnostics(
+    plan: string,
+    outDir: string,
+    overwrite?: boolean,
+  ): Promise<CollectResult>;
   abstract elevation(): Promise<ElevationInfo>;
   abstract restartElevated(reopen: string[]): Promise<void>;
   abstract appStatus(): Promise<AppStatus>;
   abstract restartApp(safeMode: boolean, reopen: string[]): Promise<void>;
   abstract pluginReset(id: string): Promise<void>;
   abstract pluginSetEnabled(id: string, enabled: boolean): Promise<boolean>;
-  abstract saveSession(ui: unknown): Promise<void>;
+  /** Autosaves the session; `reports` are the project's incident reports. */
+  abstract saveSession(ui: unknown, reports?: Report[]): Promise<void>;
   abstract lastSession(): Promise<string | null>;
-  abstract saveProject(path: string, name: string, ui: unknown): Promise<ProjectSaved>;
+  /** Saves the project; `reports` are its incident reports (validated by the engine). Never replaces a file unless `overwrite`. */
+  abstract saveProject(
+    path: string,
+    name: string,
+    ui: unknown,
+    reports?: Report[],
+    overwrite?: boolean,
+  ): Promise<ProjectSaved>;
   abstract openProject(path: string): Promise<ProjectOpened>;
   abstract takePendingOpen(): Promise<string[]>;
   abstract onOpenRequested(handler: () => void): Promise<Unlisten>;
@@ -112,11 +163,23 @@ export class TauriToolsBackend extends ToolsBackend {
     super();
   }
 
+  toolsList() {
+    return this.call<ToolEntry[]>('tools_list');
+  }
+  toolInvoke<T = unknown>(tool: string, op: string, args: unknown = {}) {
+    return this.call<T>('tool_invoke', { tool, op, args });
+  }
+  // The specific commands below are deprecated wrappers over `tool_invoke` in the shell; kept so
+  // the UI and its tests work unchanged.
   perfmonPresets() {
     return this.call<CounterPreset[]>('perfmon_presets');
   }
-  perfmonGenerate(template: CollectorTemplate, xmlPath?: string) {
-    return this.call<GeneratedCollector>('perfmon_generate', { template, xmlPath });
+  perfmonGenerate(template: CollectorTemplate, xmlPath?: string, overwrite = false) {
+    return this.call<GeneratedCollector>('perfmon_generate', {
+      template,
+      xmlPath,
+      ...(overwrite ? { overwrite } : {}),
+    });
   }
   perfmonInstall(template: CollectorTemplate) {
     return this.call<CollectorStatus>('perfmon_install', { template });
@@ -139,8 +202,12 @@ export class TauriToolsBackend extends ToolsBackend {
   collectDefaultPlan() {
     return this.call<string>('collect_default_plan');
   }
-  collectDiagnostics(plan: string, outDir: string) {
-    return this.call<CollectResult>('collect_diagnostics', { plan, outDir });
+  collectDiagnostics(plan: string, outDir: string, overwrite = false) {
+    return this.call<CollectResult>('collect_diagnostics', {
+      plan,
+      outDir,
+      ...(overwrite ? { overwrite } : {}),
+    });
   }
   elevation() {
     return this.call<ElevationInfo>('elevation');
@@ -160,14 +227,20 @@ export class TauriToolsBackend extends ToolsBackend {
   pluginSetEnabled(id: string, enabled: boolean) {
     return this.call<boolean>('plugin_set_enabled', { id, enabled });
   }
-  saveSession(ui: unknown) {
-    return this.call<void>('save_session', { ui });
+  saveSession(ui: unknown, reports?: Report[]) {
+    return this.call<void>('save_session', reports ? { ui, reports } : { ui });
   }
   lastSession() {
     return this.call<string | null>('last_session');
   }
-  saveProject(path: string, name: string, ui: unknown) {
-    return this.call<ProjectSaved>('save_project', { path, name, ui });
+  saveProject(path: string, name: string, ui: unknown, reports?: Report[], overwrite = false) {
+    return this.call<ProjectSaved>('save_project', {
+      path,
+      name,
+      ui,
+      ...(reports ? { reports } : {}),
+      ...(overwrite ? { overwrite } : {}),
+    });
   }
   openProject(path: string) {
     return this.call<ProjectOpened>('open_project', { path });
@@ -184,11 +257,22 @@ export class TauriToolsBackend extends ToolsBackend {
 export function provideToolsBackend(): Provider[] {
   const factory = () => {
     const imt = inject(ImtBackend);
-    const real = isTauri() ? new TauriToolsBackend() : new MockToolsBackend(undefined, () => imt.workspaceSummary());
-    return withFailureLogging<ToolsBackend>(real, inject(Logger), { onFailure: reportBackendFailures() });
+    const real = isTauri()
+      ? new TauriToolsBackend()
+      : new MockToolsBackend(
+          undefined,
+          () => imt.workspaceSummary(),
+          hasSkew(imt)
+            ? (source, offsetMs) => imt.setSourceOffset({ kind: 'manual', source, offsetMs })
+            : undefined,
+        );
+    return withFailureLogging<ToolsBackend>(real, inject(Logger), {
+      onFailure: reportBackendFailures(),
+    });
   };
   return [
     { provide: ToolsBackend, useFactory: factory },
+    { provide: ToolCatalogBackend, useExisting: ToolsBackend },
     { provide: PerfmonBackend, useExisting: ToolsBackend },
     { provide: CollectBackend, useExisting: ToolsBackend },
     { provide: LifecycleBackend, useExisting: ToolsBackend },
