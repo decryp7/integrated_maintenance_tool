@@ -643,3 +643,39 @@ fn workspace_works_through_the_log_store_trait() {
     store.clear();
     assert_eq!(store.summary().total, 0);
 }
+
+#[test]
+fn moment_users_carry_the_field_they_were_read_from() {
+    use imt_core::workspace::MomentRequest;
+    let d = TempDir::new();
+    let line = |t: &str, extra: &str| format!(r#"{{"@t":"2026-10-14T10:00:{t}Z","@mt":"did something"{extra}}}"#) + "\n";
+    let text = [
+        line("01", r#","UserName":"alice""#),
+        line("02", r#","UserName":"alice""#),
+        // UserName wins over ClientIp when both are present (first present field).
+        line("03", r#","UserName":"bob","ClientIp":"10.0.0.9""#),
+        line("04", r#","ClientIp":"10.0.0.7""#),
+        line("05", ""),
+    ]
+    .concat();
+    d.file("app.clef", text);
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(&[d.path().to_path_buf()]).unwrap();
+    let from = chrono::DateTime::parse_from_rfc3339("2026-10-14T10:00:00Z")
+        .unwrap()
+        .timestamp_millis();
+    let m = ws
+        .moment(&MomentRequest {
+            query: Query::default(),
+            from,
+            to: from + 10_000,
+        })
+        .unwrap();
+    let users: Vec<(&str, &str, u64)> = m.users.iter().map(|u| (u.field.as_str(), u.value.as_str(), u.count)).collect();
+    assert_eq!(
+        users,
+        vec![("UserName", "alice", 2), ("ClientIp", "10.0.0.7", 1), ("UserName", "bob", 1)]
+    );
+    let json = serde_json::to_value(&m.users[0]).unwrap();
+    assert_eq!(json, serde_json::json!({"field": "UserName", "value": "alice", "count": 2}));
+}

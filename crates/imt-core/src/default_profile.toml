@@ -136,6 +136,16 @@ metrics = ["CpuPercent", "WorkingSetMb", "PrivateMb", "Handles", "Threads", "Ela
 # description = "Payment gateway timed out; check the PSP status page"
 # when = [{ field = "@message", op = "matches", value = '(?i)gateway.*time(d)? ?out' }]
 # Condition ops: eq ne contains notContains matches exists missing gt lt in
+#
+# Switched-off rules (written by the Markers manager) live in
+# [[imt_disabled_markers]]: same keys as [[marker]] plus an optional
+# `imt_index`, the rule's position in the combined priority order so switching
+# it back on restores it there. They are kept when the profile is saved but
+# are never compiled or matched.
+# [[imt_disabled_markers]]
+# kind = "payment-timeout"
+# imt_index = 2
+# when = [{ field = "@message", op = "contains", value = "timeout" }]
 [[marker]]
 kind = "fatal"
 label = "Fatal"
@@ -182,3 +192,28 @@ bucket = "auto"
 split_by = ["@level"]
 type = "stacked"
 unit = "events"
+
+# Live tail: detectors evaluated on the recent window after each appended
+# batch, raising `imt://live-alert` for new findings (deduplicated per kind and
+# instance within `cooldown`). All keys are optional.
+[live]
+# error_spike, silence, crash, slow_outlier, rate_change, memory_growth
+alerts = ["error_spike", "silence", "crash", "slow_outlier", "rate_change", "memory_growth"]
+# An instance that logged before and is silent this long while time moves on.
+silence_after = "60s"
+# The same alert (kind + instance, or rule) is raised at most once per cooldown.
+cooldown = "5m"
+# Recent window the anomaly detectors look at (at most 100,000 records).
+window = "5m"
+# "Now" for live windows (`window: { kind: "live", lastMs }` in queries) and
+# silences: "data" = the newest record, "wall" = the system clock.
+clock = "data"
+#
+# Alert rules: a query-language condition matched by at least `threshold`
+# events within `window`. severity: critical, warning or info.
+# [[live.rule]]
+# name = "payment errors"
+# when = 'level = "Error" and SourceContext contains "Payment"'
+# threshold = 5
+# window = "1m"
+# severity = "critical"

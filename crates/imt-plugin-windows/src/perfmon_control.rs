@@ -8,7 +8,7 @@
 //! `Status:`, `Root Path:`, `Output Location:` and `Segment:`; on other display languages
 //! the status is [`RunState::Unknown`] and the paths are missing.
 
-use crate::command::{CommandOutput, CommandRunner, DEFAULT_TIMEOUT};
+use crate::command::{CommandOutput, CommandRunner};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -91,7 +91,7 @@ impl<R: CommandRunner> PerfmonController<R> {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
         let out = self
             .runner
-            .run("logman", &args, DEFAULT_TIMEOUT)
+            .run("logman", &args, crate::settings::logman_timeout())
             .map_err(|e| PerfmonError::Io(e.to_string()))?;
         if out.success() {
             return Ok(out);

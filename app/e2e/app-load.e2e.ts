@@ -11,9 +11,22 @@ test.describe('app load', () => {
     await expect(page.getByRole('button', { name: 'Metrics', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Profile editor' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Timeline', selected: true })).toBeVisible();
-    // Timeline, Events and Inspector are the visible tab of their group; Metrics, Profile and Registry are stacked behind Timeline.
-    await expect(page.getByRole('tab', { selected: true })).toHaveCount(3);
-    await expect(page.getByRole('tab')).toHaveCount(6);
+  });
+
+  test('default layout: Query pinned above the grid, analysis views stacked behind Timeline', async ({ page }) => {
+    const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
+    // Each group shows one tab: Timeline (with Metrics, Profile and Registry behind it), Query, Events, Inspector.
+    await expect.poll(() => names(true)).toEqual(['Events', 'Inspector', 'Query', 'Timeline']);
+    expect(await names()).toEqual(['Events', 'Inspector', 'Metrics', 'Profile', 'Query', 'Registry', 'Timeline']);
+    // The query bar sits directly above the events grid, in its own short group.
+    const query = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Query' }) }).boundingBox();
+    const events = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Events' }) }).boundingBox();
+    expect(query && events).toBeTruthy();
+    expect(Math.abs(query!.y + query!.height - events!.y)).toBeLessThanOrEqual(2);
+    expect(query!.height).toBeLessThanOrEqual(90);
+    // Tall enough for the whole query input (no clipping).
+    const input = await page.locator('imt-query-view').getByRole('button', { name: 'Run', exact: true }).boundingBox();
+    expect(input!.y + input!.height).toBeLessThanOrEqual(query!.y + query!.height + 1);
   });
 
   test('explorer lists the sources', async ({ page }) => {

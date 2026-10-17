@@ -12,7 +12,8 @@ yanked = "deny"
 
 [licenses]
 confidence-threshold = 0.9
-# Our own crates are unpublished and not yet licensed.
+# IMT is MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE). Dependencies must be permissive
+# (or file-level MPL-2.0) so the dual licence holds; no GPL/LGPL/AGPL. Our crates are unpublished.
 private = { ignore = true }
 allow = [
   "MIT",

@@ -16,6 +16,11 @@ export interface DialogOptions {
   inputs?: Record<string, unknown>;
   /** Preferred width in px (default 560). */
   width?: number;
+  /**
+   * Asked before the dialog closes by any route (its own close, Escape, the header close button,
+   * the backdrop). Returning false keeps it open, e.g. to confirm discarding unsaved edits.
+   */
+  canClose?: () => boolean;
 }
 
 export interface OpenDialog {
@@ -43,6 +48,7 @@ export class DialogService {
       closed,
       close: (result?: R) => {
         if (!this.stack().some((d) => d.id === id)) return;
+        if (options.canClose?.() === false) return;
         this.stack.update((s) => s.filter((d) => d.id !== id));
         resolve(result);
       },
@@ -51,7 +57,7 @@ export class DialogService {
     return ref;
   }
 
-  /** Closes the topmost dialog (Escape). */
+  /** Closes the topmost dialog (Escape), unless its `canClose` says no. */
   dismissTop(): void {
     this.stack().at(-1)?.ref.close();
   }

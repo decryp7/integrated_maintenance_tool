@@ -17,6 +17,28 @@ const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
 const FLOAT_SIZE = { width: 560, height: 380 };
 
+/** A view with a fixed place in the default layout, relative to a built-in panel. */
+interface Pin {
+  referencePanel: string;
+  direction: 'above' | 'below' | 'left' | 'right';
+  /** Height of the view's group in px, for views placed above or below. */
+  height?: number;
+}
+
+/** Id of the query bar view (contributed by the analysis plugin). */
+export const QUERY_VIEW = 'query';
+/** Tab strip plus one line of query input; dockview groups are otherwise at least 100px tall. */
+export const QUERY_HEIGHT = 80;
+
+/**
+ * Views that open in their own group at a fixed place instead of tabbed by `defaultPosition`: the
+ * query bar sits right above the events grid it filters. Used by the default layout and whenever
+ * such a view is (re)opened while its reference panel is in the layout.
+ */
+const PINNED: Readonly<Record<string, Pin>> = {
+  [QUERY_VIEW]: { referencePanel: PANEL.events, direction: 'above', height: QUERY_HEIGHT },
+};
+
 /** Panels a new view with a given default position is placed next to (first one that exists wins). */
 const ANCHORS: Record<ViewPosition, string[]> = {
   center: [PANEL.timeline, PANEL.metrics, PANEL.profile],
@@ -201,6 +223,15 @@ export class DockService {
   }
 
   private addView(api: DockviewApi, view: ImtView, inactive: boolean): IDockviewPanel {
+    const pin = PINNED[view.id];
+    if (pin && api.getPanel(pin.referencePanel)) {
+      // dockview's default minimum group height (100px) is taller than a query bar; the panel's own
+      // minimum (saved with the layout) lets its group be that short.
+      const size = pin.height ? { initialHeight: pin.height, minimumHeight: pin.height } : {};
+      const panel = api.addPanel({ id: view.id, component: view.id, title: view.title, inactive, ...size, position: { referencePanel: pin.referencePanel, direction: pin.direction } });
+      if (pin.height) panel.group.api.setSize({ height: pin.height });
+      return panel;
+    }
     const ref = this.anchorFor(api, view.defaultPosition ?? 'center');
     return api.addPanel({
       id: view.id,
@@ -224,11 +255,14 @@ export class DockService {
     add(PANEL.timeline);
     add(PANEL.inspector, { referencePanel: PANEL.timeline, direction: 'right' });
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
+    const query = this.views.find(QUERY_VIEW);
+    if (query) this.addView(api, query, false);
     add(PANEL.metrics, { referencePanel: PANEL.timeline, direction: 'within' });
     add(PANEL.profile, { referencePanel: PANEL.timeline, direction: 'within' });
     api.getPanel(PANEL.timeline)?.api.setActive();
     api.getPanel(PANEL.inspector)?.group.api.setSize({ width: INSPECTOR_WIDTH });
     api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });
+    api.getPanel(QUERY_VIEW)?.group.api.setSize({ height: QUERY_HEIGHT });
   }
 
   /** Opens/closes views that depend on the workspace (`ImtView.when`). */

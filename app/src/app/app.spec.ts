@@ -3,12 +3,14 @@ import { el, provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
 import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
+import { provideToolsBackend } from './core/tools-backend';
+import { LifecycleService } from './lifecycle/lifecycle.service';
 
 describe('App', () => {
   beforeEach(() => localStorage.clear());
 
   async function render() {
-    TestBed.configureTestingModule({ providers: [provideDockTesting()] });
+    TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend()] });
     const fixture = TestBed.createComponent(App);
     await settle(fixture, 8);
     await vi.waitFor(() => {
@@ -57,5 +59,16 @@ describe('App', () => {
     el<HTMLButtonElement>(fixture, '.toast[role=status] button').click();
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.toast')).toBeNull();
+  });
+
+  it('renders the lifecycle banners right below the title bar, as part of the shell', async () => {
+    const { fixture } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    const banners = host.querySelector('imt-lifecycle-banners');
+    expect(banners?.previousElementSibling?.tagName.toLowerCase()).toBe('imt-title-bar');
+    expect(host.querySelector('imt-title-bar imt-title-extras')).not.toBeNull();
+    TestBed.inject(LifecycleService).status.set({ version: '0.1.0', safeMode: true, previousCrash: false, sessionAvailable: false });
+    await settle(fixture);
+    expect(banners?.querySelector('[data-testid=safe-mode-banner]')).not.toBeNull();
   });
 });

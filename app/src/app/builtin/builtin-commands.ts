@@ -5,7 +5,7 @@ import { DockService } from '../dock/dock.service';
 import { PaletteService } from '../palette/palette.service';
 import { ImtCommand } from '../extensions/tokens';
 import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
-import { SettingsDialogService } from '../settings/settings-dialog';
+import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
 import { TimelineZoom } from '../timeline/zoom';
 import { WelcomeService } from '../welcome/welcome';
 
@@ -37,6 +37,7 @@ export class BuiltinCommands {
     },
     { id: 'help.welcome', title: 'Show welcome', category: 'Help', run: () => this.welcome.show() },
     { id: 'settings.open', title: 'Open settings', category: 'View', keybinding: 'Mod+,', run: () => this.settings.open() },
+    { id: SETTINGS_DIAGNOSTICS_COMMAND, title: 'Open settings: Diagnostics', category: 'View', run: () => this.settings.open(DIAGNOSTICS_SECTION) },
     { id: 'view.toggleSidebar', title: 'Toggle sidebar', category: 'View', keybinding: 'Mod+B', run: () => this.store.toggleSidebar() },
     { id: 'view.resetLayout', title: 'Reset layout', category: 'View', run: () => this.dock.reset() },
     { id: 'view.theme.system', title: 'Theme: system', category: 'View', run: () => this.store.setTheme('system') },

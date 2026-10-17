@@ -31,12 +31,17 @@ pub fn is_zip(bytes: &[u8]) -> bool {
 
 /// Expands `bytes` (the content of `file_name`) into the files to import.
 pub fn expand(file_name: &str, bytes: Vec<u8>) -> Result<Vec<Entry>> {
+    expand_capped(file_name, bytes, MAX_ENTRY_BYTES, MAX_ARCHIVE_BYTES)
+}
+
+/// [`expand`] with explicit limits per entry and per archive.
+fn expand_capped(file_name: &str, bytes: Vec<u8>, max_entry: u64, max_archive: u64) -> Result<Vec<Entry>> {
     if is_gzip(&bytes) {
         let inner = file_name
             .strip_suffix(".gz")
             .or_else(|| file_name.strip_suffix(".GZ"))
             .unwrap_or(file_name);
-        let data = read_capped(flate2::read::MultiGzDecoder::new(Cursor::new(bytes)), MAX_ENTRY_BYTES).context("invalid gzip data")?;
+        let data = read_capped(flate2::read::MultiGzDecoder::new(Cursor::new(bytes)), max_entry).context("invalid gzip data")?;
         return Ok(vec![Entry {
             name: Some(inner.to_string()),
             bytes: data,
@@ -52,10 +57,10 @@ pub fn expand(file_name: &str, bytes: Vec<u8>) -> Result<Vec<Entry>> {
                 continue;
             }
             let name = entry.name().context("invalid zip entry name")?.replace('\\', "/");
-            let data = read_capped(entry, MAX_ENTRY_BYTES).with_context(|| format!("zip entry {name}"))?;
+            let data = read_capped(entry, max_entry).with_context(|| format!("zip entry {name}"))?;
             total += data.len() as u64;
-            if total > MAX_ARCHIVE_BYTES {
-                return Err(anyhow!("archive expands to more than {} GiB", MAX_ARCHIVE_BYTES >> 30));
+            if total > max_archive {
+                return Err(anyhow!("archive expands to more than {} MiB", max_archive >> 20));
             }
             out.push(Entry {
                 name: Some(name),
@@ -138,5 +143,11 @@ mod tests {
             .contains("more than"));
         assert_eq!(read_capped(Cursor::new(vec![0u8; 10]), 10).unwrap().len(), 10);
         assert!(is_gzip(&gzip(b"")) && is_zip(&zip_of(&[])) && !is_zip(b"PK"));
+        // Entries each within their limit can still add up past the archive's.
+        let mib = vec![b'x'; 1 << 20];
+        let z = zip_of(&[("a.log", &mib), ("b.log", &mib), ("c.log", &mib)]);
+        assert_eq!(expand_capped("ok.zip", z.clone(), 1 << 20, 3 << 20).unwrap().len(), 3);
+        let e = expand_capped("bomb.zip", z, 1 << 20, 2 << 20).err().unwrap().to_string();
+        assert_eq!(e, "archive expands to more than 2 MiB");
     }
 }

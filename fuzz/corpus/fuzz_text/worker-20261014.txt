@@ -1,0 +1,22 @@
+2026-10-14 09:00:00.000 +00:00 [INF] Application started — OrderWorker 3.14.2 {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Program"}
+2026-10-14 09:00:09.963 +00:00 [INF] Dispatched 16 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:10.000 +00:00 [INF] Process stats: CPU 23.3% · WorkingSet 615 MB · Threads 63 {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Diagnostics.ProcessMonitor"}
+2026-10-14 09:00:12.618 +00:00 [INF] Dispatched 19 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:14.793 +00:00 [INF] Dispatched 5 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:19.055 +00:00 [INF] Dispatched 31 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:19.632 +00:00 [INF] Dispatched 3 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:26.214 +00:00 [INF] Dispatched 3 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:27.464 +00:00 [INF] Dispatched 37 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:34.794 +00:00 [INF] Dispatched 6 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:40.000 +00:00 [INF] Process stats: CPU 30.0% · WorkingSet 607 MB · Threads 70 {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Diagnostics.ProcessMonitor"}
+2026-10-14 09:00:42.128 +00:00 [INF] Dispatched 20 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:42.385 +00:00 [INF] Dispatched 28 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:49.562 +00:00 [INF] Dispatched 13 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:49.856 +00:00 [INF] Dispatched 4 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:52.118 +00:00 [INF] Dispatched 28 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:52.722 +00:00 [INF] Dispatched 27 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:00:54.280 +00:00 [INF] Dispatched 21 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:01:02.443 +00:00 [INF] Dispatched 3 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:01:03.716 +00:00 [INF] Dispatched 24 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:01:04.340 +00:00 [INF] Dispatched 34 outbox messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher"}
+2026-10-14 09:01:07.056 +00:00 [WRN] Outbox dispatch timed out; backlog 82 messages {"MachineName": "WORKER01", "ProcessId": 2208, "Application": "OrderWorker", "SourceContext": "Outbox.Dispatcher", 

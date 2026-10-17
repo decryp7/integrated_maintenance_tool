@@ -7,9 +7,16 @@ mod facet;
 mod insights;
 mod page;
 mod preview;
+mod tail;
 mod timeline;
 
 pub use crate::api::*;
+pub use tail::{
+    duration_ms, family, group_of, identity_of, initial_mode, is_network_path, mode_of, AlertRuleCfg, BatchFn, Coalescer, DeletedFiles,
+    FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions, Retention, RotatedSource, TailFileState,
+    TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow, WatchMode, WatchPreference, WatchSettings, WatchSignal,
+    WatchSink, WatchedRoot, WatcherFactory,
+};
 
 use crate::chart::ChartDef;
 use crate::importers::{decode, ImportCtx, Importers};
@@ -20,12 +27,10 @@ use crate::query::{CompiledQuery, Query};
 use crate::time::utc_date_of;
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-
-const MAX_DISTINCT: usize = 10_000;
 
 /// Progress of the current import, readable (and cancellable) without the
 /// workspace lock the import holds.
@@ -90,9 +95,18 @@ pub struct Workspace {
     default_group_by: Vec<String>,
     marker_kinds: Vec<String>,
     load_ms: u64,
-    cache: Mutex<Option<(String, Arc<Vec<u32>>)>>,
+    /// Matching ids of recent queries, updated incrementally on append.
+    cache: Mutex<tail::MatchCache>,
     anomaly_cache: Mutex<Option<(String, Vec<crate::analysis::Anomaly>)>>,
+    /// The pattern miner of the last patterns query, fed only new records.
+    pattern_cache: Mutex<Option<tail::PatternCache>>,
     progress: Arc<ImportProgress>,
+    /// Field statistics, maintained record by record.
+    field_index: tail::FieldIndex,
+    /// Bumped whenever existing record ids or contents change (not on pure appends).
+    generation: u64,
+    /// Live tail: per-file read positions, options, alert state.
+    tail: tail::TailBook,
 }
 
 impl Workspace {
@@ -126,9 +140,13 @@ impl Workspace {
             default_group_by: vec!["@source".into()],
             marker_kinds,
             load_ms: 0,
-            cache: Mutex::new(None),
+            cache: Mutex::new(tail::MatchCache::default()),
             anomaly_cache: Mutex::new(None),
+            pattern_cache: Mutex::new(None),
             progress: Arc::new(ImportProgress::default()),
+            field_index: tail::FieldIndex::default(),
+            generation: 0,
+            tail: tail::TailBook::default(),
         })
     }
 
@@ -142,6 +160,12 @@ impl Workspace {
 
     /// Opens files and folders (recursively), skipping files already loaded.
     pub fn open(&mut self, paths: &[PathBuf]) -> Result<()> {
+        self.open_with(paths, &OpenOptions::default())
+    }
+
+    /// [`Workspace::open`] with options; `start_at_end` tails text files from
+    /// their current end, skipping their history.
+    pub fn open_with(&mut self, paths: &[PathBuf], options: &OpenOptions) -> Result<()> {
         let start = Instant::now();
         let mut files = Vec::new();
         for p in paths {
@@ -163,7 +187,11 @@ impl Workspace {
         files.retain(|f| !known.contains(f.to_string_lossy().as_ref()));
         files.sort();
         files.dedup();
-        self.import_files(files);
+        if options.start_at_end {
+            files = self.skip_history(files);
+        }
+        let (records, _) = self.import_files(files);
+        self.records.extend(records);
         self.rebuild();
         self.load_ms = start.elapsed().as_millis() as u64;
         if !self.registry.hooks.is_empty() {
@@ -192,6 +220,7 @@ impl Workspace {
     }
 
     fn reset(&mut self) {
+        self.tail.reset();
         self.roots.clear();
         self.removed.clear();
         self.sources.clear();
@@ -208,6 +237,7 @@ impl Workspace {
         }
         self.sources.retain(|s| s.id != id);
         self.records.retain(|r| r.source != id);
+        self.tail.forget(id);
         self.rebuild();
     }
 
@@ -222,62 +252,31 @@ impl Workspace {
         self.reload()
     }
 
-    /// Re-imports files that changed on disk and imports new files under the
-    /// opened folders (e.g. a rotated log). Paths outside the workspace and
-    /// removed files are ignored. Returns how many sources were (re)imported.
+    /// Reads what changed on disk (see [`Workspace::refresh_tail`]): appended
+    /// lines, rotated, truncated, deleted and new files under the opened
+    /// folders. Paths outside the workspace and removed files are ignored.
+    /// Returns how many sources changed.
     pub fn refresh_files(&mut self, changed: &[PathBuf]) -> Result<usize> {
-        let start = Instant::now();
-        let mut files = Vec::new();
-        for p in changed {
-            let Ok(p) = std::fs::canonicalize(p) else {
-                // Deleted: drop its sources.
-                let gone = p.to_string_lossy().into_owned();
-                let ids: Vec<u32> = self.sources.iter().filter(|s| source_file(&s.path) == gone).map(|s| s.id).collect();
-                self.drop_sources(&ids);
-                continue;
-            };
-            if !p.is_file() || self.removed.contains(&p) {
-                continue;
-            }
-            let under_root = self.roots.iter().any(|r| *r == p || (r.is_dir() && p.starts_with(r)));
-            if !under_root {
-                continue;
-            }
-            if let Some(root) = self.roots.iter().find(|r| r.is_dir() && p.starts_with(r)) {
-                let rel = p.strip_prefix(root).unwrap_or(&p);
-                if self.profile.exclude.is_match(rel) || !self.profile.include.is_match(rel) {
-                    continue;
-                }
-            }
-            let path_s = p.to_string_lossy().into_owned();
-            let ids: Vec<u32> = self
-                .sources
-                .iter()
-                .filter(|s| source_file(&s.path) == path_s)
-                .map(|s| s.id)
-                .collect();
-            self.drop_sources(&ids);
-            self.unrecognized.retain(|u| source_file(&u.path) != path_s);
-            files.push(p);
-        }
-        files.sort();
-        files.dedup();
-        let before = self.sources.len();
-        let count = files.len();
-        self.import_files(files);
-        self.rebuild();
-        if count > 0 || self.sources.len() != before {
-            self.load_ms = start.elapsed().as_millis() as u64;
-        }
-        Ok(count)
+        self.refresh_tail(changed).map(|r| r.changed_sources())
     }
 
-    fn drop_sources(&mut self, ids: &[u32]) {
-        if ids.is_empty() {
-            return;
+    /// Whether a file found under the opened roots should be read: not
+    /// removed, under a root, and (inside a folder) matching the profile's
+    /// include/exclude globs.
+    fn wanted(&self, p: &Path) -> bool {
+        if !p.is_file() || self.removed.contains(p) {
+            return false;
         }
-        self.sources.retain(|s| !ids.contains(&s.id));
-        self.records.retain(|r| !ids.contains(&r.source));
+        if !self.roots.iter().any(|r| r == p || (r.is_dir() && p.starts_with(r))) {
+            return false;
+        }
+        match self.roots.iter().find(|r| r.is_dir() && p.starts_with(r)) {
+            Some(root) => {
+                let rel = p.strip_prefix(root).unwrap_or(p);
+                !self.profile.exclude.is_match(rel) && self.profile.include.is_match(rel)
+            }
+            None => true,
+        }
     }
 
     /// The opened paths and removed files.
@@ -350,7 +349,9 @@ impl Workspace {
         self.progress.clone()
     }
 
-    fn import_files(&mut self, files: Vec<PathBuf>) {
+    /// Imports files as new sources; returns their records (not yet in the
+    /// workspace) and the new source ids.
+    fn import_files(&mut self, files: Vec<PathBuf>) -> (Vec<Record>, Vec<u32>) {
         let progress = self.progress.clone();
         progress.start(files.len());
         let profile = self.profile.clone();
@@ -378,46 +379,70 @@ impl Workspace {
             .collect();
         progress.running.store(false, std::sync::atomic::Ordering::SeqCst);
 
+        let mut records = Vec::new();
+        let mut added = Vec::new();
         for (path_s, name, result) in results {
             match result {
-                Ok((importer, imported, step_stats)) => {
-                    let dropped = step_stats.first().map_or(0, |s| s.input) - step_stats.last().map_or(0, |s| s.output);
-                    let id = self.names.len() as u32;
-                    self.names.push(name.clone());
-                    let (mut from, mut to) = (None::<i64>, None::<i64>);
-                    for r in &imported.records {
-                        if let Some(ts) = r.ts {
-                            from = Some(from.map_or(ts, |f| f.min(ts)));
-                            to = Some(to.map_or(ts, |t| t.max(ts)));
-                        }
+                Ok(loaded) => {
+                    let id = self.add_source(path_s, name, loaded.importer, loaded.imported.skipped, loaded.stats);
+                    let (from, to) = time_range(&loaded.imported.records);
+                    if let Some(s) = self.sources.last_mut() {
+                        s.records = loaded.imported.records.len();
+                        (s.from, s.to) = (from, to);
                     }
-                    self.sources.push(SourceInfo {
-                        id,
-                        path: path_s,
-                        name,
-                        importer,
-                        records: imported.records.len(),
-                        skipped: imported.skipped,
-                        dropped,
-                        step_stats,
-                        error: None,
-                        from,
-                        to,
-                    });
-                    self.records.extend(imported.records.into_iter().map(|mut r| {
+                    if let Some(seed) = loaded.seed {
+                        let path = PathBuf::from(&self.sources[self.sources.len() - 1].path);
+                        let name = self.source_name(id).to_string();
+                        self.tail.track(id, &path, &name, seed);
+                    }
+                    records.extend(loaded.imported.records.into_iter().map(|mut r| {
                         r.source = id;
                         r
                     }));
+                    added.push(id);
                 }
-                Err(reason) => self.unrecognized.push(UnrecognizedFile {
-                    path: path_s,
-                    name,
-                    reason,
-                }),
+                Err(reason) => {
+                    self.tail.remember_unrecognized(source_file(&path_s));
+                    self.unrecognized.push(UnrecognizedFile {
+                        path: path_s,
+                        name,
+                        reason,
+                    })
+                }
             }
         }
         self.sources.sort_by(|a, b| a.name.cmp(&b.name));
         self.unrecognized.sort_by(|a, b| a.name.cmp(&b.name));
+        (records, added)
+    }
+
+    /// Registers a source (without records) and returns its id.
+    fn add_source(
+        &mut self,
+        path: String,
+        name: String,
+        importer: String,
+        skipped: usize,
+        step_stats: Vec<crate::pipeline::StepStats>,
+    ) -> u32 {
+        let dropped = step_stats.first().map_or(0, |s| s.input) - step_stats.last().map_or(0, |s| s.output);
+        let id = self.names.len() as u32;
+        self.names.push(name.clone());
+        self.sources.push(SourceInfo {
+            id,
+            path,
+            group: group_of(&name),
+            name,
+            importer,
+            records: 0,
+            skipped,
+            dropped,
+            step_stats,
+            error: None,
+            from: None,
+            to: None,
+        });
+        id
     }
 
     /// Re-sorts, re-numbers and re-derives everything after the record set changed.
@@ -426,51 +451,25 @@ impl Workspace {
         self.records.par_iter_mut().enumerate().for_each(|(i, r)| r.id = i as u32);
         self.compute_fields();
         self.default_group_by = self.pick_group_by();
-        *self.cache.lock().unwrap() = None;
-        *self.anomaly_cache.lock().unwrap() = None;
+        self.generation += 1;
+        self.cache.lock().unwrap_or_else(|p| p.into_inner()).clear();
+        *self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()) = None;
     }
 
     fn compute_fields(&mut self) {
-        struct Stat {
-            count: usize,
-            numeric: bool,
-            values: HashSet<String>,
-        }
-        let mut stats: HashMap<String, Stat> = HashMap::new();
-        for r in &self.records {
-            for (k, v) in &r.fields {
-                let s = stats.entry(k.clone()).or_insert_with(|| Stat {
-                    count: 0,
-                    numeric: true,
-                    values: HashSet::new(),
-                });
-                s.count += 1;
-                if s.numeric && crate::model::value_number(v).is_none() {
-                    s.numeric = false;
-                }
-                if s.values.len() < MAX_DISTINCT {
-                    s.values.insert(crate::model::value_text(v).into_owned());
-                }
-            }
-        }
+        self.field_index = tail::FieldIndex::build(&self.records);
+        self.refresh_field_infos();
+    }
+
+    /// The summary's field list from the field index.
+    fn refresh_field_infos(&mut self) {
         let derived: HashSet<&str> = self
             .profile
             .extractors
             .iter()
             .flat_map(|e| e.fields.iter().map(|(n, _)| n.as_str()))
             .collect();
-        let mut fields: Vec<FieldInfo> = stats
-            .into_iter()
-            .map(|(name, s)| FieldInfo {
-                derived: derived.contains(name.as_str()),
-                distinct: s.values.len(),
-                count: s.count,
-                numeric: s.numeric,
-                name,
-            })
-            .collect();
-        fields.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-        self.fields = fields;
+        self.fields = self.field_index.infos(&derived);
     }
 
     fn pick_group_by(&self) -> Vec<String> {
@@ -503,7 +502,7 @@ impl Workspace {
     }
 
     fn compile(&self, q: &Query) -> Result<CompiledQuery> {
-        CompiledQuery::new(q, &self.default_group_by, &self.marker_kinds)
+        CompiledQuery::new(&self.resolve_window(q), &self.default_group_by, &self.marker_kinds)
     }
 
     fn marker_names(&self, mask: u32) -> Vec<&str> {
@@ -513,15 +512,20 @@ impl Workspace {
             .collect()
     }
 
-    /// Ids (ascending) of every record matching the query, cached for paging.
+    /// Ids (ascending) of every record matching the query, cached for paging
+    /// and kept up to date on append (only new records are evaluated).
     pub fn matching(&self, q: &Query) -> Result<Arc<Vec<u32>>> {
         let key = serde_json::to_string(q)?;
-        if let Some((k, ids)) = self.cache.lock().unwrap().as_ref() {
-            if *k == key {
-                return Ok(ids.clone());
-            }
+        let resolved = self.resolve_window(q).into_owned();
+        if let Some(ids) = self
+            .cache
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&key, &resolved, &self.records)
+        {
+            return Ok(ids);
         }
-        let cq = self.compile(q)?;
+        let cq = CompiledQuery::new(&resolved, &self.default_group_by, &self.marker_kinds)?;
         let ids: Vec<u32> = self
             .records
             .par_iter()
@@ -529,7 +533,10 @@ impl Workspace {
             .map(|r| r.id)
             .collect();
         let ids = Arc::new(ids);
-        *self.cache.lock().unwrap() = Some((key, ids.clone()));
+        self.cache
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .put(key, resolved, q.window.is_some(), ids.clone());
         Ok(ids)
     }
 
@@ -570,6 +577,7 @@ impl Workspace {
             charts: self.chart_defs(),
             profile_name: self.profile.profile.name.clone(),
             load_ms: self.load_ms,
+            evicted: self.tail.evicted,
             dropped: self.sources.iter().map(|s| s.dropped).sum(),
             pipeline: self.pipeline_stats(),
             icons: self.profile.icons.clone(),
@@ -628,9 +636,28 @@ impl Workspace {
     }
 }
 
-/// Importer id, records and the number the pipeline dropped, or why the file
-/// could not be read.
-type ImportResult = std::result::Result<(String, crate::importers::Imported, Vec<crate::pipeline::StepStats>), String>;
+/// A file read by an importer: its records after the pipeline, the pipeline's
+/// statistics, and how to tail it.
+struct Loaded {
+    importer: String,
+    imported: crate::importers::Imported,
+    stats: Vec<crate::pipeline::StepStats>,
+    seed: Option<tail::TailSeed>,
+}
+
+/// The file read, or why it could not be read.
+type ImportResult = std::result::Result<Loaded, String>;
+
+fn time_range(records: &[Record]) -> (Option<i64>, Option<i64>) {
+    let (mut from, mut to) = (None::<i64>, None::<i64>);
+    for r in records {
+        if let Some(ts) = r.ts {
+            from = Some(from.map_or(ts, |f| f.min(ts)));
+            to = Some(to.map_or(ts, |t| t.max(ts)));
+        }
+    }
+    (from, to)
+}
 
 /// Reads one file and runs the profile's ingest pipeline on its records.
 /// Reads one file from disk, expands it if it is compressed, and imports
@@ -649,6 +676,9 @@ fn import_file(
     };
     let file_name = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
     let compressed = crate::archive::is_zip(&bytes);
+    let packed = compressed || crate::archive::is_gzip(&bytes);
+    // Archives are tailed as a whole (by their compressed bytes).
+    let whole = packed.then(|| tail::TailSeed::whole(path, &bytes));
     let entries = match crate::archive::expand(&file_name, bytes) {
         Ok(e) => e,
         Err(e) => return vec![(path_s, name.to_string(), Err(format!("{e:#}")))],
@@ -673,15 +703,24 @@ fn import_file(
                 return None;
             }
             // A crash anywhere while reading one file (even in built-in code) fails only that file.
+            let plain = entry.name.is_none();
             let result = crate::guard::catch("IMT", || {
-                Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date))
+                Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date, plain))
             })
-            .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")));
+            .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")))
+            .map(|mut loaded| {
+                if !compressed && loaded.seed.is_none() {
+                    loaded.seed = whole.clone().or_else(|| Some(tail::TailSeed::whole(path, &entry.bytes)));
+                }
+                loaded
+            });
             Some((source_path, source_name, result))
         })
         .collect()
 }
 
+/// Imports one file's bytes. `plain` (not an archive member) also prepares
+/// tailing it incrementally when its importer can append.
 fn import_bytes(
     importers: &Importers,
     profile: &CompiledProfile,
@@ -689,26 +728,49 @@ fn import_bytes(
     bytes: &[u8],
     source_name: &str,
     file_date: Option<chrono::NaiveDate>,
+    plain: bool,
 ) -> ImportResult {
     if bytes.is_empty() {
         return Err("empty file".into());
     }
     let ctx = ImportCtx { profile, path, file_date };
+    let mut append = None;
     let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
         Some(importer) => (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?),
         None => {
             let content = decode(bytes).ok_or("binary file")?;
             let head: String = content.chars().take(64 * 1024).collect();
             let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;
-            (importer.id(), importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?)
+            let imported = importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?;
+            // Probe: an importer that cannot append is tailed by re-reading the file.
+            if plain && importer.import_tail(&ctx, &head, "").is_some_and(|r| r.is_ok()) {
+                append = Some(tail::AppendInfo {
+                    importer: importer.id(),
+                    multiline: importer.multiline(),
+                    last_line: imported.records.last().map(|r| r.line),
+                });
+            }
+            (importer.id(), imported)
         }
     };
     if imported.records.is_empty() {
         return Err(format!("{id} importer found no events"));
     }
+    let seed = append.map(|info| {
+        let stats_from = |line: u32| {
+            let tail: Vec<Record> = imported.records.iter().filter(|r| r.line >= line).cloned().collect();
+            profile.ingest(tail, source_name).1
+        };
+        tail::TailSeed::append(path, bytes, &info, &stats_from)
+    });
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
-    Ok((id.to_string(), imported, stats))
+    Ok(Loaded {
+        importer: id.to_string(),
+        imported,
+        stats,
+        seed,
+    })
 }
 
 /// Reads a file, retrying briefly when another process holds it open
@@ -728,6 +790,23 @@ fn read_with_retry(path: &Path) -> std::result::Result<Vec<u8>, String> {
         }
     }
     unreachable!("the last attempt always returns")
+}
+
+/// Opens a file for reading, retrying briefly while another process holds it exclusively.
+fn open_with_retry(path: &Path) -> std::io::Result<std::fs::File> {
+    const ATTEMPTS: u32 = 4;
+    let mut delay = std::time::Duration::from_millis(100);
+    let mut attempt = 1;
+    loop {
+        match std::fs::File::open(path) {
+            Err(e) if is_locked(&e) && attempt < ATTEMPTS => {
+                std::thread::sleep(delay);
+                delay *= 2;
+                attempt += 1;
+            }
+            other => return other,
+        }
+    }
 }
 
 /// Sharing/lock violations (Windows error 32/33) or permission errors that may be transient.

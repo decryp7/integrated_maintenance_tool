@@ -4,7 +4,7 @@
 //! `relog` (shipped with Windows) to convert the file to CSV and parses that with
 //! the PerfMon CSV logic. Elsewhere it explains how to convert the file.
 
-use crate::command::{CommandRunner, SystemRunner, DEFAULT_TIMEOUT};
+use crate::command::{CommandRunner, SystemRunner};
 use crate::perfmon::parse_perfmon;
 use anyhow::{anyhow, bail, Context, Result};
 use imt_core::importers::{decode, BinaryImporter, ImportCtx, Imported};
@@ -51,7 +51,7 @@ impl BlgImporter {
         let result = (|| {
             let out = self
                 .runner
-                .run("relog", &args, DEFAULT_TIMEOUT)
+                .run("relog", &args, crate::settings::relog_timeout())
                 .context("could not run relog (is it on the PATH?)")?;
             if !out.success() {
                 let detail = if out.stderr.trim().is_empty() {

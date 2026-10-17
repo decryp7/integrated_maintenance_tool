@@ -19,6 +19,17 @@
  *   import_profile         { path: string }                -> ProfileDoc   (read + validated; applied only by save_profile)
  *   export_profile         { path: string, toml: string }  -> void
  *   export_events          { request: ExportRequest }      -> ExportResult  (built-in formats "csv" and "clef")
+ *   source_context         { request: ContextRequest }     -> SourceContext (original lines around an event)
+ *   read_file_head         { path: string, maxBytes?: number } -> string   (only files in the workspace)
+ *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview
+ *   set_live               { enabled: boolean }            -> number        (watched paths)
+ *   infer_regex            { lines: string[] }             -> InferredRegex
+ *   explain_regex          { pattern: string }             -> ExplainNode[]
+ *
+ * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots".
+ *
+ * Events (Tauri): "imt://workspace-changed" (optional payload `{appended, sourcesChanged, rotated, truncated}`; listeners must accept none) after live tail re-imported changed files;
+ * "imt://error" (EngineError) when the engine contained a new plugin crash, quarantine or import crash.
  *
  * Timestamps are epoch milliseconds (UTC). Records whose timestamp could not be
  * determined have ts = null and never appear on the timeline or in charts.
@@ -71,6 +82,25 @@ export interface MarkerKind {
   /** Lifecycle markers (start/stop) can be shown on the timeline regardless of level/text filters. */
   lifecycle: boolean;
   color: string | null;
+  /** A built-in or custom icon name; null = built-in shape. */
+  icon: string | null;
+  /** Generated badge text (1 to 3 characters); takes precedence over `icon`. */
+  badge: string | null;
+  /** Badge outline (the engine rejects any other value in the profile). */
+  shape: MarkerShape | null;
+  /** Meaning of the marker, for the legend and tooltips. */
+  description: string | null;
+}
+
+export type MarkerShape = 'circle' | 'square' | 'diamond' | 'hexagon';
+export const MARKER_SHAPES: readonly MarkerShape[] = ['circle', 'square', 'diamond', 'hexagon'];
+
+/** A custom marker icon from the profile, sanitised by the engine so it is safe to render. */
+export interface CustomIcon {
+  name: string;
+  svg: string | null;
+  /** `data:image/png;base64,...` */
+  pngDataUrl: string | null;
 }
 
 export type ChartType = 'line' | 'bar' | 'stacked';
@@ -106,6 +136,8 @@ export interface WorkspaceSummary {
   plugins: PluginInfo[];
   /** Formats `export_events` can write. */
   exporters: ExporterInfo[];
+  /** Custom marker icons from the profile, by name. */
+  icons: CustomIcon[];
   /** Events in/out of each `[[pipeline]]` step during the last import, summed over sources. */
   pipeline: PipelineStat[];
 }
@@ -118,12 +150,20 @@ export interface PipelineStat {
   output: number;
 }
 
+export type PluginStatus = 'active' | 'disabled' | 'quarantined';
+
 export interface PluginInfo {
   id: string;
   name: string;
   version: string;
-  /** What the plugin adds, e.g. "importer", "transform", "exporter", "hook". */
+  /** What the plugin adds, e.g. "importer:registry", "transform:x", "exporter:y", "hook". */
   contributes: string[];
+  /** `disabled`: turned off by the user or safe mode; `quarantined`: crashed repeatedly and is no longer called. */
+  status: PluginStatus;
+  /** Contained crashes/errors attributed to the plugin. */
+  failures: number;
+  /** The latest contained error, if any. */
+  lastError: string | null;
 }
 
 export interface ExporterInfo {
@@ -185,6 +225,8 @@ export interface Query {
   groups: string[];
   /** Only records carrying one of these marker kinds; empty = no restriction. */
   markers: string[];
+  /** Query-language expression evaluated by the engine; default (absent or empty) = none. */
+  ql?: string;
 }
 
 export interface PageRequest {
@@ -201,8 +243,8 @@ export interface RecordView {
   ts: number | null;
   level: Level;
   message: string;
-  template?: string | null;
-  exception?: string | null;
+  template: string | null;
+  exception: string | null;
   fields: Record<string, unknown>;
   source: number;
   sourceName: string;
@@ -347,3 +389,410 @@ export interface ExtractPreview {
   samples: ExtractSample[];
   error: string | null;
 }
+
+export interface ContextRequest {
+  recordId: number;
+  /** Lines before the event (default 10; the engine caps the total). */
+  before: number;
+  after: number;
+}
+
+export interface SourceLine {
+  line: number;
+  text: string;
+}
+
+export interface SourceContext {
+  sourceName: string;
+  /** Line of the event itself. */
+  line: number;
+  lines: SourceLine[];
+}
+
+export interface ParsePreviewRequest {
+  /** Candidate profile (may be unsaved). */
+  toml: string;
+  /** Sample content, e.g. the first lines of a file. */
+  sample: string;
+  fileName: string;
+  limit: number;
+}
+
+export interface ParsedPreview {
+  line: number;
+  ts: number | null;
+  level: Level;
+  message: string;
+  exception: string | null;
+  fields: Record<string, unknown>;
+  markers: string[];
+}
+
+export interface ParsePreview {
+  /** Importer that read the sample; null when none did. */
+  importer: string | null;
+  records: ParsedPreview[];
+  total: number;
+  skipped: number;
+  dropped: number;
+  error: string | null;
+}
+
+// ---- Regex assistance -----------------------------------------------------------------------
+
+/** What an inferred group captures (crates/imt-core/src/regex_assist.rs `InferredGroup.kind`). */
+export type GroupKind = 'number' | 'decimal' | 'guid' | 'ipv4' | 'hex' | 'timestamp' | 'word' | 'token' | 'text';
+
+export interface InferredGroup {
+  name: string;
+  kind: GroupKind;
+  /** A few values the group captured from the example lines. */
+  examples: string[];
+}
+
+/** One line of a regex explanation outline; start/end are UTF-8 byte offsets into the pattern. */
+export interface ExplainNode {
+  depth: number;
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** Result of `infer_regex`: a pattern with named, typed groups that matches the example lines. */
+export interface InferredRegex {
+  pattern: string;
+  groups: InferredGroup[];
+  /** Whether the pattern matches each input line. */
+  matches: boolean[];
+  explanation: ExplainNode[];
+}
+
+// ---- Analysis -------------------------------------------------------------------------------
+
+/**
+ * Analysis commands (query language, patterns, exceptions, anomalies, comparison,
+ * field statistics, traces, requests, Moment view). Mirrors the Rust DTOs in
+ * `crates/imt-core/src/{api.rs,ql,analysis,patterns.rs,exceptions.rs}`; camelCase on the wire.
+ *
+ *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
+ *   check_query      { text }                               -> QlError | null
+ *   complete_query   { request: { text, cursor } }          -> Completion[]
+ *   query_patterns   { request: { query } }                 -> Pattern[]
+ *   query_exceptions { request: { query } }                 -> ExceptionGroup[]
+ *   query_anomalies  { request: { query } }                 -> Anomaly[]
+ *   compare_windows  { request: { a, b } }                  -> Comparison
+ *   field_stats      { request: { query, field, buckets } } -> FieldStats
+ *   correlate        { request: { field, value } }          -> number[]
+ *   query_traces     { request: { query, traceId } }        -> { traces, waterfall }
+ *   query_requests   { request: { query, idField } }        -> RequestSpan[]
+ *   query_moment     { request: { query, from, to } }       -> MomentSummary
+ *
+ * Offsets in `QlError` and the `cursor` of `complete_query` are UTF-8 byte offsets.
+ */
+
+/** `Query` plus the query-language text (`Query.ql` on the Rust side; empty = no ql filter). */
+export interface QlQuery extends Query {
+  ql?: string;
+}
+
+export interface QlError {
+  message: string;
+  /** Byte offset into the query text. */
+  offset: number;
+  /** Length in bytes; 0 marks a position (e.g. "unexpected end of query"). */
+  len: number;
+}
+
+export type QlResult =
+  | { kind: 'events'; ids: number[]; fields: string[] | null }
+  | { kind: 'table'; columns: string[]; rows: unknown[][] };
+
+export type QueryOutcome = { result: QlResult } | { error: QlError };
+
+export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
+
+export interface Completion {
+  label: string;
+  kind: CompletionKind;
+  /** Text that replaces the word being typed. */
+  insert: string;
+}
+
+export interface Pattern {
+  id: number;
+  template: string;
+  count: number;
+  /** Count per level, in `LEVELS` order. */
+  levels: number[];
+  firstTs: number | null;
+  lastTs: number | null;
+  sampleIds: number[];
+  source: 'Serilog' | 'Mined';
+}
+
+export interface ExceptionGroup {
+  fingerprint: string;
+  typeName: string;
+  message: string;
+  topFrame: string | null;
+  count: number;
+  /** [instance key, count] pairs. */
+  instances: [string, number][];
+  firstTs: number | null;
+  lastTs: number | null;
+  sampleIds: number[];
+}
+
+export type AnomalyKind = 'errorSpike' | 'silence' | 'crash' | 'slowOutlier' | 'rateChange' | 'memoryGrowth';
+
+export interface Anomaly {
+  kind: AnomalyKind;
+  instance: string | null;
+  from: number;
+  to: number;
+  score: number;
+  message: string;
+  sampleIds: number[];
+}
+
+export interface LevelCount {
+  level: Level;
+  count: number;
+  perMinute: number;
+}
+
+export interface SideStats {
+  count: number;
+  from: number | null;
+  to: number | null;
+  durationMs: number;
+  perMinute: number;
+  levels: LevelCount[];
+}
+
+export interface ValueShare {
+  value: string;
+  countA: number;
+  countB: number;
+  shareA: number;
+  shareB: number;
+}
+
+export interface FieldShift {
+  field: string;
+  /** Total variation distance between the two value distributions (0..1). */
+  distance: number;
+  top: ValueShare[];
+}
+
+export interface NumberSummary {
+  count: number;
+  median: number;
+  p95: number;
+}
+
+export interface NumericShift {
+  field: string;
+  a: NumberSummary;
+  b: NumberSummary;
+  medianChangePct: number | null;
+  p95ChangePct: number | null;
+}
+
+export interface ValueCount {
+  value: string;
+  count: number;
+}
+
+export interface ValueAppearance {
+  field: string;
+  values: ValueCount[];
+}
+
+export interface Comparison {
+  a: SideStats;
+  b: SideStats;
+  changedFields: FieldShift[];
+  numericChanges: NumericShift[];
+  /** Values seen only in B. */
+  newValues: ValueAppearance[];
+  /** Values seen only in A. */
+  goneValues: ValueAppearance[];
+  summary: string[];
+}
+
+export interface HistogramBin {
+  from: number;
+  to: number;
+  count: number;
+}
+
+export interface NumericStats {
+  min: number;
+  max: number;
+  mean: number;
+  stddev: number;
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  histogram: HistogramBin[];
+}
+
+export interface FieldStats {
+  count: number;
+  missing: number;
+  distinct: number;
+  numeric: NumericStats | null;
+  top: ValueCount[];
+}
+
+export interface TraceSummary {
+  traceId: string;
+  spans: number;
+  errors: number;
+  start: number;
+  durationMs: number;
+  root: string;
+}
+
+export interface WaterfallRow {
+  spanId: string;
+  parent: string | null;
+  depth: number;
+  name: string;
+  startOffsetMs: number;
+  durationMs: number;
+  errors: number;
+}
+
+export interface TracesResult {
+  traces: TraceSummary[];
+  waterfall: WaterfallRow[];
+}
+
+export interface RequestSpan {
+  id: string;
+  first: number;
+  last: number;
+  events: number;
+  errors: number;
+  instance: string;
+}
+
+export interface MomentInstance {
+  key: string;
+  events: number;
+  warnings: number;
+  errors: number;
+  patterns: Pattern[];
+  /** First error or fatal event in the window. */
+  firstError: number | null;
+}
+
+export interface MetricWindow {
+  series: string;
+  metric: string;
+  samples: number;
+  min: number;
+  avg: number;
+  max: number;
+  last: number;
+  /** Average over the window of the same length just before. */
+  previousAvg: number | null;
+  changePct: number | null;
+}
+
+export interface ActivityItem {
+  id: number;
+  ts: number;
+  instance: string;
+  user: string | null;
+  action: string;
+  level: Level;
+}
+
+/** How many events in a moment came from one user, and the field that named them. */
+export interface UserCount {
+  /** The profile's `activity.user` field the value was read from. */
+  field: string;
+  value: string;
+  count: number;
+}
+
+export interface MomentSummary {
+  from: number;
+  to: number;
+  total: number;
+  levels: Partial<Record<Level, number>>;
+  instances: MomentInstance[];
+  metrics: MetricWindow[];
+  users: UserCount[];
+  activity: ActivityItem[];
+  anomalies: Anomaly[];
+}
+
+// ---- Error snapshots ------------------------------------------------------------------------
+
+/*
+ * Mirrors app/src-tauri/src/snapshots.rs:
+ *   save_error_snapshot    { image: base64, mime, context: SnapshotContext } -> SnapshotSaveResult
+ *   list_error_snapshots   {}                     -> SnapshotInfo[]  (newest first)
+ *   read_error_snapshot    { id }                 -> string (data: URL)
+ *   delete_error_snapshot  { id }                 -> void
+ *   open_snapshots_folder  {}                     -> string (folder path)
+ *   export_diagnostics     { path, ids }          -> number (files written)
+ *   diagnostics_settings   {}                     -> { snapshots: { enabled: boolean } }
+ * Event "imt://error" carries an EngineError.
+ */
+
+/** Why a snapshot was taken. */
+export type SnapshotReason = 'unhandled-error' | 'panel-failed' | 'backend-failed' | 'engine-error' | 'manual';
+
+/** What the UI sends with an image. */
+export interface SnapshotContext {
+  reason: SnapshotReason;
+  message: string;
+  stack?: string;
+  /** The active view's title. */
+  view?: string;
+  /** The user asked for it; allowed even when automatic snapshots are off. */
+  manual: boolean;
+}
+
+/** Result of `save_error_snapshot` (Rust `SaveResult`). */
+export interface SnapshotSaveResult {
+  id: string;
+  /** The first snapshot ever saved: show the "saved locally" notice. */
+  firstTime: boolean;
+}
+
+/** One saved snapshot (newest first in listings). */
+export interface SnapshotInfo {
+  id: string;
+  /** RFC 3339, UTC. */
+  createdAt: string;
+  reason: string;
+  message: string;
+  stack: string | null;
+  view: string | null;
+  manual: boolean;
+  appVersion: string;
+  os: string;
+  mime: string;
+  bytes: number;
+}
+
+export type EngineErrorKind = 'plugin-crash' | 'plugin-quarantined' | 'import-crash';
+
+/** Payload of the `imt://error` event: a failure the engine contained. */
+export interface EngineError {
+  kind: EngineErrorKind;
+  message: string;
+  /** The plugin concerned, when there is one. */
+  plugin: string | null;
+}
+
+/** Name of the event the engine emits for contained failures. */
+export const ENGINE_ERROR_EVENT = 'imt://error';
+export type * from '../settings/settings.types';

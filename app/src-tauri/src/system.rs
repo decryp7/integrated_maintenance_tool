@@ -7,12 +7,35 @@ use std::path::Path;
 /// Largest preview returned by `read_file_head`.
 const MAX_HEAD_BYTES: usize = 256 * 1024;
 
+/// The operating system IMT runs on, so the UI can offer platform-specific tools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Platform {
+    Windows,
+    Macos,
+    Linux,
+}
+
+impl Platform {
+    /// The platform this binary was built for (other Unixes report as Linux).
+    pub const fn current() -> Platform {
+        if cfg!(windows) {
+            Platform::Windows
+        } else if cfg!(target_os = "macos") {
+            Platform::Macos
+        } else {
+            Platform::Linux
+        }
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ElevationInfo {
     pub elevated: bool,
     /// Whether `restart_elevated` is available on this platform.
     pub can_restart_elevated: bool,
+    pub platform: Platform,
 }
 
 #[tauri::command]
@@ -20,6 +43,7 @@ pub fn elevation() -> ElevationInfo {
     ElevationInfo {
         elevated: is_elevated(),
         can_restart_elevated: cfg!(windows),
+        platform: Platform::current(),
     }
 }
 
@@ -138,7 +162,21 @@ mod tests {
     fn elevation_reports_platform_support() {
         let info = elevation();
         assert_eq!(info.can_restart_elevated, cfg!(windows));
+        assert_eq!(info.platform == Platform::Windows, cfg!(windows));
+        #[cfg(target_os = "macos")]
+        assert_eq!(info.platform, Platform::Macos);
         #[cfg(not(windows))]
         assert!(relaunch_elevated(Path::new("x"), &[]).is_err());
+    }
+
+    #[test]
+    fn platform_serialises_lowercase() {
+        let names: Vec<String> = [Platform::Windows, Platform::Macos, Platform::Linux]
+            .iter()
+            .map(|p| serde_json::to_string(p).unwrap())
+            .collect();
+        assert_eq!(names, ["\"windows\"", "\"macos\"", "\"linux\""]);
+        let json = serde_json::to_value(elevation()).unwrap();
+        assert!(json["platform"].is_string() && json.get("canRestartElevated").is_some());
     }
 }

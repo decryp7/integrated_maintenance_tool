@@ -14,6 +14,9 @@ pub struct SourceInfo {
     pub id: u32,
     pub path: String,
     pub name: String,
+    /// Logical log the file belongs to: rolled, dated and rotated files of one
+    /// log share it (`logs/app.log` for `logs/app.log.1`), so the UI can collapse them.
+    pub group: String,
     pub importer: String,
     pub records: usize,
     pub skipped: usize,
@@ -77,6 +80,8 @@ pub struct WorkspaceSummary {
     pub charts: Vec<ChartDef>,
     pub profile_name: String,
     pub load_ms: u64,
+    /// Records evicted by the live retention limit so far.
+    pub evicted: usize,
     /// Events removed by the profile's pipeline, across all sources.
     pub dropped: usize,
     /// Custom marker icons from the profile (sanitised), by name.
@@ -213,9 +218,20 @@ pub struct MomentSummary {
     pub levels: BTreeMap<Level, usize>,
     pub instances: Vec<MomentInstance>,
     pub metrics: Vec<MetricWindow>,
-    pub users: Vec<crate::analysis::ValueCount>,
+    /// Most active users, each with the field it was read from so the UI can filter by `field = value`.
+    pub users: Vec<UserCount>,
     pub activity: Vec<ActivityItem>,
     pub anomalies: Vec<crate::analysis::Anomaly>,
+}
+
+/// How many events in a moment came from one user, and the field that named them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserCount {
+    /// The `activity.user` field the value was read from (the first one present on the event).
+    pub field: String,
+    pub value: String,
+    pub count: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]

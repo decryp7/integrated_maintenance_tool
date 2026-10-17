@@ -1,0 +1,44 @@
+2026-10-14 09:00:00,000 [1] INFO  Billing.Service - Billing service starting (v2.8.1, CLR 4.0.30319)
+2026-10-14 09:00:05,249 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-236778 written
+2026-10-14 09:00:06,945 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-741653 written
+2026-10-14 09:00:22,765 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-755059 written
+2026-10-14 09:00:32,125 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-577127 written
+2026-10-14 09:00:38,595 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-962412 written
+2026-10-14 09:00:51,842 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-605981 written
+2026-10-14 09:01:03,915 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-283247 written
+2026-10-14 09:01:04,587 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-875556 written
+2026-10-14 09:01:26,671 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-704087 written
+2026-10-14 09:01:35,211 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-876118 written
+2026-10-14 09:01:35,551 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-973685 written
+2026-10-14 09:01:40,257 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-594929 written
+2026-10-14 09:01:48,710 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-131965 written
+2026-10-14 09:01:54,738 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-563281 written
+2026-10-14 09:02:04,580 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-580884 written
+2026-10-14 09:02:05,165 [7] DEBUG Billing.Cache - Refreshed tariff cache (615 entries)
+2026-10-14 09:02:11,974 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-468528 written
+2026-10-14 09:02:14,538 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-225893 written
+2026-10-14 09:02:15,467 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-803367 written
+2026-10-14 09:02:19,633 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-567720 written
+2026-10-14 09:02:39,848 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-214587 written
+2026-10-14 09:02:42,405 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-642761 written
+2026-10-14 09:02:42,538 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-830067 written
+2026-10-14 09:02:50,417 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-306649 written
+2026-10-14 09:02:52,608 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-697186 written
+2026-10-14 09:02:53,224 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-264628 written
+2026-10-14 09:02:53,598 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-668969 written
+2026-10-14 09:02:59,332 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-699502 written
+2026-10-14 09:03:00,668 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-664723 written
+2026-10-14 09:03:03,863 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-566637 written
+2026-10-14 09:03:04,432 [18] DEBUG Billing.Cache - Refreshed tariff cache (329 entries)
+2026-10-14 09:03:04,965 [20] DEBUG Billing.Cache - Refreshed tariff cache (230 entries)
+2026-10-14 09:03:14,502 [22] DEBUG Billing.Cache - Refreshed tariff cache (296 entries)
+2026-10-14 09:03:44,672 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-210108 written
+2026-10-14 09:03:52,116 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-835815 written
+2026-10-14 09:03:54,144 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-642872 written
+2026-10-14 09:03:59,120 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-727807 written
+2026-10-14 09:04:03,483 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-205609 written
+2026-10-14 09:04:12,705 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-376469 written
+2026-10-14 09:04:32,353 [11] DEBUG Billing.Cache - Refreshed tariff cache (832 entries)
+2026-10-14 09:04:38,301 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220912 written
+2026-10-14 09:04:39,110 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-841615 written
+2026-10-1

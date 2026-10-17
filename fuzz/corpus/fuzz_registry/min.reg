@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\X]
+"a"=dword:00000001
+"b"=hex:01,02,\
+  03
+@="d"
+[-HKEY_X\Y]

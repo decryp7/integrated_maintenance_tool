@@ -25,6 +25,10 @@ pub struct Profile {
     pub extract: Vec<ExtractCfg>,
     #[serde(default)]
     pub marker: Vec<MarkerCfg>,
+    /// Marker rules the user switched off: kept in the profile (so they can be
+    /// switched back on at their old position) but never compiled or matched.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imt_disabled_markers: Vec<DisabledMarkerCfg>,
     #[serde(default)]
     pub chart: Vec<ChartCfg>,
     #[serde(default)]
@@ -32,6 +36,9 @@ pub struct Profile {
     /// Custom marker icons (SVG or PNG), referenced by name from `[[marker]] icon`.
     #[serde(default)]
     pub icon: Vec<crate::icons::IconCfg>,
+    /// Live tail: detectors, alert rules and the clock of live windows.
+    #[serde(default)]
+    pub live: crate::workspace::LiveCfg,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,6 +175,16 @@ pub struct MarkerCfg {
     pub description: Option<String>,
     #[serde(default)]
     pub when: Vec<ConditionCfg>,
+}
+
+/// A switched-off marker rule and the priority position it had among all rules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisabledMarkerCfg {
+    #[serde(flatten)]
+    pub rule: MarkerCfg,
+    /// Index in the combined (active + disabled) rule order; absent = last.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imt_index: Option<usize>,
 }
 
 /// Icons a marker may use on the timeline (the UI ships one glyph per name).
@@ -336,6 +353,7 @@ impl CompiledProfile {
         profile: Profile,
         transforms: &std::collections::HashMap<String, std::sync::Arc<dyn crate::plugin::RecordTransform>>,
     ) -> Result<CompiledProfile> {
+        profile.live.compile()?;
         let include = globs(&profile.files.include).context("files.include")?;
         let exclude = globs(&profile.files.exclude).context("files.exclude")?;
 
@@ -723,6 +741,41 @@ t = { type = "duration" }
 
     fn compile(toml: &str) -> anyhow::Result<CompiledProfile> {
         CompiledProfile::compile(Profile::from_toml(toml).map_err(|e| anyhow!(e.to_string()))?)
+    }
+
+    #[test]
+    fn disabled_markers_are_kept_but_inactive() {
+        let text = r#"
+[[marker]]
+kind = "boom"
+when = [{ field = "@message", op = "contains", value = "boom" }]
+
+[[imt_disabled_markers]]
+kind = "quiet"
+label = "Quiet"
+imt_index = 0
+when = [{ field = "@message", op = "contains", value = "quiet" }]
+
+[[imt_disabled_markers]]
+kind = "broken"
+when = [{ field = "@message", op = "matches", value = "(" }]
+"#;
+        let p = Profile::from_toml(text).unwrap();
+        assert_eq!(p.imt_disabled_markers.len(), 2);
+        assert_eq!(p.imt_disabled_markers[0].rule.kind, "quiet");
+        assert_eq!(p.imt_disabled_markers[0].imt_index, Some(0));
+        assert_eq!(p.imt_disabled_markers[1].imt_index, None);
+        // Round-trips through serialisation (profile history, saving).
+        let again: Profile = toml::from_str(&toml::to_string(&p).unwrap()).unwrap();
+        assert_eq!(again.imt_disabled_markers.len(), 2);
+        // Disabled rules are never compiled: an invalid one does not break the profile.
+        let c = CompiledProfile::compile(p).unwrap();
+        let kinds: Vec<&str> = c.markers.iter().map(|m| m.kind.as_str()).collect();
+        assert_eq!(kinds, vec!["boom"]);
+        // Absent key: nothing disabled, nothing serialised.
+        let d = Profile::default_profile();
+        assert!(d.imt_disabled_markers.is_empty());
+        assert!(!toml::to_string(&d).unwrap().contains("imt_disabled_markers"));
     }
 
     #[test]

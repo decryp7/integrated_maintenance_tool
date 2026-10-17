@@ -87,9 +87,9 @@ describe('pipeline model', () => {
 
   it('finds transform plugins', () => {
     const plugins = [
-      { id: 'a', name: 'A', version: '1', contributes: ['importer'] },
-      { id: 'b', name: 'B', version: '1', contributes: ['exporter', 'transform:geoip'] },
-      { id: 'c', name: 'C', version: '1', contributes: ['transform'] },
+      { id: 'a', name: 'A', version: '1', contributes: ['importer'], status: 'active' as const, failures: 0, lastError: null },
+      { id: 'b', name: 'B', version: '1', contributes: ['exporter', 'transform:geoip'], status: 'active' as const, failures: 0, lastError: null },
+      { id: 'c', name: 'C', version: '1', contributes: ['transform'], status: 'active' as const, failures: 0, lastError: null },
     ];
     expect(transformPlugins(plugins).map((p) => p.id)).toEqual(['b', 'c']);
   });

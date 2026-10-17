@@ -1,0 +1,116 @@
+[package]
+name = "imt-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+# A separate workspace: fuzzing needs nightly and libFuzzer and must not affect the main build.
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+imt-core = { path = "../crates/imt-core" }
+imt-plugin-registry = { path = "../crates/imt-plugin-registry" }
+imt-plugin-windows = { path = "../crates/imt-plugin-windows" }
+imt-plugin-web = { path = "../crates/imt-plugin-web" }
+imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
+imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
+serde_json = "1"
+chrono = "0.4"
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "fuzz_archive"
+path = "fuzz_targets/fuzz_archive.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_csv"
+path = "fuzz_targets/fuzz_csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_evtx"
+path = "fuzz_targets/fuzz_evtx.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_json"
+path = "fuzz_targets/fuzz_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_otel"
+path = "fuzz_targets/fuzz_otel.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_perfmon_csv"
+path = "fuzz_targets/fuzz_perfmon_csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_profile_toml"
+path = "fuzz_targets/fuzz_profile_toml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ql"
+path = "fuzz_targets/fuzz_ql.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_registry"
+path = "fuzz_targets/fuzz_registry.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_syslog"
+path = "fuzz_targets/fuzz_syslog.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_text"
+path = "fuzz_targets/fuzz_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_timestamp"
+path = "fuzz_targets/fuzz_timestamp.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_w3c_access_har"
+path = "fuzz_targets/fuzz_w3c_access_har.rs"
+test = false
+doc = false
+bench = false

@@ -42,6 +42,22 @@ pub trait Importer: Send + Sync {
     fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8;
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported>;
+
+    /// Live tail: parses `tail`, text appended to a file this importer already
+    /// read, whose start is `head` (for headers, the detected format and date
+    /// order). Line numbers are relative to `tail`. `None` means the importer
+    /// cannot append; the workspace then re-imports the whole file. The
+    /// default is `None`, so importers that keep cross-record state stay correct.
+    fn import_tail(&self, _ctx: &ImportCtx, _head: &str, _tail: &str) -> Option<Result<Imported>> {
+        None
+    }
+
+    /// Whether one record can span several lines (stack traces, quoted
+    /// newlines). Live tail then re-reads a file from the start of its last
+    /// record so continuation lines merge into it.
+    fn multiline(&self) -> bool {
+        true
+    }
 }
 
 /// An importer for binary formats (e.g. Windows `.evtx`). Binary importers
@@ -96,6 +112,11 @@ impl Importers {
     pub fn register_binary(&mut self, importer: Box<dyn BinaryImporter>) -> &mut Self {
         self.binary.push(importer);
         self
+    }
+
+    /// The text importer with this id.
+    pub fn find(&self, id: &str) -> Option<&dyn Importer> {
+        self.list.iter().find(|i| i.id() == id).map(|b| b.as_ref())
     }
 
     /// The binary importer for these bytes: the one forced by `parse.format`,
@@ -247,7 +268,9 @@ mod tests {
             .register(Box::new(Fixed("second", 50)));
         assert_eq!(importers.select(&ctx, "x").unwrap().id(), "first");
         importers.register(Box::new(Fixed("best", 51)));
-        assert_eq!(importers.select(&ctx, "x").unwrap().id(), "best");
+        let best = importers.select(&ctx, "x").unwrap();
+        assert_eq!(best.id(), "best");
+        assert!(best.import(&ctx, "x").unwrap().records.is_empty());
     }
 
     #[test]

@@ -123,13 +123,57 @@ describe('WorkspaceStore', () => {
     expect(store.timeline()?.lanes[0].matched).toBe(2);
   });
 
-  it('surfaces timeline errors', async () => {
+  it('refreshSummary reloads the summary and timeline but keeps the selection, the query and filters', async () => {
     const backend = tinyBackend();
-    vi.spyOn(backend, 'queryTimeline').mockRejectedValue('boom');
     const store = setup(backend);
     await settle();
-    expect(store.error()).toBe('boom');
+    store.toggleLevel('Error');
+    store.addFilter({ field: 'MachineName', op: 'eq', value: 'WEB-01' });
+    store.setTextInput('timeout');
+    const row = (await backend.queryPage({ query: store.effectiveQuery(), offset: 0, limit: 1, descending: false })).rows[0] ?? null;
+    store.select(row);
+    store.setNotice('kept');
+    const query = store.query();
+    const version = store.dataVersion();
+    const timeline = vi.spyOn(backend, 'queryTimeline');
+    const summary = vi.spyOn(backend, 'workspaceSummary');
+    await store.refreshSummary();
+    await settle();
+    expect(summary).toHaveBeenCalledTimes(1);
+    expect(store.dataVersion()).toBe(version + 1);
+    expect(timeline).toHaveBeenCalled();
+    expect(store.selected()).toBe(row);
+    expect(store.query()).toBe(query);
+    expect(store.textInput()).toBe('timeout');
+    expect(store.busy()).toBeNull();
+    expect(store.notice()).toBe('kept');
+  });
+
+  it('refreshSummary rejects and leaves the state alone when the backend fails', async () => {
+    const backend = tinyBackend();
+    const store = setup(backend);
+    await settle();
+    const before = { summary: store.summary(), version: store.dataVersion() };
+    vi.spyOn(backend, 'workspaceSummary').mockRejectedValueOnce('engine gone');
+    await expect(store.refreshSummary()).rejects.toBe('engine gone');
+    expect(store.summary()).toBe(before.summary);
+    expect(store.dataVersion()).toBe(before.version);
+  });
+
+  it('keeps timeline errors for the panel (not the global banner) and retries', async () => {
+    const backend = tinyBackend();
+    const spy = vi.spyOn(backend, 'queryTimeline').mockRejectedValueOnce('boom');
+    const store = setup(backend);
+    await settle();
+    expect(store.timelineError()).toBe('boom');
+    expect(store.error()).toBeNull();
     expect(store.timelineLoading()).toBe(false);
+    const calls = spy.mock.calls.length;
+    store.retryTimeline();
+    await settle();
+    expect(spy.mock.calls.length).toBe(calls + 1);
+    expect(store.timelineError()).toBeNull();
+    expect(store.timeline()).not.toBeNull();
   });
 
   it('opens, removes, clears and reloads sources', async () => {

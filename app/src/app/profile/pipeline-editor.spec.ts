@@ -154,7 +154,7 @@ describe('PipelineEditor', () => {
 
   it('offers transform plugins and keeps an unknown plugin id visible', async () => {
     const { fixture, store, steps, add } = await render();
-    store.applySummary({ ...store.summary()!, plugins: [{ id: 'geo', name: 'GeoIP', version: '1', contributes: ['transform:geoip'] }] });
+    store.applySummary({ ...store.summary()!, plugins: [{ id: 'geo', name: 'GeoIP', version: '1', contributes: ['transform:geoip'], status: 'active', failures: 0, lastError: null }] });
     await settle(fixture);
     await add('Plugin');
     expect(steps()[0]).toEqual({ step: 'plugin', id: 'geo' });

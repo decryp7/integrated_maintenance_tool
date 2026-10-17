@@ -370,7 +370,6 @@ pub fn to_strftime(fmt: &str) -> String {
             't' => out.push_str("%p"),
             'z' => out.push_str(if n >= 3 { "%:z" } else { "%z" }),
             'K' => out.push_str("%:z"),
-            '%' => out.push_str("%%"),
             _ => {
                 for _ in 0..n {
                     out.push(c);
@@ -437,6 +436,9 @@ mod tests {
         let parser = TimestampParser::new(&["dd.MM.yyyy HH:mm:ss.fff".to_string()], "UTC", None).unwrap();
         assert_eq!(parser.parse("14.10.2026 10:41:22.318"), Some(ms(2026, 10, 14, 10, 41, 22, 318)));
         assert_eq!(to_strftime("yyyy-MM-dd'T'HH:mm:ss.fffzzz"), "%Y-%m-%dT%H:%M:%S%.f%:z");
+        assert_eq!(to_strftime("HH:mmK"), "%H:%M%:z");
+        let k = TimestampParser::new(&["yyyy-MM-dd HH:mm:ssK".to_string()], "UTC", None).unwrap();
+        assert_eq!(k.parse("2026-10-14 12:41:22+02:00"), Some(ms(2026, 10, 14, 10, 41, 22, 0)));
     }
 
     #[test]
@@ -468,6 +470,9 @@ mod tests {
         assert_eq!(p().parse("12/25/26 11:30 PM"), Some(ms(2026, 12, 25, 23, 30, 0, 0)));
         assert_eq!(p().parse("10/14/2026 12:05:00 AM"), Some(ms(2026, 10, 14, 0, 5, 0, 0)));
         assert_eq!(p().parse("Wed, 14 Oct 2026 10:41:22 +0000"), Some(ms(2026, 10, 14, 10, 41, 22, 0)));
+        // RFC 2822 with a named zone or a two-digit year.
+        assert_eq!(p().parse("Wed, 14 Oct 2026 10:41:22 EST"), Some(ms(2026, 10, 14, 15, 41, 22, 0)));
+        assert_eq!(p().parse("Wed, 14 Oct 26 10:41:22 +0000"), Some(ms(2026, 10, 14, 10, 41, 22, 0)));
         assert_eq!(p().parse("[2026-10-14T10:41:22.318Z]"), Some(ms(2026, 10, 14, 10, 41, 22, 318)));
         assert_eq!(p().parse("1792000000.5"), Some(1_792_000_000_500));
         assert_eq!(p().parse("1792000000123456"), Some(1_792_000_000_123));

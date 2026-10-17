@@ -1842,6 +1842,7 @@ name = "imt-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "imt-collect",
  "imt-core",
@@ -1860,6 +1861,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "windows 0.62.2",
+ "zip",
 ]
 
 [[package]]
@@ -1891,7 +1893,7 @@ dependencies = [
  "flate2",
  "globset",
  "proptest",
- "quick-xml 0.39.4",
+ "quick-xml",
  "rayon",
  "regex",
  "regex-syntax",
@@ -1969,7 +1971,7 @@ dependencies = [
  "evtx",
  "imt-core",
  "proptest",
- "quick-xml 0.39.4",
+ "quick-xml",
  "serde",
  "serde_json",
 ]
@@ -2917,7 +2919,7 @@ checksum = "2896bade328c13f7042a297ea5ac5b0951f6cf989dea5f32c2fd98da398195cb"
 dependencies = [
  "base64 0.23.1",
  "indexmap 2.14.2",
- "quick-xml 0.42.0",
+ "quick-xml",
  "serde",
  "time",
 ]
@@ -3102,15 +3104,6 @@ name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
-
-[[package]]
-name = "quick-xml"
-version = "0.39.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdcc8dd4e2f670d309a5f0e83fe36dfdc05af317008fea29144da1a2ac858e5e"
-dependencies = [
- "memchr",
-]
 
 [[package]]
 name = "quick-xml"

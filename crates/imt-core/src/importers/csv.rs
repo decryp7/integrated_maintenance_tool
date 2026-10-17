@@ -65,24 +65,59 @@ impl Importer for CsvImporter {
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
         let cfg = &ctx.profile.profile.parse.csv;
         let delim = delimiter(&cfg.delimiter, content).ok_or_else(|| anyhow!("could not detect the column delimiter"))?;
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(delim)
-            .has_headers(cfg.has_header)
-            .flexible(true)
-            .trim(csv::Trim::All)
-            .from_reader(content.as_bytes());
+        let (headers, rows) = read_rows(delim, cfg.has_header, content)?;
+        let layout = Layout::new(ctx, headers, &rows);
+        Ok(layout.records(rows))
+    }
 
-        let rows: Vec<(u32, csv::StringRecord)> = reader
-            .records()
-            .filter_map(|r| r.ok())
-            .map(|r| (r.position().map(|p| p.line() as u32).unwrap_or(0), r))
-            .collect();
-        let headers: Vec<String> = if cfg.has_header {
-            reader.headers()?.iter().map(|h| h.to_string()).collect()
-        } else {
+    fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
+        let cfg = &ctx.profile.profile.parse.csv;
+        let delim = delimiter(&cfg.delimiter, head)?;
+        // The header (and the column roles) come from the file's start.
+        let layout = read_rows(delim, cfg.has_header, head).map(|(headers, rows)| Layout::new(ctx, headers, &rows));
+        Some(layout.and_then(|layout| read_rows(delim, false, tail).map(|(_, rows)| layout.records(rows))))
+    }
+}
+
+type Rows = Vec<(u32, csv::StringRecord)>;
+
+/// The rows of `content` and, with `has_header`, its header row.
+fn read_rows(delim: u8, has_header: bool, content: &str) -> Result<(Option<Vec<String>>, Rows)> {
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(delim)
+        .has_headers(has_header)
+        .flexible(true)
+        .trim(csv::Trim::All)
+        .from_reader(content.as_bytes());
+    let rows: Rows = reader
+        .records()
+        .filter_map(|r| r.ok())
+        .map(|r| (r.position().map(|p| p.line() as u32).unwrap_or(0), r))
+        .collect();
+    let headers = if has_header {
+        Some(reader.headers()?.iter().map(|h| h.to_string()).collect())
+    } else {
+        None
+    };
+    Ok((headers, rows))
+}
+
+/// Column names and the columns holding the timestamp, level and message.
+struct Layout {
+    headers: Vec<String>,
+    ts_col: Option<usize>,
+    level_col: Option<usize>,
+    message_col: Option<usize>,
+    parser: crate::time::TimestampParser,
+}
+
+impl Layout {
+    fn new(ctx: &ImportCtx, headers: Option<Vec<String>>, rows: &Rows) -> Layout {
+        let cfg = &ctx.profile.profile.parse.csv;
+        let headers: Vec<String> = headers.unwrap_or_else(|| {
             let width = rows.iter().map(|(_, r)| r.len()).max().unwrap_or(0);
             (1..=width).map(|i| format!("col{i}")).collect()
-        };
+        });
 
         let find = |wanted: &str, names: &[&str]| -> Option<usize> {
             if wanted != "auto" {
@@ -103,7 +138,24 @@ impl Importer for CsvImporter {
             (Some(c), None) => parser.with_day_first(detect_day_first(rows.iter().take(2000).filter_map(|(_, r)| r.get(c)))),
             _ => parser.clone(),
         };
+        Layout {
+            headers,
+            ts_col,
+            level_col,
+            message_col,
+            parser,
+        }
+    }
 
+    fn records(&self, rows: Rows) -> Imported {
+        let Layout {
+            headers,
+            ts_col,
+            level_col,
+            message_col,
+            parser,
+        } = self;
+        let (ts_col, level_col, message_col) = (*ts_col, *level_col, *message_col);
         let mut out = Imported::default();
         for (line, row) in rows {
             if row.iter().all(|c| c.is_empty()) {
@@ -137,7 +189,7 @@ impl Importer for CsvImporter {
             }
             out.records.push(rec);
         }
-        Ok(out)
+        out
     }
 }
 

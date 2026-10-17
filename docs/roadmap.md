@@ -108,12 +108,48 @@ speedscope / collapsed-stack formats) and an **allocation table with snapshot di
   Crashpad crash reports and the runtime version/user-data-folder health.
 - Captures line up with logs and counters on the same timeline (Moment view includes them).
 
+### Profiler analysis UI (shared by every profiler plugin)
+
+The engine owns a common profile model (samples or exact events → call tree with per-frame
+self/total time, samples, calls, allocations, exceptions, lock waits) and does all aggregation;
+the UI shows virtualised, sortable views over it:
+
+- **Hotspots:** functions sorted by any column — self time, total time, self % / total %,
+  samples, call count, average and max per call, allocations (count/bytes), exceptions, wait
+  time — with group-by (function, type, namespace, module, thread) and search.
+- **Call tree** (top-down) and **inverted tree** (bottom-up), with expand-hottest-path,
+  recursion folding and "just my code" (collapse framework/system frames into one).
+- **Caller/callee (butterfly)** view for a selected function.
+- **Flame graph and icicle**, zoomable, with search highlighting and a **differential flame graph**.
+- **Thread timeline:** per-thread CPU, GC pauses, JIT, exceptions and lock waits; brushing a range
+  re-aggregates every view to that range. The range can also come from the log timeline or a
+  Moment ("why was 10:42 slow?").
+- **Source/line heat** when symbols and sources are available (PDB/symbol server, dSYM, DWARF).
+- **Compare two profiles** (baseline vs regression): per-function deltas, sorted by change.
+- **Memory:** top types by count/bytes/retained size, allocation call stacks, snapshot diff,
+  growth across 3+ snapshots, dominator tree and paths to GC roots.
+- **Automatic findings:** top self-time functions, GC time > threshold, lock contention, thread
+  pool starvation, sync-over-async, exceptions in hot paths, JIT storms, regressions vs baseline,
+  each linking to the evidence.
+
+Measurement honesty: *sampling* (ETW, EventPipe, perf, `sample`) gives low overhead and
+statistical time with estimated rather than exact call counts; *instrumentation* (CLR Profiling
+API enter/leave in launch mode) gives exact call counts and timings at higher overhead. The UI
+labels which kind each column is.
+
+Import of existing captures as well as IMT's own: `.nettrace` (dotnet-trace/EventPipe), `.etl`
+(WPR/PerfView via the Windows helper), `perf script`/collapsed stacks, pprof, Chrome trace /
+`.cpuprofile`, speedscope JSON, `.gcdump`. Native collectors run as supervised worker processes
+(ADR 0002) and expose the shared profile model through plugin services (ADR 0003).
+
 ## Phase 5: explain and share
 
-- **AI assistant (opt-in):** summarise an incident, explain an exception and stack trace,
-  suggest likely root causes from correlated events and metrics, turn plain-English
-  questions into queries. Runs on the user's own API key; redaction is applied before
-  anything leaves the machine, and nothing is sent without consent.
+- **AI assistant (local only, in progress):** an embedded llama.cpp engine in a supervised worker
+  process runs a GGUF model chosen for the machine's hardware (one-click download from Hugging
+  Face with checksum verification). It chats about the workspace with read-only engine tools and
+  cited evidence, and proposes regexes, profiles, pipelines, markers, extractors and queries that
+  the engine validates and previews before the user applies them. Optional web search for error
+  codes is off by default, uses engine-built redacted queries and needs approval per request.
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles.
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.

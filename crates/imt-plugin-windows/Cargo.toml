@@ -1,5 +1,6 @@
 [package]
 name = "imt-plugin-windows"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -10,6 +11,9 @@ anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 evtx = { version = "0.12", default-features = false }
-quick-xml = "0.39"
+quick-xml = "0.42"
 chrono = "0.4"
 csv = "1.4"
+
+[dev-dependencies]
+proptest = "1"

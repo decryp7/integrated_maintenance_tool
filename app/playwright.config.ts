@@ -6,6 +6,9 @@ const PROD_PORT = Number(process.env['IMT_E2E_PROD_PORT'] ?? 4301);
 const SKIP_PROD = !!process.env['IMT_E2E_SKIP_PROD'];
 const CI = !!process.env['CI'];
 const PROD_CSP = '**/prod-csp.e2e.ts';
+// These also run against the production build with the Tauri CSP (no extra permissions needed).
+const ERROR_SNAPSHOTS = '**/error-snapshots.e2e.ts';
+const SETTINGS = '**/settings.e2e.ts';
 
 // End-to-end tests run against the browser build, where the app injects the in-memory MockBackend.
 // The "prod-csp" project runs against the production build served with the Tauri CSP header.
@@ -30,7 +33,7 @@ export default defineConfig({
       : [
           {
             name: 'prod-csp',
-            testMatch: PROD_CSP,
+            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS],
             use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${PROD_PORT}` },
           },
         ]),

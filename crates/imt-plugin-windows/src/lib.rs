@@ -33,6 +33,7 @@ mod nfo;
 pub mod perfmon;
 pub mod perfmon_control;
 pub mod perfmon_template;
+pub mod settings;
 
 pub use blg::BlgImporter;
 pub use evtx_import::{is_evtx, read_evtx, EvtxImporter};
@@ -40,7 +41,9 @@ pub use nfo::NfoImporter;
 pub use perfmon::PerfmonCsvImporter;
 
 use anyhow::Result;
+use imt_core::settings::Configurable;
 use imt_core::{Plugin, PluginRegistry};
+use std::sync::Arc;
 
 pub struct WindowsPlugin;
 
@@ -64,6 +67,10 @@ impl Plugin for WindowsPlugin {
         registry.add_binary_importer(Box::<BlgImporter>::default());
         Ok(())
     }
+
+    fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+        Some(Arc::new(settings::WindowsSettings))
+    }
 }
 
 #[cfg(test)]
@@ -78,7 +85,10 @@ mod tests {
         registry.install(&WindowsPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 4);
+        assert_eq!(info.contributes.len(), 5);
+        assert_eq!(info.contributes[4], "settings");
+        let section = registry.plugin_settings()[0].configurable.settings_section();
+        assert_eq!((section.id.as_str(), section.fields.len()), ("net.decryptology.windows", 2));
         assert_eq!(WindowsPlugin.name(), "Windows diagnostics");
         assert_eq!(WindowsPlugin.version(), env!("CARGO_PKG_VERSION"));
     }

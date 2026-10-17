@@ -11,13 +11,15 @@ import { Icon } from './shared/icon';
 import { ContextMenuHost } from './ui/context-menu-host';
 import { DialogHost } from './ui/dialog-host';
 import { Welcome, WelcomeService } from './welcome/welcome';
+import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon],
+  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon],
   template: `
     <imt-title-bar />
+    <imt-lifecycle-banners />
     <div class="body">
       <imt-activity-bar />
       @if (store.sidebarOpen()) {
@@ -61,6 +63,9 @@ import { Welcome, WelcomeService } from './welcome/welcome';
     .body { flex: 1; min-height: 0; display: flex; }
     .center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+    /* dockview gives its sashes and floating groups high z-indexes; keep them inside the dock so the
+       welcome screen (and anything else stacked over the dock) covers them. */
+    .stage > imt-dock-host { isolation: isolate; }
     .toast {
       position: fixed; right: 16px; bottom: 36px; max-width: 520px; z-index: 100;
       display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: 8px;

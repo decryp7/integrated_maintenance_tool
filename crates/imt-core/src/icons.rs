@@ -135,7 +135,7 @@ pub fn sanitize_svg(svg: &str) -> Result<String> {
 
 /// The element with only allowed attributes, or `None` to drop it (and its children).
 fn clean<'a>(e: &BytesStart<'a>, saw_root: &mut bool) -> Result<Option<BytesStart<'static>>> {
-    let name = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+    let name = String::from(e.local_name().as_ref());
     if !*saw_root {
         if name != "svg" {
             return Err(anyhow!("an SVG icon must have an <svg> root element"));
@@ -147,8 +147,11 @@ fn clean<'a>(e: &BytesStart<'a>, saw_root: &mut bool) -> Result<Option<BytesStar
     }
     let mut out = BytesStart::new(name);
     for attr in e.attributes().flatten() {
-        let key = String::from_utf8_lossy(attr.key.as_ref()).into_owned();
-        let value = attr.unescape_value().map(|v| v.into_owned()).unwrap_or_default();
+        let key = String::from(attr.key.as_ref());
+        let value = attr
+            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+            .map(|v| v.into_owned())
+            .unwrap_or_default();
         let lower = value.to_ascii_lowercase();
         let dangerous = lower.contains("url(") || lower.contains("javascript:") || lower.contains("expression(") || lower.contains("data:");
         if ATTRIBUTES.contains(&key.as_str()) && !dangerous {

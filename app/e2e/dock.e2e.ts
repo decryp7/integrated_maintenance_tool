@@ -4,6 +4,8 @@ import { expectNoSeriousViolations } from './axe';
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const groups = (page: Page) => page.locator('.dv-groupview');
+/** The group (tabs and its header actions) that holds the panel with this tab name. */
+const groupOf = (page: Page, name: string) => groups(page).filter({ has: tab(page, name) });
 const layout = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('imt.layout') ?? 'null') as { version: number; layout: { panels: Record<string, unknown>; floatingGroups?: unknown[] } } | null);
 
 async function box(page: Page, selector: string) {
@@ -15,14 +17,16 @@ async function box(page: Page, selector: string) {
 test.describe('dock layout', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
-  test('default layout: timeline over events, inspector on the right, other views stacked with the timeline', async ({ page }) => {
+  test('default layout: timeline over the query bar over events, inspector on the right, other views stacked with the timeline', async ({ page }) => {
     const timeline = await box(page, 'imt-timeline-panel');
+    const query = await box(page, 'imt-query-view');
     const events = await box(page, 'imt-events-grid');
     const inspector = await box(page, 'imt-inspector');
-    expect(timeline.y + timeline.height).toBeLessThanOrEqual(events.y + 1);
+    expect(timeline.y + timeline.height).toBeLessThanOrEqual(query.y + 1);
+    expect(query.y + query.height).toBeLessThanOrEqual(events.y + 1);
     expect(inspector.x).toBeGreaterThanOrEqual(Math.max(timeline.x + timeline.width, events.x + events.width) - 2);
     expect(inspector.width).toBeGreaterThan(300);
-    await expect(groups(page)).toHaveCount(3);
+    await expect(groups(page)).toHaveCount(4);
     for (const name of ['Timeline', 'Metrics', 'Profile', 'Registry']) await expect(tab(page, name)).toBeVisible();
     await expect(tab(page, 'Timeline')).toHaveAttribute('aria-selected', 'true');
   });
@@ -30,7 +34,7 @@ test.describe('dock layout', () => {
   test('dragging a tab to the edge of another group splits the layout', async ({ page, browserName }) => {
     // Playwright cannot start a native HTML5 drag from mouse events in WebKit; Chromium covers the real drag.
     test.skip(browserName === 'webkit', 'native drag and drop is not simulated by Playwright in WebKit');
-    await expect(groups(page)).toHaveCount(3);
+    await expect(groups(page)).toHaveCount(4);
     const source = tab(page, 'Metrics');
     const target = page.locator('imt-events-grid');
     const t = (await target.boundingBox())!;
@@ -41,7 +45,7 @@ test.describe('dock layout', () => {
     await page.mouse.move(t.x + t.width - 30, t.y + t.height / 2, { steps: 15 });
     await page.mouse.move(t.x + t.width - 24, t.y + t.height / 2, { steps: 3 });
     await page.mouse.up();
-    await expect(groups(page)).toHaveCount(4);
+    await expect(groups(page)).toHaveCount(5);
     // Metrics now sits in its own group, to the right of the events grid.
     const metrics = await box(page, 'imt-metrics-view');
     const events = await box(page, 'imt-events-grid');
@@ -50,16 +54,16 @@ test.describe('dock layout', () => {
   });
 
   test('a group can be floated inside the window and closed', async ({ page }) => {
-    await page.getByRole('button', { name: 'Float panel' }).nth(1).click();
+    await groupOf(page, 'Events').getByRole('button', { name: 'Float panel' }).click();
     const floating = page.locator('.dv-resize-container');
     await expect(floating).toBeVisible();
     await expectNoSeriousViolations(page, test.info(), 'floating');
     // Dock it back.
     await page.getByRole('button', { name: 'Dock panel back into the window' }).click();
     await expect(floating).toHaveCount(0);
-    await expect(groups(page)).toHaveCount(3);
+    await expect(groups(page)).toHaveCount(4);
     // Float again and close its only tab with the keyboard.
-    await page.getByRole('button', { name: 'Float panel' }).nth(2).click();
+    await groupOf(page, 'Inspector').getByRole('button', { name: 'Float panel' }).click();
     await expect(floating).toBeVisible();
     await floating.getByRole('tab').first().focus();
     await page.keyboard.press('Delete');
@@ -67,7 +71,7 @@ test.describe('dock layout', () => {
   });
 
   test('a group can be maximized and restored', async ({ page }) => {
-    await page.getByRole('button', { name: 'Maximize panel' }).nth(1).click();
+    await groupOf(page, 'Events').getByRole('button', { name: 'Maximize panel' }).click();
     await expect(page.getByRole('button', { name: 'Restore panel size' })).toBeVisible();
     const grid = await box(page, 'imt-events-grid');
     expect(grid.width).toBeGreaterThan(1000);
@@ -81,13 +85,13 @@ test.describe('dock layout', () => {
     await expect(inspectorItem).toHaveAttribute('aria-checked', 'true');
     await inspectorItem.click();
     await expect(page.locator('imt-inspector')).toHaveCount(0);
-    await expect(groups(page)).toHaveCount(2);
+    await expect(groups(page)).toHaveCount(3);
 
     await page.getByRole('button', { name: 'View', exact: true }).click();
     await expect(page.getByRole('menuitemcheckbox', { name: /Inspector/ })).toHaveAttribute('aria-checked', 'false');
     await page.getByRole('menuitem', { name: /Reset layout/ }).click();
     await expect(page.locator('imt-inspector')).toBeVisible();
-    await expect(groups(page)).toHaveCount(3);
+    await expect(groups(page)).toHaveCount(4);
     await expect(tab(page, 'Metrics')).toBeVisible();
   });
 

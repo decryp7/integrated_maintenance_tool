@@ -258,6 +258,35 @@ mod tests {
         assert!(CsvExporter.name().contains("CSV"));
     }
 
+    /// A destination that refuses every write (disk full, closed pipe).
+    struct Full;
+    impl Write for Full {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("disk full"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::other("disk full"))
+        }
+    }
+
+    #[test]
+    fn write_errors_are_reported_not_swallowed() {
+        let mut big = rec();
+        big.message = "x".repeat(64 * 1024);
+        for e in [&CsvExporter as &dyn Exporter, &ClefExporter] {
+            let mut rows = std::iter::once(ExportRow {
+                record: &big,
+                source_name: "a.clef",
+                group: "WEB01".into(),
+            });
+            let err = e.export(&mut rows, &mut Full).unwrap_err();
+            assert!(format!("{err:#}").contains("disk full"), "{}: {err:#}", e.id());
+            // Nothing buffered fails until the final flush.
+            let err = e.export(&mut std::iter::empty(), &mut Full).unwrap_err();
+            assert!(format!("{err:#}").contains("disk full"), "{}: {err:#}", e.id());
+        }
+    }
+
     #[test]
     fn clef_round_trips_through_the_json_importer() {
         let mut info = Record::new(2);

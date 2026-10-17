@@ -1,0 +1,52 @@
+# Profile for Windows Performance Monitor logs (.csv/.tsv from PerfMon, logman or
+# relog; .blg on Windows). The perfmon-csv importer turns the wide PDH table into one
+# record per (row, counter) with MachineName, Object, Instance, InstanceIndex, Counter,
+# CounterPath, Value, plus ProcessName and ProcessId for Process counters.
+
+name = "Windows Performance Monitor"
+
+[instance]
+key = ["MachineName", "ProcessName", "InstanceIndex"]
+
+[[chart]]
+id = "private-bytes"
+title = "Private Bytes by process"
+y = "avg(Value)"
+bucket = "auto"
+split_by = ["MachineName", "ProcessName"]
+type = "line"
+unit = "bytes"
+when = [{ field = "Counter", op = "eq", value = "Private Bytes" }]
+
+[[chart]]
+id = "cpu"
+title = "CPU % by process"
+y = "avg(Value)"
+bucket = "auto"
+split_by = ["MachineName", "ProcessName"]
+type = "line"
+unit = "%"
+when = [
+  { field = "Object", op = "eq", value = "Process" },
+  { field = "Counter", op = "eq", value = "% Processor Time" },
+]
+
+[[chart]]
+id = "available-mbytes"
+title = "Available MBytes by machine"
+y = "avg(Value)"
+bucket = "auto"
+split_by = ["MachineName"]
+type = "line"
+unit = "MB"
+when = [{ field = "Counter", op = "eq", value = "Available MBytes" }]
+
+[[chart]]
+id = "handle-count"
+title = "Handle Count by process"
+y = "avg(Value)"
+bucket = "auto"
+split_by = ["MachineName", "ProcessName"]
+type = "line"
+unit = "handles"
+when = [{ field = "Counter", op = "eq", value = "Handle Count" }]

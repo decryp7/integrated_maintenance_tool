@@ -127,12 +127,31 @@ describe('withFailureLogging', () => {
         return 42;
       }
     }
-    const svc = withFailureLogging(new Svc(), logger, 'ui.test');
+    const svc = withFailureLogging(new Svc(), logger, { category: 'ui.test' });
     expect(svc).toBeInstanceOf(Svc);
     expect(svc.prefix).toBe('v');
     expect(await svc.ok(1)).toBe('v1');
     expect(svc.sync()).toBe(42);
     await expect(svc.bad()).rejects.toBe('cannot open /etc/secret/file.log');
     expect(logger.entries).toEqual([{ level: 'warn', category: 'ui.test', message: 'Backend command failed', props: { Command: 'bad', Error: 'cannot open <path>' } }]);
+  });
+
+  it('calls onFailure after logging and before rethrowing, and ignores errors it throws', async () => {
+    const logger = new MemoryLogger();
+    const order: string[] = [];
+    const svc = withFailureLogging(
+      { bad: () => Promise.reject(new Error('boom')), ok: () => Promise.resolve(1) },
+      logger,
+      {
+        onFailure: (command, e) => {
+          order.push(`${command}:${(e as Error).message}:${logger.entries.length}`);
+          throw new Error('reporter broke');
+        },
+      },
+    );
+    expect(await svc.ok()).toBe(1);
+    await expect(svc.bad()).rejects.toThrow('boom');
+    expect(order).toEqual(['bad:boom:1']);
+    expect(logger.entries[0]).toMatchObject({ category: 'ui.backend', props: { Command: 'bad', Error: 'boom' } });
   });
 });

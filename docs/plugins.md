@@ -248,6 +248,100 @@ fn run(&self, config: &serde_json::Value, sink: &dyn imt_core::export::EventSink
 defaults; implement only what you need. They run synchronously on the thread that changed the
 workspace, so keep them fast and hand anything slow to your own thread.
 
+### Plugin settings
+
+A plugin with user-facing knobs (timeouts, paths, limits) describes them once and IMT does the
+rest: the Settings screen renders a form from the schema (one control per field kind, with
+units, limits, help text and "Reset to default"), the engine validates every value, stores it in
+`settings.json` in the config folder and hands the plugin only valid values, at startup and after
+every change.
+
+Settings are a separate, small trait, `imt_core::settings::Configurable`, returned from the
+defaulted `Plugin::configurable` method (existing plugins need no change):
+
+```rust
+pub trait Configurable: Send + Sync {
+    fn settings_section(&self) -> SettingsSection;                  // the schema
+    fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()>;
+}
+```
+
+Field kinds: `Bool`, `Int { min, max, step, unit }`, `Float { min, max, step, unit }`,
+`Text { max_len, pattern }`, `Enum { options }`, `Path { dir }`, `Duration { min_ms, max_ms }`
+(values in milliseconds), `Size { min_bytes, max_bytes }` (bytes) and `StringList { max_items }`.
+Mark a field `needs_restart()` when it only takes effect after a restart (the UI then offers
+one) and `as_advanced()` to hide it behind "Show advanced".
+
+Worked example (the real one is `crates/imt-plugin-windows/src/settings.rs`):
+
+```rust
+use imt_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+/// Shared by the settings object and the contributions that use the value.
+#[derive(Default)]
+pub struct Knobs { timeout_ms: AtomicU64 }
+
+impl Knobs {
+    pub fn timeout(&self) -> Duration { Duration::from_millis(self.timeout_ms.load(Ordering::Relaxed)) }
+}
+
+struct AcmeSettings(Arc<Knobs>);
+
+impl Configurable for AcmeSettings {
+    fn settings_section(&self) -> SettingsSection {
+        // The id and owner are replaced by the plugin's; the title defaults to the plugin name.
+        SettingsSection::new("acme", "Acme tools", SectionOwner::Core)
+            .describe("How Acme talks to its converter.")
+            .field(
+                SettingField::new("timeout", "Converter timeout", FieldKind::Duration { min_ms: 1_000, max_ms: 600_000 }, 30_000)
+                    .describe("How long one conversion may take before it is stopped."),
+            )
+    }
+
+    fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+        // `values` passed validation: every field is present, typed and in range.
+        let timeout = values.duration("timeout").ok_or_else(|| anyhow::anyhow!("missing timeout"))?;
+        self.0.timeout_ms.store(timeout.as_millis() as u64, Ordering::Relaxed);
+        Ok(())
+    }
+}
+
+pub struct AcmePlugin { knobs: Arc<Knobs> }
+
+impl imt_core::Plugin for AcmePlugin {
+    // id, name, version as usual …
+    fn register(&self, registry: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
+        registry.add_importer(Box::new(AcmeImporter { knobs: self.knobs.clone() })); // reads knobs.timeout()
+        Ok(())
+    }
+
+    fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+        Some(Arc::new(AcmeSettings(self.knobs.clone())))
+    }
+}
+```
+
+How it behaves:
+
+- `configurable()` and `settings_section()` are called once, when the plugin is installed, and
+  the schema is checked (`SettingsSection::check`: ids, limits, patterns, valid defaults). A panic
+  or an invalid schema gives a section without fields that says why; nothing is ever applied to
+  it.
+- `apply_settings` runs under the same crash containment as every other contribution: a panic
+  becomes an error shown to the user, counts towards quarantine, and the values are not saved.
+- Disabled and quarantined plugins still show their section, read-only, with a note.
+- Values of plugins that are not installed are kept in `settings.json`, so uninstalling and
+  reinstalling a plugin keeps its settings. Stored values are re-validated on every start;
+  invalid ones fall back to the default (and are logged).
+- Settings are user preferences, not profile configuration: anything that describes how to parse
+  a log belongs in the profile instead.
+
+App modules (for example the AI assistant, section id `ai`) register the same trait with
+`SettingsService::register` in `app/src-tauri/src/settings.rs`.
+
 ### Plugin rules
 
 - Follow `AGENTS.md`: no panics on user data, typed errors at the edges, tests with high

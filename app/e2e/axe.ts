@@ -7,7 +7,7 @@ export async function expectNoSeriousViolations(page: Page, testInfo: TestInfo, 
   const { violations } = await (include ? builder.include(include) : builder).analyze();
   const blocking = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-    .map((v) => ({ id: v.id, impact: v.impact, help: v.help, count: v.nodes.length, nodes: v.nodes.slice(0, 8).map((n) => ({ target: n.target.join(' '), data: n.any[0]?.data })) }));
+    .map((v) => ({ id: v.id, impact: v.impact, help: v.help, count: v.nodes.length, nodes: v.nodes.slice(0, 8).map((n) => ({ target: n.target.join(" "), html: n.html.slice(0, 300), data: n.any[0]?.data })) }));
   if (blocking.length) {
     console.log(`AXE ${label} ${JSON.stringify(blocking)}`);
     await testInfo.attach(`axe-${label}.json`, { body: JSON.stringify(blocking, null, 2), contentType: 'application/json' });

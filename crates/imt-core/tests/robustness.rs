@@ -219,6 +219,15 @@ fn crashing_plugins_are_contained_and_quarantined() {
         let chaos = s.plugins.iter().find(|p| p.id == "test.chaos").unwrap();
         assert_eq!(chaos.status, PluginStatus::Quarantined);
         assert!(chaos.failures >= 3 && chaos.last_error.is_some());
+        // The health check points at the plugins panel.
+        let findings = ws.overview(&imt_core::api::QueryRequest { query: Query::default() }).unwrap();
+        let disabled = findings.iter().find(|f| f.title == "Plugin disabled after crashes").unwrap();
+        assert_eq!(disabled.severity, imt_core::api::Severity::Warning);
+        assert!(disabled.detail.starts_with("Chaos: plugin \"test.chaos\""), "{}", disabled.detail);
+        assert_eq!(
+            disabled.action,
+            Some(imt_core::api::FindingAction::OpenPanel { panel: "plugins".into() })
+        );
 
         // Quarantined: not called any more; exporting and collecting fail cleanly.
         let calls = transform.0.load(Ordering::SeqCst);
@@ -262,6 +271,7 @@ fn collectors_and_hooks_crash_safely() {
         let mut registry = PluginRegistry::new();
         registry.install(&Chaos(Arc::new(BadTransform(AtomicUsize::new(0))))).unwrap();
         let c = registry.collector("bad-collector").unwrap().clone();
+        assert_eq!((c.id(), c.name()), ("bad-collector", "Bad"));
         let sink = imt_core::export::ClefFileSink::new(
             std::env::temp_dir().join(format!("imt-robust-sink-{}", std::process::id())),
             "x",

@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
-import { DIALOG_REF, DialogService } from '../ui/dialog.service';
-import { SettingsDialog, SettingsDialogService } from './settings-dialog';
+import { DialogService } from '../ui/dialog.service';
+import { GeneralSettings } from './general-settings';
+import { EngineSettingsStore } from './engine-settings.store';
+import { SettingsDialogService } from './settings-dialog';
+import { SettingsScreen } from './settings-screen';
 import { DEFAULT_SETTINGS, LocalStorageSettingsStorage, sanitizeSettings, SETTINGS_KEY, SETTINGS_STORAGE, SettingsStore } from './settings.store';
 
 describe('settings storage', () => {
@@ -49,16 +52,17 @@ describe('SettingsStore', () => {
   });
 });
 
-describe('SettingsDialog', () => {
+describe('GeneralSettings', () => {
   beforeEach(() => localStorage.clear());
 
   async function setup() {
     const dock = new FakeDock();
-    const closed = vi.fn();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), { provide: DIALOG_REF, useValue: { close: closed, closed: Promise.resolve() } }] });
-    const fixture = TestBed.createComponent(SettingsDialog);
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock)] });
+    const fixture = TestBed.createComponent(GeneralSettings);
+    const resets: number[] = [];
+    fixture.componentInstance.layoutReset.subscribe(() => resets.push(1));
     await settle(fixture);
-    return { fixture, dock, closed, store: TestBed.inject(WorkspaceStore), settings: TestBed.inject(SettingsStore) };
+    return { fixture, dock, resets, store: TestBed.inject(WorkspaceStore), settings: TestBed.inject(SettingsStore) };
   }
 
   it('edits theme, time zone, date format, density and lifecycle default', async () => {
@@ -71,25 +75,44 @@ describe('SettingsDialog', () => {
     expect(settings.dateFormat()).toBe('iso');
     buttonByText(fixture, 'compact').click();
     expect(settings.density()).toBe('compact');
-    const box = el<HTMLInputElement>(fixture, 'input[type=checkbox]');
-    box.click();
+    el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
     await settle(fixture);
     expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'Local', 'ISO', 'compact']);
     expect(text(fixture)).toContain('Always show start/stop markers');
   });
 
-  it('resets the layout and closes', async () => {
-    const { fixture, dock, closed } = await setup();
+  it('resets the layout and says so', async () => {
+    const { fixture, dock, resets } = await setup();
     buttonByText(fixture, 'Reset layout').click();
     expect(dock.calls).toContain('reset');
-    expect(closed).toHaveBeenCalled();
-    buttonByText(fixture, 'Done').click();
+    expect(resets).toEqual([1]);
+  });
+});
+
+describe('SettingsDialogService', () => {
+  it('opens the settings screen once', () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const service = TestBed.inject(SettingsDialogService);
+    service.open();
+    service.open();
+    const stack = TestBed.inject(DialogService).stack();
+    expect(stack).toHaveLength(1);
+    expect(stack[0].options.title).toBe('Settings');
+    expect(stack[0].component).toBe(SettingsScreen);
   });
 
-  it('is opened through the dialog service', () => {
+  it('asks the settings store before closing, so unapplied edits are not lost by Escape or the backdrop', async () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const store = TestBed.inject(EngineSettingsStore);
+    const canClose = vi.spyOn(store, 'canClose').mockReturnValue(false);
     TestBed.inject(SettingsDialogService).open();
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Settings');
+    const dialogs = TestBed.inject(DialogService);
+    dialogs.dismissTop();
+    expect(canClose).toHaveBeenCalledOnce();
+    expect(dialogs.stack()).toHaveLength(1);
+    canClose.mockReturnValue(true);
+    dialogs.dismissTop();
+    expect(dialogs.stack()).toHaveLength(0);
   });
 });

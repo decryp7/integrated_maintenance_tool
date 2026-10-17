@@ -5,6 +5,11 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { MarkerVm, mergeMarkers } from './marker-layout';
 import { stableLaneOrder, TimelinePanel } from './timeline-panel';
 import { TimelineZoom } from './zoom';
+import { AnalysisTargets } from '../analysis/analysis-targets';
+import { TimeCursor } from '../analysis/time-cursor';
+import { momentAt, WIDTHS } from '../analysis/windows';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { ContextMenuService } from '../ui/context-menu.service';
 
 const mk = (kind: string, left: number, count = 1, id = left): MarkerVm => ({
   cluster: { kind, bucket: Math.round(left), ts: left, id, count, message: '' },
@@ -92,11 +97,15 @@ describe('TimelinePanel', () => {
     w.dispatchEvent(pointer('pointermove', 250 + 300));
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.brush')).not.toBeNull();
+    const before = store.timeline()!;
     w.dispatchEvent(pointer('pointerup', 250 + 300));
     await settle(fixture);
     const t = store.timeline()!;
     expect(store.hasRange()).toBe(true);
     expect(store.query().from).toBeGreaterThanOrEqual(t.from);
+    // The brush is also the shared selection ("Analyse this moment", compare).
+    const span = before.to - before.from;
+    expect(TestBed.inject(TimeCursor).selection()).toEqual({ from: before.from + (100 / 800) * span, to: before.from + (300 / 800) * span });
     w.dispatchEvent(pointer('pointerdown', 10));
     w.dispatchEvent(pointer('pointerdown', 260, { button: 2 }));
     expect(fixture.nativeElement.querySelector('.brush')).toBeNull();
@@ -111,6 +120,81 @@ describe('TimelinePanel', () => {
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
     wrap(fixture).dispatchEvent(pointer('pointerleave', 5));
+  });
+
+  it('publishes the hovered time and draws the line for a time hovered in another view', async () => {
+    const { fixture, store } = await render();
+    const cursor = TestBed.inject(TimeCursor);
+    const t = store.timeline()!;
+    wrap(fixture).dispatchEvent(pointer('pointermove', 250 + 400));
+    expect(cursor.hovered()).toBe(t.from + (t.to - t.from) / 2);
+    wrap(fixture).dispatchEvent(pointer('pointerleave', 0));
+    expect(cursor.hovered()).toBeNull();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
+
+    cursor.hover(t.from + (t.to - t.from) / 4);
+    await settle(fixture);
+    expect(el<HTMLElement>(fixture, '.cursor').style.left).toBe('200px');
+    cursor.hover(t.from);
+    await settle(fixture);
+    expect(el<HTMLElement>(fixture, '.cursor').style.left).toBe('0px');
+    cursor.hover(t.to + 1);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
+  });
+
+  it('offers "Analyse this moment" on a right-click of the time axis', async () => {
+    const showView = vi.fn();
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: COMMAND_CONTEXT, useValue: { showView } }] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle(fixture);
+    const t = store.timeline()!;
+    const menu = TestBed.inject(ContextMenuService);
+    const targets = TestBed.inject(AnalysisTargets);
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 250 + 400, clientY: 40 });
+    el(fixture, '.axis').dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    const items = menu.menu()!.items;
+    expect(items.map((i) => i.label)).toEqual(['Analyse this moment']);
+    items[0].run();
+    const mid = t.from + (t.to - t.from) / 2;
+    expect(targets.moment()).toEqual(momentAt(mid, null, WIDTHS[1].ms));
+    expect(showView).toHaveBeenCalledWith('moment');
+
+    // Inside a selected range, the moment is that range.
+    TestBed.inject(TimeCursor).select({ from: t.from, to: t.to });
+    el(fixture, '.axis').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 250 + 400 }));
+    menu.menu()!.items[0].run();
+    expect(targets.moment()).toEqual({ from: t.from, to: t.to });
+  });
+
+  it('ignores an axis right-click before the timeline has loaded', () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    fixture.detectChanges();
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    el(fixture, '.axis').dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(TestBed.inject(ContextMenuService).menu()).toBeNull();
+  });
+
+  it('shows a failed timeline request inline with Retry instead of the global banner', async () => {
+    const backend = tinyBackend();
+    vi.spyOn(backend, 'queryTimeline').mockRejectedValueOnce(new Error('engine down'));
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle(fixture);
+    const card = el(fixture, '.err-card[role=alert]');
+    expect(card.textContent).toContain('Could not load the timeline');
+    expect(card.textContent).toContain('engine down');
+    expect(store.error()).toBeNull();
+    (card.querySelector('button') as HTMLButtonElement).click();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.err-card')).toBeNull();
+    expect(all(fixture, '.lane').length).toBeGreaterThan(0);
   });
 
   it('zooms with ctrl+wheel, pans with shift+wheel, fits on double-click', async () => {
@@ -241,5 +325,64 @@ describe('TimelinePanel', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('Open log files or a folder');
+  });
+});
+
+describe('TimelinePanel custom markers', () => {
+  const PROFILE = `name = "x"
+[[marker]]
+kind = "pay"
+label = "Payment failed"
+badge = "1"
+shape = "hexagon"
+color = "#3987e5"
+description = "Payment gateway rejected the capture"
+when = [{ field = "@message", op = "contains", value = "capture" }]
+
+[[marker]]
+kind = "plain"
+label = "Plain"
+when = [{ field = "@level", op = "eq", value = "Fatal" }]
+`;
+
+  async function render() {
+    const backend = tinyBackend();
+    await backend.saveProfile(PROFILE);
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle(fixture);
+    return { fixture, store };
+  }
+
+  it('lists custom markers in the legend with their glyph, description and a kind filter', async () => {
+    const { fixture, store } = await render();
+    const items = all<HTMLButtonElement>(fixture, '.legend .lg');
+    expect(items.map((i) => i.textContent?.trim())).toEqual(['Payment failed', 'Plain']);
+    const pay = items[0];
+    expect(pay.title).toBe('Payment gateway rejected the capture');
+    expect(el(fixture, '#' + pay.getAttribute('aria-describedby')).textContent).toBe('Payment gateway rejected the capture');
+    expect(items[1].getAttribute('aria-describedby')).toBeNull();
+    expect(items[1].title).toBe('Plain');
+    expect(pay.querySelector('imt-marker-glyph')!.getAttribute('data-glyph')).toBe('badge');
+    expect(pay.getAttribute('aria-pressed')).toBe('false');
+    pay.click();
+    await settle(fixture);
+    expect(store.query().markers).toEqual(['pay']);
+    expect(all<HTMLButtonElement>(fixture, '.legend .lg')[0].getAttribute('aria-pressed')).toBe('true');
+    all<HTMLButtonElement>(fixture, '.legend .lg')[0].click();
+    await settle(fixture);
+    expect(store.query().markers).toEqual([]);
+  });
+
+  it('draws the badge on the lane and describes it in the tooltip', async () => {
+    const { fixture } = await render();
+    const marker = all<HTMLButtonElement>(fixture, '.marker').find((m) => m.getAttribute('aria-label')?.startsWith('Payment failed'))!;
+    expect(marker.querySelector<HTMLElement>('imt-marker-glyph .badge-text')!.dataset['t']).toBe('1');
+    marker.dispatchEvent(new PointerEvent('pointerenter', { clientX: 10, clientY: 10 }));
+    await settle(fixture);
+    expect(el(fixture, '.tip-desc').textContent).toBe('Payment gateway rejected the capture');
+    marker.dispatchEvent(new PointerEvent('pointerleave'));
+    await settle(fixture);
   });
 });

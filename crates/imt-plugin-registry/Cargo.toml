@@ -1,5 +1,6 @@
 [package]
 name = "imt-plugin-registry"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -9,3 +10,6 @@ description = "IMT plugin: imports Windows registry exports (.reg)"
 imt-core = { path = "../imt-core" }
 anyhow = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[dev-dependencies]
+proptest = "1"

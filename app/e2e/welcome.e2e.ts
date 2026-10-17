@@ -37,4 +37,25 @@ test.describe('welcome', () => {
     await page.getByRole('button', { name: 'Back to workspace' }).click();
     await expect(page.locator('imt-welcome')).toHaveCount(0);
   });
+
+  test('covers the dock completely: no sash shows through or can be grabbed', async ({ page }) => {
+    await openApp(page);
+    const sashes = page.locator('imt-dock-host .dv-sash');
+    await expect.poll(() => sashes.count()).toBeGreaterThan(0);
+    const points = await sashes.evaluateAll((els) =>
+      els
+        .map((el) => el.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0)
+        .map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 })),
+    );
+    expect(points.length).toBeGreaterThan(0);
+    await closeWorkspace(page);
+    await expect(page.locator('imt-welcome')).toBeVisible();
+    // At every sash position the topmost element belongs to the welcome screen.
+    const covered = await page.evaluate(
+      (pts) => pts.map((p) => !!document.elementFromPoint(p.x, p.y)?.closest('imt-welcome')),
+      points.filter((p) => p.y > 0),
+    );
+    expect(covered.every(Boolean)).toBe(true);
+  });
 });

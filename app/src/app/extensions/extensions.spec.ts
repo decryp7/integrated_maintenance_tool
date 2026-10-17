@@ -24,6 +24,7 @@ import {
   ImtView,
   InspectorSections,
   isViewAvailable,
+  JUMP_TIMEOUT_MS,
   matchesKeybinding,
   provideImtPlugin,
   ViewRegistry,
@@ -143,7 +144,7 @@ describe('CommandRegistry', () => {
 
   function setup(commands: ImtCommand[]) {
     ran = [];
-    ctx = { summary: null, openPaths: async () => undefined, setQuery: () => undefined, addFilter: () => undefined, selectRecord: () => undefined, showView: () => undefined, notifyError: () => undefined };
+    ctx = { summary: null, openPaths: async () => undefined, setQuery: () => undefined, addFilter: () => undefined, selectRecord: () => undefined, jumpTo: async () => undefined, showView: () => undefined, notifyError: () => undefined };
     TestBed.configureTestingModule({
       providers: [provideTinyBackendBare(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: IMT_COMMANDS, multi: true, useValue: commands }],
     });
@@ -303,6 +304,51 @@ describe('ImtEvents and the command context', () => {
     ctx.notifyError('bad');
     expect(store.error()).toBe('bad');
     expect(TestBed.inject(COMMAND_CONTEXT)).toBeInstanceOf(WorkspaceCommandContext);
+  });
+
+  it('exposes the display timezone as a signal', () => {
+    const { store, events } = setup();
+    store.setTimezone('local');
+    expect(events.timezone()).toBe('local');
+    store.setTimezone('utc');
+    expect(events.timezone()).toBe('utc');
+  });
+
+  it('jumpTo asks the grid for the record and resolves when it is selected or reported missing', async () => {
+    const { store } = setup();
+    await settle();
+    const ctx = TestBed.inject(WorkspaceCommandContext);
+    let done = false;
+    const found = ctx.jumpTo(4).then(() => (done = true));
+    expect(store.anchor()?.id).toBe(4);
+    await settle();
+    expect(done).toBe(false);
+    store.anchorResolved({ id: 4 } as RecordView);
+    await found;
+    expect(store.selected()?.id).toBe(4);
+
+    const missing = ctx.jumpTo(99);
+    expect(store.anchor()?.id).toBe(99);
+    store.anchorResolved(null);
+    await missing;
+    expect(store.anchorMissed()).toBe(true);
+  });
+
+  it('jumpTo resolves after a timeout when no grid handles the anchor', async () => {
+    const { store } = setup();
+    await settle();
+    vi.useFakeTimers();
+    try {
+      const ctx = TestBed.inject(WorkspaceCommandContext);
+      let done = false;
+      void ctx.jumpTo(5).then(() => (done = true));
+      TestBed.tick();
+      await vi.advanceTimersByTimeAsync(JUMP_TIMEOUT_MS + 1);
+      expect(done).toBe(true);
+      expect(store.anchor()?.id).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('StoreImtEvents can be created in an injection context', () => {

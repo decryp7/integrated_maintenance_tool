@@ -7,6 +7,7 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { formatKeybinding } from '../extensions/keybinding';
 import { ViewRegistry } from '../extensions/view-registry';
 import { PaletteService } from '../palette/palette.service';
+import { TitleExtras } from '../lifecycle/title-extras';
 
 interface MenuItem {
   label: string;
@@ -24,7 +25,7 @@ interface Menu {
 @Component({
   selector: 'imt-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside],
+  imports: [Icon, ClickOutside, TitleExtras],
   template: `
     <div class="brand">
       <span class="logo" aria-hidden="true">
@@ -69,6 +70,7 @@ interface Menu {
         <span>Indexed · {{ (s.loadMs / 1000).toFixed(1) }} s</span>
       }
     </div>
+    <imt-title-extras />
   `,
   host: { '(document:keydown)': 'onKey($event)' },
   styles: `

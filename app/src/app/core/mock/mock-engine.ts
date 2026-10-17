@@ -13,6 +13,7 @@ import {
   LifecycleEvent,
   MarkerCluster,
   MarkerKind,
+  MarkerShape,
   Page,
   PageRequest,
   PipelineStat,
@@ -25,6 +26,7 @@ import { parseBucket, valueToString } from '../format';
 import { Condition, ExtractField, ExtractRule, ProfileModel, toJsRegex } from '../profile.model';
 import { MockRecord, MockSource } from './mock-data';
 import { applyPipeline } from './mock-pipeline';
+import { mockQlFilter } from './mock-ql';
 
 /** In-memory query engine mirroring the Rust core's semantics, for browser development. */
 export class MockEngine {
@@ -36,6 +38,8 @@ export class MockEngine {
   /** Events in/out per executed pipeline step. */
   pipelineStats: PipelineStat[] = [];
   markerKinds: MarkerKind[] = [];
+  /** Custom marker icons (sanitised like the engine does). */
+  icons: { name: string; svg: string | null; pngDataUrl: string | null }[] = [];
   charts: ChartDef[] = [];
   defaultGroupBy: string[] = [];
   private sourceById = new Map<number, MockSource>();
@@ -80,6 +84,15 @@ export class MockEngine {
       label: m.label ?? m.kind,
       lifecycle: !!m.lifecycle,
       color: m.color ?? null,
+      icon: (m['icon'] as string | undefined) ?? null,
+      badge: (m['badge'] as string | undefined) ?? null,
+      shape: (m['shape'] as MarkerShape | undefined) ?? null,
+      description: (m['description'] as string | undefined) ?? null,
+    }));
+    this.icons = ((profile['icon'] as { name: string; svg?: string; png?: string }[] | undefined) ?? []).map((i) => ({
+      name: i.name,
+      svg: i.svg ? i.svg.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '') : null,
+      pngDataUrl: i.png ? `data:image/png;base64,${i.png}` : null,
     }));
     this.charts = (profile.chart ?? []).map((c) => ({
       id: c.id,
@@ -175,6 +188,7 @@ export class MockEngine {
         text = q.caseSensitive ? (s) => s.includes(needle) : (s) => s.toLowerCase().includes(needle);
       }
     }
+    const ql = compileQl(q.ql ?? '');
     const from = q.from ?? null;
     const to = q.to ?? null;
     const structural = (r: MockRecord): boolean => {
@@ -188,6 +202,7 @@ export class MockEngine {
       if (levels && !levels.has(r.level)) return false;
       if (markers && !r.markers.some((m) => markers.has(m))) return false;
       if (text && !(text(r.message) || (r.exception !== null && text(r.exception)) || (r.template !== null && text(r.template)))) return false;
+      if (ql && !ql({ ...r, sourceName: this.sourceById.get(r.source)?.name ?? '' })) return false;
       return true;
     };
     return { groupBy, structural, content };
@@ -412,6 +427,15 @@ export function safeRegex(pattern: string, flags = ''): RegExp | null {
     return toJsRegex(pattern, flags);
   } catch {
     return null;
+  }
+}
+
+/** The query-language filter of a query, failing like the engine ("query: …") when it does not parse. */
+function compileQl(text: string): ReturnType<typeof mockQlFilter> {
+  try {
+    return mockQlFilter(text);
+  } catch (e) {
+    throw new Error(`query: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

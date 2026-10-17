@@ -23,6 +23,19 @@ pub struct Query {
     /// A query-language expression (see [`crate::ql`]); its filter and any
     /// `where` stages before `stats` apply like the other criteria.
     pub ql: String,
+    /// A sliding time window; the workspace resolves it into `from` before
+    /// evaluating (live tail).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window: Option<TimeWindow>,
+}
+
+/// A time window relative to "now": the newest record (default) or the wall
+/// clock (`[live] clock = "wall"`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum TimeWindow {
+    /// The last `last_ms` milliseconds, sliding as new records arrive.
+    Live { last_ms: i64 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -338,5 +351,32 @@ mod tests {
             ..Default::default()
         };
         assert!(!CompiledQuery::new(&filtered, &[], &[]).unwrap().structural(&r, "s", None));
+    }
+
+    #[test]
+    fn ql_filters_apply_up_to_the_first_non_where_stage() {
+        let mut r = rec(10, "slow call");
+        r.level = Level::Warning;
+        r.fields.insert("ms".into(), 500.into());
+        let matches = |ql: &str| {
+            let q = Query {
+                ql: ql.into(),
+                ..Default::default()
+            };
+            CompiledQuery::new(&q, &[], &[]).unwrap().content(&r, "s")
+        };
+        assert!(matches("level >= warning | where ms > 100"));
+        assert!(!matches("level >= warning | where ms > 1000"));
+        // Stages after sort/head/fields/stats shape the output, not which records match.
+        assert!(matches("| where ms > 100 | sort ms | where ms > 1000"));
+        assert!(matches("| head 5 | where ms > 1000"));
+        assert!(matches("| fields ms | where ms > 1000"));
+        assert!(matches("| where ms > 100 | stats count() | where ms > 1000"));
+        assert!(!matches("| where ms > 1000 | stats count()"));
+        let bad = Query {
+            ql: "level >=".into(),
+            ..Default::default()
+        };
+        assert!(CompiledQuery::new(&bad, &[], &[]).err().unwrap().to_string().starts_with("query: "));
     }
 }

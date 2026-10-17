@@ -34,6 +34,10 @@ interface WorkspaceState {
   selected: RecordView | null;
   timeline: Timeline | null;
   timelineLoading: boolean;
+  /** Why the last timeline request failed (shown inline in the timeline panel with Retry). */
+  timelineError: string | null;
+  /** Bumped to fetch the timeline again after a failure. */
+  timelineRetry: number;
   buckets: number;
   matchTotal: number | null;
   /** Request for the grid to scroll to (and select) a record. */
@@ -81,6 +85,8 @@ const initialState: WorkspaceState = {
   selected: null,
   timeline: null,
   timelineLoading: false,
+  timelineError: null,
+  timelineRetry: 0,
   buckets: 400,
   matchTotal: null,
   anchor: null,
@@ -162,6 +168,15 @@ export const WorkspaceStore = signalStore(
       async init() {
         await run('Loading workspace…', () => backend.workspaceSummary(), 'loaded');
       },
+      /**
+       * Fetches the summary again after the engine changed the data underneath (live tail). Unlike
+       * `init`, it keeps the selection, the query and filters, and shows no busy state; the timeline
+       * and the grid reload because the data version changes. Rejects when the backend fails.
+       */
+      async refreshSummary(): Promise<void> {
+        const summary = await backend.workspaceSummary();
+        patchState(store, (s) => ({ summary, dataVersion: s.dataVersion + 1 }));
+      },
       openPaths: async (paths: string[]): Promise<void> => {
         await run(`Opening ${paths.length} item${paths.length === 1 ? '' : 's'}…`, () => backend.openPaths(paths), 'opened');
         if (!store.error()) recent.add(paths);
@@ -225,6 +240,7 @@ export const WorkspaceStore = signalStore(
         patchState(store, row ? { selected: row, anchorMissed: false } : { anchorMissed: true });
       },
       setMatchTotal: (matchTotal: number | null) => patchState(store, { matchTotal }),
+      retryTimeline: () => patchState(store, (s) => ({ timelineRetry: s.timelineRetry + 1 })),
       setBuckets(buckets: number) {
         if (Math.abs(buckets - store.buckets()) > 4) patchState(store, { buckets });
       },
@@ -250,13 +266,14 @@ export const WorkspaceStore = signalStore(
         const summary = store.summary();
         const request = { query: store.effectiveQuery(), buckets: store.buckets(), alwaysShowLifecycle: store.alwaysShowLifecycle() };
         store.dataVersion();
+        store.timelineRetry();
         if (!summary) return;
         const mine = ++seq;
         untracked(() => patchState(store, { timelineLoading: true }));
         backend
           .queryTimeline(request)
-          .then((timeline) => mine === seq && patchState(store, { timeline, timelineLoading: false }))
-          .catch((e) => mine === seq && patchState(store, { timelineLoading: false, error: errorText(e) }));
+          .then((timeline) => mine === seq && patchState(store, { timeline, timelineLoading: false, timelineError: null }))
+          .catch((e) => mine === seq && patchState(store, { timelineLoading: false, timelineError: errorText(e) }));
       });
 
       effect(() => {

@@ -3,23 +3,31 @@ import { inject, Provider } from '@angular/core';
 import {
   ChartData,
   ChartRequest,
+  ContextRequest,
   ExportRequest,
   ExportResult,
+  ExplainNode,
   ExtractPreview,
   ExtractPreviewRequest,
   Facet,
   FacetRequest,
+  InferredRegex,
   Page,
   PageRequest,
+  ParsePreview,
+  ParsePreviewRequest,
   ProfileDoc,
   ProfileValidation,
+  SourceContext,
   Timeline,
   TimelineRequest,
   WorkspaceSummary,
 } from './api.types';
+import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
 import { MockBackend } from './mock/mock-backend';
+import { mockOptionsFromSearch } from './mock/mock-options';
 
 /** Everything the UI can ask the backend. Injected as a class token. */
 export abstract class ImtBackend {
@@ -39,12 +47,32 @@ export abstract class ImtBackend {
   abstract importProfile(path: string): Promise<ProfileDoc>;
   abstract exportProfile(path: string, toml: string): Promise<void>;
   abstract exportEvents(request: ExportRequest): Promise<ExportResult>;
+  /** The original lines around an event. */
+  abstract sourceContext(request: ContextRequest): Promise<SourceContext>;
+  /** Decoded first bytes of a file in the workspace (opened or unrecognised); rejects for any other path. */
+  abstract readFileHead(path: string, maxBytes?: number): Promise<string>;
+  /** Parses `sample` with a candidate (unsaved) profile, in the engine. */
+  abstract previewParse(request: ParsePreviewRequest): Promise<ParsePreview>;
+  /** Turns live tail on or off; resolves to the number of watched paths. */
+  abstract setLive(enabled: boolean): Promise<number>;
+  /** Calls `handler` whenever live tail changed the workspace. Resolves to the unsubscribe function. */
+  abstract onWorkspaceChanged(handler: () => void): Promise<() => void>;
+  /** Infers a regex with named, typed groups from example lines (rejects for no lines). */
+  abstract inferRegex(lines: string[]): Promise<InferredRegex>;
+  /** Explains a regex in plain English as an indented outline (rejects for an invalid regex). */
+  abstract explainRegex(pattern: string): Promise<ExplainNode[]>;
 }
+
+/** Tauri event emitted by the engine after live tail re-imported changed files. */
+export const WORKSPACE_CHANGED_EVENT = 'imt://workspace-changed';
 
 /** Talks to the Rust core through Tauri commands. */
 export class TauriBackend extends ImtBackend {
   /** `call` is Tauri's `invoke`; tests pass a fake. */
-  constructor(private readonly call: typeof invoke = invoke) {
+  constructor(
+    private readonly call: typeof invoke = invoke,
+    private readonly subscribe: (event: string, handler: () => void) => Promise<() => void> = tauriListen,
+  ) {
     super();
   }
 
@@ -96,15 +124,45 @@ export class TauriBackend extends ImtBackend {
   exportEvents(request: ExportRequest) {
     return this.call<ExportResult>('export_events', { request });
   }
+  sourceContext(request: ContextRequest) {
+    return this.call<SourceContext>('source_context', { request });
+  }
+  readFileHead(path: string, maxBytes?: number) {
+    return this.call<string>('read_file_head', { path, maxBytes });
+  }
+  previewParse(request: ParsePreviewRequest) {
+    return this.call<ParsePreview>('preview_parse', { request });
+  }
+  setLive(enabled: boolean) {
+    return this.call<number>('set_live', { enabled });
+  }
+  onWorkspaceChanged(handler: () => void) {
+    return this.subscribe(WORKSPACE_CHANGED_EVENT, handler);
+  }
+  inferRegex(lines: string[]) {
+    return this.call<InferredRegex>('infer_regex', { lines });
+  }
+  explainRegex(pattern: string) {
+    return this.call<ExplainNode[]>('explain_regex', { pattern });
+  }
+}
+
+/** Subscribes to a Tauri event (loaded lazily so the browser build does not need the event API). */
+async function tauriListen(event: string, handler: () => void): Promise<() => void> {
+  const { listen } = await import('@tauri-apps/api/event');
+  return listen(event, () => handler());
 }
 
 /**
  * Uses the Rust backend inside Tauri, and an in-memory demo dataset in a plain browser (ng serve).
- * Failed commands are logged (command name and redacted error) by a decorator.
+ * Failed commands are logged (command name and redacted error) by a decorator and passed to the `FailureReporter`.
  */
 export function provideBackend(): Provider {
   return {
     provide: ImtBackend,
-    useFactory: () => withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new MockBackend(), inject(Logger)),
+    useFactory: () =>
+      withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new MockBackend(mockOptionsFromSearch(window.location.search)), inject(Logger), {
+        onFailure: reportBackendFailures(),
+      }),
   };
 }

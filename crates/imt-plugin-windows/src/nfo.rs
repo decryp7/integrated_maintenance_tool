@@ -4,7 +4,7 @@ use anyhow::Result;
 use imt_core::importers::{ImportCtx, Imported, Importer};
 use imt_core::model::{auto_value, Record};
 use quick_xml::events::Event;
-use quick_xml::Reader;
+use quick_xml::{Reader, XmlVersion};
 use serde_json::Value;
 
 /// Hard cap on element nesting, so hostile input cannot grow the stack/path.
@@ -49,7 +49,7 @@ impl Importer for NfoImporter {
                 }
                 Ok(Event::Eof) => break,
                 Ok(Event::Start(e)) => {
-                    let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+                    let name = e.name().as_ref().to_string();
                     if stack.len() >= MAX_DEPTH {
                         out.skipped += 1;
                         break;
@@ -58,8 +58,12 @@ impl Importer for NfoImporter {
                         let label = e
                             .attributes()
                             .flatten()
-                            .find(|a| a.key.as_ref() == b"name")
-                            .map(|a| String::from_utf8_lossy(&a.value).into_owned())
+                            .find(|a| a.key.as_ref() == "name")
+                            .map(|a| {
+                                a.normalized_value(XmlVersion::Implicit1_0)
+                                    .map(|v| v.into_owned())
+                                    .unwrap_or_default()
+                            })
                             .unwrap_or_default();
                         categories.push(label);
                     } else if name == "Data" {
@@ -68,9 +72,9 @@ impl Importer for NfoImporter {
                     text.clear();
                     stack.push(name);
                 }
-                Ok(Event::Text(t)) => text.push_str(&t.decode().map(|c| c.into_owned()).unwrap_or_default()),
+                Ok(Event::Text(t)) => text.push_str(&t.xml_content(XmlVersion::Implicit1_0)),
                 Ok(Event::GeneralRef(r)) => {
-                    let name = String::from_utf8_lossy(r.as_ref()).into_owned();
+                    let name = r.as_ref().to_string();
                     match r.resolve_char_ref() {
                         Ok(Some(c)) => text.push(c),
                         _ => text.push_str(match name.as_str() {
@@ -83,7 +87,7 @@ impl Importer for NfoImporter {
                         }),
                     }
                 }
-                Ok(Event::CData(c)) => text.push_str(&String::from_utf8_lossy(&c)),
+                Ok(Event::CData(c)) => text.push_str(&c),
                 Ok(Event::End(_)) => {
                     let Some(name) = stack.pop() else { continue };
                     match name.as_str() {

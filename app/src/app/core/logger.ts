@@ -122,11 +122,19 @@ export function provideErrorLogging(): Provider {
   return { provide: ErrorHandler, useClass: LoggingErrorHandler };
 }
 
+export interface FailureLoggingOptions {
+  /** Log category (default "ui.backend"). */
+  category?: string;
+  /** Called with the operation name and the error after logging, before the rejection is rethrown. Must not throw (errors it throws are ignored). */
+  onFailure?: (command: string, error: unknown) => void;
+}
+
 /**
  * Decorates a promise-returning service so every rejected call is logged (operation name and
- * redacted error only) and then rethrown unchanged.
+ * redacted error only), reported to `onFailure`, and then rethrown unchanged.
  */
-export function withFailureLogging<T extends object>(target: T, logger: Logger, category = 'ui.backend'): T {
+export function withFailureLogging<T extends object>(target: T, logger: Logger, options: FailureLoggingOptions = {}): T {
+  const { category = 'ui.backend', onFailure } = options;
   return new Proxy(target, {
     get(obj, prop, receiver) {
       const value = Reflect.get(obj, prop, receiver);
@@ -136,6 +144,11 @@ export function withFailureLogging<T extends object>(target: T, logger: Logger, 
         if (!(result instanceof Promise)) return result;
         return result.catch((e: unknown) => {
           logger.warn(category, 'Backend command failed', { Command: String(prop), Error: redactPaths(describeError(e)) });
+          try {
+            onFailure?.(String(prop), e);
+          } catch {
+            /* reporting must not replace the original error */
+          }
           throw e;
         });
       };

@@ -663,6 +663,12 @@ value = "t"
             .unwrap()
             .run(sample(), "f");
         assert_eq!(out.len(), 6);
+        // Truncating a field the record does not have leaves it untouched.
+        let (out, _) = pipeline("[[pipeline]]\nstep='truncate'\nfield='Missing'\nmax=1")
+            .unwrap()
+            .run(sample(), "f");
+        assert!(out.iter().all(|r| !r.fields.contains_key("Missing")));
+        assert_eq!(out[1].message, "login password=hunter2 user=ann");
     }
 
     #[test]
@@ -695,6 +701,7 @@ value = "t"
             id: Some("upper".into()),
             ..Default::default()
         }];
+        assert_eq!(t["upper"].id(), "upper");
         let (out, _) = Pipeline::compile(&cfg, &t).unwrap().run(sample(), "src");
         assert_eq!(out[2].message, "src:BOOM");
         let missing = vec![StepCfg {

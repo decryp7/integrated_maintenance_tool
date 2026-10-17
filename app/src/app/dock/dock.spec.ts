@@ -1,18 +1,39 @@
-import { ApplicationRef, Component, EnvironmentInjector } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { SerializedDockview } from 'dockview';
-import { provideDockTesting, settle, testLogger, tinyDataset } from '../../testing/helpers';
+import type { DockviewApi, SerializedDockview } from 'dockview';
+import { MemoryLogger, provideDockTesting, settle, testLogger, tinyDataset } from '../../testing/helpers';
+import { FailureReporter } from '../core/failure-reporter';
+import { Logger } from '../core/logger';
 import { MockBackend } from '../core/mock/mock-backend';
 import { MockDataset } from '../core/mock/mock-data';
 import { WorkspaceStore } from '../core/workspace.store';
 import { REGISTRY_PLUGIN } from '../plugins/registry/registry.plugin';
-import { provideImtPlugin } from '../extensions';
+import { ImtPlugin, provideImtPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { DockHost } from './dock-host';
-import { DockService, PANEL } from './dock.service';
+import { DockService, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
 import { GroupActions } from './group-actions';
 import { LAYOUT_KEY, LAYOUT_STORE, LAYOUT_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
+
+@Component({ selector: 'imt-test-query', template: 'query bar' })
+class QueryStub {}
+
+/** Stand-in for the analysis plugin's query bar: a conditional bottom view. */
+const QUERY_PLUGIN: ImtPlugin = {
+  views: [{ id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0 }],
+};
+
+/** Ids of the panels in each group, in grid order (depth first). */
+function groupsInOrder(layout: SerializedDockview): string[][] {
+  const out: string[][] = [];
+  const walk = (node: { type: string; data: unknown }) => {
+    if (node.type === 'leaf') out.push((node.data as { views: string[] }).views);
+    else (node.data as { type: string; data: unknown }[]).forEach(walk);
+  };
+  walk(layout.grid.root as never);
+  return out;
+}
 
 function registryDataset(): MockDataset {
   const d = tinyDataset();
@@ -83,16 +104,16 @@ describe('AngularContentRenderer', () => {
 
   beforeEach(() => (Probe.destroyed = 0));
 
-  it('creates the component lazily, attaches it to the app and destroys it on dispose', async () => {
+  it('creates the component lazily, refreshes it itself and destroys it on dispose', async () => {
     const r = renderer(async () => Probe as never);
     const app = TestBed.inject(ApplicationRef);
     const before = app.viewCount;
     r.init({} as never);
     await vi.waitFor(() => expect(r.element.textContent).toBe('probe-content'));
-    expect(app.viewCount).toBe(before + 1);
+    // Not attached to the application: this renderer is the panel's error boundary and drives its refresh.
+    expect(app.viewCount).toBe(before);
     r.dispose();
     expect(Probe.destroyed).toBe(1);
-    expect(app.viewCount).toBe(before);
     expect(r.element.textContent).toBe('');
   });
 
@@ -126,7 +147,7 @@ describe('AngularContentRenderer', () => {
   it('shows an alert when the component cannot be loaded, and stays quiet if already disposed', async () => {
     const r = renderer(async () => Promise.reject(new Error('chunk')));
     r.init({} as never);
-    await vi.waitFor(() => expect(r.element.querySelector('[role=alert]')?.textContent).toContain('probe panel could not be loaded'));
+    await vi.waitFor(() => expect(r.element.querySelector('[role=alert]')?.textContent).toContain('This panel failed: chunk'));
     r.dispose();
     const gone = renderer(async () => Promise.reject(new Error('chunk')));
     gone.init({} as never);
@@ -139,6 +160,215 @@ describe('AngularContentRenderer', () => {
     const m = new MissingViewRenderer('gone');
     m.init();
     expect(m.element.textContent).toContain('"gone" is not available');
+  });
+});
+
+@Component({ selector: 'imt-boom-ctor', template: 'never' })
+class BoomCtor {
+  constructor() {
+    throw new Error('constructor boom');
+  }
+}
+
+@Component({ selector: 'imt-boom-render', template: '{{ boom() }}' })
+class BoomRender {
+  boom(): string {
+    throw new Error('render boom');
+  }
+}
+
+@Component({ selector: 'imt-boom-later', changeDetection: ChangeDetectionStrategy.OnPush, template: '{{ show() ? boom() : "fine" }}' })
+class BoomLater {
+  static current: BoomLater | null = null;
+  readonly show = signal(false);
+  constructor() {
+    BoomLater.current = this;
+  }
+  boom(): string {
+    throw new Error('later boom');
+  }
+}
+
+@Component({ selector: 'imt-boom-effect', template: 'effect panel' })
+class BoomEffect {
+  constructor() {
+    effect(() => {
+      throw new Error('effect boom');
+    });
+  }
+}
+
+@Component({ selector: 'imt-counter', changeDetection: ChangeDetectionStrategy.OnPush, template: '<span class="n">{{ n() }}</span>' })
+class Counter {
+  static current: Counter | null = null;
+  readonly n = signal(0);
+  constructor() {
+    Counter.current = this;
+  }
+}
+
+describe('Panel error boundary', () => {
+  let logger: MemoryLogger;
+  beforeEach(() => {
+    logger = new MemoryLogger();
+    TestBed.configureTestingModule({ providers: [{ provide: Logger, useValue: logger }] });
+  });
+
+  function renderer(type: unknown, label = 'probe') {
+    return new AngularContentRenderer(async () => type as never, TestBed.inject(ApplicationRef), TestBed.inject(EnvironmentInjector), label);
+  }
+
+  const card = (r: AngularContentRenderer) => r.element.querySelector<HTMLElement>('.imt-panel-failed');
+  const failed = async (r: AngularContentRenderer, message: string) => {
+    r.init({} as never);
+    await vi.waitFor(() => expect(card(r)?.textContent).toContain(`This panel failed: ${message}`));
+  };
+
+  it.each([
+    ['a constructor', BoomCtor, 'constructor boom'],
+    ['the first render', BoomRender, 'render boom'],
+    ['an effect', BoomEffect, 'effect boom'],
+  ])('contains an error in %s: shows the card, logs it, and leaves other panels alone', async (_what, type, message) => {
+    const healthy = renderer(Counter, 'healthy');
+    healthy.init({} as never);
+    await vi.waitFor(() => expect(healthy.element.textContent).toBe('0'));
+
+    const broken = renderer(type, 'broken');
+    broken.init({} as never);
+    await vi.waitFor(() => expect(card(broken)?.textContent).toContain(`This panel failed: ${message}`));
+    expect(card(broken)?.getAttribute('role')).toBe('alert');
+    expect(card(broken)?.textContent).toContain('Reload panel');
+    expect(card(broken)?.textContent).toContain('Copy details');
+    expect(logger.entries.filter((e) => e.level === 'error' && e.category === 'ui.panel')).toEqual([
+      expect.objectContaining({ message: 'Panel failed', props: expect.objectContaining({ Panel: 'broken', Error: message }) }),
+    ]);
+
+    // The healthy panel keeps updating after the broken one failed.
+    Counter.current!.n.set(5);
+    await vi.waitFor(() => expect(healthy.element.textContent).toBe('5'));
+    healthy.dispose();
+    broken.dispose();
+  });
+
+  it('contains an error on a later render, after the panel worked', async () => {
+    const r = renderer(BoomLater);
+    r.init({} as never);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('fine'));
+    BoomLater.current!.show.set(true);
+    await vi.waitFor(() => expect(card(r)?.textContent).toContain('later boom'));
+    expect(r.element.querySelector('imt-boom-later')).toBeNull();
+    r.dispose();
+  });
+
+  it('keeps refreshing a healthy panel when its signals change', async () => {
+    const r = renderer(Counter);
+    r.init({} as never);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
+    Counter.current!.n.set(1);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('1'));
+    Counter.current!.n.set(2);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('2'));
+    r.dispose();
+  });
+
+  it('reports only the first of several errors', async () => {
+    const r = renderer(BoomEffect);
+    await failed(r, 'effect boom');
+    expect(logger.entries.filter((e) => e.level === 'error')).toHaveLength(1);
+    r.dispose();
+  });
+
+  it('Reload panel tries again with a new component', async () => {
+    let attempts = 0;
+    const r = new AngularContentRenderer(
+      async () => (++attempts === 1 ? BoomCtor : Counter) as never,
+      TestBed.inject(ApplicationRef),
+      TestBed.inject(EnvironmentInjector),
+      'probe',
+    );
+    await failed(r, 'constructor boom');
+    card(r)!.querySelectorAll('button')[0].click();
+    await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
+    expect(card(r)).toBeNull();
+    expect(attempts).toBe(2);
+    r.dispose();
+  });
+
+  it('Copy details puts the panel, message and stack on the clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    const r = renderer(BoomCtor, 'events');
+    await failed(r, 'constructor boom');
+    const copy = card(r)!.querySelectorAll('button')[1];
+    copy.click();
+    await vi.waitFor(() => expect(copy.textContent).toBe('Copied'));
+    expect(writeText.mock.calls[0][0]).toContain('Panel: events\nError: constructor boom');
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    copy.click();
+    await vi.waitFor(() => expect(copy.textContent).toBe('Copy failed'));
+    vi.unstubAllGlobals();
+    r.dispose();
+  });
+
+  it('reports the failure to the FailureReporter after the card is shown, and survives a broken reporter', async () => {
+    const seen: [string, unknown, boolean][] = [];
+    let r: AngularContentRenderer | null = null;
+    const reporter = {
+      panelFailed: vi.fn((panel: string, error: unknown) => {
+        seen.push([panel, error, !!r && card(r) !== null]);
+        throw new Error('reporter broke');
+      }),
+      backendFailed: vi.fn(),
+    };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [{ provide: Logger, useValue: logger }, { provide: FailureReporter, useValue: reporter }] });
+    r = renderer(BoomCtor, 'broken');
+    await failed(r, 'constructor boom');
+    expect(seen).toHaveLength(1);
+    expect(seen[0][0]).toBe('broken');
+    expect((seen[0][1] as Error).message).toBe('constructor boom');
+    expect(seen[0][2]).toBe(true);
+    expect(reporter.backendFailed).not.toHaveBeenCalled();
+    r.dispose();
+  });
+
+  it('describes errors that are not Error objects', async () => {
+    @Component({ selector: 'imt-boom-string', template: '{{ boom() }}' })
+    class BoomString {
+      boom(): string {
+        throw 'plain string';
+      }
+    }
+    const r = renderer(BoomString);
+    await failed(r, 'plain string');
+    r.dispose();
+  });
+
+  it('routes errors the framework reports through ErrorHandler to the panel', async () => {
+    @Component({ selector: 'imt-reports', template: 'reports' })
+    class Reports {
+      constructor() {
+        const handler = inject(ErrorHandler);
+        queueMicrotask(() => handler.handleError(undefined));
+      }
+    }
+    const r = renderer(Reports);
+    await failed(r, 'unknown error');
+    r.dispose();
+  });
+
+  it('does not show a card for a panel disposed before the failure was handled', async () => {
+    const r = renderer(Counter);
+    r.init({} as never);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
+    (r as unknown as { fail(e: unknown): void }).fail(new Error('late'));
+    (r as unknown as { fail(e: unknown): void }).fail(new Error('second is ignored'));
+    r.dispose();
+    await new Promise((x) => setTimeout(x, 10));
+    expect(r.element.textContent).toBe('');
+    expect(logger.entries).toEqual([]);
+    (r as unknown as { fail(e: unknown): void }).fail(new Error('after dispose'));
+    expect(logger.entries).toEqual([]);
   });
 });
 
@@ -176,7 +406,7 @@ describe('DockService with dockview', () => {
   let saved: SerializedDockview | null;
   let layoutStore: LayoutStore & { saves: number; cleared: number };
 
-  function setup(opts: { plugin?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
+  function setup(opts: { plugin?: boolean; query?: boolean; stored?: SerializedDockview | null; backend?: MockBackend } = {}) {
     saved = opts.stored ?? null;
     layoutStore = {
       saves: 0,
@@ -192,7 +422,7 @@ describe('DockService with dockview', () => {
       },
     };
     TestBed.configureTestingModule({
-      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : [])],
+      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.query ? [provideImtPlugin(QUERY_PLUGIN)] : [])],
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -337,6 +567,40 @@ describe('DockService with dockview', () => {
     saved = layout;
     first.dock.attach(container);
     expect(container.textContent).toContain('"ghost" is not available');
+  });
+
+  it('pins the query bar in its own short group right above the events grid, and puts it back there', async () => {
+    const { dock, store } = setup({ query: true });
+    dock.attach(container);
+    await settle();
+    expect(dock.isOpen(QUERY_VIEW)).toBe(true);
+    const order = () => groupsInOrder((dock as unknown as { api: { toJSON(): SerializedDockview } }).api.toJSON());
+    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    // Gone while there is nothing to query; back above the grid (not tabbed with it) when there is.
+    await store.clearWorkspace();
+    await settle();
+    expect(dock.isOpen(QUERY_VIEW)).toBe(false);
+    await store.openPaths(['/x/a.log']);
+    await settle();
+    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    // With a real size (jsdom has no layout), the query group gets its short fixed height.
+    const api = (dock as unknown as { api: DockviewApi }).api;
+    api.layout(1200, 800);
+    dock.reset();
+    expect(order()).toEqual([['timeline', 'metrics', 'profile'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(api.getPanel(QUERY_VIEW)!.group.api.height).toBe(QUERY_HEIGHT);
+    expect(api.getPanel('timeline')!.group.api.height).toBe(300);
+  });
+
+  it('opens the query bar by its default position when the events grid is closed', async () => {
+    const { dock, store } = setup({ query: true });
+    dock.attach(container);
+    await settle();
+    dock.close('events');
+    dock.close(QUERY_VIEW);
+    dock.show(QUERY_VIEW);
+    expect(dock.isOpen(QUERY_VIEW)).toBe(true);
+    void store;
   });
 
   it('reset restores the default arrangement and forgets the saved one', async () => {

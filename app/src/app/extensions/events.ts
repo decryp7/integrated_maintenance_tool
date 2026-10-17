@@ -2,6 +2,7 @@ import { inject, Injectable, Injector, Signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, map, Observable } from 'rxjs';
 import { Query, RecordView, WorkspaceSummary } from '../core/api.types';
+import { TimeZoneMode } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 
 /**
@@ -16,6 +17,8 @@ export abstract class ImtEvents {
   abstract readonly query: Signal<Query>;
   /** Record shown in the inspector. */
   abstract readonly selectedRecord: Signal<RecordView | null>;
+  /** Zone the user chose for showing times (`utc` or `local`); format times in it. */
+  abstract readonly timezone: Signal<TimeZoneMode>;
   /** Emits after sources changed (open, remove, reload, profile save). */
   abstract readonly workspaceChanged: Observable<WorkspaceSummary>;
   /** Emits when the query changes. */
@@ -35,6 +38,7 @@ export class StoreImtEvents extends ImtEvents {
   readonly workspace = this.store.summary;
   readonly query = this.store.query;
   readonly selectedRecord = this.store.selected;
+  readonly timezone = this.store.timezone;
   readonly workspaceChanged: Observable<WorkspaceSummary> = toObservable(this.store.dataVersion, { injector: this.injector }).pipe(
     map(() => this.store.summary()),
     filter((s): s is WorkspaceSummary => s !== null),

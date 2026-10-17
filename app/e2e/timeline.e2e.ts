@@ -1,5 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 import { gridTotal, initialTotal, openApp } from './app';
+import { openAppWith } from './mock-url';
 
 /** The button in the filter bar that shows (and resets) the visible time range. */
 const rangeButton = (page: Page) => page.getByTitle(/Reset to the full range|Drag on the timeline to zoom/);
@@ -70,5 +71,43 @@ test.describe('timeline zoom', () => {
     await page.keyboard.up('Control');
     await expect(range).not.toHaveText(full);
     await expect(range).toContainText('(');
+  });
+});
+
+test.describe('timeline and analysis', () => {
+  test('right-clicking the time axis offers "Analyse this moment"', async ({ page }) => {
+    await openApp(page);
+    const axis = page.locator('imt-timeline-panel .axis');
+    await axis.click({ button: 'right', position: { x: 200, y: 10 } });
+    const menu = page.getByRole('menu', { name: 'Actions' });
+    await expect(menu).toBeVisible();
+    await menu.getByRole('menuitem', { name: 'Analyse this moment' }).click();
+    await expect(menu).toHaveCount(0);
+    const view = page.locator('imt-moment-view');
+    await expect(view).toBeVisible();
+    await expect(view.getByRole('heading', { name: 'Instances' })).toBeVisible();
+  });
+
+  test('hovering the timeline draws the shared time cursor', async ({ page }) => {
+    await openApp(page);
+    const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.locator('imt-timeline-panel .cursor-label')).toHaveText(/\d{2}:\d{2}:\d{2}/);
+    await page.mouse.move(box.x + box.width / 2, box.y - 200);
+    await expect(page.locator('imt-timeline-panel .cursor')).toHaveCount(0);
+  });
+
+  test('a failed timeline request shows an inline error with Retry', async ({ page }) => {
+    // The panel asks again when its width is measured, so more than one request fails before Retry succeeds.
+    await openAppWith(page, '?mockFail=queryTimeline:3');
+    const card = page.locator('imt-timeline-panel .err-card');
+    await expect(card).toContainText('Could not load the timeline');
+    await expect(card).toContainText('Simulated queryTimeline failure');
+    await expect(page.locator('app-root > .toast[role=alert]')).toHaveCount(0);
+    await expect(async () => {
+      if (await card.count()) await card.getByRole('button', { name: 'Retry' }).click();
+      await expect(card).toHaveCount(0, { timeout: 1500 });
+    }).toPass({ timeout: 15_000 });
+    await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
   });
 });

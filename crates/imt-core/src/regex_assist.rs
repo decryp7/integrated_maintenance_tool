@@ -218,11 +218,10 @@ pub fn infer(lines: &[String]) -> Result<InferredRegex> {
                 kinds.push(tok.kind);
             }
         }
+        // The skeleton is a common subsequence of every line, so the leftmost
+        // embedding always consumes all of it: `s` is the last slot here.
         samples[s].push(current);
         slot_kinds[s].append(&mut kinds);
-        for rest in samples.iter_mut().skip(s + 1) {
-            rest.push(String::new());
-        }
     }
 
     let mut pattern = String::new();
@@ -637,5 +636,58 @@ mod tests {
         assert!(more.iter().any(|n| n.text.contains("not ignore case")));
         assert!(more.iter().any(|n| n.text == "at least 2 times:"));
         assert!(more.iter().any(|n| n.text.contains(". matches line breaks")));
+    }
+
+    #[test]
+    fn short_hex_like_words_stay_words() {
+        // "ab12" looks like hex but is too short to be an id.
+        let toks = tokenize("id ab12 and deadbeef01");
+        let kinds: Vec<(&str, Kind)> = toks.iter().map(|t| (t.text.as_str(), t.kind)).collect();
+        assert!(kinds.contains(&("ab12", Kind::Word)), "{kinds:?}");
+        assert!(kinds.contains(&("deadbeef01", Kind::Hex)), "{kinds:?}");
+    }
+
+    #[test]
+    fn classifies_words_tokens_and_free_text() {
+        let v = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(classify(&v(&["user_1", "x_y"]), &[], false), ("word", r"\w+"));
+        assert_eq!(classify(&v(&["a-b", "c+d"]), &[], false), ("token", r"\S+"));
+        assert_eq!(classify(&v(&["two words", "x"]), &[], false), ("text", ".+?"));
+        assert_eq!(classify(&v(&["two words", "x"]), &[], true), ("text", ".*"));
+        // Free text in the middle of a line, present in only some lines.
+        let r = infer(&lines(&["k a b end", "k cc dd ee end"])).unwrap();
+        assert!(r.pattern.contains(".+?"), "{}", r.pattern);
+        assert!(r.matches.iter().all(|m| *m), "{}", r.pattern);
+    }
+
+    #[test]
+    fn group_names_from_digits_and_non_ascii_words() {
+        let mut used = HashSet::new();
+        assert_eq!(unique_name("3ab ", &mut used), "v3ab");
+        assert_eq!(unique_name("日本 ", &mut used), "value");
+    }
+
+    #[test]
+    fn explains_flags_assertions_and_classes() {
+        let e = explain(r"(?mUuRx)\A\pL\P{L}\p{Script=Greek}[\pL][a[bc]][a-z&&[^aeiou]]\b{start}\z|").unwrap();
+        let text: Vec<&str> = e.iter().map(|n| n.text.as_str()).collect();
+        for want in [
+            "set flags: ^ and $ match at line breaks, lazy by default, Unicode, CRLF line endings, ignore whitespace in the pattern",
+            "start of the text",
+            "end of the text",
+            "a position assertion",
+            "a Unicode character of class L",
+            "anything except a Unicode character of class L",
+            "a Unicode character with Script=Greek",
+            "one of: character of class L",
+            "one of: \"a\", one of: \"b\", \"c\"",
+            "one of: a set operation",
+            "option 2:",
+        ] {
+            assert!(text.contains(&want), "missing {want:?} in {text:#?}");
+        }
+        // The empty second alternative adds no line of its own.
+        let last = e.last().unwrap();
+        assert_eq!(last.text, "option 2:");
     }
 }

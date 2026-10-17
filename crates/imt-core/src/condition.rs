@@ -116,33 +116,26 @@ impl Condition {
     }
 
     pub fn eval(&self, rec: &Record, source_name: &str) -> bool {
-        if matches!(self.op, Op::Gt | Op::Lt) {
+        // The record's number (the level's rank for @level) and the threshold.
+        let numbers = || {
             let n = match self.field.as_str() {
                 "@level" => Some(rec.level.index() as f64),
                 f => rec.field_number(f),
             };
-            return match (n, self.number) {
-                (Some(n), Some(t)) => {
-                    if self.op == Op::Gt {
-                        n > t
-                    } else {
-                        n < t
-                    }
-                }
-                _ => false,
-            };
-        }
-        let v = rec.field_text(&self.field, source_name);
+            n.zip(self.number)
+        };
+        let v = || rec.field_text(&self.field, source_name);
         match self.op {
-            Op::Exists => v.is_some_and(|s| !s.is_empty()),
-            Op::Missing => v.is_none_or(|s| s.is_empty()),
-            Op::Eq => v.is_some_and(|s| s == self.value || (self.field == "@level" && s.eq_ignore_ascii_case(&self.value))),
-            Op::Ne => v.is_none_or(|s| s != self.value),
-            Op::Contains => v.is_some_and(|s| s.to_lowercase().contains(&self.lower)),
-            Op::NotContains => v.is_none_or(|s| !s.to_lowercase().contains(&self.lower)),
-            Op::Matches => v.is_some_and(|s| self.regex.as_ref().is_some_and(|r| r.is_match(&s))),
-            Op::In => v.is_some_and(|s| self.set.iter().any(|x| *x == *s)),
-            Op::Gt | Op::Lt => unreachable!(),
+            Op::Gt => numbers().is_some_and(|(n, t)| n > t),
+            Op::Lt => numbers().is_some_and(|(n, t)| n < t),
+            Op::Exists => v().is_some_and(|s| !s.is_empty()),
+            Op::Missing => v().is_none_or(|s| s.is_empty()),
+            Op::Eq => v().is_some_and(|s| s == self.value || (self.field == "@level" && s.eq_ignore_ascii_case(&self.value))),
+            Op::Ne => v().is_none_or(|s| s != self.value),
+            Op::Contains => v().is_some_and(|s| s.to_lowercase().contains(&self.lower)),
+            Op::NotContains => v().is_none_or(|s| !s.to_lowercase().contains(&self.lower)),
+            Op::Matches => v().is_some_and(|s| self.regex.as_ref().is_some_and(|r| r.is_match(&s))),
+            Op::In => v().is_some_and(|s| self.set.iter().any(|x| *x == *s)),
         }
     }
 }

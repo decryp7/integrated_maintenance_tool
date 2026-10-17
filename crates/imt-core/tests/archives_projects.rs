@@ -303,21 +303,24 @@ fn refreshes_changed_new_and_deleted_files() {
     assert_eq!(ws.summary().total, 5 + 3 + 1);
     assert_eq!(ws.summary().sources.len(), 3);
 
-    // Removed sources stay out; deleted files disappear; excluded names are ignored.
+    // Removed sources stay out; excluded names are ignored. Deleted files keep
+    // their history (live tail no longer drops what was already imported;
+    // `TailOptions::deleted_files = Drop` restores the old behaviour).
     let rid = ws.summary().sources.iter().find(|s| s.name == "app.log.1").unwrap().id;
     ws.remove_source(rid);
     assert_eq!(ws.refresh_files(std::slice::from_ref(&rotated)).unwrap(), 0);
     std::fs::remove_file(&app).unwrap();
     let hidden = d.write("logs/.hidden.log", log("H", 1).as_bytes());
-    ws.refresh_files(&[app, hidden]).unwrap();
+    ws.refresh_files(&[app.clone(), hidden.clone()]).unwrap();
     let left: Vec<String> = ws.summary().sources.iter().map(|s| s.name.clone()).collect();
-    assert!(left.len() == 1 && left[0].ends_with("/solo.log"), "{left:?}");
+    assert_eq!(left.len(), 2, "{left:?}");
+    assert_eq!(ws.summary().total, 5 + 1);
 
     // An explicitly opened file refreshes too.
     std::fs::write(d.0.join("solo.log"), log("S", 4)).unwrap();
     let mut store: Box<dyn LogStore> = Box::new(ws);
     assert_eq!(store.refresh_files(&[d.0.join("solo.log")]).unwrap(), 1);
-    assert_eq!(store.summary().total, 4);
+    assert_eq!(store.summary().total, 5 + 4);
 }
 
 #[test]
@@ -384,10 +387,7 @@ fn imports_report_progress_and_can_be_cancelled() {
     let snap = ws.progress().snapshot();
     assert!(snap.cancelled && !snap.running && snap.done == 200);
     let imported = ws.summary().total;
-    assert!(
-        (1..200).contains(&imported),
-        "cancel stopped the import early ({imported} of 200)"
-    );
+    assert!((1..200).contains(&imported), "cancel stopped the import early ({imported} of 200)");
     // Opening again imports the files that were skipped.
     *brake.0.lock().unwrap() = None;
     ws.open(std::slice::from_ref(&d2.0)).unwrap();

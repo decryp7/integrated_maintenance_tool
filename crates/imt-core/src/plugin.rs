@@ -9,6 +9,7 @@
 //! | Workspace hook | [`WorkspaceHook`] | reacting to loads, clears and profile changes |
 //! | Exporter | [`Exporter`] | writing events in a new format |
 //! | Collector | [`Collector`] | producing events (monitors, probes) into an [`crate::export::EventSink`] |
+//! | Settings | [`crate::settings::Configurable`] via [`Plugin::configurable`] | user-facing knobs in the Settings screen |
 //!
 //! See `docs/plugins.md` for a step-by-step guide.
 
@@ -38,6 +39,13 @@ pub trait Plugin: Send + Sync {
     }
     /// Adds the plugin's contributions. Must not panic; return an error instead.
     fn register(&self, registry: &mut PluginRegistry) -> Result<()>;
+    /// The plugin's user-facing settings, if it has any. Asked once at install,
+    /// even when the plugin is disabled, so the Settings screen can still show
+    /// the section (read-only). Share state between the returned object and
+    /// the contributions made in [`Plugin::register`].
+    fn configurable(&self) -> Option<Arc<dyn crate::settings::Configurable>> {
+        None
+    }
 }
 
 /// What a pipeline step decides for one record.
@@ -123,6 +131,8 @@ pub struct PluginRegistry {
     current: Option<crate::guard::Guard>,
     health: Arc<crate::guard::Health>,
     disabled: std::collections::HashSet<String>,
+    /// Settings of installed plugins (including disabled ones), by plugin id.
+    configurables: Vec<(String, Arc<crate::settings::GuardedConfigurable>)>,
 }
 
 impl Default for PluginRegistry {
@@ -153,6 +163,7 @@ impl PluginRegistry {
             current: None,
             health: Arc::new(crate::guard::Health::default()),
             disabled: Default::default(),
+            configurables: Vec::new(),
         }
     }
 
@@ -177,18 +188,28 @@ impl PluginRegistry {
             failures: 0,
             last_error: None,
         };
+        let guard = crate::guard::Guard {
+            owner: plugin.id().into(),
+            health: self.health.clone(),
+        };
+        let settings = crate::settings::GuardedConfigurable::describe(plugin, guard.clone()).map(|c| (plugin.id().to_string(), c));
         if self.disabled.contains(plugin.id()) {
             info.status = PluginStatus::Disabled;
             self.plugins.push(info);
+            self.configurables.extend(settings);
             return Ok(());
         }
         self.pending.clear();
-        self.current = Some(crate::guard::Guard { owner: plugin.id().into(), health: self.health.clone() });
+        self.current = Some(guard);
         let registered = crate::guard::catch(&format!("plugin \"{}\" (register)", plugin.id()), || plugin.register(self));
         self.current = None;
         registered.map_err(|e| anyhow!("plugin \"{}\": {e:#}", plugin.id()))?;
         info.contributes = std::mem::take(&mut self.pending);
+        if settings.is_some() {
+            info.contributes.push("settings".into());
+        }
         self.plugins.push(info);
+        self.configurables.extend(settings);
         Ok(())
     }
 
@@ -206,7 +227,10 @@ impl PluginRegistry {
     pub fn add_binary_importer(&mut self, importer: Box<dyn crate::importers::BinaryImporter>) -> &mut Self {
         self.pending.push(format!("importer:{}", importer.id()));
         let importer: Box<dyn crate::importers::BinaryImporter> = match &self.current {
-            Some(guard) => Box::new(crate::guard::GuardedBinaryImporter { inner: importer, guard: guard.clone() }),
+            Some(guard) => Box::new(crate::guard::GuardedBinaryImporter {
+                inner: importer,
+                guard: guard.clone(),
+            }),
             None => importer,
         };
         self.importers.register_binary(importer);
@@ -216,7 +240,10 @@ impl PluginRegistry {
     pub fn add_importer(&mut self, importer: Box<dyn Importer>) -> &mut Self {
         self.pending.push(format!("importer:{}", importer.id()));
         let importer: Box<dyn Importer> = match &self.current {
-            Some(guard) => Box::new(crate::guard::GuardedImporter { inner: importer, guard: guard.clone() }),
+            Some(guard) => Box::new(crate::guard::GuardedImporter {
+                inner: importer,
+                guard: guard.clone(),
+            }),
             None => importer,
         };
         self.importers.register(importer);
@@ -230,7 +257,10 @@ impl PluginRegistry {
         }
         self.pending.push(format!("transform:{id}"));
         let transform: Arc<dyn RecordTransform> = match &self.current {
-            Some(guard) => Arc::new(crate::guard::GuardedTransform { inner: transform, guard: guard.clone() }),
+            Some(guard) => Arc::new(crate::guard::GuardedTransform {
+                inner: transform,
+                guard: guard.clone(),
+            }),
             None => transform,
         };
         self.transforms.insert(id, transform);
@@ -240,7 +270,10 @@ impl PluginRegistry {
     pub fn add_hook(&mut self, hook: Arc<dyn WorkspaceHook>) -> &mut Self {
         self.pending.push("hook".into());
         let hook: Arc<dyn WorkspaceHook> = match &self.current {
-            Some(guard) => Arc::new(crate::guard::GuardedHook { inner: hook, guard: guard.clone() }),
+            Some(guard) => Arc::new(crate::guard::GuardedHook {
+                inner: hook,
+                guard: guard.clone(),
+            }),
             None => hook,
         };
         self.hooks.push(hook);
@@ -253,7 +286,10 @@ impl PluginRegistry {
         }
         self.pending.push(format!("exporter:{}", exporter.id()));
         let exporter: Arc<dyn Exporter> = match &self.current {
-            Some(guard) => Arc::new(crate::guard::GuardedExporter { inner: exporter, guard: guard.clone() }),
+            Some(guard) => Arc::new(crate::guard::GuardedExporter {
+                inner: exporter,
+                guard: guard.clone(),
+            }),
             None => exporter,
         };
         self.exporters.push(exporter);
@@ -266,7 +302,10 @@ impl PluginRegistry {
         }
         self.pending.push(format!("collector:{}", collector.id()));
         let collector: Arc<dyn Collector> = match &self.current {
-            Some(guard) => Arc::new(crate::guard::GuardedCollector { inner: collector, guard: guard.clone() }),
+            Some(guard) => Arc::new(crate::guard::GuardedCollector {
+                inner: collector,
+                guard: guard.clone(),
+            }),
             None => collector,
         };
         self.collectors.push(collector);
@@ -291,7 +330,26 @@ impl PluginRegistry {
                     PluginStatus::Active if h.quarantined => PluginStatus::Quarantined,
                     s => s,
                 };
-                PluginInfo { status, failures: h.failures, last_error: h.last_error, ..p.clone() }
+                PluginInfo {
+                    status,
+                    failures: h.failures,
+                    last_error: h.last_error,
+                    ..p.clone()
+                }
+            })
+            .collect()
+    }
+
+    /// Settings sections of installed plugins (also disabled and quarantined
+    /// ones, which are read-only), with their current status.
+    pub fn plugin_settings(&self) -> Vec<crate::settings::PluginSettings> {
+        let plugins = self.plugins();
+        self.configurables
+            .iter()
+            .filter_map(|(id, c)| {
+                let plugin = plugins.iter().find(|p| p.id == *id)?.clone();
+                let configurable: Arc<dyn crate::settings::Configurable> = c.clone();
+                Some(crate::settings::PluginSettings { plugin, configurable })
             })
             .collect()
     }

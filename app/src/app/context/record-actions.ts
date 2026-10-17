@@ -5,6 +5,8 @@ import { ContextMenuService, MenuEntry } from '../ui/context-menu.service';
 import { DialogService } from '../ui/dialog.service';
 import { DropDialog } from './drop-dialog';
 import { ExtractDialog } from './extract-dialog';
+import { InferDialog } from '../markers/regex/infer-dialog';
+import { proposeHighlight } from '../markers/highlight';
 import { MarkDialog } from './mark-dialog';
 import { MaskDialog } from './mask-dialog';
 import { fieldValueConditions, likeThisConditions, recordFieldText } from './rule-builders';
@@ -25,6 +27,8 @@ export interface MessageSelection {
 export interface ActionTarget {
   field?: FieldRef;
   selection?: MessageSelection | null;
+  /** All records the user selected (grid multi-select), in order; the actions on several lines use them. Defaults to the record alone. */
+  records?: readonly RecordView[];
 }
 
 const LABEL_MAX = 40;
@@ -52,6 +56,8 @@ export class RecordActions {
     items.push(
       { label: 'Drop events like this (pipeline)…', run: () => this.drop(record, target.field) },
       { label: 'Mark events like this…', run: () => this.mark(record, target.field) },
+      { label: 'Highlight lines…', run: () => this.highlight(record, target.selection?.text) },
+      { label: 'Infer pattern from lines…', run: () => this.infer(target.records?.length ? target.records : [record]) },
     );
     const sel = target.selection;
     if (sel?.text.trim()) {
@@ -85,7 +91,27 @@ export class RecordActions {
     const initial = field ? fieldValueConditions(field.name, field.value) : likeThisConditions(record);
     const basis = field ? `${field.name} ${field.value}` : (record.template ?? record.message);
     const suggestedLabel = basis.length > LABEL_MAX ? `${basis.slice(0, LABEL_MAX).trim()}…` : basis;
-    this.dialogs.open(MarkDialog, { title: 'Mark events like this', inputs: { initial, suggestedLabel }, width: 640 });
+    this.dialogs.open(MarkDialog, { title: 'Mark events like this', inputs: { initial, suggestedLabel }, width: 760 });
+  }
+
+  /** "Highlight lines…": a marker rule prefilled from the selected text (as a regex), the template or the message. */
+  highlight(record: RecordView, selectedText?: string | null): void {
+    const p = proposeHighlight(record, selectedText);
+    const hint = {
+      selection: 'The selected text became a regex (numbers and ids generalised). Edit it below; the preview shows what it highlights.',
+      template: 'Highlights every event with this message template.',
+      message: 'Highlights events whose message looks like this one (numbers generalised).',
+    }[p.basis];
+    this.dialogs.open(MarkDialog, {
+      title: 'Highlight lines',
+      inputs: { initial: p.conditions, suggestedLabel: p.label, submitLabel: 'Add highlight', hint },
+      width: 760,
+    });
+  }
+
+  /** "Infer pattern from lines…": derives one regex from the messages of these records. */
+  infer(records: readonly RecordView[]): void {
+    this.dialogs.open(InferDialog, { title: 'Infer pattern from lines', inputs: { lines: records.map((r) => r.message) }, width: 780 });
   }
 
   mask(record: RecordView, selection: MessageSelection): void {

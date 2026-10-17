@@ -71,6 +71,25 @@ describe('DialogService and DialogHost', () => {
     expect(dialogs.stack()).toHaveLength(0);
   });
 
+  it('keeps a dialog open by every close route while canClose says no', async () => {
+    const { fixture, dialogs } = await setup();
+    let allow = false;
+    const canClose = vi.fn(() => allow);
+    const ref = dialogs.open(TestDialog, { title: 'Guarded', canClose });
+    await settle(fixture);
+    key(el(fixture, '#first'), 'Escape');
+    el<HTMLButtonElement>(fixture, '[aria-label="Close dialog"]').click();
+    el(fixture, '.backdrop').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    dialogs.dismissTop();
+    ref.close();
+    expect(canClose).toHaveBeenCalledTimes(5);
+    expect(dialogs.stack()).toHaveLength(1);
+    allow = true;
+    el<HTMLButtonElement>(fixture, '#last').click();
+    expect(await ref.closed).toBe('done');
+    expect(dialogs.stack()).toHaveLength(0);
+  });
+
   it('traps Tab within the dialog and stacks dialogs', async () => {
     const { fixture, dialogs } = await setup();
     dialogs.open(TestDialog, { title: 'One' });

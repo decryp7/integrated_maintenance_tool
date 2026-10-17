@@ -99,15 +99,21 @@ impl Guard {
         )
     }
 
-    fn run<T>(&self, what: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
+    /// Runs plugin code: refused while quarantined; a panic becomes an error
+    /// ("plugin \"id\" (what) crashed: ...") and counts towards quarantine;
+    /// ordinary errors pass through uncounted.
+    pub(crate) fn run<T>(&self, what: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
         if self.health.is_quarantined(&self.owner) {
             return Err(self.quarantined_error());
         }
-        catch(&format!("plugin \"{}\" ({what})", self.owner), f).inspect_err(|e| {
-            if e.to_string().contains(" crashed: ") {
-                self.health.fail(&self.owner, &e.to_string());
+        match catch_unwind(AssertUnwindSafe(f)) {
+            Ok(result) => result,
+            Err(payload) => {
+                let message = format!("plugin \"{}\" ({what}) crashed: {}", self.owner, panic_message(payload.as_ref()));
+                self.health.fail(&self.owner, &message);
+                Err(anyhow!(message))
             }
-        })
+        }
     }
 
     fn quiet<T>(&self, what: &str, fallback: T, f: impl FnOnce() -> T) -> T {
@@ -247,5 +253,44 @@ mod tests {
         assert_eq!(h.get("p").last_error.unwrap().chars().count(), 500);
         h.reset("p");
         assert_eq!(h.get("p"), PluginHealth::default());
+    }
+
+    #[test]
+    fn formatted_panic_messages_are_reported() {
+        let n = std::hint::black_box(7);
+        let e = catch::<()>("parser", || panic!("bad line {n}")).unwrap_err().to_string();
+        assert_eq!(e, "parser crashed: bad line 7");
+    }
+
+    #[test]
+    fn guarded_transforms_keep_their_id_and_records_on_a_crash() {
+        struct Explodes;
+        impl RecordTransform for Explodes {
+            fn id(&self) -> &str {
+                "explodes"
+            }
+            fn apply(&self, _: &mut Record, _: &TransformCtx) -> Verdict {
+                std::panic::panic_any(String::from("transform exploded"))
+            }
+        }
+        let health = Arc::new(Health::default());
+        let t = GuardedTransform {
+            inner: Arc::new(Explodes),
+            guard: Guard {
+                owner: "p".into(),
+                health: health.clone(),
+            },
+        };
+        assert_eq!(t.id(), "explodes");
+        let mut r = Record::new(0);
+        r.message = "kept".into();
+        assert_eq!(t.apply(&mut r, &TransformCtx { source_name: "f" }), Verdict::Keep);
+        assert_eq!(r.message, "kept");
+        assert_eq!(health.get("p").failures, 1);
+        assert!(health
+            .get("p")
+            .last_error
+            .unwrap()
+            .contains("(transform) crashed: transform exploded"));
     }
 }

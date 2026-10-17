@@ -30,97 +30,107 @@ impl Importer for TextImporter {
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
         let formats = &ctx.profile.text_formats;
         let fmt = best_format(formats, content).ok_or_else(|| anyhow!("no output template or regex in the profile matches this file"))?;
-        let fmt = &formats[fmt];
-
-        let mut parser = ctx.profile.timestamps.clone();
-        if parser.day_first().is_none() {
-            let samples: Vec<&str> = content
-                .lines()
-                .take(2000)
-                .filter_map(|l| fmt.regex.captures(l).and_then(|c| c.name("timestamp")).map(|m| m.as_str()))
-                .collect();
-            parser = parser.with_day_first(detect_day_first(samples));
-        }
-
-        let names: Vec<&str> = fmt.regex.capture_names().flatten().collect();
-        let mut out = Imported::default();
-        let mut current: Option<Record> = None;
-        let mut extra = String::new();
-        let mut date = ctx.file_date;
-        let mut last_ts: Option<i64> = None;
-
-        for (i, raw) in content.lines().enumerate() {
-            let line = raw.trim_end_matches('\r');
-            if line.len() > MAX_LINE_LEN {
-                out.skipped += 1;
-                continue;
-            }
-            let Some(caps) = fmt.regex.captures(line) else {
-                if current.is_some() {
-                    if !extra.is_empty() {
-                        extra.push('\n');
-                    }
-                    extra.push_str(line);
-                } else if !line.trim().is_empty() {
-                    out.skipped += 1;
-                }
-                continue;
-            };
-            if let Some(rec) = current.take() {
-                out.records.push(finish(rec, std::mem::take(&mut extra)));
-            }
-
-            let mut rec = Record::new(i as u32 + 1);
-            for name in &names {
-                let Some(m) = caps.name(name) else { continue };
-                let v = m.as_str();
-                match *name {
-                    "timestamp" => {
-                        rec.ts = if fmt.time_only {
-                            parser.parse(v).or_else(|| {
-                                date.and_then(|d| parser.parse_time_on(v, d)).map(|mut ts| {
-                                    // Rolled past midnight.
-                                    if last_ts.is_some_and(|prev| ts + 12 * 3_600_000 < prev) {
-                                        ts += 86_400_000;
-                                        date = date.and_then(|d| d.succ_opt());
-                                    }
-                                    ts
-                                })
-                            })
-                        } else {
-                            parser.parse(v)
-                        };
-                        if rec.ts.is_some() {
-                            last_ts = rec.ts;
-                        }
-                    }
-                    "level" => rec.level = Level::parse(v).unwrap_or(Level::Information),
-                    "message" => rec.message = v.to_string(),
-                    "exception" => {
-                        if !v.trim().is_empty() {
-                            rec.exception = Some(v.to_string());
-                        }
-                    }
-                    PROPERTIES_GROUP => {
-                        if let Ok(Value::Object(props)) = serde_json::from_str::<Value>(v) {
-                            rec.fields.extend(props);
-                        }
-                    }
-                    other => {
-                        rec.fields.insert(other.to_string(), auto_value(v));
-                    }
-                }
-            }
-            if !names.contains(&PROPERTIES_GROUP) {
-                split_trailing_properties(&mut rec.message, &mut rec.fields);
-            }
-            current = Some(rec);
-        }
-        if let Some(rec) = current.take() {
-            out.records.push(finish(rec, extra));
-        }
-        Ok(out)
+        Ok(parse(ctx, &formats[fmt], content, content))
     }
+
+    fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
+        let formats = &ctx.profile.text_formats;
+        let fmt = best_format(formats, head)?;
+        Some(Ok(parse(ctx, &formats[fmt], head, tail)))
+    }
+}
+
+/// Parses `content` with one format; `sample` (the file's start) decides an
+/// ambiguous day/month order.
+fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Imported {
+    let mut parser = ctx.profile.timestamps.clone();
+    if parser.day_first().is_none() {
+        let samples: Vec<&str> = sample
+            .lines()
+            .take(2000)
+            .filter_map(|l| fmt.regex.captures(l).and_then(|c| c.name("timestamp")).map(|m| m.as_str()))
+            .collect();
+        parser = parser.with_day_first(detect_day_first(samples));
+    }
+
+    let names: Vec<&str> = fmt.regex.capture_names().flatten().collect();
+    let mut out = Imported::default();
+    let mut current: Option<Record> = None;
+    let mut extra = String::new();
+    let mut date = ctx.file_date;
+    let mut last_ts: Option<i64> = None;
+
+    for (i, raw) in content.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.len() > MAX_LINE_LEN {
+            out.skipped += 1;
+            continue;
+        }
+        let Some(caps) = fmt.regex.captures(line) else {
+            if current.is_some() {
+                if !extra.is_empty() {
+                    extra.push('\n');
+                }
+                extra.push_str(line);
+            } else if !line.trim().is_empty() {
+                out.skipped += 1;
+            }
+            continue;
+        };
+        if let Some(rec) = current.take() {
+            out.records.push(finish(rec, std::mem::take(&mut extra)));
+        }
+
+        let mut rec = Record::new(i as u32 + 1);
+        for name in &names {
+            let Some(m) = caps.name(name) else { continue };
+            let v = m.as_str();
+            match *name {
+                "timestamp" => {
+                    rec.ts = if fmt.time_only {
+                        parser.parse(v).or_else(|| {
+                            date.and_then(|d| parser.parse_time_on(v, d)).map(|mut ts| {
+                                // Rolled past midnight.
+                                if last_ts.is_some_and(|prev| ts + 12 * 3_600_000 < prev) {
+                                    ts += 86_400_000;
+                                    date = date.and_then(|d| d.succ_opt());
+                                }
+                                ts
+                            })
+                        })
+                    } else {
+                        parser.parse(v)
+                    };
+                    if rec.ts.is_some() {
+                        last_ts = rec.ts;
+                    }
+                }
+                "level" => rec.level = Level::parse(v).unwrap_or(Level::Information),
+                "message" => rec.message = v.to_string(),
+                "exception" => {
+                    if !v.trim().is_empty() {
+                        rec.exception = Some(v.to_string());
+                    }
+                }
+                PROPERTIES_GROUP => {
+                    if let Ok(Value::Object(props)) = serde_json::from_str::<Value>(v) {
+                        rec.fields.extend(props);
+                    }
+                }
+                other => {
+                    rec.fields.insert(other.to_string(), auto_value(v));
+                }
+            }
+        }
+        if !names.contains(&PROPERTIES_GROUP) {
+            split_trailing_properties(&mut rec.message, &mut rec.fields);
+        }
+        current = Some(rec);
+    }
+    if let Some(rec) = current.take() {
+        out.records.push(finish(rec, extra));
+    }
+    out
 }
 
 /// Index of the format matching the most of the first lines, earlier formats
@@ -234,6 +244,18 @@ mod tests {
         );
         let first = chrono::DateTime::from_timestamp_millis(out.records[0].ts.unwrap()).unwrap();
         assert_eq!(first.date_naive(), NaiveDate::from_ymd_opt(2026, 4, 3).unwrap());
+    }
+
+    #[test]
+    fn profile_day_order_wins_over_detection() {
+        // The second line would detect day-first; the profile says month-first.
+        let out = import(
+            "[parse]\nday_first = false\nregexes = ['^(?P<timestamp>\\d\\d/\\d\\d/\\d{4} \\d\\d:\\d\\d:\\d\\d) (?P<message>.*)$']\noutput_templates = []",
+            "03/04/2026 10:00:00 a\n25/04/2026 10:00:00 b\n",
+        );
+        let first = chrono::DateTime::from_timestamp_millis(out.records[0].ts.unwrap()).unwrap();
+        assert_eq!(first.date_naive(), NaiveDate::from_ymd_opt(2026, 3, 4).unwrap());
+        assert_eq!(out.records[1].ts, None, "25 is not a month");
     }
 
     #[test]

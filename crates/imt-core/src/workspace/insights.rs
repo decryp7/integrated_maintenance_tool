@@ -3,10 +3,10 @@
 //! Moment summary ("what was happening between from and to").
 
 use super::Workspace;
-use crate::analysis::{self, Anomaly, AnomalyConfig, CompareConfig, Comparison, FieldStats, RequestSpan, ValueCount, WaterfallRow};
+use crate::analysis::{self, Anomaly, AnomalyConfig, CompareConfig, Comparison, FieldStats, RequestSpan, WaterfallRow};
 use crate::api::{
     ActivityItem, CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MetricWindow, MomentInstance, MomentRequest,
-    MomentSummary, QueryRequest, RequestsRequest, TraceRequest, TraceSummary,
+    MomentSummary, QueryRequest, RequestsRequest, TraceRequest, TraceSummary, UserCount,
 };
 use crate::exceptions::{self, ExceptionGroup};
 use crate::model::{Level, Record};
@@ -65,9 +65,9 @@ impl Workspace {
         ql::completions(&req.text, req.cursor, &fields)
     }
 
+    /// Message patterns, mined incrementally as live tail appends records.
     pub fn patterns(&self, req: &QueryRequest) -> Result<Vec<Pattern>> {
-        let records = self.matched(&req.query)?;
-        Ok(patterns::mine(records.iter().copied(), &MinerConfig::default()))
+        self.mined_patterns(&req.query)
     }
 
     pub fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
@@ -78,7 +78,8 @@ impl Workspace {
 
     /// Anomalies over the records matching the query (cached per query).
     pub fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {
-        let key = serde_json::to_string(&req.query)?;
+        // A sliding window is keyed by where it currently starts.
+        let key = serde_json::to_string(&self.resolve_window(&req.query))?;
         if let Some((k, a)) = self.anomaly_cache.lock().unwrap().as_ref() {
             if *k == key {
                 return Ok(a.clone());
@@ -167,11 +168,19 @@ impl Workspace {
 
     /// What was happening between `from` and `to`, across every source.
     pub fn moment(&self, req: &MomentRequest) -> Result<MomentSummary> {
-        let (from, to) = (req.from.min(req.to), req.from.max(req.to));
+        let (from, to) = match req.query.window {
+            // A live window: the last N ms up to now.
+            Some(_) => (self.resolve_window(&req.query).from.unwrap_or(req.from), self.live_now()),
+            None => (req.from.min(req.to), req.from.max(req.to)),
+        };
+        let base = Query {
+            window: None,
+            ..req.query.clone()
+        };
         let window = Query {
             from: Some(from),
             to: Some(to),
-            ..req.query.clone()
+            ..base.clone()
         };
         let records = self.matched(&window)?;
         let keyed = self.keyed(&records, &window);
@@ -179,16 +188,16 @@ impl Workspace {
 
         let mut levels: BTreeMap<Level, usize> = Level::ALL.iter().map(|l| (*l, 0)).collect();
         let mut per_instance: BTreeMap<&str, Vec<&Record>> = BTreeMap::new();
-        let mut users: HashMap<String, u64> = HashMap::new();
+        let mut users: HashMap<(String, String), u64> = HashMap::new();
         let mut activity = Vec::new();
         for (r, key) in &keyed {
             *levels.get_mut(&r.level).unwrap() += 1;
             per_instance.entry(key.as_str()).or_default().push(r);
             let source = self.source_name(r.source);
-            let user = first_present(r, &activity_cfg.user, source);
-            if let Some(u) = &user {
-                *users.entry(u.clone()).or_default() += 1;
-            }
+            let user = first_present_field(r, &activity_cfg.user, source).map(|(field, value)| {
+                *users.entry((field.to_string(), value.clone())).or_default() += 1;
+                value
+            });
             let action = first_present(r, &activity_cfg.action, source);
             if (user.is_some() || action.is_some()) && activity.len() < MAX_ACTIVITY {
                 activity.push(ActivityItem {
@@ -224,20 +233,28 @@ impl Workspace {
         let previous = Query {
             from: Some(from - span),
             to: Some(from - 1),
-            ..req.query.clone()
+            ..base.clone()
         };
         let prev_records = self.matched(&previous)?;
         let metrics = self.metric_windows(&keyed, &self.keyed(&prev_records, &previous), &activity_cfg.metrics);
 
-        let mut users: Vec<ValueCount> = users.into_iter().map(|(value, count)| ValueCount { value, count }).collect();
-        users.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.value.cmp(&b.value)));
+        let mut users: Vec<UserCount> = users
+            .into_iter()
+            .map(|((field, value), count)| UserCount { field, value, count })
+            .collect();
+        users.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then_with(|| a.value.cmp(&b.value))
+                .then_with(|| a.field.cmp(&b.field))
+        });
         users.truncate(20);
 
         let all = self.anomalies(&QueryRequest {
             query: Query {
                 from: None,
                 to: None,
-                ..req.query.clone()
+                ..base.clone()
             },
         })?;
         let anomalies = all.into_iter().filter(|a| a.from <= to && a.to >= from).collect();
@@ -489,7 +506,14 @@ fn short_type(t: &str) -> &str {
 }
 
 fn first_present(r: &Record, fields: &[String], source: &str) -> Option<String> {
-    fields
-        .iter()
-        .find_map(|f| r.field_text(f, source).filter(|v| !v.is_empty()).map(|v| v.into_owned()))
+    first_present_field(r, fields, source).map(|(_, v)| v)
+}
+
+/// The first of `fields` with a non-empty value on `r`, with the field's name.
+fn first_present_field<'f>(r: &Record, fields: &'f [String], source: &str) -> Option<(&'f str, String)> {
+    fields.iter().find_map(|f| {
+        r.field_text(f, source)
+            .filter(|v| !v.is_empty())
+            .map(|v| (f.as_str(), v.into_owned()))
+    })
 }

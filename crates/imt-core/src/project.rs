@@ -179,6 +179,7 @@ mod tests {
         assert!(p.save(&dir.join("no/such/dir/x.imtproj")).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
         assert_eq!(normalize(Path::new("/a/./b/../c")), PathBuf::from("/a/c"));
+        assert_eq!(normalize(Path::new("./a/../b")), PathBuf::from("b"));
         assert!(base_dir(Path::new("relative.imtproj")).is_ok());
     }
 }

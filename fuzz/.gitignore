@@ -1,0 +1,4 @@
+# libFuzzer output: working corpora, crash artifacts (reproducers worth keeping go to artifacts-found/), coverage
+work/
+artifacts/
+coverage/

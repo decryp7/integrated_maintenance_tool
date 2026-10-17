@@ -1,5 +1,6 @@
 [package]
 name = "imt-core"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -12,7 +13,7 @@ chrono = "0.4.45"
 csv = "1.4"
 flate2 = "1.1"
 globset = "0.4.20"
-quick-xml = "0.39"
+quick-xml = "0.42"
 rayon = "1.12"
 regex = "1.13"
 regex-syntax = "0.8"

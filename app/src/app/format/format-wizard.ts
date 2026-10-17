@@ -1,14 +1,23 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, OnInit, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, OnInit, signal, untracked, viewChild } from '@angular/core';
 import { selectionWithin } from '../context/selection';
+import { ParsePreview } from '../core/api.types';
+import { ImtBackend } from '../core/backend';
+import { formatFull } from '../core/format';
+import { describeError } from '../core/logger';
+import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
+import { SettingsStore } from '../settings/settings.store';
 import { ProfileEdits } from '../profile/profile-edits';
 import { HelpHint } from '../ui/help-hint';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { DIALOG_FORM_STYLES } from '../context/dialog-styles';
-import { FILE_PREVIEW } from './file-preview';
-import { FormatPart, Marks, matchedCount, parseLines, regexFromMarks, regexFromOutputTemplate } from './format-parse';
+import { FormatPart, Marks, regexFromMarks } from './format-parse';
 
+/** Sample lines offered for marking, and records the engine previews. */
 const PREVIEW_LINES = 50;
+/** How much of the file the engine is shown. */
+const HEAD_BYTES = 32 * 1024;
+const PREVIEW_DEBOUNCE_MS = 250;
 const PARTS: { id: FormatPart; label: string }[] = [
   { id: 'timestamp', label: 'Timestamp' },
   { id: 'level', label: 'Level' },
@@ -25,7 +34,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
     <p>IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on. <imt-help label="Format wizard" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
 
     @if (loadError(); as e) {
-      <div class="err" role="alert">{{ e }}</div>
+      <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="loadHead()">Retry</button></div>
     }
 
     <div class="seg" role="group" aria-label="How to describe the format">
@@ -65,26 +74,27 @@ const PARTS: { id: FormatPart; label: string }[] = [
       </label>
     }
 
-    <div class="status">Generated pattern</div>
-    <div class="box" data-testid="format-regex">{{ regex() ?? 'Mark a timestamp and a message to generate a pattern.' }}</div>
+    @if (mode() === 'marks') {
+      <div class="status">Generated pattern</div>
+      <div class="box" data-testid="format-regex">{{ regex() ?? 'Mark a timestamp and a message to generate a pattern.' }}</div>
+    }
 
-    @if (regex()) {
+    @if (mutation()) {
       <div class="status" role="status" data-testid="format-summary">
-        @if (parsed().error; as pe) { <span class="err">{{ pe }}</span> }
-        @else { <strong>{{ matched() }}</strong> of {{ lines().length }} lines parse. Lines that do not (such as stack traces) are attached to the previous event. }
+        @if (previewError() ?? preview()?.error; as pe) { <span class="err">{{ pe }}</span> }
+        @else if (!preview()) { Checking the sample… }
+        @else { <strong>{{ preview()!.total }}</strong> events parsed from the sample, {{ preview()!.skipped }} lines skipped. Lines that do not start an event (such as stack traces) are attached to the previous event. }
       </div>
-      <div class="preview" role="table" aria-label="Parse preview">
-        <div class="prow head" role="row"><span role="columnheader">Timestamp</span><span role="columnheader">Level</span><span role="columnheader">Message</span></div>
-        @for (r of parsed().rows; track $index) {
-          <div class="prow" role="row" [class.miss]="!r.matched">
-            @if (r.matched) {
-              <span role="cell" class="mono">{{ r.timestamp }}</span><span role="cell" class="mono">{{ r.level }}</span><span role="cell">{{ r.message }}</span>
-            } @else {
-              <span role="cell" class="span3 mono">{{ r.line }}</span>
-            }
-          </div>
-        }
-      </div>
+      @if (preview(); as p) {
+        <div class="preview" role="table" aria-label="Parse preview">
+          <div class="prow head" role="row"><span role="columnheader">Time</span><span role="columnheader">Level</span><span role="columnheader">Message</span></div>
+          @for (r of p.records; track r.line) {
+            <div class="prow" role="row">
+              <span role="cell" class="mono">{{ time(r.ts) }}</span><span role="cell" class="mono">{{ r.level }}</span><span role="cell">{{ r.message }}</span>
+            </div>
+          }
+        </div>
+      }
     }
 
     @if (error(); as e) { <div class="err" role="alert">{{ e }}</div> }
@@ -101,8 +111,6 @@ const PARTS: { id: FormatPart; label: string }[] = [
     .preview { max-height: 200px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
     .prow { display: grid; grid-template-columns: 220px 60px minmax(0, 1fr); gap: 8px; padding: 3px 8px; border-bottom: 1px solid var(--border); }
     .prow.head { position: sticky; top: 0; background: var(--bg-3); color: var(--muted); font-weight: 600; }
-    .prow.miss { color: var(--faint); }
-    .span3 { grid-column: 1 / -1; white-space: pre-wrap; }
     .hl[data-part=timestamp] { background: rgba(76, 141, 255, 0.25); }
     .hl[data-part=level] { background: rgba(233, 174, 63, 0.3); }
     .hl[data-part=message] { background: rgba(63, 191, 127, 0.25); }
@@ -111,7 +119,8 @@ const PARTS: { id: FormatPart; label: string }[] = [
 })
 export class FormatWizard implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
-  private readonly preview = inject(FILE_PREVIEW);
+  private readonly backend = inject(ImtBackend);
+  private readonly settings = inject(SettingsStore);
   private readonly edits = inject(ProfileEdits);
   private readonly store = inject(WorkspaceStore);
 
@@ -121,7 +130,12 @@ export class FormatWizard implements OnInit {
   private readonly sampleEl = viewChild<ElementRef<HTMLElement>>('sample');
   protected readonly parts = PARTS;
   protected readonly mode = signal<'marks' | 'template'>('marks');
-  protected readonly lines = signal<string[]>([]);
+  /** Start of the file as the engine decoded it; this is also what the engine previews. */
+  private readonly head = signal('');
+  protected readonly lines = computed(() => (this.head() ? this.head().split(/\r?\n/).slice(0, PREVIEW_LINES).filter((l) => l.length > 0) : []));
+  protected readonly preview = signal<ParsePreview | null>(null);
+  protected readonly previewError = signal<string | null>(null);
+  private previewSeq = 0;
   protected readonly loadError = signal<string | null>(null);
   protected readonly sampleIndex = signal(0);
   protected readonly marks = signal<Marks>({});
@@ -132,10 +146,27 @@ export class FormatWizard implements OnInit {
 
   protected readonly sample = computed(() => this.lines()[this.sampleIndex()] ?? '');
   protected readonly hasMarks = computed(() => Object.keys(this.marks()).length > 0);
-  protected readonly regex = computed(() => (this.mode() === 'marks' ? regexFromMarks(this.sample(), this.marks()) : regexFromOutputTemplate(this.template())));
-  protected readonly parsed = computed(() => (this.regex() ? parseLines(this.lines(), this.regex()!) : { rows: [], error: null }));
-  protected readonly matched = computed(() => matchedCount(this.parsed().rows));
-  protected readonly canSave = computed(() => !!this.regex() && !this.parsed().error && this.matched() > 0);
+  protected readonly regex = computed(() => (this.mode() === 'marks' ? regexFromMarks(this.sample(), this.marks()) : null));
+  /** The change to the profile this wizard would save; also what the engine previews. Null until there is something to try. */
+  protected readonly mutation = computed<((m: ProfileModel) => void) | null>(() => {
+    const template = this.template().trim();
+    const regex = this.regex();
+    // New formats go first so they win over the generic patterns.
+    if (this.mode() === 'template' && template) {
+      return (m) => {
+        m.parse = { ...(m.parse ?? {}) };
+        m.parse.output_templates = [this.template(), ...(m.parse.output_templates ?? [])];
+      };
+    }
+    if (this.mode() === 'marks' && regex) {
+      return (m) => {
+        m.parse = { ...(m.parse ?? {}) };
+        m.parse.regexes = [regex, ...(m.parse.regexes ?? [])];
+      };
+    }
+    return null;
+  });
+  protected readonly canSave = computed(() => !!this.mutation() && !!this.preview() && !this.preview()!.error && !this.previewError() && this.preview()!.total > 0);
   protected readonly segments = computed(() => {
     const line = this.sample();
     const ranges = (Object.entries(this.marks()) as [FormatPart, { start: number; end: number }][]).sort((a, b) => a[1].start - b[1].start);
@@ -150,11 +181,53 @@ export class FormatWizard implements OnInit {
     return out;
   });
 
+  constructor() {
+    // Ask the engine how the candidate profile reads the sample (after a short pause while typing).
+    effect((onCleanup) => {
+      const mutation = this.mutation();
+      const head = this.head();
+      if (!mutation || !head) {
+        untracked(() => {
+          this.previewSeq++;
+          this.preview.set(null);
+          this.previewError.set(null);
+        });
+        return;
+      }
+      const timer = setTimeout(() => untracked(() => void this.runPreview(mutation, head)), PREVIEW_DEBOUNCE_MS);
+      onCleanup(() => clearTimeout(timer));
+    });
+  }
+
   ngOnInit(): void {
-    this.preview.firstLines(this.path(), PREVIEW_LINES).then(
-      (lines) => this.lines.set(lines),
-      (e) => this.loadError.set(e instanceof Error ? e.message : String(e)),
-    );
+    void this.loadHead();
+  }
+
+  protected async loadHead(): Promise<void> {
+    this.loadError.set(null);
+    try {
+      this.head.set(await this.backend.readFileHead(this.path(), HEAD_BYTES));
+    } catch (e) {
+      this.loadError.set(describeError(e));
+    }
+  }
+
+  private async runPreview(mutation: (m: ProfileModel) => void, sample: string): Promise<void> {
+    const mine = ++this.previewSeq;
+    this.preview.set(null);
+    this.previewError.set(null);
+    try {
+      const { model } = await this.edits.current();
+      mutation(model);
+      const result = await this.backend.previewParse({ toml: this.edits.toToml(model), sample, fileName: this.name(), limit: PREVIEW_LINES });
+      if (mine === this.previewSeq) this.preview.set(result);
+    } catch (e) {
+      if (mine === this.previewSeq) this.previewError.set(describeError(e));
+    }
+  }
+
+  protected time(ts: number | null): string {
+    return ts === null ? '–' : formatFull(ts, this.store.timezone(), this.settings.dateFormat());
   }
 
   protected onSelection(): void {
@@ -186,22 +259,16 @@ export class FormatWizard implements OnInit {
   }
 
   protected async save(): Promise<void> {
-    const regex = this.regex();
-    if (!regex) return;
-    const useTemplate = this.mode() === 'template';
+    const mutation = this.mutation();
+    if (!mutation) return;
     this.saving.set(true);
     this.error.set(null);
     try {
-      await this.edits.apply((m) => {
-        m.parse = { ...(m.parse ?? {}) };
-        // New formats go first so they win over the generic patterns.
-        if (useTemplate) m.parse.output_templates = [this.template(), ...(m.parse.output_templates ?? [])];
-        else m.parse.regexes = [regex, ...(m.parse.regexes ?? [])];
-      });
+      await this.edits.apply(mutation);
       this.store.setNotice('Saved the format; files were re-imported.');
       this.ref.close(true);
     } catch (e) {
-      this.error.set(e instanceof Error ? e.message : String(e));
+      this.error.set(describeError(e));
     } finally {
       this.saving.set(false);
     }

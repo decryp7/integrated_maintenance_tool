@@ -16,7 +16,7 @@
  * Plugins never touch the stores: they observe through `ImtEvents` and act through `CommandContext`.
  */
 export { CommandRegistry, COMMAND_CONTEXT } from './command-registry';
-export { WorkspaceCommandContext } from './command-context';
+export { JUMP_TIMEOUT_MS, WorkspaceCommandContext } from './command-context';
 export { ImtEvents, StoreImtEvents } from './events';
 export { EVENT_ID_FORMATTER, FieldFormatters, findFormatter } from './field-formatters';
 export { fuzzyFilter, fuzzyScore } from './fuzzy';

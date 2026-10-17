@@ -11,6 +11,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
 import { MarkerIcon } from '../shared/marker-icon';
+import { ContextSection } from './context-section';
 import { TimelineZoom } from '../timeline/zoom';
 
 /** Fields that tie events of one request/operation together, in order of preference. */
@@ -20,7 +21,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
 @Component({
   selector: 'imt-inspector',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerIcon, NgComponentOutlet],
+  imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection],
   host: { '(document:selectionchange)': 'onSelectionChange()' },
   template: `
     <div class="head">
@@ -78,6 +79,8 @@ const CONTEXT_MS = 2 * 60 * 1000;
             <div class="faint pad">No properties.</div>
           }
         </div>
+
+        <imt-context-section [record]="r" />
 
         @for (section of sections(); track section.id) {
           <div class="section-title sub">{{ section.title }}</div>

@@ -6,20 +6,34 @@ use regex::bytes::Regex;
 use std::env;
 use std::error::Error;
 use std::fs::metadata;
+use std::process::ExitCode;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        Err("Missing argument!")?;
+    let target = match imt::cli::parse_args(&args) {
+        Ok(path) => path,
+        Err(usage) => {
+            eprintln!("{usage}");
+            return ExitCode::from(imt::cli::USAGE_EXIT_CODE);
+        }
+    };
+    match run(target) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            ExitCode::FAILURE
+        }
     }
+}
 
-    let app_config: AppConfig = confy::load("imt", "imt").expect("Unable to load configuration.");
+fn run(target: &str) -> Result<(), Box<dyn Error>> {
+    let app_config: AppConfig = confy::load("imt", "imt").map_err(|e| format!("Unable to load configuration: {e}"))?;
 
     let path = confy::get_configuration_file_path("imt", "imt")?;
     println!("Loading configuration from {}.", path.display());
-    println!("Running on {:?} with {:?}.", args[1], app_config);
+    println!("Running on {:?} with {:?}.", target, app_config);
 
-    let md = metadata(&args[1]).expect("Unable to get metadata");
+    let md = metadata(target).map_err(|e| format!("Unable to read {target}: {e}"))?;
 
     let log_processor: Box<dyn LogProcessor> = if md.is_dir() {
         Box::new(DirLogProcessor {
@@ -36,7 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
     };
 
-    match log_processor.process((*args[1]).to_string()) {
+    match log_processor.process(target.to_string()) {
         Ok(_) => println!("Processing OK!"),
         Err(e) => println!("Unable to process file: {:?}", e),
     }

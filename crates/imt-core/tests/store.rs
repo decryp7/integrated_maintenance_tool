@@ -1,0 +1,223 @@
+//! The `LogStore` seam: the in-memory `Workspace` behind `&dyn LogStore`, and
+//! the defaults a store without live tail or plugins inherits from the trait.
+
+use anyhow::Result;
+use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
+use imt_core::api::{
+    ChartData, ChartRequest, CompareRequest, CompletionRequest, ContextRequest, CorrelateRequest, ExportRequest, ExportResult,
+    ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, FieldStatsRequest, Finding, MomentRequest, MomentSummary, Page,
+    PageRequest, ParsePreview, ParsePreviewRequest, QueryRequest, RequestsRequest, SourceContext, Timeline, TimelineRequest, TraceRequest,
+    TraceSummary, WorkspaceState, WorkspaceSummary,
+};
+use imt_core::exceptions::ExceptionGroup;
+use imt_core::patterns::Pattern;
+use imt_core::ql::{Completion, QlError, QlResult};
+use imt_core::workspace::{ImportProgress, OpenOptions, Retention, TailOptions};
+use imt_core::{LogStore, Profile, Workspace};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+/// A temporary folder removed on drop.
+struct TempDir(PathBuf);
+
+impl TempDir {
+    fn new() -> TempDir {
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let p = std::env::temp_dir().join(format!("imt-store-{}-{}", std::process::id(), N.fetch_add(1, Ordering::SeqCst)));
+        std::fs::create_dir_all(&p).unwrap();
+        TempDir(p)
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn folder() -> TempDir {
+    let d = TempDir::new();
+    let text: String = (1..=6)
+        .map(|i| format!(r#"{{"@t":"2026-10-14T10:00:0{i}Z","@l":"Information","@mt":"step {i}","MachineName":"WEB01"}}"#) + "\n")
+        .collect();
+    std::fs::write(d.0.join("app.clef"), text).unwrap();
+    d
+}
+
+#[test]
+fn workspace_answers_context_progress_and_tail_options_through_the_trait() {
+    let d = folder();
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    let store: &mut dyn LogStore = &mut ws;
+    store.open(std::slice::from_ref(&d.0)).unwrap();
+    assert_eq!(store.summary().total, 6);
+
+    let ctx = store
+        .source_context(&ContextRequest {
+            record_id: 2,
+            before: 1,
+            after: 1,
+        })
+        .unwrap();
+    assert_eq!(ctx.source_name, "app.clef");
+    assert_eq!(ctx.line, 3);
+    assert_eq!(ctx.lines.len(), 3);
+
+    let progress = store.progress().snapshot();
+    assert!(!progress.running);
+
+    // Retention through the trait evicts the oldest records.
+    store.set_tail_options(TailOptions {
+        retention: Retention {
+            max_records: Some(1),
+            ..Retention::default()
+        },
+        ..TailOptions::default()
+    });
+    assert_eq!(store.summary().total, 1);
+    assert!(store.plugin_settings().is_empty());
+}
+
+/// A store implementing only the required methods (delegating to a workspace),
+/// to observe the trait's defaults.
+struct Minimal(Workspace);
+
+impl LogStore for Minimal {
+    fn open(&mut self, paths: &[PathBuf]) -> Result<()> {
+        self.0.open(paths)
+    }
+    fn reload(&mut self) -> Result<()> {
+        self.0.reload()
+    }
+    fn clear(&mut self) {
+        self.0.clear()
+    }
+    fn remove_source(&mut self, id: u32) {
+        self.0.remove_source(id)
+    }
+    fn set_profile(&mut self, profile: Profile) -> Result<()> {
+        self.0.set_profile(profile)
+    }
+    fn profile(&self) -> &Profile {
+        self.0.profile()
+    }
+    fn summary(&self) -> WorkspaceSummary {
+        self.0.summary()
+    }
+    fn page(&self, req: &PageRequest) -> Result<Page<'_>> {
+        self.0.page(req)
+    }
+    fn timeline(&self, req: &TimelineRequest) -> Result<Timeline> {
+        self.0.timeline(req)
+    }
+    fn facet(&self, req: &FacetRequest) -> Result<Facet> {
+        self.0.facet(req)
+    }
+    fn chart(&self, req: &ChartRequest) -> Result<ChartData> {
+        self.0.chart(req)
+    }
+    fn preview_extractor(&self, req: &ExtractPreviewRequest) -> ExtractPreview {
+        self.0.preview_extractor(req)
+    }
+    fn validate_profile(&self, profile: Profile) -> Result<()> {
+        self.0.validate_profile(profile)
+    }
+    fn export(&self, req: &ExportRequest) -> Result<ExportResult> {
+        self.0.export(req)
+    }
+    fn source_context(&self, req: &ContextRequest) -> Result<SourceContext> {
+        self.0.source_context(req)
+    }
+    fn state(&self) -> WorkspaceState {
+        self.0.state()
+    }
+    fn refresh_files(&mut self, changed: &[PathBuf]) -> Result<usize> {
+        self.0.refresh_files(changed)
+    }
+    fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
+        self.0.restore(profile, state)
+    }
+    fn run_query(&self, req: &QueryRequest) -> std::result::Result<QlResult, QlError> {
+        self.0.run_query(req)
+    }
+    fn check_query(&self, text: &str) -> Option<QlError> {
+        self.0.check_query(text)
+    }
+    fn complete_query(&self, req: &CompletionRequest) -> Vec<Completion> {
+        self.0.complete_query(req)
+    }
+    fn patterns(&self, req: &QueryRequest) -> Result<Vec<Pattern>> {
+        self.0.patterns(req)
+    }
+    fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
+        self.0.exception_groups(req)
+    }
+    fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {
+        self.0.anomalies(req)
+    }
+    fn compare(&self, req: &CompareRequest) -> Result<Comparison> {
+        self.0.compare(req)
+    }
+    fn field_stats(&self, req: &FieldStatsRequest) -> Result<FieldStats> {
+        self.0.field_stats(req)
+    }
+    fn correlate(&self, req: &CorrelateRequest) -> Vec<u32> {
+        self.0.correlate(req)
+    }
+    fn traces(&self, req: &TraceRequest) -> Result<(Vec<TraceSummary>, Vec<WaterfallRow>)> {
+        self.0.traces(req)
+    }
+    fn requests(&self, req: &RequestsRequest) -> Result<Vec<RequestSpan>> {
+        self.0.requests(req)
+    }
+    fn moment(&self, req: &MomentRequest) -> Result<MomentSummary> {
+        self.0.moment(req)
+    }
+    fn preview_parse(&self, req: &ParsePreviewRequest) -> ParsePreview {
+        self.0.preview_parse(req)
+    }
+    fn reset_plugin(&self, id: &str) {
+        self.0.reset_plugin(id)
+    }
+    fn progress(&self) -> Arc<ImportProgress> {
+        self.0.progress()
+    }
+    fn overview(&self, req: &QueryRequest) -> Result<Vec<Finding>> {
+        self.0.overview(req)
+    }
+}
+
+#[test]
+fn stores_without_live_tail_or_plugins_get_safe_defaults() {
+    let d = folder();
+    let mut store: Box<dyn LogStore> = Box::new(Minimal(Workspace::new(Profile::default_profile()).unwrap()));
+    assert!(store.plugin_settings().is_empty());
+
+    // `start_at_end` is ignored: the whole history is imported.
+    store
+        .open_with(std::slice::from_ref(&d.0), &OpenOptions { start_at_end: true })
+        .unwrap();
+    assert_eq!(store.summary().total, 6);
+
+    // A tail refresh re-imports changed files and reports nothing finer.
+    let file = d.0.join("app.clef");
+    let mut text = std::fs::read_to_string(&file).unwrap();
+    text.push_str(r#"{"@t":"2026-10-14T10:00:07Z","@mt":"step 7"}"#);
+    text.push('\n');
+    std::fs::write(&file, text).unwrap();
+    let report = store.refresh_tail(&[file]).unwrap();
+    assert_eq!((report.appended, report.sources_changed.len()), (0, 0));
+    assert_eq!(store.summary().total, 7);
+
+    assert_eq!(store.tail_status(), Default::default());
+    // Tail options are accepted and ignored: nothing is evicted.
+    store.set_tail_options(TailOptions {
+        retention: Retention {
+            max_records: Some(1),
+            ..Retention::default()
+        },
+        ..TailOptions::default()
+    });
+    assert_eq!(store.summary().total, 7);
+}

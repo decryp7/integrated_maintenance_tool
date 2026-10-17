@@ -1,0 +1,1613 @@
+//! The Settings screen's backend: every configurable part of IMT described by
+//! the typed schema of [`imt_core::settings`], validated in Rust, applied and
+//! persisted in one versioned `settings.json` in the config folder.
+//!
+//! Sections come from built-in adapters (diagnostics, workspace, plugin
+//! management), from engine plugins ([`imt_core::Plugin::configurable`]) and
+//! from app modules registered later ([`SettingsService::register`], e.g. the
+//! AI assistant; until then the `ai` section shows "not installed").
+//!
+//! `settings.json` is `{ "version": 1, "sections": { "<id>": { "<key>": value } } }`.
+//! A missing, unreadable or corrupt file means defaults (a corrupt one is kept
+//! as `settings.json.corrupt`); sections nobody provides (e.g. an uninstalled
+//! plugin) are kept untouched; writes are atomic (temp file plus rename).
+//! Sections whose values already live elsewhere (diagnostics in
+//! `diagnostics.json`, enabled plugins in `plugins.json`) keep that file as
+//! their single source of truth and are not duplicated here.
+//!
+//! Commands: `settings_sections`, `set_settings`, `reset_settings`,
+//! `export_settings`, `import_settings`.
+
+use crate::{diagnostics, err, lifecycle, AppState, CmdResult};
+use imt_core::plugin::PluginStatus;
+use imt_core::settings::{
+    sanitize, validate, Configurable, EnumOption, FieldError, FieldKind, PluginSettings, SectionOwner, SettingField, SettingsSection,
+    ValidValues,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Value};
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::time::Duration;
+use tauri::{AppHandle, Manager, Runtime};
+
+const FILE: &str = "settings.json";
+const VERSION: u32 = 1;
+/// Settings files (and imports) larger than this are rejected.
+const MAX_FILE_BYTES: u64 = 1 << 20;
+const MAX_ID_LEN: usize = 128;
+/// Id of the AI assistant's section, registered by the AI module when installed.
+pub const AI_SECTION: &str = "ai";
+/// Default debounce of live tail (file change bursts are merged within it).
+pub const DEFAULT_LIVE_TAIL_DEBOUNCE: Duration = Duration::from_millis(750);
+
+/// Where the Settings screen lists a section.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SectionGroup {
+    Diagnostics,
+    Plugins,
+    Ai,
+    Advanced,
+}
+
+/// Whether a section can be changed now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SectionStatus {
+    Active,
+    /// The plugin is turned off.
+    Disabled,
+    /// The plugin crashed repeatedly.
+    Quarantined,
+    /// Nothing provides this section in this build.
+    NotInstalled,
+    /// IMT runs in safe mode; plugins are not loaded.
+    SafeMode,
+}
+
+/// A section as the UI shows it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SectionView {
+    #[serde(flatten)]
+    pub section: SettingsSection,
+    pub group: SectionGroup,
+    /// Current values, every field present.
+    pub values: Value,
+    pub status: SectionStatus,
+    pub read_only: bool,
+    /// Why the section is read-only (or another hint).
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsOverview {
+    pub sections: Vec<SectionView>,
+    /// A change made in this run takes effect after a restart.
+    pub restart_pending: bool,
+    pub safe_mode: bool,
+}
+
+/// Result of `set_settings` / `reset_settings`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetResult {
+    /// False when validation failed (see `errors`); nothing was changed then.
+    pub applied: bool,
+    /// The change takes effect after a restart.
+    pub restart_required: bool,
+    pub errors: Vec<FieldError>,
+    /// The section's values now.
+    pub values: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SectionErrors {
+    pub section: String,
+    pub errors: Vec<FieldError>,
+}
+
+/// Result of `import_settings`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportResult {
+    /// Sections validated and applied.
+    pub applied: Vec<String>,
+    /// Sections kept for later (not installed, disabled or quarantined).
+    pub kept: Vec<String>,
+    /// Sections rejected, with why; they were left unchanged.
+    pub rejected: Vec<SectionErrors>,
+    pub restart_required: bool,
+}
+
+/// The persisted file.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SettingsFile {
+    #[serde(default)]
+    pub version: u32,
+    #[serde(default)]
+    pub sections: BTreeMap<String, Value>,
+}
+
+/// Reads `settings.json`; missing, unreadable, oversized or corrupt files give
+/// defaults. A corrupt file is moved aside so the next save does not destroy it.
+pub fn load_file(dir: Option<&Path>) -> SettingsFile {
+    let Some(path) = dir.map(|d| d.join(FILE)) else {
+        return SettingsFile::default();
+    };
+    match read_settings_file(&path) {
+        Ok(Some(file)) => file,
+        Ok(None) => SettingsFile::default(),
+        Err(e) => {
+            log::warn!("ignoring the settings file {}: {e}", path.display());
+            let _ = std::fs::rename(&path, path.with_extension("json.corrupt"));
+            SettingsFile::default()
+        }
+    }
+}
+
+/// `Ok(None)` when the file does not exist.
+fn read_settings_file(path: &Path) -> Result<Option<SettingsFile>, String> {
+    let meta = match std::fs::metadata(path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+    };
+    if !meta.is_file() {
+        return Err("not a file".into());
+    }
+    if meta.len() > MAX_FILE_BYTES {
+        return Err(format!("the file is larger than {} KB", MAX_FILE_BYTES / 1024));
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| format!("not a settings file: {e}"))?;
+    if !value.is_object() {
+        return Err("not a settings file: expected a JSON object".into());
+    }
+    let file: SettingsFile = serde_json::from_value(value).map_err(|e| format!("not a settings file: {e}"))?;
+    if file.version > VERSION {
+        log::warn!(
+            "settings file version {} is newer than {VERSION}; values are re-validated",
+            file.version
+        );
+    }
+    Ok(Some(file))
+}
+
+/// Writes `file` to `path` atomically: a temp file next to it, then a rename.
+pub fn write_atomic(path: &Path, file: &SettingsFile) -> anyhow::Result<()> {
+    use std::io::Write;
+    let text = serde_json::to_string_pretty(&SettingsFile {
+        version: VERSION,
+        sections: file.sections.clone(),
+    })?;
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let tmp = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
+    let result = (|| {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(text.as_bytes())?;
+        f.sync_all()?;
+        drop(f);
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    Ok(result?)
+}
+
+/// Values that live outside `settings.json` (their owner's file).
+pub trait ExternalValues: Send + Sync {
+    fn load(&self) -> Value;
+}
+
+/// A section provided by the app (not by an engine plugin).
+#[derive(Clone)]
+pub struct Builtin {
+    pub configurable: Arc<dyn Configurable>,
+    pub group: SectionGroup,
+    /// `None`: the values are stored in `settings.json`.
+    pub external: Option<Arc<dyn ExternalValues>>,
+}
+
+/// The settings of the engine plugins the running workspace uses (its own
+/// registry, so crashes count against the same health record).
+pub type PluginSource = Box<dyn Fn() -> Vec<PluginSettings> + Send + Sync>;
+
+/// Everything the service needs; built from the app at startup or by tests.
+pub struct SettingsConfig {
+    pub dir: Option<PathBuf>,
+    pub safe_mode: bool,
+    pub builtins: Vec<Builtin>,
+    /// The engine plugins (their settings and status).
+    pub plugins: PluginSource,
+}
+
+/// The settings registry and store. Managed as Tauri state.
+pub struct SettingsService {
+    dir: Option<PathBuf>,
+    safe_mode: bool,
+    file: Mutex<SettingsFile>,
+    builtins: RwLock<Vec<Builtin>>,
+    plugins: PluginSource,
+    restart_pending: AtomicBool,
+    live_tail_debounce_ms: Arc<AtomicU64>,
+}
+
+/// One section, wherever it comes from.
+enum Source {
+    Builtin(Builtin),
+    Plugin(imt_core::settings::PluginSettings),
+}
+
+impl SettingsService {
+    /// Loads `settings.json`; call [`SettingsService::start`] to apply it.
+    pub fn new(config: SettingsConfig, live_tail_debounce_ms: Arc<AtomicU64>) -> Self {
+        SettingsService {
+            file: Mutex::new(load_file(config.dir.as_deref())),
+            dir: config.dir,
+            safe_mode: config.safe_mode,
+            builtins: RwLock::new(config.builtins),
+            plugins: config.plugins,
+            restart_pending: AtomicBool::new(false),
+            live_tail_debounce_ms,
+        }
+    }
+
+    fn file(&self) -> MutexGuard<'_, SettingsFile> {
+        self.file.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// Debounce for live tail, as last applied.
+    pub fn live_tail_debounce(&self) -> Duration {
+        Duration::from_millis(self.live_tail_debounce_ms.load(Ordering::Relaxed))
+    }
+
+    /// Applies the stored values of every section kept in `settings.json`.
+    /// Invalid stored values fall back to defaults and are logged. Never fails.
+    pub fn start(&self) {
+        for source in self.sources() {
+            if let Some(Builtin { external: Some(_), .. }) = source_builtin(&source) {
+                continue; // its owner applied it when loading its own file
+            }
+            let section = section_of(&source);
+            if self.status(&source).0 != SectionStatus::Active {
+                continue;
+            }
+            let stored = self.file().sections.get(&section.id).cloned().unwrap_or(Value::Null);
+            let (values, errors) = sanitize(&section, &stored);
+            for e in &errors {
+                log::warn!(Section = section.id.as_str(), Key = e.key.as_str(); "Invalid stored setting replaced by its default: {}", e.message);
+            }
+            if let Err(e) = apply(&source, &values) {
+                log::warn!(Section = section.id.as_str(); "Could not apply settings: {e:#}");
+            }
+        }
+    }
+
+    /// Adds an app module's section (e.g. the AI assistant) and applies its stored values.
+    #[allow(dead_code)] // for app modules installed later (the AI assistant)
+    pub fn register(&self, configurable: Arc<dyn Configurable>, group: SectionGroup) -> anyhow::Result<()> {
+        let section = configurable.settings_section();
+        section.check().map_err(|e| anyhow::anyhow!("invalid settings schema: {e}"))?;
+        if self.sources().iter().any(|s| section_of(s).id == section.id) {
+            anyhow::bail!("a settings section \"{}\" is already registered", section.id);
+        }
+        let builtin = Builtin {
+            configurable,
+            group,
+            external: None,
+        };
+        let stored = self.file().sections.get(&section.id).cloned().unwrap_or(Value::Null);
+        let (values, _) = sanitize(&section, &stored);
+        builtin.configurable.apply_settings(&values)?;
+        self.builtins.write().unwrap_or_else(|p| p.into_inner()).push(builtin);
+        Ok(())
+    }
+
+    fn sources(&self) -> Vec<Source> {
+        let builtins = self.builtins.read().unwrap_or_else(|p| p.into_inner()).clone();
+        let taken: Vec<String> = builtins.iter().map(|b| b.configurable.settings_section().id).collect();
+        let mut out: Vec<Source> = builtins.into_iter().map(Source::Builtin).collect();
+        for p in (self.plugins)() {
+            if taken.contains(&p.plugin.id) {
+                log::warn!(Plugin = p.plugin.id.as_str(); "plugin settings section clashes with a built-in one and is ignored");
+                continue;
+            }
+            out.push(Source::Plugin(p));
+        }
+        out
+    }
+
+    fn find(&self, id: &str) -> Option<Source> {
+        self.sources().into_iter().find(|s| section_of(s).id == id)
+    }
+
+    fn status(&self, source: &Source) -> (SectionStatus, Option<String>) {
+        match source {
+            Source::Builtin(b) if self.safe_mode && b.configurable.settings_section().id == PLUGINS_SECTION => (
+                SectionStatus::SafeMode,
+                Some("IMT is running in safe mode: plugins are not loaded and their settings are not shown.".into()),
+            ),
+            Source::Builtin(_) => (SectionStatus::Active, None),
+            Source::Plugin(p) => {
+                let status = match p.plugin.status {
+                    PluginStatus::Active => SectionStatus::Active,
+                    PluginStatus::Disabled => SectionStatus::Disabled,
+                    PluginStatus::Quarantined => SectionStatus::Quarantined,
+                };
+                (status, p.note().map(String::from))
+            }
+        }
+    }
+
+    /// Current values of a section, validated (invalid ones are defaults).
+    fn current(&self, source: &Source, section: &SettingsSection) -> ValidValues {
+        let raw = match source_builtin(source).and_then(|b| b.external.as_ref()) {
+            Some(external) => external.load(),
+            None => self.file().sections.get(&section.id).cloned().unwrap_or(Value::Null),
+        };
+        sanitize(section, &raw).0
+    }
+
+    /// Every section with its values and status.
+    pub fn overview(&self) -> SettingsOverview {
+        let mut sections: Vec<SectionView> = self
+            .sources()
+            .iter()
+            .map(|source| {
+                let section = section_of(source);
+                let (status, note) = self.status(source);
+                SectionView {
+                    values: self.current(source, &section).to_json(),
+                    group: match source {
+                        Source::Builtin(b) => b.group,
+                        Source::Plugin(_) => SectionGroup::Plugins,
+                    },
+                    read_only: status != SectionStatus::Active,
+                    status,
+                    note,
+                    section,
+                }
+            })
+            .collect();
+        if !sections.iter().any(|s| s.section.id == AI_SECTION) {
+            sections.push(SectionView {
+                section: SettingsSection::new(AI_SECTION, "AI assistant", SectionOwner::App)
+                    .describe("Local AI features: summaries, explanations and query suggestions."),
+                group: SectionGroup::Ai,
+                values: json!({}),
+                status: SectionStatus::NotInstalled,
+                read_only: true,
+                note: Some("The AI assistant is not installed in this build.".into()),
+            });
+        }
+        SettingsOverview {
+            sections,
+            restart_pending: self.restart_pending.load(Ordering::Relaxed),
+            safe_mode: self.safe_mode,
+        }
+    }
+
+    /// Validates, applies, then persists a section's values.
+    pub fn set(&self, id: &str, values: &Value) -> Result<SetResult, String> {
+        check_section_id(id)?;
+        let source = self.find(id).ok_or_else(|| format!("there is no settings section \"{id}\""))?;
+        let (status, note) = self.status(&source);
+        if status != SectionStatus::Active {
+            return Err(note.unwrap_or_else(|| "This section is read-only.".into()));
+        }
+        let section = section_of(&source);
+        let before = self.current(&source, &section);
+        let valid = match validate(&section, values) {
+            Ok(v) => v,
+            Err(errors) => {
+                return Ok(SetResult {
+                    applied: false,
+                    restart_required: false,
+                    errors,
+                    values: before.to_json(),
+                })
+            }
+        };
+        apply(&source, &valid).map_err(|e| format!("{e:#}"))?;
+        if source_builtin(&source).is_none_or(|b| b.external.is_none()) {
+            self.persist(|f| {
+                f.sections.insert(section.id.clone(), valid.to_json());
+            })
+            .map_err(|e| format!("the settings were applied but could not be saved: {e:#}"))?;
+        }
+        let restart_required = section
+            .fields
+            .iter()
+            .any(|f| f.restart_required && before.get(&f.key) != valid.get(&f.key));
+        if restart_required {
+            self.restart_pending.store(true, Ordering::Relaxed);
+        }
+        log::info!(Section = id, RestartRequired = restart_required; "Settings changed");
+        Ok(SetResult {
+            applied: true,
+            restart_required,
+            errors: Vec::new(),
+            values: valid.to_json(),
+        })
+    }
+
+    /// Puts every field of a section back to its default.
+    pub fn reset(&self, id: &str) -> Result<SetResult, String> {
+        self.set(id, &json!({}))
+    }
+
+    fn persist(&self, change: impl FnOnce(&mut SettingsFile)) -> anyhow::Result<()> {
+        let dir = self
+            .dir
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("there is no configuration folder"))?;
+        let mut file = self.file();
+        let mut next = file.clone();
+        change(&mut next);
+        std::fs::create_dir_all(dir)?;
+        write_atomic(&dir.join(FILE), &next)?;
+        *file = next;
+        Ok(())
+    }
+
+    /// Writes every section's current values (and kept ones) to `path`.
+    pub fn export(&self, path: &Path) -> anyhow::Result<()> {
+        let mut out = self.file().clone();
+        for source in self.sources() {
+            let section = section_of(&source);
+            out.sections.insert(section.id.clone(), self.current(&source, &section).to_json());
+        }
+        write_atomic(path, &out)
+    }
+
+    /// Reads a settings file and applies each section it contains. A section
+    /// with any invalid value is rejected whole; sections that cannot be
+    /// applied now (not installed, disabled) are kept for later.
+    pub fn import(&self, path: &Path) -> Result<ImportResult, String> {
+        let imported = read_settings_file(path)?.ok_or("the file does not exist")?;
+        let mut result = ImportResult {
+            applied: Vec::new(),
+            kept: Vec::new(),
+            rejected: Vec::new(),
+            restart_required: false,
+        };
+        let mut keep = Map::new();
+        for (id, values) in imported.sections {
+            if let Err(message) = check_section_id(&id) {
+                let section: String = id.chars().take(MAX_ID_LEN).collect();
+                result.rejected.push(SectionErrors {
+                    section,
+                    errors: vec![FieldError {
+                        key: String::new(),
+                        message,
+                    }],
+                });
+                continue;
+            }
+            match self.find(&id) {
+                Some(source) if self.status(&source).0 == SectionStatus::Active => match self.set(&id, &values) {
+                    Ok(r) if r.applied => {
+                        result.restart_required |= r.restart_required;
+                        result.applied.push(id);
+                    }
+                    Ok(r) => result.rejected.push(SectionErrors {
+                        section: id,
+                        errors: r.errors,
+                    }),
+                    Err(message) => result.rejected.push(SectionErrors {
+                        section: id,
+                        errors: vec![FieldError {
+                            key: String::new(),
+                            message,
+                        }],
+                    }),
+                },
+                _ => {
+                    keep.insert(id.clone(), values);
+                    result.kept.push(id);
+                }
+            }
+        }
+        if !keep.is_empty() {
+            self.persist(|f| f.sections.extend(keep)).map_err(|e| format!("{e:#}"))?;
+        }
+        Ok(result)
+    }
+}
+
+fn source_builtin(source: &Source) -> Option<&Builtin> {
+    match source {
+        Source::Builtin(b) => Some(b),
+        Source::Plugin(_) => None,
+    }
+}
+
+fn section_of(source: &Source) -> SettingsSection {
+    match source {
+        Source::Builtin(b) => b.configurable.settings_section(),
+        Source::Plugin(p) => p.configurable.settings_section(),
+    }
+}
+
+/// Plugin code runs guarded (see [`imt_core::settings::GuardedConfigurable`]).
+fn apply(source: &Source, values: &ValidValues) -> anyhow::Result<()> {
+    match source {
+        Source::Builtin(b) => b.configurable.apply_settings(values),
+        Source::Plugin(p) => p.apply(values),
+    }
+}
+
+fn check_section_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || id.len() > MAX_ID_LEN {
+        return Err("invalid settings section id".into());
+    }
+    Ok(())
+}
+
+// ---- built-in sections ----
+
+pub const DIAGNOSTICS_SECTION: &str = "diagnostics";
+pub const WORKSPACE_SECTION: &str = "workspace";
+pub const PLUGINS_SECTION: &str = "plugins";
+
+fn int(min: i64, max: i64, unit: Option<&str>) -> FieldKind {
+    FieldKind::Int {
+        min,
+        max,
+        step: 1,
+        unit: unit.map(String::from),
+    }
+}
+
+/// Adapter over `diagnostics.rs`: IMT's own log files and error snapshots.
+/// `diagnostics.json` stays the source of truth (it is read at startup,
+/// before this service exists, and by the snapshot store).
+pub struct DiagnosticsSection {
+    pub dir: Option<PathBuf>,
+}
+
+impl Configurable for DiagnosticsSection {
+    fn settings_section(&self) -> SettingsSection {
+        let d = diagnostics::DiagnosticsSettings::default();
+        let levels = ["error", "warn", "info", "debug", "trace"]
+            .iter()
+            .map(|l| EnumOption::new(*l, capitalized(l)))
+            .collect();
+        SettingsSection::new(DIAGNOSTICS_SECTION, "Diagnostics", SectionOwner::App)
+            .describe("IMT's own log files and the screenshots taken when something fails. Nothing is sent anywhere.")
+            .field(
+                SettingField::new(
+                    "logLevel",
+                    "Log level",
+                    FieldKind::Enum { options: levels },
+                    level_name(d.log.level),
+                )
+                .describe("How much IMT writes to its own log. Debug and Trace help when reporting a problem."),
+            )
+            .field(
+                SettingField::new("logMaxFileMb", "Log file size", int(1, 100, Some("MB")), d.log.max_file_mb)
+                    .describe("A new log file is started when the current one reaches this size.")
+                    .needs_restart(),
+            )
+            .field(
+                SettingField::new("logKeepFiles", "Old log files kept", int(1, 50, None), d.log.keep_files)
+                    .describe("How many rotated log files are kept besides the current one.")
+                    .needs_restart(),
+            )
+            .field(
+                SettingField::new(
+                    "logMaxAgeDays",
+                    "Delete logs older than",
+                    int(0, 3650, Some("days")),
+                    d.log.max_age_days,
+                )
+                .describe("Old log files are deleted at startup. 0 keeps them regardless of age.")
+                .needs_restart()
+                .as_advanced(),
+            )
+            .field(
+                SettingField::new("snapshotsEnabled", "Error snapshots", FieldKind::Bool, d.snapshots.enabled)
+                    .describe("Save a screenshot of IMT locally when an error is shown, to attach to a bug report."),
+            )
+            .field(
+                SettingField::new("snapshotsMaxCount", "Snapshots kept", int(1, 500, None), d.snapshots.max_count)
+                    .describe("The newest snapshots are kept; older ones are deleted."),
+            )
+            .field(
+                SettingField::new(
+                    "snapshotsMaxTotalMb",
+                    "Snapshot storage",
+                    int(10, 2000, Some("MB")),
+                    d.snapshots.max_total_mb,
+                )
+                .describe("Total disk space snapshots may use.")
+                .as_advanced(),
+            )
+            .field(
+                SettingField::new(
+                    "snapshotsMaxAgeDays",
+                    "Delete snapshots older than",
+                    int(0, 3650, Some("days")),
+                    d.snapshots.max_age_days,
+                )
+                .describe("0 keeps snapshots regardless of age.")
+                .as_advanced(),
+            )
+    }
+
+    fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+        let dir = self
+            .dir
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("there is no configuration folder"))?;
+        let s = diagnostics_from(values)?;
+        diagnostics::save(dir, &s)?;
+        log::set_max_level(s.log.level.filter());
+        Ok(())
+    }
+}
+
+impl ExternalValues for DiagnosticsSection {
+    fn load(&self) -> Value {
+        let s = diagnostics::load(self.dir.as_deref());
+        json!({
+            "logLevel": level_name(s.log.level),
+            "logMaxFileMb": s.log.max_file_mb,
+            "logKeepFiles": s.log.keep_files,
+            "logMaxAgeDays": s.log.max_age_days,
+            "snapshotsEnabled": s.snapshots.enabled,
+            "snapshotsMaxCount": s.snapshots.max_count,
+            "snapshotsMaxTotalMb": s.snapshots.max_total_mb,
+            "snapshotsMaxAgeDays": s.snapshots.max_age_days,
+        })
+    }
+}
+
+fn diagnostics_from(values: &ValidValues) -> anyhow::Result<diagnostics::DiagnosticsSettings> {
+    let level = values.text("logLevel").unwrap_or("info");
+    let n = |key: &str| -> anyhow::Result<u32> {
+        let v = values.int(key).ok_or_else(|| anyhow::anyhow!("missing setting {key}"))?;
+        Ok(u32::try_from(v)?)
+    };
+    let mut s = diagnostics::DiagnosticsSettings::default();
+    s.log.level = serde_json::from_value(json!(level))?;
+    s.log.max_file_mb = n("logMaxFileMb")?;
+    s.log.keep_files = n("logKeepFiles")?;
+    s.log.max_age_days = n("logMaxAgeDays")?;
+    s.snapshots.enabled = values.bool("snapshotsEnabled").unwrap_or(true);
+    s.snapshots.max_count = n("snapshotsMaxCount")?;
+    s.snapshots.max_total_mb = n("snapshotsMaxTotalMb")?;
+    s.snapshots.max_age_days = n("snapshotsMaxAgeDays")?;
+    Ok(s.clamped())
+}
+
+fn level_name(level: diagnostics::LogLevel) -> String {
+    serde_json::to_value(level)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_else(|| "info".into())
+}
+
+fn capitalized(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+}
+
+/// Workspace knobs of the shell: the live tail debounce.
+pub struct WorkspaceSection {
+    pub debounce_ms: Arc<AtomicU64>,
+}
+
+impl Configurable for WorkspaceSection {
+    fn settings_section(&self) -> SettingsSection {
+        SettingsSection::new(WORKSPACE_SECTION, "Workspace", SectionOwner::App)
+            .describe("How IMT follows files that change while they are open.")
+            .field(
+                SettingField::new(
+                    "liveTailDebounce",
+                    "Live tail delay",
+                    FieldKind::Duration {
+                        min_ms: 100,
+                        max_ms: 10_000,
+                    },
+                    DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64,
+                )
+                .describe("Changes arriving within this time are re-imported together. Takes effect the next time live tail is turned on."),
+            )
+    }
+
+    fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+        let d = values
+            .duration("liveTailDebounce")
+            .ok_or_else(|| anyhow::anyhow!("missing setting liveTailDebounce"))?;
+        self.debounce_ms.store(d.as_millis() as u64, Ordering::Relaxed);
+        Ok(())
+    }
+}
+
+/// Turns a plugin on or off from the next start (`lifecycle::plugin_set_enabled`).
+pub type SetEnabled = Box<dyn Fn(&str, bool) -> anyhow::Result<()> + Send + Sync>;
+
+/// Adapter over the plugin enable/disable switches kept in `plugins.json`.
+pub struct PluginsSection {
+    pub dir: Option<PathBuf>,
+    /// Installed plugins: id, name, version.
+    pub plugins: Vec<(String, String, String)>,
+    pub set_enabled: SetEnabled,
+}
+
+impl Configurable for PluginsSection {
+    fn settings_section(&self) -> SettingsSection {
+        let mut s = SettingsSection::new(PLUGINS_SECTION, "Plugins", SectionOwner::App)
+            .describe("Turn engine plugins (file formats, exporters, tools) on or off. Changes take effect after a restart.");
+        for (id, name, version) in &self.plugins {
+            s = s.field(
+                SettingField::new(id.clone(), name.clone(), FieldKind::Bool, true)
+                    .describe(format!("{id} {version}"))
+                    .needs_restart(),
+            );
+        }
+        s
+    }
+
+    fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+        let before = self.load();
+        for (id, _, _) in &self.plugins {
+            let enabled = values.bool(id).unwrap_or(true);
+            if before.get(id).and_then(Value::as_bool) != Some(enabled) {
+                (self.set_enabled)(id, enabled)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl ExternalValues for PluginsSection {
+    fn load(&self) -> Value {
+        let disabled = lifecycle::load_plugin_settings(self.dir.as_deref()).disabled;
+        Value::Object(
+            self.plugins
+                .iter()
+                .map(|(id, _, _)| (id.clone(), json!(!disabled.contains(id))))
+                .collect(),
+        )
+    }
+}
+
+// ---- Tauri wiring ----
+
+/// Creates the service from the running app and applies the stored settings.
+/// Call from `setup` (after `AppState` and `Lifecycle` are managed); commands
+/// also create it on first use.
+#[allow(dead_code)] // called from `setup` once integrated
+pub fn init<R: Runtime>(app: &AppHandle<R>) {
+    let _ = service(app);
+}
+
+/// Live tail debounce chosen in the settings (default before they are loaded).
+#[allow(dead_code)] // used by `set_live` once integrated
+pub fn live_tail_debounce<R: Runtime>(app: &AppHandle<R>) -> Duration {
+    app.try_state::<SettingsService>()
+        .map_or(DEFAULT_LIVE_TAIL_DEBOUNCE, |s| s.live_tail_debounce())
+}
+
+fn service<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, SettingsService> {
+    if app.try_state::<SettingsService>().is_none() {
+        let service = build(app);
+        if app.manage(service) {
+            app.state::<SettingsService>().start();
+        }
+    }
+    app.state::<SettingsService>()
+}
+
+fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
+    let dir = app.try_state::<AppState>().and_then(|s| s.config_dir.clone());
+    let safe_mode = app.try_state::<lifecycle::Lifecycle>().is_some_and(|l| l.safe_mode);
+    let installed = app.try_state::<AppState>().map_or_else(Vec::new, |state| {
+        state
+            .store_read()
+            .summary()
+            .plugins
+            .into_iter()
+            .map(|p| (p.id, p.name, p.version))
+            .collect()
+    });
+    let handle = app.clone();
+    let set_enabled: SetEnabled = Box::new(move |id, enabled| {
+        let state = handle
+            .try_state::<AppState>()
+            .ok_or_else(|| anyhow::anyhow!("the app is not ready"))?;
+        lifecycle::plugin_set_enabled(state, id.to_string(), enabled)
+            .map(|_| ())
+            .map_err(|e| anyhow::anyhow!(e))
+    });
+    let handle = app.clone();
+    let last_known: Mutex<Vec<PluginSettings>> = Mutex::new(Vec::new());
+    let plugins: PluginSource = Box::new(move || {
+        let Some(state) = handle.try_state::<AppState>() else {
+            return Vec::new();
+        };
+        let mut last = last_known.lock().unwrap_or_else(|p| p.into_inner());
+        // Never wait for a long import: while the workspace is busy, the last known list is shown.
+        match state.workspace.try_read() {
+            Ok(store) => *last = store.plugin_settings(),
+            Err(std::sync::TryLockError::Poisoned(p)) => *last = p.into_inner().plugin_settings(),
+            Err(std::sync::TryLockError::WouldBlock) => {}
+        }
+        last.clone()
+    });
+    let debounce = Arc::new(AtomicU64::new(DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64));
+    let config = SettingsConfig {
+        builtins: builtins(dir.clone(), installed, set_enabled, debounce.clone()),
+        dir,
+        safe_mode,
+        plugins,
+    };
+    SettingsService::new(config, debounce)
+}
+
+/// The app's own sections, in navigation order.
+pub fn builtins(
+    dir: Option<PathBuf>,
+    plugins: Vec<(String, String, String)>,
+    set_enabled: SetEnabled,
+    debounce: Arc<AtomicU64>,
+) -> Vec<Builtin> {
+    let diagnostics = Arc::new(DiagnosticsSection { dir: dir.clone() });
+    let plugins = Arc::new(PluginsSection { dir, plugins, set_enabled });
+    vec![
+        Builtin {
+            configurable: diagnostics.clone(),
+            group: SectionGroup::Diagnostics,
+            external: Some(diagnostics),
+        },
+        Builtin {
+            configurable: plugins.clone(),
+            group: SectionGroup::Plugins,
+            external: Some(plugins),
+        },
+        Builtin {
+            configurable: Arc::new(WorkspaceSection { debounce_ms: debounce }),
+            group: SectionGroup::Advanced,
+            external: None,
+        },
+    ]
+}
+
+/// A user-chosen settings file path: absolute, `.json`, in an existing folder.
+fn checked_path(path: &str, must_exist: bool) -> Result<PathBuf, String> {
+    if path.is_empty() || path.len() > 4096 || path.contains('\0') {
+        return Err("choose a settings file".into());
+    }
+    let p = PathBuf::from(path);
+    if !p.is_absolute() {
+        return Err("the path must be absolute".into());
+    }
+    if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) {
+        return Err("settings files end in .json".into());
+    }
+    if must_exist {
+        let c = p.canonicalize().map_err(|e| format!("cannot open {path}: {e}"))?;
+        if !c.is_file() {
+            return Err(format!("{path} is not a file"));
+        }
+        return Ok(c);
+    }
+    let name = p.file_name().ok_or("choose a file name")?.to_owned();
+    let parent = p.parent().ok_or("choose a folder")?;
+    let parent = parent.canonicalize().map_err(|e| format!("the folder does not exist: {e}"))?;
+    let target = parent.join(name);
+    if target.is_dir() {
+        return Err(format!("{} is a folder", target.display()));
+    }
+    Ok(target)
+}
+
+#[tauri::command]
+pub fn settings_sections<R: Runtime>(app: AppHandle<R>) -> CmdResult<SettingsOverview> {
+    Ok(service(&app).overview())
+}
+
+#[tauri::command]
+pub fn set_settings<R: Runtime>(app: AppHandle<R>, section: String, values: Value) -> CmdResult<SetResult> {
+    service(&app).set(&section, &values)
+}
+
+#[tauri::command]
+pub fn reset_settings<R: Runtime>(app: AppHandle<R>, section: String) -> CmdResult<SetResult> {
+    service(&app).reset(&section)
+}
+
+#[tauri::command]
+pub fn export_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<()> {
+    let path = checked_path(&path, false)?;
+    service(&app).export(&path).map_err(err)?;
+    log::info!("Settings exported");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<ImportResult> {
+    let path = checked_path(&path, true)?;
+    let result = service(&app).import(&path)?;
+    log::info!(Applied = result.applied.len() as u64, Rejected = result.rejected.len() as u64; "Settings imported");
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use imt_core::guard::QUARANTINE_AFTER;
+    use imt_core::{Plugin, PluginRegistry};
+    use std::sync::atomic::AtomicUsize;
+
+    struct Temp(PathBuf);
+    impl Temp {
+        fn new(tag: &str) -> Temp {
+            let d = std::env::temp_dir().join(format!("imt-settings-{tag}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&d);
+            std::fs::create_dir_all(&d).unwrap();
+            Temp(d)
+        }
+        fn file(&self) -> Value {
+            serde_json::from_str(&std::fs::read_to_string(self.0.join(FILE)).unwrap()).unwrap()
+        }
+    }
+    impl Drop for Temp {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// A plugin whose `apply_settings` panics on demand (value 13).
+    struct Fragile;
+    struct FragileSettings;
+    impl Configurable for FragileSettings {
+        fn settings_section(&self) -> SettingsSection {
+            SettingsSection::new("x", "Fragile", SectionOwner::Core).field(SettingField::new("n", "N", int(0, 20, None), 1))
+        }
+        fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
+            if values.int("n") == Some(13) {
+                panic!("unlucky");
+            }
+            Ok(())
+        }
+    }
+    impl Plugin for Fragile {
+        fn id(&self) -> &'static str {
+            "t.fragile"
+        }
+        fn name(&self) -> &'static str {
+            "Fragile"
+        }
+        fn version(&self) -> &'static str {
+            "1"
+        }
+        fn register(&self, _r: &mut PluginRegistry) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+            Some(Arc::new(FragileSettings))
+        }
+    }
+
+    struct Fixture {
+        service: SettingsService,
+        debounce: Arc<AtomicU64>,
+        /// The workspace whose registry the plugin sections come from.
+        workspace: Arc<imt_core::Workspace>,
+        enabled_calls: Arc<Mutex<Vec<(String, bool)>>>,
+    }
+
+    /// Tests that apply the Windows plugin's process-wide settings run one at a time.
+    fn serial() -> MutexGuard<'static, ()> {
+        static LOCK: Mutex<()> = Mutex::new(());
+        LOCK.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    fn fixture(dir: Option<&Path>, safe_mode: bool, disabled: &[&str]) -> Fixture {
+        if let Some(d) = dir {
+            let s = lifecycle::PluginSettings {
+                disabled: disabled.iter().map(|s| s.to_string()).collect(),
+            };
+            std::fs::write(d.join("plugins.json"), serde_json::to_string(&s).unwrap()).unwrap();
+        }
+        let mut plugins = PluginRegistry::empty();
+        plugins.disable(disabled.iter().map(|s| s.to_string()));
+        if !safe_mode {
+            plugins.install(&imt_plugin_windows::WindowsPlugin).unwrap();
+            plugins.install(&imt_plugin_web::WebPlugin).unwrap();
+            plugins.install(&Fragile).unwrap();
+        }
+        let installed = plugins.plugins().into_iter().map(|p| (p.id, p.name, p.version)).collect();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let recorded = calls.clone();
+        let plugins_dir = dir.map(Path::to_path_buf);
+        let set_enabled: SetEnabled = Box::new(move |id, enabled| {
+            recorded.lock().unwrap().push((id.to_string(), enabled));
+            let dir = plugins_dir.as_ref().ok_or_else(|| anyhow::anyhow!("no dir"))?;
+            let mut s = lifecycle::load_plugin_settings(Some(dir));
+            s.disabled.retain(|d| d != id);
+            if !enabled {
+                s.disabled.push(id.into());
+            }
+            std::fs::write(dir.join("plugins.json"), serde_json::to_string(&s)?)?;
+            Ok(())
+        });
+        let workspace = Arc::new(imt_core::Workspace::with_registry(imt_core::Profile::default_profile(), plugins).unwrap());
+        let ws = workspace.clone();
+        let debounce = Arc::new(AtomicU64::new(DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64));
+        let config = SettingsConfig {
+            dir: dir.map(Path::to_path_buf),
+            safe_mode,
+            builtins: builtins(dir.map(Path::to_path_buf), installed, set_enabled, debounce.clone()),
+            plugins: Box::new(move || ws.plugin_settings()),
+        };
+        Fixture {
+            service: SettingsService::new(config, debounce.clone()),
+            debounce,
+            workspace,
+            enabled_calls: calls,
+        }
+    }
+
+    fn view<'a>(o: &'a SettingsOverview, id: &str) -> &'a SectionView {
+        o.sections.iter().find(|s| s.section.id == id).unwrap()
+    }
+
+    #[test]
+    fn file_round_trip_and_tolerance() {
+        let t = Temp::new("file");
+        assert_eq!(load_file(None), SettingsFile::default());
+        assert_eq!(load_file(Some(&t.0)), SettingsFile::default());
+        let mut f = SettingsFile::default();
+        f.sections.insert("a".into(), json!({ "k": 1 }));
+        write_atomic(&t.0.join(FILE), &f).unwrap();
+        let back = load_file(Some(&t.0));
+        assert_eq!((back.version, back.sections), (VERSION, f.sections.clone()));
+        // No temp files are left behind.
+        let names: Vec<String> = std::fs::read_dir(&t.0)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, [FILE]);
+        // A newer version is still read (values are re-validated anyway).
+        std::fs::write(t.0.join(FILE), r#"{"version": 99, "sections": {"b": {}}}"#).unwrap();
+        assert!(load_file(Some(&t.0)).sections.contains_key("b"));
+        // Corrupt: defaults, and the file is moved aside.
+        std::fs::write(t.0.join(FILE), "{ nope").unwrap();
+        assert_eq!(load_file(Some(&t.0)), SettingsFile::default());
+        assert!(t.0.join("settings.json.corrupt").exists() && !t.0.join(FILE).exists());
+        // Oversized.
+        std::fs::write(t.0.join(FILE), " ".repeat(MAX_FILE_BYTES as usize + 1)).unwrap();
+        assert_eq!(load_file(Some(&t.0)), SettingsFile::default());
+        // A folder where the file should be.
+        std::fs::create_dir_all(t.0.join(FILE)).unwrap();
+        assert_eq!(load_file(Some(&t.0)), SettingsFile::default());
+        // Writing into a missing folder fails cleanly.
+        assert!(write_atomic(&t.0.join("missing/settings.json"), &f).is_err());
+        assert!(write_atomic(Path::new("/"), &f).is_err());
+    }
+
+    #[test]
+    fn overview_lists_builtins_plugins_and_the_ai_placeholder() {
+        let _serial = serial();
+        let t = Temp::new("overview");
+        let fx = fixture(Some(&t.0), false, &["net.decryptology.web", "t.fragile"]);
+        let o = fx.service.overview();
+        let ids: Vec<&str> = o.sections.iter().map(|s| s.section.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["diagnostics", "plugins", "workspace", "net.decryptology.windows", "t.fragile", "ai"]
+        );
+        assert!(!o.restart_pending && !o.safe_mode);
+        let diag = view(&o, "diagnostics");
+        assert_eq!(
+            (diag.group, diag.status, diag.read_only),
+            (SectionGroup::Diagnostics, SectionStatus::Active, false)
+        );
+        assert_eq!(diag.values["logLevel"], "info");
+        assert_eq!(diag.values["logMaxFileMb"], 10);
+        let plugins = view(&o, "plugins");
+        assert_eq!(plugins.values["net.decryptology.windows"], true);
+        assert_eq!(plugins.values["net.decryptology.web"], false);
+        assert_eq!(plugins.section.fields.len(), 3);
+        let windows = view(&o, "net.decryptology.windows");
+        assert_eq!((windows.group, windows.status), (SectionGroup::Plugins, SectionStatus::Active));
+        assert_eq!(windows.values["relogTimeout"], 120_000);
+        let fragile = view(&o, "t.fragile");
+        assert_eq!((fragile.status, fragile.read_only), (SectionStatus::Disabled, true));
+        assert!(fragile.note.as_deref().unwrap().contains("disabled"));
+        assert_eq!(fragile.values["n"], 1);
+        let ai = view(&o, AI_SECTION);
+        assert_eq!(
+            (ai.status, ai.read_only, ai.group),
+            (SectionStatus::NotInstalled, true, SectionGroup::Ai)
+        );
+        assert!(ai.note.as_deref().unwrap().contains("not installed"));
+        // The wire shape: the section's fields are flattened next to the status.
+        let v = serde_json::to_value(&o).unwrap();
+        assert_eq!(v["sections"][0]["id"], "diagnostics");
+        assert_eq!(v["sections"][0]["readOnly"], false);
+        assert_eq!(v["sections"][0]["fields"][0]["kind"]["type"], "enum");
+        assert_eq!(v["restartPending"], false);
+    }
+
+    #[test]
+    fn set_validates_applies_then_persists() {
+        let _serial = serial();
+        let t = Temp::new("set");
+        let fx = fixture(Some(&t.0), false, &[]);
+        std::fs::write(t.0.join(FILE), r#"{"version":1,"sections":{"uninstalled.plugin":{"x":1}}}"#).unwrap();
+        let fx = Fixture {
+            service: SettingsService::new(
+                SettingsConfig {
+                    dir: Some(t.0.clone()),
+                    safe_mode: false,
+                    builtins: fx.service.builtins.read().unwrap().clone(),
+                    plugins: Box::new(Vec::new),
+                },
+                fx.debounce.clone(),
+            ),
+            ..fx
+        };
+        let bad = fx.service.set(WORKSPACE_SECTION, &json!({ "liveTailDebounce": 5 })).unwrap();
+        assert!(!bad.applied && !bad.restart_required);
+        assert_eq!(bad.errors[0].key, "liveTailDebounce");
+        assert_eq!(bad.errors[0].message, "Must be between 100 ms and 10 s.");
+        assert_eq!(bad.values["liveTailDebounce"], 750);
+        assert_eq!(fx.debounce.load(Ordering::SeqCst), 750);
+
+        let ok = fx
+            .service
+            .set(WORKSPACE_SECTION, &json!({ "liveTailDebounce": 2000, "junk": 1 }))
+            .unwrap();
+        assert!(ok.applied && !ok.restart_required && ok.errors.is_empty());
+        assert_eq!(ok.values, json!({ "liveTailDebounce": 2000 }));
+        assert_eq!(fx.service.live_tail_debounce(), Duration::from_secs(2));
+        let file = t.file();
+        assert_eq!(file["version"], VERSION);
+        assert_eq!(file["sections"]["workspace"], json!({ "liveTailDebounce": 2000 }));
+        // Sections nobody provides are kept.
+        assert_eq!(file["sections"]["uninstalled.plugin"], json!({ "x": 1 }));
+
+        let reset = fx.service.reset(WORKSPACE_SECTION).unwrap();
+        assert_eq!(reset.values["liveTailDebounce"], 750);
+        assert_eq!(fx.service.live_tail_debounce(), DEFAULT_LIVE_TAIL_DEBOUNCE);
+
+        assert!(fx.service.set("nope", &json!({})).unwrap_err().contains("no settings section"));
+        assert!(fx.service.set("", &json!({})).unwrap_err().contains("invalid"));
+        assert!(fx.service.set(&"x".repeat(200), &json!({})).unwrap_err().contains("invalid"));
+    }
+
+    #[test]
+    fn diagnostics_adapter_writes_diagnostics_json_and_flags_restarts() {
+        let _serial = serial();
+        let t = Temp::new("diag");
+        let fx = fixture(Some(&t.0), false, &[]);
+        let r = fx.service.set(DIAGNOSTICS_SECTION, &json!({ "logLevel": "debug" })).unwrap();
+        assert!(r.applied && !r.restart_required);
+        assert_eq!(diagnostics::load(Some(&t.0)).log.level, diagnostics::LogLevel::Debug);
+        assert!(!fx.service.overview().restart_pending);
+        let r = fx
+            .service
+            .set(
+                DIAGNOSTICS_SECTION,
+                &json!({ "logLevel": "debug", "logMaxFileMb": 20, "snapshotsEnabled": false }),
+            )
+            .unwrap();
+        assert!(r.applied && r.restart_required);
+        let d = diagnostics::load(Some(&t.0));
+        assert_eq!((d.log.max_file_mb, d.snapshots.enabled), (20, false));
+        assert!(fx.service.overview().restart_pending);
+        // Not duplicated in settings.json: diagnostics.json is the source of truth.
+        assert!(!t.0.join(FILE).exists());
+        assert_eq!(view(&fx.service.overview(), "diagnostics").values["logMaxFileMb"], 20);
+        let e = fx
+            .service
+            .set(DIAGNOSTICS_SECTION, &json!({ "logKeepFiles": 0, "logLevel": "loud" }))
+            .unwrap();
+        let keys: Vec<&str> = e.errors.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, ["logLevel", "logKeepFiles"]);
+        log::set_max_level(log::LevelFilter::Info);
+    }
+
+    #[test]
+    fn diagnostics_limits_match_the_clamping_in_diagnostics_rs() {
+        let section = DiagnosticsSection { dir: None }.settings_section();
+        for f in &section.fields {
+            if let FieldKind::Int { min, max, .. } = f.kind {
+                for v in [min, max] {
+                    let mut values = section.defaults().to_json();
+                    values[&f.key] = json!(v);
+                    let valid = validate(&section, &values).unwrap();
+                    let s = diagnostics_from(&valid).unwrap();
+                    let back = sanitize(&section, &DiagnosticsSection { dir: None }.load()).0;
+                    assert_eq!(back, section.defaults(), "defaults agree");
+                    let as_json = json!({
+                        "logMaxFileMb": s.log.max_file_mb, "logKeepFiles": s.log.keep_files, "logMaxAgeDays": s.log.max_age_days,
+                        "snapshotsMaxCount": s.snapshots.max_count, "snapshotsMaxTotalMb": s.snapshots.max_total_mb,
+                        "snapshotsMaxAgeDays": s.snapshots.max_age_days,
+                    });
+                    assert_eq!(as_json[&f.key], json!(v), "{} = {v} survives clamped()", f.key);
+                }
+            }
+        }
+        assert!(DiagnosticsSection { dir: None }
+            .apply_settings(&section.defaults())
+            .unwrap_err()
+            .to_string()
+            .contains("configuration folder"));
+        assert_eq!(capitalized(""), "");
+    }
+
+    #[test]
+    fn plugin_switches_go_through_the_lifecycle_setting() {
+        let _serial = serial();
+        let t = Temp::new("switch");
+        let fx = fixture(Some(&t.0), false, &[]);
+        let r = fx.service.set(PLUGINS_SECTION, &json!({ "net.decryptology.web": false })).unwrap();
+        assert!(r.applied && r.restart_required);
+        assert_eq!(*fx.enabled_calls.lock().unwrap(), [("net.decryptology.web".to_string(), false)]);
+        assert_eq!(lifecycle::load_plugin_settings(Some(&t.0)).disabled, ["net.decryptology.web"]);
+        assert_eq!(view(&fx.service.overview(), PLUGINS_SECTION).values["net.decryptology.web"], false);
+        // Unchanged switches are not touched again.
+        fx.service.set(PLUGINS_SECTION, &json!({ "net.decryptology.web": false })).unwrap();
+        assert_eq!(fx.enabled_calls.lock().unwrap().len(), 1);
+        fx.service.reset(PLUGINS_SECTION).unwrap();
+        assert!(lifecycle::load_plugin_settings(Some(&t.0)).disabled.is_empty());
+        // A failing switch is reported.
+        let none = fixture(None, false, &[]);
+        assert!(none
+            .service
+            .set(PLUGINS_SECTION, &json!({ "t.fragile": false }))
+            .unwrap_err()
+            .contains("no dir"));
+    }
+
+    #[test]
+    fn plugin_sections_apply_and_crashes_are_contained_and_quarantine() {
+        let _serial = serial();
+        let t = Temp::new("crash");
+        let fx = fixture(Some(&t.0), false, &[]);
+        let r = fx
+            .service
+            .set("net.decryptology.windows", &json!({ "relogTimeout": 300_000 }))
+            .unwrap();
+        assert!(r.applied);
+        assert_eq!(imt_plugin_windows::settings::relog_timeout(), Duration::from_secs(300));
+        fx.service.reset("net.decryptology.windows").unwrap();
+        assert_eq!(t.file()["sections"]["net.decryptology.windows"]["relogTimeout"], 120_000);
+
+        for _ in 0..QUARANTINE_AFTER {
+            let e = fx.service.set("t.fragile", &json!({ "n": 13 })).unwrap_err();
+            assert!(e.contains("crashed: unlucky"), "{e}");
+        }
+        // Nothing crashed was saved.
+        assert!(t.file()["sections"].get("t.fragile").is_none());
+        let o = fx.service.overview();
+        let fragile = view(&o, "t.fragile");
+        assert_eq!((fragile.status, fragile.read_only), (SectionStatus::Quarantined, true));
+        assert!(fx
+            .service
+            .set("t.fragile", &json!({ "n": 1 }))
+            .unwrap_err()
+            .contains("repeated crashes"));
+
+        // The crashes were counted by the workspace's own registry (one health record).
+        let info = fx.workspace.plugins().into_iter().find(|p| p.id == "t.fragile").unwrap();
+        assert_eq!((info.status, info.failures), (PluginStatus::Quarantined, QUARANTINE_AFTER));
+        // Lifting the quarantine in the workspace makes the section editable again.
+        fx.workspace.reset_plugin("t.fragile");
+        assert_eq!(view(&fx.service.overview(), "t.fragile").status, SectionStatus::Active);
+        assert!(fx.service.set("t.fragile", &json!({ "n": 1 })).unwrap().applied);
+    }
+
+    #[test]
+    fn disabled_plugins_are_read_only() {
+        let _serial = serial();
+        let t = Temp::new("disabled");
+        let fx = fixture(Some(&t.0), false, &["net.decryptology.windows"]);
+        let o = fx.service.overview();
+        let w = view(&o, "net.decryptology.windows");
+        assert_eq!((w.status, w.read_only), (SectionStatus::Disabled, true));
+        assert_eq!(w.section.fields.len(), 2);
+        assert!(fx
+            .service
+            .set("net.decryptology.windows", &json!({}))
+            .unwrap_err()
+            .contains("disabled"));
+    }
+
+    #[test]
+    fn startup_applies_stored_values_and_defaults_invalid_ones() {
+        let _serial = serial();
+        let t = Temp::new("start");
+        std::fs::write(
+            t.0.join(FILE),
+            r#"{"version":1,"sections":{"workspace":{"liveTailDebounce":1500},"t.fragile":{"n":"bad"},"net.decryptology.windows":{"logmanTimeout":60000}}}"#,
+        )
+        .unwrap();
+        let fx = fixture(Some(&t.0), false, &[]);
+        fx.service.start();
+        assert_eq!(fx.service.live_tail_debounce(), Duration::from_millis(1500));
+        assert_eq!(imt_plugin_windows::settings::logman_timeout(), Duration::from_secs(60));
+        assert_eq!(view(&fx.service.overview(), "t.fragile").values["n"], 1);
+        fx.service.reset("net.decryptology.windows").unwrap();
+        // A crash at startup is contained too.
+        std::fs::write(
+            t.0.join(FILE),
+            r#"{"version":1,"sections":{"t.fragile":{"n":13},"workspace":{"liveTailDebounce":3}}}"#,
+        )
+        .unwrap();
+        let fx = fixture(Some(&t.0), false, &["net.decryptology.web"]);
+        fx.service.start();
+        assert_eq!(fx.service.live_tail_debounce(), DEFAULT_LIVE_TAIL_DEBOUNCE);
+        // A disabled plugin's stored values are not applied.
+        let fx = fixture(Some(&t.0), false, &["t.fragile"]);
+        fx.service.start();
+        assert_eq!(view(&fx.service.overview(), "t.fragile").status, SectionStatus::Disabled);
+    }
+
+    #[test]
+    fn safe_mode_shows_no_plugin_sections() {
+        let _serial = serial();
+        let t = Temp::new("safe");
+        let fx = fixture(Some(&t.0), true, &[]);
+        let o = fx.service.overview();
+        assert!(o.safe_mode);
+        let p = view(&o, PLUGINS_SECTION);
+        assert_eq!((p.status, p.read_only), (SectionStatus::SafeMode, true));
+        assert!(p.note.as_deref().unwrap().contains("safe mode"));
+        assert!(fx.service.set(PLUGINS_SECTION, &json!({})).unwrap_err().contains("safe mode"));
+        assert_eq!(o.sections.len(), 4);
+    }
+
+    #[test]
+    fn without_a_config_folder_changes_apply_but_report_the_save_failure() {
+        let _serial = serial();
+        let fx = fixture(None, false, &[]);
+        let e = fx.service.set(WORKSPACE_SECTION, &json!({ "liveTailDebounce": 900 })).unwrap_err();
+        assert!(e.contains("could not be saved") && e.contains("no configuration folder"), "{e}");
+        assert_eq!(fx.debounce.load(Ordering::SeqCst), 900);
+    }
+
+    #[test]
+    fn export_and_import() {
+        let _serial = serial();
+        let t = Temp::new("export");
+        let fx = fixture(Some(&t.0), false, &["net.decryptology.web"]);
+        fx.service.set(WORKSPACE_SECTION, &json!({ "liveTailDebounce": 1200 })).unwrap();
+        let out = t.0.join("exported.json");
+        fx.service.export(&out).unwrap();
+        let exported: Value = serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+        assert_eq!(exported["version"], VERSION);
+        assert_eq!(exported["sections"]["workspace"]["liveTailDebounce"], 1200);
+        assert_eq!(exported["sections"]["diagnostics"]["logLevel"], "info");
+        assert_eq!(exported["sections"]["plugins"]["net.decryptology.web"], false);
+
+        fx.service.reset(WORKSPACE_SECTION).unwrap();
+        let input = t.0.join("in.json");
+        std::fs::write(
+            &input,
+            json!({
+                "version": 1,
+                "sections": {
+                    "workspace": { "liveTailDebounce": 1300 },
+                    "diagnostics": { "logMaxFileMb": 0 },
+                    "net.decryptology.windows": { "relogTimeout": 240000 },
+                    "net.decryptology.web": { "anything": true },
+                    "some.future.plugin": { "a": 1 },
+                    "": {}
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let r = fx.service.import(&input).unwrap();
+        assert_eq!(r.applied, ["net.decryptology.windows", "workspace"]);
+        assert_eq!(r.kept, ["net.decryptology.web", "some.future.plugin"]);
+        let rejected: Vec<&str> = r.rejected.iter().map(|s| s.section.as_str()).collect();
+        assert_eq!(rejected, ["", "diagnostics"]);
+        assert_eq!(r.rejected[1].errors[0].key, "logMaxFileMb");
+        assert!(!r.restart_required);
+        assert_eq!(fx.service.live_tail_debounce(), Duration::from_millis(1300));
+        assert_eq!(
+            diagnostics::load(Some(&t.0)).log.max_file_mb,
+            10,
+            "a rejected section is left unchanged"
+        );
+        let file = t.file();
+        assert_eq!(file["sections"]["some.future.plugin"], json!({ "a": 1 }));
+        fx.service.reset("net.decryptology.windows").unwrap();
+
+        std::fs::write(&input, "not json").unwrap();
+        assert!(fx.service.import(&input).unwrap_err().contains("not a settings file"));
+        assert!(fx.service.import(&t.0.join("missing.json")).unwrap_err().contains("does not exist"));
+        // A setter error (here: no dir for the plugin switch) rejects the section.
+        let none = fixture(None, false, &[]);
+        std::fs::write(&input, r#"{"sections":{"plugins":{"t.fragile":false}}}"#).unwrap();
+        let r = none.service.import(&input).unwrap();
+        assert_eq!(r.rejected[0].section, "plugins");
+    }
+
+    struct AiSettings(Arc<AtomicUsize>);
+    impl Configurable for AiSettings {
+        fn settings_section(&self) -> SettingsSection {
+            SettingsSection::new(AI_SECTION, "AI assistant", SectionOwner::App).field(SettingField::new("on", "On", FieldKind::Bool, false))
+        }
+        fn apply_settings(&self, _values: &ValidValues) -> anyhow::Result<()> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn app_modules_register_later() {
+        let _serial = serial();
+        let t = Temp::new("register");
+        std::fs::write(t.0.join(FILE), r#"{"version":1,"sections":{"ai":{"on":true}}}"#).unwrap();
+        let fx = fixture(Some(&t.0), false, &[]);
+        let applied = Arc::new(AtomicUsize::new(0));
+        fx.service
+            .register(Arc::new(AiSettings(applied.clone())), SectionGroup::Ai)
+            .unwrap();
+        assert_eq!(applied.load(Ordering::SeqCst), 1);
+        let o = fx.service.overview();
+        let ai = view(&o, AI_SECTION);
+        assert_eq!((ai.status, ai.values["on"].clone()), (SectionStatus::Active, json!(true)));
+        assert_eq!(o.sections.iter().filter(|s| s.section.id == AI_SECTION).count(), 1);
+        let again = fx
+            .service
+            .register(Arc::new(AiSettings(applied.clone())), SectionGroup::Ai)
+            .unwrap_err();
+        assert!(again.to_string().contains("already registered"));
+        struct Broken;
+        impl Configurable for Broken {
+            fn settings_section(&self) -> SettingsSection {
+                SettingsSection::new("bad id", "B", SectionOwner::App)
+            }
+            fn apply_settings(&self, _values: &ValidValues) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+        assert!(fx
+            .service
+            .register(Arc::new(Broken), SectionGroup::Advanced)
+            .unwrap_err()
+            .to_string()
+            .contains("invalid settings schema"));
+    }
+
+    #[test]
+    fn a_plugin_section_clashing_with_a_builtin_is_ignored() {
+        struct Clash;
+        impl Plugin for Clash {
+            fn id(&self) -> &'static str {
+                "workspace"
+            }
+            fn name(&self) -> &'static str {
+                "Clash"
+            }
+            fn version(&self) -> &'static str {
+                "1"
+            }
+            fn register(&self, _r: &mut PluginRegistry) -> anyhow::Result<()> {
+                Ok(())
+            }
+            fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+                Some(Arc::new(FragileSettings))
+            }
+        }
+        let mut plugins = PluginRegistry::empty();
+        plugins.install(&Clash).unwrap();
+        let clash = imt_core::Workspace::with_registry(imt_core::Profile::default_profile(), plugins).unwrap();
+        let debounce = Arc::new(AtomicU64::new(750));
+        let service = SettingsService::new(
+            SettingsConfig {
+                dir: None,
+                safe_mode: false,
+                builtins: builtins(None, vec![], Box::new(|_, _| Ok(())), debounce.clone()),
+                plugins: Box::new(move || clash.plugin_settings()),
+            },
+            debounce,
+        );
+        let o = service.overview();
+        assert_eq!(o.sections.iter().filter(|s| s.section.id == "workspace").count(), 1);
+        assert_eq!(view(&o, "workspace").section.title, "Workspace");
+    }
+
+    #[test]
+    fn user_chosen_paths_are_checked() {
+        let t = Temp::new("paths");
+        let file = t.0.join("s.json");
+        std::fs::write(&file, "{}").unwrap();
+        let s = |p: &Path| p.to_string_lossy().into_owned();
+        assert!(checked_path("", false).is_err());
+        assert!(checked_path("a\0b.json", false).is_err());
+        assert!(checked_path("relative.json", false).unwrap_err().contains("absolute"));
+        assert!(checked_path(&s(&t.0.join("s.txt")), false).unwrap_err().contains(".json"));
+        assert!(checked_path(&s(&t.0.join("missing/x.json")), false)
+            .unwrap_err()
+            .contains("folder does not exist"));
+        std::fs::create_dir_all(t.0.join("dir.json")).unwrap();
+        assert!(checked_path(&s(&t.0.join("dir.json")), false).unwrap_err().contains("is a folder"));
+        assert!(checked_path(&s(&t.0.join("dir.json")), true).unwrap_err().contains("not a file"));
+        assert!(checked_path(&s(&t.0.join("nope.json")), true).unwrap_err().contains("cannot open"));
+        assert_eq!(checked_path(&s(&file), true).unwrap(), file.canonicalize().unwrap());
+        assert_eq!(
+            checked_path(&s(&t.0.join("new.JSON")), false).unwrap(),
+            t.0.canonicalize().unwrap().join("new.JSON")
+        );
+    }
+
+    #[test]
+    fn commands_through_the_tauri_app() {
+        let _serial = serial();
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let t = Temp::new("commands");
+        let state = crate::app_state(Some(t.0.join("profiles")), &[]).unwrap();
+        let app = mock_builder().manage(state).build(mock_context(noop_assets())).unwrap();
+        app.manage(lifecycle::Lifecycle::begin(Some(t.0.join("data")), false));
+        let h = app.handle().clone();
+        assert_eq!(live_tail_debounce(&h), DEFAULT_LIVE_TAIL_DEBOUNCE);
+        init(&h);
+        let o = settings_sections(h.clone()).unwrap();
+        assert!(o.sections.iter().any(|s| s.section.id == "net.decryptology.windows"));
+        assert!(!o.safe_mode);
+        // The plugin switch goes through `lifecycle::plugin_set_enabled`.
+        let r = set_settings(h.clone(), PLUGINS_SECTION.into(), json!({ "net.decryptology.web": false })).unwrap();
+        assert!(r.applied && r.restart_required);
+        assert_eq!(lifecycle::load_plugin_settings(Some(&t.0)).disabled, ["net.decryptology.web"]);
+        set_settings(h.clone(), WORKSPACE_SECTION.into(), json!({ "liveTailDebounce": 400 })).unwrap();
+        assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
+        let out = t.0.join("export.json").to_string_lossy().into_owned();
+        export_settings(h.clone(), out.clone()).unwrap();
+        reset_settings(h.clone(), WORKSPACE_SECTION.into()).unwrap();
+        let r = import_settings(h.clone(), out).unwrap();
+        assert!(r.applied.contains(&WORKSPACE_SECTION.to_string()));
+        assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
+        assert!(export_settings(h.clone(), "relative.json".into()).is_err());
+        assert!(import_settings(h.clone(), t.0.join("none.json").to_string_lossy().into_owned()).is_err());
+        let bad = t.0.join("bad.json");
+        std::fs::write(&bad, "[]").unwrap();
+        assert!(import_settings(h.clone(), bad.to_string_lossy().into_owned()).is_err());
+        // While an import holds the workspace, the status is read without waiting for it.
+        {
+            let state = app.state::<AppState>();
+            let _busy = state.workspace.write().unwrap();
+            assert!(!settings_sections(h.clone()).unwrap().sections.is_empty());
+        }
+        // The plugin sections come from the workspace's registry (nothing is quarantined here).
+        let web = settings_sections(h.clone()).unwrap();
+        assert_eq!(view(&web, "net.decryptology.windows").status, SectionStatus::Active);
+        let failing = export_settings(h, t.0.join("missing/dir/x.json").to_string_lossy().into_owned());
+        assert!(failing.is_err());
+    }
+
+    #[test]
+    fn the_service_is_created_lazily_without_app_state() {
+        let _serial = serial();
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let app = mock_builder().build(mock_context(noop_assets())).unwrap();
+        let h = app.handle().clone();
+        let o = settings_sections(h.clone()).unwrap();
+        assert!(o.sections.iter().any(|s| s.section.id == DIAGNOSTICS_SECTION));
+        // Without a workspace there are no plugins: no plugin sections and nothing to switch.
+        assert!(!o
+            .sections
+            .iter()
+            .any(|s| s.group == SectionGroup::Plugins && s.section.id != PLUGINS_SECTION));
+        assert!(view(&o, PLUGINS_SECTION).section.fields.is_empty());
+        let r = set_settings(h.clone(), PLUGINS_SECTION.into(), json!({ "net.decryptology.web": false })).unwrap();
+        assert!(!r.restart_required);
+    }
+}

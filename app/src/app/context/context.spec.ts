@@ -9,6 +9,7 @@ import { ContextMenuService } from '../ui/context-menu.service';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { DropDialog } from './drop-dialog';
 import { ExtractDialog } from './extract-dialog';
+import { InferDialog } from '../markers/regex/infer-dialog';
 import { MarkDialog } from './mark-dialog';
 import { applyMask, MaskDialog } from './mask-dialog';
 import { MatchCounter } from './match-count';
@@ -264,7 +265,7 @@ describe('RecordActions and the context menu', () => {
   it('offers row actions and opens the drop dialog prefilled from the record', async () => {
     const { rec, actions, dialogs } = await setup();
     const labels = actions.itemsFor(rec).map((i) => i.label);
-    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…']);
+    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…']);
     actions.itemsFor(rec)[0].run();
     expect(dialogs.stack()[0].component).toBe(DropDialog);
     expect(dialogs.stack()[0].options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
@@ -280,6 +281,8 @@ describe('RecordActions and the context menu', () => {
       'Exclude this MachineName',
       'Drop events like this (pipeline)…',
       'Mark events like this…',
+      'Highlight lines…',
+      'Infer pattern from lines…',
       'Mask in message…',
       'Extract value…',
     ]);
@@ -292,8 +295,23 @@ describe('RecordActions and the context menu', () => {
     expect(dialogs.stack()[1].options.inputs?.['suggestedLabel']).toBe('MachineName WEB01');
     items[4].run();
     items[5].run();
-    expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MaskDialog, ExtractDialog]);
-    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(2);
+    items[6].run();
+    items[7].run();
+    expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
+    expect(dialogs.stack()[2].options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
+    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(4);
+  });
+
+  it('infers from every selected record, or from the record alone', async () => {
+    const { rec, actions, dialogs } = await setup();
+    const other = { ...rec, id: rec.id + 1, message: 'Slow request 2' };
+    const infer = (target: Parameters<RecordActions['itemsFor']>[1]) => actions.itemsFor(rec, target).find((i) => i.label === 'Infer pattern from lines…')!.run();
+    infer({ records: [rec, other] });
+    expect(dialogs.stack()[0].options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
+    infer({ records: [] });
+    expect(dialogs.stack()[1].options.inputs?.['lines']).toEqual([rec.message]);
+    infer({});
+    expect(dialogs.stack()[2].options.inputs?.['lines']).toEqual([rec.message]);
   });
 
   it('offers a logger filter on rows that have one and truncates long labels', async () => {
@@ -318,14 +336,16 @@ describe('RecordActions and the context menu', () => {
     const key = (k: string) => popover.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
     key('ArrowDown');
     expect(document.activeElement).toBe(items[1]);
-    key('ArrowDown');
+    key('ArrowUp');
     expect(document.activeElement).toBe(items[0]);
     key('ArrowUp');
-    expect(document.activeElement).toBe(items[1]);
-    key('Home');
+    expect(document.activeElement).toBe(items[3]);
+    key('ArrowDown');
     expect(document.activeElement).toBe(items[0]);
     key('End');
-    expect(document.activeElement).toBe(items[1]);
+    expect(document.activeElement).toBe(items[3]);
+    key('Home');
+    expect(document.activeElement).toBe(items[0]);
     key('x');
     expect(menu.menu()).not.toBeNull();
     row.focus();

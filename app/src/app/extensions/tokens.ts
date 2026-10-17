@@ -28,6 +28,11 @@ export interface CommandContext {
   addFilter(filter: FieldFilter): void;
   /** Selects a record (shown in the inspector). */
   selectRecord(record: RecordView | null): void;
+  /**
+   * Reveals a record by id: loads the grid page containing it, scrolls to the row and selects it.
+   * Resolves once the grid has done so or reported that the record is not in the current view.
+   */
+  jumpTo(id: number): Promise<void>;
   /** Opens (if needed) and focuses a view by id. */
   showView(id: string): void;
   /** Reports a problem to the user. */

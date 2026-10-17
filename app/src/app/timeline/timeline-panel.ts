@@ -9,14 +9,21 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { Lane, LEVELS, MarkerCluster } from '../core/api.types';
+import { Lane, LEVELS, MarkerKind } from '../core/api.types';
 import { clamp, formatCount, formatDateTime, formatDuration, formatTime, timeTicks } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { HIST_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
-import { MarkerIcon } from '../shared/marker-icon';
+import { MarkerGlyph } from '../markers/marker-glyph';
+import { styleOf } from '../markers/marker-styles';
+import { MarkerStyles } from '../markers/marker-styles';
 import { LaidMarker, layoutLane, MarkerVm } from './marker-layout';
 import { pan as panRange, Range, TimelineZoom, wheelFactor, xToTs } from './zoom';
+import { AnalysisTargets } from '../analysis/analysis-targets';
+import { TimeCursor, TimeCursorSource, timeToFrac } from '../analysis/time-cursor';
+import { momentAt, WIDTHS } from '../analysis/windows';
+import { COMMAND_CONTEXT } from '../extensions/command-registry';
+import { ContextMenuService } from '../ui/context-menu.service';
 
 const LABEL_W = 250;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
@@ -59,7 +66,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerIcon],
+  imports: [Icon, MarkerGlyph, TimeCursorSource],
   host: { '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
   template: `
     <div class="head">
@@ -69,11 +76,19 @@ interface Hover {
           {{ t.lanes.length }} instance{{ t.lanes.length === 1 ? '' : 's' }} · bucket {{ bucketLabel() }} · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan
         }
       </span>
-      @if (store.timelineLoading()) { <span class="spinner" aria-label="Loading"></span> }
+      @if (store.timelineLoading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
       <span class="spacer"></span>
       <div class="legend">
         @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
-          <span class="lg"><imt-marker-icon [kind]="k.kind" [color]="k.color" [label]="k.label" />{{ k.label }}</span>
+          <button
+            type="button"
+            class="lg"
+            [attr.aria-pressed]="legendActive(k.kind)"
+            [attr.aria-describedby]="legendDesc(k)"
+            [title]="legendTitle(k)"
+            (click)="toggleKind(k.kind)"
+          ><imt-marker-glyph [kind]="k.kind" [size]="16" />{{ k.label }}</button>
+          @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
         }
       </div>
       <div class="zoom" role="group" aria-label="Zoom">
@@ -85,7 +100,17 @@ interface Hover {
       </div>
     </div>
 
-    <div class="wrap" #wrap [class.panning]="panning()" (pointerdown)="pointerDown($event)" (pointermove)="pointerMove($event)" (pointerleave)="hoverX.set(null)" (dblclick)="zoom.fit()" (wheel)="onWheel($event)">
+    <div
+      class="wrap"
+      #wrap
+      [class.panning]="panning()"
+      [imtTimeCursor]="range()"
+      [imtTimeCursorLeft]="plotLeft()"
+      [imtTimeCursorWidth]="plotWidth()"
+      (pointerdown)="pointerDown($event)"
+      (dblclick)="zoom.fit()"
+      (wheel)="onWheel($event)"
+    >
       <div class="scroller">
         <div class="sticky">
           <div class="row hist-row">
@@ -100,7 +125,7 @@ interface Hover {
           </div>
           <div class="row axis-row">
             <div class="label"></div>
-            <div class="plot axis" #axis>
+            <div class="plot axis" #axis (contextmenu)="axisMenu($event)" title="Right-click to analyse a moment">
               @for (t of ticks(); track t.ts) {
                 <span class="tick mono" [style.left.%]="t.frac * 100">{{ t.label }}</span>
               }
@@ -134,7 +159,7 @@ interface Hover {
                   (pointerenter)="hover.set({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: m })"
                   (pointerleave)="hover.set(null)"
                 >
-                  <imt-marker-icon [kind]="m.cluster.kind" [color]="m.color" />
+                  <imt-marker-glyph [kind]="m.cluster.kind" [size]="16" />
                   @if (m.showCount) { <span class="count mono">{{ m.cluster.count }}</span> }
                 </button>
               }
@@ -163,23 +188,32 @@ interface Hover {
         @if (brush(); as b) {
           <div class="brush" [style.left.px]="b.x0" [style.width.px]="b.x1 - b.x0"></div>
         }
-        @if (hoverX(); as hx) {
-          <div class="cursor" [style.left.px]="hx">
+        @if (hoverX() !== null) {
+          <div class="cursor" [style.left.px]="hoverX()">
             <span class="cursor-label mono">{{ hoverTime() }}</span>
           </div>
         }
       </div>
     </div>
 
+    @if (store.timelineError(); as err) {
+      <div class="err-card" role="alert">
+        <strong>Could not load the timeline</strong>
+        <span class="mono">{{ err }}</span>
+        <button class="btn" type="button" (click)="store.retryTimeline()">Retry</button>
+      </div>
+    }
+
     @if (hover(); as h) {
       <div class="popover tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
         <div class="tip-head">
-          <imt-marker-icon [kind]="h.marker.cluster.kind" [color]="h.marker.color" />
+          <imt-marker-glyph [kind]="h.marker.cluster.kind" [size]="18" />
           <strong>{{ h.marker.label }}</strong>
           <span class="faint">{{ h.marker.cluster.count === 1 ? '1 event' : h.marker.cluster.count + ' events in this interval' }}</span>
           <span class="spacer"></span>
           <span class="mono faint">{{ time(h.marker.cluster.ts) }}</span>
         </div>
+        @if (describe(h.marker.cluster.kind); as d) { <div class="tip-desc">{{ d }}</div> }
         <div class="mono small">{{ h.lane }}</div>
         <div class="tip-msg">{{ h.marker.cluster.message }}</div>
         <div class="faint small">Click to jump to {{ h.marker.cluster.count > 1 ? 'the first event' : 'the event' }}</div>
@@ -187,12 +221,17 @@ interface Hover {
     }
   `,
   styles: `
-    :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; }
+    :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; position: relative; }
+    .err-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
     .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .spacer { flex: 1; }
-    .legend { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: nowrap; overflow: hidden; }
-    .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); flex-wrap: nowrap; overflow-x: auto; max-width: 60%; }
+    .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; padding: 1px 6px; border-radius: 10px; cursor: pointer; }
+    .lg:hover { background: var(--bg-hover); }
+    .lg[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+    .tip-desc { color: var(--text); }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .wrap { position: relative; flex: 1; min-height: 0; user-select: none; }
@@ -223,8 +262,8 @@ interface Hover {
     .ticks { position: absolute; left: 0; bottom: 1px; width: 100%; height: 6px; }
     .ticks path { stroke: var(--mk-warning); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
     .marker { position: absolute; top: 0; height: 32px; width: 16px; margin-left: -8px; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1; }
-    .marker:hover imt-marker-icon { transform: scale(1.35); }
-    .count { position: absolute; left: 13px; top: 2px; font-size: 9px; padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
+    .marker:hover imt-marker-glyph { transform: scale(1.35); }
+    .count { position: absolute; left: 17px; top: 2px; font-size: 9px; padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
     .overlay { position: absolute; top: 0; bottom: 0; pointer-events: none; }
     .brush { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); }
     .fatal-line { position: absolute; top: ${HIST_H}px; bottom: 0; width: 0; border-left: 1px dashed var(--mk-fatal); opacity: 0.55; }
@@ -250,9 +289,49 @@ export class TimelinePanel {
   protected readonly plotWidth = signal(800);
   protected readonly brush = signal<{ x0: number; x1: number } | null>(null);
   protected readonly hover = signal<Hover | null>(null);
-  protected readonly hoverX = signal<number | null>(null);
+  protected readonly cursor = inject(TimeCursor);
+  private readonly targets = inject(AnalysisTargets);
+  private readonly commands = inject(COMMAND_CONTEXT);
+  private readonly menu = inject(ContextMenuService);
 
   protected readonly tl = this.store.timeline;
+  private readonly markerStyles = inject(MarkerStyles);
+
+  protected describe(kind: string): string | null {
+    return this.markerStyles.description(kind);
+  }
+
+  protected legendTitle(k: MarkerKind): string {
+    return styleOf(k).description ?? k.label;
+  }
+
+  /** Id of the hidden description of a legend item (null when the marker has none). */
+  protected legendDesc(k: MarkerKind): string | null {
+    return styleOf(k).description ? 'lg-desc-' + k.kind.replace(/[^\w-]/g, '_') : null;
+  }
+
+  /** True when the query is restricted to exactly this marker kind. */
+  protected legendActive(kind: string): boolean {
+    const m = this.store.query().markers;
+    return m.length === 1 && m[0] === kind;
+  }
+
+  /** Clicking a legend item shows only that marker's events; clicking again clears it. */
+  protected toggleKind(kind: string): void {
+    this.store.patchQuery({ markers: this.legendActive(kind) ? [] : [kind] });
+  }
+
+  /** The visible time range (null before the first timeline arrives). */
+  protected readonly range = computed<Range | null>(() => {
+    const t = this.tl();
+    return t ? { from: t.from, to: t.to } : null;
+  });
+
+  /** X (px in the plot) of the shared time cursor, from any time-based view; null when outside. */
+  protected readonly hoverX = computed(() => {
+    const frac = timeToFrac(this.cursor.hovered(), this.range());
+    return frac === null ? null : frac * this.plotWidth();
+  });
 
   protected readonly span = computed(() => {
     const t = this.tl();
@@ -336,10 +415,8 @@ export class TimelinePanel {
   );
 
   protected readonly hoverTime = computed(() => {
-    const x = this.hoverX();
-    const t = this.tl();
-    if (x === null || !t) return '';
-    return formatDateTime(t.from + (x / this.plotWidth()) * this.span(), this.store.timezone(), true);
+    const ts = this.cursor.hovered();
+    return ts === null || this.hoverX() === null ? '' : formatDateTime(ts, this.store.timezone(), true);
   });
 
   constructor() {
@@ -371,14 +448,25 @@ export class TimelinePanel {
     return e.clientX - wrap.left - this.plotLeft();
   }
 
-  protected pointerMove(e: PointerEvent): void {
-    const x = this.localX(e);
-    this.hoverX.set(x >= 0 && x <= this.plotWidth() && this.tl() ? x : null);
+  private viewRange(): Range | null {
+    return this.range();
   }
 
-  private viewRange(): Range | null {
-    const t = this.tl();
-    return t ? { from: t.from, to: t.to } : null;
+  /** Right-click on the time axis: analyse the moment under the pointer. */
+  protected axisMenu(e: MouseEvent): void {
+    const view = this.range();
+    if (!view) return;
+    e.preventDefault();
+    const ts = xToTs(clamp(this.localX(e), 0, this.plotWidth()), this.plotWidth(), view);
+    this.menu.open(e.clientX, e.clientY, [
+      {
+        label: 'Analyse this moment',
+        run: () => {
+          this.targets.setMoment(momentAt(ts, this.cursor.selection(), WIDTHS[1].ms));
+          this.commands.showView('moment');
+        },
+      },
+    ]);
   }
 
   protected onWheel(e: WheelEvent): void {
@@ -455,7 +543,9 @@ export class TimelinePanel {
       const t = this.tl();
       if (!b || !t || b.x1 - b.x0 < 5) return;
       const view = { from: t.from, to: t.to };
-      this.zoom.apply({ from: xToTs(b.x0, w, view), to: xToTs(b.x1, w, view) });
+      const selected = { from: xToTs(b.x0, w, view), to: xToTs(b.x1, w, view) };
+      this.cursor.select(selected);
+      this.zoom.apply(selected);
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);

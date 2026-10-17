@@ -6,6 +6,9 @@ import { PaletteService } from '../palette/palette.service';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { TimelineZoom } from '../timeline/zoom';
+import { provideToolsBackend } from '../core/tools-backend';
+import { LifecycleService } from '../lifecycle/lifecycle.service';
+import { LiveTail } from '../workspace/live-tail';
 import { ActivityBar } from './activity-bar';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
@@ -23,7 +26,7 @@ const fakePlatform = {
 
 function setup<T>(cmp: Type<T>, backend = tinyBackend()) {
   const dock = new FakeDock();
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideFakeDock(dock), { provide: Platform, useValue: fakePlatform }] });
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideFakeDock(dock), provideToolsBackend(), { provide: Platform, useValue: fakePlatform }] });
   const fixture = TestBed.createComponent(cmp);
   return { fixture, store: TestBed.inject(WorkspaceStore), backend, dock };
 }
@@ -122,6 +125,19 @@ describe('TitleBar', () => {
     fixture.detectChanges();
     expect(text(fixture)).toContain('Loading workspace');
   });
+
+  it('embeds the project name, unsaved dot and Administrator badge at its end', async () => {
+    const { fixture, store } = setup(TitleBar);
+    await TestBed.inject(LifecycleService).init();
+    await settle(fixture);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.lastElementChild?.tagName.toLowerCase()).toBe('imt-title-extras');
+    expect(el(fixture, '[data-testid=project-title]').textContent).toContain('Untitled');
+    expect(host.querySelector('[data-testid=admin-badge]')).toBeNull();
+    await store.openPaths(['/more/added.log']);
+    await settle(fixture);
+    expect(host.querySelector('[aria-label="Unsaved changes"]')).not.toBeNull();
+  });
 });
 
 describe('ActivityBar', () => {
@@ -169,6 +185,46 @@ describe('StatusBar', () => {
     store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
     expect(text(fixture)).toContain('1 dropped by pipeline');
+  });
+
+  it('has a Live tail toggle that reflects and switches the live state', async () => {
+    const { fixture, store } = setup(StatusBar);
+    await settle(fixture);
+    const live = TestBed.inject(LiveTail);
+    const button = el<HTMLButtonElement>(fixture, 'button[aria-label="Live tail"]');
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.disabled).toBe(false);
+    expect(button.title).toContain('Follow the opened files');
+    button.click();
+    await vi.waitFor(() => expect(live.enabled()).toBe(true));
+    await settle(fixture);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.classList).toContain('on');
+    expect(button.title).toContain('Click to stop');
+    // While on it can always be turned off, even with nothing left to follow.
+    await store.clearWorkspace();
+    await settle(fixture);
+    expect(button.disabled).toBe(false);
+    button.click();
+    await vi.waitFor(() => expect(live.enabled()).toBe(false));
+    await settle(fixture);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.disabled).toBe(true);
+    expect(button.title).toContain('Open files');
+  });
+
+  it('shows why live tail failed', async () => {
+    const { fixture, backend } = setup(StatusBar);
+    await settle(fixture);
+    vi.spyOn(backend, 'setLive').mockRejectedValueOnce('watch limit reached');
+    el<HTMLButtonElement>(fixture, 'button[aria-label="Live tail"]').click();
+    await vi.waitFor(() => expect(TestBed.inject(LiveTail).error()).toBe('watch limit reached'));
+    await settle(fixture);
+    const button = el<HTMLButtonElement>(fixture, 'button[aria-label="Live tail"]');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.classList).toContain('failed');
+    expect(button.title).toBe('Live tail failed: watch limit reached');
   });
 
   it('pluralises one source', async () => {
@@ -287,8 +343,11 @@ describe('Sidebar', () => {
     vi.spyOn(backend, 'queryFacet').mockRejectedValueOnce('facet failed');
     el<HTMLButtonElement>(fixture, '.field').click();
     await settle(fixture);
-    expect(store.error()).toBe('facet failed');
-    expect(text(fixture)).toContain('Loading');
+    expect(store.error()).toBeNull();
+    expect(el(fixture, '.facet [role=alert]').textContent).toContain('facet failed');
+    buttonByText(fixture, 'Retry').click();
+    await settle(fixture);
+    expect(all(fixture, '.facet [role=alert]')).toHaveLength(0);
   });
 });
 

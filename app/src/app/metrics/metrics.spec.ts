@@ -8,6 +8,7 @@ import { buildOption, ChartCard } from './chart-card';
 import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { MetricsView } from './metrics-view';
+import { TimeCursor } from '../analysis/time-cursor';
 
 const charts = vi.hoisted(() => {
   const instances: { handlers: Record<string, (e: unknown) => void>; setOption: ReturnType<typeof vi.fn>; dispatchAction: ReturnType<typeof vi.fn>; resize: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] = [];
@@ -193,8 +194,43 @@ describe('ChartCard', () => {
     const t0 = store.summary()!.from!;
     charts.instances[0].handlers['brushEnd']({ areas: [{ coordRange: [t0 + 1000, t0 + 60_000] }] });
     expect(store.query().from).toBe(t0 + 1000);
+    expect(TestBed.inject(TimeCursor).selection()).toEqual({ from: t0 + 1000, to: t0 + 60_000 });
     el<HTMLButtonElement>(fixture, '[aria-label="Remove chart C"]').click();
     expect(removed).toBe(true);
+  });
+});
+
+describe('ChartCard time cursor', () => {
+  beforeEach(() => (charts.instances.length = 0));
+
+  it('publishes the hovered time of the plot box and draws the shared cursor line', async () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const fixture = TestBed.createComponent(ChartCard);
+    fixture.componentRef.setInput('def', def({ id: 'x', y: 'count()', splitBy: [], bucket: 'auto', type: 'bar' }));
+    fixture.componentRef.setInput('fromProfile', false);
+    await settle(fixture);
+    const cursor = TestBed.inject(TimeCursor);
+    expect(fixture.nativeElement.querySelector('.hover-line')).toBeNull();
+
+    const plot = el<HTMLElement>(fixture, '.plot');
+    plot.getBoundingClientRect = () => ({ left: 0, width: 56 + 20 + 400 }) as DOMRect;
+    plot.dispatchEvent(new PointerEvent('pointermove', { clientX: 56 + 200, bubbles: true }));
+    const hovered = cursor.hovered()!;
+    expect(hovered).not.toBeNull();
+    await settle(fixture);
+    const line = el<HTMLElement>(fixture, '.hover-line');
+    expect(line.style.left).toContain('56px');
+    expect(line.style.left).toContain('0.5');
+    plot.dispatchEvent(new PointerEvent('pointermove', { clientX: 10, bubbles: true }));
+    expect(cursor.hovered()).toBeNull();
+
+    // A time hovered elsewhere (e.g. the timeline) draws the line; one outside the axis hides it.
+    cursor.hover(hovered);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.hover-line')).not.toBeNull();
+    cursor.hover(0);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.hover-line')).toBeNull();
   });
 });
 

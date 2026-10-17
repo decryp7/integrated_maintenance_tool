@@ -54,6 +54,9 @@ jobs:
 
       - name: Licences, advisories and sources
         uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          # Every workspace crate, not just the root package.
+          arguments: --all-features --workspace
 
       - uses: actions/setup-node@v4
         with:

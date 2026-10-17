@@ -1,5 +1,6 @@
 [package]
 name = "imt-app"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 description = "IMT — integrated maintenance tool for analysing logs and diagnostic files"
 authors = ["decryp7"]
@@ -32,6 +33,8 @@ tauri = { version = "2.12.4", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 notify-debouncer-mini = "0.7"
+base64 = "0.22"
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
 tauri = { version = "2.12.4", features = ["test"] }

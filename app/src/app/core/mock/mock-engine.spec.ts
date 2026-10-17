@@ -12,6 +12,38 @@ function engine(profile: ProfileModel = parse(MOCK_PROFILE_TOML) as ProfileModel
 }
 
 describe('MockEngine', () => {
+  describe('query language (Query.ql)', () => {
+    it('filters page, facet, timeline and chart like the other content filters', () => {
+      const e = engine();
+      const all = e.page({ query: query(), offset: 0, limit: 100, descending: false });
+      const errs = e.page({ query: { ...query(), ql: 'level >= error' }, offset: 0, limit: 100, descending: false });
+      expect(errs.total).toBeGreaterThan(0);
+      expect(errs.total).toBeLessThan(all.total);
+      expect(errs.rows.every((r) => r.level === 'Error' || r.level === 'Fatal')).toBe(true);
+      expect(e.facet({ query: { ...query(), ql: 'level >= error' }, field: '@level', limit: 10 }).values.map((v) => v.value).sort()).toEqual(
+        [...new Set(errs.rows.map((r) => r.level))].sort(),
+      );
+      const tl = e.timeline({ query: { ...query(), ql: 'level >= error' }, buckets: 10, alwaysShowLifecycle: false });
+      expect(tl.lanes.reduce((n, l) => n + l.matched, 0)).toBe(errs.rows.filter((r) => r.ts !== null).length);
+      const chart = e.chart({ query: { ...query(), ql: 'level >= error' }, chartId: 'events-by-level', def: null, buckets: 10 });
+      expect(chart.series.map((s) => s.key).every((k) => k === 'Error' || k === 'Fatal')).toBe(true);
+    });
+
+    it('reads the source name and ignores a blank query', () => {
+      const e = engine();
+      const name = e.sources[0].name;
+      const bySource = e.page({ query: { ...query(), ql: `@source = "${name}"` }, offset: 0, limit: 100, descending: false });
+      expect(bySource.total).toBeGreaterThan(0);
+      expect(bySource.rows.every((r) => r.sourceName === name)).toBe(true);
+      const total = e.page({ query: query(), offset: 0, limit: 1, descending: false }).total;
+      expect(e.page({ query: { ...query(), ql: '  ' }, offset: 0, limit: 1, descending: false }).total).toBe(total);
+    });
+
+    it('fails like the engine when the query does not parse', () => {
+      expect(() => engine().page({ query: { ...query(), ql: 'level >= | nope' }, offset: 0, limit: 1, descending: false })).toThrow(/^query: /);
+    });
+  });
+
   describe('rebuild', () => {
     it('sorts by time with untimed records last and assigns ids by position', () => {
       const e = engine();
@@ -55,7 +87,7 @@ describe('MockEngine', () => {
     it('skips extractors with invalid regexes and fills defaults', () => {
       const e = engine({ extract: [{ name: 'bad', regex: '(' }], marker: [{ kind: 'k' }], chart: [{ id: 'c', y: 'count()' }] });
       expect(e.derived.size).toBe(0);
-      expect(e.markerKinds[0]).toEqual({ kind: 'k', label: 'k', lifecycle: false, color: null });
+      expect(e.markerKinds[0]).toEqual({ kind: 'k', label: 'k', lifecycle: false, color: null, icon: null, badge: null, shape: null, description: null });
       expect(e.charts[0]).toMatchObject({ title: 'c', bucket: 'auto', splitBy: [], type: 'line', unit: '' });
     });
   });

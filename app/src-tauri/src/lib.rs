@@ -2,8 +2,13 @@
 //! names and payloads are documented in app/src/app/core/api.types.ts.
 
 mod clef;
+mod diagnostics;
+mod engine_errors;
 mod insights;
 mod lifecycle;
+mod live;
+mod settings;
+mod snapshots;
 mod system;
 mod tools;
 
@@ -103,14 +108,34 @@ async fn write<T: Send + 'static>(
         .map_err(err)?
 }
 
+/// Like [`write`], and tells the UI (`imt://error`) about plugin crashes,
+/// quarantines and import crashes the engine contained meanwhile.
+async fn write_reporting<R: tauri::Runtime, T: Send + 'static>(
+    app: &tauri::AppHandle<R>,
+    state: &State<'_, AppState>,
+    f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T> + Send + 'static,
+) -> CmdResult<T> {
+    let (out, errors) = write(state, move |ws| {
+        let before = engine_errors::HealthSnapshot::of(&ws.summary());
+        let out = f(ws);
+        let errors = engine_errors::new_errors(&before, &engine_errors::HealthSnapshot::of(&ws.summary()));
+        Ok((out, errors))
+    })
+    .await?;
+    for e in &errors {
+        snapshots::emit_engine_error(app, e);
+    }
+    out.map_err(err)
+}
+
 #[tauri::command]
 async fn workspace_summary(state: State<'_, AppState>) -> CmdResult<Value> {
     read(&state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await
 }
 
 #[tauri::command]
-async fn open_paths(state: State<'_, AppState>, paths: Vec<String>) -> CmdResult<Value> {
-    write(&state, move |ws| {
+async fn open_paths<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, paths: Vec<String>) -> CmdResult<Value> {
+    write_reporting(&app, &state, move |ws| {
         ws.open(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
         let summary = ws.summary();
         // Counts only: file names and contents stay out of the logs.
@@ -145,8 +170,8 @@ async fn clear_workspace(state: State<'_, AppState>) -> CmdResult<Value> {
 }
 
 #[tauri::command]
-async fn reload_workspace(state: State<'_, AppState>) -> CmdResult<Value> {
-    write(&state, |ws| {
+async fn reload_workspace<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>) -> CmdResult<Value> {
+    write_reporting(&app, &state, |ws| {
         ws.reload()?;
         serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
     })
@@ -375,7 +400,7 @@ async fn save_project(state: State<'_, AppState>, path: String, name: String, ui
 
 /// Opens a `.imtproj`: applies its profile, reopens its files and returns the UI state.
 #[tauri::command]
-async fn open_project(state: State<'_, AppState>, path: String) -> CmdResult<Value> {
+async fn open_project<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, path: String) -> CmdResult<Value> {
     let project = ProjectFile::load(std::path::Path::new(&path)).map_err(err)?;
     let profile = Profile::from_toml(&project.profile).map_err(err)?;
     let doc = ProfileDoc {
@@ -387,7 +412,7 @@ async fn open_project(state: State<'_, AppState>, path: String) -> CmdResult<Val
         roots: project.sources.clone(),
         removed: project.removed.clone(),
     };
-    let (summary, missing) = write(&state, move |ws| {
+    let (summary, missing) = write_reporting(&app, &state, move |ws| {
         let missing = ws.restore(profile, &ws_state)?;
         Ok((serde_json::to_value(ws.summary())?, missing))
     })
@@ -448,20 +473,23 @@ fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Profile, Profil
     (p, doc)
 }
 
-/// Logs go to rotating files in the app's log directory (and stdout) as CLEF,
-/// Serilog's compact JSON, including events forwarded from the UI.
-fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+/// Logs go to rolling files in the app's log directory (and stdout) as CLEF,
+/// Serilog's compact JSON, including events forwarded from the UI. File size,
+/// count and level come from the user's diagnostics settings.
+fn log_plugin<R: tauri::Runtime>(limits: &diagnostics::LogLimits) -> tauri::plugin::TauriPlugin<R> {
     use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
     tauri_plugin_log::Builder::new()
         .targets([
             Target::new(TargetKind::LogDir {
-                file_name: Some("imt".into()),
+                file_name: Some(diagnostics::LOG_NAME.into()),
             }),
             Target::new(TargetKind::Stdout),
         ])
-        .level(log::LevelFilter::Info)
-        .rotation_strategy(RotationStrategy::KeepSome(5))
-        .max_file_size(10 * 1024 * 1024)
+        // Everything reaches the dispatcher; `log::set_max_level` applies the
+        // configured level, so it can change without a restart.
+        .level(log::LevelFilter::Trace)
+        .rotation_strategy(RotationStrategy::KeepSome(limits.keep_files as usize))
+        .max_file_size(u128::from(limits.max_file_mb) * 1024 * 1024)
         .format(|out, message, record| {
             out.finish(format_args!(
                 "{}",
@@ -528,54 +556,29 @@ fn app_state_with(profile_dir: Option<PathBuf>, args: &[PathBuf], safe_mode: boo
 }
 
 /// Turns live tail on or off. While on, the opened files and folders are
-/// watched; changed and new files are re-imported and `imt://workspace-changed`
-/// is emitted. Call again after opening more files to watch them too.
-/// Returns how many paths are watched.
+/// watched (OS events, or polling for network shares and after a watcher
+/// error); appended lines are read incrementally, rotations and truncations
+/// followed, and `imt://workspace-changed` is emitted with a
+/// [`imt_core::workspace::TailReport`] payload (at most about four per
+/// second); live alerts are emitted as `imt://live-alert`. Call again after
+/// opening more files to watch them too. Returns how many folders are watched.
 #[tauri::command]
-fn set_live<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, enabled: bool) -> CmdResult<usize> {
-    use notify_debouncer_mini::{new_debouncer, notify::RecursiveMode};
-    let mut slot = state.watcher.lock().map_err(err)?;
-    *slot = None;
-    if !enabled {
-        return Ok(0);
-    }
-    let roots = state.store_read().state().roots;
-    let handle = app.clone();
-    let mut debouncer = new_debouncer(
-        std::time::Duration::from_millis(750),
-        move |res: notify_debouncer_mini::DebounceEventResult| {
-            if let Ok(events) = res {
-                let paths: Vec<PathBuf> = events.into_iter().map(|e| e.path).collect();
-                if apply_changes(&handle.state::<AppState>(), &paths) > 0 {
-                    use tauri::Emitter;
-                    let _ = handle.emit(CHANGED_EVENT, ());
-                }
-            }
-        },
-    )
-    .map_err(err)?;
-    let mut watched = 0;
-    for root in &roots {
-        let path = std::path::Path::new(root.split(imt_core::archive::ENTRY_SEPARATOR).next().unwrap_or(root));
-        let mode = if path.is_dir() {
-            RecursiveMode::Recursive
-        } else {
-            RecursiveMode::NonRecursive
-        };
-        if debouncer.watcher().watch(path, mode).is_ok() {
-            watched += 1;
-        }
-    }
-    *slot = Some(debouncer);
-    log::info!(Watched = watched as u64; "Live tail on");
-    Ok(watched)
+fn set_live<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, AppState>,
+    enabled: bool,
+    options: Option<live::LiveOptions>,
+) -> CmdResult<usize> {
+    // The engine's live session replaces the old debouncer.
+    *state.watcher.lock().map_err(err)? = None;
+    live::set(&app, &state, enabled, options.unwrap_or_default())
 }
 
-/// Re-imports changed files; returns how many sources were refreshed.
-fn apply_changes(state: &AppState, paths: &[PathBuf]) -> usize {
-    state.store_write().refresh_files(paths).unwrap_or_else(|e| {
+/// Reads what changed in `paths`; a failure is logged and reported as no change.
+fn apply_changes(state: &AppState, paths: &[PathBuf]) -> imt_core::workspace::TailReport {
+    state.store_write().refresh_tail(paths).unwrap_or_else(|e| {
         log::warn!("live tail refresh failed: {e:#}");
-        0
+        imt_core::workspace::TailReport::default()
     })
 }
 
@@ -590,8 +593,13 @@ fn take_pending_open(state: State<'_, AppState>) -> CmdResult<Vec<String>> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(log_plugin())
         .setup(|app| {
+            let diag = diagnostics::load(app.path().app_config_dir().ok().as_deref());
+            app.handle().plugin(log_plugin(&diag.log))?;
+            log::set_max_level(diag.log.level.filter());
+            if let Ok(dir) = app.path().app_log_dir() {
+                diagnostics::prune_old_logs(&dir, diag.log.max_age_days, std::time::SystemTime::now());
+            }
             let profile_dir = app.path().app_config_dir().ok().map(|d| d.join("profiles"));
             // `imt-app <paths...>` opens files and folders at startup.
             let raw: Vec<String> = std::env::args().skip(1).collect();
@@ -603,6 +611,8 @@ pub fn run() {
             app.manage(app_state_with(profile_dir, &args, safe_mode)?);
             app.manage(life);
             app.manage(tools::Tools::default());
+            settings::init(app.handle());
+            snapshots::prune_on_startup(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -620,6 +630,8 @@ pub fn run() {
             source_context,
             take_pending_open,
             set_live,
+            live::tail_status,
+            live::open_paths_live,
             insights::run_query,
             insights::check_query,
             insights::complete_query,
@@ -635,6 +647,12 @@ pub fn run() {
             insights::preview_parse,
             insights::infer_regex,
             insights::explain_regex,
+            snapshots::save_error_snapshot,
+            snapshots::list_error_snapshots,
+            snapshots::read_error_snapshot,
+            snapshots::delete_error_snapshot,
+            snapshots::open_snapshots_folder,
+            snapshots::export_diagnostics,
             system::elevation,
             system::restart_elevated,
             system::read_file_head,
@@ -666,6 +684,13 @@ pub fn run() {
             save_profile,
             import_profile,
             export_profile,
+            diagnostics::diagnostics_settings,
+            diagnostics::set_diagnostics_settings,
+            settings::settings_sections,
+            settings::set_settings,
+            settings::reset_settings,
+            settings::export_settings,
+            settings::import_settings,
         ])
         .build(tauri::generate_context!())
         .expect("error while building IMT")
@@ -720,7 +745,7 @@ mod tests {
     fn opened(dir: Option<PathBuf>, paths: &[PathBuf]) -> tauri::App<MockRuntime> {
         let app = app(app_state(dir, paths).unwrap());
         let pending = take_pending_open(app.state::<AppState>()).unwrap();
-        block(open_paths(app.state::<AppState>(), pending)).unwrap();
+        block(open_paths(app.handle().clone(), app.state::<AppState>(), pending)).unwrap();
         app
     }
 
@@ -745,9 +770,14 @@ mod tests {
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
         assert_eq!(summary["profileName"], "Default (Serilog)");
 
-        let summary = block(open_paths(st(), vec![samples().join("log4net").to_string_lossy().into_owned()])).unwrap();
+        let summary = block(open_paths(
+            app.handle().clone(),
+            st(),
+            vec![samples().join("log4net").to_string_lossy().into_owned()],
+        ))
+        .unwrap();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 3);
-        assert!(block(open_paths(st(), vec!["/does/not/exist".into()]))
+        assert!(block(open_paths(app.handle().clone(), st(), vec!["/does/not/exist".into()]))
             .unwrap_err()
             .contains("does/not/exist"));
 
@@ -793,7 +823,7 @@ mod tests {
         let id = summary["sources"][0]["id"].as_u64().unwrap() as u32;
         let summary = block(remove_source(st(), id)).unwrap();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
-        let summary = block(reload_workspace(st())).unwrap();
+        let summary = block(reload_workspace(app.handle().clone(), st())).unwrap();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
         let summary = block(clear_workspace(st())).unwrap();
         assert_eq!(summary["total"], 0);
@@ -907,7 +937,7 @@ mod tests {
 
         block(clear_workspace(st())).unwrap();
         block(save_profile(st(), "name = 'Other'".into())).unwrap();
-        let opened = block(open_project(st(), file.clone())).unwrap();
+        let opened = block(open_project(app.handle().clone(), st(), file.clone())).unwrap();
         assert_eq!(opened["name"], "Incident");
         assert_eq!(opened["ui"]["bookmarks"][0], 3);
         assert_eq!(opened["profile"]["name"], "Project profile");
@@ -915,13 +945,23 @@ mod tests {
         assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
         assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
         assert_eq!(get_profile(st()).unwrap().name, "Project profile");
-        assert!(block(open_project(st(), dir.0.join("nope.imtproj").to_string_lossy().into_owned())).is_err());
+        assert!(block(open_project(
+            app.handle().clone(),
+            st(),
+            dir.0.join("nope.imtproj").to_string_lossy().into_owned()
+        ))
+        .is_err());
         std::fs::write(
             dir.0.join("bad.imtproj"),
             r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
         )
         .unwrap();
-        assert!(block(open_project(st(), dir.0.join("bad.imtproj").to_string_lossy().into_owned())).is_err());
+        assert!(block(open_project(
+            app.handle().clone(),
+            st(),
+            dir.0.join("bad.imtproj").to_string_lossy().into_owned()
+        ))
+        .is_err());
         assert!(block(save_project(st(), "/no/such/dir/x.imtproj".into(), "x".into(), Value::Null)).is_err());
     }
 
@@ -945,17 +985,63 @@ mod tests {
         std::fs::write(dir.0.join("a.log"), "2026-10-14 10:00:00 INFO first\n").unwrap();
         let app = opened(None, std::slice::from_ref(&dir.0));
         let st = || app.state::<AppState>();
-        assert_eq!(set_live(app.handle().clone(), st(), true).unwrap(), 1);
-        assert!(st().watcher.lock().unwrap().is_some());
+        assert_eq!(set_live(app.handle().clone(), st(), true, None).unwrap(), 1);
+        assert!(app.state::<live::LiveSlot>().is_running());
         std::fs::write(
             dir.0.join("a.log"),
             "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n",
         )
         .unwrap();
-        assert_eq!(apply_changes(&st(), &[dir.0.join("a.log")]), 1);
+        let report = apply_changes(&st(), &[dir.0.join("a.log")]);
+        assert_eq!((report.appended, report.sources_changed.len()), (1, 1));
+        live::emit_report(app.handle(), &report);
+        live::emit_report(app.handle(), &imt_core::workspace::TailReport::default());
         assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
-        assert_eq!(set_live(app.handle().clone(), st(), false).unwrap(), 0);
+        let status = block(live::tail_status(app.handle().clone(), st())).unwrap();
+        assert_eq!(status["files"][0]["mode"], "events");
+        assert_eq!(status["totals"]["records"], 2);
+        assert_eq!(set_live(app.handle().clone(), st(), false, None).unwrap(), 0);
+        assert!(!app.state::<live::LiveSlot>().is_running());
         assert!(st().watcher.lock().unwrap().is_none());
+        let status = block(live::tail_status(app.handle().clone(), st())).unwrap();
+        assert_eq!(status["files"][0]["mode"], "off");
+
+        // Start at end: history skipped, new lines shown.
+        let other = TempDir::new("live-end");
+        std::fs::write(other.0.join("b.log"), "2026-10-14 10:00:00 INFO old\n").unwrap();
+        let summary = block(live::open_paths_live(
+            app.handle().clone(),
+            st(),
+            vec![other.0.to_string_lossy().into_owned()],
+            Some(true),
+        ))
+        .unwrap();
+        assert_eq!(summary["total"], 2);
+        // A broken refresh is reported as no change.
+        assert!(apply_changes(&st(), &[]).is_empty());
+    }
+
+    /// Smoke test with the real (polling) watcher: an appended line arrives on its own.
+    #[test]
+    fn live_tail_watcher_smoke() {
+        let dir = TempDir::new("live-smoke");
+        let file = dir.0.join("a.log");
+        std::fs::write(&file, "2026-10-14 10:00:00 INFO first\n").unwrap();
+        let app = opened(None, std::slice::from_ref(&dir.0));
+        let st = || app.state::<AppState>();
+        let options: live::LiveOptions = serde_json::from_value(serde_json::json!({ "watch": "polling", "pollIntervalMs": 100 })).unwrap();
+        assert_eq!(set_live(app.handle().clone(), st(), true, Some(options)).unwrap(), 1);
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let mut f = std::fs::OpenOptions::new().append(true).open(&file).unwrap();
+        std::io::Write::write_all(&mut f, b"2026-10-14 10:00:01 INFO second\n").unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while st().store_read().summary().total < 2 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert_eq!(st().store_read().summary().total, 2);
+        let status = block(live::tail_status(app.handle().clone(), st())).unwrap();
+        assert_eq!(status["files"][0]["mode"], "polling");
+        set_live(app.handle().clone(), st(), false, None).unwrap();
     }
 
     #[test]

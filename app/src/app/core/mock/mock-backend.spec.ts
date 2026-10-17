@@ -115,4 +115,107 @@ describe('MockBackend', () => {
     const b = new MockBackend({ latency: false, dataset: tinyDataset });
     await expect(b.queryChart({ query: query(), def: { id: 'x', title: '', y: 'nope', bucket: 'auto', splitBy: [], type: 'line', unit: '' }, buckets: 10 })).rejects.toMatch(/Invalid y/);
   });
+
+  describe('options and engine commands', () => {
+    it('serves a synthetic total lazily and reports it in the summary', async () => {
+      const b = new MockBackend({ latency: false, dataset: tinyDataset, syntheticTotal: 50_000_000 });
+      const summary = await b.workspaceSummary();
+      expect(summary.total).toBe(50_000_000);
+      expect(summary.sources[0].records).toBe(50_000_000);
+      expect(summary.sources[1].records).toBe(4);
+      const page = await b.queryPage({ query: query(), offset: 49_999_998, limit: 500, descending: false });
+      expect(page.rows.map((r) => r.id)).toEqual([49_999_998, 49_999_999]);
+    });
+
+    it('reports synthetic facets, corrupt markers and simulated failures', async () => {
+      const b = new MockBackend({ latency: false, dataset: tinyDataset, syntheticFacetValues: 10_000, corruptMarkers: true, fail: { queryFacet: 1, workspaceSummary: 1, queryTimeline: 1 } });
+      await expect(b.queryFacet({ query: query(), field: 'x', limit: 10 })).rejects.toMatch(/Simulated queryFacet failure/);
+      const f = await b.queryFacet({ query: query(), field: 'x', limit: 5000 });
+      expect(f.distinct).toBe(10_000);
+      expect(f.values).toHaveLength(1000);
+      await expect(b.workspaceSummary()).rejects.toMatch(/Simulated/);
+      await expect(b.queryTimeline({ query: query(), buckets: 10, alwaysShowLifecycle: true })).rejects.toMatch(/Simulated/);
+      expect((await b.workspaceSummary()).total).toBe(11);
+      const page = await b.queryPage({ query: query(), offset: 0, limit: 2, descending: false });
+      expect(page.rows[0].markers).toBeUndefined();
+    });
+
+    it('returns the lines around an event', async () => {
+      const b = tinyBackend();
+      const page = await b.queryPage({ query: query(), offset: 3, limit: 1, descending: false });
+      const rec = page.rows[0];
+      const ctx = await b.sourceContext({ recordId: rec.id, before: 2, after: 1 });
+      expect(ctx.sourceName).toBe(rec.sourceName);
+      expect(ctx.line).toBe(rec.line);
+      expect(ctx.lines.map((l) => l.line)).toEqual([rec.line - 2, rec.line - 1, rec.line, rec.line + 1].filter((n) => n >= 1));
+      expect(ctx.lines.find((l) => l.line === rec.line)?.text).toContain(rec.message);
+      expect((await b.sourceContext({ recordId: 0, before: 99999, after: 0 })).lines).toHaveLength(1);
+      expect((await b.sourceContext({ recordId: 0, before: 0, after: 999 })).lines).toHaveLength(501);
+      await expect(b.sourceContext({ recordId: 9999, before: 1, after: 1 })).rejects.toMatch(/no longer/);
+      const undated = (await b.queryPage({ query: query(), offset: 10, limit: 1, descending: false })).rows[0];
+      expect(undated.ts).toBeNull();
+      expect((await b.sourceContext({ recordId: undated.id, before: 0, after: 0 })).lines[0].text).toMatch(/^ \[/);
+    });
+
+    it('reads the head of workspace files only', async () => {
+      const b = new MockBackend({ latency: false, dataset: tinyDataset, fail: { readFileHead: 1, previewParse: 1 } });
+      await expect(b.readFileHead('/logs/system/export.reg')).rejects.toMatch(/Simulated/);
+      expect(await b.readFileHead('/logs/system/export.reg')).toContain('[INF]');
+      expect(await b.readFileHead('/logs/web01/app.clef', 10)).toHaveLength(10);
+      await expect(b.readFileHead('/etc/passwd')).rejects.toMatch(/only files in the workspace/);
+      await expect(b.previewParse({ toml: '', sample: '', fileName: '', limit: 1 })).rejects.toMatch(/Simulated/);
+      expect((await b.previewParse({ toml: '', sample: 'x', fileName: '', limit: 1 })).total).toBe(0);
+    });
+
+    it('emits workspace changes while live is on, with a new event each time', async () => {
+      const b = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 10 });
+      const changed = vi.fn();
+      const off = await b.onWorkspaceChanged(changed);
+      expect(await b.setLive(true)).toBe(2);
+      await vi.waitFor(() => expect(changed.mock.calls.length).toBeGreaterThanOrEqual(2));
+      const summary = await b.workspaceSummary();
+      expect(summary.total).toBeGreaterThan(11);
+      expect((await b.queryPage({ query: query({ text: 'Live event' }), offset: 0, limit: 1, descending: true })).rows[0].message).toMatch(/Live event/);
+      expect(await b.setLive(false)).toBe(0);
+      const n = changed.mock.calls.length;
+      await new Promise((r) => setTimeout(r, 50));
+      expect(changed.mock.calls.length).toBe(n);
+      off();
+      await b.setLive(true);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(changed.mock.calls.length).toBe(n);
+      await b.setLive(false);
+    });
+
+    it('counts live events in a synthetic result and survives an empty workspace', async () => {
+      const synthetic = new MockBackend({ latency: false, dataset: tinyDataset, syntheticTotal: 100, liveMs: 10 });
+      await synthetic.setLive(true);
+      await vi.waitFor(async () => expect((await synthetic.workspaceSummary()).total).toBeGreaterThan(100));
+      await synthetic.setLive(false);
+      const empty = new MockBackend({ latency: false, dataset: () => ({ sources: [], unrecognized: [], records: [] }), liveMs: 10 });
+      const changed = vi.fn();
+      await empty.onWorkspaceChanged(changed);
+      await empty.setLive(true);
+      await vi.waitFor(() => expect(changed).toHaveBeenCalled());
+      expect((await empty.workspaceSummary()).total).toBe(0);
+      await empty.setLive(false);
+    });
+
+    it('infers and explains regexes like the engine contract says', async () => {
+      const r = await backend.inferRegex(['order 1 ok', 'order 22 ok']);
+      expect(r.pattern).toBe('order (?P<n1>\\d+) ok');
+      expect(r.groups).toEqual([{ name: 'n1', kind: 'number', examples: ['1', '22'] }]);
+      expect(r.matches).toEqual([true, true]);
+      await expect(backend.inferRegex([])).rejects.toContain('at least one');
+      expect((await backend.explainRegex('ab\\d+')).map((n) => n.text)).toEqual(['Literal "ab"', 'One or more digits']);
+      await expect(backend.explainRegex('(')).rejects.toContain('not a valid regex');
+    });
+
+    it('lists plugins with their status', async () => {
+      expect((await backend.workspaceSummary()).plugins.map((p) => [p.id, p.status, p.failures, p.lastError])).toEqual([
+        ['registry', 'active', 0, null],
+        ['export-basic', 'active', 0, null],
+      ]);
+    });
+  });
 });

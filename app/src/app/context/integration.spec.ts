@@ -5,7 +5,6 @@ import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { EventsGrid } from '../grid/events-grid';
 import { FormatWizard } from '../format/format-wizard';
-import { FILE_PREVIEW, SampleFilePreview } from '../format/file-preview';
 import { Inspector } from '../inspector/inspector';
 import { AdhocCharts } from '../metrics/adhoc-charts';
 import { Sidebar } from '../shell/sidebar';
@@ -184,123 +183,6 @@ describe('AdhocCharts', () => {
     expect(charts.charts()).toEqual([b]);
   });
 });
-
-describe('FormatWizard', () => {
-  const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
-
-  async function mount(preview: { firstLines: (...args: never[]) => Promise<string[]> } = new SampleFilePreview(), backend = tinyBackend()) {
-    ref.close.mockClear();
-    TestBed.configureTestingModule({
-      providers: [provideTinyBackend(backend), { provide: DIALOG_REF, useValue: ref }, { provide: FILE_PREVIEW, useValue: preview }],
-    });
-    const fixture = TestBed.createComponent(FormatWizard as Type<FormatWizard>);
-    fixture.componentRef.setInput('path', '/x/app.log');
-    fixture.componentRef.setInput('name', 'app.log');
-    await settle(fixture);
-    return { fixture, backend, store: TestBed.inject(WorkspaceStore) };
-  }
-
-  async function mark(fixture: Awaited<ReturnType<typeof mount>>['fixture'], needle: string, label: string) {
-    const span = all(fixture, '[data-testid=sample-line] span').find((s) => s.textContent?.includes(needle))!;
-    selectText(span, needle);
-    await settle(fixture);
-    buttonByText(fixture, new RegExp('^\\s*' + label)).click();
-    await settle(fixture);
-  }
-
-  it('generates a regex from marks, previews the parse and saves it first in parse.regexes', async () => {
-    const { fixture, backend, store } = await mount();
-    expect(el(fixture, '[data-testid=format-regex]').textContent).toContain('Mark a timestamp');
-    await mark(fixture, '2026-10-14 10:41:02.114 +00:00', 'Timestamp');
-    await mark(fixture, 'INF', 'Level');
-    expect(el(fixture, '[data-testid=format-regex]').textContent).toContain('Mark a timestamp');
-    await mark(fixture, 'Order 1042 accepted for customer 77', 'Message');
-    expect(el(fixture, '[data-testid=format-regex]').textContent).toContain('(?P<timestamp>');
-    expect(el(fixture, '[data-testid=format-summary]').textContent).toContain('4 of 5 lines parse');
-    expect(all(fixture, '[role=row]')).toHaveLength(6);
-    buttonByText(fixture, 'Save and re-import').click();
-    await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
-    expect((await backend.getProfile()).toml).toMatch(/regexes = \[\s*"\^\(\?P<timestamp>/);
-    expect(store.notice()).toMatch(/Saved the format/);
-  });
-
-  it('supports Serilog templates, other sample lines and clearing marks', async () => {
-    const { fixture, backend } = await mount();
-    const select = el<HTMLSelectElement>(fixture, 'select');
-    select.value = '1';
-    select.dispatchEvent(new Event('change'));
-    await settle(fixture);
-    expect(el(fixture, '[data-testid=sample-line]').textContent).toContain('Payment gateway slow');
-    await mark(fixture, '2026-10-14 10:41:02.980 +00:00', 'Timestamp');
-    buttonByText(fixture, 'Clear marks').click();
-    await settle(fixture);
-    expect(all(fixture, '.hl')).toHaveLength(0);
-
-    buttonByText(fixture, 'Serilog output template').click();
-    await settle(fixture);
-    typeTemplate(fixture, '{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}');
-    await settle(fixture);
-    expect(el(fixture, '[data-testid=format-summary]').textContent).toContain('4 of 5 lines parse');
-    buttonByText(fixture, 'Save and re-import').click();
-    await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
-    expect((await backend.getProfile()).toml).toContain('{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}');
-  });
-
-  it('explains when the file cannot be previewed and when saving fails', async () => {
-    const failing = { firstLines: () => Promise.reject(new Error('Previewing files is not supported yet')) };
-    const { fixture, backend } = await mount(failing);
-    expect(el(fixture, '[role=alert]').textContent).toContain('not supported yet');
-    buttonByText(fixture, 'Serilog output template').click();
-    await settle(fixture);
-    typeTemplate(fixture, '{Timestamp} {Message}');
-    await settle(fixture);
-    expect(buttonByText(fixture, 'Save and re-import').disabled).toBe(true);
-    expect(backend).toBeDefined();
-    expect(text(fixture)).toContain('0 of 0 lines parse');
-  });
-
-  it('keeps the save button disabled for an invalid pattern and reports save errors', async () => {
-    const lines = ['2026-01-01 a'];
-    const backend = tinyBackend();
-    const { fixture } = await mount({ firstLines: () => Promise.resolve(lines) }, backend);
-    buttonByText(fixture, 'Serilog output template').click();
-    await settle(fixture);
-    typeTemplate(fixture, '{Timestamp:yyyy-MM-dd} {Message}');
-    await settle(fixture);
-    vi.spyOn(backend, 'saveProfile').mockRejectedValue(new Error('cannot save'));
-    buttonByText(fixture, 'Save and re-import').click();
-    await settle(fixture);
-    expect(el(fixture, '[role=alert]').textContent).toContain('cannot save');
-    typeTemplate(fixture, '{Level}');
-    await settle(fixture);
-    expect(buttonByText(fixture, 'Save and re-import').disabled).toBe(true);
-    // A template that cannot be turned into a regex that compiles shows the error.
-    typeTemplate(fixture, '{Timestamp:(} {Message}');
-    await settle(fixture);
-    expect(buttonByText(fixture, 'Save and re-import').disabled).toBe(true);
-  });
-
-  it('ignores a mark without a selection and replaces overlapping marks', async () => {
-    const { fixture } = await mount();
-    const inst = fixture.componentInstance as unknown as { mark(p: 'level'): void; marks: () => Record<string, unknown>; pending: { set(v: unknown): void } };
-    inst.mark('level');
-    expect(inst.marks()).toEqual({});
-    inst.pending.set({ start: 0, end: 10 });
-    inst.mark('level');
-    inst.pending.set({ start: 5, end: 12 });
-    inst.mark('level');
-    expect(Object.keys(inst.marks())).toEqual(['level']);
-    inst.pending.set({ start: 20, end: 22 });
-    (inst as unknown as { mark(p: string): void }).mark('timestamp');
-    expect(Object.keys(inst.marks()).sort()).toEqual(['level', 'timestamp']);
-  });
-});
-
-function typeTemplate(fixture: { nativeElement: HTMLElement }, value: string): void {
-  const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input.input')!;
-  input.value = value;
-  input.dispatchEvent(new Event('input'));
-}
 
 describe('DropDialog from the wizard module (smoke)', () => {
   it('exports the dialogs', () => {

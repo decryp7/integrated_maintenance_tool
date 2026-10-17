@@ -139,7 +139,7 @@ The app reads untrusted, possibly huge files and renders their content:
   cargo fmt --all --check
   cargo clippy --workspace --all-targets -- -D warnings
   cargo test --workspace
-  cargo deny check
+  cargo deny --workspace check
   (cd app && npm audit --omit=dev --audit-level=high && npx ng build && npx ng test --watch=false)
   ```
 

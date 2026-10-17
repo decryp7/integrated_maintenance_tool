@@ -79,7 +79,7 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
             <span class="stat" [class.ok]="p.failed === 0">{{ p.matches }} matches · {{ p.failed }} failed · {{ p.candidates }} candidates</span>
           }
         }
-        @if (loading()) { <span class="spinner" aria-label="Loading"></span> }
+        @if (loading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
       </div>
       <div class="samples mono">
         @for (s of samples(); track s.recordId) {

@@ -122,6 +122,37 @@ pub trait LogStore: Send + Sync {
 
     /// The automatic health check: findings, most severe first.
     fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>>;
+
+    /// Settings of the plugins this store runs, under the same crash
+    /// containment (and health record) as the rest of their contributions.
+    /// A store without plugins has none.
+    fn plugin_settings(&self) -> Vec<crate::settings::PluginSettings> {
+        Vec::new()
+    }
+
+    /// Opens files and folders; with `start_at_end` text files are tailed from
+    /// their current end, skipping their history.
+    fn open_with(&mut self, paths: &[PathBuf], options: &crate::workspace::OpenOptions) -> Result<()> {
+        let _ = options;
+        self.open(paths)
+    }
+
+    /// Live tail: reads what changed in `changed` (appends, rotations,
+    /// truncations, deletions, new files) and reports it. Stores without
+    /// incremental reading re-import and report nothing finer.
+    fn refresh_tail(&mut self, changed: &[PathBuf]) -> Result<crate::workspace::TailReport> {
+        self.refresh_files(changed).map(|_| crate::workspace::TailReport::default())
+    }
+
+    /// Per-file live tail state and totals.
+    fn tail_status(&self) -> crate::workspace::TailStatus {
+        crate::workspace::TailStatus::default()
+    }
+
+    /// Live tail options: deleted files, retention, carry timeout.
+    fn set_tail_options(&mut self, options: crate::workspace::TailOptions) {
+        let _ = options;
+    }
 }
 
 impl LogStore for Workspace {
@@ -259,5 +290,25 @@ impl LogStore for Workspace {
 
     fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>> {
         Workspace::overview(self, req)
+    }
+
+    fn plugin_settings(&self) -> Vec<crate::settings::PluginSettings> {
+        Workspace::plugin_settings(self)
+    }
+
+    fn open_with(&mut self, paths: &[PathBuf], options: &crate::workspace::OpenOptions) -> Result<()> {
+        Workspace::open_with(self, paths, options)
+    }
+
+    fn refresh_tail(&mut self, changed: &[PathBuf]) -> Result<crate::workspace::TailReport> {
+        Workspace::refresh_tail(self, changed)
+    }
+
+    fn tail_status(&self) -> crate::workspace::TailStatus {
+        Workspace::tail_status(self)
+    }
+
+    fn set_tail_options(&mut self, options: crate::workspace::TailOptions) {
+        Workspace::set_tail_options(self, options)
     }
 }

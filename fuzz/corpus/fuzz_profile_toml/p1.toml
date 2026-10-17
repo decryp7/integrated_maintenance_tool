@@ -1,0 +1,66 @@
+# Sample profile for the files in /samples. Load it from the Profile tab
+# (or copy its sections into your own). Only what differs from the built-in
+# default needs to be written: everything else falls back to the defaults.
+
+name = "OrderService (sample)"
+
+[instance]
+key = ["MachineName", "ProcessId"]
+
+# The worker logs its process stats as plain text:
+#   Process stats: CPU 44.0% · WorkingSet 612 MB · Threads 84
+# This rule turns them into numeric fields. The web servers already log the
+# same numbers as Serilog properties (CpuPercent, WorkingSetMb), so they need
+# no rule.
+[[extract]]
+name = "worker-process-stats"
+from = "@message"
+regex = 'CPU (?P<CpuPercent>[\d.]+)% · WorkingSet (?P<WorkingSetMb>[\d.]+) ?(?P<ws_unit>KB|MB|GB) · Threads (?P<Threads>\d+)'
+when = [{ field = "SourceContext", op = "eq", value = "Diagnostics.ProcessMonitor" }]
+[extract.fields]
+CpuPercent = { type = "number", unit = "%" }
+WorkingSetMb = { type = "bytes", unit_from = "ws_unit", to = "MB" }
+Threads = { type = "integer" }
+
+# Outbox backlog from "Outbox dispatch timed out; backlog 1,204 messages".
+[[extract]]
+name = "outbox-backlog"
+regex = 'backlog (?P<Backlog>[\d,]+) messages'
+[extract.fields]
+Backlog = { type = "integer" }
+
+[[chart]]
+id = "cpu"
+title = "CPU %"
+y = "avg(CpuPercent)"
+bucket = "1m"
+split_by = ["MachineName", "ProcessId"]
+type = "line"
+unit = "%"
+
+[[chart]]
+id = "memory"
+title = "Working set"
+y = "max(WorkingSetMb)"
+bucket = "1m"
+split_by = ["MachineName", "ProcessId"]
+type = "line"
+unit = "MB"
+
+[[chart]]
+id = "problems"
+title = "Warnings and errors"
+y = "count()"
+bucket = "1m"
+split_by = ["@level"]
+type = "stacked"
+unit = "events"
+when = [{ field = "@level", op = "in", value = "Warning|Error|Fatal" }]
+
+[[chart]]
+id = "backlog"
+title = "Outbox backlog"
+y = "max(Backlog)"
+bucket = "1m"
+type = "line"
+unit = "messages"

@@ -31,8 +31,10 @@ test('format wizard: mark a sample line, preview the parse and save', async ({ p
   await mark('Order 1042 accepted for customer 77', /^Message/);
 
   await expect(dialog.getByTestId('format-regex')).toContainText('(?P<timestamp>');
-  await expect(dialog.getByTestId('format-summary')).toContainText('4 of 5 lines parse');
+  // The engine (here its mock) reads the sample with the candidate profile.
+  await expect(dialog.getByTestId('format-summary')).toContainText('4 events parsed', { timeout: 15_000 });
   await expect(dialog.getByRole('table', { name: 'Parse preview' })).toBeVisible();
+  await expect(dialog.getByRole('table', { name: 'Parse preview' })).toContainText('Payment capture failed for order 1042', { timeout: 15_000 });
   await expectNoSeriousViolations(page, testInfo, 'format-wizard');
   await dialog.getByRole('button', { name: 'Save and re-import' }).click();
   await expect(dialog).toHaveCount(0);
@@ -45,7 +47,15 @@ test('format wizard: a Serilog output template', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Set up format' });
   await dialog.getByRole('button', { name: 'Serilog output template' }).click();
   await dialog.getByLabel('Output template').fill('{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}');
-  await expect(dialog.getByTestId('format-summary')).toContainText('4 of 5 lines parse');
+  await expect(dialog.getByTestId('format-summary')).toContainText('4 events parsed', { timeout: 15_000 });
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
+});
+
+test('format wizard: a file outside the workspace cannot be previewed', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: /^Set up format for / }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Set up format' });
+  await expect(dialog.getByTestId('sample-line')).toBeVisible();
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
 });

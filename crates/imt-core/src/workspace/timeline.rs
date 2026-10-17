@@ -30,7 +30,8 @@ impl Workspace {
             })
             .collect();
 
-        let (from, to) = match (req.query.from, req.query.to) {
+        let query = self.resolve_window(&req.query);
+        let (from, to) = match (query.from, query.to) {
             (Some(f), Some(t)) => (f, t),
             (f, t) => {
                 let min = candidates.iter().filter_map(|(r, _)| r.ts).min();

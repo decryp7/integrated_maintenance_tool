@@ -477,3 +477,35 @@ fn collectors_write_to_sinks_that_imt_can_open() {
     assert_eq!((s.total, s.sources[0].importer.as_str()), (4, "json"));
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn contributions_registered_directly_are_built_ins() {
+    // Registered outside `install`: not attributed to any plugin, not guarded.
+    let dir = std::env::temp_dir().join(format!("imt-direct-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("a.data"), "TSV\nx\ty\n").unwrap();
+    std::fs::write(dir.join("b.dat"), [b'B', b'I', b'N', b'1', 2]).unwrap();
+    let hook = Arc::new(Recorder::default());
+    let mut registry = PluginRegistry::new();
+    registry
+        .add_importer(Box::new(Tsv))
+        .add_binary_importer(Box::new(Bin))
+        .add_hook(hook.clone());
+    registry.add_transform(Arc::new(Normaliser)).unwrap();
+    assert!(registry.plugins().is_empty());
+    let health = registry.health();
+
+    let profile = Profile::from_toml("[[pipeline]]\nstep = 'plugin'\nid = 'acme.normaliser'").unwrap();
+    let mut ws = Workspace::with_registry(profile, registry).unwrap();
+    ws.open(std::slice::from_ref(&dir)).unwrap();
+    let s = ws.summary();
+    let mut importers: Vec<&str> = s.sources.iter().map(|x| x.importer.as_str()).collect();
+    importers.sort();
+    assert_eq!(importers, ["bin1", "tsv-lines"]);
+    assert_eq!(s.total, 3);
+    assert!(ws.records().iter().all(|r| r.fields["Team"] == "orders"));
+    assert_eq!(hook.loaded.load(Ordering::SeqCst), 2);
+    // Nothing crashed, and built-ins have no health record.
+    assert_eq!(health.get("com.acme.tools"), Default::default());
+    std::fs::remove_dir_all(dir).unwrap();
+}

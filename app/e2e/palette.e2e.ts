@@ -31,13 +31,16 @@ test.describe('command palette', () => {
     const input = page.getByRole('combobox', { name: 'Type a command' });
     await input.fill('theme');
     const options = page.getByRole('option');
-    await expect(options).toHaveCount(3);
+    // Other commands (e.g. from plugins) may match too; the three theme commands must be there.
+    for (const name of ['Theme: system', 'Theme: dark', 'Theme: light']) await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
     await expect(options.first()).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowDown');
     await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowUp');
     await page.keyboard.press('ArrowUp');
-    await expect(options.nth(2)).toHaveAttribute('aria-selected', 'true');
+    // Up from the first option wraps to the last one.
+    await expect(options.last()).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[role=option][aria-selected=true]')).toHaveCount(1);
     await input.fill('theme: light');
     await page.keyboard.press('Enter');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');

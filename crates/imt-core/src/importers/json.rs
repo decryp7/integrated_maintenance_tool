@@ -58,21 +58,44 @@ impl Importer for JsonImporter {
                 return Ok(out);
             }
         }
-        for (i, line) in content.lines().enumerate() {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            if line.len() > MAX_LINE_LEN {
-                out.skipped += 1;
-                continue;
-            }
-            match serde_json::from_str::<Value>(line) {
-                Ok(Value::Object(obj)) => out.records.push(to_record(obj, cfg, ts, default_level, i as u32 + 1)),
-                _ => out.skipped += 1,
-            }
-        }
+        json_lines(ctx, content, &mut out);
         Ok(out)
+    }
+
+    fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
+        // Only JSON lines can grow by appending; an array or a pretty-printed
+        // object is re-imported whole.
+        let first = first_lines(head, 1).next()?.trim();
+        if !first.starts_with('{') || serde_json::from_str::<Value>(first).is_err() {
+            return None;
+        }
+        let mut out = Imported::default();
+        json_lines(ctx, tail, &mut out);
+        Some(Ok(out))
+    }
+
+    fn multiline(&self) -> bool {
+        false
+    }
+}
+
+fn json_lines(ctx: &ImportCtx, content: &str, out: &mut Imported) {
+    let cfg = &ctx.profile.profile.parse.json;
+    let ts = &ctx.profile.timestamps;
+    let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
+    for (i, line) in content.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.len() > MAX_LINE_LEN {
+            out.skipped += 1;
+            continue;
+        }
+        match serde_json::from_str::<Value>(line) {
+            Ok(Value::Object(obj)) => out.records.push(to_record(obj, cfg, ts, default_level, i as u32 + 1)),
+            _ => out.skipped += 1,
+        }
     }
 }
 
@@ -277,6 +300,17 @@ mod tests {
         // A whole object as the exception.
         let out = import(r#"{"msg": "m", "exception": {"type": "E"}}"#);
         assert!(out.records[0].exception.as_deref().unwrap().contains("\"type\""));
+        // A nested object without the dotted key stays a field; a partly used one keeps the rest.
+        let out = import(concat!(
+            r#"{"msg": "m", "log": {"logger": "app"}}"#,
+            "\n",
+            r#"{"msg": "m", "log": {"level": "error", "logger": "app"}}"#,
+        ));
+        assert_eq!(out.records[0].level, Level::Information);
+        assert_eq!(out.records[0].fields["log.logger"], "app");
+        assert_eq!(out.records[1].level, Level::Error);
+        assert_eq!(out.records[1].fields["log.logger"], "app");
+        assert!(!out.records[1].fields.contains_key("log.level"));
         // No message and no template.
         let out = import("{\"time\": \"2026-10-14T10:00:00Z\"}");
         assert_eq!(out.records[0].message, "");

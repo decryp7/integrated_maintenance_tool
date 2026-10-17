@@ -33,8 +33,9 @@ impl Workspace {
             .map(|&id| &self.records[id as usize])
             .filter(|r| r.ts.is_some() && when.iter().all(|c| c.eval(r, self.source_name(r.source))))
             .collect();
-        let from = req.query.from.or_else(|| rows.first().and_then(|r| r.ts)).unwrap_or(0);
-        let to = req.query.to.or_else(|| rows.last().and_then(|r| r.ts)).unwrap_or(from);
+        let query = self.resolve_window(&req.query);
+        let from = query.from.or_else(|| rows.first().and_then(|r| r.ts)).unwrap_or(0);
+        let to = query.to.or_else(|| rows.last().and_then(|r| r.ts)).unwrap_or(from);
         let span = (to - from).max(1);
         let bucket_ms = match parse_bucket(&def.bucket)? {
             Some(b) => b.max(span / 5000),
@@ -47,13 +48,13 @@ impl Workspace {
         let mut totals: HashMap<String, Acc> = HashMap::new();
         for r in &rows {
             let source = self.source_name(r.source);
-            let value = match (&field, agg) {
-                (_, Agg::Count) => 1.0,
-                (Some(f), _) => match r.field_number(f) {
+            // `parse_y` gives a field to every aggregate except count().
+            let value = match &field {
+                None => 1.0,
+                Some(f) => match r.field_number(f) {
                     Some(v) => v,
                     None => continue,
                 },
-                (None, _) => continue,
             };
             let key = if def.split_by.is_empty() {
                 def.title.clone()

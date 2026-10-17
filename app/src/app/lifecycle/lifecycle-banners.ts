@@ -1,0 +1,54 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Icon } from '../shared/icon';
+import { ProjectService } from '../projects/project.service';
+import { baseName } from '../tools/tool-errors';
+import { LifecycleService } from './lifecycle.service';
+
+/** Banners under the title bar: safe mode, crash recovery and project paths that were not found. */
+@Component({
+  selector: 'imt-lifecycle-banners',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icon],
+  host: { style: 'display: contents' },
+  template: `
+    @if (life.safeMode()) {
+      <div class="banner warn" role="status" data-testid="safe-mode-banner">
+        <imt-icon name="alert" [size]="14" />
+        <span class="msg">Running in safe mode: plugins and saved profile are off.</span>
+        <button type="button" class="btn" (click)="life.restartNormally()">Restart normally</button>
+      </div>
+    }
+    @if (life.showCrashBanner()) {
+      <div class="banner warn" role="alert" data-testid="crash-banner">
+        <imt-icon name="alert" [size]="14" />
+        <span class="msg">IMT didn't close properly last time.</span>
+        <button type="button" class="btn primary" [disabled]="!life.sessionAvailable()" (click)="life.restoreLastSession()">Restore last session</button>
+        <button type="button" class="btn" (click)="life.startInSafeMode()">Start in safe mode</button>
+        <button type="button" class="btn ghost" (click)="life.dismissCrash()">Dismiss</button>
+      </div>
+    }
+    @if (projects.missing().length; as n) {
+      <div class="banner info" role="status" data-testid="missing-banner">
+        <imt-icon name="alert" [size]="14" />
+        <span class="msg">{{ n }} path{{ n === 1 ? '' : 's' }} of this project could not be found: <span class="mono" [title]="projects.missing().join('\\n')">{{ names() }}</span></span>
+        <button type="button" class="btn ghost" (click)="projects.dismissMissing()">Dismiss</button>
+      </div>
+    }
+  `,
+  styles: `
+    .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); }
+    .banner.warn { border-left: 3px solid var(--lvl-warn); }
+    .banner.warn imt-icon { color: var(--warn-text); }
+    .banner.info { border-left: 3px solid var(--accent); }
+    .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  `,
+})
+export class LifecycleBanners {
+  protected readonly life = inject(LifecycleService);
+  protected readonly projects = inject(ProjectService);
+
+  protected names(): string {
+    const names = this.projects.missing().map(baseName);
+    return names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(', ');
+  }
+}

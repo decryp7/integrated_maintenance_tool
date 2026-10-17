@@ -24,6 +24,7 @@ pub mod project;
 pub mod ql;
 pub mod query;
 pub mod regex_assist;
+pub mod settings;
 pub mod store;
 pub mod template;
 pub mod time;

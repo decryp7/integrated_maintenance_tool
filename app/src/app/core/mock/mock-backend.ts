@@ -2,18 +2,25 @@ import { parse, TomlError } from 'smol-toml';
 import {
   ChartData,
   ChartRequest,
+  ContextRequest,
   ExportRequest,
   ExportResult,
+  ExplainNode,
   ExtractPreview,
   ExtractPreviewRequest,
   Facet,
   FacetRequest,
+  InferredRegex,
   LEVELS,
   Level,
   Page,
   PageRequest,
+  ParsePreview,
+  ParsePreviewRequest,
+  PluginInfo,
   ProfileDoc,
   ProfileValidation,
+  SourceContext,
   Timeline,
   TimelineRequest,
   WorkspaceSummary,
@@ -22,13 +29,31 @@ import type { ImtBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
 import { generateDemo, generateExtraSource, MockDataset } from './mock-data';
 import { MockEngine, safeRegex } from './mock-engine';
+import type { Failable } from './mock-options';
+import { mockPreviewParse } from './mock-parse';
+import { mockExplainRegex, mockInferRegex } from './mock-regex';
+import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
+import { BUILTIN_ICONS } from '../../markers/builtin-icons';
+
+/** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
+const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
 
 export interface MockBackendOptions {
   /** Simulate IPC latency so loading states are visible (default true). Tests turn it off. */
   latency?: boolean;
   /** Dataset factory (default: the generated demo incident). */
   dataset?: () => MockDataset;
+  /** Pretend the result has this many events, generated lazily by index (see mock-synthetic.ts). Queries are ignored. */
+  syntheticTotal?: number;
+  /** Every field reports this many distinct values; facets return at most 1000 of them, like the engine. */
+  syntheticFacetValues?: number;
+  /** The first N calls of each named command reject with a simulated error. */
+  fail?: Partial<Record<Failable, number>>;
+  /** Page rows lose their `markers`, as a buggy backend would send them (panel error boundary tests). */
+  corruptMarkers?: boolean;
+  /** Interval between live tail events (default 1500 ms). */
+  liveMs?: number;
 }
 
 /** In-browser stand-in for the Rust backend (used by `ng serve`). */
@@ -42,8 +67,16 @@ export class MockBackend implements ImtBackend {
 
   private readonly latency: boolean;
   private readonly makeDataset: () => MockDataset;
+  private readonly options: MockBackendOptions;
+  private readonly failuresLeft: Partial<Record<Failable, number>>;
+  private readonly changeHandlers = new Set<() => void>();
+  private liveTimer: ReturnType<typeof setInterval> | undefined;
+  /** Events appended by live tail since the start. */
+  private liveAdded = 0;
 
   constructor(options: MockBackendOptions = {}) {
+    this.options = options;
+    this.failuresLeft = { ...options.fail };
     this.latency = options.latency ?? true;
     this.makeDataset = options.dataset ?? (() => generateDemo());
     this.dataset = this.makeDataset();
@@ -61,6 +94,20 @@ export class MockBackend implements ImtBackend {
       }
     };
     return new Promise((resolve, reject) => (this.latency ? setTimeout(() => run(resolve, reject), ms) : run(resolve, reject)));
+  }
+
+  /** Rejects (like a failing Tauri command) while the command still has simulated failures left. */
+  private failing(command: Failable): Promise<never> | null {
+    const left = this.failuresLeft[command] ?? 0;
+    if (left <= 0) return null;
+    this.failuresLeft[command] = left - 1;
+    return this.delay<never>(() => {
+      throw new Error(`Simulated ${command} failure`);
+    });
+  }
+
+  private syntheticCount(): number {
+    return (this.options.syntheticTotal ?? 0) + this.liveAdded;
   }
 
   private apply(): void {
@@ -87,13 +134,14 @@ export class MockBackend implements ImtBackend {
       }
       perSource.set(r.source, s);
     }
+    const synthetic = this.options.syntheticTotal ? this.syntheticCount() : null;
     return {
-      sources: e.sources.map((s) => ({
+      sources: e.sources.map((s, i) => ({
         id: s.id,
         path: s.path,
         name: s.name,
         importer: s.importer,
-        records: perSource.get(s.id)?.n ?? 0,
+        records: synthetic !== null && i === 0 ? synthetic : (perSource.get(s.id)?.n ?? 0),
         skipped: s.skipped,
         dropped: e.droppedBySource.get(s.id) ?? 0,
         error: null,
@@ -101,13 +149,14 @@ export class MockBackend implements ImtBackend {
         to: perSource.get(s.id)?.to ?? null,
       })),
       unrecognized: this.dataset.unrecognized,
-      total: e.records.length,
+      total: synthetic ?? e.records.length,
       from,
       to,
       levels,
       fields: e.fields(),
       defaultGroupBy: e.defaultGroupBy,
       markerKinds: e.markerKinds,
+      icons: e.icons,
       charts: e.charts,
       profileName: this.profile.name ?? 'Unnamed profile',
       loadMs: this.loadMs,
@@ -119,7 +168,7 @@ export class MockBackend implements ImtBackend {
   }
 
   workspaceSummary() {
-    return this.delay(() => this.summary());
+    return this.failing('workspaceSummary') ?? this.delay(() => this.summary());
   }
 
   openPaths(paths: string[]) {
@@ -162,15 +211,24 @@ export class MockBackend implements ImtBackend {
   }
 
   queryPage(request: PageRequest): Promise<Page> {
-    return this.delay(() => this.engine.page(request), 20);
+    return (
+      this.failing('queryPage') ??
+      this.delay(() => {
+        const page = this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(request);
+        return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
+      }, 20)
+    );
   }
 
   queryTimeline(request: TimelineRequest): Promise<Timeline> {
-    return this.delay(() => this.engine.timeline(request), 30);
+    return this.failing('queryTimeline') ?? this.delay(() => this.engine.timeline(request), 30);
   }
 
   queryFacet(request: FacetRequest): Promise<Facet> {
-    return this.delay(() => this.engine.facet(request), 20);
+    return (
+      this.failing('queryFacet') ??
+      this.delay(() => (this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(request)), 20)
+    );
   }
 
   queryChart(request: ChartRequest): Promise<ChartData> {
@@ -219,6 +277,78 @@ export class MockBackend implements ImtBackend {
     }, 100);
   }
 
+  sourceContext(request: ContextRequest): Promise<SourceContext> {
+    return (
+      this.failing('sourceContext') ??
+      this.delay(() => {
+        const rec = this.engine.records[request.recordId];
+        if (!rec) throw new Error('That event is no longer in the workspace.');
+        const before = Math.max(0, Math.min(500, Math.floor(request.before)));
+        const after = Math.max(0, Math.min(500, Math.floor(request.after)));
+        const first = Math.max(1, rec.line - before);
+        const lines = [];
+        for (let n = first; n <= rec.line + after; n++) {
+          lines.push({ line: n, text: n === rec.line ? `${rec.ts === null ? '' : new Date(rec.ts).toISOString()} [${rec.level}] ${rec.message}` : `context line ${n} of ${this.engine.sources.find((s) => s.id === rec.source)?.name ?? ''}` });
+        }
+        return { sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '', line: rec.line, lines };
+      }, 20)
+    );
+  }
+
+  readFileHead(path: string, maxBytes = 65536): Promise<string> {
+    return (
+      this.failing('readFileHead') ??
+      this.delay(() => {
+        const known = this.dataset.sources.some((s) => s.path === path) || this.dataset.unrecognized.some((u) => u.path === path);
+        if (!known) throw new Error('only files in the workspace can be previewed');
+        return SAMPLE_HEAD.slice(0, Math.max(1, maxBytes));
+      }, 20)
+    );
+  }
+
+  previewParse(request: ParsePreviewRequest): Promise<ParsePreview> {
+    return this.failing('previewParse') ?? this.delay(() => mockPreviewParse(request), 20);
+  }
+
+  setLive(enabled: boolean): Promise<number> {
+    return this.delay(() => {
+      clearInterval(this.liveTimer);
+      this.liveTimer = undefined;
+      if (enabled) this.liveTimer = setInterval(() => this.liveTick(), this.options.liveMs ?? 1500);
+      return enabled ? this.dataset.sources.length : 0;
+    }, 10);
+  }
+
+  onWorkspaceChanged(handler: () => void): Promise<() => void> {
+    this.changeHandlers.add(handler);
+    return Promise.resolve(() => void this.changeHandlers.delete(handler));
+  }
+
+  /** One new event arrives in the newest source, then listeners are told, like the engine's file watcher does. */
+  private liveTick(): void {
+    this.liveAdded++;
+    if (!this.options.syntheticTotal) {
+      const last = this.dataset.records.reduce((m, r) => Math.max(m, r.ts ?? 0), 0);
+      const source = this.dataset.sources[0];
+      if (source) {
+        this.dataset.records.push({ id: 0, ts: last + 1000, level: 'Information', message: `Live event ${this.liveAdded}`, template: null, exception: null, fields: { Live: true }, source: source.id, line: 100_000 + this.liveAdded, markers: [] });
+        this.apply();
+      }
+    }
+    for (const handler of [...this.changeHandlers]) handler();
+  }
+
+  inferRegex(lines: string[]): Promise<InferredRegex> {
+    return this.delay(() => mockInferRegex(lines), 40);
+  }
+
+  explainRegex(pattern: string): Promise<ExplainNode[]> {
+    return this.delay(() => {
+      if (!safeRegex(pattern)) throw new Error('regex parse error: the pattern is not a valid regex');
+      return mockExplainRegex(pattern);
+    }, 20);
+  }
+
   exportProfile(path: string, toml: string): Promise<void> {
     return this.delay(() => {
       const url = URL.createObjectURL(new Blob([toml], { type: 'application/toml' }));
@@ -231,10 +361,19 @@ export class MockBackend implements ImtBackend {
   }
 }
 
-const MOCK_PLUGINS = [
-  { id: 'registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer'] },
-  { id: 'export-basic', name: 'CSV and CLEF exporters', version: '0.1.0', contributes: ['exporter'] },
+const MOCK_PLUGINS: PluginInfo[] = [
+  { id: 'registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer'], status: 'active', failures: 0, lastError: null },
+  { id: 'export-basic', name: 'CSV and CLEF exporters', version: '0.1.0', contributes: ['exporter'], status: 'active', failures: 0, lastError: null },
 ];
+/** What `readFileHead` returns for any file in the browser demo. */
+const SAMPLE_HEAD = [
+  '2026-10-14 10:41:02.114 +00:00 [INF] Order 1042 accepted for customer 77',
+  '2026-10-14 10:41:02.980 +00:00 [WRN] Payment gateway slow: 1500 ms',
+  '2026-10-14 10:41:03.201 +00:00 [ERR] Payment capture failed for order 1042',
+  '   at Payments.Capture() in Capture.cs:line 88',
+  '2026-10-14 10:41:04.007 +00:00 [INF] Order 1043 accepted for customer 12',
+  '',
+].join('\n');
 const MOCK_EXPORTERS = [
   { id: 'csv', name: 'CSV', extension: 'csv' },
   { id: 'clef', name: 'Compact Log Event Format', extension: 'clef' },
@@ -259,6 +398,10 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
   }
   for (const m of model.marker ?? []) {
     if (!m.kind) return { validation: { ok: false, error: '[[marker]] is missing a kind', line: lineOf('[[marker]]') }, model };
+    if (m['badge'] !== undefined && [...String(m['badge'])].length > 3) return { validation: { ok: false, error: `marker "${m.kind}": badge must be 1 to 3 characters`, line: lineOf('badge') }, model };
+    if (m['icon'] && !(model['icon'] as { name: string }[] | undefined)?.some((i) => i.name === m['icon']) && !MOCK_ICONS.has(String(m['icon']))) {
+      return { validation: { ok: false, error: `marker "${m.kind}": unknown icon "${m['icon']}"`, line: lineOf('icon') }, model };
+    }
   }
   for (const c of model.chart ?? []) {
     if (!c.id || !c.y) return { validation: { ok: false, error: '[[chart]] needs id and y', line: lineOf('[[chart]]') }, model };

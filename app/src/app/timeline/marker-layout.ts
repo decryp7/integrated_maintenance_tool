@@ -35,9 +35,9 @@ export interface LayoutOptions {
 }
 
 /** Icon half-width plus a small gap, in px. */
-const ICON_HALF = 6;
+const ICON_HALF = 8;
 /** Badge sits this many px right of the marker centre. */
-const BADGE_OFFSET = 7;
+const BADGE_OFFSET = 9;
 const BADGE_CHAR_PX = 5.6;
 const BADGE_PAD_PX = 4;
 

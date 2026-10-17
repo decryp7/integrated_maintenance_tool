@@ -1,4 +1,5 @@
-//! Writing the events matching a query with one of the registered exporters.
+//! Writing the events matching a query with one of the registered exporters,
+//! and access to the other plugin contributions the workspace runs.
 
 use super::Workspace;
 use crate::api::{ExportRequest, ExportResult};
@@ -7,6 +8,13 @@ use anyhow::{anyhow, Context, Result};
 use std::io::BufWriter;
 
 impl Workspace {
+    /// Settings of the installed plugins, sharing the workspace registry's
+    /// guards: a crash while applying settings counts against the same
+    /// health record as the plugin's importers and transforms.
+    pub fn plugin_settings(&self) -> Vec<crate::settings::PluginSettings> {
+        self.registry.plugin_settings()
+    }
+
     /// Streams every record matching `req.query` to `req.path` in `req.format`.
     pub fn export(&self, req: &ExportRequest) -> Result<ExportResult> {
         let exporter = self

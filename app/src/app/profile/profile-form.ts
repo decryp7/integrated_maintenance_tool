@@ -4,7 +4,8 @@ import { LEVELS } from '../core/api.types';
 import { ChartRule, Condition, MarkerRule, ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
-import { MarkerIcon } from '../shared/marker-icon';
+import { MarkerGlyph } from '../markers/marker-glyph';
+import { GlyphStyle } from '../markers/markers.types';
 import { HelpHint } from '../ui/help-hint';
 import { ConditionsEditor } from './conditions-editor';
 import { ExtractorEditor } from './extractor-editor';
@@ -33,7 +34,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
 @Component({
   selector: 'imt-profile-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StringList, ConditionsEditor, ExtractorEditor, FlowOverview, PipelineEditor, HelpHint, Icon, MarkerIcon, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [StringList, ConditionsEditor, ExtractorEditor, FlowOverview, PipelineEditor, HelpHint, Icon, MarkerGlyph, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
     <datalist id="imt-profile-fields">
       @for (f of fieldChoices(); track f) { <option [value]="f"></option> }
@@ -179,7 +180,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
               <div class="marker-card" cdkDrag>
                 <div class="mk-row">
                   <button class="icon-btn handle" cdkDragHandle aria-label="Drag to reorder" title="Drag to reorder"><imt-icon name="drag" [size]="14" [stroke]="3" /></button>
-                  <imt-marker-icon [kind]="mk.kind" [color]="mk.color ?? null" />
+                  <imt-marker-glyph [glyph]="glyphOf(mk)" [size]="18" />
                   <input class="input mono kind" [value]="mk.kind" aria-label="Kind" (input)="setItem('marker', i, 'kind', $any($event.target).value)" />
                   <input class="input" [value]="mk.label ?? ''" placeholder="Label" aria-label="Label" (input)="setItem('marker', i, 'label', $any($event.target).value || undefined)" />
                   <input type="color" class="color" [value]="mk.color ?? '#8a91a3'" aria-label="Colour" (input)="setItem('marker', i, 'color', $any($event.target).value)" />
@@ -339,6 +340,11 @@ export class ProfileForm {
       for (const p of path) o = ensure(o, p);
       put(o, key, value);
     });
+  }
+
+  /** How the rule looks (badge, icon or default shape), for the card header. */
+  protected glyphOf(mk: MarkerRule): GlyphStyle {
+    return { kind: mk.kind, color: mk.color ?? null, icon: mk['icon'] as string | undefined, badge: mk['badge'] as string | undefined, shape: mk['shape'] as string | undefined };
   }
 
   protected setItem(list: 'marker' | 'chart', i: number, key: string, value: unknown): void {

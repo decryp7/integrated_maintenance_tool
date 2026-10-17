@@ -8,8 +8,11 @@ import { Icon } from '../shared/icon';
 import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { TimelineZoom } from '../timeline/zoom';
+import { TimeCursor, TimeCursorSource, TimeRange, timeToFrac } from '../analysis/time-cursor';
 
 const MAX_NAMED = 4;
+/** Plot box of every chart (ECharts `grid`), px; the right inset grows when series are labelled directly. */
+export const CHART_GRID = { left: 56, top: 30, bottom: 28, right: 20, rightLabelled: 130 } as const;
 const OTHER = 'Other';
 
 interface Prepared {
@@ -85,11 +88,11 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
   return {
     animation: false,
     textStyle: { fontFamily: t.fontSans, color: t.muted },
-    grid: { left: 56, right: directLabels ? 130 : 20, top: 30, bottom: 28 },
+    grid: { left: CHART_GRID.left, right: directLabels ? CHART_GRID.rightLabelled : CHART_GRID.right, top: CHART_GRID.top, bottom: CHART_GRID.bottom },
     legend: {
       type: 'scroll',
       top: 0,
-      right: directLabels ? 130 : 20,
+      right: directLabels ? CHART_GRID.rightLabelled : CHART_GRID.right,
       textStyle: { color: t.text, fontFamily: t.fontMono, fontSize: 11 },
       icon: isLine ? 'roundRect' : 'rect',
       itemWidth: 14,
@@ -134,12 +137,12 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
 @Component({
   selector: 'imt-chart-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EChart, Icon],
+  imports: [EChart, Icon, TimeCursorSource],
   template: `
     <div class="head">
       <span class="title">{{ def().title }}</span>
       <span class="mono faint sub">{{ subtitle() }}</span>
-      @if (loading()) { <span class="spinner" aria-label="Loading"></span> }
+      @if (loading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
       <span class="spacer"></span>
       @if (lifecycleKinds().length) {
         <span class="lc faint">
@@ -157,7 +160,12 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     } @else if (empty()) {
       <div class="msg faint">No numeric values for {{ def().y }} in the current results.</div>
     } @else if (option(); as o) {
-      <imt-echart class="chart" [options]="o" (brushed)="zoom.apply({ from: $event[0], to: $event[1] })" />
+      <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
+        <imt-echart class="chart" [options]="o" (brushed)="brushed($event)" />
+        @if (hoverLeft(); as left) {
+          <div class="hover-line" [style.left]="left" [style.top.px]="grid().top" [style.bottom.px]="grid().bottom" aria-hidden="true"></div>
+        }
+      </div>
     }
   `,
   styles: `
@@ -169,7 +177,9 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     .lc { display: flex; gap: 10px; font-size: 11px; }
     .lc-item { display: inline-flex; align-items: center; gap: 4px; }
     .dash { width: 0; height: 10px; border-left: 1px dashed; }
+    .plot { flex: 1; min-height: 180px; position: relative; display: flex; flex-direction: column; }
     .chart { flex: 1; min-height: 180px; }
+    .hover-line { position: absolute; width: 0; border-left: 1px solid var(--border-3); pointer-events: none; }
     .msg { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 160px; }
     .err { color: var(--danger-text); }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; align-self: center; }
@@ -185,6 +195,7 @@ export class ChartCard {
 
   protected readonly store = inject(WorkspaceStore);
   protected readonly zoom = inject(TimelineZoom);
+  private readonly cursor = inject(TimeCursor);
   private readonly backend = inject(ImtBackend);
   private readonly theme = inject(ChartTheme);
 
@@ -215,6 +226,32 @@ export class ChartCard {
       color: tokens.markers[kind] ?? this.store.markerKindMap().get(kind)?.color ?? tokens.muted,
     }));
   });
+
+  /** The time range the x axis spans. */
+  protected readonly range = computed<TimeRange | null>(() => {
+    const d = this.data();
+    return d ? { from: d.from, to: d.to } : null;
+  });
+
+  /** The plot box insets, as `buildOption` laid them out. */
+  protected readonly grid = computed(() => {
+    const g = (this.option() as { grid?: { left: number; right: number; top: number; bottom: number } } | null)?.grid;
+    return g ?? { left: CHART_GRID.left, right: CHART_GRID.right, top: CHART_GRID.top, bottom: CHART_GRID.bottom };
+  });
+
+  /** CSS `left` of the shared time cursor's line (hovered in any time-based view), or null. */
+  protected readonly hoverLeft = computed(() => {
+    const frac = timeToFrac(this.cursor.hovered(), this.range());
+    if (frac === null) return null;
+    const { left, right } = this.grid();
+    return `calc(${left}px + (100% - ${left + right}px) * ${frac.toFixed(5)})`;
+  });
+
+  /** A brush selects the range (for "Analyse this moment") and zooms to it. */
+  protected brushed([from, to]: [number, number]): void {
+    this.cursor.select({ from, to });
+    this.zoom.apply({ from, to });
+  }
 
   protected readonly option = computed(() => {
     const d = this.data();
