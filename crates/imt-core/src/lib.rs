@@ -8,8 +8,11 @@
 pub mod api;
 pub mod chart;
 pub mod condition;
+pub mod export;
 pub mod importers;
 pub mod model;
+pub mod pipeline;
+pub mod plugin;
 pub mod profile;
 pub mod query;
 pub mod store;
@@ -18,6 +21,7 @@ pub mod time;
 pub mod user_regex;
 pub mod workspace;
 
+pub use plugin::{Plugin, PluginRegistry, API_VERSION};
 pub use profile::{Profile, ProfileError, DEFAULT_PROFILE_TOML};
 pub use store::LogStore;
 pub use workspace::Workspace;

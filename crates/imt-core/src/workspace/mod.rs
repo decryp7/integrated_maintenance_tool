@@ -1,6 +1,7 @@
 //! The set of opened files and everything the UI asks about them.
 
 mod chart;
+mod export;
 mod facet;
 mod page;
 mod preview;
@@ -11,6 +12,7 @@ pub use crate::api::*;
 use crate::chart::ChartDef;
 use crate::importers::{decode, ImportCtx, Importers};
 use crate::model::{Level, Record};
+use crate::plugin::PluginRegistry;
 use crate::profile::{CompiledProfile, Profile};
 use crate::query::{CompiledQuery, Query};
 use crate::time::utc_date_of;
@@ -25,7 +27,7 @@ const MAX_DISTINCT: usize = 10_000;
 
 pub struct Workspace {
     profile: Arc<CompiledProfile>,
-    importers: Importers,
+    registry: PluginRegistry,
     roots: Vec<PathBuf>,
     /// Files the user removed; folder scans skip them until opened explicitly.
     removed: HashSet<PathBuf>,
@@ -42,18 +44,26 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    /// An empty workspace that reads files with the built-in importers.
+    /// An empty workspace with the built-in importers and exporters.
     pub fn new(profile: Profile) -> Result<Workspace> {
-        Self::with_importers(profile, Importers::new())
+        Self::with_registry(profile, PluginRegistry::new())
     }
 
-    /// An empty workspace that reads files with the given importers.
+    /// An empty workspace that reads files with the given importers (and the
+    /// built-in exporters).
     pub fn with_importers(profile: Profile, importers: Importers) -> Result<Workspace> {
-        let profile = Arc::new(CompiledProfile::compile(profile)?);
+        let mut registry = PluginRegistry::new();
+        registry.importers = importers;
+        Self::with_registry(profile, registry)
+    }
+
+    /// An empty workspace extended by the plugins installed in `registry`.
+    pub fn with_registry(profile: Profile, registry: PluginRegistry) -> Result<Workspace> {
+        let profile = Arc::new(CompiledProfile::compile_with(profile, &registry.transforms)?);
         let marker_kinds = profile.markers.iter().map(|m| m.kind.clone()).collect();
         Ok(Workspace {
             profile,
-            importers,
+            registry,
             roots: Vec::new(),
             removed: HashSet::new(),
             sources: Vec::new(),
@@ -100,18 +110,32 @@ impl Workspace {
         self.import_files(files);
         self.rebuild();
         self.load_ms = start.elapsed().as_millis() as u64;
+        if !self.registry.hooks.is_empty() {
+            let summary = self.summary();
+            for h in &self.registry.hooks {
+                h.on_loaded(&summary);
+            }
+        }
         Ok(())
     }
 
     pub fn reload(&mut self) -> Result<()> {
         let roots = std::mem::take(&mut self.roots);
         let removed = std::mem::take(&mut self.removed);
-        self.clear();
+        self.reset();
         self.removed = removed;
         self.open(&roots.into_iter().filter(|r| r.exists()).collect::<Vec<_>>())
     }
 
+    /// Closes everything and notifies hooks.
     pub fn clear(&mut self) {
+        self.reset();
+        for h in &self.registry.hooks {
+            h.on_cleared();
+        }
+    }
+
+    fn reset(&mut self) {
         self.roots.clear();
         self.removed.clear();
         self.sources.clear();
@@ -133,10 +157,23 @@ impl Workspace {
 
     /// Replaces the profile and re-imports everything.
     pub fn set_profile(&mut self, profile: Profile) -> Result<()> {
-        let compiled = CompiledProfile::compile(profile)?;
+        let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+        for h in &self.registry.hooks {
+            h.on_profile_changed(&compiled.profile);
+        }
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
         self.profile = Arc::new(compiled);
         self.reload()
+    }
+
+    /// Checks that a profile compiles against the installed plugins.
+    pub fn validate_profile(&self, profile: Profile) -> Result<()> {
+        CompiledProfile::compile_with(profile, &self.registry.transforms).map(|_| ())
+    }
+
+    /// Plugins installed in this workspace.
+    pub fn plugins(&self) -> &[crate::plugin::PluginInfo] {
+        self.registry.plugins()
     }
 
     fn collect_files(&self, path: &Path, out: &mut Vec<PathBuf>) {
@@ -164,20 +201,27 @@ impl Workspace {
 
     fn import_files(&mut self, files: Vec<PathBuf>) {
         let profile = self.profile.clone();
-        let importers = &self.importers;
-        let results: Vec<(PathBuf, ImportResult)> = files
+        let importers = &self.registry.importers;
+        let named: Vec<(PathBuf, String)> = files
+            .into_iter()
+            .map(|p| {
+                let name = display_name(&p, &self.roots);
+                (p, name)
+            })
+            .collect();
+        let results: Vec<(PathBuf, String, ImportResult)> = named
             .into_par_iter()
-            .map(|path| {
-                let r = import_one(importers, &profile, &path);
-                (path, r)
+            .map(|(path, name)| {
+                let r = import_one(importers, &profile, &path, &name);
+                (path, name, r)
             })
             .collect();
 
-        for (path, result) in results {
+        for (path, name, result) in results {
             let path_s = path.to_string_lossy().into_owned();
-            let name = display_name(&path, &self.roots);
             match result {
-                Ok((importer, imported)) => {
+                Ok((importer, imported, step_stats)) => {
+                    let dropped = step_stats.first().map_or(0, |s| s.input) - step_stats.last().map_or(0, |s| s.output);
                     let id = self.names.len() as u32;
                     self.names.push(name.clone());
                     let (mut from, mut to) = (None::<i64>, None::<i64>);
@@ -194,6 +238,8 @@ impl Workspace {
                         importer,
                         records: imported.records.len(),
                         skipped: imported.skipped,
+                        dropped,
+                        step_stats,
                         error: None,
                         from,
                         to,
@@ -217,14 +263,7 @@ impl Workspace {
     /// Re-sorts, re-numbers and re-derives everything after the record set changed.
     fn rebuild(&mut self) {
         self.records.par_sort_by_key(|r| (r.ts.unwrap_or(i64::MAX), r.source, r.line));
-        let profile = self.profile.clone();
-        let names = &self.names;
-        self.records.par_iter_mut().enumerate().for_each(|(i, r)| {
-            r.id = i as u32;
-            let source = names.get(r.source as usize).map(String::as_str).unwrap_or("");
-            profile.apply_extractors(r, source);
-            r.markers = profile.compute_markers(r, source);
-        });
+        self.records.par_iter_mut().enumerate().for_each(|(i, r)| r.id = i as u32);
         self.compute_fields();
         self.default_group_by = self.pick_group_by();
         *self.cache.lock().unwrap() = None;
@@ -366,7 +405,42 @@ impl Workspace {
             charts: self.chart_defs(),
             profile_name: self.profile.profile.name.clone(),
             load_ms: self.load_ms,
+            dropped: self.sources.iter().map(|s| s.dropped).sum(),
+            pipeline: self.pipeline_stats(),
+            plugins: self.registry.plugins().to_vec(),
+            exporters: self
+                .registry
+                .exporters
+                .iter()
+                .map(|e| ExporterInfo {
+                    id: e.id().into(),
+                    name: e.name().into(),
+                    extension: e.extension().into(),
+                })
+                .collect(),
         }
+    }
+
+    fn pipeline_stats(&self) -> Vec<PipelineStepInfo> {
+        self.profile
+            .profile
+            .pipeline
+            .iter()
+            .enumerate()
+            .map(|(index, cfg)| {
+                let (input, output) = self
+                    .sources
+                    .iter()
+                    .filter_map(|s| s.step_stats.get(index))
+                    .fold((0, 0), |(i, o), s| (i + s.input, o + s.output));
+                PipelineStepInfo {
+                    index,
+                    step: cfg.step.clone(),
+                    input,
+                    output,
+                }
+            })
+            .collect()
     }
 
     fn chart_defs(&self) -> Vec<ChartDef> {
@@ -388,10 +462,12 @@ impl Workspace {
     }
 }
 
-/// Importer id and records, or why the file could not be read.
-type ImportResult = std::result::Result<(String, crate::importers::Imported), String>;
+/// Importer id, records and the number the pipeline dropped, or why the file
+/// could not be read.
+type ImportResult = std::result::Result<(String, crate::importers::Imported, Vec<crate::pipeline::StepStats>), String>;
 
-fn import_one(importers: &Importers, profile: &CompiledProfile, path: &Path) -> ImportResult {
+/// Reads one file and runs the profile's ingest pipeline on its records.
+fn import_one(importers: &Importers, profile: &CompiledProfile, path: &Path, source_name: &str) -> ImportResult {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     if bytes.is_empty() {
         return Err("empty file".into());
@@ -405,11 +481,13 @@ fn import_one(importers: &Importers, profile: &CompiledProfile, path: &Path) -> 
     let ctx = ImportCtx { profile, path, file_date };
     let head: String = content.chars().take(64 * 1024).collect();
     let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;
-    let imported = importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?;
+    let mut imported = importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?;
     if imported.records.is_empty() {
         return Err(format!("{} importer found no events", importer.id()));
     }
-    Ok((importer.id().to_string(), imported))
+    let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
+    imported.records = records;
+    Ok((importer.id().to_string(), imported, stats))
 }
 
 /// Path relative to the opened folder it came from, else `<parent dir>/<file name>`.

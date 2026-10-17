@@ -17,6 +17,11 @@ pub struct SourceInfo {
     pub importer: String,
     pub records: usize,
     pub skipped: usize,
+    /// Events removed by the profile's pipeline.
+    pub dropped: usize,
+    /// Events in/out of each pipeline step for this file.
+    #[serde(skip)]
+    pub step_stats: Vec<crate::pipeline::StepStats>,
     pub error: Option<String>,
     pub from: Option<i64>,
     pub to: Option<i64>,
@@ -64,6 +69,45 @@ pub struct WorkspaceSummary {
     pub charts: Vec<ChartDef>,
     pub profile_name: String,
     pub load_ms: u64,
+    /// Events removed by the profile's pipeline, across all sources.
+    pub dropped: usize,
+    /// Events in/out of each `[[pipeline]]` step, summed over all sources.
+    pub pipeline: Vec<PipelineStepInfo>,
+    pub plugins: Vec<crate::plugin::PluginInfo>,
+    pub exporters: Vec<ExporterInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PipelineStepInfo {
+    pub index: usize,
+    pub step: String,
+    pub input: usize,
+    pub output: usize,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ExporterInfo {
+    pub id: String,
+    pub name: String,
+    pub extension: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportRequest {
+    #[serde(default)]
+    pub query: Query,
+    pub format: String,
+    pub path: String,
+    #[serde(default)]
+    pub descending: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExportResult {
+    pub format: String,
+    pub path: String,
+    pub events: usize,
 }
 
 #[derive(Debug, Clone, Deserialize)]

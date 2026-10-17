@@ -3,8 +3,8 @@
 //! DuckDB) can be swapped in by implementing [`LogStore`].
 
 use crate::api::{
-    ChartData, ChartRequest, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Page, PageRequest, Timeline, TimelineRequest,
-    WorkspaceSummary,
+    ChartData, ChartRequest, ExportRequest, ExportResult, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Page, PageRequest,
+    Timeline, TimelineRequest, WorkspaceSummary,
 };
 use crate::profile::Profile;
 use crate::workspace::Workspace;
@@ -48,6 +48,12 @@ pub trait LogStore: Send + Sync {
 
     /// Runs one extractor of an (unsaved) profile against the current records.
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> ExtractPreview;
+
+    /// Checks that a profile compiles against the installed plugins.
+    fn validate_profile(&self, profile: Profile) -> Result<()>;
+
+    /// Writes the records matching a query with a registered exporter.
+    fn export(&self, req: &ExportRequest) -> Result<ExportResult>;
 }
 
 impl LogStore for Workspace {
@@ -97,5 +103,13 @@ impl LogStore for Workspace {
 
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> ExtractPreview {
         Workspace::preview_extractor(self, req)
+    }
+
+    fn validate_profile(&self, profile: Profile) -> Result<()> {
+        Workspace::validate_profile(self, profile)
+    }
+
+    fn export(&self, req: &ExportRequest) -> Result<ExportResult> {
+        Workspace::export(self, req)
     }
 }

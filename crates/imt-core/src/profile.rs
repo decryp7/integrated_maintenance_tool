@@ -26,6 +26,8 @@ pub struct Profile {
     pub marker: Vec<MarkerCfg>,
     #[serde(default)]
     pub chart: Vec<ChartCfg>,
+    #[serde(default)]
+    pub pipeline: Vec<crate::pipeline::StepCfg>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -247,10 +249,20 @@ pub struct CompiledProfile {
     pub markers: Vec<Marker>,
     /// Bitmask of lifecycle marker rules.
     pub lifecycle_mask: u32,
+    pub pipeline: crate::pipeline::Pipeline,
 }
 
 impl CompiledProfile {
+    /// Compiles a profile whose pipeline uses no plugin transforms.
     pub fn compile(profile: Profile) -> Result<CompiledProfile> {
+        Self::compile_with(profile, &std::collections::HashMap::new())
+    }
+
+    /// Compiles a profile; `{ step = "plugin" }` entries resolve against `transforms`.
+    pub fn compile_with(
+        profile: Profile,
+        transforms: &std::collections::HashMap<String, std::sync::Arc<dyn crate::plugin::RecordTransform>>,
+    ) -> Result<CompiledProfile> {
         let include = globs(&profile.files.include).context("files.include")?;
         let exclude = globs(&profile.files.exclude).context("files.exclude")?;
 
@@ -339,7 +351,10 @@ impl CompiledProfile {
             compile_conditions(&c.when).with_context(|| format!("chart \"{}\": when", c.title))?;
         }
 
+        let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
+
         Ok(CompiledProfile {
+            pipeline,
             profile,
             include,
             exclude,
@@ -351,8 +366,21 @@ impl CompiledProfile {
         })
     }
 
-    /// Runs the extractors on a record, adding the produced fields. Returns
-    /// the names of the fields it set.
+    /// The ingest pipeline for one file: extractors, the `[[pipeline]]`
+    /// steps, then marker rules. Returns the surviving records and the events
+    /// in/out of every pipeline step.
+    pub fn ingest(&self, mut records: Vec<Record>, source_name: &str) -> (Vec<Record>, Vec<crate::pipeline::StepStats>) {
+        for r in &mut records {
+            self.apply_extractors(r, source_name);
+        }
+        let (mut records, stats) = self.pipeline.run_with_stats(records, source_name);
+        for r in &mut records {
+            r.markers = self.compute_markers(r, source_name);
+        }
+        (records, stats)
+    }
+
+    /// Runs the extractors on a record, adding the produced fields.
     pub fn apply_extractors(&self, rec: &mut Record, source_name: &str) {
         for ex in &self.extractors {
             if let Some(values) = ex.extract(rec, source_name) {

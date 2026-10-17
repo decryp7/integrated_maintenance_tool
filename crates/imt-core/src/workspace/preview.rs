@@ -9,7 +9,7 @@ impl Workspace {
     pub fn preview_extractor(&self, req: &ExtractPreviewRequest) -> ExtractPreview {
         let run = || -> Result<ExtractPreview> {
             let profile = Profile::from_toml(&req.toml).map_err(|e| anyhow!(e.to_string()))?;
-            let compiled = CompiledProfile::compile(profile)?;
+            let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
             let ex = compiled
                 .extractors
                 .iter()

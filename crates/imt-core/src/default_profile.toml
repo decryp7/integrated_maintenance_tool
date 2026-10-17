@@ -85,6 +85,31 @@ candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName"
 # Field types: string, number, integer, bool, bytes (unit / unit_from, to),
 # duration (ms, s, m, h or TimeSpan "00:00:01.234"; to = ms|s).
 
+# Pipeline: ordered cleaning and enrichment steps applied to every file during
+# import, after extractors and before markers. Every step accepts `when`
+# conditions and `disabled = true`. Dropped events are counted per source.
+#
+#   step = "drop"           drop events matching `when`
+#   step = "keep"           keep only events matching `when`
+#   step = "mask"           field (default @message), regex, replace ("$1=***")
+#   step = "dedupe"         collapse repeats of `fields` (default @message) within
+#                           `window` ("5s"); the kept event gets RepeatCount
+#   step = "remove_fields"  fields = [...]
+#   step = "rename"         from, to
+#   step = "set"            field, value
+#   step = "set_level"      level
+#   step = "truncate"       field (default @message), max
+#   step = "parse_json"     field (default @message), prefix: expand embedded JSON
+#   step = "parse_kv"       field (default @message), prefix: expand key=value pairs
+#   step = "lookup"         field, table = { KEY = { Field = value } } and/or
+#                           file = "lookup.csv" (key = column, default the first)
+#   step = "shift_time"     by = "+2.4s" | "-150ms": correct clock skew
+#   step = "plugin"         id: a transform contributed by an installed plugin
+#
+# [[pipeline]]
+# step = "drop"
+# when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
+
 # Markers: first matching rule (in this order) is the event's primary marker.
 # Condition ops: eq ne contains notContains matches exists missing gt lt in
 [[marker]]

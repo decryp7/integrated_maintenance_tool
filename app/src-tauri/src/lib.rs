@@ -3,9 +3,8 @@
 
 mod clef;
 
-use imt_core::profile::CompiledProfile;
-use imt_core::workspace::{ChartRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest};
-use imt_core::{LogStore, Profile, Workspace, DEFAULT_PROFILE_TOML};
+use imt_core::workspace::{ChartRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest};
+use imt_core::{LogStore, PluginRegistry, Profile, Workspace, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -158,15 +157,21 @@ fn get_profile(state: State<'_, AppState>) -> CmdResult<ProfileDoc> {
     Ok(state.profile.read().map_err(err)?.clone())
 }
 
+/// Parses and compiles a profile against the installed plugins.
 #[tauri::command]
-fn validate_profile(toml: String) -> ProfileValidation {
-    match Profile::from_toml(&toml) {
+fn validate_profile(state: State<'_, AppState>, toml: String) -> CmdResult<ProfileValidation> {
+    let store = state.workspace.read().map_err(err)?;
+    Ok(validate(store.as_ref(), &toml))
+}
+
+fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
+    match Profile::from_toml(toml) {
         Err(e) => ProfileValidation {
             ok: false,
             error: Some(e.message),
             line: e.line,
         },
-        Ok(p) => match CompiledProfile::compile(p) {
+        Ok(p) => match store.validate_profile(p) {
             Ok(_) => ProfileValidation {
                 ok: true,
                 error: None,
@@ -174,7 +179,7 @@ fn validate_profile(toml: String) -> ProfileValidation {
             },
             Err(e) => ProfileValidation {
                 ok: false,
-                line: find_line(&toml, &e),
+                line: find_line(toml, &e),
                 error: Some(err(e)),
             },
         },
@@ -209,6 +214,17 @@ async fn save_profile(state: State<'_, AppState>, toml: String) -> CmdResult<Val
     .await
 }
 
+/// Writes the events matching the query to a file chosen by the user.
+#[tauri::command]
+async fn export_events(state: State<'_, AppState>, request: ExportRequest) -> CmdResult<Value> {
+    read(&state, move |ws| {
+        let result = ws.export(&request)?;
+        log::info!(Format = result.format.as_str(), Events = result.events as u64; "Events exported");
+        serde_json::to_value(result).map_err(anyhow::Error::from)
+    })
+    .await
+}
+
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
 fn import_profile(path: String) -> CmdResult<ProfileDoc> {
@@ -226,12 +242,13 @@ fn export_profile(path: String, toml: String) -> CmdResult<()> {
     std::fs::write(path, toml).map_err(err)
 }
 
-/// The saved profile if it still parses, else the built-in default.
-fn load_profile(dir: Option<&PathBuf>) -> (Profile, ProfileDoc) {
+/// The saved profile if it still compiles against the installed plugins,
+/// else the built-in default.
+fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Profile, ProfileDoc) {
     if let Some(path) = dir.map(|d| d.join(PROFILE_FILE)) {
         if let Ok(toml) = std::fs::read_to_string(&path) {
             match Profile::from_toml(&toml) {
-                Ok(p) if CompiledProfile::compile(p.clone()).is_ok() => {
+                Ok(p) if store.validate_profile(p.clone()).is_ok() => {
                     let doc = ProfileDoc {
                         name: p.name.clone(),
                         path: Some(path.to_string_lossy().into_owned()),
@@ -275,10 +292,18 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+/// The engine plus every compiled-in plugin. Add new plugins here.
+fn plugins() -> anyhow::Result<PluginRegistry> {
+    let mut registry = PluginRegistry::new();
+    registry.install(&imt_plugin_registry::RegistryPlugin)?;
+    Ok(registry)
+}
+
 /// Loads the saved profile and opens the paths given on the command line.
 fn app_state(profile_dir: Option<PathBuf>, args: &[PathBuf]) -> anyhow::Result<AppState> {
-    let (profile, doc) = load_profile(profile_dir.as_ref());
-    let mut workspace = Workspace::new(profile)?;
+    let mut workspace = Workspace::with_registry(Profile::default_profile(), plugins()?)?;
+    let (profile, doc) = load_profile(profile_dir.as_ref(), &workspace);
+    workspace.set_profile(profile)?;
     let paths: Vec<PathBuf> = args.iter().filter(|p| p.exists()).cloned().collect();
     if !paths.is_empty() {
         if let Err(e) = workspace.open(&paths) {
@@ -321,6 +346,7 @@ pub fn run() {
             query_facet,
             query_chart,
             preview_extractor,
+            export_events,
             get_profile,
             validate_profile,
             save_profile,
@@ -447,14 +473,19 @@ mod tests {
         let doc = get_profile(st()).unwrap();
         assert_eq!((doc.path, doc.name.as_str()), (None, "Default (Serilog)"));
 
-        let ok = validate_profile("name = 'x'".into());
+        let store = st().workspace.clone();
+        let store = store.read().unwrap();
+        let validate = |t: &str| validate(store.as_ref(), t);
+        let ok = validate("name = 'x'");
         assert!(ok.ok && ok.error.is_none());
-        let syntax = validate_profile("name = 'x'\n[parse\n".into());
+        let syntax = validate("name = 'x'\n[parse\n");
         assert_eq!((syntax.ok, syntax.line), (false, Some(2)));
-        let semantic = validate_profile("name = 'x'\n\n[[extract]]\nname = \"stats\"\nregex = '('\n".into());
+        let semantic = validate("name = 'x'\n\n[[extract]]\nname = \"stats\"\nregex = '('\n");
         assert!(!semantic.ok);
         assert_eq!(semantic.line, Some(4));
-        let unlocated = validate_profile("[parse]\nassume_timezone = 'Mars'".into());
+        let unlocated = validate("[parse]\nassume_timezone = 'Mars'");
+        assert!(validate_profile(st(), "name = 'y'".into()).unwrap().ok);
+        drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
         assert!(block(save_profile(st(), "[parse".into())).is_err());
@@ -466,10 +497,23 @@ mod tests {
         assert!(saved.exists());
 
         // A fresh start picks the saved profile up; an invalid one falls back to the default.
-        assert_eq!(load_profile(Some(&dir.0)).1.name, "Saved");
+        assert_eq!(
+            load_profile(Some(&dir.0), &Workspace::new(Profile::default_profile()).unwrap())
+                .1
+                .name,
+            "Saved"
+        );
         std::fs::write(&saved, "[parse]\nregexes = ['(']").unwrap();
-        assert_eq!(load_profile(Some(&dir.0)).1.name, "Default (Serilog)");
-        assert_eq!(load_profile(None).1.path, None);
+        assert_eq!(
+            load_profile(Some(&dir.0), &Workspace::new(Profile::default_profile()).unwrap())
+                .1
+                .name,
+            "Default (Serilog)"
+        );
+        assert_eq!(
+            load_profile(None, &Workspace::new(Profile::default_profile()).unwrap()).1.path,
+            None
+        );
 
         let exported = dir.0.join("out.imtprofile.toml");
         export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into()).unwrap();
@@ -487,5 +531,29 @@ mod tests {
         let summary = block(save_profile(app.state::<AppState>(), "name = 'Memory only'".into())).unwrap();
         assert_eq!(summary["profileName"], "Memory only");
         assert_eq!(get_profile(app.state::<AppState>()).unwrap().path, None);
+    }
+
+    #[test]
+    fn plugins_and_export() {
+        let dir = TempDir::new("export");
+        let app = app(app_state(Some(dir.0.clone()), &[samples().join("unsupported"), samples().join("csv")]).unwrap());
+        let st = || app.state::<AppState>();
+        let summary = block(workspace_summary(st())).unwrap();
+        assert!(summary["plugins"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["id"] == "net.decryptology.registry"));
+        assert!(summary["sources"].as_array().unwrap().iter().any(|s| s["importer"] == "registry"));
+        assert_eq!(summary["exporters"].as_array().unwrap().len(), 2);
+
+        let out = dir.0.join("events.clef");
+        let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
+        let res = block(export_events(st(), req)).unwrap();
+        assert_eq!(res["events"], summary["total"]);
+        assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
+        let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
+        assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
+        assert!(plugins().unwrap().plugins().len() == 1);
     }
 }
