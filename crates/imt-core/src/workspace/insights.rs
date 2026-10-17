@@ -374,6 +374,120 @@ impl Workspace {
     }
 }
 
+impl Workspace {
+    /// The automatic health check: what went wrong and what needs attention,
+    /// most severe first, each with a suggested action.
+    pub fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>> {
+        use crate::analysis::AnomalyKind;
+        use crate::api::{Finding, FindingAction, Severity};
+        let mut out = Vec::new();
+        let zoom = |a: &Anomaly| FindingAction::Zoom {
+            from: a.from,
+            to: a.to,
+            record_id: a.sample_ids.first().copied(),
+        };
+        for a in self.anomalies(req)? {
+            let severity = match a.kind {
+                AnomalyKind::Crash => Severity::Critical,
+                AnomalyKind::ErrorSpike | AnomalyKind::MemoryGrowth | AnomalyKind::Silence => Severity::Warning,
+                AnomalyKind::SlowOutlier | AnomalyKind::RateChange => Severity::Info,
+            };
+            let title = match a.kind {
+                AnomalyKind::Crash => "Crash",
+                AnomalyKind::ErrorSpike => "Error spike",
+                AnomalyKind::MemoryGrowth => "Memory growth",
+                AnomalyKind::Silence => "Went silent",
+                AnomalyKind::SlowOutlier => "Slow outliers",
+                AnomalyKind::RateChange => "Rate change",
+            };
+            out.push(Finding {
+                severity,
+                title: title.into(),
+                detail: a.message.clone(),
+                action: Some(zoom(&a)),
+            });
+        }
+        for g in self.exception_groups(req)?.into_iter().filter(|g| g.count >= 5).take(5) {
+            let instances = g.instances.len();
+            out.push(Finding {
+                severity: Severity::Warning,
+                title: format!("{} ×{}", short_type(&g.type_name), g.count),
+                detail: format!(
+                    "{} on {} instance{}{}",
+                    g.message.chars().take(160).collect::<String>(),
+                    instances,
+                    if instances == 1 { "" } else { "s" },
+                    g.top_frame.as_deref().map(|f| format!(", at {f}")).unwrap_or_default()
+                ),
+                action: Some(FindingAction::Exception {
+                    fingerprint: g.fingerprint.clone(),
+                    record_id: g.sample_ids.first().copied(),
+                }),
+            });
+        }
+        for s in &self.sources {
+            let lines = s.records + s.skipped;
+            if s.skipped > 0 && s.skipped * 5 > lines {
+                out.push(Finding {
+                    severity: Severity::Warning,
+                    title: "Lines not understood".into(),
+                    detail: format!(
+                        "{}: {}% of the lines could not be read as events",
+                        s.name,
+                        s.skipped * 100 / lines.max(1)
+                    ),
+                    action: Some(FindingAction::SetupFormat { path: s.path.clone() }),
+                });
+            }
+            if s.from.is_none() && s.records > 0 {
+                out.push(Finding {
+                    severity: Severity::Info,
+                    title: "No timestamps".into(),
+                    detail: format!("{} has no recognisable timestamps, so it is missing from the timeline", s.name),
+                    action: Some(FindingAction::SetupFormat { path: s.path.clone() }),
+                });
+            }
+        }
+        for u in &self.unrecognized {
+            out.push(Finding {
+                severity: Severity::Info,
+                title: "File not opened".into(),
+                detail: format!("{}: {}", u.name, u.reason),
+                action: Some(FindingAction::SetupFormat { path: u.path.clone() }),
+            });
+        }
+        let dropped: usize = self.sources.iter().map(|s| s.dropped).sum();
+        if dropped > 0 {
+            out.push(Finding {
+                severity: Severity::Info,
+                title: "Events removed by the pipeline".into(),
+                detail: format!("{dropped} events were dropped by the profile's cleaning steps (your files are unchanged)"),
+                action: Some(FindingAction::OpenPanel { panel: "pipeline".into() }),
+            });
+        }
+        for p in self
+            .registry
+            .plugins()
+            .into_iter()
+            .filter(|p| p.status == crate::plugin::PluginStatus::Quarantined)
+        {
+            out.push(Finding {
+                severity: Severity::Warning,
+                title: "Plugin disabled after crashes".into(),
+                detail: format!("{}: {}", p.name, p.last_error.unwrap_or_default()),
+                action: Some(FindingAction::OpenPanel { panel: "plugins".into() }),
+            });
+        }
+        out.sort_by_key(|f| f.severity);
+        Ok(out)
+    }
+}
+
+/// "System.Net.Http.HttpRequestException" -> "HttpRequestException".
+fn short_type(t: &str) -> &str {
+    t.rsplit('.').next().unwrap_or(t)
+}
+
 fn first_present(r: &Record, fields: &[String], source: &str) -> Option<String> {
     fields
         .iter()

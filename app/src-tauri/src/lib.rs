@@ -27,6 +27,8 @@ pub(crate) struct AppState {
     /// Paths to open that arrived before or outside the UI (launch arguments,
     /// files opened from Finder/Explorer); the UI takes them after `imt://open`.
     pending: std::sync::Mutex<Vec<String>>,
+    /// Import progress, shared with the store (no lock needed to read or cancel).
+    progress: std::sync::Arc<imt_core::workspace::ImportProgress>,
     /// The app's configuration folder (plugin settings).
     config_dir: Option<PathBuf>,
     /// File watcher while live tail is on.
@@ -235,10 +237,13 @@ fn find_line(toml: &str, e: &anyhow::Error) -> Option<usize> {
 #[tauri::command]
 async fn save_profile(state: State<'_, AppState>, toml: String) -> CmdResult<Value> {
     let profile = Profile::from_toml(&toml).map_err(err)?;
+    // Never replace a working profile on disk with one that does not compile.
+    state.store_read().validate_profile(profile.clone()).map_err(err)?;
     let name = profile.name.clone();
     let path = state.profile_dir.as_ref().map(|d| d.join(PROFILE_FILE));
     if let Some(p) = &path {
         std::fs::create_dir_all(p.parent().unwrap()).map_err(err)?;
+        archive_profile(p);
         std::fs::write(p, &toml).map_err(err)?;
     }
     *state.profile.write().map_err(err)? = ProfileDoc {
@@ -249,6 +254,84 @@ async fn save_profile(state: State<'_, AppState>, toml: String) -> CmdResult<Val
     write(&state, move |ws| {
         ws.set_profile(profile)?;
         serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
+    })
+    .await
+}
+
+/// Saved profile versions kept for "restore".
+const PROFILE_HISTORY: usize = 20;
+
+/// Copies the current profile into `history/` before it is replaced.
+fn archive_profile(active: &std::path::Path) {
+    let Some(dir) = active.parent().map(|d| d.join("history")) else {
+        return;
+    };
+    if !active.exists() || std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S%3f");
+    let _ = std::fs::copy(active, dir.join(format!("{stamp}.imtprofile.toml")));
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .map(|r| r.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    files.sort();
+    for old in files.iter().rev().skip(PROFILE_HISTORY) {
+        let _ = std::fs::remove_file(old);
+    }
+}
+
+/// Previous profile versions, newest first: `[{ file, name, savedAt }]`.
+#[tauri::command]
+fn profile_history(state: State<'_, AppState>) -> Vec<Value> {
+    let Some(dir) = state.profile_dir.as_ref().map(|d| d.join("history")) else {
+        return Vec::new();
+    };
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .map(|r| r.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    files.sort();
+    files
+        .iter()
+        .rev()
+        .map(|f| {
+            let toml = std::fs::read_to_string(f).unwrap_or_default();
+            let name = Profile::from_toml(&toml).map(|p| p.name).unwrap_or_else(|_| "(unreadable)".into());
+            let stem = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            serde_json::json!({ "file": stem, "name": name, "savedAt": stem.split('.').next().unwrap_or("") })
+        })
+        .collect()
+}
+
+/// One previous version's text (not applied until saved again).
+#[tauri::command]
+fn profile_version(state: State<'_, AppState>, file: String) -> CmdResult<ProfileDoc> {
+    if file.contains(['/', '\\']) || file.contains("..") {
+        return Err("invalid version".into());
+    }
+    let dir = state.profile_dir.as_ref().ok_or("no profile folder")?.join("history");
+    let toml = std::fs::read_to_string(dir.join(&file)).map_err(err)?;
+    let name = Profile::from_toml(&toml).map_err(err)?.name;
+    Ok(ProfileDoc { name, path: None, toml })
+}
+
+/// Progress of the running import (readable while the import holds the workspace).
+#[tauri::command]
+fn import_progress(state: State<'_, AppState>) -> imt_core::workspace::ProgressSnapshot {
+    state.progress.snapshot()
+}
+
+/// Stops the running import after the files in flight; files not read are not added.
+#[tauri::command]
+fn cancel_import(state: State<'_, AppState>) {
+    log::info!("Import cancelled by the user");
+    state.progress.cancel();
+}
+
+/// The automatic health check: findings, most severe first.
+#[tauri::command]
+async fn overview(state: State<'_, AppState>, request: imt_core::api::QueryRequest) -> CmdResult<Value> {
+    read(&state, move |ws| {
+        serde_json::to_value(ws.overview(&request)?).map_err(anyhow::Error::from)
     })
     .await
 }
@@ -431,6 +514,7 @@ fn app_state_with(profile_dir: Option<PathBuf>, args: &[PathBuf], safe_mode: boo
         .filter(|p| p.exists())
         .map(|p| p.to_string_lossy().into_owned())
         .collect();
+    let progress = workspace.progress();
     let workspace: Box<dyn LogStore> = Box::new(workspace);
     Ok(AppState {
         workspace: Arc::new(RwLock::new(workspace)),
@@ -439,6 +523,7 @@ fn app_state_with(profile_dir: Option<PathBuf>, args: &[PathBuf], safe_mode: boo
         config_dir,
         pending: std::sync::Mutex::new(pending),
         watcher: std::sync::Mutex::new(None),
+        progress,
     })
 }
 
@@ -563,6 +648,11 @@ pub fn run() {
             tools::monitor_status,
             tools::collect_default_plan,
             tools::collect_diagnostics,
+            profile_history,
+            profile_version,
+            import_progress,
+            cancel_import,
+            overview,
             lifecycle::app_status,
             lifecycle::restart_app,
             lifecycle::plugin_reset,
@@ -866,5 +956,31 @@ mod tests {
         assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
         assert_eq!(set_live(app.handle().clone(), st(), false).unwrap(), 0);
         assert!(st().watcher.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn profile_safety_history_progress_and_overview() {
+        let dir = TempDir::new("history");
+        let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
+        let st = || app.state::<AppState>();
+        // An invalid profile is refused and nothing is written.
+        assert!(block(save_profile(st(), "[[pipeline]]\nstep='plugin'\nid='nope'".into())).is_err());
+        assert!(!dir.0.join(PROFILE_FILE).exists());
+        for name in ["One", "Two", "Three"] {
+            block(save_profile(st(), format!("name = '{name}'"))).unwrap();
+        }
+        let history = profile_history(st());
+        assert_eq!(history.len(), 2, "the first save had nothing to archive");
+        assert_eq!(history[0]["name"], "Two");
+        let file = history[1]["file"].as_str().unwrap().to_string();
+        assert_eq!(profile_version(st(), file).unwrap().name, "One");
+        assert!(profile_version(st(), "../x".into()).is_err());
+
+        let p = import_progress(st());
+        assert!(!p.running && p.total > 0 && p.done == p.total);
+        cancel_import(st());
+        assert!(import_progress(st()).cancelled);
+        let req: imt_core::api::QueryRequest = serde_json::from_value(json!({})).unwrap();
+        assert!(block(overview(st(), req)).unwrap().is_array());
     }
 }

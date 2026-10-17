@@ -305,3 +305,27 @@ fn parse_preview_uses_the_real_engine() {
     });
     assert_eq!(start.records[0].markers, ["start"]);
 }
+
+#[test]
+fn overview_lists_findings_most_severe_first() {
+    use imt_core::api::{FindingAction, Severity};
+    let s = store();
+    let findings = s.overview(&QueryRequest { query: Query::default() }).unwrap();
+    assert_eq!(findings[0].severity, Severity::Critical);
+    assert!(
+        findings[0].title == "Crash" && findings[0].detail.contains("4120"),
+        "{:?}",
+        findings[0]
+    );
+    assert!(matches!(findings[0].action, Some(FindingAction::Zoom { .. })));
+    assert!(findings.windows(2).all(|w| w[0].severity <= w[1].severity));
+    assert!(
+        findings.iter().any(|f| f.title.starts_with("TimeoutException ×")),
+        "{:?}",
+        findings.iter().map(|f| &f.title).collect::<Vec<_>>()
+    );
+    assert!(findings
+        .iter()
+        .any(|f| f.title == "File not opened" && matches!(f.action, Some(FindingAction::SetupFormat { .. }))));
+    assert!(findings.iter().any(|f| f.title == "Memory growth"));
+}

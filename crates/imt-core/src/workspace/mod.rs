@@ -27,6 +27,54 @@ use std::time::Instant;
 
 const MAX_DISTINCT: usize = 10_000;
 
+/// Progress of the current import, readable (and cancellable) without the
+/// workspace lock the import holds.
+#[derive(Debug, Default)]
+pub struct ImportProgress {
+    cancel: std::sync::atomic::AtomicBool,
+    running: std::sync::atomic::AtomicBool,
+    done: std::sync::atomic::AtomicUsize,
+    total: std::sync::atomic::AtomicUsize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressSnapshot {
+    pub running: bool,
+    pub done: usize,
+    pub total: usize,
+    pub cancelled: bool,
+}
+
+impl ImportProgress {
+    /// Asks the running import to stop after the files in flight.
+    pub fn cancel(&self) {
+        self.cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn snapshot(&self) -> ProgressSnapshot {
+        use std::sync::atomic::Ordering::SeqCst;
+        ProgressSnapshot {
+            running: self.running.load(SeqCst),
+            done: self.done.load(SeqCst),
+            total: self.total.load(SeqCst),
+            cancelled: self.cancel.load(SeqCst),
+        }
+    }
+
+    fn start(&self, total: usize) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.cancel.store(false, SeqCst);
+        self.done.store(0, SeqCst);
+        self.total.store(total, SeqCst);
+        self.running.store(true, SeqCst);
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancel.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
 pub struct Workspace {
     profile: Arc<CompiledProfile>,
     registry: PluginRegistry,
@@ -44,6 +92,7 @@ pub struct Workspace {
     load_ms: u64,
     cache: Mutex<Option<(String, Arc<Vec<u32>>)>>,
     anomaly_cache: Mutex<Option<(String, Vec<crate::analysis::Anomaly>)>>,
+    progress: Arc<ImportProgress>,
 }
 
 impl Workspace {
@@ -79,6 +128,7 @@ impl Workspace {
             load_ms: 0,
             cache: Mutex::new(None),
             anomaly_cache: Mutex::new(None),
+            progress: Arc::new(ImportProgress::default()),
         })
     }
 
@@ -295,7 +345,14 @@ impl Workspace {
         }
     }
 
+    /// Progress and cancellation of the current import.
+    pub fn progress(&self) -> Arc<ImportProgress> {
+        self.progress.clone()
+    }
+
     fn import_files(&mut self, files: Vec<PathBuf>) {
+        let progress = self.progress.clone();
+        progress.start(files.len());
         let profile = self.profile.clone();
         let importers = &self.registry.importers;
         let named: Vec<(PathBuf, String)> = files
@@ -308,8 +365,18 @@ impl Workspace {
         let removed = &self.removed;
         let results: Vec<(String, String, ImportResult)> = named
             .into_par_iter()
-            .flat_map_iter(|(path, name)| import_file(importers, &profile, &path, &name, removed))
+            .flat_map_iter(|(path, name)| {
+                // Cancelled: skip the remaining files (they are simply not added).
+                let out = if progress.is_cancelled() {
+                    Vec::new()
+                } else {
+                    import_file(importers, &profile, &path, &name, removed)
+                };
+                progress.done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                out
+            })
             .collect();
+        progress.running.store(false, std::sync::atomic::Ordering::SeqCst);
 
         for (path_s, name, result) in results {
             match result {
@@ -606,8 +673,10 @@ fn import_file(
                 return None;
             }
             // A crash anywhere while reading one file (even in built-in code) fails only that file.
-            let result = crate::guard::catch("IMT", || Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date)))
-                .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")));
+            let result = crate::guard::catch("IMT", || {
+                Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date))
+            })
+            .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")));
             Some((source_path, source_name, result))
         })
         .collect()

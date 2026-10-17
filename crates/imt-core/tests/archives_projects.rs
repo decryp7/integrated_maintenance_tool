@@ -319,3 +319,77 @@ fn refreshes_changed_new_and_deleted_files() {
     assert_eq!(store.refresh_files(&[d.0.join("solo.log")]).unwrap(), 1);
     assert_eq!(store.summary().total, 4);
 }
+
+#[test]
+fn imports_report_progress_and_can_be_cancelled() {
+    let d = Dir::new("progress");
+    for i in 0..20 {
+        d.write(&format!("f{i:02}.log"), log("P", 2).as_bytes());
+    }
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    let progress = ws.progress();
+    assert!(!progress.snapshot().running);
+    ws.open(std::slice::from_ref(&d.0)).unwrap();
+    let snap = progress.snapshot();
+    assert_eq!((snap.running, snap.done, snap.total, snap.cancelled), (false, 20, 20, false));
+
+    // Cancel while importing: an importer pulls the brake on the first file it reads.
+    struct Brake(std::sync::Mutex<Option<std::sync::Arc<imt_core::workspace::ImportProgress>>>);
+    impl imt_core::importers::Importer for Brake {
+        fn id(&self) -> &'static str {
+            "brake"
+        }
+        fn sniff(&self, _: &imt_core::importers::ImportCtx, head: &str) -> u8 {
+            if head.starts_with("BRAKE") {
+                100
+            } else {
+                0
+            }
+        }
+        fn import(&self, _: &imt_core::importers::ImportCtx, _: &str) -> anyhow::Result<imt_core::importers::Imported> {
+            if let Some(p) = self.0.lock().unwrap().as_ref() {
+                p.cancel();
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            let mut r = imt_core::model::Record::new(1);
+            r.message = "x".into();
+            Ok(imt_core::importers::Imported {
+                records: vec![r],
+                skipped: 0,
+            })
+        }
+    }
+    let brake = std::sync::Arc::new(Brake(std::sync::Mutex::new(None)));
+    let mut importers = imt_core::importers::Importers::new();
+    struct Shared(std::sync::Arc<Brake>);
+    impl imt_core::importers::Importer for Shared {
+        fn id(&self) -> &'static str {
+            self.0.id()
+        }
+        fn sniff(&self, c: &imt_core::importers::ImportCtx, h: &str) -> u8 {
+            self.0.sniff(c, h)
+        }
+        fn import(&self, c: &imt_core::importers::ImportCtx, t: &str) -> anyhow::Result<imt_core::importers::Imported> {
+            self.0.import(c, t)
+        }
+    }
+    importers.register(Box::new(Shared(brake.clone())));
+    let mut ws = Workspace::with_importers(Profile::default_profile(), importers).unwrap();
+    *brake.0.lock().unwrap() = Some(ws.progress());
+    let d2 = Dir::new("progress2");
+    for i in 0..200 {
+        d2.write(&format!("g{i:03}.log"), b"BRAKE\n");
+    }
+    ws.open(std::slice::from_ref(&d2.0)).unwrap();
+    let snap = ws.progress().snapshot();
+    assert!(snap.cancelled && !snap.running && snap.done == 200);
+    let imported = ws.summary().total;
+    assert!(
+        imported >= 1 && imported < 200,
+        "cancel stopped the import early ({imported} of 200)"
+    );
+    // Opening again imports the files that were skipped.
+    *brake.0.lock().unwrap() = None;
+    ws.open(std::slice::from_ref(&d2.0)).unwrap();
+    assert_eq!(ws.summary().total, 200);
+}

@@ -299,6 +299,39 @@ pub struct ParsePreview {
     pub error: Option<String>,
 }
 
+/// How urgent a finding of the health check is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Severity {
+    Critical,
+    Warning,
+    Info,
+}
+
+/// What the UI should do when the user follows a finding.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum FindingAction {
+    /// Zoom to a time range and select an event.
+    Zoom { from: i64, to: i64, record_id: Option<u32> },
+    /// Show the events of an exception group.
+    Exception { fingerprint: String, record_id: Option<u32> },
+    /// Open the format wizard for a file.
+    SetupFormat { path: String },
+    /// Open a panel (e.g. "plugins", "pipeline").
+    OpenPanel { panel: String },
+}
+
+/// One line of the automatic health check, in plain English.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Finding {
+    pub severity: Severity,
+    pub title: String,
+    pub detail: String,
+    pub action: Option<FindingAction>,
+}
+
 /// Opened paths and removed files, enough to rebuild the workspace.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkspaceState {

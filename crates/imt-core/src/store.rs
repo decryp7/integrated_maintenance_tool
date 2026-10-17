@@ -116,6 +116,12 @@ pub trait LogStore: Send + Sync {
 
     /// Lifts a plugin's quarantine after repeated crashes.
     fn reset_plugin(&self, id: &str);
+
+    /// Progress and cancellation of the current import (usable without the store lock).
+    fn progress(&self) -> std::sync::Arc<crate::workspace::ImportProgress>;
+
+    /// The automatic health check: findings, most severe first.
+    fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>>;
 }
 
 impl LogStore for Workspace {
@@ -245,5 +251,13 @@ impl LogStore for Workspace {
 
     fn reset_plugin(&self, id: &str) {
         Workspace::reset_plugin(self, id)
+    }
+
+    fn progress(&self) -> std::sync::Arc<crate::workspace::ImportProgress> {
+        Workspace::progress(self)
+    }
+
+    fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>> {
+        Workspace::overview(self, req)
     }
 }
