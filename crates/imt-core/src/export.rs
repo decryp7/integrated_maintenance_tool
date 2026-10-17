@@ -129,7 +129,13 @@ impl ClefFileSink {
     pub fn new(dir: impl Into<std::path::PathBuf>, stem: &str, max_bytes: u64, keep: usize) -> Result<ClefFileSink> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;
-        Ok(ClefFileSink { dir, stem: stem.to_string(), max_bytes: max_bytes.max(1), keep: keep.max(1), lock: std::sync::Mutex::new(()) })
+        Ok(ClefFileSink {
+            dir,
+            stem: stem.to_string(),
+            max_bytes: max_bytes.max(1),
+            keep: keep.max(1),
+            lock: std::sync::Mutex::new(()),
+        })
     }
 
     /// The file currently written to.
@@ -158,7 +164,10 @@ impl ClefFileSink {
 impl EventSink for ClefFileSink {
     fn write(&self, records: &[Record]) -> Result<()> {
         let _guard = self.lock.lock().map_err(|_| anyhow::anyhow!("sink lock poisoned"))?;
-        if std::fs::metadata(self.current()).map(|m| m.len() >= self.max_bytes).unwrap_or(false) {
+        if std::fs::metadata(self.current())
+            .map(|m| m.len() >= self.max_bytes)
+            .unwrap_or(false)
+        {
             self.roll()?;
         }
         let mut f = std::fs::OpenOptions::new().create(true).append(true).open(self.current())?;
@@ -288,7 +297,10 @@ mod tests {
         for _ in 0..6 {
             sink.write(&[rec()]).unwrap();
         }
-        let mut files: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        let mut files: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
         files.sort();
         assert_eq!(files, ["monitor-1.clef", "monitor-2.clef", "monitor.clef"]);
         let line = std::fs::read_to_string(sink.current()).unwrap();

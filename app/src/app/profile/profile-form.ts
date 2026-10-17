@@ -5,12 +5,15 @@ import { ChartRule, Condition, MarkerRule, ProfileModel } from '../core/profile.
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { MarkerIcon } from '../shared/marker-icon';
+import { HelpHint } from '../ui/help-hint';
 import { ConditionsEditor } from './conditions-editor';
 import { ExtractorEditor } from './extractor-editor';
+import { FlowOverview } from './flow-overview';
+import { PipelineEditor } from './pipeline-editor';
 import { ProfileDraft } from './profile-draft';
 import { StringList } from './string-list';
 
-type Section = 'general' | 'files' | 'parse' | 'json' | 'csv' | 'instance' | 'extract' | 'marker' | 'chart';
+type Section = 'general' | 'files' | 'parse' | 'json' | 'csv' | 'instance' | 'extract' | 'pipeline' | 'marker' | 'chart';
 type Obj = Record<string, unknown>;
 
 /** Returns m[key] as an object, creating it when missing. */
@@ -30,12 +33,14 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
 @Component({
   selector: 'imt-profile-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StringList, ConditionsEditor, ExtractorEditor, Icon, MarkerIcon, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [StringList, ConditionsEditor, ExtractorEditor, FlowOverview, PipelineEditor, HelpHint, Icon, MarkerIcon, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
     <datalist id="imt-profile-fields">
       @for (f of fieldChoices(); track f) { <option [value]="f"></option> }
     </datalist>
 
+    <imt-flow-overview (open)="section.set($event)" />
+    <div class="main">
     <nav class="nav" aria-label="Profile sections">
       @for (s of sections; track s.id) {
         <button class="nav-item" [class.on]="section() === s.id" (click)="section.set(s.id)">
@@ -53,7 +58,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           <p class="help">A profile is a pipeline: which files to read, how to parse them, what identifies an instance, which values to extract, which events are important, and which charts to draw. Extracted values become fields on the event, usable like any Serilog property.</p>
         }
         @case ('files') {
-          <h2>Files</h2>
+          <h2>Files <imt-help label="Files" [text]="helpText.files" /></h2>
           <p class="help">Globs matched against the path relative to the opened folder. Extensions do not matter: the format is detected from the content.</p>
           <div class="lbl">Include</div>
           <imt-string-list label="glob" [values]="m().files?.include ?? []" (changed)="set(['files'], 'include', $event)" />
@@ -61,7 +66,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           <imt-string-list label="glob" [values]="m().files?.exclude ?? []" (changed)="set(['files'], 'exclude', $event)" />
         }
         @case ('parse') {
-          <h2>Parsing</h2>
+          <h2>Parsing <imt-help label="Parsing" [text]="helpText.parse" /></h2>
           <div class="grid3">
             <label class="lbl">Format
               <select class="select" [value]="m().parse?.format ?? 'auto'" (change)="set(['parse'], 'format', $any($event.target).value)">
@@ -126,7 +131,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           </div>
         }
         @case ('instance') {
-          <h2>Instance</h2>
+          <h2>Instance <imt-help label="Instance" [text]="helpText.instance" /></h2>
           <p class="help">Fields forming the instance key — one timeline lane per distinct combination. Leave the key empty to pick candidates automatically (present on at least half of the events and not constant).</p>
           <div class="grid2">
             <div>
@@ -140,7 +145,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           </div>
         }
         @case ('extract') {
-          <h2>Field extractors</h2>
+          <h2>Field extractors <imt-help label="Field extractors" [text]="helpText.extract" /></h2>
           <div class="split">
             <div class="list">
               @for (x of m().extract ?? []; track $index; let i = $index) {
@@ -149,7 +154,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
                     <span class="mono ellipsis">{{ x.name || '(unnamed)' }}</span>
                     <span class="faint small ellipsis">{{ outputNames(x.fields) }}</span>
                   </button>
-                  <button class="icon-btn" [attr.aria-label]="'Delete extractor ' + x.name" (click)="removeAt('extract', i)"><imt-icon name="trash" [size]="13" /></button>
+                  <button class="icon-btn" [attr.aria-label]="'Delete extractor ' + x.name" (click)="removeAt('extract', i)" [attr.title]="'Delete extractor ' + x.name"><imt-icon name="trash" [size]="13" /></button>
                 </div>
               }
               <button class="btn dashed" (click)="addExtractor()">+ New extractor</button>
@@ -163,20 +168,23 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
             </div>
           </div>
         }
+        @case ('pipeline') {
+          <imt-pipeline-editor />
+        }
         @case ('marker') {
-          <h2>Markers</h2>
+          <h2>Markers <imt-help label="Markers" [text]="helpText.marker" /></h2>
           <p class="help">Important events shown on the timeline. Order matters: the first matching rule is the event's primary marker. Drag to reorder.</p>
           <div cdkDropList class="markers" (cdkDropListDropped)="dropMarker($event)">
             @for (mk of m().marker ?? []; track $index; let i = $index) {
               <div class="marker-card" cdkDrag>
                 <div class="mk-row">
-                  <button class="icon-btn handle" cdkDragHandle aria-label="Drag to reorder"><imt-icon name="drag" [size]="14" [stroke]="3" /></button>
+                  <button class="icon-btn handle" cdkDragHandle aria-label="Drag to reorder" title="Drag to reorder"><imt-icon name="drag" [size]="14" [stroke]="3" /></button>
                   <imt-marker-icon [kind]="mk.kind" [color]="mk.color ?? null" />
                   <input class="input mono kind" [value]="mk.kind" aria-label="Kind" (input)="setItem('marker', i, 'kind', $any($event.target).value)" />
                   <input class="input" [value]="mk.label ?? ''" placeholder="Label" aria-label="Label" (input)="setItem('marker', i, 'label', $any($event.target).value || undefined)" />
                   <input type="color" class="color" [value]="mk.color ?? '#8a91a3'" aria-label="Colour" (input)="setItem('marker', i, 'color', $any($event.target).value)" />
                   <label class="row small"><input type="checkbox" [checked]="!!mk.lifecycle" (change)="setItem('marker', i, 'lifecycle', $any($event.target).checked || undefined)" /> lifecycle</label>
-                  <button class="icon-btn" [attr.aria-label]="'Delete marker ' + mk.kind" (click)="removeAt('marker', i)"><imt-icon name="trash" [size]="13" /></button>
+                  <button class="icon-btn" [attr.aria-label]="'Delete marker ' + mk.kind" (click)="removeAt('marker', i)" [attr.title]="'Delete marker ' + mk.kind"><imt-icon name="trash" [size]="13" /></button>
                 </div>
                 <imt-conditions-editor [conditions]="mk.when ?? []" emptyText="Matches every event — add a condition." (changed)="setItem('marker', i, 'when', $event)" />
               </div>
@@ -185,7 +193,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
           <button class="btn dashed" (click)="addMarker()">+ New marker</button>
         }
         @case ('chart') {
-          <h2>Charts</h2>
+          <h2>Charts <imt-help label="Charts" [text]="helpText.chart" /></h2>
           <p class="help">Charts shown on the Metrics tab. y is an aggregate of a numeric field per time bucket, optionally split into one series per value of other fields.</p>
           @for (c of m().chart ?? []; track $index; let i = $index) {
             <div class="chart-card">
@@ -225,9 +233,12 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
         }
       }
     </div>
+    </div>
   `,
   styles: `
-    :host { flex: 1; min-height: 0; display: flex; }
+    :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .main { flex: 1; min-height: 0; display: flex; }
+    h2 { display: flex; align-items: center; gap: 8px; }
     .nav { width: 190px; flex: none; padding: 10px 8px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; background: var(--bg-2); }
     .nav-item { display: flex; justify-content: space-between; align-items: center; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); cursor: pointer; text-align: left; }
     .nav-item:hover { background: var(--bg-hover); }
@@ -267,6 +278,14 @@ export class ProfileForm {
   protected readonly selExtract = signal(0);
   protected readonly selExtractClamped = computed(() => Math.min(this.selExtract(), Math.max(0, (this.m().extract?.length ?? 1) - 1)));
 
+  protected readonly helpText = {
+    files: 'Which files in an opened folder IMT reads. Include and exclude are glob patterns; anything that is not a log is skipped.',
+    parse: 'How a file becomes events: IMT detects the format and tries your templates and regexes in order to find timestamp, level and message.',
+    instance: 'An instance is one running copy of a service. The key fields decide which events share a timeline lane, for example MachineName + ProcessId.',
+    extract: 'Extractors read a value out of the message text (for example CPU %) and store it as a typed field you can filter and chart.',
+    marker: 'Markers highlight important events (start, crash, deployment) on the timeline. The first matching rule is the primary marker.',
+    chart: 'Charts on the Metrics panel: an aggregate of a numeric field per time bucket, optionally one line per value of other fields.',
+  };
   protected readonly formats = ['auto', 'json', 'text', 'csv'];
   protected readonly levels = LEVELS;
   protected readonly aggs = AGGS;
@@ -288,6 +307,7 @@ export class ProfileForm {
     { id: 'csv', label: 'CSV' },
     { id: 'instance', label: 'Instance' },
     { id: 'extract', label: 'Extractors', count: () => this.m().extract?.length ?? 0 },
+    { id: 'pipeline', label: 'Pipeline', count: () => this.m().pipeline?.length ?? 0 },
     { id: 'marker', label: 'Markers', count: () => this.m().marker?.length ?? 0 },
     { id: 'chart', label: 'Charts', count: () => this.m().chart?.length ?? 0 },
   ];

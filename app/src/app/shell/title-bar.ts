@@ -1,13 +1,24 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ClickOutside } from '../shared/click-outside';
 import { Icon } from '../shared/icon';
-import { TimelineZoom } from '../timeline/zoom';
+import { DockService } from '../dock/dock.service';
+import { CommandRegistry } from '../extensions/command-registry';
+import { formatKeybinding } from '../extensions/keybinding';
+import { ViewRegistry } from '../extensions/view-registry';
+import { PaletteService } from '../palette/palette.service';
 
 interface MenuItem {
   label: string;
   hint?: string;
+  /** Present for toggles (panels): the menu item is a checkbox. */
+  checked?: boolean;
   run: () => void;
+}
+
+interface Menu {
+  label: string;
+  items: MenuItem[];
 }
 
 @Component({
@@ -22,14 +33,19 @@ interface MenuItem {
       <span class="name">IMT</span>
     </div>
     <nav class="menus" (imtClickOutside)="open.set(null)">
-      @for (menu of menus; track menu.label) {
+      @for (menu of menus(); track menu.label) {
         <div class="menu">
           <button class="menu-btn" [class.on]="open() === menu.label" (click)="toggle(menu.label)" [attr.aria-expanded]="open() === menu.label">{{ menu.label }}</button>
           @if (open() === menu.label) {
             <div class="popover dropdown" role="menu">
               @for (item of menu.items; track item.label) {
-                <button role="menuitem" class="item" (click)="item.run(); open.set(null)">
-                  <span>{{ item.label }}</span>
+                <button
+                  [attr.role]="item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'"
+                  [attr.aria-checked]="item.checked === undefined ? null : item.checked"
+                  class="item"
+                  (click)="item.run(); open.set(null)"
+                >
+                  <span>{{ item.checked === undefined ? '' : item.checked ? '✓ ' : '\u2003' }}{{ item.label }}</span>
                   @if (item.hint) { <span class="faint">{{ item.hint }}</span> }
                 </button>
               }
@@ -39,10 +55,10 @@ interface MenuItem {
       }
     </nav>
     <div class="palette-wrap">
-      <button class="palette" (click)="store.focusSearch()" title="Search events (/)">
+      <button class="palette" (click)="openPalette()" title="Command palette (Ctrl/⌘+K)">
         <imt-icon name="search" [size]="13" />
-        <span class="ellipsis">{{ store.summary()?.profileName ?? 'IMT' }} — search events, fields, files</span>
-        <span class="mono faint kbd">/</span>
+        <span class="ellipsis">{{ store.summary()?.profileName ?? 'IMT' }} — type a command or press Ctrl/⌘+K</span>
+        <span class="mono faint kbd">⌘K</span>
       </button>
     </div>
     <div class="state">
@@ -78,53 +94,52 @@ interface MenuItem {
 })
 export class TitleBar {
   protected readonly store = inject(WorkspaceStore);
-  private readonly zoom = inject(TimelineZoom);
+  private readonly registry = inject(CommandRegistry);
+  private readonly dock = inject(DockService);
+  private readonly views = inject(ViewRegistry);
+  private readonly palette = inject(PaletteService);
   protected readonly open = signal<string | null>(null);
 
-  protected readonly menus: { label: string; items: MenuItem[] }[] = [
-    {
-      label: 'File',
-      items: [
-        { label: 'Open files…', run: () => void this.store.pickAndOpen(false) },
-        { label: 'Open folder…', run: () => void this.store.pickAndOpen(true) },
-        { label: 'Re-import all', run: () => void this.store.reload() },
-        { label: 'Close workspace', run: () => void this.store.clearWorkspace() },
-      ],
-    },
-    {
-      label: 'View',
-      items: [
-        { label: 'Toggle sidebar', run: () => this.store.toggleSidebar() },
-        { label: 'Toggle inspector', run: () => this.store.toggleInspector() },
-        { label: 'Timeline', run: () => this.store.setTab('timeline') },
-        { label: 'Metrics', run: () => this.store.setTab('metrics') },
-        { label: 'Profile editor', run: () => this.store.setTab('profile') },
-        { label: 'Theme: system', run: () => this.store.setTheme('system') },
-        { label: 'Theme: dark', run: () => this.store.setTheme('dark') },
-        { label: 'Theme: light', run: () => this.store.setTheme('light') },
-      ],
-    },
-    {
-      label: 'Analyze',
-      items: [
-        { label: 'Search events', hint: '/', run: () => this.store.focusSearch() },
-        { label: 'Marked events only', run: () => this.store.setMarkedOnly(!this.store.markedOnly()) },
-        { label: 'Fit time range', run: () => this.zoom.fit() },
-        { label: 'Previous time range', hint: 'Alt+←', run: () => this.zoom.back() },
-        { label: 'Next time range', hint: 'Alt+→', run: () => this.zoom.forward() },
-        { label: 'Clear all filters', run: () => this.store.clearQuery() },
-        { label: 'Time in UTC', run: () => this.store.setTimezone('utc') },
-        { label: 'Time in local zone', run: () => this.store.setTimezone('local') },
-      ],
-    },
-    {
-      label: 'Help',
-      items: [{ label: 'IMT 0.1.0 — Integrated Maintenance Tool', run: () => undefined }],
-    },
-  ];
+  protected readonly menus = computed<Menu[]>(() => {
+    // Re-evaluate when panels open/close or the workspace changes.
+    this.dock.openIds();
+    const cmd = (id: string): MenuItem[] => {
+      const c = this.registry.find(id);
+      const available = this.registry.available().some((a) => a.id === id);
+      return c && available ? [{ label: c.title, hint: c.keybinding ? formatKeybinding(c.keybinding) : undefined, run: () => void this.registry.run(id) }] : [];
+    };
+    const panels: MenuItem[] = this.views.available().map((v) => ({
+      label: v.title,
+      checked: this.dock.isOpen(v.id),
+      run: () => this.dock.toggle(v.id),
+    }));
+    return [
+      { label: 'File', items: ['file.openFiles', 'file.openFolder', 'file.reimport', 'file.export', 'file.close'].flatMap(cmd) },
+      {
+        label: 'View',
+        items: [
+          ...cmd('palette.open'),
+          ...cmd('view.toggleSidebar'),
+          ...panels,
+          ...cmd('view.resetLayout'),
+          ...cmd('settings.open'),
+          ...['view.theme.system', 'view.theme.dark', 'view.theme.light'].flatMap(cmd),
+        ],
+      },
+      {
+        label: 'Analyze',
+        items: ['analyze.search', 'analyze.markedOnly', 'analyze.fit', 'analyze.back', 'analyze.forward', 'analyze.clearFilters', 'analyze.utc', 'analyze.local'].flatMap(cmd),
+      },
+      { label: 'Help', items: [...cmd('help.welcome'), { label: 'IMT 0.1.0 — Integrated Maintenance Tool', run: () => undefined }] },
+    ];
+  });
 
   protected toggle(label: string): void {
     this.open.update((o) => (o === label ? null : label));
+  }
+
+  protected openPalette(): void {
+    this.palette.open();
   }
 
   protected onKey(e: KeyboardEvent): void {
@@ -133,6 +148,8 @@ export class TitleBar {
     if (e.key === '/' && !typing) {
       e.preventDefault();
       this.store.focusSearch();
+      return;
     }
+    this.registry.runForKey(e);
   }
 }

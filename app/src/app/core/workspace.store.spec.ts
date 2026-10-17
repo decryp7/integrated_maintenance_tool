@@ -193,9 +193,7 @@ describe('WorkspaceStore', () => {
     const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 1, descending: false });
     store.select(page.rows[0]);
     expect(store.selected()?.id).toBe(0);
-    store.setTab('metrics');
     store.jumpTo(4);
-    expect(store.activeTab()).toBe('timeline');
     const first = store.anchor()!;
     store.jumpTo(4);
     expect(store.anchor()!.nonce).toBe(first.nonce + 1);
@@ -223,26 +221,22 @@ describe('WorkspaceStore', () => {
     store.setTimezone('local');
     store.setAlwaysShowLifecycle(false);
     store.toggleSidebar();
-    store.toggleInspector();
     store.toggleSort();
     store.addColumn('cpu');
     store.addColumn('cpu');
     store.addColumn('ws');
     store.removeColumn('cpu');
-    store.setTimelineHeight(321.6);
     store.setTheme('light');
     store.setDropHover(true);
     store.focusSearch();
     await settle();
     expect(store.sidebarOpen()).toBe(false);
-    expect(store.inspectorOpen()).toBe(false);
     expect(store.descending()).toBe(true);
     expect(store.extraColumns()).toEqual(['ws']);
-    expect(store.timelineHeight()).toBe(322);
     expect(store.dropHover()).toBe(true);
     expect(store.focusSearchNonce()).toBe(1);
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'light', extraColumns: ['ws'], timelineHeight: 322, alwaysShowLifecycle: false });
+    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'light', extraColumns: ['ws'], alwaysShowLifecycle: false });
     store.setTheme('system');
     await settle();
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
@@ -258,7 +252,7 @@ describe('WorkspaceStore', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
-    expect(() => savePrefs({ timezone: 'utc', theme: 'dark', timelineHeight: 1, extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
+    expect(() => savePrefs({ timezone: 'utc', theme: 'dark', extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
     setItem.mockRestore();
   });
 });

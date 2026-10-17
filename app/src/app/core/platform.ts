@@ -55,6 +55,13 @@ export async function pickProfileToSave(defaultName: string): Promise<string | n
   return save({ title: 'Export profile', defaultPath: defaultName, filters: [{ name: 'IMT profile', extensions: ['toml'] }] });
 }
 
+/** Native save dialog for an events export; null when cancelled. Browser mode returns the default name. */
+export async function pickExportPath(defaultName: string, formats: { name: string; extension: string }[]): Promise<string | null> {
+  if (!isTauri()) return defaultName;
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  return save({ title: 'Export events', defaultPath: defaultName, filters: formats.map((f) => ({ name: f.name, extensions: [f.extension] })) });
+}
+
 /** Injectable facade over the host functions, so components and the store can be tested with fakes. */
 @Injectable({ providedIn: 'root' })
 export class Platform {
@@ -70,5 +77,8 @@ export class Platform {
   }
   pickProfileToSave(defaultName: string): Promise<string | null> {
     return pickProfileToSave(defaultName);
+  }
+  pickExportPath(defaultName: string, formats: { name: string; extension: string }[]): Promise<string | null> {
+    return pickExportPath(defaultName, formats);
   }
 }

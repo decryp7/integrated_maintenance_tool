@@ -1,22 +1,12 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { parse, stringify, TomlError } from 'smol-toml';
+import { TomlError } from 'smol-toml';
 import { ProfileDoc, ProfileValidation } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { Platform } from '../core/platform';
 import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
-
-/** Removes undefined values (TOML has no null) so stringify never fails. */
-function prune(value: unknown): unknown {
-  if (Array.isArray(value)) return value.filter((v) => v !== undefined).map(prune);
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = prune(v);
-    return out;
-  }
-  return value;
-}
+import { parseProfile, stringifyProfile } from './toml';
 
 /**
  * The profile being edited. The TOML text is the source of truth; the form edits a parsed
@@ -64,7 +54,7 @@ export class ProfileDraft {
   setText(text: string): void {
     this.text.set(text);
     try {
-      this.model.set(parse(text) as ProfileModel);
+      this.model.set(parseProfile(text));
       this.parseError.set(null);
     } catch (e) {
       const err = e as TomlError;
@@ -78,7 +68,7 @@ export class ProfileDraft {
     const next = structuredClone(this.model());
     mutate(next);
     this.model.set(next);
-    this.text.set(stringify(prune(next) as Record<string, unknown>));
+    this.text.set(stringifyProfile(next));
     this.parseError.set(null);
     this.scheduleValidation();
   }
@@ -111,7 +101,7 @@ export class ProfileDraft {
     try {
       const text = this.text();
       const summary = await this.backend.saveProfile(text);
-      this.store.applySummary(summary);
+      this.store.profileSaved(summary);
       this.logger.info('ui.profile', 'Profile saved', { Markers: summary.markerKinds.length, Charts: summary.charts.length, Events: summary.total });
       this.doc.update((d) => ({ name: summary.profileName, path: d?.path ?? null, toml: text }));
       this.importedFrom.set(null);

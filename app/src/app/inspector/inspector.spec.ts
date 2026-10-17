@@ -1,8 +1,36 @@
+import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { RecordView } from '../core/api.types';
+import { IMT_INSPECTOR_SECTIONS } from '../extensions/tokens';
 import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { Inspector } from './inspector';
+
+@Component({ selector: 'imt-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
+class TestSection {
+  readonly record = input.required<RecordView>();
+}
+
+describe('Inspector plugin sections', () => {
+  it('renders contributed sections for matching records, ordered, with the record as input', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideTinyBackend(),
+        { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [{ id: 'b', title: 'Second', order: 2, component: TestSection }, { id: 'a', title: 'First', order: 1, component: TestSection }, { id: 'no', title: 'Hidden', order: 3, component: TestSection, when: () => false }] },
+      ],
+    });
+    const fixture = TestBed.createComponent(Inspector);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle(fixture);
+    const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 2, limit: 1, descending: false });
+    store.select(page.rows[0]);
+    await settle(fixture);
+    expect(all(fixture, '.section-title.sub').map((t) => t.textContent?.trim())).toEqual(expect.arrayContaining(['First', 'Second']));
+    expect(all(fixture, '.section-title.sub').map((t) => t.textContent?.trim())).not.toContain('Hidden');
+    expect(all(fixture, '.plugin-section').map((e) => e.textContent)).toEqual([`id ${page.rows[0].id}`, `id ${page.rows[0].id}`]);
+  });
+});
 
 describe('Inspector', () => {
   async function render(id: number) {
@@ -40,8 +68,8 @@ describe('Inspector', () => {
 
   it('adds filters from properties', async () => {
     const { fixture, store } = await render(5);
-    all<HTMLButtonElement>(fixture, '.prop .icon-btn')[0].click();
-    all<HTMLButtonElement>(fixture, '.prop .icon-btn')[3].click();
+    el<HTMLButtonElement>(fixture, '[aria-label^="Filter Application equals"]').click();
+    el<HTMLButtonElement>(fixture, '[aria-label^="Filter MachineName not equal"]').click();
     expect(store.query().filters).toEqual([
       { field: 'Application', op: 'eq', value: 'Svc' },
       { field: 'MachineName', op: 'ne', value: 'WEB01' },
@@ -71,11 +99,5 @@ describe('Inspector', () => {
     buttonByText(fixture, 'Copy JSON').click();
     await settle(fixture);
     expect(store.error()).toMatch(/Clipboard/);
-  });
-
-  it('closes', async () => {
-    const { fixture, store } = await render(1);
-    el<HTMLButtonElement>(fixture, '[aria-label="Close inspector"]').click();
-    expect(store.inspectorOpen()).toBe(false);
   });
 });

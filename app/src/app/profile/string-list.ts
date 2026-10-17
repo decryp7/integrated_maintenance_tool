@@ -17,8 +17,8 @@ import { Icon } from '../shared/icon';
           [attr.list]="datalist() || null"
           (input)="set(i, $any($event.target).value)"
         />
-        <button class="icon-btn" [attr.aria-label]="'Move ' + label() + ' ' + (i + 1) + ' up'" [disabled]="i === 0" (click)="move(i, -1)">↑</button>
-        <button class="icon-btn" [attr.aria-label]="'Remove ' + label() + ' ' + (i + 1)" (click)="remove(i)"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn" [attr.aria-label]="'Move ' + label() + ' ' + (i + 1) + ' up'" [disabled]="i === 0" (click)="move(i, -1)" [attr.title]="'Move ' + label() + ' ' + (i + 1) + ' up'">↑</button>
+        <button class="icon-btn" [attr.aria-label]="'Remove ' + label() + ' ' + (i + 1)" (click)="remove(i)" [attr.title]="'Remove ' + label() + ' ' + (i + 1)"><imt-icon name="close" [size]="12" /></button>
       </div>
     }
     <button class="btn dashed add" (click)="add()">+ Add {{ label() }}</button>

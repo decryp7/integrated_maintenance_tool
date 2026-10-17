@@ -19,7 +19,7 @@ import { Icon } from '../shared/icon';
         } @else {
           <span class="value"></span>
         }
-        <button class="icon-btn" aria-label="Remove condition" (click)="remove(i)"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn" aria-label="Remove condition" (click)="remove(i)" title="Remove condition"><imt-icon name="close" [size]="12" /></button>
       </div>
     } @empty {
       <div class="faint none">{{ emptyText() }}</div>

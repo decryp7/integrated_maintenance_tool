@@ -13,6 +13,9 @@ import { WorkspaceStore } from '../core/workspace.store';
         <span>{{ fmt(store.matchTotal()!) }} matching</span>
       }
       <span>{{ store.instanceCount() }} instances</span>
+      @if (s.dropped > 0) {
+        <span class="dropped" title="Events removed by the profile pipeline">{{ fmt(s.dropped) }} dropped by pipeline</span>
+      }
       <span>Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
     } @else {
       <span>No workspace</span>

@@ -1,14 +1,17 @@
 import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
+import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
+import { DialogService } from '../ui/dialog.service';
+import { PaletteService } from '../palette/palette.service';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { TimelineZoom } from '../timeline/zoom';
 import { ActivityBar } from './activity-bar';
-import { EditorTabs } from './editor-tabs';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
 import { TitleBar } from './title-bar';
+
+const DROP_DEBUG_PROFILE = `name = "p"\n[[pipeline]]\nstep = "drop"\nwhen = [{ field = "@level", op = "eq", value = "Debug" }]\n`;
 
 const fakePlatform = {
   isTauri: () => false,
@@ -19,31 +22,31 @@ const fakePlatform = {
 };
 
 function setup<T>(cmp: Type<T>, backend = tinyBackend()) {
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), { provide: Platform, useValue: fakePlatform }] });
+  const dock = new FakeDock();
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideFakeDock(dock), { provide: Platform, useValue: fakePlatform }] });
   const fixture = TestBed.createComponent(cmp);
-  return { fixture, store: TestBed.inject(WorkspaceStore), backend };
+  return { fixture, store: TestBed.inject(WorkspaceStore), backend, dock };
 }
 
 describe('TitleBar', () => {
   it('runs menu commands', async () => {
-    const { fixture, store } = setup(TitleBar);
+    const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
     expect(text(fixture)).toContain('Indexed');
     const menu = (label: string, item: string) => {
       buttonByText(fixture, label).click();
       fixture.detectChanges();
-      buttonByText(fixture, new RegExp('^' + item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).click();
+      buttonByText(fixture, new RegExp('^[✓\\u2003\\s]*' + item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).click();
       fixture.detectChanges();
     };
     menu('View', 'Toggle sidebar');
     expect(store.sidebarOpen()).toBe(false);
-    menu('View', 'Toggle inspector');
-    expect(store.inspectorOpen()).toBe(false);
     menu('View', 'Metrics');
-    expect(store.activeTab()).toBe('metrics');
-    menu('View', 'Profile editor');
-    expect(store.activeTab()).toBe('profile');
-    menu('View', 'Timeline');
+    expect(dock.calls).toContain('toggle:metrics');
+    menu('View', 'Inspector');
+    expect(dock.calls).toContain('toggle:inspector');
+    menu('View', 'Reset layout');
+    expect(dock.calls).toContain('reset');
     menu('View', 'Theme: light');
     expect(store.theme()).toBe('light');
     menu('View', 'Theme: dark');
@@ -92,7 +95,26 @@ describe('TitleBar', () => {
     expect(store.focusSearchNonce()).toBe(1);
     input.remove();
     el<HTMLButtonElement>(fixture, '.palette').click();
-    expect(store.focusSearchNonce()).toBe(2);
+    expect(TestBed.inject(PaletteService).isOpen()).toBe(true);
+  });
+
+  it('lists panels as checkable menu items reflecting the dock', async () => {
+    const { fixture, dock } = setup(TitleBar);
+    await settle(fixture);
+    buttonByText(fixture, 'View').click();
+    fixture.detectChanges();
+    const items = all<HTMLButtonElement>(fixture, '[role=menuitemcheckbox]');
+    expect(items.map((i) => i.textContent?.replace(/[✓\u2003\s]+/g, ' ').trim())).toEqual(['Timeline', 'Events', 'Inspector', 'Metrics', 'Profile', 'Plugins']);
+    expect(items[0].getAttribute('aria-checked')).toBe('true');
+    expect(items[1].getAttribute('aria-checked')).toBe('false');
+    expect(dock.isOpen('timeline')).toBe(true);
+  });
+
+  it('runs key-bound commands from the keyboard', async () => {
+    const { fixture } = setup(TitleBar);
+    await settle(fixture);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    expect(TestBed.inject(PaletteService).isOpen()).toBe(true);
   });
 
   it('shows busy state', async () => {
@@ -104,31 +126,19 @@ describe('TitleBar', () => {
 
 describe('ActivityBar', () => {
   it('switches views and settings', async () => {
-    const { fixture, store } = setup(ActivityBar);
+    const { fixture, store, dock } = setup(ActivityBar);
     await settle(fixture);
     const click = (label: string) => el<HTMLButtonElement>(fixture, `[aria-label="${label}"]`).click();
     click('Metrics');
-    expect(store.activeTab()).toBe('metrics');
     click('Profile editor');
-    expect(store.activeTab()).toBe('profile');
     click('Timeline');
-    expect(store.activeTab()).toBe('timeline');
+    expect(dock.calls).toEqual(['show:metrics', 'show:profile', 'show:timeline']);
     click('Search');
     expect(store.focusSearchNonce()).toBe(1);
     click('Explorer');
     expect(store.sidebarOpen()).toBe(false);
     click('Settings');
-    await settle(fixture);
-    buttonByText(fixture, 'light').click();
-    expect(store.theme()).toBe('light');
-    buttonByText(fixture, 'Local').click();
-    expect(store.timezone()).toBe('local');
-    buttonByText(fixture, 'UTC').click();
-    el<HTMLInputElement>(fixture, '.panel input[type=checkbox]').click();
-    expect(store.inspectorOpen()).toBe(false);
-    document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.panel')).toBeNull();
+    expect(TestBed.inject(DialogService).stack().map((d) => d.options.title)).toEqual(['Settings']);
   });
 });
 
@@ -152,23 +162,21 @@ describe('StatusBar', () => {
     expect(text(fixture)).toContain('0 sources');
   });
 
+  it('shows how many events the pipeline dropped', async () => {
+    const { fixture, store, backend } = setup(StatusBar);
+    await settle(fixture);
+    expect(text(fixture)).not.toContain('dropped by pipeline');
+    store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
+    await settle(fixture);
+    expect(text(fixture)).toContain('1 dropped by pipeline');
+  });
+
   it('pluralises one source', async () => {
     const { fixture, store } = setup(StatusBar);
     await settle(fixture);
     await store.removeSource(1);
     await settle(fixture);
     expect(el(fixture, '.strong').textContent?.trim()).toBe('1 source');
-  });
-});
-
-describe('EditorTabs', () => {
-  it('switches tabs', async () => {
-    const { fixture, store } = setup(EditorTabs);
-    await settle(fixture);
-    all<HTMLButtonElement>(fixture, '.tab')[1].click();
-    expect(store.activeTab()).toBe('metrics');
-    await settle(fixture);
-    expect(all(fixture, '.tab')[1].getAttribute('aria-selected')).toBe('true');
   });
 });
 
@@ -190,6 +198,15 @@ describe('Sidebar', () => {
     el<HTMLButtonElement>(fixture, '[aria-label="Re-import all"]').click();
     await settle(fixture);
     expect(store.summary()?.sources).toHaveLength(2);
+  });
+
+  it('mentions pipeline-dropped events in the source tooltip', async () => {
+    const { fixture, store, backend } = setup(Sidebar);
+    await settle(fixture);
+    expect(all(fixture, '.src')[1].getAttribute('title')).not.toContain('dropped');
+    store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
+    await settle(fixture);
+    expect(all(fixture, '.src')[1].getAttribute('title')).toContain('1 dropped by pipeline');
   });
 
   it('shows an empty state with open buttons', async () => {

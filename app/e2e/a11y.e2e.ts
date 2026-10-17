@@ -32,14 +32,3 @@ test('metrics and profile tabs have no serious accessibility violations', async 
   await expectNoSeriousViolations(page, testInfo, 'profile');
 });
 
-test('splitter exposes its value and resizes with the keyboard', async ({ page }) => {
-  await openApp(page);
-  const splitter = page.getByRole('separator', { name: 'Resize timeline' });
-  const before = Number(await splitter.getAttribute('aria-valuenow'));
-  await splitter.focus();
-  await page.keyboard.press('ArrowDown');
-  await expect(splitter).toHaveAttribute('aria-valuenow', String(before + 24));
-  await page.keyboard.press('Home');
-  await expect(splitter).toHaveAttribute('aria-valuenow', '120');
-  await expect(splitter).toHaveAttribute('aria-valuemin', '120');
-});

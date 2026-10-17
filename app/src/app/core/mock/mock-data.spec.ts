@@ -16,7 +16,8 @@ describe('mock data', () => {
     expect(a.records.some((r) => r.fields['ProcessId'] === 5532)).toBe(true);
     expect(a.records.every((r) => r.ts === null || r.ts >= DEMO_START)).toBe(true);
     expect(a.sources.map((s) => s.importer)).toContain('csv');
-    expect(a.unrecognized).toHaveLength(2);
+    expect(a.unrecognized).toHaveLength(1);
+    expect(a.sources.map((s) => s.importer)).toContain('registry');
   });
 
   it('generates an extra source for browser demos', () => {

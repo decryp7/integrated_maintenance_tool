@@ -58,6 +58,24 @@ The app reads untrusted, possibly huge files and renders their content:
   sent in one reply.
 - Logs must not contain file contents by default; any crash reporting is opt-in.
 
+## Where logic lives
+
+- **The Rust engine is the single source of truth** for data and behaviour: parsing, timestamp
+  handling, profiles and pipelines, filtering and the query language, aggregation, analysis
+  (anomalies, patterns, exceptions, comparisons), exports, projects and plugins. Results are
+  computed in Rust and returned through `LogStore` and Tauri commands.
+- **Angular is the presentation layer**: layout, interaction state (selection, zoom, open panels,
+  unsaved form edits), rendering and formatting of what the engine returns. It must not
+  re-implement domain rules. If the UI needs a computation (e.g. a parse preview, a validation,
+  a count), add an engine operation and a command for it instead of writing it in TypeScript.
+  Small purely visual transforms (e.g. turning rows into a tree for display, layout of markers)
+  are fine.
+- **The mock backend** exists for browser development and UI tests only. It mimics the contract
+  with plausible data; it is never the reference for behaviour, and features are not "done"
+  until they work against the real engine.
+- Validation that matters is done in Rust; the UI may validate early for convenience, but the
+  engine re-validates.
+
 ## Contracts
 
 - The UI ↔ backend wire contract is `app/src/app/core/api.types.ts` (camelCase JSON).

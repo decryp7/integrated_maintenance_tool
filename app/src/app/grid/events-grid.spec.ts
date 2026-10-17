@@ -4,6 +4,7 @@ import { Page, PageRequest, RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { WorkspaceStore } from '../core/workspace.store';
+import { SettingsStore } from '../settings/settings.store';
 import { EventsGrid } from './events-grid';
 
 const VIEWPORT_H = 260;
@@ -60,6 +61,18 @@ describe('EventsGrid', () => {
     expect(store.matchTotal()).toBe(11);
     expect(rows(fixture)[0].textContent).toContain('Application starting');
     expect(all(fixture, '.row imt-marker-icon').length).toBeGreaterThan(0);
+  });
+
+  it('follows the density and date format settings', async () => {
+    const { fixture } = await render();
+    const settings = TestBed.inject(SettingsStore);
+    expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('26px');
+    expect(rows(fixture)[0].querySelector('.time')?.textContent).toMatch(/^\d+ \w{3} /);
+    settings.setDensity('compact');
+    settings.setDateFormat('iso');
+    await settle(fixture);
+    expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('22px');
+    expect(rows(fixture)[0].querySelector('.time')?.textContent).toMatch(/^\d{4}-\d{2}-\d{2} /);
   });
 
   it('selects rows by click and keyboard', async () => {

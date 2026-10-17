@@ -3,6 +3,8 @@ import { inject, Provider } from '@angular/core';
 import {
   ChartData,
   ChartRequest,
+  ExportRequest,
+  ExportResult,
   ExtractPreview,
   ExtractPreviewRequest,
   Facet,
@@ -36,54 +38,63 @@ export abstract class ImtBackend {
   abstract previewExtractor(request: ExtractPreviewRequest): Promise<ExtractPreview>;
   abstract importProfile(path: string): Promise<ProfileDoc>;
   abstract exportProfile(path: string, toml: string): Promise<void>;
+  abstract exportEvents(request: ExportRequest): Promise<ExportResult>;
 }
 
 /** Talks to the Rust core through Tauri commands. */
 export class TauriBackend extends ImtBackend {
+  /** `call` is Tauri's `invoke`; tests pass a fake. */
+  constructor(private readonly call: typeof invoke = invoke) {
+    super();
+  }
+
   workspaceSummary() {
-    return invoke<WorkspaceSummary>('workspace_summary');
+    return this.call<WorkspaceSummary>('workspace_summary');
   }
   openPaths(paths: string[]) {
-    return invoke<WorkspaceSummary>('open_paths', { paths });
+    return this.call<WorkspaceSummary>('open_paths', { paths });
   }
   removeSource(sourceId: number) {
-    return invoke<WorkspaceSummary>('remove_source', { sourceId });
+    return this.call<WorkspaceSummary>('remove_source', { sourceId });
   }
   clearWorkspace() {
-    return invoke<WorkspaceSummary>('clear_workspace');
+    return this.call<WorkspaceSummary>('clear_workspace');
   }
   reloadWorkspace() {
-    return invoke<WorkspaceSummary>('reload_workspace');
+    return this.call<WorkspaceSummary>('reload_workspace');
   }
   queryPage(request: PageRequest) {
-    return invoke<Page>('query_page', { request });
+    return this.call<Page>('query_page', { request });
   }
   queryTimeline(request: TimelineRequest) {
-    return invoke<Timeline>('query_timeline', { request });
+    return this.call<Timeline>('query_timeline', { request });
   }
   queryFacet(request: FacetRequest) {
-    return invoke<Facet>('query_facet', { request });
+    return this.call<Facet>('query_facet', { request });
   }
   queryChart(request: ChartRequest) {
-    return invoke<ChartData>('query_chart', { request });
+    return this.call<ChartData>('query_chart', { request });
   }
   getProfile() {
-    return invoke<ProfileDoc>('get_profile');
+    return this.call<ProfileDoc>('get_profile');
   }
   validateProfile(toml: string) {
-    return invoke<ProfileValidation>('validate_profile', { toml });
+    return this.call<ProfileValidation>('validate_profile', { toml });
   }
   saveProfile(toml: string) {
-    return invoke<WorkspaceSummary>('save_profile', { toml });
+    return this.call<WorkspaceSummary>('save_profile', { toml });
   }
   previewExtractor(request: ExtractPreviewRequest) {
-    return invoke<ExtractPreview>('preview_extractor', { request });
+    return this.call<ExtractPreview>('preview_extractor', { request });
   }
   importProfile(path: string) {
-    return invoke<ProfileDoc>('import_profile', { path });
+    return this.call<ProfileDoc>('import_profile', { path });
   }
   exportProfile(path: string, toml: string) {
-    return invoke<void>('export_profile', { path, toml });
+    return this.call<void>('export_profile', { path, toml });
+  }
+  exportEvents(request: ExportRequest) {
+    return this.call<ExportResult>('export_events', { request });
   }
 }
 

@@ -1,0 +1,139 @@
+import { TestBed } from '@angular/core/testing';
+import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
+import { Platform } from '../core/platform';
+import { WorkspaceStore } from '../core/workspace.store';
+import { LocalStorageRecentStore, RECENT_KEY, RECENT_MAX, RECENT_STORE, RecentStore } from './recent-store';
+import { shortPath, Welcome, WelcomeService } from './welcome';
+
+const fakePlatform = {
+  isTauri: () => false,
+  pickPaths: async (dir: boolean) => [dir ? '/picked/dir' : '/picked/file.log'],
+  onFilesDropped: async () => () => undefined,
+};
+
+class MemoryRecent implements RecentStore {
+  items: string[] = [];
+  list = () => this.items;
+  add = (paths: string[]) => void (this.items = [...paths, ...this.items.filter((p) => !paths.includes(p))]);
+  clear = () => void (this.items = []);
+}
+
+describe('LocalStorageRecentStore', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('keeps newest first, deduplicated and capped', () => {
+    const store = new LocalStorageRecentStore();
+    store.add(['/a', '/b']);
+    store.add(['/b', '/c']);
+    expect(store.list()).toEqual(['/b', '/c', '/a']);
+    for (let i = 0; i < 20; i++) store.add([`/p${i}`]);
+    expect(store.list()).toHaveLength(RECENT_MAX);
+    expect(store.list()[0]).toBe('/p19');
+    store.clear();
+    expect(store.list()).toEqual([]);
+  });
+
+  it('ignores incompatible, corrupt or non-string data', () => {
+    const store = new LocalStorageRecentStore();
+    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 99, paths: ['/x'] }));
+    expect(store.list()).toEqual([]);
+    localStorage.setItem(RECENT_KEY, '{nope');
+    expect(store.list()).toEqual([]);
+    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 1, paths: ['/ok', 5, null] }));
+    expect(store.list()).toEqual(['/ok']);
+    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 1, paths: 'x' }));
+    expect(store.list()).toEqual([]);
+  });
+
+  it('survives storage failures', () => {
+    const store = new LocalStorageRecentStore();
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    expect(store.list()).toEqual([]);
+    expect(() => store.add(['/a'])).not.toThrow();
+    get.mockRestore();
+    set.mockRestore();
+  });
+
+  it('is the default RECENT_STORE', () => {
+    expect(TestBed.inject(RECENT_STORE)).toBeInstanceOf(LocalStorageRecentStore);
+  });
+});
+
+describe('Welcome', () => {
+  const recent = new MemoryRecent();
+
+  function setup() {
+    recent.items = ['/logs/web01/a.log', '/logs/web02'];
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: Platform, useValue: fakePlatform }, { provide: RECENT_STORE, useValue: recent }] });
+    const fixture = TestBed.createComponent(Welcome);
+    return { fixture, store: TestBed.inject(WorkspaceStore), welcome: TestBed.inject(WelcomeService) };
+  }
+
+  it('shortens paths to the last two segments', () => {
+    expect(shortPath('/logs/web01/orders.clef')).toBe('web01/orders.clef');
+    expect(shortPath('C:\\logs\\x')).toBe('logs/x');
+    expect(shortPath('/')).toBe('/');
+  });
+
+  it('shows the welcome only for an empty workspace or when asked', async () => {
+    const { store, welcome } = setup();
+    expect(welcome.visible()).toBe(false); // not loaded yet
+    await settle();
+    expect(welcome.visible()).toBe(false);
+    welcome.show();
+    expect(welcome.visible()).toBe(true);
+    welcome.hide();
+    await store.clearWorkspace();
+    expect(welcome.visible()).toBe(true);
+  });
+
+  it('offers open buttons, how-it-works and recent paths that reopen', async () => {
+    const { fixture, store, welcome } = setup();
+    await settle(fixture);
+    expect(text(fixture)).toContain('How IMT works');
+    expect(all(fixture, '.steps li')).toHaveLength(4);
+    expect(all(fixture, '.recent .link').map((b) => b.textContent)).toEqual(['web01/a.log', 'logs/web02']);
+    expect(fixture.nativeElement.querySelector('.welcome > button')).not.toBeNull(); // back button: workspace has sources
+    buttonByText(fixture, 'Open folder…').click();
+    await settle(fixture);
+    expect(store.summary()?.sources.some((s) => s.path === '/picked/dir')).toBe(true);
+    expect(recent.items[0]).toBe('/picked/dir');
+    buttonByText(fixture, 'Open files…').click();
+    await settle(fixture);
+    expect(recent.items[0]).toBe('/picked/file.log');
+    welcome.show();
+    el<HTMLButtonElement>(fixture, '.recent .link').click();
+    await settle(fixture);
+    expect(welcome.visible()).toBe(false);
+    expect(store.summary()?.sources.some((s) => s.path === '/picked/file.log')).toBe(true);
+    buttonByText(fixture, 'Back to workspace').click();
+  });
+
+  it('has no back button or recent list when empty', async () => {
+    const { fixture, store } = setup();
+    recent.items = [];
+    await settle(fixture);
+    await store.clearWorkspace();
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelector('.recent')).toBeNull();
+    expect(all(fixture, 'button').map((b) => b.textContent?.trim())).toEqual(['Open folder…', 'Open files…']);
+  });
+
+  it('does not remember paths that failed to open', async () => {
+    const { fixture, store } = setup();
+    await settle(fixture);
+    recent.items = [];
+    vi.spyOn(TestBed.inject(Platform), 'pickPaths').mockResolvedValue(['/bad']);
+    const { ImtBackend } = await import('../core/backend');
+    vi.spyOn(TestBed.inject(ImtBackend), 'openPaths').mockRejectedValue('nope');
+    await store.pickAndOpen(true);
+    await store.openPaths(['/bad2']);
+    expect(recent.items).toEqual([]);
+    expect(store.error()).toBe('nope');
+  });
+});

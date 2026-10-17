@@ -1,20 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkspaceStore } from './core/workspace.store';
 import { ActivityBar } from './shell/activity-bar';
-import { EditorTabs } from './shell/editor-tabs';
 import { Sidebar } from './shell/sidebar';
 import { StatusBar } from './shell/status-bar';
 import { TitleBar } from './shell/title-bar';
-import { Inspector } from './inspector/inspector';
-import { MetricsView } from './metrics/metrics-view';
-import { ProfileEditor } from './profile/profile-editor';
-import { TimelineView } from './workspace/timeline-view';
+import { DockHost } from './dock/dock-host';
+import { CommandPalette } from './palette/command-palette';
+import { FilterBar } from './workspace/filter-bar';
 import { Icon } from './shared/icon';
+import { ContextMenuHost } from './ui/context-menu-host';
+import { DialogHost } from './ui/dialog-host';
+import { Welcome, WelcomeService } from './welcome/welcome';
 
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, ActivityBar, Sidebar, EditorTabs, StatusBar, Inspector, TimelineView, MetricsView, ProfileEditor, Icon],
+  imports: [TitleBar, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon],
   template: `
     <imt-title-bar />
     <div class="body">
@@ -23,24 +24,32 @@ import { Icon } from './shared/icon';
         <imt-sidebar />
       }
       <main class="center">
-        <imt-editor-tabs />
-        @switch (store.activeTab()) {
-          @case ('timeline') { <imt-timeline-view /> }
-          @case ('metrics') { <imt-metrics-view /> }
-          @case ('profile') { <imt-profile-editor /> }
-        }
+        <imt-filter-bar />
+        <div class="stage">
+          <imt-dock-host />
+          @if (welcome.visible()) {
+            <imt-welcome />
+          }
+        </div>
       </main>
-      @if (store.inspectorOpen() && store.activeTab() === 'timeline') {
-        <imt-inspector />
-      }
     </div>
     <imt-status-bar />
+    <imt-command-palette />
+    <imt-dialog-host />
+    <imt-context-menu-host />
 
     @if (store.error(); as error) {
       <div class="toast" role="alert">
         <imt-icon name="alert" [size]="15" />
         <span class="ellipsis">{{ error }}</span>
-        <button class="icon-btn" aria-label="Dismiss" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
+      </div>
+    }
+    @if (store.notice(); as notice) {
+      <div class="toast info" role="status">
+        <imt-icon name="check" [size]="15" />
+        <span class="ellipsis">{{ notice }}</span>
+        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
     @if (store.dropHover()) {
@@ -51,12 +60,15 @@ import { Icon } from './shared/icon';
     :host { display: flex; flex-direction: column; height: 100vh; min-width: 1024px; background: var(--bg-1); }
     .body { flex: 1; min-height: 0; display: flex; }
     .center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
     .toast {
       position: fixed; right: 16px; bottom: 36px; max-width: 520px; z-index: 100;
       display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: 8px;
       background: var(--tooltip-bg); border: 1px solid var(--lvl-error); color: var(--text); box-shadow: var(--shadow);
     }
     .toast imt-icon { color: var(--lvl-error); }
+    .toast.info { border-color: var(--ok); bottom: 76px; }
+    .toast.info imt-icon { color: var(--ok); }
     .drop {
       position: fixed; inset: 12px; z-index: 90; border: 2px dashed var(--accent); border-radius: 12px;
       background: var(--accent-soft); display: flex; align-items: center; justify-content: center;
@@ -66,4 +78,5 @@ import { Icon } from './shared/icon';
 })
 export class App {
   protected readonly store = inject(WorkspaceStore);
+  protected readonly welcome = inject(WelcomeService);
 }

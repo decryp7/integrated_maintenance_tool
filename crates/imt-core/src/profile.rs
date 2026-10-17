@@ -20,6 +20,7 @@ pub struct Profile {
     pub files: FilesCfg,
     pub parse: ParseCfg,
     pub instance: InstanceCfg,
+    pub activity: ActivityCfg,
     #[serde(default)]
     pub extract: Vec<ExtractCfg>,
     #[serde(default)]
@@ -93,6 +94,17 @@ pub struct CsvCfg {
 pub struct InstanceCfg {
     pub key: Vec<String>,
     pub candidates: Vec<String>,
+}
+
+/// Which fields describe what users were doing (for the Moment view).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityCfg {
+    /// Who: the first present field names the user or session.
+    pub user: Vec<String>,
+    /// What: the first present field names the action; else the message.
+    pub action: Vec<String>,
+    /// Numeric fields summarised as metrics (besides PerfMon Counter/Value records).
+    pub metrics: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

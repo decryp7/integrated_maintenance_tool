@@ -1,14 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ChartDef, ChartType } from '../core/api.types';
+import { ChartType } from '../core/api.types';
 import { formatDateTime, tzLabel } from '../core/format';
+import { DockService } from '../dock/dock.service';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
 import { TimelineZoom } from '../timeline/zoom';
+import { AdhocCharts } from './adhoc-charts';
 import { ChartCard } from './chart-card';
-
-/** Ad-hoc charts live for the session, across tab switches. */
-const adhocCharts = signal<ChartDef[]>([]);
-let adhocSeq = 0;
 
 const AGGREGATES = ['avg', 'max', 'min', 'sum', 'last', 'count'] as const;
 const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
@@ -27,7 +25,7 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
         <button class="btn" (click)="zoom.fit()"><imt-icon name="zoomOut" [size]="13" /> Reset zoom</button>
       }
       <button class="btn dashed" (click)="builderOpen.set(!builderOpen())" [attr.aria-expanded]="builderOpen()">+ Add chart</button>
-      <button class="btn ghost" (click)="store.setTab('profile')">Edit charts in profile</button>
+      <button class="btn ghost" (click)="dock.show('profile')">Edit charts in profile</button>
     </div>
 
     @if (builderOpen()) {
@@ -71,7 +69,7 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
       </form>
     }
 
-    <div class="charts">
+    <div class="charts" tabindex="0" role="region" aria-label="Charts">
       @for (c of profileCharts(); track c.id) {
         <imt-chart-card [def]="c" />
       }
@@ -100,10 +98,12 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
 })
 export class MetricsView {
   protected readonly store = inject(WorkspaceStore);
+  protected readonly dock = inject(DockService);
   protected readonly zoom = inject(TimelineZoom);
   protected readonly aggregates = AGGREGATES;
   protected readonly buckets = BUCKETS;
-  protected readonly adhoc = adhocCharts;
+  private readonly adhocCharts = inject(AdhocCharts);
+  protected readonly adhoc = this.adhocCharts.charts;
 
   protected readonly builderOpen = signal(false);
   protected readonly title = signal('');
@@ -135,23 +135,19 @@ export class MetricsView {
   protected addChart(): void {
     const agg = this.agg();
     const y = agg === 'count' ? 'count()' : `${agg}(${this.field()})`;
-    adhocCharts.update((list) => [
-      ...list,
-      {
-        id: `adhoc-${++adhocSeq}`,
-        title: this.title() || y,
-        y,
-        bucket: this.bucket(),
-        splitBy: this.splitBy(),
-        type: this.type(),
-        unit: this.unit(),
-      },
-    ]);
+    this.adhocCharts.add({
+      title: this.title() || y,
+      y,
+      bucket: this.bucket(),
+      splitBy: this.splitBy(),
+      type: this.type(),
+      unit: this.unit(),
+    });
     this.builderOpen.set(false);
     this.title.set('');
   }
 
   protected removeChart(id: string): void {
-    adhocCharts.update((list) => list.filter((c) => c.id !== id));
+    this.adhocCharts.remove(id);
   }
 }

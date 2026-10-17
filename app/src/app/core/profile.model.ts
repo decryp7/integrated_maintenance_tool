@@ -64,6 +64,66 @@ export interface ChartRule {
   [key: string]: unknown;
 }
 
+export type PipelineStepKind =
+  | 'drop'
+  | 'keep'
+  | 'mask'
+  | 'dedupe'
+  | 'remove_fields'
+  | 'rename'
+  | 'set'
+  | 'set_level'
+  | 'truncate'
+  | 'parse_json'
+  | 'parse_kv'
+  | 'lookup'
+  | 'shift_time'
+  | 'plugin';
+export const PIPELINE_STEP_KINDS: PipelineStepKind[] = [
+  'drop',
+  'keep',
+  'mask',
+  'dedupe',
+  'remove_fields',
+  'rename',
+  'set',
+  'set_level',
+  'truncate',
+  'parse_json',
+  'parse_kv',
+  'lookup',
+  'shift_time',
+  'plugin',
+];
+
+/** One step of the ordered `[[pipeline]]`; only the keys relevant to `step` are used. */
+export interface PipelineStep {
+  step: PipelineStepKind;
+  when?: Condition[];
+  field?: string;
+  regex?: string;
+  replace?: string;
+  fields?: string[];
+  window?: string;
+  from?: string;
+  to?: string;
+  value?: string;
+  level?: string;
+  max?: number;
+  id?: string;
+  /** parse_json / parse_kv: prepended to the produced field names. */
+  prefix?: string;
+  /** lookup: inline table `{ KEY = { Field = value } }`, or a CSV `file` with the `key` column. */
+  table?: Record<string, Record<string, unknown>>;
+  file?: string;
+  key?: string;
+  /** shift_time: "+2.4s", "-150ms", "1m". */
+  by?: string;
+  /** The engine skips the step (kept in the TOML so it can be re-enabled). */
+  disabled?: boolean;
+  [key: string]: unknown;
+}
+
 export interface ProfileModel {
   name?: string;
   files?: { include?: string[]; exclude?: string[]; [key: string]: unknown };
@@ -98,6 +158,7 @@ export interface ProfileModel {
   extract?: ExtractRule[];
   marker?: MarkerRule[];
   chart?: ChartRule[];
+  pipeline?: PipelineStep[];
   [key: string]: unknown;
 }
 

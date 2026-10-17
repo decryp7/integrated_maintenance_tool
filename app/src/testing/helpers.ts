@@ -1,4 +1,4 @@
-import { Provider } from '@angular/core';
+import { Component, EnvironmentProviders, Provider, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Query } from '../app/core/api.types';
 import { ImtBackend } from '../app/core/backend';
@@ -6,6 +6,9 @@ import { Logger, LogProps } from '../app/core/logger';
 import { DEMO_START, MockDataset, MockRecord } from '../app/core/mock/mock-data';
 import { MockBackend } from '../app/core/mock/mock-backend';
 import { EMPTY_QUERY } from '../app/core/workspace.store';
+import { provideImtBuiltins } from '../app/builtin/provide-builtins';
+import { BUILTIN_VIEWS } from '../app/builtin/builtin-views';
+import { DockService } from '../app/dock/dock.service';
 
 export const T0 = DEMO_START;
 export const SEC = 1000;
@@ -73,11 +76,40 @@ export class MemoryLogger extends Logger {
   }
 }
 
-export function provideTinyBackend(backend: ImtBackend = tinyBackend()): Provider[] {
+/** Stand-in for DockService in component tests: records calls, no dockview. */
+export class FakeDock {
+  readonly openIds = signal<ReadonlySet<string>>(new Set(['timeline']));
+  readonly calls: string[] = [];
+  isOpen = (id: string) => this.openIds().has(id);
+  show = (id: string) => void this.calls.push(`show:${id}`);
+  toggle = (id: string) => void this.calls.push(`toggle:${id}`);
+  close = (id: string) => void this.calls.push(`close:${id}`);
+  reset = () => void this.calls.push('reset');
+}
+
+export function provideFakeDock(dock = new FakeDock()): Provider[] {
+  return [{ provide: DockService, useValue: dock }];
+}
+
+/** Backend and logger only (no built-in views/commands), for testing registries in isolation. */
+export function provideTinyBackendBare(backend: ImtBackend = tinyBackend()): Provider[] {
   return [
     { provide: ImtBackend, useValue: backend },
     { provide: Logger, useFactory: () => new MemoryLogger() },
   ];
+}
+
+@Component({ selector: 'imt-stub-panel', template: 'stub panel' })
+class StubPanel {}
+
+/** The built-in views with the heavy panels (charts, profile editor) replaced by a stub, for dock tests in jsdom. */
+export function provideDockTesting(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
+  const views = BUILTIN_VIEWS.map((v) => (v.id === 'metrics' || v.id === 'profile' ? { ...v, component: async () => StubPanel } : v));
+  return [provideImtBuiltins(views), ...provideTinyBackendBare(backend)];
+}
+
+export function provideTinyBackend(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
+  return [provideImtBuiltins(), ...provideTinyBackendBare(backend)];
 }
 
 /** The MemoryLogger provided by provideTinyBackend. */

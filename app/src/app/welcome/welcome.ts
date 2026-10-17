@@ -1,0 +1,99 @@
+import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signal } from '@angular/core';
+import { WorkspaceStore } from '../core/workspace.store';
+import { Icon } from '../shared/icon';
+import { RECENT_STORE } from './recent-store';
+
+/** Whether the welcome screen is shown: whenever the workspace is empty, or when asked for explicitly. */
+@Injectable({ providedIn: 'root' })
+export class WelcomeService {
+  private readonly store = inject(WorkspaceStore);
+  private readonly forced = signal(false);
+
+  readonly visible = computed(() => {
+    const summary = this.store.summary();
+    return this.forced() || (summary !== null && summary.sources.length === 0);
+  });
+
+  show(): void {
+    this.forced.set(true);
+  }
+  hide(): void {
+    this.forced.set(false);
+  }
+}
+
+/** Last two path segments, e.g. "web01/orders.clef". */
+export function shortPath(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).slice(-2).join('/') || path;
+}
+
+@Component({
+  selector: 'imt-welcome',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icon],
+  template: `
+    <section class="welcome" aria-labelledby="welcome-title">
+      <h1 id="welcome-title">Welcome to IMT</h1>
+      <p class="lead">Open log files or a whole folder and explore what happened, instance by instance.</p>
+      <div class="actions">
+        <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="15" /> Open folder…</button>
+        <button class="btn big" type="button" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="15" /> Open files…</button>
+      </div>
+      <p class="faint hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
+
+      @if (recent().length) {
+        <div class="recent">
+          <h2 class="section-title">Recent</h2>
+          <ul>
+            @for (p of recent(); track p) {
+              <li><button class="link mono" type="button" [title]="p" (click)="open(p)">{{ short(p) }}</button></li>
+            }
+          </ul>
+        </div>
+      }
+
+      <h2 class="section-title how">How IMT works</h2>
+      <ol class="steps" aria-label="How IMT works">
+        <li><strong>1 · Open</strong><span>Add log files or a folder.</span></li>
+        <li><strong>2 · Filter</strong><span>Search, pick levels, add field filters.</span></li>
+        <li><strong>3 · Timeline</strong><span>See instances over time; drag to zoom.</span></li>
+        <li><strong>4 · Inspect</strong><span>Click an event to see every property.</span></li>
+      </ol>
+      @if (workspaceHasSources()) {
+        <button class="btn" type="button" (click)="welcome.hide()">Back to workspace</button>
+      }
+    </section>
+  `,
+  styles: `
+    :host { position: absolute; inset: 0; z-index: 5; overflow: auto; background: var(--bg-1); display: flex; justify-content: center; }
+    .welcome { width: min(720px, 100%); padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+    h1 { margin: 0; font-size: 24px; font-weight: 600; }
+    .lead { margin: 0; color: var(--text-2); font-size: 15px; }
+    .actions { display: flex; gap: 10px; margin-top: 6px; }
+    .big { height: 34px; padding: 0 16px; gap: 8px; }
+    .hint { margin: 0; font-size: 12px; }
+    .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: 12px; }
+    .link:hover { text-decoration: underline; }
+    .how { margin-top: 18px; }
+    .steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
+    .steps li { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--muted); font-size: 12px; }
+    .steps strong { color: var(--text); font-size: 13px; }
+  `,
+})
+export class Welcome {
+  protected readonly store = inject(WorkspaceStore);
+  protected readonly welcome = inject(WelcomeService);
+  private readonly recentStore = inject(RECENT_STORE);
+  protected readonly short = shortPath;
+  protected readonly workspaceHasSources = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
+  protected readonly recent = computed(() => {
+    this.store.dataVersion();
+    return this.recentStore.list();
+  });
+
+  protected open(path: string): void {
+    this.welcome.hide();
+    void this.store.openPaths([path]);
+  }
+}

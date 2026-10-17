@@ -187,7 +187,7 @@ interface Hover {
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; }
+    :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; }
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
     .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .spacer { flex: 1; }

@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Facet, FieldInfo, SourceInfo } from '../core/api.types';
+import { FormatWizard } from '../format/format-wizard';
+import { DialogService } from '../ui/dialog.service';
+import { DockService } from '../dock/dock.service';
+import { AdhocCharts } from '../metrics/adhoc-charts';
+import { Facet, FieldInfo, SourceInfo, UnrecognizedFile } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCompact, formatCount, formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -32,7 +36,7 @@ function shortPath(path: string): string {
           <span class="ellipsis name">{{ short(s.path) }}</span>
           <span class="badge">{{ s.importer }}</span>
           <span class="mono count">{{ compact(s.records) }}</span>
-          <button class="icon-btn rm" [attr.aria-label]="'Remove ' + s.name" (click)="store.removeSource(s.id)"><imt-icon name="close" [size]="12" /></button>
+          <button class="icon-btn rm" [attr.aria-label]="'Remove ' + s.name" (click)="store.removeSource(s.id)" [attr.title]="'Remove ' + s.name"><imt-icon name="close" [size]="12" /></button>
         </div>
         @if (s.error) {
           <div class="src-error">{{ s.error }}</div>
@@ -52,6 +56,7 @@ function shortPath(path: string): string {
           <imt-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           <span class="badge">—</span>
+          <button class="btn ghost setup" [attr.aria-label]="'Set up format for ' + u.name" title="Teach IMT how to read this file" (click)="setUpFormat(u)">Set up format…</button>
         </div>
       }
     </div>
@@ -86,6 +91,9 @@ function shortPath(path: string): string {
           <button class="btn" (click)="groupBy(pos.field, false)">Group by</button>
           <button class="btn" (click)="groupBy(pos.field, true)">Add to group</button>
           <button class="btn" (click)="store.addColumn(pos.field); closeFacet()">Add column</button>
+          @if (store.numericFields().includes(pos.field)) {
+            <button class="btn" (click)="chartField(pos.field)">Chart this field</button>
+          }
         </div>
         <div class="values">
           @for (v of facet()?.values ?? []; track v.value) {
@@ -117,6 +125,7 @@ function shortPath(path: string): string {
     .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
     .src.dim { color: var(--faint); font-style: italic; }
     .src.dim imt-icon { opacity: 0.6; }
+    .setup { height: 20px; padding: 0 6px; font-size: 11px; font-style: normal; }
     .src-error { margin: 0 6px 4px 27px; font-size: 11px; color: var(--danger-text); }
     .empty { padding: 8px 6px; color: var(--muted); }
     .empty p { margin: 4px 0 10px; }
@@ -147,6 +156,9 @@ function shortPath(path: string): string {
 export class Sidebar {
   protected readonly store = inject(WorkspaceStore);
   private readonly backend = inject(ImtBackend);
+  private readonly adhocCharts = inject(AdhocCharts);
+  private readonly dock = inject(DockService);
+  private readonly dialogs = inject(DialogService);
 
   protected readonly compact = formatCompact;
   protected readonly count = formatCount;
@@ -180,7 +192,8 @@ export class Sidebar {
 
   protected sourceTitle(s: SourceInfo): string {
     const tz = this.store.timezone();
-    return `${s.path}\n${formatCount(s.records)} events · ${s.skipped} skipped\n${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}`;
+    const dropped = s.dropped > 0 ? `\n${formatCount(s.dropped)} dropped by pipeline` : '';
+    return `${s.path}\n${formatCount(s.records)} events · ${s.skipped} skipped${dropped}\n${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}`;
   }
 
   protected closeFacet(): void {
@@ -208,6 +221,16 @@ export class Sidebar {
 
   protected filter(field: string, op: 'eq' | 'ne', value: string): void {
     this.store.addFilter({ field, op, value });
+    this.closeFacet();
+  }
+
+  protected setUpFormat(file: UnrecognizedFile): void {
+    this.dialogs.open(FormatWizard, { title: 'Set up format', inputs: { path: file.path, name: file.name }, width: 760 });
+  }
+
+  protected chartField(field: string): void {
+    this.adhocCharts.addForField(field, this.store.effectiveGroupBy());
+    this.dock.show('metrics');
     this.closeFacet();
   }
 

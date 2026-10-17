@@ -2,6 +2,8 @@ import { parse, TomlError } from 'smol-toml';
 import {
   ChartData,
   ChartRequest,
+  ExportRequest,
+  ExportResult,
   ExtractPreview,
   ExtractPreviewRequest,
   Facet,
@@ -93,6 +95,7 @@ export class MockBackend implements ImtBackend {
         importer: s.importer,
         records: perSource.get(s.id)?.n ?? 0,
         skipped: s.skipped,
+        dropped: e.droppedBySource.get(s.id) ?? 0,
         error: null,
         from: perSource.get(s.id)?.from ?? null,
         to: perSource.get(s.id)?.to ?? null,
@@ -108,6 +111,10 @@ export class MockBackend implements ImtBackend {
       charts: e.charts,
       profileName: this.profile.name ?? 'Unnamed profile',
       loadMs: this.loadMs,
+      dropped: [...e.droppedBySource.values()].reduce((a, b) => a + b, 0),
+      plugins: MOCK_PLUGINS,
+      exporters: MOCK_EXPORTERS,
+      pipeline: e.pipelineStats,
     };
   }
 
@@ -204,6 +211,14 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => ({ name: this.profile.name ?? 'Imported profile', path, toml: this.profileToml }));
   }
 
+  exportEvents(request: ExportRequest): Promise<ExportResult> {
+    return this.delay(() => {
+      if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
+      // The browser demo writes nothing: it only reports what the desktop app would export.
+      return { format: request.format, path: request.path, events: this.engine.matching(request.query).length };
+    }, 100);
+  }
+
   exportProfile(path: string, toml: string): Promise<void> {
     return this.delay(() => {
       const url = URL.createObjectURL(new Blob([toml], { type: 'application/toml' }));
@@ -215,6 +230,15 @@ export class MockBackend implements ImtBackend {
     });
   }
 }
+
+const MOCK_PLUGINS = [
+  { id: 'registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer'] },
+  { id: 'export-basic', name: 'CSV and CLEF exporters', version: '0.1.0', contributes: ['exporter'] },
+];
+const MOCK_EXPORTERS = [
+  { id: 'csv', name: 'CSV', extension: 'csv' },
+  { id: 'clef', name: 'Compact Log Event Format', extension: 'clef' },
+];
 
 function validate(toml: string): { validation: ProfileValidation; model: ProfileModel | null } {
   let model: ProfileModel;

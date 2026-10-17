@@ -4,13 +4,12 @@ import { ImtBackend, provideBackend, TauriBackend } from './backend';
 import { MockBackend } from './mock/mock-backend';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
-vi.mock('@tauri-apps/api/core', () => ({ invoke }));
 
 describe('TauriBackend', () => {
   beforeEach(() => invoke.mockClear());
 
   it('maps every method to its Tauri command', async () => {
-    const b = new TauriBackend();
+    const b = new TauriBackend(invoke as never);
     const q = query();
     const calls: [() => Promise<unknown>, string, unknown?][] = [
       [() => b.workspaceSummary(), 'workspace_summary'],
@@ -28,6 +27,7 @@ describe('TauriBackend', () => {
       [() => b.previewExtractor({ toml: 'x', extractor: 'e', query: q, limit: 2 }), 'preview_extractor', { request: { toml: 'x', extractor: 'e', query: q, limit: 2 } }],
       [() => b.importProfile('/p.toml'), 'import_profile', { path: '/p.toml' }],
       [() => b.exportProfile('/p.toml', 'x'), 'export_profile', { path: '/p.toml', toml: 'x' }],
+      [() => b.exportEvents({ query: q, format: 'csv', path: '/e.csv' }), 'export_events', { request: { query: q, format: 'csv', path: '/e.csv' } }],
     ];
     for (const [call, name, args] of calls) {
       invoke.mockClear();

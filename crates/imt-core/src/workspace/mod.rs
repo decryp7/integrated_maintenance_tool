@@ -4,6 +4,7 @@ mod chart;
 mod context;
 mod export;
 mod facet;
+mod insights;
 mod page;
 mod preview;
 mod timeline;
@@ -42,6 +43,7 @@ pub struct Workspace {
     marker_kinds: Vec<String>,
     load_ms: u64,
     cache: Mutex<Option<(String, Arc<Vec<u32>>)>>,
+    anomaly_cache: Mutex<Option<(String, Vec<crate::analysis::Anomaly>)>>,
 }
 
 impl Workspace {
@@ -76,6 +78,7 @@ impl Workspace {
             marker_kinds,
             load_ms: 0,
             cache: Mutex::new(None),
+            anomaly_cache: Mutex::new(None),
         })
     }
 
@@ -352,6 +355,7 @@ impl Workspace {
         self.compute_fields();
         self.default_group_by = self.pick_group_by();
         *self.cache.lock().unwrap() = None;
+        *self.anomaly_cache.lock().unwrap() = None;
     }
 
     fn compute_fields(&mut self) {

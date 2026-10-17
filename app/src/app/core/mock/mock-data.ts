@@ -101,6 +101,7 @@ export function generateDemo(seed = 42): MockDataset {
     { id: 2, path: '/incident-2026-10-14/worker01/worker-20261014.log', name: 'worker-20261014.log', importer: 'text', skipped: 0 },
     { id: 3, path: '/incident-2026-10-14/gateway/gateway-20261014.json', name: 'gateway-20261014.json', importer: 'json', skipped: 0 },
     { id: 4, path: '/incident-2026-10-14/sync/inventory-sync.csv', name: 'inventory-sync.csv', importer: 'csv', skipped: 2 },
+    { id: 5, path: '/incident-2026-10-14/system/registry-export.reg', name: 'registry-export.reg', importer: 'registry', skipped: 0 },
   ];
 
   const instances: Instance[] = [
@@ -251,14 +252,68 @@ export function generateDemo(seed = 42): MockDataset {
     emit(sync, t, slow ? 'Warning' : 'Information', 'csv', slow ? 'Sync of {Warehouse} slow: {Items} items in {DurationMs} ms' : 'Synced {Items} items from {Warehouse}', { Warehouse: pick(['AMS-1', 'SIN-2', 'NYC-3']), Items: Math.floor(rnd() * 500), DurationMs: Math.floor((slow ? 9000 : 400) + rnd() * 900) });
   }
 
+  records.push(...registryRecords(5));
+
   return {
     sources,
     unrecognized: [
-      { path: '/incident-2026-10-14/system/registry-export.reg', name: 'registry-export.reg', reason: 'No importer for Windows registry exports (plugin)' },
       { path: '/incident-2026-10-14/system/msinfo32.nfo', name: 'msinfo32.nfo', reason: 'No importer for MSInfo exports (plugin)' },
     ],
     records,
   };
+}
+
+type RegType = 'REG_SZ' | 'REG_DWORD' | 'REG_QWORD' | 'REG_BINARY' | 'REG_MULTI_SZ' | 'REG_EXPAND_SZ' | 'DELETE';
+
+/** Records a Windows `.reg` export would yield: a key line, then one record per value (no timestamps). */
+export function registryRecords(source: number): MockRecord[] {
+  const out: MockRecord[] = [];
+  let line = 0;
+  const key = (hive: string, path: string, type: 'KEY' | 'DELETE' = 'KEY') => {
+    out.push({
+      id: 0,
+      ts: null,
+      level: 'Information',
+      message: `${hive}\\${path}`,
+      template: null,
+      exception: null,
+      fields: { Hive: hive, Key: path, ValueType: type },
+      source,
+      line: ++line,
+      markers: [],
+    });
+  };
+  const value = (hive: string, path: string, name: string, type: RegType, data: string | number | string[] | null) => {
+    out.push({
+      id: 0,
+      ts: null,
+      level: 'Information',
+      message: `${hive}\\${path}\\${name} = ${Array.isArray(data) ? data.join(', ') : data}`,
+      template: null,
+      exception: null,
+      fields: { Hive: hive, Key: path, ValueName: name, ValueType: type, Data: data },
+      source,
+      line: ++line,
+      markers: [],
+    });
+  };
+  const H = 'HKEY_LOCAL_MACHINE';
+  key(H, 'SOFTWARE\\Contoso\\OrderService');
+  value(H, 'SOFTWARE\\Contoso\\OrderService', '(Default)', 'REG_SZ', 'OrderService');
+  value(H, 'SOFTWARE\\Contoso\\OrderService', 'InstallPath', 'REG_SZ', 'C:\\Program Files\\Contoso\\OrderService');
+  value(H, 'SOFTWARE\\Contoso\\OrderService', 'Version', 'REG_SZ', '1.4.2');
+  value(H, 'SOFTWARE\\Contoso\\OrderService', 'TimeoutSeconds', 'REG_DWORD', 30);
+  key(H, 'SOFTWARE\\Contoso\\OrderService\\Logging');
+  value(H, 'SOFTWARE\\Contoso\\OrderService\\Logging', 'Level', 'REG_SZ', 'Information');
+  value(H, 'SOFTWARE\\Contoso\\OrderService\\Logging', 'MaxFileSize', 'REG_QWORD', 104857600);
+  value(H, 'SOFTWARE\\Contoso\\OrderService\\Logging', 'Sinks', 'REG_MULTI_SZ', ['File', 'Console']);
+  value(H, 'SOFTWARE\\Contoso\\OrderService\\Logging', 'LegacyFlag', 'DELETE', null);
+  key(H, 'SOFTWARE\\Contoso\\OrderService\\Obsolete', 'DELETE');
+  key(H, 'SYSTEM\\CurrentControlSet\\Services\\OrderService');
+  value(H, 'SYSTEM\\CurrentControlSet\\Services\\OrderService', 'ImagePath', 'REG_EXPAND_SZ', '%ProgramFiles%\\Contoso\\OrderService\\svc.exe');
+  value(H, 'SYSTEM\\CurrentControlSet\\Services\\OrderService', 'FailureActions', 'REG_BINARY', '80,51,01,00,00,00,00,00');
+  value('HKEY_CURRENT_USER', 'Software\\Contoso\\Client', 'ServerUrl', 'REG_SZ', 'https://orders.contoso.test');
+  return out;
 }
 
 /** A small extra source, so "Open files" does something visible in the browser demo. */

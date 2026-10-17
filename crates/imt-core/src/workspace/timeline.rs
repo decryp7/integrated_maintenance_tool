@@ -67,7 +67,7 @@ impl Workspace {
             lane.last = lane.last.max(ts);
             lane.total += 1;
             let b = bucket_of(ts);
-            let matched = cq.content(r);
+            let matched = cq.content(r, self.source_name(r.source));
             let mask = if matched {
                 lane.matched += 1;
                 lane.density[b] += 1;

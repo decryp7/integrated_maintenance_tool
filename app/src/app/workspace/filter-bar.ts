@@ -63,7 +63,7 @@ const OP_LABELS: Record<FilterOp, string> = {
             <div class="chosen">
               @for (g of store.effectiveGroupBy(); track g; let i = $index) {
                 <span class="chip"><span class="mono">{{ i + 1 }}. {{ g }}</span>
-                  <button class="x" [attr.aria-label]="'Remove ' + g" (click)="removeGroupField(g)">×</button></span>
+                  <button class="x" [attr.aria-label]="'Remove ' + g" (click)="removeGroupField(g)" [attr.title]="'Remove ' + g">×</button></span>
               }
             </div>
             <div class="opts">
@@ -94,14 +94,14 @@ const OP_LABELS: Record<FilterOp, string> = {
           <span class="mono field">{{ f.field }}</span>
           <span class="muted">{{ opLabel(f.op) }}</span>
           @if (f.op !== 'exists' && f.op !== 'missing') { <span class="mono">{{ f.value }}</span> }
-          <button class="x" [attr.aria-label]="'Remove filter ' + f.field" (click)="store.removeFilter(i)">×</button>
+          <button class="x" [attr.aria-label]="'Remove filter ' + f.field" (click)="store.removeFilter(i)" [attr.title]="'Remove filter ' + f.field">×</button>
         </span>
       }
       @for (g of q().groups; track g) {
         <span class="chip">
           <span class="muted">instance</span>
           <span class="mono">{{ g }}</span>
-          <button class="x" [attr.aria-label]="'Remove instance filter ' + g" (click)="store.toggleGroup(g)">×</button>
+          <button class="x" [attr.aria-label]="'Remove instance filter ' + g" (click)="store.toggleGroup(g)" [attr.title]="'Remove instance filter ' + g">×</button>
         </span>
       }
 

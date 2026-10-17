@@ -2,8 +2,9 @@
 
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}
-  observe(): void {
-    this.cb([], this as unknown as ResizeObserver);
+  observe(target: Element): void {
+    // Report a (zero-sized) entry so libraries that read `entry.target` (dockview) keep working.
+    this.cb([{ target, contentRect: target.getBoundingClientRect() } as ResizeObserverEntry], this as unknown as ResizeObserver);
   }
   unobserve(): void {}
   disconnect(): void {}

@@ -20,6 +20,9 @@ pub struct Query {
     pub group_by: Vec<String>,
     pub groups: Vec<String>,
     pub markers: Vec<String>,
+    /// A query-language expression (see [`crate::ql`]); its filter and any
+    /// `where` stages before `stats` apply like the other criteria.
+    pub ql: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +49,7 @@ pub struct CompiledQuery {
     groups: Option<HashSet<String>>,
     marker_mask: u32,
     match_nothing: bool,
+    ql: Vec<crate::ql::Filter>,
 }
 
 impl CompiledQuery {
@@ -67,7 +71,19 @@ impl CompiledQuery {
                 marker_mask |= 1 << i;
             }
         }
+        let ql = if q.ql.trim().is_empty() {
+            Vec::new()
+        } else {
+            let program = crate::ql::parse(&q.ql).map_err(|e| anyhow::anyhow!("query: {e}"))?;
+            let wheres = program.stages.iter().map_while(|s| match s {
+                crate::ql::Stage::Where(f) => Some(f.clone()),
+                crate::ql::Stage::Sort(_) | crate::ql::Stage::Head(_) | crate::ql::Stage::Fields(_) => None,
+                crate::ql::Stage::Stats { .. } => None,
+            });
+            std::iter::once(program.filter).chain(wheres).collect()
+        };
         Ok(CompiledQuery {
+            ql,
             from: q.from,
             to: q.to,
             level_mask: q.levels.iter().fold(0u8, |m, l| m | (1 << l.index())),
@@ -109,7 +125,7 @@ impl CompiledQuery {
     }
 
     /// Levels, text search and marker kinds.
-    pub fn content(&self, rec: &Record) -> bool {
+    pub fn content(&self, rec: &Record, source_name: &str) -> bool {
         if self.match_nothing {
             return false;
         }
@@ -127,11 +143,11 @@ impl CompiledQuery {
                 return false;
             }
         }
-        true
+        self.ql.iter().all(|f| f.matches(rec, source_name))
     }
 
     pub fn matches(&self, rec: &Record, source_name: &str) -> bool {
-        self.content(rec) && self.structural(rec, source_name, None)
+        self.content(rec, source_name) && self.structural(rec, source_name, None)
     }
 
     pub fn group_key(&self, rec: &Record, source_name: &str) -> String {
@@ -178,7 +194,7 @@ mod tests {
             ..Default::default()
         };
         let c = CompiledQuery::new(&q, &[], &["start".into()]).unwrap();
-        assert!(!c.content(&Record::new(1)));
+        assert!(!c.content(&Record::new(1), "s"));
     }
 
     #[test]
@@ -189,9 +205,9 @@ mod tests {
         };
         let c = CompiledQuery::new(&q, &[], &["stop".into(), "start".into()]).unwrap();
         let mut r = Record::new(1);
-        assert!(!c.content(&r));
+        assert!(!c.content(&r, "s"));
         r.markers = 0b10;
-        assert!(c.content(&r));
+        assert!(c.content(&r, "s"));
     }
 
     fn rec(ts: i64, msg: &str) -> Record {
@@ -206,7 +222,7 @@ mod tests {
         let mut r = rec(10, "Order failed");
         r.exception = Some("System.TimeoutException".into());
         r.template = Some("Order {Id} failed".into());
-        let c = |q: Query| CompiledQuery::new(&q, &[], &[]).unwrap().content(&r);
+        let c = |q: Query| CompiledQuery::new(&q, &[], &[]).unwrap().content(&r, "s");
         assert!(c(Query {
             text: "ORDER".into(),
             ..Default::default()
@@ -278,7 +294,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert!(!err.content(&r));
+        assert!(!err.content(&r, "s"));
 
         let range = CompiledQuery::new(
             &Query {

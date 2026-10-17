@@ -52,6 +52,7 @@
               }
             ],
             "styles": [
+              "node_modules/dockview/dist/styles/dockview.css",
               "src/styles.scss"
             ]
           },

@@ -2,6 +2,9 @@
 
 export type TimeZoneMode = 'utc' | 'local';
 
+/** "readable": 14 Oct 10:41:22. "iso": 2026-10-14 10:41:22. */
+export type DateFormat = 'readable' | 'iso';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function pad(n: number, w = 2): string {
@@ -49,17 +52,19 @@ export function formatTime(ts: number | null, tz: TimeZoneMode): string {
 }
 
 /** "14 Oct 10:41:22" */
-export function formatDateTime(ts: number | null, tz: TimeZoneMode, withMs = false): string {
+export function formatDateTime(ts: number | null, tz: TimeZoneMode, withMs = false, style: DateFormat = 'readable'): string {
   if (ts === null) return '—';
   const p = parts(ts, tz);
-  const base = `${p.d} ${MONTHS[p.mo]} ${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}`;
+  const day = style === 'iso' ? `${p.y}-${pad(p.mo + 1)}-${pad(p.d)}` : `${p.d} ${MONTHS[p.mo]}`;
+  const base = `${day} ${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}`;
   return withMs ? `${base}.${pad(p.ms, 3)}` : base;
 }
 
 /** "14 Oct 2026 10:41:22.318 UTC" */
-export function formatFull(ts: number | null, tz: TimeZoneMode): string {
+export function formatFull(ts: number | null, tz: TimeZoneMode, style: DateFormat = 'readable'): string {
   if (ts === null) return 'No timestamp';
   const p = parts(ts, tz);
+  if (style === 'iso') return `${p.y}-${pad(p.mo + 1)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}.${pad(p.ms, 3)} ${tzLabel(tz)}`;
   return `${p.d} ${MONTHS[p.mo]} ${p.y} ${pad(p.h)}:${pad(p.mi)}:${pad(p.s)}.${pad(p.ms, 3)} ${tzLabel(tz)}`;
 }
 

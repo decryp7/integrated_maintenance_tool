@@ -1,4 +1,4 @@
-import { isTauri, onFilesDropped, pickPaths, pickProfileToOpen, pickProfileToSave } from './platform';
+import { isTauri, onFilesDropped, pickExportPath, pickPaths, pickProfileToOpen, pickProfileToSave, Platform } from './platform';
 
 const dialog = vi.hoisted(() => ({ open: vi.fn(), save: vi.fn() }));
 const webview = vi.hoisted(() => {
@@ -32,6 +32,8 @@ describe('platform (browser)', () => {
     expect(await pickPaths(true)).toEqual(['/demo/extra-folder']);
     expect(await pickProfileToOpen()).toBe('/demo/profiles/imported.toml');
     expect(await pickProfileToSave('a.toml')).toBe('a.toml');
+    expect(await pickExportPath('events.csv', [])).toBe('events.csv');
+    expect(await new Platform().pickExportPath('events.csv', [])).toBe('events.csv');
     const off = await onFilesDropped(vi.fn(), vi.fn());
     expect(off()).toBeUndefined();
   });
@@ -47,6 +49,12 @@ describe('platform (Tauri)', () => {
     expect(await pickPaths(true)).toEqual(['/c']);
     expect(await pickPaths(true)).toEqual([]);
     expect(dialog.open.mock.calls[1][0]).toMatchObject({ directory: true, multiple: true });
+  });
+
+  it('asks for an export path with one filter per format', async () => {
+    dialog.save.mockResolvedValueOnce('/out/events.clef');
+    expect(await pickExportPath('events.csv', [{ name: 'CSV', extension: 'csv' }, { name: 'CLEF', extension: 'clef' }])).toBe('/out/events.clef');
+    expect(dialog.save.mock.calls.at(-1)![0]).toMatchObject({ defaultPath: 'events.csv', filters: [{ name: 'CSV', extensions: ['csv'] }, { name: 'CLEF', extensions: ['clef'] }] });
   });
 
   it('opens and saves profiles natively', async () => {

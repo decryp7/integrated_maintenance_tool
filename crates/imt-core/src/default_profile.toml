@@ -73,6 +73,14 @@ message = "auto"
 key = []
 candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName", "ProcessName", "ProcessId", "InstanceId"]
 
+[activity]
+# What users were doing, for the Moment view: who (first present field) and
+# what (first present field, else the message). `metrics` are numeric fields
+# summarised per instance (PerfMon Counter/Value records are always included).
+user = ["UserName", "User", "UserId", "SessionId", "ClientIp"]
+action = ["Action", "Operation", "Command", "RequestPath", "SpanName", "Path"]
+metrics = ["CpuPercent", "WorkingSetMb", "PrivateMb", "Handles", "Threads", "ElapsedMs", "Elapsed", "TimeMs", "time-taken"]
+
 # [[extract]]
 # name = "process-stats"
 # from = "@message"                  # any field or pseudo-field

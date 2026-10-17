@@ -149,7 +149,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
         </span>
       }
       @if (removable()) {
-        <button class="icon-btn" [attr.aria-label]="'Remove chart ' + def().title" (click)="remove.emit()"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" [attr.aria-label]="'Remove chart ' + def().title" (click)="remove.emit()" [attr.title]="'Remove chart ' + def().title"><imt-icon name="close" [size]="14" /></button>
       }
     </div>
     @if (error(); as e) {

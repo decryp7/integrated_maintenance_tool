@@ -13,14 +13,18 @@ import {
 } from '@angular/core';
 import { Level, Query, RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
-import { formatCount, formatDateTime, valueToString } from '../core/format';
+import { formatCount, formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
+import { SettingsStore } from '../settings/settings.store';
+import { RecordActions } from '../context/record-actions';
+import { FieldFormatters } from '../extensions/field-formatters';
 import { MarkerIcon } from '../shared/marker-icon';
 
-const ROW = 26;
+/** Row heights for the two grid densities (px). */
+const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
 const HEADER_H = 28;
 const PAGE = 500;
 /** Browsers cap element heights (~33M px in Chromium); beyond this the scrollbar is scaled. */
@@ -39,6 +43,7 @@ interface VisibleRow {
 @Component({
   selector: 'imt-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[style.--row-h.px]': 'rowH()' },
   imports: [Icon, MarkerIcon, ClickOutside],
   template: `
     <div class="bar">
@@ -89,7 +94,7 @@ interface VisibleRow {
         <span class="hcell" role="columnheader">Level</span>
         <span class="hcell" role="columnheader">Instance</span>
         @for (c of store.extraColumns(); track c) {
-          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="'Remove column ' + c" (click)="store.removeColumn(c)">×</button></span>
+          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="'Remove column ' + c" (click)="store.removeColumn(c)" [attr.title]="'Remove column ' + c">×</button></span>
         }
         <span class="hcell" role="columnheader">Message</span>
       </div>
@@ -105,6 +110,7 @@ interface VisibleRow {
               [style.top.px]="v.y"
               [style.grid-template-columns]="columns()"
               (click)="select(v.index, r)"
+              (contextmenu)="openRowMenu($event, v.index, r)"
             >
               <span class="mk" role="gridcell">
                 @if (r.markers.length) { <imt-marker-icon [kind]="r.markers[0]" [color]="markerColor(r.markers[0])" [label]="markerLabel(r.markers[0])" /> }
@@ -129,7 +135,7 @@ interface VisibleRow {
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; background: var(--bg-1); min-height: 0; }
+    :host { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); min-height: 0; }
     .bar { height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
     .total { color: var(--text-2); }
     .warn { color: var(--warn-text); }
@@ -146,7 +152,7 @@ interface VisibleRow {
     .viewport { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; outline: none; }
     .viewport:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
     .layer { position: sticky; top: ${HEADER_H}px; overflow: hidden; }
-    .row { position: absolute; left: 0; right: 0; height: ${ROW}px; display: grid; align-items: center; column-gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--grid-line); cursor: default; }
+    .row { position: absolute; left: 0; right: 0; height: var(--row-h, 26px); display: grid; align-items: center; column-gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--grid-line); cursor: default; }
     .row:hover { background: var(--bg-hover); }
     .row.sel { background: var(--bg-sel); box-shadow: inset 2px 0 0 var(--accent); }
     .mk { display: flex; justify-content: center; }
@@ -163,6 +169,10 @@ interface VisibleRow {
 export class EventsGrid {
   protected readonly store = inject(WorkspaceStore);
   private readonly backend = inject(ImtBackend);
+  private readonly formatters = inject(FieldFormatters);
+  private readonly actions = inject(RecordActions);
+  private readonly settings = inject(SettingsStore);
+  protected readonly rowH = computed(() => ROW_HEIGHT[this.settings.density()]);
   private readonly viewport = viewChild<ElementRef<HTMLElement>>('viewport');
 
   protected readonly fmt = formatCount;
@@ -192,7 +202,7 @@ export class EventsGrid {
     return ['@source', '@line', '@template', ...this.store.fieldNames()].filter((f) => f.toLowerCase().includes(needle));
   });
 
-  private readonly virtualH = computed(() => this.total() * ROW);
+  private readonly virtualH = computed(() => this.total() * this.rowH());
   protected readonly physicalH = computed(() => Math.min(this.virtualH(), MAX_PX));
   protected readonly spacerH = computed(() => Math.max(0, this.physicalH() - this.viewportH()));
   private readonly ratio = computed(() => {
@@ -205,10 +215,10 @@ export class EventsGrid {
     this.cacheTick();
     const total = this.total();
     const vTop = this.scrollTop() * this.ratio();
-    const first = Math.max(0, Math.floor(vTop / ROW) - OVERSCAN);
-    const last = Math.min(total, Math.ceil((vTop + this.viewportH()) / ROW) + OVERSCAN);
+    const first = Math.max(0, Math.floor(vTop / this.rowH()) - OVERSCAN);
+    const last = Math.min(total, Math.ceil((vTop + this.viewportH()) / this.rowH()) + OVERSCAN);
     const rows: VisibleRow[] = [];
-    for (let i = first; i < last; i++) rows.push({ index: i, y: i * ROW - vTop, row: this.rowAt(i) });
+    for (let i = first; i < last; i++) rows.push({ index: i, y: i * this.rowH() - vTop, row: this.rowAt(i) });
     return rows;
   });
 
@@ -312,6 +322,7 @@ export class EventsGrid {
     if (!el) return;
     const vh = this.viewportH();
     const vTop = this.scrollTop() * this.ratio();
+    const ROW = this.rowH();
     const y = index * ROW;
     let target: number | null = null;
     if (center) target = y - vh / 2 + ROW / 2;
@@ -332,10 +343,25 @@ export class EventsGrid {
     this.store.select(row);
   }
 
+  protected openRowMenu(e: MouseEvent, index: number, row: RecordView): void {
+    e.preventDefault();
+    this.select(index, row);
+    this.actions.openFor(e, row);
+  }
+
   protected onKey(e: KeyboardEvent): void {
     const total = this.total();
     if (!total) return;
-    const pageRows = Math.max(1, Math.floor(this.viewportH() / ROW) - 1);
+    if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+      const selected = this.store.selected();
+      if (selected) {
+        e.preventDefault();
+        const rowEl = this.viewport()?.nativeElement.querySelector<HTMLElement>('.row.sel') ?? (e.currentTarget as HTMLElement);
+        this.actions.openAtElement(rowEl, selected, {}, e.currentTarget as HTMLElement);
+      }
+      return;
+    }
+    const pageRows = Math.max(1, Math.floor(this.viewportH() / this.rowH()) - 1);
     const steps: Record<string, number> = { ArrowDown: 1, ArrowUp: -1, PageDown: pageRows, PageUp: -pageRows };
     let next: number;
     if (e.key in steps) next = this.selectedIndex + steps[e.key];
@@ -367,7 +393,7 @@ export class EventsGrid {
   }
 
   protected time(ts: number | null): string {
-    return formatDateTime(ts, this.store.timezone(), true);
+    return formatDateTime(ts, this.store.timezone(), true, this.settings.dateFormat());
   }
   protected levelVar(l: Level): string {
     return LEVEL_VARS[l];
@@ -390,7 +416,7 @@ export class EventsGrid {
       case '@template':
         return r.template ?? '';
       default:
-        return valueToString(r.fields[c]);
+        return r.fields[c] === undefined ? '' : this.formatters.format(c, r.fields[c], r);
     }
   }
 }

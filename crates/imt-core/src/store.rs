@@ -2,11 +2,19 @@
 //! [`Workspace`] is the in-memory implementation; another backend (for example
 //! DuckDB) can be swapped in by implementing [`LogStore`].
 
+use crate::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
 use crate::api::{
     ChartData, ChartRequest, ContextRequest, ExportRequest, ExportResult, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Page,
     PageRequest, SourceContext, Timeline, TimelineRequest, WorkspaceState, WorkspaceSummary,
 };
+use crate::api::{
+    CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MomentRequest, MomentSummary, QueryRequest, RequestsRequest,
+    TraceRequest, TraceSummary,
+};
+use crate::exceptions::ExceptionGroup;
+use crate::patterns::Pattern;
 use crate::profile::Profile;
+use crate::ql::{Completion, QlError, QlResult};
 use crate::workspace::Workspace;
 use anyhow::Result;
 use std::path::PathBuf;
@@ -66,6 +74,45 @@ pub trait LogStore: Send + Sync {
 
     /// Rebuilds the workspace from a saved state; returns paths that no longer exist.
     fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>>;
+
+    /// Runs a query-language program (`stats`, `sort`, ...) over the matching records.
+    fn run_query(&self, req: &QueryRequest) -> std::result::Result<QlResult, QlError>;
+
+    /// Parse error of a query-language text, if any.
+    fn check_query(&self, text: &str) -> Option<QlError>;
+
+    /// Completions at a cursor position in a query-language text.
+    fn complete_query(&self, req: &CompletionRequest) -> Vec<Completion>;
+
+    /// Message templates of the matching records, most frequent first.
+    fn patterns(&self, req: &QueryRequest) -> Result<Vec<Pattern>>;
+
+    /// Exceptions of the matching records grouped by fingerprint.
+    fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>>;
+
+    /// Error spikes, crashes, silences, outliers, rate changes and memory growth.
+    fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>>;
+
+    /// What changed between two sets of records (e.g. before/after a deploy).
+    fn compare(&self, req: &CompareRequest) -> Result<Comparison>;
+
+    /// Distribution of one field over the matching records.
+    fn field_stats(&self, req: &FieldStatsRequest) -> Result<FieldStats>;
+
+    /// Ids of every event with `field = value`, across all sources.
+    fn correlate(&self, req: &CorrelateRequest) -> Vec<u32>;
+
+    /// Traces (no trace id) or one trace's waterfall.
+    fn traces(&self, req: &TraceRequest) -> Result<(Vec<TraceSummary>, Vec<WaterfallRow>)>;
+
+    /// Requests grouped by an id field, longest first.
+    fn requests(&self, req: &RequestsRequest) -> Result<Vec<RequestSpan>>;
+
+    /// What was happening in a time window, across every source.
+    fn moment(&self, req: &MomentRequest) -> Result<MomentSummary>;
+
+    /// Parses sample text with a candidate profile, without changing the workspace.
+    fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview;
 }
 
 impl LogStore for Workspace {
@@ -139,5 +186,57 @@ impl LogStore for Workspace {
 
     fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
         Workspace::restore(self, profile, state)
+    }
+
+    fn run_query(&self, req: &QueryRequest) -> std::result::Result<QlResult, QlError> {
+        Workspace::run_query(self, req)
+    }
+
+    fn check_query(&self, text: &str) -> Option<QlError> {
+        Workspace::check_query(self, text)
+    }
+
+    fn complete_query(&self, req: &CompletionRequest) -> Vec<Completion> {
+        Workspace::complete_query(self, req)
+    }
+
+    fn patterns(&self, req: &QueryRequest) -> Result<Vec<Pattern>> {
+        Workspace::patterns(self, req)
+    }
+
+    fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
+        Workspace::exception_groups(self, req)
+    }
+
+    fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {
+        Workspace::anomalies(self, req)
+    }
+
+    fn compare(&self, req: &CompareRequest) -> Result<Comparison> {
+        Workspace::compare(self, req)
+    }
+
+    fn field_stats(&self, req: &FieldStatsRequest) -> Result<FieldStats> {
+        Workspace::field_stats(self, req)
+    }
+
+    fn correlate(&self, req: &CorrelateRequest) -> Vec<u32> {
+        Workspace::correlate(self, req)
+    }
+
+    fn traces(&self, req: &TraceRequest) -> Result<(Vec<TraceSummary>, Vec<WaterfallRow>)> {
+        Workspace::traces(self, req)
+    }
+
+    fn requests(&self, req: &RequestsRequest) -> Result<Vec<RequestSpan>> {
+        Workspace::requests(self, req)
+    }
+
+    fn moment(&self, req: &MomentRequest) -> Result<MomentSummary> {
+        Workspace::moment(self, req)
+    }
+
+    fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
+        Workspace::preview_parse(self, req)
     }
 }

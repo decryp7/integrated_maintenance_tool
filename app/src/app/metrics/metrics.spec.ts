@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { EChartsCoreOption } from 'echarts/core';
-import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
+import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
 import { ChartData, ChartDef } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { buildOption, ChartCard } from './chart-card';
@@ -199,8 +199,10 @@ describe('ChartCard', () => {
 });
 
 describe('MetricsView', () => {
+  let dock: FakeDock;
   async function render() {
-    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    dock = new FakeDock();
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock)] });
     const fixture = TestBed.createComponent(MetricsView);
     await settle(fixture);
     return { fixture, store: TestBed.inject(WorkspaceStore) };
@@ -216,7 +218,7 @@ describe('MetricsView', () => {
     buttonByText(fixture, /Reset zoom/).click();
     expect(store.hasRange()).toBe(false);
     buttonByText(fixture, 'Edit charts in profile').click();
-    expect(store.activeTab()).toBe('profile');
+    expect(dock.calls).toContain('show:profile');
   });
 
   it('builds ad-hoc charts', async () => {

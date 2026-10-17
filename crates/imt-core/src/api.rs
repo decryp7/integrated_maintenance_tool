@@ -106,6 +106,189 @@ pub struct SourceContext {
     pub lines: Vec<SourceLine>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryRequest {
+    #[serde(default)]
+    pub query: Query,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionRequest {
+    pub text: String,
+    pub cursor: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompareRequest {
+    pub a: Query,
+    pub b: Query,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldStatsRequest {
+    #[serde(default)]
+    pub query: Query,
+    pub field: String,
+    #[serde(default = "default_histogram")]
+    pub buckets: usize,
+}
+
+fn default_histogram() -> usize {
+    20
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CorrelateRequest {
+    pub field: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceRequest {
+    #[serde(default)]
+    pub query: Query,
+    /// Empty: list traces. Set: the waterfall of that trace.
+    #[serde(default)]
+    pub trace_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceSummary {
+    pub trace_id: String,
+    pub spans: usize,
+    pub errors: u32,
+    pub start: i64,
+    pub duration_ms: f64,
+    pub root: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestsRequest {
+    #[serde(default)]
+    pub query: Query,
+    /// Field(s) identifying a request, `A|B` for alternatives.
+    #[serde(default = "default_request_field")]
+    pub id_field: String,
+}
+
+fn default_request_field() -> String {
+    "RequestId|CorrelationId|TraceId".into()
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MomentRequest {
+    /// Structural filters (instances, fields) applied to every section; its
+    /// time range is replaced by `from`/`to`.
+    #[serde(default)]
+    pub query: Query,
+    pub from: i64,
+    pub to: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MomentSummary {
+    pub from: i64,
+    pub to: i64,
+    pub total: usize,
+    pub levels: BTreeMap<Level, usize>,
+    pub instances: Vec<MomentInstance>,
+    pub metrics: Vec<MetricWindow>,
+    pub users: Vec<crate::analysis::ValueCount>,
+    pub activity: Vec<ActivityItem>,
+    pub anomalies: Vec<crate::analysis::Anomaly>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MomentInstance {
+    pub key: String,
+    pub events: usize,
+    pub warnings: usize,
+    pub errors: usize,
+    pub patterns: Vec<crate::patterns::Pattern>,
+    /// First error or fatal event in the window.
+    pub first_error: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricWindow {
+    /// Instance key, or machine · process for PerfMon counters.
+    pub series: String,
+    /// Field name, or the PerfMon counter.
+    pub metric: String,
+    pub samples: usize,
+    pub min: f64,
+    pub avg: f64,
+    pub max: f64,
+    pub last: f64,
+    /// Average over the window of the same length just before.
+    pub previous_avg: Option<f64>,
+    pub change_pct: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityItem {
+    pub id: u32,
+    pub ts: i64,
+    pub instance: String,
+    pub user: Option<String>,
+    pub action: String,
+    pub level: Level,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParsePreviewRequest {
+    /// Candidate profile (may be unsaved).
+    pub toml: String,
+    /// Sample content, e.g. the first lines of a file.
+    pub sample: String,
+    /// File name, for importers that look at it.
+    #[serde(default)]
+    pub file_name: String,
+    #[serde(default = "default_preview_records")]
+    pub limit: usize,
+}
+
+fn default_preview_records() -> usize {
+    50
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParsedPreview {
+    pub line: u32,
+    pub ts: Option<i64>,
+    pub level: Level,
+    pub message: String,
+    pub exception: Option<String>,
+    pub fields: Map<String, Value>,
+    pub markers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParsePreview {
+    pub importer: Option<String>,
+    pub records: Vec<ParsedPreview>,
+    pub total: usize,
+    pub skipped: usize,
+    pub dropped: usize,
+    pub error: Option<String>,
+}
+
 /// Opened paths and removed files, enough to rebuild the workspace.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkspaceState {

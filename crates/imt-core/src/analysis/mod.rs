@@ -9,11 +9,13 @@ pub mod anomaly;
 pub mod compare;
 pub mod field_stats;
 pub mod trace;
+pub mod trend;
 
 pub use anomaly::{detect, Anomaly, AnomalyConfig, AnomalyKind};
 pub use compare::{compare_windows, CompareConfig, Comparison};
 pub use field_stats::{field_stats, FieldStats, HistogramBin, NumericStats, ValueCount};
 pub use trace::{correlate, request_durations, spans, waterfall, RequestSpan, Span, WaterfallRow};
+pub use trend::{memory_growth, TrendConfig};
 
 /// Small numeric and formatting helpers shared by the analysis modules.
 pub(crate) mod util {

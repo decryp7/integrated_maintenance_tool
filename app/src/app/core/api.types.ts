@@ -18,6 +18,7 @@
  *   preview_extractor      { request: ExtractPreviewRequest } -> ExtractPreview
  *   import_profile         { path: string }                -> ProfileDoc   (read + validated; applied only by save_profile)
  *   export_profile         { path: string, toml: string }  -> void
+ *   export_events          { request: ExportRequest }      -> ExportResult  (built-in formats "csv" and "clef")
  *
  * Timestamps are epoch milliseconds (UTC). Records whose timestamp could not be
  * determined have ts = null and never appear on the timeline or in charts.
@@ -34,9 +35,11 @@ export interface SourceInfo {
   id: number;
   path: string;
   name: string;
-  /** Importer id: "json", "text" or "csv" (plugins add more). */
+  /** Importer id: "json", "text", "csv" or "registry" (plugins add more). */
   importer: string;
   records: number;
+  /** Events removed from this source by the profile pipeline. */
+  dropped: number;
   /** Lines/rows that could not be parsed. */
   skipped: number;
   error: string | null;
@@ -97,6 +100,65 @@ export interface WorkspaceSummary {
   charts: ChartDef[];
   profileName: string;
   loadMs: number;
+  /** Events removed by the profile pipeline, over all sources. */
+  dropped: number;
+  /** Backend plugins (importers, transforms, exporters, hooks) that are loaded. */
+  plugins: PluginInfo[];
+  /** Formats `export_events` can write. */
+  exporters: ExporterInfo[];
+  /** Events in/out of each `[[pipeline]]` step during the last import, summed over sources. */
+  pipeline: PipelineStat[];
+}
+
+export interface PipelineStat {
+  /** Position of the step in the profile's `[[pipeline]]` array. */
+  index: number;
+  step: string;
+  input: number;
+  output: number;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  /** What the plugin adds, e.g. "importer", "transform", "exporter", "hook". */
+  contributes: string[];
+}
+
+export interface ExporterInfo {
+  id: string;
+  name: string;
+  /** File extension without the dot, used to pick the format from a file name. */
+  extension: string;
+}
+
+export interface ExportRequest {
+  query: Query;
+  /** Exporter id, e.g. "csv" or "clef". */
+  format: string;
+  path: string;
+  descending?: boolean;
+}
+
+export interface ExportResult {
+  format: string;
+  path: string;
+  events: number;
+}
+
+/**
+ * Fields of records produced by the "registry" importer (Windows .reg exports).
+ * `Data` is a number for REG_DWORD/REG_QWORD, an unescaped string for string types and a hex string for binary.
+ */
+export interface RegistryFields {
+  Hive: string;
+  /** Full key path without the hive, e.g. `SOFTWARE\Contoso\OrderService`. */
+  Key: string;
+  /** "(Default)" for the unnamed value; absent on key lines. */
+  ValueName?: string;
+  ValueType?: 'REG_SZ' | 'REG_DWORD' | 'REG_QWORD' | 'REG_BINARY' | 'REG_MULTI_SZ' | 'REG_EXPAND_SZ' | 'DELETE';
+  Data?: string | number;
 }
 
 export type FilterOp = 'eq' | 'ne' | 'contains' | 'notContains' | 'matches' | 'exists' | 'missing' | 'gt' | 'lt';

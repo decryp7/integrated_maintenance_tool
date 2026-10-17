@@ -1,6 +1,7 @@
 //! Finds the moments in a set of logs that deserve a look: error bursts,
 //! instances that fell silent or crashed, slow outliers and rate shifts.
 
+use super::trend::{memory_growth, TrendConfig};
 use super::util::{fmt_clock, fmt_duration, fmt_num, mad, median, median_sorted, percentile_sorted, sorted, truncate};
 use crate::chart::nice_bucket;
 use crate::model::{Level, Record};
@@ -25,6 +26,7 @@ pub enum AnomalyKind {
     Crash,
     SlowOutlier,
     RateChange,
+    MemoryGrowth,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +46,8 @@ pub struct AnomalyConfig {
     pub latency_fields: Vec<String>,
     /// Target number of time buckets over the whole range.
     pub buckets: usize,
+    /// Thresholds for [`AnomalyKind::MemoryGrowth`].
+    pub growth: TrendConfig,
 }
 
 impl Default for AnomalyConfig {
@@ -56,6 +60,7 @@ impl Default for AnomalyConfig {
             restart_window: 120_000,
             latency_fields: ["ElapsedMs", "Elapsed", "Duration", "DurationMs"].map(String::from).to_vec(),
             buckets: 200,
+            growth: TrendConfig::default(),
         }
     }
 }
@@ -135,6 +140,10 @@ pub fn detect<'a>(records: impl IntoIterator<Item = (&'a Record, &'a str)>, cfg:
     out.extend(crashes(&ctx, cfg));
     out.extend(slow_outliers(&ctx, cfg));
     out.extend(rate_changes(&ctx));
+    out.extend(memory_growth(
+        ctx.instances.iter().map(|(k, v)| (k.as_str(), v.as_slice())),
+        &cfg.growth,
+    ));
     out.sort_by(|a, b| a.from.cmp(&b.from).then(b.score.total_cmp(&a.score)));
     out
 }

@@ -22,8 +22,11 @@ describe('format', () => {
     expect(formatDateTime(TS, 'utc')).toBe('14 Oct 10:41:22');
     expect(formatDateTime(TS, 'utc', true)).toBe('14 Oct 10:41:22.318');
     expect(formatDateTime(null, 'utc')).toBe('—');
+    expect(formatDateTime(TS, 'utc', false, 'iso')).toBe('2026-10-14 10:41:22');
+    expect(formatDateTime(TS, 'utc', true, 'iso')).toBe('2026-10-14 10:41:22.318');
     expect(formatFull(TS, 'utc')).toBe('14 Oct 2026 10:41:22.318 UTC');
     expect(formatFull(null, 'utc')).toBe('No timestamp');
+    expect(formatFull(TS, 'utc', 'iso')).toBe('2026-10-14 10:41:22.318 UTC');
   });
 
   it('formats times in the local zone', () => {

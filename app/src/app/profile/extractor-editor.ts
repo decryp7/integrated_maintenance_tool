@@ -64,7 +64,7 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
           <input class="input mono" [value]="o.spec.unit ?? ''" placeholder="%, ms, MB" [attr.aria-label]="o.name + ' unit'" (input)="patchOutput(o.name, { unit: $any($event.target).value || undefined })" />
           <input class="input mono" [value]="o.spec.unit_from ?? ''" placeholder="group" [attr.aria-label]="o.name + ' unit from'" (input)="patchOutput(o.name, { unit_from: $any($event.target).value || undefined })" />
           <input class="input mono" [value]="o.spec.to ?? ''" placeholder="MB, ms, s" [attr.aria-label]="o.name + ' convert to'" (input)="patchOutput(o.name, { to: $any($event.target).value || undefined })" />
-          <button class="icon-btn" [attr.aria-label]="'Remove output ' + o.name" (click)="removeOutput(o.name)"><imt-icon name="close" [size]="12" /></button>
+          <button class="icon-btn" [attr.aria-label]="'Remove output ' + o.name" (click)="removeOutput(o.name)" [attr.title]="'Remove output ' + o.name"><imt-icon name="close" [size]="12" /></button>
         } @empty {
           <span class="faint span-all">No outputs yet. Add named groups to the pattern, then "Detect from pattern".</span>
         }

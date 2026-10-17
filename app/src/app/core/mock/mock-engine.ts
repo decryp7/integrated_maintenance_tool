@@ -15,6 +15,7 @@ import {
   MarkerKind,
   Page,
   PageRequest,
+  PipelineStat,
   Query,
   RecordView,
   Timeline,
@@ -23,12 +24,17 @@ import {
 import { parseBucket, valueToString } from '../format';
 import { Condition, ExtractField, ExtractRule, ProfileModel, toJsRegex } from '../profile.model';
 import { MockRecord, MockSource } from './mock-data';
+import { applyPipeline } from './mock-pipeline';
 
 /** In-memory query engine mirroring the Rust core's semantics, for browser development. */
 export class MockEngine {
   records: MockRecord[] = [];
   sources: MockSource[] = [];
   derived = new Set<string>();
+  /** Events removed by the profile pipeline, per source id. */
+  droppedBySource = new Map<number, number>();
+  /** Events in/out per executed pipeline step. */
+  pipelineStats: PipelineStat[] = [];
   markerKinds: MarkerKind[] = [];
   charts: ChartDef[] = [];
   defaultGroupBy: string[] = [];
@@ -42,7 +48,10 @@ export class MockEngine {
     this.cache = null;
     this.derived.clear();
 
-    const records = raw.map((r) => ({ ...r, fields: { ...r.fields }, markers: [] as string[] }));
+    const piped = applyPipeline(raw, profile.pipeline ?? [], (id) => this.sourceById.get(id)?.name ?? '');
+    this.droppedBySource = piped.dropped;
+    this.pipelineStats = piped.stats;
+    const records = piped.records.map((r) => ({ ...r, markers: [] as string[] }));
     records.sort((a, b) => (a.ts ?? Number.MAX_SAFE_INTEGER) - (b.ts ?? Number.MAX_SAFE_INTEGER) || a.source - b.source || a.line - b.line);
     records.forEach((r, i) => (r.id = i));
 
