@@ -90,3 +90,29 @@ pub async fn query_moment(state: State<'_, AppState>, request: MomentRequest) ->
 pub async fn preview_parse(state: State<'_, AppState>, request: ParsePreviewRequest) -> CmdResult<Value> {
     read(&state, move |ws| to_value(ws.preview_parse(&request))).await
 }
+
+/// Infers a regex with named, typed groups from example lines (with explanation).
+#[tauri::command]
+pub fn infer_regex(lines: Vec<String>) -> CmdResult<Value> {
+    serde_json::to_value(imt_core::regex_assist::infer(&lines).map_err(crate::err)?).map_err(crate::err)
+}
+
+/// Explains a regex in plain English as an indented outline.
+#[tauri::command]
+pub fn explain_regex(pattern: String) -> CmdResult<Value> {
+    serde_json::to_value(imt_core::regex_assist::explain(&pattern).map_err(crate::err)?).map_err(crate::err)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regex_assist_commands() {
+        let r = infer_regex(vec!["order 1 ok".into(), "order 22 ok".into()]).unwrap();
+        assert_eq!(r["pattern"], r"order (?P<order>\d+) ok");
+        assert!(infer_regex(vec![]).is_err());
+        assert!(explain_regex(r"\d+".into()).unwrap().as_array().unwrap().len() >= 2);
+        assert!(explain_regex("(".into()).is_err());
+    }
+}

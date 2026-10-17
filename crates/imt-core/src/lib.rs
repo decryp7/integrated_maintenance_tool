@@ -23,6 +23,7 @@ pub mod profile;
 pub mod project;
 pub mod ql;
 pub mod query;
+pub mod regex_assist;
 pub mod store;
 pub mod template;
 pub mod time;

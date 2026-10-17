@@ -548,6 +548,8 @@ pub fn run() {
             insights::query_requests,
             insights::query_moment,
             insights::preview_parse,
+            insights::infer_regex,
+            insights::explain_regex,
             system::elevation,
             system::restart_elevated,
             system::read_file_head,
