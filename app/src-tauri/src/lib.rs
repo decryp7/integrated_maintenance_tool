@@ -380,6 +380,8 @@ fn queue_open<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Vec<String>) 
 fn plugins() -> anyhow::Result<PluginRegistry> {
     let mut registry = PluginRegistry::new();
     registry.install(&imt_plugin_registry::RegistryPlugin)?;
+    registry.install(&imt_plugin_otel::OtelPlugin)?;
+    registry.install(&imt_plugin_syslog::SyslogPlugin)?;
     Ok(registry)
 }
 
@@ -724,7 +726,7 @@ mod tests {
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
         assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
-        assert!(plugins().unwrap().plugins().len() == 1);
+        assert_eq!(plugins().unwrap().plugins().len(), 3);
     }
 
     #[test]

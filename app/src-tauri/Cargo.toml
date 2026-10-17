@@ -17,6 +17,8 @@ tauri-build = { version = "2.7.3", features = [] }
 [dependencies]
 imt-core = { path = "../../crates/imt-core" }
 imt-plugin-registry = { path = "../../crates/imt-plugin-registry" }
+imt-plugin-otel = { path = "../../crates/imt-plugin-otel" }
+imt-plugin-syslog = { path = "../../crates/imt-plugin-syslog" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"

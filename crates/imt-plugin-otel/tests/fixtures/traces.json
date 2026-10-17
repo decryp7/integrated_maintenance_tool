@@ -1,0 +1,27 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "orders"}}]},
+      "scopeSpans": [
+        {
+          "scope": {"name": "Orders.Api"},
+          "spans": [
+            {"traceId": "0af7651916cd43dd8448eb211c80319c", "spanId": "00f067aa0ba902b7", "name": "GET /orders/{id}", "kind": 2,
+             "startTimeUnixNano": "1792000000000000000", "endTimeUnixNano": "1792000000250000000",
+             "attributes": [{"key": "http.method", "value": {"stringValue": "GET"}}], "status": {"code": 1}},
+            {"traceId": "0af7651916cd43dd8448eb211c80319c", "spanId": "b9c7c989f97918e1", "parentSpanId": "00f067aa0ba902b7", "name": "SELECT orders", "kind": 3,
+             "startTimeUnixNano": "1792000000050000000", "endTimeUnixNano": "1792000000062345678",
+             "status": {"code": 2, "message": "deadlock"},
+             "events": [
+               {"timeUnixNano": "1792000000100000000", "name": "exception", "attributes": [
+                 {"key": "exception.type", "value": {"stringValue": "Npgsql.PostgresException"}},
+                 {"key": "exception.message", "value": {"stringValue": "deadlock detected"}},
+                 {"key": "exception.stacktrace", "value": {"stringValue": "at Db.Exec()"}}]},
+               {"timeUnixNano": "1792000000110000000", "name": "retry", "attributes": [{"key": "attempt", "value": {"intValue": "2"}}]}
+             ]}
+          ]
+        }
+      ]
+    }
+  ]
+}
