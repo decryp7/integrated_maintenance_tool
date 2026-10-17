@@ -1,0 +1,7 @@
+<35>1 2026-10-14T10:00:00.123Z web01.example.com sshd 4242 ID47 [exampleSDID@32473 iut="3" eventSource="Application" note="a \"quoted\" \\ \] \x"][origin@32473 ip="10.0.0.7"] Failed password for root from 10.0.0.7
+<165>1 2026-10-14T12:00:01+02:00 - - - - - ﻿BOM message
+<8>1 - h a p m -
+<167>1 2026-10-14T10:00:03Z h debugger 1 - - tracing
+<14>1 2026-10-14T10:00:04Z h app 7 - - multi line
+    continued
+<6>1 2026-10-14T10:00:05Z h kernel - - - Linux up

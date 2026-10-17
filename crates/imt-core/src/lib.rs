@@ -5,17 +5,21 @@
 //! [`profile::Profile`]; the [`workspace::Workspace`] merges them, runs the
 //! profile's extractors and marker rules and serves queries.
 
+pub mod analysis;
 pub mod api;
 pub mod archive;
 pub mod chart;
 pub mod condition;
+pub mod exceptions;
 pub mod export;
 pub mod importers;
 pub mod model;
+pub mod patterns;
 pub mod pipeline;
 pub mod plugin;
 pub mod profile;
 pub mod project;
+pub mod ql;
 pub mod query;
 pub mod store;
 pub mod template;

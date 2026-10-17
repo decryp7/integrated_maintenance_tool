@@ -1777,6 +1777,8 @@ dependencies = [
  "imt-plugin-otel",
  "imt-plugin-registry",
  "imt-plugin-syslog",
+ "imt-plugin-web",
+ "imt-plugin-windows",
  "log",
  "notify-debouncer-mini",
  "serde",

@@ -1,0 +1,12 @@
+[package]
+name = "imt-plugin-web"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+chrono = "0.4"
+regex = "1"

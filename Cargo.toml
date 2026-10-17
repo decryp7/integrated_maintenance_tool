@@ -15,5 +15,5 @@ thiserror = "2.0"
 anyhow = "1.0"
 
 [workspace]
-members = [".", "crates/imt-core", "crates/imt-plugin-registry", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "app/src-tauri"]
+members = [".", "crates/imt-core", "crates/imt-plugin-registry", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-windows", "crates/imt-plugin-web", "app/src-tauri"]
 resolver = "2"

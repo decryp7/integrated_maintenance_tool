@@ -382,6 +382,8 @@ fn plugins() -> anyhow::Result<PluginRegistry> {
     registry.install(&imt_plugin_registry::RegistryPlugin)?;
     registry.install(&imt_plugin_otel::OtelPlugin)?;
     registry.install(&imt_plugin_syslog::SyslogPlugin)?;
+    registry.install(&imt_plugin_windows::WindowsPlugin)?;
+    registry.install(&imt_plugin_web::WebPlugin)?;
     Ok(registry)
 }
 
@@ -726,7 +728,7 @@ mod tests {
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
         assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
-        assert_eq!(plugins().unwrap().plugins().len(), 3);
+        assert_eq!(plugins().unwrap().plugins().len(), 5);
     }
 
     #[test]

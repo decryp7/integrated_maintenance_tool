@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<MsInfo><Metadata><Version>8.0</Version></Metadata>
+<Category name="System Summary"><Data><Item><![CDATA[OS Name]]></Item><Value><![CDATA[Microsoft Windows Server 2022 Datacenter]]></Value></Data>
+<Data><Item><![CDATA[Total Physical Memory]]></Item><Value>16.0 GB &#233;&#x263a;</Value></Data>
+<Category name="Components"><Category name="Display">
+<Data><Name>NVIDIA RTX &amp; Co &lt;A&gt;</Name><Adapter_x0020_RAM>8192</Adapter_x0020_RAM><Item>Adapter</Item><Value>ok</Value></Data>
+</Category></Category></Category></MsInfo>

@@ -151,3 +151,4 @@ app/dist/
 app/.angular/
 app/src-tauri/gen/schemas/
 !samples/**
+!crates/**/tests/fixtures/**

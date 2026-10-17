@@ -1,0 +1,6 @@
+127.0.0.1 - frank [10/Oct/2026:13:55:36 -0700] "GET /apache_pb.gif?x=1 HTTP/1.0" 200 2326 "http://example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)" 0.032
+10.1.2.3 - - [10/Oct/2026:13:55:40 +0000] "POST /login HTTP/1.1" 302 - "-" "curl/8.4.0" 12345
+10.1.2.4 - bob [10/Oct/2026:13:56:01 +0000] "GET /missing HTTP/1.1" 404 153
+10.1.2.5 - - [10/Oct/2026:13:56:02 +0000] "GET /err HTTP/1.1" 503 0 "-" "bot"
+10.1.2.6 - - [10/Oct/2026:13:56:03 +0000] "-" 408 -
+not a log line

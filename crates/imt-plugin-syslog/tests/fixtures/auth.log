@@ -1,0 +1,7 @@
+<36>Oct 14 10:00:00 web01 sshd[2210]: Invalid user bob from 10.0.0.9
+Oct  4 08:15:30 web01 CRON[31337]: (root) CMD (run-parts /etc/cron.hourly)
+Oct 14 10:00:01 kernel: [    0.000000] Linux version 6.8
+Oct 14 10:00:02 web01 last message repeated 3 times
+Dec 31 23:59:59 web01 systemd[1]: Reached target Year End.
+Jan  1 00:00:01 web01 systemd[1]: Started New Year.
+2026-10-14T10:00:05.250+00:00 web01 rsyslogd: action 'action-0' resumed

@@ -1,0 +1,2 @@
+security.evtx: sample "new-user-security.evtx" from https://github.com/omerbenamram/evtx (samples/), MIT OR Apache-2.0. 68 KB, unmodified.
+All other fixtures were written for IMT.
