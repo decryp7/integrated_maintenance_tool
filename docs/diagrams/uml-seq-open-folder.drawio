@@ -1,0 +1,240 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-Sequence-open-folder" name="UML Sequence open folder">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2120" pageHeight="1900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML sequence: open a folder" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="UI to engine: open_paths, parallel import per file (archive, importer selection, ingest), rebuild and hooks. Names are the real types and commands." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ui_h" value="Angular UI&lt;br&gt;WorkspaceStore" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="45" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ui" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="128" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="tauri_h" value="Tauri shell&lt;br&gt;open_paths" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="tauri" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="343" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws_h" value="Workspace&lt;br&gt;(LogStore)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="475" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="558" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="hook_h" value="WorkspaceHook" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="690" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="hook" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="773" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="arch_h" value="archive" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="905" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="arch" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="988" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="imps_h" value="Importers" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="imps" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1203" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="imp_h" value="Importer /&lt;br&gt;BinaryImporter" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="imp" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1418" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="prof_h" value="CompiledProfile" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1550" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="prof" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1633" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipe_h" value="Pipeline" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1765" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipe" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1848" y="110" width="4" height="1486" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr20" value="&lt;b&gt;par&lt;/b&gt; [for each file, rayon par_iter]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="465" y="392" width="1515" height="878" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr21" value="&lt;b&gt;loop&lt;/b&gt; [each entry, skip removed]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="479" y="562" width="1487" height="692" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr22" value="&lt;b&gt;alt&lt;/b&gt; [binary importer found]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="493" y="676" width="1029" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="dv23" value="[else: text file]" style="rounded=0;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalLabelPosition=bottom;verticalAlign=top;align=left;spacingLeft=6;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="493" y="752" width="1029" height="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="invoke open_paths(paths)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0202;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.0202;entryDx=0;entryDy=0;" edge="1" parent="1" source="ui" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="validate args, spawn_blocking" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0485;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.0633;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="381" y="182"/>
+              <mxPoint x="381" y="204"/>
+            </Array>
+            <mxPoint x="107.32" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="open(paths)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0861;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.0861;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="canonicalize, collect_files()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1144;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.1292;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="280"/>
+              <mxPoint x="596" y="302"/>
+            </Array>
+            <mxPoint x="107.32" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="skip known sources, sort + dedup" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1521;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.1669;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="336"/>
+              <mxPoint x="596" y="358"/>
+            </Array>
+            <mxPoint x="116.56" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="import_file(path): read bytes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2100;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.2248;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="422"/>
+              <mxPoint x="596" y="444"/>
+            </Array>
+            <mxPoint x="107.32" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="expand(file_name, bytes)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2476;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.2476;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="arch">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="entries (gzip: 1, zip: n)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.2759;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.2759;entryDx=0;entryDy=0;" edge="1" parent="1" source="arch" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="select_binary(ctx, head)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3244;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.3244;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="imps">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="BinaryImporter or none" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.3526;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.3526;entryDx=0;entryDy=0;" edge="1" parent="1" source="imps" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="import(ctx, bytes)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4011;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.4011;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" value="decode(bytes): UTF-8 / UTF-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4522;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.4670;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="782"/>
+              <mxPoint x="596" y="804"/>
+            </Array>
+            <mxPoint x="107.32" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="select(ctx, head)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4899;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.4899;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="imps">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" value="import(ctx, content)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5182;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5182;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="Imported {records, skipped}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.5572;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5572;entryDx=0;entryDy=0;" edge="1" parent="1" source="imp" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="ingest(records, source_name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5855;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5855;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="apply_extractors(record)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6137;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.6285;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="prof">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1671" y="1022"/>
+              <mxPoint x="1671" y="1044"/>
+            </Array>
+            <mxPoint x="91.92" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" value="run_with_stats(records)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6514;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.6514;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="pipe">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="records, StepStats" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.6797;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.6797;entryDx=0;entryDy=0;" edge="1" parent="1" source="pipe" target="prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" value="compute_markers(record)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7079;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.7227;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="prof">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1671" y="1162"/>
+              <mxPoint x="1671" y="1184"/>
+            </Array>
+            <mxPoint x="88.84" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" value="(records, stats)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.7456;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.7456;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" value="add SourceInfo or UnrecognizedFile" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7954;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8102;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="1292"/>
+              <mxPoint x="596" y="1314"/>
+            </Array>
+            <mxPoint x="122.72" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e23" value="rebuild(): sort, ids, fields, caches" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8331;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8479;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="596" y="1348"/>
+              <mxPoint x="596" y="1370"/>
+            </Array>
+            <mxPoint x="128.88" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" value="on_loaded(summary)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8708;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.8708;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="hook">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e25" value="Ok" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.8991;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8991;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e26" value="WorkspaceSummary" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.9273;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.9273;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ui">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e27" value="patch store, refresh timeline, page, charts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.9556;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.9704;entryDx=0;entryDy=0;" edge="1" parent="1" source="ui" target="ui">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="166" y="1530"/>
+              <mxPoint x="166" y="1552"/>
+            </Array>
+            <mxPoint x="150.44" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

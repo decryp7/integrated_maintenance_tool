@@ -119,6 +119,22 @@ metrics = ["CpuPercent", "WorkingSetMb", "PrivateMb", "Handles", "Threads", "Ela
 # when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
 
 # Markers: first matching rule (in this order) is the event's primary marker.
+# Optional `icon` shows on the timeline instead of the built-in shape: alert, bug, flag,
+# star, pin, bookmark, info, check, x-circle, user, users, lock, key, shield, database,
+# network, cloud, server, credit-card, cart, mail, clock, timer, rocket, power, restart,
+# cpu, memory, disk, file, download, upload, link, zap, fire, heart — or a custom [[icon]]
+# (name + sanitised `svg`, or base64 `png`). Or a generated `badge` of 1–3 characters
+# ("1", "A", "DB") in a `shape` (circle, square, diamond, hexagon), which takes precedence.
+# `description` explains the marker in the legend and tooltips. `color` is #RGB/#RRGGBB.
+#
+# [[marker]]
+# kind = "gateway-timeout"
+# label = "Gateway timeout"
+# badge = "3"
+# shape = "hexagon"
+# color = "#3987e5"
+# description = "Payment gateway timed out; check the PSP status page"
+# when = [{ field = "@message", op = "matches", value = '(?i)gateway.*time(d)? ?out' }]
 # Condition ops: eq ne contains notContains matches exists missing gt lt in
 [[marker]]
 kind = "fatal"

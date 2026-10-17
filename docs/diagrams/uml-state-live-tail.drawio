@@ -1,0 +1,59 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-State-live-tail" name="UML State live tail">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="620" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML state machine: live tail" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="set_live(enabled) in app/src-tauri: a debounced file watcher re-imports changed files and emits imt://workspace-changed." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="init" value="" style="ellipse;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="190" width="24" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_off" value='&lt;b&gt;Off&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;no watcher&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="160" y="160" width="200" height="84" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_on" value='&lt;b&gt;On&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;debouncer (750 ms) watches opened roots&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="560" y="160" width="240" height="84" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_ref" value='&lt;b&gt;Refreshing&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;apply_changes: Workspace::refresh_files(paths)&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="160" width="260" height="84" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="init" target="s_off">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="set_live(true)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3571;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.3571;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_off" target="s_on">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="files changed or created" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3571;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.3571;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_on" target="s_ref">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="emit imt://workspace-changed&lt;br&gt;(UI reloads timeline, page, charts)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_ref" target="s_on">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1150" y="330"/>
+              <mxPoint x="680" y="330"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="set_live(false): watcher dropped" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.1667;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_on" target="s_off">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="110"/>
+              <mxPoint x="260" y="110"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n1" value="Refresh errors are logged (warn) and the workspace keeps its data; nothing is emitted when 0 sources changed. Opening more files while on requires set_live(true) again so the new roots are watched. UI toggle is in progress (backend command exists)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#555555;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="470" width="1300" height="90" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -29,6 +29,9 @@ pub struct Profile {
     pub chart: Vec<ChartCfg>,
     #[serde(default)]
     pub pipeline: Vec<crate::pipeline::StepCfg>,
+    /// Custom marker icons (SVG or PNG), referenced by name from `[[marker]] icon`.
+    #[serde(default)]
+    pub icon: Vec<crate::icons::IconCfg>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,9 +153,62 @@ pub struct MarkerCfg {
     pub lifecycle: bool,
     #[serde(default)]
     pub color: Option<String>,
+    /// Icon shown on the timeline: one of [`MARKER_ICONS`] or a custom `[[icon]]`.
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// Generated badge: 1–3 characters (e.g. "1", "A", "DB") drawn in `shape`;
+    /// takes precedence over `icon`.
+    #[serde(default)]
+    pub badge: Option<String>,
+    /// Badge outline: circle (default), square, diamond or hexagon.
+    #[serde(default)]
+    pub shape: Option<String>,
+    /// What the marker means; shown in the legend and tooltips.
+    #[serde(default)]
+    pub description: Option<String>,
     #[serde(default)]
     pub when: Vec<ConditionCfg>,
 }
+
+/// Icons a marker may use on the timeline (the UI ships one glyph per name).
+pub const MARKER_ICONS: &[&str] = &[
+    "alert",
+    "bug",
+    "flag",
+    "star",
+    "pin",
+    "bookmark",
+    "info",
+    "check",
+    "x-circle",
+    "user",
+    "users",
+    "lock",
+    "key",
+    "shield",
+    "database",
+    "network",
+    "cloud",
+    "server",
+    "credit-card",
+    "cart",
+    "mail",
+    "clock",
+    "timer",
+    "rocket",
+    "power",
+    "restart",
+    "cpu",
+    "memory",
+    "disk",
+    "file",
+    "download",
+    "upload",
+    "link",
+    "zap",
+    "fire",
+    "heart",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChartCfg {
@@ -247,6 +303,10 @@ pub struct Marker {
     pub label: String,
     pub lifecycle: bool,
     pub color: Option<String>,
+    pub icon: Option<String>,
+    pub badge: Option<String>,
+    pub shape: Option<String>,
+    pub description: Option<String>,
     pub when: Vec<Condition>,
 }
 
@@ -262,6 +322,7 @@ pub struct CompiledProfile {
     /// Bitmask of lifecycle marker rules.
     pub lifecycle_mask: u32,
     pub pipeline: crate::pipeline::Pipeline,
+    pub icons: Vec<crate::icons::CustomIcon>,
 }
 
 impl CompiledProfile {
@@ -338,6 +399,15 @@ impl CompiledProfile {
             });
         }
 
+        let mut icons: Vec<crate::icons::CustomIcon> = Vec::new();
+        for cfg in &profile.icon {
+            let icon = crate::icons::compile(cfg)?;
+            if icons.iter().any(|c| c.name == icon.name) {
+                return Err(anyhow!("icon \"{}\" is defined twice", icon.name));
+            }
+            icons.push(icon);
+        }
+
         if profile.marker.len() > 32 {
             return Err(anyhow!("at most 32 [[marker]] rules are supported"));
         }
@@ -348,11 +418,42 @@ impl CompiledProfile {
             if m.lifecycle {
                 lifecycle_mask |= 1 << i;
             }
+            if let Some(icon) = m
+                .icon
+                .as_deref()
+                .filter(|i| !MARKER_ICONS.contains(i) && !icons.iter().any(|c| c.name == *i))
+            {
+                return Err(anyhow!(
+                    "marker \"{}\": unknown icon \"{icon}\" (use one of: {}, or define it with [[icon]])",
+                    m.kind,
+                    MARKER_ICONS.join(", ")
+                ));
+            }
+            if let Some(badge) = m.badge.as_deref().filter(|b| !is_badge(b)) {
+                return Err(anyhow!(
+                    "marker \"{}\": badge \"{badge}\" must be 1–3 visible characters (e.g. \"1\", \"A\", \"DB\")",
+                    m.kind
+                ));
+            }
+            if let Some(shape) = m.shape.as_deref().filter(|s| !BADGE_SHAPES.contains(s)) {
+                return Err(anyhow!(
+                    "marker \"{}\": shape \"{shape}\" must be one of {}",
+                    m.kind,
+                    BADGE_SHAPES.join(", ")
+                ));
+            }
+            if let Some(color) = m.color.as_deref().filter(|c| !is_hex_color(c)) {
+                return Err(anyhow!("marker \"{}\": color \"{color}\" must be #RGB or #RRGGBB", m.kind));
+            }
             markers.push(Marker {
                 kind: m.kind.clone(),
                 label: m.label.clone().unwrap_or_else(|| m.kind.clone()),
                 lifecycle: m.lifecycle,
                 color: m.color.clone(),
+                icon: m.icon.clone(),
+                badge: m.badge.as_ref().map(|b| b.trim().to_string()),
+                shape: m.shape.clone(),
+                description: m.description.clone(),
                 when,
             });
         }
@@ -366,6 +467,7 @@ impl CompiledProfile {
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
 
         Ok(CompiledProfile {
+            icons,
             pipeline,
             profile,
             include,
@@ -533,6 +635,20 @@ fn timespan_ms(s: &str) -> Option<f64> {
     let m: f64 = parts[1].parse().ok()?;
     let sec: f64 = parts[2].parse().ok()?;
     Some(((days * 24.0 + h) * 60.0 + m) * 60_000.0 + sec * 1000.0)
+}
+
+/// Outlines a generated badge can use.
+pub const BADGE_SHAPES: &[&str] = &["circle", "square", "diamond", "hexagon"];
+
+fn is_badge(b: &str) -> bool {
+    let b = b.trim();
+    let n = b.chars().count();
+    (1..=3).contains(&n) && b.chars().all(|c| !c.is_control() && !c.is_whitespace())
+}
+
+fn is_hex_color(c: &str) -> bool {
+    c.strip_prefix('#')
+        .is_some_and(|h| matches!(h.len(), 3 | 6) && h.chars().all(|ch| ch.is_ascii_hexdigit()))
 }
 
 fn has_date_specifier(t: &str) -> bool {
@@ -726,5 +842,45 @@ t = { type = "duration" }
         assert_eq!(cv("5", "duration", None, Some("ns")), Some(Value::from(5_000_000.0)));
         assert_eq!(cv("5", "duration", Some("us"), None), Some(Value::from(0.005)));
         assert_eq!(cv("7", "mystery", None, None), Some(Value::from(7)));
+    }
+
+    #[test]
+    fn marker_icons_and_colors_are_validated() {
+        let ok =
+            compile("[[marker]]\nkind='pay'\nicon='credit-card'\ncolor='#E9AE3F'\nwhen=[{field='@message',op='contains',value='payment'}]")
+                .unwrap();
+        let m = ok.markers.iter().find(|m| m.kind == "pay").unwrap();
+        assert_eq!((m.icon.as_deref(), m.color.as_deref()), (Some("credit-card"), Some("#E9AE3F")));
+        let e = compile("[[marker]]\nkind='x'\nicon='unicorn'").err().unwrap().to_string();
+        assert!(e.contains("unknown icon") && e.contains("credit-card"), "{e}");
+        assert!(compile("[[marker]]\nkind='x'\ncolor='red'").is_err());
+        assert!(compile("[[marker]]\nkind='x'\ncolor='#abc'").is_ok());
+        assert!(MARKER_ICONS.len() >= 30);
+    }
+
+    #[test]
+    fn custom_icons_are_compiled_and_referenced() {
+        let c =
+            compile("[[icon]]\nname='acme'\nsvg='<svg viewBox=\"0 0 1 1\"><script>x</script></svg>'\n[[marker]]\nkind='k'\nicon='acme'")
+                .unwrap();
+        assert_eq!(c.icons[0].svg.as_deref(), Some("<svg viewBox=\"0 0 1 1\"></svg>"));
+        assert_eq!(c.markers.iter().find(|m| m.kind == "k").unwrap().icon.as_deref(), Some("acme"));
+        assert!(compile("[[icon]]\nname='a'\nsvg='<svg/>'\n[[icon]]\nname='a'\nsvg='<svg/>'").is_err());
+        assert!(compile("[[icon]]\nname='a'\nsvg='<p/>'").is_err());
+    }
+
+    #[test]
+    fn badges_and_shapes() {
+        let c = compile("[[marker]]\nkind='gw'\nbadge=' 3 '\nshape='hexagon'\ndescription='Payment gateway timeout'\ncolor='#3987e5'\nwhen=[{field='@message',op='matches',value='(?i)gateway.*timeout'}]").unwrap();
+        let m = c.markers.iter().find(|m| m.kind == "gw").unwrap();
+        assert_eq!(
+            (m.badge.as_deref(), m.shape.as_deref(), m.description.as_deref()),
+            (Some("3"), Some("hexagon"), Some("Payment gateway timeout"))
+        );
+        for bad in ["badge=''", "badge='LONG'", "badge='a b'", "shape='star'"] {
+            assert!(compile(&format!("[[marker]]\nkind='x'\n{bad}")).is_err(), "{bad}");
+        }
+        assert!(compile("[[marker]]\nkind='x'\nbadge='DB'").is_ok());
+        assert!(compile("[[marker]]\nkind='x'\nbadge='!'").is_ok());
     }
 }

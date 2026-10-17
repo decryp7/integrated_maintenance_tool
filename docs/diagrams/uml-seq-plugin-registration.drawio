@@ -1,0 +1,185 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-Sequence-plugin-registration" name="UML Sequence plugin registration">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML sequence: plugin registration at start-up" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="app_state() in app/src-tauri builds the registry with plugins() and hands it to Workspace::with_registry." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="shell_h" value="Tauri shell&lt;br&gt;app_state()" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="45" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="shell" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="128" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="plugins_h" value="plugins()" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="275" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="plugins" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="358" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="reg_h" value="PluginRegistry" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="505" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="reg" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="588" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="plug_h" value="Plugin&lt;br&gt;(each)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="735" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="plug" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="818" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="imps_h" value="Importers" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="965" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="imps" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1048" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws_h" value="Workspace" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1195" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1278" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="prof_h" value="CompiledProfile" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1425" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="prof" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1508" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipe_h" value="Pipeline" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1655" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipe" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1738" y="110" width="4" height="1094" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr18" value="&lt;b&gt;loop&lt;/b&gt; [Registry, Otel, Syslog, Windows, Web plugin]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="265" y="224" width="915" height="556" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="plugins()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0274;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.0274;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="plugins">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="new(): built-in importers, exporters" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0658;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.0658;entryDx=0;entryDy=0;" edge="1" parent="1" source="plugins" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="install(&amp;amp;plugin)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1316;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.1316;entryDx=0;entryDy=0;" edge="1" parent="1" source="plugins" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="api_version == API_VERSION?" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1700;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.1901;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="reg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="626" y="296"/>
+              <mxPoint x="626" y="318"/>
+            </Array>
+            <mxPoint x="101.16" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="reject duplicate plugin id" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2212;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.2413;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="reg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="626" y="352"/>
+              <mxPoint x="626" y="374"/>
+            </Array>
+            <mxPoint x="98.08" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="skip if disabled (safe mode)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2724;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.2925;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="reg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="626" y="408"/>
+              <mxPoint x="626" y="430"/>
+            </Array>
+            <mxPoint x="104.24" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="register(registry) [guarded]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3236;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.3236;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="plug">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="add_importer / add_binary_importer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.3620;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.3620;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="register / register_binary" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4004;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.4004;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="imps">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="add_transform / add_exporter / ..." style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.4388;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.4388;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="ids unique, record contribution" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4771;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.4973;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="reg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="626" y="632"/>
+              <mxPoint x="626" y="654"/>
+            </Array>
+            <mxPoint x="113.48" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" value="push PluginInfo {id, name, version}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5283;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5484;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="reg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="626" y="688"/>
+              <mxPoint x="626" y="710"/>
+            </Array>
+            <mxPoint x="125.8" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="Ok or Err" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.5795;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5795;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="plugins">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" value="PluginRegistry" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.6325;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.6325;entryDx=0;entryDy=0;" edge="1" parent="1" source="plugins" target="shell">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="with_registry(default profile, registry)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6709;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.6709;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="compile_with(profile, transforms)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7093;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.7093;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="compile(steps, transforms)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7477;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.7477;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="pipe">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" value="plugin step id must be installed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7861;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8062;entryDx=0;entryDy=0;" edge="1" parent="1" source="pipe" target="pipe">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1776" y="970"/>
+              <mxPoint x="1776" y="992"/>
+            </Array>
+            <mxPoint x="116.56" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="Pipeline or Err" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.8373;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8373;entryDx=0;entryDy=0;" edge="1" parent="1" source="pipe" target="prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" value="CompiledProfile or Err" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.8757;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8757;entryDx=0;entryDy=0;" edge="1" parent="1" source="prof" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" value="set_profile(saved profile)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.9141;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.9141;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" value="compile_with(profile, transforms)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.9525;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.9525;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

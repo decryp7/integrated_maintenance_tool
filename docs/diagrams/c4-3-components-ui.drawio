@@ -1,0 +1,160 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="C4-3---Components-UI" name="C4 3 - Components UI">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1960" pageHeight="1260" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="C4 level 3: Components of the Angular UI" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Folders under app/src/app. Dashed black border = in progress (no files in the tree yet). The UI reaches the engine only through ImtBackend." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_ui" value="Angular UI  [Container: Angular 22, TypeScript, NgRx SignalStore]" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;dashPattern=8 4;fontColor=#666666;fontSize=12;verticalAlign=top;align=right;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="1880" height="1110" as="geometry"/>
+        </mxCell>
+        <mxCell id="builtin" value='&lt;b style="font-size:13px"&gt;builtin&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: builtin/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;provideImtBuiltins(): built-in views, commands and formatters through the plugin tokens.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="260" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext" value='&lt;b style="font-size:13px"&gt;extensions&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: extensions/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;IMT_VIEWS, IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, IMT_FIELD_FORMATTERS; CommandRegistry, ViewRegistry, keybindings.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="360" width="260" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="dock" value='&lt;b style="font-size:13px"&gt;dock&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: dock/ (dockview)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;DockHost, DockService, LayoutStore (LAYOUT_STORE); panels, groups, saved layouts.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="580" width="260" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="misc" value='&lt;b style="font-size:13px"&gt;supporting features&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: palette/, settings/, welcome/, export/, context/, format/, plugins-panel/, ui/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Command palette, settings store, welcome and recents, export dialog, record actions and dialogs, format wizard, plugins list, dialog and context-menu services.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="800" width="260" height="190" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="registers" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="builtin" target="ext">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="IMT_VIEWS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ext" target="dock">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_views" value="Views (dockable panels)" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;dashPattern=8 4;fontColor=#666666;fontSize=12;verticalAlign=top;align=left;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="480" y="180" width="280" height="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_tl" value='&lt;b style="font-size:13px"&gt;timeline&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[timeline/: TimelinePanel, marker-layout, zoom]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="230" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_grid" value='&lt;b style="font-size:13px"&gt;grid&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[grid/: EventsGrid]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="335" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_insp" value='&lt;b style="font-size:13px"&gt;inspector&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[inspector/: Inspector, sections]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="440" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_met" value='&lt;b style="font-size:13px"&gt;metrics&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[metrics/: MetricsView, ChartCard (ECharts)]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="545" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_prof" value='&lt;b style="font-size:13px"&gt;profile editor&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[profile/: ProfileEditor, pipeline, extractors, TOML]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="650" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="v_fb" value='&lt;b style="font-size:13px"&gt;filter bar&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[workspace/: FilterBar]&lt;/font&gt;' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="755" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="hosts&lt;br&gt;panels" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="dock" target="b_views">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="400" y="660"/>
+              <mxPoint x="400" y="530"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;shell&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: shell/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;TitleBar, ActivityBar, Sidebar, StatusBar around the dock area.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="180" width="280" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="store" value='&lt;b style="font-size:13px"&gt;WorkspaceStore&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/workspace.store.ts, NgRx SignalStore]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Single source of UI state: summary, filters, selection, time range, page, timeline, charts; drives all views with signals. Calls ImtBackend; no view calls Tauri directly.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="400" width="280" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="logger" value='&lt;b style="font-size:13px"&gt;logger, platform&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/logger.ts, platform.ts]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Logger, withFailureLogging decorator; isTauri().' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="740" width="280" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="reads state" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="inject()&lt;br&gt;signals" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="b_views" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="logger">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be" value='&lt;b style="font-size:13px"&gt;ImtBackend&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/backend.ts, abstract class (DI token)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;provideBackend() picks the implementation: TauriBackend inside Tauri, MockBackend in a browser (ng serve, tests), wrapped by withFailureLogging.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="400" width="260" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value='&lt;b style="font-size:13px"&gt;api.types&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/api.types.ts]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Wire contract, camelCase JSON; mirrors imt_core::api.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="740" width="260" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="tauri" value='&lt;b style="font-size:13px"&gt;TauriBackend&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/backend.ts]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Calls invoke(command, args) for each backend method.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="380" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="mock" value='&lt;b style="font-size:13px"&gt;MockBackend&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: core/mock/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;mock-engine, mock-pipeline, mock-data: in-memory demo engine.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="560" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="rust" value='&lt;b style="font-size:13px"&gt;Tauri shell&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Commands over LogStore (imt-core).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="190" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="inject(ImtBackend)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="be">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="typed by" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="be" target="api">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="implements" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=0;endSize=12;exitX=0.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.1538;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="be">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="implements" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=0;endSize=12;exitX=0.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8462;entryDx=0;entryDy=0;" edge="1" parent="1" source="mock" target="be">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="invoke()&lt;br&gt;[Tauri IPC]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="rust">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_wip" value="In progress: engine APIs exist (ql, anomalies, patterns, moment, projects, live tail) but the UI has no files yet" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#222222;dashed=1;dashPattern=8 4;fontColor=#222222;fontSize=12;verticalAlign=top;align=left;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="480" y="960" width="1400" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="w_ql" value='&lt;b style="font-size:13px"&gt;query bar (in progress)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: not created yet]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Query-language input with completions (run_query, complete_query).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#222222;fontColor=#000000;fontSize=11;dashed=1;dashPattern=6 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="500" y="1020" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="w_mom" value='&lt;b style="font-size:13px"&gt;moment panel (in progress)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: not created yet]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Moment view for a time selection.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#222222;fontColor=#000000;fontSize=11;dashed=1;dashPattern=6 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="840" y="1020" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="w_ins" value='&lt;b style="font-size:13px"&gt;insights panels (in progress)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: not created yet]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Anomalies, patterns, exception groups, compare, field stats, traces.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#222222;fontColor=#000000;fontSize=11;dashed=1;dashPattern=6 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="1020" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="w_proj" value='&lt;b style="font-size:13px"&gt;projects and live tail (in progress)&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: not created yet]&lt;/font&gt;&lt;br&gt;&lt;br&gt;.imtproj save/open, recents; live-tail toggle on imt://workspace-changed.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#222222;fontColor=#000000;fontSize=11;dashed=1;dashPattern=6 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1020" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_t" value="Legend" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="790" width="200" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_b0" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="820" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_l0" value="Component (folder/service)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="820" width="220" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_b1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=10;dashed=1;dashPattern=6 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="850" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_l1" value="In progress (dashed)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="850" width="220" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_b2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="880" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_l2" value="Container outside the UI" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="880" width="220" height="20" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

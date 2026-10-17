@@ -1,0 +1,191 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-Deployment" name="UML Deployment">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1220" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML deployment diagram" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Where IMT runs: analyst machine, monitored servers, and the Gitea build farm that produces the installers." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="nA" value="&amp;laquo;device&amp;raquo; Developer / support machine (Windows or macOS)" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="900" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="eeA" value="&amp;laquo;execution environment&amp;raquo; IMT desktop app (imt-app, Tauri 2)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6C8EBF;dashed=1;dashPattern=6 4;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=1;imtRole=bg;" vertex="1" parent="nA">
+          <mxGeometry x="30" y="50" width="580" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="wv" value="&lt;b&gt;Angular UI&lt;/b&gt;&lt;br&gt;Angular 22, SignalStore, ECharts&lt;br&gt;&lt;br&gt;runs in the OS webview:&lt;br&gt;WebView2 (Windows)&lt;br&gt;WKWebView (macOS)&lt;br&gt;&lt;br&gt;ImtBackend = TauriBackend" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="eeA">
+          <mxGeometry x="20" y="40" width="220" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="rs" value="&lt;b&gt;Rust process&lt;/b&gt;&lt;br&gt;Tauri shell (commands, AppState, live-tail watcher)&lt;br&gt;imt-core engine&lt;br&gt;plugin crates: registry, windows, web, otel, syslog&lt;br&gt;&lt;br&gt;in-memory Workspace, rayon thread pool" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="eeA">
+          <mxGeometry x="340" y="40" width="220" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="invoke / events&lt;br&gt;[Tauri IPC]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3684;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="wv" target="rs">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="330"/>
+              <mxPoint x="360" y="380"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_prof" value="App data: profiles (TOML)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
+          <mxGeometry x="660" y="90" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a_log" value="App log dir: IMT log (CLEF)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
+          <mxGeometry x="660" y="190" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a_proj" value="Projects (.imtproj)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
+          <mxGeometry x="660" y="290" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a_in" value="Opened logs, .clef and .imtz bundles" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
+          <mxGeometry x="660" y="390" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0789;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3421;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_log">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6053;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_proj">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8684;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_in">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nB" value="&amp;laquo;device&amp;raquo; Server or customer machine (Windows, also Linux/macOS for some data)" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="100" width="900" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="s0" value="Running processes&lt;br&gt;(sysinfo, PDH counters)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="30" y="80" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="p0" value="imt-monitor CLI&lt;br&gt;(Collector ProcessMonitor)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="380" y="80" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_clef" value="CLEF output&lt;br&gt;process-monitor.clef" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="700" y="80" width="170" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="reads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s0" target="p0">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p0" target="c_clef">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s1" value="Application logs, Windows event log, msinfo32, registry" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="30" y="190" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="imt-collect CLI&lt;br&gt;(CollectPlan, Redactor)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="380" y="190" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_imtz" value="Diagnostics bundle&lt;br&gt;.imtz" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="700" y="190" width="170" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="reads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s1" target="p1">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p1" target="c_imtz">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s2" value="Performance Monitor&lt;br&gt;(logman collector sets)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="30" y="300" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2" value="logman (driven by&lt;br&gt;PerfmonController, planned)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;dashed=1;dashPattern=6 4;" vertex="1" parent="nB">
+          <mxGeometry x="380" y="300" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_perf" value="PerfMon output&lt;br&gt;CSV / BLG" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
+          <mxGeometry x="700" y="300" width="170" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="drives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s2" target="p2">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p2" target="c_perf">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" value="copy / download&lt;br&gt;.imtz, .clef, logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.7381;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_imtz" target="a_in">
+          <mxGeometry x="0.3" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1975" y="330"/>
+              <mxPoint x="1975" y="660"/>
+              <mxPoint x="855" y="660"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_clef" target="a_in">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1990" y="220"/>
+              <mxPoint x="1990" y="690"/>
+              <mxPoint x="805" y="690"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nC" value="&amp;laquo;device&amp;raquo; Gitea server and build runners" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="900" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="gitea" value="&lt;b&gt;Gitea&lt;/b&gt;&lt;br&gt;git repository&lt;br&gt;Gitea Actions (.gitea/workflows/build.yml)&lt;br&gt;releases on v* tags (RELEASE_TOKEN)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="40" y="60" width="260" height="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="r0" value="act_runner&lt;br&gt;ubuntu-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="420" y="60" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="i0" value=".deb / .rpm&lt;br&gt;(Linux bundle)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="700" y="60" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1296;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r0">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r0" target="i0">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r1" value="act_runner&lt;br&gt;windows-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="420" y="160" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="i1" value=".msi and NSIS .exe" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="700" y="160" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e16" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r1">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r1" target="i1">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r2" value="act_runner&lt;br&gt;macos-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="420" y="260" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="i2" value=".dmg" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
+          <mxGeometry x="700" y="260" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e18" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8704;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r2">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r2" target="i2">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" value="git push/pull, download installers&lt;br&gt;[HTTPS]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.2889;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.2889;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="nA" target="nC">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg" value="&lt;b&gt;Reading this diagram&lt;/b&gt;&lt;br&gt;Cubes are devices; dashed boxes are execution environments; blue boxes are programs; yellow notes are build artifacts; grey notes are files.&lt;br&gt;&lt;br&gt;The desktop app runs fully offline on one machine. The CLIs run where the data is and produce files that are copied to the analyst machine and opened in IMT. The check job runs on ubuntu-latest; the bundle job runs on all three runner OSes; the release job (v* tags) uploads the installers to a Gitea release." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#444444;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="720" width="880" height="200" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

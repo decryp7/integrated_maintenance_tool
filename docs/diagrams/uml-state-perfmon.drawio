@@ -1,0 +1,108 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-State-PerfMon-collector-set" name="UML State PerfMon collector set">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2300" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML state machine: a Performance Monitor Data Collector Set driven by IMT" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="PerfmonController in crates/imt-plugin-windows (perfmon_control.rs) runs logman through CommandRunner; template from CollectorTemplate." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="init" value="" style="ellipse;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="24" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_tpl" value='&lt;b&gt;Template generated&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;CollectorTemplate.to_xml()&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="140" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_imp" value='&lt;b&gt;Imported&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;logman import -n NAME -xml&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_run" value='&lt;b&gt;Running&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;logman start&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="740" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_stop" value='&lt;b&gt;Stopped&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;logman stop, or duration elapsed&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_out" value='&lt;b&gt;Output collected&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;output_files(status): CSV / BLG&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_imt" value='&lt;b&gt;Imported into IMT&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;perfmon-csv or blg importer&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_del" value='&lt;b&gt;Deleted&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;logman delete&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="120" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="fin" value="" style="ellipse;shape=endState;html=1;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2220" y="150" width="30" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="init" target="s_tpl">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="112" y="162"/>
+              <mxPoint x="112" y="160"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="import(name,&lt;br&gt;xml_path)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_tpl" target="s_imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="start(name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_imp" target="s_run">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="stop(name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_run" target="s_stop">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="query(name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_stop" target="s_out">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="open paths&lt;br&gt;in IMT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_out" target="s_imt">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="delete(name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_imt" target="s_del">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_del" target="fin">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2170" y="160"/>
+              <mxPoint x="2170" y="165"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="query(): Running / Stopped / Unknown" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.3333;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.6667;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_run" target="s_run">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="80"/>
+              <mxPoint x="860" y="80"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s_den" value='&lt;b&gt;AccessDenied&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;PerfmonError::AccessDenied: run elevated or join Performance Log Users&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="410" y="480" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_uns" value='&lt;b&gt;Unsupported&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;PerfmonError::Unsupported: not Windows&lt;/font&gt;' style="rounded=1;arcSize=25;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="110" y="480" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="logman: access denied" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_imp" target="s_den">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="any action off Windows" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_tpl" target="s_uns">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note" value="IMT drives the set only through logman (never touches the registry). Failed or invalid input (PerfmonError::Invalid, Io, Failed) leaves the set in its previous state. logman query output is localised: only English keys are parsed, otherwise RunState is Unknown and output paths are missing. Controller is in progress: the UI and Tauri commands do not exist yet." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#555555;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="640" width="2100" height="80" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -494,6 +494,10 @@ impl Workspace {
                     label: m.label.clone(),
                     lifecycle: m.lifecycle,
                     color: m.color.clone(),
+                    icon: m.icon.clone(),
+                    badge: m.badge.clone(),
+                    shape: m.shape.clone(),
+                    description: m.description.clone(),
                 })
                 .collect(),
             charts: self.chart_defs(),
@@ -501,6 +505,7 @@ impl Workspace {
             load_ms: self.load_ms,
             dropped: self.sources.iter().map(|s| s.dropped).sum(),
             pipeline: self.pipeline_stats(),
+            icons: self.profile.icons.clone(),
             plugins: self.registry.plugins(),
             exporters: self
                 .registry

@@ -13,6 +13,7 @@ pub mod condition;
 pub mod exceptions;
 pub mod export;
 pub mod guard;
+pub mod icons;
 pub mod importers;
 pub mod model;
 pub mod patterns;

@@ -1,0 +1,183 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="UML-Sequence-query-and-timeline" name="UML Sequence query and timeline">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="UML sequence: filter change, timeline, marker click, inspector" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Queries are side-effect free (command-query separation); matching ids are cached per query." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="insp_h" value="Inspector" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="45" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="insp" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="128" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="store_h" value="Angular UI&lt;br&gt;WorkspaceStore" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="315" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="store" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="398" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="tauri_h" value="Tauri shell&lt;br&gt;query_* commands" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="585" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="tauri" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="668" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws_h" value="Workspace&lt;br&gt;(LogStore)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="855" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ws" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="938" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="cq_h" value="CompiledQuery" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1125" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="cq" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1208" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="ql_h" value="ql (query&lt;br&gt;language)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1395" y="70" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ql" value="" style="rounded=0;html=1;fillColor=#FFFFFF;strokeColor=#888888;dashed=1;dashPattern=4 4;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="1478" y="110" width="4" height="1252" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr14" value="&lt;b&gt;par&lt;/b&gt; [page, timeline, chart in parallel]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="305" y="196" width="1305" height="728" as="geometry"/>
+        </mxCell>
+        <mxCell id="fr15" value="&lt;b&gt;alt&lt;/b&gt; [cache miss]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#555555;dashed=1;dashPattern=3 3;verticalAlign=top;align=left;spacingLeft=6;spacingTop=2;fontSize=11;labelBackgroundColor=#FFFFFF;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="859" y="366" width="737" height="248" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="filters change (text, levels, ql, range)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0240;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.0415;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="store">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="436" y="140"/>
+              <mxPoint x="436" y="162"/>
+            </Array>
+            <mxPoint x="141.2" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="query_page(PageRequest)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0927;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.0927;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="page(req)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1262;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.1262;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="matching(query): cache lookup" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1597;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.1773;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="976" y="310"/>
+              <mxPoint x="976" y="332"/>
+            </Array>
+            <mxPoint x="107.32" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="new(query, default_group_by, ..)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2284;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.2284;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="cq">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="parse(ql text) -&gt; Filter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2620;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.2620;entryDx=0;entryDy=0;" edge="1" parent="1" source="cq" target="ql">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="matches(record, source_name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2955;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.2955;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="cq">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="Filter eval" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3291;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.3291;entryDx=0;entryDy=0;" edge="1" parent="1" source="cq" target="ql">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="cache ids (rayon par_iter)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3626;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.3802;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="976" y="564"/>
+              <mxPoint x="976" y="586"/>
+            </Array>
+            <mxPoint x="98.08" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="Page {rows, total, offset}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.4201;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.4201;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="Page" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.4537;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.4537;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" value="query_timeline(TimelineRequest)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.4872;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.4872;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="timeline(req): matching (hit)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5208;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5208;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" value="Timeline {lanes, markers}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.5543;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5543;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="query_chart(ChartRequest)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5879;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5879;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="ChartData" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.6214;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.6214;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="marker click: record id" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6677;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.6853;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="store">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="436" y="946"/>
+              <mxPoint x="436" y="968"/>
+            </Array>
+            <mxPoint x="88.84" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" value="query_page(anchor = id)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7125;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.7125;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="page(req): binary_search(anchor)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.7460;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.7460;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" value="Page {anchor_index, offset}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.7796;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.7796;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" value="select(record)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0000;exitY=0.8131;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.8131;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="insp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" value="source_context(ContextRequest)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8466;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.8466;entryDx=0;entryDy=0;" edge="1" parent="1" source="insp" target="tauri">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e23" value="source_context(req)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8802;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.8802;entryDx=0;entryDy=0;" edge="1" parent="1" source="tauri" target="ws">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" value="read original lines around the event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.9137;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.9313;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="ws">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="976" y="1254"/>
+              <mxPoint x="976" y="1276"/>
+            </Array>
+            <mxPoint x="128.88" y="0" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e25" value="SourceContext {lines}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.0000;exitY=0.9585;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.9585;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="insp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,182 @@
+<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
+  <diagram id="C4-3---Components-imt-core" name="C4 3 - Components imt-core">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2160" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="C4 level 3: Components of imt-core (engine)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Modules under crates/imt-core/src. Arrows point from user to used; the Workspace orchestrates the others. Every component uses model (Record, Level)." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="b_core" value="imt-core  [Container: Rust library]" style="rounded=1;arcSize=2;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;dashPattern=8 4;fontColor=#666666;fontSize=12;verticalAlign=top;align=right;spacingLeft=10;spacingRight=10;spacingTop=4;fontStyle=1;container=0;imtRole=bg;" vertex="1" parent="1">
+          <mxGeometry x="300" y="140" width="1800" height="1010" as="geometry"/>
+        </mxCell>
+        <mxCell id="shell" value='&lt;b style="font-size:13px"&gt;Tauri shell&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust, Tauri 2]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Commands call the LogStore trait and ProjectFile.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="560" width="200" height="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value='&lt;b style="font-size:13px"&gt;api&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, api.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Wire DTOs: PageRequest, WorkspaceSummary, SourceInfo, MomentRequest, ...' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="410" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="store" value='&lt;b style="font-size:13px"&gt;store&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, store.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;LogStore trait: the port the shell depends on (open, page, timeline, ...).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="580" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="project" value='&lt;b style="font-size:13px"&gt;project&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, project.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;ProjectFile (.imtproj): save / load, relative paths, version check.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="790" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="model" value='&lt;b style="font-size:13px"&gt;model&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, model.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Record, Level, Fields: the event type every component uses.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="930" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="uses&lt;br&gt;DTOs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;endSize=10;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="store" target="api">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="LogStore&lt;br&gt;calls" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.2121;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="save / open" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8485;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="shell" target="project">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ws" value='&lt;b style="font-size:13px"&gt;workspace&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, workspace/ (mod, page, timeline, facet, chart, export, context, preview, insights)]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Workspace implements LogStore, in memory. open / reload / clear / remove_source / refresh_files (live tail) / restore (projects); import_files in parallel with rayon, then rebuild (sort by time, number ids, fields, default grouping, cache reset). Queries: matching (cached), page, timeline, facet, chart, source_context, preview_extractor, export. Insights: run_query, check_query, complete_query, patterns, exception_groups, anomalies (cached), compare, field_stats, correlate, traces, requests, moment. Calls WorkspaceHook.on_loaded / on_cleared / on_profile_changed.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="430" width="1420" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="implements" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=block;endFill=0;endSize=12;exitX=0.0000;exitY=0.8333;exitDx=0;exitDy=0;entryX=1.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="store">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_query" value='&lt;b style="font-size:13px"&gt;query&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, query.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Query, FieldFilter, CompiledQuery: levels, range, text, filters, markers, ql.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="matching()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0669;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_query">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_ql" value='&lt;b style="font-size:13px"&gt;ql&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, ql/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Query language: lexer, parser, expr, exec::run, stats, completions.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="860" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="run_query()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.2077;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_ql">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_an" value='&lt;b style="font-size:13px"&gt;analysis&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, analysis/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;anomaly::detect, compare_windows, field_stats, trace, trend.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="anomalies, compare, moment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.3486;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_an">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_pat" value='&lt;b style="font-size:13px"&gt;patterns&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, patterns.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;PatternMiner (Drain-style), mine(), compare() of two windows.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="patterns()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.4894;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_pat">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_exc" value='&lt;b style="font-size:13px"&gt;exceptions&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, exceptions.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;parse_exception, fingerprint, group() into ExceptionGroup.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="exception_groups()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.6303;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_exc">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_chart" value='&lt;b style="font-size:13px"&gt;chart&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, chart.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;ChartDef, Agg, Acc: bucketed aggregation for charts.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1660" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="chart()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.7711;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_chart">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_exp" value='&lt;b style="font-size:13px"&gt;export&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, export.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Exporter (CsvExporter, ClefExporter), EventSink, ClefFileSink, clef_value.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="220" width="190" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" value="export()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.9120;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="a_exp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="i_arch" value='&lt;b style="font-size:13px"&gt;archive&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, archive.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;expand (.gz, .zip members), read_entry; size limits.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="770" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="i_imp" value='&lt;b style="font-size:13px"&gt;importers&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, importers/]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Importers registry, Importer and BinaryImporter traits, ImportCtx, decode (UTF-8/16).' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="770" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="i_prof" value='&lt;b style="font-size:13px"&gt;profile&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, profile.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Profile, CompiledProfile: extractors, markers, text formats; ingest(). Helpers: condition, template, time, user_regex.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="770" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="i_pipe" value='&lt;b style="font-size:13px"&gt;pipeline&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, pipeline.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Pipeline, StepCfg: drop, keep, mask, dedupe, parse_json, lookup, plugin steps.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1680" y="770" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" value="expand" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.0845;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="i_arch">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="select + import" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.3239;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="i_imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" value="ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5634;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="ws" target="i_prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="entries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="i_arch" target="i_imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="i_imp" target="i_prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" value="run_with_stats" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="i_prof" target="i_pipe">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="i_builtin" value='&lt;b style="font-size:13px"&gt;built-in importers&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, importers/{json,text,csv}.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;JsonImporter, TextImporter, CsvImporter registered by Importers::new.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="980" width="240" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="reg" value='&lt;b style="font-size:13px"&gt;plugin registry&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Component: Rust, plugin.rs]&lt;/font&gt;&lt;br&gt;&lt;br&gt;Plugin, PluginRegistry (install, add_importer, add_binary_importer, add_transform, add_exporter, add_collector, add_hook), RecordTransform, WorkspaceHook, Collector, API_VERSION = 1. Owned by the Workspace; its exporters and collectors are looked up by id.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="980" width="1060" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="e18" value="registered in" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="i_builtin" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" value="importers" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.1132;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="i_imp">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e20" value="transforms" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.4340;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="i_prof">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" value="plugin steps" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.7547;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="reg" target="i_pipe">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="plug" value='&lt;b style="font-size:13px"&gt;Plugin crates&lt;/b&gt;&lt;br&gt;&lt;font style="font-size:10px"&gt;[Container: Rust crates]&lt;/font&gt;&lt;br&gt;&lt;br&gt;RegistryPlugin, WindowsPlugin, WebPlugin, OtelPlugin, SyslogPlugin, MonitorPlugin implement Plugin.' style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="1190" width="1060" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e22" value="install(plugin) / register()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5000;exitY=0.0000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="plug" target="reg">
+          <mxGeometry relative="1" as="geometry">
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lg_t" value="Legend" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=12;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="40" width="200" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_b0" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#85BBF0;strokeColor=#78A8D8;fontColor=#000000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="70" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_l0" value="Component (module)" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1740" y="70" width="220" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_b1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=#3C7FC0;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="100" width="30" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_l1" value="Container outside imt-core" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1740" y="100" width="220" height="20" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

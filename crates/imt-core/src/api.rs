@@ -52,6 +52,14 @@ pub struct MarkerKind {
     pub label: String,
     pub lifecycle: bool,
     pub color: Option<String>,
+    /// One of `profile::MARKER_ICONS` or a custom icon name; none = built-in shape.
+    pub icon: Option<String>,
+    /// Generated badge text (1–3 chars); takes precedence over `icon`.
+    pub badge: Option<String>,
+    /// Badge outline: circle, square, diamond or hexagon.
+    pub shape: Option<String>,
+    /// Meaning of the marker, for the legend and tooltips.
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -71,6 +79,8 @@ pub struct WorkspaceSummary {
     pub load_ms: u64,
     /// Events removed by the profile's pipeline, across all sources.
     pub dropped: usize,
+    /// Custom marker icons from the profile (sanitised), by name.
+    pub icons: Vec<crate::icons::CustomIcon>,
     /// Events in/out of each `[[pipeline]]` step, summed over all sources.
     pub pipeline: Vec<PipelineStepInfo>,
     pub plugins: Vec<crate::plugin::PluginInfo>,
