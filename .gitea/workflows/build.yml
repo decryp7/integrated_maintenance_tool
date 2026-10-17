@@ -1,0 +1,168 @@
+# Builds IMT on every push and pull request; a v* tag also publishes a Gitea
+# release with the installers attached.
+#
+# Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
+# if your act_runner instances use other labels.
+# Releases need a repository secret RELEASE_TOKEN (a Gitea access token with
+# write:repository scope).
+
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: test + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Linux dependencies for Tauri
+        run: |
+          SUDO=$(command -v sudo || true)
+          $SUDO apt-get update
+          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: check-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: check-${{ runner.os }}-
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Licences, advisories and sources
+        uses: EmbarkStudios/cargo-deny-action@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Frontend build
+        working-directory: app
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npx ng build
+
+      - name: Frontend unit tests
+        working-directory: app
+        run: npx ng test --watch=false --coverage
+
+      - name: Playwright browsers
+        working-directory: app
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Frontend end-to-end tests
+        working-directory: app
+        env:
+          CI: "true"
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: app/playwright-report
+          if-no-files-found: ignore
+
+  bundle:
+    name: bundle (${{ matrix.os }})
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bundles: deb,rpm
+          - os: windows-latest
+            bundles: msi,nsis
+          - os: macos-latest
+            bundles: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Linux dependencies for Tauri
+        if: runner.os == 'Linux'
+        run: |
+          SUDO=$(command -v sudo || true)
+          $SUDO apt-get update
+          $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: bundle-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: bundle-${{ runner.os }}-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Build installers
+        working-directory: app
+        shell: bash
+        run: |
+          npm ci
+          npx tauri build --bundles ${{ matrix.bundles }}
+
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir -p dist
+          find target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' \) -exec cp {} dist/ \;
+          ls -la dist
+
+      # Gitea Actions supports upload/download-artifact v3.
+      - uses: actions/upload-artifact@v3
+        with:
+          name: imt-${{ runner.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - uses: https://gitea.com/actions/release-action@main
+        with:
+          files: artifacts/**/*
+          api_key: ${{ secrets.RELEASE_TOKEN }}

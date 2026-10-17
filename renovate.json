@@ -1,6 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Gitea Actions only supports v3 of the artifact actions",
+      "matchPackageNames": ["actions/upload-artifact", "actions/download-artifact"],
+      "allowedVersions": "<4"
+    }
   ]
 }
