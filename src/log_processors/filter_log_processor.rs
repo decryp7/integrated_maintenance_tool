@@ -41,19 +41,17 @@ impl LogProcessor for FilterLogProcessor {
         let mut reader = BufReader::new(log_file);
         let mut buf = vec![];
 
-        while let Ok(_) = reader.read_until(b'\n', &mut buf) {
+        while reader.read_until(b'\n', &mut buf).is_ok() {
             if buf.is_empty() {
                 break;
             }
             //let line = String::from_utf8_lossy(&buf);
             let is_log_line = self.line_start_regex.is_match(&buf);
-            if is_log_line {
-                if self.filter_regex.is_match(&buf) {
-                    filtered_log_file_writer
-                        .write_all(&buf)
-                        .expect("Unable to write to filtered log file");
-                    println!("{}", String::from_utf8_lossy(&buf));
-                }
+            if is_log_line && self.filter_regex.is_match(&buf) {
+                filtered_log_file_writer
+                    .write_all(&buf)
+                    .expect("Unable to write to filtered log file");
+                println!("{}", String::from_utf8_lossy(&buf));
             }
             buf.clear();
         }

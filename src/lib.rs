@@ -1,2 +1,2 @@
-pub mod log_processors;
 pub mod config;
+pub mod log_processors;
