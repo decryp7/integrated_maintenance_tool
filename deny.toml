@@ -1,0 +1,43 @@
+# cargo-deny: licences, security advisories, banned crates and sources.
+# Run: cargo deny check
+
+[graph]
+all-features = false
+
+[advisories]
+# RustSec advisory database; unmaintained crates are reported for workspace
+# dependencies only, transitive ones are Renovate's job.
+unmaintained = "workspace"
+yanked = "deny"
+
+[licenses]
+confidence-threshold = 0.9
+# Our own crates are unpublished and not yet licensed.
+private = { ignore = true }
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "0BSD",
+  "CC0-1.0",
+  "BSL-1.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "MPL-2.0",
+  "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

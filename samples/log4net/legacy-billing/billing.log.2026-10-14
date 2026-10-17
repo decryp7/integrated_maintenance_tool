@@ -1,0 +1,1860 @@
+2026-10-14 09:00:00,000 [1] INFO  Billing.Service - Billing service starting (v2.8.1, CLR 4.0.30319)
+2026-10-14 09:00:05,249 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-236778 written
+2026-10-14 09:00:06,945 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-741653 written
+2026-10-14 09:00:22,765 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-755059 written
+2026-10-14 09:00:32,125 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-577127 written
+2026-10-14 09:00:38,595 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-962412 written
+2026-10-14 09:00:51,842 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-605981 written
+2026-10-14 09:01:03,915 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-283247 written
+2026-10-14 09:01:04,587 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-875556 written
+2026-10-14 09:01:26,671 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-704087 written
+2026-10-14 09:01:35,211 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-876118 written
+2026-10-14 09:01:35,551 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-973685 written
+2026-10-14 09:01:40,257 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-594929 written
+2026-10-14 09:01:48,710 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-131965 written
+2026-10-14 09:01:54,738 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-563281 written
+2026-10-14 09:02:04,580 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-580884 written
+2026-10-14 09:02:05,165 [7] DEBUG Billing.Cache - Refreshed tariff cache (615 entries)
+2026-10-14 09:02:11,974 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-468528 written
+2026-10-14 09:02:14,538 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-225893 written
+2026-10-14 09:02:15,467 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-803367 written
+2026-10-14 09:02:19,633 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-567720 written
+2026-10-14 09:02:39,848 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-214587 written
+2026-10-14 09:02:42,405 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-642761 written
+2026-10-14 09:02:42,538 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-830067 written
+2026-10-14 09:02:50,417 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-306649 written
+2026-10-14 09:02:52,608 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-697186 written
+2026-10-14 09:02:53,224 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-264628 written
+2026-10-14 09:02:53,598 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-668969 written
+2026-10-14 09:02:59,332 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-699502 written
+2026-10-14 09:03:00,668 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-664723 written
+2026-10-14 09:03:03,863 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-566637 written
+2026-10-14 09:03:04,432 [18] DEBUG Billing.Cache - Refreshed tariff cache (329 entries)
+2026-10-14 09:03:04,965 [20] DEBUG Billing.Cache - Refreshed tariff cache (230 entries)
+2026-10-14 09:03:14,502 [22] DEBUG Billing.Cache - Refreshed tariff cache (296 entries)
+2026-10-14 09:03:44,672 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-210108 written
+2026-10-14 09:03:52,116 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-835815 written
+2026-10-14 09:03:54,144 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-642872 written
+2026-10-14 09:03:59,120 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-727807 written
+2026-10-14 09:04:03,483 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-205609 written
+2026-10-14 09:04:12,705 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-376469 written
+2026-10-14 09:04:32,353 [11] DEBUG Billing.Cache - Refreshed tariff cache (832 entries)
+2026-10-14 09:04:38,301 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220912 written
+2026-10-14 09:04:39,110 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-841615 written
+2026-10-14 09:04:53,777 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-636731 written
+2026-10-14 09:04:59,536 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-616366 written
+2026-10-14 09:05:00,338 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-312571 written
+2026-10-14 09:05:08,233 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-205432 written
+2026-10-14 09:05:08,329 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-312812 written
+2026-10-14 09:05:18,708 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-797375 written
+2026-10-14 09:05:18,763 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-983580 written
+2026-10-14 09:05:20,321 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-577223 written
+2026-10-14 09:05:23,906 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-496259 written
+2026-10-14 09:05:30,427 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-610458 written
+2026-10-14 09:05:40,648 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-838453 written
+2026-10-14 09:05:48,982 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-847440 written
+2026-10-14 09:05:49,819 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-854612 written
+2026-10-14 09:05:54,802 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-174807 written
+2026-10-14 09:05:55,649 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-978862 written
+2026-10-14 09:05:56,229 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-187632 written
+2026-10-14 09:05:56,735 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-366091 written
+2026-10-14 09:06:07,509 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-548916 written
+2026-10-14 09:06:14,107 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-418495 written
+2026-10-14 09:06:15,083 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-636109 written
+2026-10-14 09:06:19,773 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-541547 written
+2026-10-14 09:06:23,742 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-681130 written
+2026-10-14 09:06:28,728 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-878308 written
+2026-10-14 09:06:36,111 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-978214 written
+2026-10-14 09:06:40,816 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-968652 written
+2026-10-14 09:06:47,452 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-599097 written
+2026-10-14 09:06:58,234 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-270639 written
+2026-10-14 09:07:06,052 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-426402 written
+2026-10-14 09:07:12,330 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-212897 written
+2026-10-14 09:07:25,545 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-830651 written
+2026-10-14 09:07:28,016 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-483398 written
+2026-10-14 09:07:34,277 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-402746 written
+2026-10-14 09:07:34,645 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-940087 written
+2026-10-14 09:07:45,573 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-588056 written
+2026-10-14 09:07:47,179 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-451712 written
+2026-10-14 09:08:22,091 [18] DEBUG Billing.Cache - Refreshed tariff cache (493 entries)
+2026-10-14 09:08:23,741 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-704014 written
+2026-10-14 09:08:37,800 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-102263 written
+2026-10-14 09:08:38,301 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-944722 written
+2026-10-14 09:08:43,424 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-454129 written
+2026-10-14 09:08:50,521 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-363318 written
+2026-10-14 09:08:56,034 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-914710 written
+2026-10-14 09:08:56,538 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-294030 written
+2026-10-14 09:09:04,352 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-355621 written
+2026-10-14 09:09:20,124 [17] DEBUG Billing.Cache - Refreshed tariff cache (197 entries)
+2026-10-14 09:09:20,206 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-938394 written
+2026-10-14 09:09:21,276 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-289631 written
+2026-10-14 09:09:29,477 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-624380 written
+2026-10-14 09:09:29,938 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-357903 written
+2026-10-14 09:09:34,328 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-920028 written
+2026-10-14 09:10:11,687 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-845671 written
+2026-10-14 09:10:13,030 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-705266 written
+2026-10-14 09:10:17,427 [21] DEBUG Billing.Cache - Refreshed tariff cache (105 entries)
+2026-10-14 09:10:17,544 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-844823 written
+2026-10-14 09:10:19,716 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-266476 written
+2026-10-14 09:10:26,891 [11] DEBUG Billing.Cache - Refreshed tariff cache (214 entries)
+2026-10-14 09:10:32,096 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-819435 written
+2026-10-14 09:10:32,429 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-133877 written
+2026-10-14 09:10:33,023 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-251922 written
+2026-10-14 09:10:49,390 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-378975 written
+2026-10-14 09:10:50,255 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-532947 written
+2026-10-14 09:10:54,330 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-576073 written
+2026-10-14 09:10:58,999 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-246272 written
+2026-10-14 09:11:01,549 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-813766 written
+2026-10-14 09:11:02,368 [9] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 09:11:08,926 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-900225 written
+2026-10-14 09:11:16,140 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-727813 written
+2026-10-14 09:11:17,134 [7] DEBUG Billing.Cache - Refreshed tariff cache (268 entries)
+2026-10-14 09:11:25,731 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-637709 written
+2026-10-14 09:11:29,478 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-981398 written
+2026-10-14 09:11:31,530 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-653343 written
+2026-10-14 09:11:49,944 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-798144 written
+2026-10-14 09:12:00,217 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-880105 written
+2026-10-14 09:12:00,270 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-273332 written
+2026-10-14 09:12:04,699 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-940766 written
+2026-10-14 09:12:06,255 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-365884 written
+2026-10-14 09:12:10,195 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-789078 written
+2026-10-14 09:12:24,266 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-847995 written
+2026-10-14 09:12:37,669 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-828085 written
+2026-10-14 09:12:43,762 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-630302 written
+2026-10-14 09:12:46,573 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-765134 written
+2026-10-14 09:12:46,856 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-336357 written
+2026-10-14 09:13:19,112 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-972929 written
+2026-10-14 09:13:22,547 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-715786 written
+2026-10-14 09:13:25,339 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-645379 written
+2026-10-14 09:13:32,476 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-507610 written
+2026-10-14 09:13:35,760 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-914272 written
+2026-10-14 09:13:46,623 [10] DEBUG Billing.Cache - Refreshed tariff cache (583 entries)
+2026-10-14 09:13:50,732 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-348880 written
+2026-10-14 09:13:52,148 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-459922 written
+2026-10-14 09:14:02,617 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-781290 written
+2026-10-14 09:14:07,370 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-155915 written
+2026-10-14 09:14:12,787 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-974858 written
+2026-10-14 09:14:12,944 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-511104 written
+2026-10-14 09:14:20,695 [12] DEBUG Billing.Cache - Refreshed tariff cache (146 entries)
+2026-10-14 09:14:27,222 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-973368 written
+2026-10-14 09:14:27,253 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-538761 written
+2026-10-14 09:14:27,580 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-677381 written
+2026-10-14 09:14:27,731 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-190619 written
+2026-10-14 09:14:31,684 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-462099 written
+2026-10-14 09:14:32,431 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-157372 written
+2026-10-14 09:14:38,766 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-808258 written
+2026-10-14 09:14:54,098 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-373792 written
+2026-10-14 09:15:00,183 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-194724 written
+2026-10-14 09:15:03,513 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-734691 written
+2026-10-14 09:15:09,326 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-631542 written
+2026-10-14 09:15:10,680 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-981317 written
+2026-10-14 09:15:11,356 [8] DEBUG Billing.Cache - Refreshed tariff cache (533 entries)
+2026-10-14 09:15:12,020 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-791003 written
+2026-10-14 09:15:25,044 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-961060 written
+2026-10-14 09:15:37,613 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-943101 written
+2026-10-14 09:15:38,463 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-315094 written
+2026-10-14 09:15:47,351 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-283641 written
+2026-10-14 09:15:54,188 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-888836 written
+2026-10-14 09:16:30,638 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-165296 written
+2026-10-14 09:16:38,852 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-269981 written
+2026-10-14 09:16:42,766 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-152716 written
+2026-10-14 09:16:57,567 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-912354 written
+2026-10-14 09:17:04,331 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-548346 written
+2026-10-14 09:17:07,477 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-992627 written
+2026-10-14 09:17:08,818 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-405054 written
+2026-10-14 09:17:11,197 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-363659 written
+2026-10-14 09:17:13,689 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-324305 written
+2026-10-14 09:17:14,844 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-808522 written
+2026-10-14 09:17:44,219 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-299072 written
+2026-10-14 09:17:51,793 [20] DEBUG Billing.Cache - Refreshed tariff cache (248 entries)
+2026-10-14 09:17:57,292 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-981810 written
+2026-10-14 09:18:24,339 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-402359 written
+2026-10-14 09:18:27,760 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-423333 written
+2026-10-14 09:18:32,165 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-618796 written
+2026-10-14 09:18:33,214 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772244 written
+2026-10-14 09:18:36,400 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-907249 written
+2026-10-14 09:18:39,097 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-240555 written
+2026-10-14 09:18:45,833 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-528564 written
+2026-10-14 09:18:48,337 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-307752 written
+2026-10-14 09:18:52,284 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-386737 written
+2026-10-14 09:19:05,713 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-308146 written
+2026-10-14 09:19:09,637 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-657923 written
+2026-10-14 09:19:10,032 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-717591 written
+2026-10-14 09:19:16,974 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-757978 written
+2026-10-14 09:19:18,033 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-526186 written
+2026-10-14 09:19:19,301 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-705098 written
+2026-10-14 09:19:45,615 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-941538 written
+2026-10-14 09:19:57,211 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-511020 written
+2026-10-14 09:20:16,207 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-666195 written
+2026-10-14 09:20:28,593 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-732599 written
+2026-10-14 09:20:39,583 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-270871 written
+2026-10-14 09:20:44,819 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-677675 written
+2026-10-14 09:21:11,357 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-191680 written
+2026-10-14 09:21:16,665 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-852331 written
+2026-10-14 09:21:17,748 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-193218 written
+2026-10-14 09:21:21,386 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-956166 written
+2026-10-14 09:21:24,412 [11] DEBUG Billing.Cache - Refreshed tariff cache (243 entries)
+2026-10-14 09:21:25,109 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-969354 written
+2026-10-14 09:21:25,297 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-664493 written
+2026-10-14 09:21:26,180 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-499452 written
+2026-10-14 09:21:34,455 [16] DEBUG Billing.Cache - Refreshed tariff cache (874 entries)
+2026-10-14 09:21:47,071 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-231524 written
+2026-10-14 09:21:48,817 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-942326 written
+2026-10-14 09:22:01,938 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-977187 written
+2026-10-14 09:22:05,337 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-202690 written
+2026-10-14 09:22:08,974 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-320963 written
+2026-10-14 09:22:14,825 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-724692 written
+2026-10-14 09:22:21,885 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-865654 written
+2026-10-14 09:22:23,160 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-414684 written
+2026-10-14 09:22:23,765 [6] DEBUG Billing.Cache - Refreshed tariff cache (367 entries)
+2026-10-14 09:22:27,406 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-649939 written
+2026-10-14 09:22:28,957 [19] DEBUG Billing.Cache - Refreshed tariff cache (845 entries)
+2026-10-14 09:22:36,506 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-432743 written
+2026-10-14 09:22:45,418 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-553152 written
+2026-10-14 09:22:46,082 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-557377 written
+2026-10-14 09:22:58,319 [13] DEBUG Billing.Cache - Refreshed tariff cache (764 entries)
+2026-10-14 09:23:03,867 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-451342 written
+2026-10-14 09:23:06,189 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-847026 written
+2026-10-14 09:23:08,978 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-820998 written
+2026-10-14 09:23:15,465 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-265968 written
+2026-10-14 09:23:19,843 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-282458 written
+2026-10-14 09:23:24,731 [11] DEBUG Billing.Cache - Refreshed tariff cache (828 entries)
+2026-10-14 09:23:33,261 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-465371 written
+2026-10-14 09:23:38,356 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-327467 written
+2026-10-14 09:23:42,681 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-647455 written
+2026-10-14 09:23:56,622 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-673275 written
+2026-10-14 09:23:57,380 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-257302 written
+2026-10-14 09:24:10,437 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-797642 written
+2026-10-14 09:24:24,764 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-464529 written
+2026-10-14 09:24:33,179 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-600825 written
+2026-10-14 09:24:38,548 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772767 written
+2026-10-14 09:24:44,596 [22] DEBUG Billing.Cache - Refreshed tariff cache (497 entries)
+2026-10-14 09:24:45,728 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-197448 written
+2026-10-14 09:24:53,241 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-795111 written
+2026-10-14 09:24:56,238 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-497391 written
+2026-10-14 09:24:59,348 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-681140 written
+2026-10-14 09:25:15,380 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-421677 written
+2026-10-14 09:25:21,133 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-890401 written
+2026-10-14 09:25:28,588 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-897943 written
+2026-10-14 09:25:44,692 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-756951 written
+2026-10-14 09:25:49,924 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-827007 written
+2026-10-14 09:26:00,615 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-760606 written
+2026-10-14 09:26:15,546 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-747927 written
+2026-10-14 09:26:21,848 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-691957 written
+2026-10-14 09:26:35,694 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-961807 written
+2026-10-14 09:26:36,459 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-341391 written
+2026-10-14 09:26:37,448 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-192940 written
+2026-10-14 09:26:44,922 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-982413 written
+2026-10-14 09:26:49,169 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-912140 written
+2026-10-14 09:26:50,872 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-549930 written
+2026-10-14 09:27:06,810 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-148801 written
+2026-10-14 09:27:16,832 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-583945 written
+2026-10-14 09:27:34,865 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-342403 written
+2026-10-14 09:27:45,212 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-434105 written
+2026-10-14 09:27:59,868 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-294458 written
+2026-10-14 09:28:07,905 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-511436 written
+2026-10-14 09:28:10,270 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-102157 written
+2026-10-14 09:28:12,999 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-704820 written
+2026-10-14 09:28:23,584 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-287129 written
+2026-10-14 09:28:27,514 [20] DEBUG Billing.Cache - Refreshed tariff cache (200 entries)
+2026-10-14 09:28:30,868 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-790005 written
+2026-10-14 09:28:35,497 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-510386 written
+2026-10-14 09:28:38,108 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-739532 written
+2026-10-14 09:28:39,832 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-760772 written
+2026-10-14 09:28:40,077 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-667084 written
+2026-10-14 09:28:49,831 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-641010 written
+2026-10-14 09:28:57,913 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-555099 written
+2026-10-14 09:28:59,972 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-566707 written
+2026-10-14 09:29:10,998 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-427406 written
+2026-10-14 09:29:13,176 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-288389 written
+2026-10-14 09:29:16,515 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-824632 written
+2026-10-14 09:29:30,118 [15] DEBUG Billing.Cache - Refreshed tariff cache (236 entries)
+2026-10-14 09:29:45,999 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-420720 written
+2026-10-14 09:29:46,725 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-895111 written
+2026-10-14 09:29:56,546 [23] DEBUG Billing.Cache - Refreshed tariff cache (818 entries)
+2026-10-14 09:30:01,276 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-970503 written
+2026-10-14 09:30:19,924 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-854155 written
+2026-10-14 09:30:20,825 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-788710 written
+2026-10-14 09:30:31,742 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-449223 written
+2026-10-14 09:30:36,188 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-656992 written
+2026-10-14 09:30:38,903 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-516418 written
+2026-10-14 09:30:45,023 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-315335 written
+2026-10-14 09:30:49,986 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-111193 written
+2026-10-14 09:30:54,908 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-621109 written
+2026-10-14 09:31:00,959 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-925764 written
+2026-10-14 09:31:08,062 [11] DEBUG Billing.Cache - Refreshed tariff cache (493 entries)
+2026-10-14 09:31:10,482 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-975253 written
+2026-10-14 09:31:13,277 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-455988 written
+2026-10-14 09:31:13,649 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-860256 written
+2026-10-14 09:31:15,913 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-409131 written
+2026-10-14 09:31:29,662 [23] DEBUG Billing.Cache - Refreshed tariff cache (775 entries)
+2026-10-14 09:31:33,973 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-703071 written
+2026-10-14 09:31:40,863 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-644502 written
+2026-10-14 09:31:44,030 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-551177 written
+2026-10-14 09:31:55,131 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-862890 written
+2026-10-14 09:31:55,278 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-136660 written
+2026-10-14 09:31:57,790 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-473110 written
+2026-10-14 09:32:05,269 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-933362 written
+2026-10-14 09:32:07,348 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-189250 written
+2026-10-14 09:32:42,101 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-388239 written
+2026-10-14 09:33:00,085 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-181759 written
+2026-10-14 09:33:02,481 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-802202 written
+2026-10-14 09:33:02,678 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-310387 written
+2026-10-14 09:33:04,615 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-606464 written
+2026-10-14 09:33:07,254 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-423460 written
+2026-10-14 09:33:13,361 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-945431 written
+2026-10-14 09:33:15,688 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-515749 written
+2026-10-14 09:33:19,303 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-874677 written
+2026-10-14 09:33:27,351 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-183358 written
+2026-10-14 09:33:29,455 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-821904 written
+2026-10-14 09:33:33,551 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-708325 written
+2026-10-14 09:33:37,265 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-284746 written
+2026-10-14 09:33:37,475 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-178245 written
+2026-10-14 09:33:49,960 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-683685 written
+2026-10-14 09:33:51,521 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-498395 written
+2026-10-14 09:33:51,894 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-919306 written
+2026-10-14 09:34:07,987 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-523658 written
+2026-10-14 09:34:19,074 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-332753 written
+2026-10-14 09:34:22,506 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-571562 written
+2026-10-14 09:34:30,639 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-312267 written
+2026-10-14 09:34:35,270 [21] DEBUG Billing.Cache - Refreshed tariff cache (585 entries)
+2026-10-14 09:34:46,980 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-522552 written
+2026-10-14 09:35:04,041 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-161983 written
+2026-10-14 09:35:04,528 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-230423 written
+2026-10-14 09:35:10,492 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-681793 written
+2026-10-14 09:35:10,929 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-558800 written
+2026-10-14 09:35:20,917 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-358145 written
+2026-10-14 09:35:27,994 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-917447 written
+2026-10-14 09:35:29,090 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-673459 written
+2026-10-14 09:35:36,595 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-647272 written
+2026-10-14 09:35:40,010 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-722186 written
+2026-10-14 09:35:42,434 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-212209 written
+2026-10-14 09:35:55,365 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-441802 written
+2026-10-14 09:35:56,526 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-667664 written
+2026-10-14 09:36:03,908 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-606037 written
+2026-10-14 09:36:05,769 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-380781 written
+2026-10-14 09:36:07,245 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-980866 written
+2026-10-14 09:36:16,355 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-634277 written
+2026-10-14 09:36:17,678 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-767404 written
+2026-10-14 09:36:19,329 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-917911 written
+2026-10-14 09:36:36,625 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-480832 written
+2026-10-14 09:36:42,700 [17] DEBUG Billing.Cache - Refreshed tariff cache (158 entries)
+2026-10-14 09:36:45,633 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-734388 written
+2026-10-14 09:36:49,430 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-535833 written
+2026-10-14 09:36:50,442 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-392721 written
+2026-10-14 09:36:54,757 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-480037 written
+2026-10-14 09:36:56,303 [19] DEBUG Billing.Cache - Refreshed tariff cache (156 entries)
+2026-10-14 09:37:01,941 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-736595 written
+2026-10-14 09:37:04,478 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-795443 written
+2026-10-14 09:37:15,531 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-669711 written
+2026-10-14 09:37:22,927 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479220 written
+2026-10-14 09:37:25,974 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-424501 written
+2026-10-14 09:37:27,249 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-742482 written
+2026-10-14 09:37:37,864 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-199844 written
+2026-10-14 09:37:44,488 [9] DEBUG Billing.Cache - Refreshed tariff cache (673 entries)
+2026-10-14 09:37:53,803 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-779863 written
+2026-10-14 09:37:54,052 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-791997 written
+2026-10-14 09:38:09,419 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-663054 written
+2026-10-14 09:38:14,380 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-284824 written
+2026-10-14 09:38:14,749 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-874221 written
+2026-10-14 09:38:34,122 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-216828 written
+2026-10-14 09:38:37,959 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-441949 written
+2026-10-14 09:38:38,723 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-938397 written
+2026-10-14 09:38:52,703 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-654355 written
+2026-10-14 09:38:55,087 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-599779 written
+2026-10-14 09:38:56,070 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-708342 written
+2026-10-14 09:39:11,660 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-620371 written
+2026-10-14 09:39:24,229 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-189917 written
+2026-10-14 09:39:28,580 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-700858 written
+2026-10-14 09:39:39,479 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-222679 written
+2026-10-14 09:39:43,437 [7] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 09:39:50,658 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-897693 written
+2026-10-14 09:39:50,749 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-476202 written
+2026-10-14 09:39:54,761 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-717638 written
+2026-10-14 09:39:55,393 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-999694 written
+2026-10-14 09:39:59,366 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-946699 written
+2026-10-14 09:40:01,507 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-943806 written
+2026-10-14 09:40:03,521 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-638416 written
+2026-10-14 09:40:27,557 [14] DEBUG Billing.Cache - Refreshed tariff cache (262 entries)
+2026-10-14 09:40:34,252 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-515534 written
+2026-10-14 09:40:38,098 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-440902 written
+2026-10-14 09:40:39,427 [15] DEBUG Billing.Cache - Refreshed tariff cache (632 entries)
+2026-10-14 09:40:41,931 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-645399 written
+2026-10-14 09:40:49,813 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-365823 written
+2026-10-14 09:40:52,887 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-808999 written
+2026-10-14 09:40:56,825 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-671590 written
+2026-10-14 09:41:31,956 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-708880 written
+2026-10-14 09:41:36,088 [19] DEBUG Billing.Cache - Refreshed tariff cache (717 entries)
+2026-10-14 09:41:52,377 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-700090 written
+2026-10-14 09:41:55,096 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-395410 written
+2026-10-14 09:42:00,927 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-277553 written
+2026-10-14 09:42:03,577 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-793413 written
+2026-10-14 09:42:04,202 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-349309 written
+2026-10-14 09:42:08,257 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-974400 written
+2026-10-14 09:42:13,959 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-847755 written
+2026-10-14 09:42:16,823 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-948245 written
+2026-10-14 09:42:36,677 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-895411 written
+2026-10-14 09:42:42,237 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-904285 written
+2026-10-14 09:43:03,578 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-481953 written
+2026-10-14 09:43:14,595 [13] DEBUG Billing.Cache - Refreshed tariff cache (129 entries)
+2026-10-14 09:43:20,441 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-482972 written
+2026-10-14 09:43:27,477 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-164730 written
+2026-10-14 09:43:35,439 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-237750 written
+2026-10-14 09:43:35,870 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-361767 written
+2026-10-14 09:43:43,155 [23] DEBUG Billing.Cache - Refreshed tariff cache (660 entries)
+2026-10-14 09:43:56,517 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-231043 written
+2026-10-14 09:44:11,147 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-165381 written
+2026-10-14 09:44:37,560 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-884016 written
+2026-10-14 09:44:45,157 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-398295 written
+2026-10-14 09:44:45,505 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-861396 written
+2026-10-14 09:44:48,923 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-978274 written
+2026-10-14 09:44:51,611 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-723217 written
+2026-10-14 09:44:55,209 [18] DEBUG Billing.Cache - Refreshed tariff cache (270 entries)
+2026-10-14 09:44:57,465 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-121738 written
+2026-10-14 09:45:01,089 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-228822 written
+2026-10-14 09:45:03,292 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-913100 written
+2026-10-14 09:45:17,272 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-297223 written
+2026-10-14 09:45:20,743 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-905353 written
+2026-10-14 09:45:20,820 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-802664 written
+2026-10-14 09:45:25,582 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-726067 written
+2026-10-14 09:45:28,525 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-356957 written
+2026-10-14 09:45:33,337 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-646019 written
+2026-10-14 09:45:40,347 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-305543 written
+2026-10-14 09:45:44,583 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-614069 written
+2026-10-14 09:45:56,302 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-233425 written
+2026-10-14 09:46:09,861 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-793618 written
+2026-10-14 09:46:12,742 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-184649 written
+2026-10-14 09:46:16,747 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220882 written
+2026-10-14 09:46:24,184 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-633737 written
+2026-10-14 09:46:38,010 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-977517 written
+2026-10-14 09:46:44,285 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-900922 written
+2026-10-14 09:46:51,311 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-530577 written
+2026-10-14 09:47:00,064 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-619081 written
+2026-10-14 09:47:07,997 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-337355 written
+2026-10-14 09:47:15,555 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-249624 written
+2026-10-14 09:47:29,880 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-150541 written
+2026-10-14 09:47:33,382 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-962888 written
+2026-10-14 09:47:38,361 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-233969 written
+2026-10-14 09:47:43,245 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-347356 written
+2026-10-14 09:47:44,173 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-163642 written
+2026-10-14 09:47:44,872 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-204449 written
+2026-10-14 09:47:52,216 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-190808 written
+2026-10-14 09:47:54,024 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-475351 written
+2026-10-14 09:47:54,854 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-561323 written
+2026-10-14 09:48:06,838 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-369285 written
+2026-10-14 09:48:10,716 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-443880 written
+2026-10-14 09:48:22,162 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-230610 written
+2026-10-14 09:48:34,902 [22] DEBUG Billing.Cache - Refreshed tariff cache (645 entries)
+2026-10-14 09:48:41,571 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-671956 written
+2026-10-14 09:48:43,547 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-137811 written
+2026-10-14 09:48:45,067 [17] DEBUG Billing.Cache - Refreshed tariff cache (526 entries)
+2026-10-14 09:48:47,076 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-270160 written
+2026-10-14 09:48:54,186 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220520 written
+2026-10-14 09:49:16,872 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-363820 written
+2026-10-14 09:49:30,916 [6] DEBUG Billing.Cache - Refreshed tariff cache (277 entries)
+2026-10-14 09:49:31,225 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-225278 written
+2026-10-14 09:49:32,057 [21] DEBUG Billing.Cache - Refreshed tariff cache (350 entries)
+2026-10-14 09:49:40,701 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-362443 written
+2026-10-14 09:49:46,610 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-369534 written
+2026-10-14 09:49:46,647 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-204219 written
+2026-10-14 09:49:48,368 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-773215 written
+2026-10-14 09:49:53,235 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-814956 written
+2026-10-14 09:50:30,064 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-172012 written
+2026-10-14 09:50:43,829 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-432431 written
+2026-10-14 09:50:45,578 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-232405 written
+2026-10-14 09:50:45,970 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-142634 written
+2026-10-14 09:50:49,562 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-516306 written
+2026-10-14 09:50:51,267 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-637921 written
+2026-10-14 09:50:55,120 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-748157 written
+2026-10-14 09:51:08,570 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-713180 written
+2026-10-14 09:51:12,004 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-415295 written
+2026-10-14 09:51:13,135 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-262427 written
+2026-10-14 09:51:15,112 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-317150 written
+2026-10-14 09:51:30,064 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-589159 written
+2026-10-14 09:51:32,760 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-108128 written
+2026-10-14 09:51:33,677 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-163315 written
+2026-10-14 09:51:37,165 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-528889 written
+2026-10-14 09:51:41,056 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-138081 written
+2026-10-14 09:51:42,284 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-478359 written
+2026-10-14 09:51:53,678 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-765393 written
+2026-10-14 09:52:02,779 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-691402 written
+2026-10-14 09:52:04,303 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-440000 written
+2026-10-14 09:52:06,294 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-682755 written
+2026-10-14 09:52:07,612 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-813760 written
+2026-10-14 09:52:10,595 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-702819 written
+2026-10-14 09:52:16,345 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-660224 written
+2026-10-14 09:52:17,471 [12] DEBUG Billing.Cache - Refreshed tariff cache (459 entries)
+2026-10-14 09:52:19,325 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-107727 written
+2026-10-14 09:52:21,209 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-364954 written
+2026-10-14 09:52:21,503 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-916311 written
+2026-10-14 09:52:33,988 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-268136 written
+2026-10-14 09:52:37,751 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-641018 written
+2026-10-14 09:52:37,817 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-594352 written
+2026-10-14 09:52:40,563 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-561822 written
+2026-10-14 09:52:47,120 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-766560 written
+2026-10-14 09:52:47,702 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-705701 written
+2026-10-14 09:52:51,050 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-676255 written
+2026-10-14 09:52:55,270 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-314632 written
+2026-10-14 09:53:00,605 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-790201 written
+2026-10-14 09:53:07,314 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-477004 written
+2026-10-14 09:53:14,741 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-894496 written
+2026-10-14 09:53:18,845 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-256498 written
+2026-10-14 09:53:27,294 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-129011 written
+2026-10-14 09:53:30,009 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-473978 written
+2026-10-14 09:53:34,965 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-239875 written
+2026-10-14 09:53:37,308 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-553987 written
+2026-10-14 09:53:38,598 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-858625 written
+2026-10-14 09:53:44,644 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-936383 written
+2026-10-14 09:54:04,927 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-432815 written
+2026-10-14 09:54:05,237 [6] DEBUG Billing.Cache - Refreshed tariff cache (197 entries)
+2026-10-14 09:54:12,282 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-230786 written
+2026-10-14 09:54:17,816 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-685600 written
+2026-10-14 09:54:23,585 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-410563 written
+2026-10-14 09:54:27,301 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-197997 written
+2026-10-14 09:54:29,770 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-899361 written
+2026-10-14 09:54:34,973 [16] DEBUG Billing.Cache - Refreshed tariff cache (737 entries)
+2026-10-14 09:54:56,326 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-232242 written
+2026-10-14 09:54:57,075 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-173301 written
+2026-10-14 09:55:03,109 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-345646 written
+2026-10-14 09:55:08,103 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-808997 written
+2026-10-14 09:55:08,735 [23] DEBUG Billing.Cache - Refreshed tariff cache (261 entries)
+2026-10-14 09:55:10,765 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-740734 written
+2026-10-14 09:55:15,282 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-596757 written
+2026-10-14 09:55:16,635 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-748858 written
+2026-10-14 09:55:22,125 [7] DEBUG Billing.Cache - Refreshed tariff cache (202 entries)
+2026-10-14 09:55:22,205 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-327372 written
+2026-10-14 09:55:22,925 [19] DEBUG Billing.Cache - Refreshed tariff cache (838 entries)
+2026-10-14 09:55:28,615 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-853992 written
+2026-10-14 09:55:54,928 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-140766 written
+2026-10-14 09:55:59,323 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-355086 written
+2026-10-14 09:55:59,807 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-822468 written
+2026-10-14 09:56:01,141 [18] DEBUG Billing.Cache - Refreshed tariff cache (519 entries)
+2026-10-14 09:56:01,607 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-365789 written
+2026-10-14 09:56:02,376 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-538489 written
+2026-10-14 09:56:03,580 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-314896 written
+2026-10-14 09:56:05,463 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-314455 written
+2026-10-14 09:56:18,932 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-960447 written
+2026-10-14 09:56:20,033 [19] DEBUG Billing.Cache - Refreshed tariff cache (535 entries)
+2026-10-14 09:56:23,055 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-527024 written
+2026-10-14 09:56:52,492 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-701040 written
+2026-10-14 09:56:53,581 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-172699 written
+2026-10-14 09:56:57,200 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-352220 written
+2026-10-14 09:56:58,411 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-944873 written
+2026-10-14 09:57:02,270 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-753217 written
+2026-10-14 09:57:03,997 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-143583 written
+2026-10-14 09:57:12,662 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-217195 written
+2026-10-14 09:57:31,803 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-634762 written
+2026-10-14 09:57:34,342 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-149498 written
+2026-10-14 09:57:49,276 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-236004 written
+2026-10-14 09:57:53,771 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-608134 written
+2026-10-14 09:57:58,354 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-108429 written
+2026-10-14 09:58:00,128 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-677092 written
+2026-10-14 09:58:06,966 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-537865 written
+2026-10-14 09:58:10,773 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-821129 written
+2026-10-14 09:58:12,182 [6] DEBUG Billing.Cache - Refreshed tariff cache (578 entries)
+2026-10-14 09:58:18,696 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-830269 written
+2026-10-14 09:58:22,386 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-901609 written
+2026-10-14 09:58:26,982 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-602700 written
+2026-10-14 09:58:30,656 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-402348 written
+2026-10-14 09:58:43,913 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-848258 written
+2026-10-14 09:58:45,379 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-550004 written
+2026-10-14 09:58:45,629 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-656289 written
+2026-10-14 09:58:49,945 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-118430 written
+2026-10-14 09:58:54,005 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-963771 written
+2026-10-14 09:58:56,774 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-206472 written
+2026-10-14 09:59:01,339 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-791055 written
+2026-10-14 09:59:02,784 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-261924 written
+2026-10-14 09:59:15,614 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-742750 written
+2026-10-14 09:59:19,184 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-563395 written
+2026-10-14 09:59:23,197 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-356720 written
+2026-10-14 09:59:23,443 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-109757 written
+2026-10-14 09:59:24,794 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-263772 written
+2026-10-14 09:59:25,275 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-521597 written
+2026-10-14 09:59:27,968 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-734578 written
+2026-10-14 09:59:29,898 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-421633 written
+2026-10-14 09:59:51,681 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-477613 written
+2026-10-14 09:59:52,742 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-771023 written
+2026-10-14 10:00:01,312 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-213018 written
+2026-10-14 10:00:05,926 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-245610 written
+2026-10-14 10:00:07,281 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-828859 written
+2026-10-14 10:00:09,680 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-144205 written
+2026-10-14 10:00:14,141 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-162171 written
+2026-10-14 10:00:25,310 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-432191 written
+2026-10-14 10:00:36,415 [17] DEBUG Billing.Cache - Refreshed tariff cache (125 entries)
+2026-10-14 10:00:41,040 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-450202 written
+2026-10-14 10:00:41,133 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-778904 written
+2026-10-14 10:00:53,363 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-529480 written
+2026-10-14 10:00:54,835 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-461156 written
+2026-10-14 10:00:58,807 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-933640 written
+2026-10-14 10:01:07,577 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-579210 written
+2026-10-14 10:01:12,093 [15] DEBUG Billing.Cache - Refreshed tariff cache (330 entries)
+2026-10-14 10:01:14,262 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-309342 written
+2026-10-14 10:01:14,778 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-486679 written
+2026-10-14 10:01:16,498 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-977281 written
+2026-10-14 10:01:20,635 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-975258 written
+2026-10-14 10:01:32,277 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-695009 written
+2026-10-14 10:01:38,766 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-588257 written
+2026-10-14 10:01:44,798 [12] DEBUG Billing.Cache - Refreshed tariff cache (551 entries)
+2026-10-14 10:01:47,233 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-943885 written
+2026-10-14 10:01:58,254 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-132420 written
+2026-10-14 10:01:58,870 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-742407 written
+2026-10-14 10:02:10,378 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-827356 written
+2026-10-14 10:02:10,832 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-927535 written
+2026-10-14 10:02:22,754 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-862668 written
+2026-10-14 10:02:24,513 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-187470 written
+2026-10-14 10:02:32,674 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-870070 written
+2026-10-14 10:02:36,692 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-844846 written
+2026-10-14 10:02:38,919 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-867488 written
+2026-10-14 10:02:49,026 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-834671 written
+2026-10-14 10:03:04,444 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-566500 written
+2026-10-14 10:03:05,232 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-880883 written
+2026-10-14 10:03:29,421 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-288693 written
+2026-10-14 10:03:31,289 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-187359 written
+2026-10-14 10:03:35,017 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-835186 written
+2026-10-14 10:03:38,423 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-890913 written
+2026-10-14 10:03:46,769 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-647893 written
+2026-10-14 10:03:59,298 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-311595 written
+2026-10-14 10:04:12,118 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-572401 written
+2026-10-14 10:04:17,254 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-245713 written
+2026-10-14 10:04:19,958 [19] DEBUG Billing.Cache - Refreshed tariff cache (387 entries)
+2026-10-14 10:04:28,529 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-991667 written
+2026-10-14 10:04:40,173 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-477769 written
+2026-10-14 10:04:49,896 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-102207 written
+2026-10-14 10:04:52,872 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-185761 written
+2026-10-14 10:04:58,580 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-542538 written
+2026-10-14 10:04:59,979 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-920289 written
+2026-10-14 10:05:27,140 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-620842 written
+2026-10-14 10:05:27,229 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-377955 written
+2026-10-14 10:05:36,821 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-207914 written
+2026-10-14 10:05:44,788 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-380792 written
+2026-10-14 10:05:47,263 [14] DEBUG Billing.Cache - Refreshed tariff cache (381 entries)
+2026-10-14 10:05:47,821 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-470962 written
+2026-10-14 10:05:49,625 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-321096 written
+2026-10-14 10:05:57,710 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-175293 written
+2026-10-14 10:06:11,569 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-145724 written
+2026-10-14 10:06:26,180 [11] DEBUG Billing.Cache - Refreshed tariff cache (538 entries)
+2026-10-14 10:06:34,022 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-954090 written
+2026-10-14 10:06:35,976 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-632533 written
+2026-10-14 10:06:52,604 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-108608 written
+2026-10-14 10:07:11,098 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-294812 written
+2026-10-14 10:07:14,438 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-901453 written
+2026-10-14 10:07:16,135 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-493287 written
+2026-10-14 10:07:27,028 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-663383 written
+2026-10-14 10:07:31,869 [23] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 10:07:44,706 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-688724 written
+2026-10-14 10:07:47,510 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-678053 written
+2026-10-14 10:08:01,111 [11] DEBUG Billing.Cache - Refreshed tariff cache (391 entries)
+2026-10-14 10:08:06,162 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-125843 written
+2026-10-14 10:08:07,409 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-982408 written
+2026-10-14 10:08:11,852 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-721405 written
+2026-10-14 10:08:14,259 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-331139 written
+2026-10-14 10:08:22,831 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-539087 written
+2026-10-14 10:08:25,431 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-357837 written
+2026-10-14 10:08:29,762 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-140675 written
+2026-10-14 10:08:34,530 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-609718 written
+2026-10-14 10:08:35,149 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-508901 written
+2026-10-14 10:08:36,259 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-164659 written
+2026-10-14 10:08:41,247 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-487845 written
+2026-10-14 10:08:50,917 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-752712 written
+2026-10-14 10:08:54,114 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-746257 written
+2026-10-14 10:08:58,114 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-525466 written
+2026-10-14 10:09:03,051 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-247665 written
+2026-10-14 10:09:07,765 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-516131 written
+2026-10-14 10:09:14,202 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-983511 written
+2026-10-14 10:09:16,527 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-544992 written
+2026-10-14 10:09:18,082 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-219675 written
+2026-10-14 10:09:25,757 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-553623 written
+2026-10-14 10:09:26,952 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-931323 written
+2026-10-14 10:09:30,828 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-116858 written
+2026-10-14 10:09:38,595 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-529319 written
+2026-10-14 10:09:50,735 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-692813 written
+2026-10-14 10:09:53,042 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-287785 written
+2026-10-14 10:09:55,904 [18] DEBUG Billing.Cache - Refreshed tariff cache (467 entries)
+2026-10-14 10:09:59,575 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-580717 written
+2026-10-14 10:10:10,036 [22] DEBUG Billing.Cache - Refreshed tariff cache (372 entries)
+2026-10-14 10:10:25,901 [11] DEBUG Billing.Cache - Refreshed tariff cache (638 entries)
+2026-10-14 10:10:32,995 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-518943 written
+2026-10-14 10:10:42,098 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-257586 written
+2026-10-14 10:10:48,447 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-992593 written
+2026-10-14 10:10:49,006 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-199290 written
+2026-10-14 10:10:57,433 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-297082 written
+2026-10-14 10:11:14,913 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-828808 written
+2026-10-14 10:11:21,332 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-616372 written
+2026-10-14 10:11:24,196 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-341676 written
+2026-10-14 10:11:25,145 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-397719 written
+2026-10-14 10:11:32,789 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-646650 written
+2026-10-14 10:11:33,186 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-254410 written
+2026-10-14 10:11:33,427 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-928727 written
+2026-10-14 10:11:35,310 [7] DEBUG Billing.Cache - Refreshed tariff cache (657 entries)
+2026-10-14 10:11:44,613 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-462417 written
+2026-10-14 10:11:48,203 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-787810 written
+2026-10-14 10:11:48,349 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-139270 written
+2026-10-14 10:11:49,475 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-680749 written
+2026-10-14 10:11:56,128 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-856497 written
+2026-10-14 10:12:05,108 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-983890 written
+2026-10-14 10:12:09,227 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-687296 written
+2026-10-14 10:12:12,047 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-149511 written
+2026-10-14 10:12:14,256 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-940266 written
+2026-10-14 10:12:16,540 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-674985 written
+2026-10-14 10:12:17,779 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-567399 written
+2026-10-14 10:12:20,442 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-307924 written
+2026-10-14 10:12:25,508 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-149770 written
+2026-10-14 10:12:31,543 [13] DEBUG Billing.Cache - Refreshed tariff cache (566 entries)
+2026-10-14 10:12:54,553 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-458490 written
+2026-10-14 10:13:02,456 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-166586 written
+2026-10-14 10:13:05,218 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-634051 written
+2026-10-14 10:13:05,524 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-191908 written
+2026-10-14 10:13:14,465 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-782697 written
+2026-10-14 10:13:25,406 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-984070 written
+2026-10-14 10:13:27,338 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-344588 written
+2026-10-14 10:13:34,723 [13] DEBUG Billing.Cache - Refreshed tariff cache (598 entries)
+2026-10-14 10:13:40,670 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-996448 written
+2026-10-14 10:13:40,792 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-619663 written
+2026-10-14 10:13:44,870 [23] DEBUG Billing.Cache - Refreshed tariff cache (504 entries)
+2026-10-14 10:14:12,070 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-163891 written
+2026-10-14 10:14:14,961 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-592804 written
+2026-10-14 10:14:38,400 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-836211 written
+2026-10-14 10:14:42,877 [22] DEBUG Billing.Cache - Refreshed tariff cache (109 entries)
+2026-10-14 10:14:43,502 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-725609 written
+2026-10-14 10:14:53,364 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-283533 written
+2026-10-14 10:15:08,597 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-897582 written
+2026-10-14 10:15:10,942 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-526694 written
+2026-10-14 10:15:18,428 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-177333 written
+2026-10-14 10:15:50,366 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-620745 written
+2026-10-14 10:15:57,517 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-240341 written
+2026-10-14 10:16:05,697 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-316624 written
+2026-10-14 10:16:12,410 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-571497 written
+2026-10-14 10:16:24,765 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-351436 written
+2026-10-14 10:16:35,914 [15] DEBUG Billing.Cache - Refreshed tariff cache (391 entries)
+2026-10-14 10:16:44,931 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-780862 written
+2026-10-14 10:16:45,743 [6] DEBUG Billing.Cache - Refreshed tariff cache (674 entries)
+2026-10-14 10:16:50,586 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-250872 written
+2026-10-14 10:16:52,306 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-888452 written
+2026-10-14 10:16:58,961 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-665662 written
+2026-10-14 10:17:03,085 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-998767 written
+2026-10-14 10:17:05,809 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-348558 written
+2026-10-14 10:17:19,355 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-257367 written
+2026-10-14 10:17:21,287 [13] DEBUG Billing.Cache - Refreshed tariff cache (727 entries)
+2026-10-14 10:17:23,328 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-867478 written
+2026-10-14 10:17:25,028 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-661952 written
+2026-10-14 10:17:35,902 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-414947 written
+2026-10-14 10:17:45,128 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-976389 written
+2026-10-14 10:17:51,037 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-578954 written
+2026-10-14 10:17:58,183 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-125494 written
+2026-10-14 10:18:15,906 [14] DEBUG Billing.Cache - Refreshed tariff cache (879 entries)
+2026-10-14 10:18:17,950 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-651532 written
+2026-10-14 10:18:22,277 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-616053 written
+2026-10-14 10:18:31,934 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-883660 written
+2026-10-14 10:18:34,528 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-683797 written
+2026-10-14 10:18:54,011 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-598571 written
+2026-10-14 10:18:55,748 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-906421 written
+2026-10-14 10:18:58,493 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-694296 written
+2026-10-14 10:18:59,615 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-820057 written
+2026-10-14 10:18:59,742 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-800352 written
+2026-10-14 10:19:02,321 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-425501 written
+2026-10-14 10:19:03,457 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-407344 written
+2026-10-14 10:19:04,109 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-213935 written
+2026-10-14 10:19:05,813 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-311354 written
+2026-10-14 10:19:09,314 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-759540 written
+2026-10-14 10:19:15,590 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-420480 written
+2026-10-14 10:19:16,419 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-815924 written
+2026-10-14 10:19:19,945 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-231534 written
+2026-10-14 10:19:26,095 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-879464 written
+2026-10-14 10:19:33,884 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479701 written
+2026-10-14 10:19:38,762 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-999420 written
+2026-10-14 10:19:40,241 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-829232 written
+2026-10-14 10:19:41,980 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-138998 written
+2026-10-14 10:19:47,181 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-275859 written
+2026-10-14 10:19:48,961 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-177504 written
+2026-10-14 10:19:54,398 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-719729 written
+2026-10-14 10:19:57,982 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-174230 written
+2026-10-14 10:20:06,906 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-786871 written
+2026-10-14 10:20:10,209 [5] DEBUG Billing.Cache - Refreshed tariff cache (340 entries)
+2026-10-14 10:20:21,533 [20] DEBUG Billing.Cache - Refreshed tariff cache (157 entries)
+2026-10-14 10:20:23,110 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-736094 written
+2026-10-14 10:20:24,105 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-812137 written
+2026-10-14 10:20:28,179 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-508022 written
+2026-10-14 10:20:28,382 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-753919 written
+2026-10-14 10:20:36,084 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-133362 written
+2026-10-14 10:20:43,322 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-806876 written
+2026-10-14 10:20:46,024 [16] DEBUG Billing.Cache - Refreshed tariff cache (124 entries)
+2026-10-14 10:20:49,465 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-217951 written
+2026-10-14 10:20:52,659 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-351958 written
+2026-10-14 10:21:00,830 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-625275 written
+2026-10-14 10:21:11,228 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-542199 written
+2026-10-14 10:21:11,282 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-504747 written
+2026-10-14 10:21:14,692 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-364301 written
+2026-10-14 10:21:17,073 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-191707 written
+2026-10-14 10:21:23,946 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-480256 written
+2026-10-14 10:21:26,983 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-745733 written
+2026-10-14 10:21:30,960 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-649979 written
+2026-10-14 10:21:41,655 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-903889 written
+2026-10-14 10:22:07,297 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-263209 written
+2026-10-14 10:22:11,280 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-209301 written
+2026-10-14 10:22:14,439 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-568038 written
+2026-10-14 10:22:25,543 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220941 written
+2026-10-14 10:22:29,162 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-388547 written
+2026-10-14 10:22:29,367 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-487480 written
+2026-10-14 10:22:35,723 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-981057 written
+2026-10-14 10:22:44,832 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-548577 written
+2026-10-14 10:22:46,414 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-656661 written
+2026-10-14 10:23:00,932 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-286787 written
+2026-10-14 10:23:02,202 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-928020 written
+2026-10-14 10:23:07,256 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-117455 written
+2026-10-14 10:23:09,692 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-779455 written
+2026-10-14 10:23:16,538 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-327994 written
+2026-10-14 10:23:20,840 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-639513 written
+2026-10-14 10:23:22,724 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-884242 written
+2026-10-14 10:23:23,101 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-148622 written
+2026-10-14 10:23:28,584 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-307182 written
+2026-10-14 10:23:35,395 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-133634 written
+2026-10-14 10:23:42,934 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-994495 written
+2026-10-14 10:23:46,411 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-632845 written
+2026-10-14 10:23:47,576 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-486672 written
+2026-10-14 10:23:50,665 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-544779 written
+2026-10-14 10:23:58,975 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-915563 written
+2026-10-14 10:24:07,635 [24] DEBUG Billing.Cache - Refreshed tariff cache (358 entries)
+2026-10-14 10:24:12,433 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-678331 written
+2026-10-14 10:24:19,093 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-783255 written
+2026-10-14 10:24:33,323 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-305683 written
+2026-10-14 10:24:39,146 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-880407 written
+2026-10-14 10:24:40,686 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-617084 written
+2026-10-14 10:24:44,187 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-785635 written
+2026-10-14 10:24:44,966 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-537479 written
+2026-10-14 10:24:56,815 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-617356 written
+2026-10-14 10:24:58,999 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-328978 written
+2026-10-14 10:25:02,017 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-939175 written
+2026-10-14 10:25:04,020 [12] DEBUG Billing.Cache - Refreshed tariff cache (831 entries)
+2026-10-14 10:25:16,117 [12] DEBUG Billing.Cache - Refreshed tariff cache (387 entries)
+2026-10-14 10:25:19,395 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-292295 written
+2026-10-14 10:25:24,218 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-368430 written
+2026-10-14 10:25:25,005 [19] DEBUG Billing.Cache - Refreshed tariff cache (657 entries)
+2026-10-14 10:25:27,190 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-285566 written
+2026-10-14 10:25:38,476 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-199913 written
+2026-10-14 10:25:47,719 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-170863 written
+2026-10-14 10:25:48,069 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-612673 written
+2026-10-14 10:25:50,074 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-692852 written
+2026-10-14 10:26:02,454 [6] DEBUG Billing.Cache - Refreshed tariff cache (893 entries)
+2026-10-14 10:26:04,082 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-701586 written
+2026-10-14 10:26:09,940 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-659984 written
+2026-10-14 10:26:10,355 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-629009 written
+2026-10-14 10:26:14,557 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-857818 written
+2026-10-14 10:26:22,451 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-502989 written
+2026-10-14 10:26:34,795 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-861962 written
+2026-10-14 10:26:42,516 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-219289 written
+2026-10-14 10:26:47,552 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-225614 written
+2026-10-14 10:26:51,753 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-414948 written
+2026-10-14 10:26:54,426 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-679796 written
+2026-10-14 10:27:13,197 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-577470 written
+2026-10-14 10:27:16,914 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-461532 written
+2026-10-14 10:27:28,322 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-750993 written
+2026-10-14 10:27:48,472 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-464344 written
+2026-10-14 10:27:54,109 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-966199 written
+2026-10-14 10:27:58,824 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-287547 written
+2026-10-14 10:28:08,669 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-742073 written
+2026-10-14 10:28:09,004 [12] DEBUG Billing.Cache - Refreshed tariff cache (233 entries)
+2026-10-14 10:28:27,018 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-217884 written
+2026-10-14 10:28:38,737 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-976642 written
+2026-10-14 10:28:39,728 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-685156 written
+2026-10-14 10:28:52,867 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-182022 written
+2026-10-14 10:29:05,800 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-192973 written
+2026-10-14 10:29:08,518 [23] DEBUG Billing.Cache - Refreshed tariff cache (172 entries)
+2026-10-14 10:29:14,568 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-477673 written
+2026-10-14 10:29:20,519 [18] DEBUG Billing.Cache - Refreshed tariff cache (729 entries)
+2026-10-14 10:29:22,946 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-484251 written
+2026-10-14 10:29:28,134 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-955102 written
+2026-10-14 10:29:28,451 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-207065 written
+2026-10-14 10:29:42,045 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-425978 written
+2026-10-14 10:29:56,652 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-275301 written
+2026-10-14 10:30:03,964 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-844943 written
+2026-10-14 10:30:06,739 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-639204 written
+2026-10-14 10:30:09,053 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-656871 written
+2026-10-14 10:30:11,662 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-404681 written
+2026-10-14 10:30:20,244 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-737678 written
+2026-10-14 10:30:29,628 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-281709 written
+2026-10-14 10:30:30,073 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-614511 written
+2026-10-14 10:30:30,596 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-134297 written
+2026-10-14 10:30:41,688 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-777537 written
+2026-10-14 10:30:47,333 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-795274 written
+2026-10-14 10:30:59,352 [20] DEBUG Billing.Cache - Refreshed tariff cache (499 entries)
+2026-10-14 10:31:07,151 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-725607 written
+2026-10-14 10:31:07,625 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-145703 written
+2026-10-14 10:31:08,352 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-399218 written
+2026-10-14 10:31:09,546 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-737617 written
+2026-10-14 10:31:19,988 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-717906 written
+2026-10-14 10:31:24,436 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88025 (14 s)
+2026-10-14 10:31:40,017 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-624557 written
+2026-10-14 10:31:40,357 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-841675 written
+2026-10-14 10:31:46,320 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-263848 written
+2026-10-14 10:31:54,830 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-931136 written
+2026-10-14 10:31:56,955 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-290660 written
+2026-10-14 10:32:16,625 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-813569 written
+2026-10-14 10:32:27,093 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-916920 written
+2026-10-14 10:32:27,467 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-536687 written
+2026-10-14 10:32:42,371 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-423226 written
+2026-10-14 10:32:45,865 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-496719 written
+2026-10-14 10:32:46,563 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-781241 written
+2026-10-14 10:32:48,395 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-292607 written
+2026-10-14 10:32:51,040 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-662504 written
+2026-10-14 10:33:00,570 [24] DEBUG Billing.Cache - Refreshed tariff cache (738 entries)
+2026-10-14 10:33:14,594 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-716572 written
+2026-10-14 10:33:26,825 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-294587 written
+2026-10-14 10:33:38,311 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88644 (12 s)
+2026-10-14 10:33:40,387 [20] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 10:33:41,043 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-251990 written
+2026-10-14 10:33:47,745 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-344701 written
+2026-10-14 10:34:10,281 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-910136 written
+2026-10-14 10:34:17,190 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-498510 written
+2026-10-14 10:34:19,908 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-496879 written
+2026-10-14 10:34:20,841 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-149700 written
+2026-10-14 10:34:21,528 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-337127 written
+2026-10-14 10:34:35,018 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479835 written
+2026-10-14 10:34:36,213 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-374710 written
+2026-10-14 10:34:42,098 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88389 (19 s)
+2026-10-14 10:34:49,486 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-418459 written
+2026-10-14 10:34:51,661 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-440977 written
+2026-10-14 10:34:53,155 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-745451 written
+2026-10-14 10:34:55,476 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-324148 written
+2026-10-14 10:34:59,430 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-299691 written
+2026-10-14 10:35:00,085 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-843364 written
+2026-10-14 10:35:15,453 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88841 (7 s)
+2026-10-14 10:35:16,750 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-678210 written
+2026-10-14 10:35:18,667 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-273378 written
+2026-10-14 10:35:24,627 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-753360 written
+2026-10-14 10:35:29,352 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88949 (6 s)
+2026-10-14 10:35:29,833 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479587 written
+2026-10-14 10:35:30,959 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-992233 written
+2026-10-14 10:35:31,227 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88448 (23 s)
+2026-10-14 10:35:31,663 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-716227 written
+2026-10-14 10:35:42,429 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-355215 written
+2026-10-14 10:35:44,357 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-163757 written
+2026-10-14 10:35:44,581 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-493268 written
+2026-10-14 10:35:58,948 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-918213 written
+2026-10-14 10:36:00,854 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-798058 written
+2026-10-14 10:36:02,064 [19] DEBUG Billing.Cache - Refreshed tariff cache (464 entries)
+2026-10-14 10:36:09,191 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-471338 written
+2026-10-14 10:36:16,549 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-325944 written
+2026-10-14 10:36:37,599 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-399950 written
+2026-10-14 10:36:40,993 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-952698 written
+2026-10-14 10:36:41,200 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-747077 written
+2026-10-14 10:36:41,830 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-333175 written
+2026-10-14 10:36:54,829 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-270018 written
+2026-10-14 10:37:02,775 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88894 (29 s)
+2026-10-14 10:37:21,375 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-994473 written
+2026-10-14 10:37:31,630 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88647 (14 s)
+2026-10-14 10:37:35,765 [19] DEBUG Billing.Cache - Refreshed tariff cache (246 entries)
+2026-10-14 10:37:39,294 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-666615 written
+2026-10-14 10:37:43,235 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-394752 written
+2026-10-14 10:37:49,029 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-302498 written
+2026-10-14 10:37:57,172 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-513777 written
+2026-10-14 10:38:11,093 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-152067 written
+2026-10-14 10:38:14,641 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-979384 written
+2026-10-14 10:38:18,281 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88983 (22 s)
+2026-10-14 10:38:30,325 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88782 (11 s)
+2026-10-14 10:38:30,788 [12] DEBUG Billing.Cache - Refreshed tariff cache (682 entries)
+2026-10-14 10:38:31,815 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-244535 written
+2026-10-14 10:38:32,854 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88276 (14 s)
+2026-10-14 10:38:35,678 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-803465 written
+2026-10-14 10:38:50,821 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-505792 written
+2026-10-14 10:39:03,040 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88200 (5 s)
+2026-10-14 10:39:04,245 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-687960 written
+2026-10-14 10:39:06,041 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-660380 written
+2026-10-14 10:39:12,538 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-621351 written
+2026-10-14 10:39:15,330 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-769207 written
+2026-10-14 10:39:18,661 [22] DEBUG Billing.Cache - Refreshed tariff cache (618 entries)
+2026-10-14 10:39:22,863 [6] DEBUG Billing.Cache - Refreshed tariff cache (488 entries)
+2026-10-14 10:39:31,050 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-471880 written
+2026-10-14 10:39:37,358 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-774070 written
+2026-10-14 10:39:37,650 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-434543 written
+2026-10-14 10:39:38,219 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-266593 written
+2026-10-14 10:39:43,164 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-981196 written
+2026-10-14 10:39:46,427 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88458 (7 s)
+2026-10-14 10:39:59,356 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-174222 written
+2026-10-14 10:40:04,796 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-227629 written
+2026-10-14 10:40:06,976 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88808 (20 s)
+2026-10-14 10:40:22,866 [23] DEBUG Billing.Cache - Refreshed tariff cache (786 entries)
+2026-10-14 10:40:34,640 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-430511 written
+2026-10-14 10:40:38,255 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-218775 written
+2026-10-14 10:40:49,799 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-553431 written
+2026-10-14 10:40:51,160 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-145628 written
+2026-10-14 10:40:53,861 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-487785 written
+2026-10-14 10:40:55,844 [8] DEBUG Billing.Cache - Refreshed tariff cache (760 entries)
+2026-10-14 10:40:56,530 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-805963 written
+2026-10-14 10:40:57,194 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-885650 written
+2026-10-14 10:41:07,765 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-246093 written
+2026-10-14 10:41:09,605 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88808 (25 s)
+2026-10-14 10:41:10,041 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-873280 written
+2026-10-14 10:41:14,779 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88666 (30 s)
+2026-10-14 10:41:15,925 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-641248 written
+2026-10-14 10:41:28,474 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88404 (19 s)
+2026-10-14 10:41:30,639 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-316987 written
+2026-10-14 10:41:30,879 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-594075 written
+2026-10-14 10:41:43,773 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88402 (28 s)
+2026-10-14 10:41:46,120 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-392883 written
+2026-10-14 10:41:46,731 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-377680 written
+2026-10-14 10:42:08,449 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88996 (27 s)
+2026-10-14 10:42:19,234 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-291571 written
+2026-10-14 10:42:27,553 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88896 (20 s)
+2026-10-14 10:42:29,272 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-607596 written
+2026-10-14 10:42:30,690 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-447941 written
+2026-10-14 10:42:35,292 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-720118 written
+2026-10-14 10:42:39,188 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-692543 written
+2026-10-14 10:42:40,204 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-179432 written
+2026-10-14 10:42:43,077 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88924 (12 s)
+2026-10-14 10:43:05,742 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-979108 written
+2026-10-14 10:43:06,446 [8] DEBUG Billing.Cache - Refreshed tariff cache (255 entries)
+2026-10-14 10:43:08,067 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-700541 written
+2026-10-14 10:43:19,258 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88888 (10 s)
+2026-10-14 10:43:19,529 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88743 (28 s)
+2026-10-14 10:43:22,182 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88418 (10 s)
+2026-10-14 10:43:24,432 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-281584 written
+2026-10-14 10:43:31,973 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88893 (8 s)
+2026-10-14 10:43:32,578 [24] DEBUG Billing.Cache - Refreshed tariff cache (406 entries)
+2026-10-14 10:43:35,156 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-782109 written
+2026-10-14 10:43:35,642 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-155672 written
+2026-10-14 10:43:42,628 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-322146 written
+2026-10-14 10:43:46,344 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-721519 written
+2026-10-14 10:43:47,378 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-434314 written
+2026-10-14 10:43:51,981 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88887 (7 s)
+2026-10-14 10:44:06,121 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-999724 written
+2026-10-14 10:44:07,225 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-862238 written
+2026-10-14 10:44:26,875 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772070 written
+2026-10-14 10:44:29,289 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-509044 written
+2026-10-14 10:44:29,464 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-821067 written
+2026-10-14 10:44:39,360 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88768 (23 s)
+2026-10-14 10:44:42,324 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-743382 written
+2026-10-14 10:44:44,149 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-151774 written
+2026-10-14 10:44:48,000 [10] DEBUG Billing.Cache - Refreshed tariff cache (596 entries)
+2026-10-14 10:44:49,657 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-600081 written
+2026-10-14 10:44:56,459 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-538446 written
+2026-10-14 10:45:08,035 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-220290 written
+2026-10-14 10:45:13,984 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-254727 written
+2026-10-14 10:45:14,882 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-359676 written
+2026-10-14 10:45:20,562 [17] DEBUG Billing.Cache - Refreshed tariff cache (267 entries)
+2026-10-14 10:45:34,287 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-274921 written
+2026-10-14 10:45:40,108 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-989167 written
+2026-10-14 10:45:43,627 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-739767 written
+2026-10-14 10:45:46,639 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-384252 written
+2026-10-14 10:46:03,280 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-670894 written
+2026-10-14 10:46:09,304 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-939631 written
+2026-10-14 10:46:10,119 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-372629 written
+2026-10-14 10:46:14,072 [9] DEBUG Billing.Cache - Refreshed tariff cache (271 entries)
+2026-10-14 10:46:40,278 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-249982 written
+2026-10-14 10:46:46,785 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-449440 written
+2026-10-14 10:46:48,267 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-919294 written
+2026-10-14 10:46:49,336 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-505402 written
+2026-10-14 10:47:00,067 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-792309 written
+2026-10-14 10:47:06,300 [15] DEBUG Billing.Cache - Refreshed tariff cache (641 entries)
+2026-10-14 10:47:06,332 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88707 (22 s)
+2026-10-14 10:47:29,966 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-282303 written
+2026-10-14 10:47:33,376 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88633 (7 s)
+2026-10-14 10:47:33,704 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88047 (19 s)
+2026-10-14 10:47:40,314 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-418298 written
+2026-10-14 10:47:50,206 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-269331 written
+2026-10-14 10:48:13,579 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-622623 written
+2026-10-14 10:48:16,502 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-338563 written
+2026-10-14 10:48:18,271 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-536101 written
+2026-10-14 10:48:31,947 [20] DEBUG Billing.Cache - Refreshed tariff cache (215 entries)
+2026-10-14 10:48:48,913 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-610502 written
+2026-10-14 10:48:53,929 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88729 (18 s)
+2026-10-14 10:48:54,860 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-389493 written
+2026-10-14 10:48:57,177 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-488495 written
+2026-10-14 10:48:58,045 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88729 (15 s)
+2026-10-14 10:48:59,358 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88567 (25 s)
+2026-10-14 10:49:06,083 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-427055 written
+2026-10-14 10:49:11,678 [12] DEBUG Billing.Cache - Refreshed tariff cache (107 entries)
+2026-10-14 10:49:19,708 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-156715 written
+2026-10-14 10:49:28,768 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88227 (13 s)
+2026-10-14 10:49:55,098 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-833313 written
+2026-10-14 10:50:01,037 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-971562 written
+2026-10-14 10:50:09,542 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-975973 written
+2026-10-14 10:50:10,564 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-433110 written
+2026-10-14 10:50:12,395 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-738201 written
+2026-10-14 10:50:27,338 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88286 (23 s)
+2026-10-14 10:50:39,528 [7] DEBUG Billing.Cache - Refreshed tariff cache (103 entries)
+2026-10-14 10:50:45,823 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-702370 written
+2026-10-14 10:50:53,504 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88461 (14 s)
+2026-10-14 10:51:01,794 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-596099 written
+2026-10-14 10:51:07,724 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-589186 written
+2026-10-14 10:51:14,469 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-483795 written
+2026-10-14 10:51:14,527 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-801298 written
+2026-10-14 10:51:20,416 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88274 (18 s)
+2026-10-14 10:51:22,596 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-487762 written
+2026-10-14 10:51:23,530 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88962 (26 s)
+2026-10-14 10:51:28,693 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-693158 written
+2026-10-14 10:51:28,762 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-970764 written
+2026-10-14 10:51:30,832 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-601693 written
+2026-10-14 10:51:42,811 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-214570 written
+2026-10-14 10:51:57,838 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-586539 written
+2026-10-14 10:52:02,229 [14] DEBUG Billing.Cache - Refreshed tariff cache (108 entries)
+2026-10-14 10:52:05,674 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-257798 written
+2026-10-14 10:52:23,376 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-910245 written
+2026-10-14 10:52:26,164 [21] DEBUG Billing.Cache - Refreshed tariff cache (144 entries)
+2026-10-14 10:52:34,601 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-219233 written
+2026-10-14 10:52:45,139 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-989784 written
+2026-10-14 10:52:52,794 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88923 (25 s)
+2026-10-14 10:52:54,854 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-897245 written
+2026-10-14 10:52:57,419 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-997331 written
+2026-10-14 10:53:01,762 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88156 (12 s)
+2026-10-14 10:53:12,084 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-512842 written
+2026-10-14 10:53:17,773 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88896 (24 s)
+2026-10-14 10:53:31,549 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-266248 written
+2026-10-14 10:53:34,355 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-163768 written
+2026-10-14 10:53:35,122 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-890881 written
+2026-10-14 10:53:44,097 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-652830 written
+2026-10-14 10:53:44,410 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88735 (29 s)
+2026-10-14 10:53:45,273 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-521042 written
+2026-10-14 10:53:47,042 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88975 (20 s)
+2026-10-14 10:53:47,266 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-606403 written
+2026-10-14 10:53:56,705 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-749523 written
+2026-10-14 10:54:02,415 [21] DEBUG Billing.Cache - Refreshed tariff cache (189 entries)
+2026-10-14 10:54:08,355 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-929083 written
+2026-10-14 10:54:09,783 [7] DEBUG Billing.Cache - Refreshed tariff cache (690 entries)
+2026-10-14 10:54:12,704 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88318 (28 s)
+2026-10-14 10:54:25,006 [23] DEBUG Billing.Cache - Refreshed tariff cache (831 entries)
+2026-10-14 10:54:39,065 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88970 (28 s)
+2026-10-14 10:54:40,025 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88190 (13 s)
+2026-10-14 10:54:41,514 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88152 (13 s)
+2026-10-14 10:54:49,091 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-492949 written
+2026-10-14 10:54:50,740 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88798 (10 s)
+2026-10-14 10:54:52,981 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-127307 written
+2026-10-14 10:55:00,000 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-326428 written
+2026-10-14 10:55:00,789 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88722 (29 s)
+2026-10-14 10:55:00,801 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-906787 written
+2026-10-14 10:55:07,395 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-632612 written
+2026-10-14 10:55:10,055 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88804 (11 s)
+2026-10-14 10:55:11,652 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-162662 written
+2026-10-14 10:55:28,817 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-592471 written
+2026-10-14 10:55:32,850 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-310496 written
+2026-10-14 10:55:40,790 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-604138 written
+2026-10-14 10:55:48,902 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-980407 written
+2026-10-14 10:55:51,380 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-358910 written
+2026-10-14 10:55:55,153 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-314862 written
+2026-10-14 10:56:04,253 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88326 (19 s)
+2026-10-14 10:56:14,379 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-743692 written
+2026-10-14 10:56:17,204 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-922629 written
+2026-10-14 10:56:19,396 [24] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 10:56:19,873 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88913 (14 s)
+2026-10-14 10:56:28,961 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-669362 written
+2026-10-14 10:56:39,601 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-800956 written
+2026-10-14 10:57:02,234 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-307260 written
+2026-10-14 10:57:09,706 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772521 written
+2026-10-14 10:57:11,107 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-671322 written
+2026-10-14 10:57:15,436 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-595668 written
+2026-10-14 10:57:16,988 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-644793 written
+2026-10-14 10:57:42,351 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-271387 written
+2026-10-14 10:57:43,487 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-794311 written
+2026-10-14 10:57:54,540 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-110838 written
+2026-10-14 10:57:56,459 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-236009 written
+2026-10-14 10:58:04,958 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-434886 written
+2026-10-14 10:58:10,258 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-915318 written
+2026-10-14 10:58:17,595 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88216 (24 s)
+2026-10-14 10:58:18,868 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88072 (23 s)
+2026-10-14 10:58:20,333 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-720096 written
+2026-10-14 10:58:24,340 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-919485 written
+2026-10-14 10:58:31,230 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88448 (29 s)
+2026-10-14 10:58:34,490 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-426213 written
+2026-10-14 10:58:42,328 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88821 (23 s)
+2026-10-14 10:58:45,491 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88278 (7 s)
+2026-10-14 10:58:49,795 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-251114 written
+2026-10-14 10:58:50,010 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-893603 written
+2026-10-14 10:58:50,251 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-928201 written
+2026-10-14 10:58:58,508 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-568373 written
+2026-10-14 10:59:02,188 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88080 (28 s)
+2026-10-14 10:59:02,377 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88006 (28 s)
+2026-10-14 10:59:29,119 [15] DEBUG Billing.Cache - Refreshed tariff cache (217 entries)
+2026-10-14 10:59:30,277 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-167275 written
+2026-10-14 10:59:31,785 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88136 (18 s)
+2026-10-14 10:59:35,185 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88913 (22 s)
+2026-10-14 10:59:35,342 [20] DEBUG Billing.Cache - Refreshed tariff cache (741 entries)
+2026-10-14 10:59:42,353 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-866443 written
+2026-10-14 10:59:42,580 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-615835 written
+2026-10-14 10:59:43,337 [11] DEBUG Billing.Cache - Refreshed tariff cache (830 entries)
+2026-10-14 10:59:45,869 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-332180 written
+2026-10-14 10:59:55,973 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-675072 written
+2026-10-14 11:00:04,583 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-913239 written
+2026-10-14 11:00:06,140 [9] DEBUG Billing.Cache - Refreshed tariff cache (570 entries)
+2026-10-14 11:00:13,907 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-448271 written
+2026-10-14 11:00:14,303 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-913593 written
+2026-10-14 11:00:16,549 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-460350 written
+2026-10-14 11:00:18,741 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-277169 written
+2026-10-14 11:00:19,194 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88489 (20 s)
+2026-10-14 11:00:24,152 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-732272 written
+2026-10-14 11:00:31,195 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-674216 written
+2026-10-14 11:00:43,092 [13] DEBUG Billing.Cache - Refreshed tariff cache (404 entries)
+2026-10-14 11:00:47,250 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-185868 written
+2026-10-14 11:00:48,945 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-547849 written
+2026-10-14 11:00:50,121 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-254862 written
+2026-10-14 11:00:56,144 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-597920 written
+2026-10-14 11:01:03,471 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-993931 written
+2026-10-14 11:01:05,061 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-214890 written
+2026-10-14 11:01:07,274 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-788894 written
+2026-10-14 11:01:25,421 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-607033 written
+2026-10-14 11:01:31,343 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88353 (9 s)
+2026-10-14 11:01:32,166 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88227 (9 s)
+2026-10-14 11:01:35,532 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-153552 written
+2026-10-14 11:01:39,929 [18] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:01:42,495 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-178973 written
+2026-10-14 11:01:51,224 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88081 (27 s)
+2026-10-14 11:02:02,251 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-547668 written
+2026-10-14 11:02:02,587 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88144 (20 s)
+2026-10-14 11:02:06,958 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-649680 written
+2026-10-14 11:02:08,904 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-949980 written
+2026-10-14 11:02:14,912 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-845637 written
+2026-10-14 11:02:20,170 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-521280 written
+2026-10-14 11:02:21,711 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88095 (12 s)
+2026-10-14 11:02:23,365 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-963053 written
+2026-10-14 11:02:25,918 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-394659 written
+2026-10-14 11:02:50,829 [22] DEBUG Billing.Cache - Refreshed tariff cache (515 entries)
+2026-10-14 11:02:57,330 [9] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:02:59,570 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88600 (25 s)
+2026-10-14 11:03:04,179 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88608 (17 s)
+2026-10-14 11:03:11,301 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-539557 written
+2026-10-14 11:03:18,439 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88270 (9 s)
+2026-10-14 11:03:18,703 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88787 (6 s)
+2026-10-14 11:03:19,709 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-361631 written
+2026-10-14 11:03:31,038 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-991153 written
+2026-10-14 11:03:31,763 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-663977 written
+2026-10-14 11:03:38,085 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88984 (16 s)
+2026-10-14 11:03:44,113 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-810078 written
+2026-10-14 11:03:46,783 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-892617 written
+2026-10-14 11:03:47,792 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88882 (13 s)
+2026-10-14 11:03:54,914 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-414759 written
+2026-10-14 11:04:05,297 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-790551 written
+2026-10-14 11:04:05,967 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-927069 written
+2026-10-14 11:04:07,157 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-381716 written
+2026-10-14 11:04:09,422 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88301 (26 s)
+2026-10-14 11:04:10,963 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-857849 written
+2026-10-14 11:04:15,816 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-797775 written
+2026-10-14 11:04:15,939 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88187 (18 s)
+2026-10-14 11:04:25,592 [15] DEBUG Billing.Cache - Refreshed tariff cache (863 entries)
+2026-10-14 11:04:28,815 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-133179 written
+2026-10-14 11:04:40,190 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-453521 written
+2026-10-14 11:04:42,976 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-827753 written
+2026-10-14 11:04:46,405 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-874700 written
+2026-10-14 11:04:55,560 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-298352 written
+2026-10-14 11:05:00,418 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-465994 written
+2026-10-14 11:05:10,939 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-457395 written
+2026-10-14 11:05:15,993 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-228568 written
+2026-10-14 11:05:30,918 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88490 (17 s)
+2026-10-14 11:05:39,476 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-625394 written
+2026-10-14 11:05:47,782 [16] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:05:49,690 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-683456 written
+2026-10-14 11:05:53,242 [10] DEBUG Billing.Cache - Refreshed tariff cache (224 entries)
+2026-10-14 11:05:53,313 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-759739 written
+2026-10-14 11:05:59,916 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88435 (6 s)
+2026-10-14 11:06:16,137 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-166190 written
+2026-10-14 11:06:20,584 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88551 (15 s)
+2026-10-14 11:06:28,808 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-986010 written
+2026-10-14 11:06:36,519 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-115918 written
+2026-10-14 11:06:39,085 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-312017 written
+2026-10-14 11:06:40,072 [5] DEBUG Billing.Cache - Refreshed tariff cache (110 entries)
+2026-10-14 11:06:47,343 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-387194 written
+2026-10-14 11:06:55,568 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88890 (25 s)
+2026-10-14 11:06:57,794 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772675 written
+2026-10-14 11:07:06,715 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-640798 written
+2026-10-14 11:07:12,390 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-516577 written
+2026-10-14 11:07:14,887 [20] DEBUG Billing.Cache - Refreshed tariff cache (781 entries)
+2026-10-14 11:07:15,415 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-841658 written
+2026-10-14 11:07:31,397 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-769529 written
+2026-10-14 11:07:33,109 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-157238 written
+2026-10-14 11:08:15,275 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88012 (24 s)
+2026-10-14 11:08:23,724 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-141586 written
+2026-10-14 11:08:25,380 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-861160 written
+2026-10-14 11:08:30,444 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88931 (19 s)
+2026-10-14 11:08:34,152 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-366747 written
+2026-10-14 11:08:39,816 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-432224 written
+2026-10-14 11:08:49,078 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88377 (8 s)
+2026-10-14 11:09:03,795 [18] DEBUG Billing.Cache - Refreshed tariff cache (711 entries)
+2026-10-14 11:09:11,423 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-931646 written
+2026-10-14 11:09:16,180 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-525616 written
+2026-10-14 11:09:19,496 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88433 (19 s)
+2026-10-14 11:09:20,791 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-672707 written
+2026-10-14 11:09:24,264 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-676491 written
+2026-10-14 11:09:26,368 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-433133 written
+2026-10-14 11:09:37,055 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-224624 written
+2026-10-14 11:09:37,569 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88246 (25 s)
+2026-10-14 11:09:39,502 [20] DEBUG Billing.Cache - Refreshed tariff cache (716 entries)
+2026-10-14 11:09:39,939 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88894 (5 s)
+2026-10-14 11:09:46,666 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88984 (20 s)
+2026-10-14 11:09:47,350 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88040 (29 s)
+2026-10-14 11:09:48,369 [11] DEBUG Billing.Cache - Refreshed tariff cache (810 entries)
+2026-10-14 11:09:51,461 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-634635 written
+2026-10-14 11:10:08,340 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-688563 written
+2026-10-14 11:10:14,058 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-369164 written
+2026-10-14 11:10:25,571 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-997572 written
+2026-10-14 11:10:32,130 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88076 (26 s)
+2026-10-14 11:10:33,596 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-162323 written
+2026-10-14 11:10:39,693 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88353 (23 s)
+2026-10-14 11:10:46,751 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88869 (27 s)
+2026-10-14 11:11:04,961 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88976 (14 s)
+2026-10-14 11:11:06,174 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88378 (22 s)
+2026-10-14 11:11:13,335 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-228291 written
+2026-10-14 11:11:13,602 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88701 (16 s)
+2026-10-14 11:11:14,571 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88258 (13 s)
+2026-10-14 11:11:22,436 [22] DEBUG Billing.Cache - Refreshed tariff cache (407 entries)
+2026-10-14 11:11:23,852 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-386476 written
+2026-10-14 11:11:43,164 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-771019 written
+2026-10-14 11:11:45,861 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-250795 written
+2026-10-14 11:11:48,933 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-316894 written
+2026-10-14 11:11:49,506 [12] DEBUG Billing.Cache - Refreshed tariff cache (545 entries)
+2026-10-14 11:11:50,496 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-612634 written
+2026-10-14 11:11:58,953 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-971488 written
+2026-10-14 11:12:37,898 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-520789 written
+2026-10-14 11:12:38,730 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88633 (18 s)
+2026-10-14 11:13:08,756 [23] DEBUG Billing.Cache - Refreshed tariff cache (143 entries)
+2026-10-14 11:13:12,295 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-733510 written
+2026-10-14 11:13:20,247 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88755 (22 s)
+2026-10-14 11:13:28,472 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-174176 written
+2026-10-14 11:13:36,386 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88477 (10 s)
+2026-10-14 11:13:44,023 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-725211 written
+2026-10-14 11:13:46,120 [17] DEBUG Billing.Cache - Refreshed tariff cache (708 entries)
+2026-10-14 11:13:49,831 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88522 (25 s)
+2026-10-14 11:13:58,627 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-898557 written
+2026-10-14 11:14:01,151 [12] DEBUG Billing.Cache - Refreshed tariff cache (320 entries)
+2026-10-14 11:14:01,280 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88066 (24 s)
+2026-10-14 11:14:05,810 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-924183 written
+2026-10-14 11:14:19,921 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-418754 written
+2026-10-14 11:14:25,940 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-393561 written
+2026-10-14 11:14:27,382 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88895 (12 s)
+2026-10-14 11:14:28,199 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-114974 written
+2026-10-14 11:14:29,507 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-485472 written
+2026-10-14 11:14:31,506 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-645826 written
+2026-10-14 11:14:31,948 [22] DEBUG Billing.Cache - Refreshed tariff cache (267 entries)
+2026-10-14 11:15:02,980 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88590 (10 s)
+2026-10-14 11:15:03,599 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-223915 written
+2026-10-14 11:15:14,847 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-810890 written
+2026-10-14 11:15:19,187 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-945899 written
+2026-10-14 11:15:20,624 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-192254 written
+2026-10-14 11:15:25,660 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88312 (25 s)
+2026-10-14 11:15:26,097 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-804474 written
+2026-10-14 11:15:39,876 [21] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:15:42,280 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-452047 written
+2026-10-14 11:15:46,492 [18] DEBUG Billing.Cache - Refreshed tariff cache (733 entries)
+2026-10-14 11:15:49,461 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-778418 written
+2026-10-14 11:15:50,088 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-161622 written
+2026-10-14 11:15:50,873 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88907 (8 s)
+2026-10-14 11:15:52,439 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88486 (11 s)
+2026-10-14 11:15:55,525 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-658737 written
+2026-10-14 11:16:00,745 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-423151 written
+2026-10-14 11:16:07,046 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-901463 written
+2026-10-14 11:16:07,437 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-814994 written
+2026-10-14 11:16:10,683 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-891690 written
+2026-10-14 11:16:14,416 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-119353 written
+2026-10-14 11:16:33,626 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88755 (13 s)
+2026-10-14 11:16:47,507 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88255 (20 s)
+2026-10-14 11:16:47,816 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-515025 written
+2026-10-14 11:16:48,716 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-914788 written
+2026-10-14 11:16:51,997 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-466953 written
+2026-10-14 11:16:54,376 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-351333 written
+2026-10-14 11:17:00,301 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-396004 written
+2026-10-14 11:17:08,611 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-779108 written
+2026-10-14 11:17:09,678 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-185414 written
+2026-10-14 11:17:11,900 [10] DEBUG Billing.Cache - Refreshed tariff cache (266 entries)
+2026-10-14 11:17:20,050 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-801412 written
+2026-10-14 11:17:31,386 [21] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:17:34,423 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88421 (12 s)
+2026-10-14 11:17:45,133 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-745698 written
+2026-10-14 11:18:02,021 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-578916 written
+2026-10-14 11:18:08,255 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-527527 written
+2026-10-14 11:18:12,275 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88755 (7 s)
+2026-10-14 11:18:13,423 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88146 (14 s)
+2026-10-14 11:18:14,732 [22] DEBUG Billing.Cache - Refreshed tariff cache (618 entries)
+2026-10-14 11:18:35,427 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-330438 written
+2026-10-14 11:18:38,492 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-229260 written
+2026-10-14 11:18:44,670 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-860983 written
+2026-10-14 11:18:47,105 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-392104 written
+2026-10-14 11:18:54,509 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-381468 written
+2026-10-14 11:19:03,975 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-770534 written
+2026-10-14 11:19:05,011 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-313362 written
+2026-10-14 11:19:24,617 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-262558 written
+2026-10-14 11:19:25,701 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-710262 written
+2026-10-14 11:19:29,519 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-565385 written
+2026-10-14 11:19:30,498 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-802012 written
+2026-10-14 11:19:37,775 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-990322 written
+2026-10-14 11:19:48,163 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-609979 written
+2026-10-14 11:19:49,357 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-324901 written
+2026-10-14 11:19:51,541 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88953 (17 s)
+2026-10-14 11:19:51,819 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-150130 written
+2026-10-14 11:19:54,776 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-383200 written
+2026-10-14 11:20:00,224 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-759433 written
+2026-10-14 11:20:00,230 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88233 (27 s)
+2026-10-14 11:20:00,552 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-192604 written
+2026-10-14 11:20:30,772 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88417 (16 s)
+2026-10-14 11:20:31,840 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88627 (11 s)
+2026-10-14 11:20:33,393 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-407573 written
+2026-10-14 11:20:36,165 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88667 (25 s)
+2026-10-14 11:20:39,787 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88507 (30 s)
+2026-10-14 11:20:43,392 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-445775 written
+2026-10-14 11:20:44,797 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-509569 written
+2026-10-14 11:21:00,360 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-352315 written
+2026-10-14 11:21:06,108 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88899 (26 s)
+2026-10-14 11:21:10,537 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-988512 written
+2026-10-14 11:21:14,902 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-101226 written
+2026-10-14 11:21:20,466 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-545523 written
+2026-10-14 11:21:21,585 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-661151 written
+2026-10-14 11:21:23,372 [14] DEBUG Billing.Cache - Refreshed tariff cache (150 entries)
+2026-10-14 11:21:27,637 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88320 (26 s)
+2026-10-14 11:21:31,409 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-252676 written
+2026-10-14 11:21:35,615 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-436343 written
+2026-10-14 11:21:37,761 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88021 (16 s)
+2026-10-14 11:21:38,275 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-497145 written
+2026-10-14 11:21:53,586 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88896 (29 s)
+2026-10-14 11:22:02,961 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88341 (16 s)
+2026-10-14 11:22:17,577 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-738469 written
+2026-10-14 11:22:31,698 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88108 (9 s)
+2026-10-14 11:22:37,389 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-472892 written
+2026-10-14 11:22:38,567 [5] DEBUG Billing.Cache - Refreshed tariff cache (520 entries)
+2026-10-14 11:22:44,584 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-171091 written
+2026-10-14 11:22:49,648 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-751665 written
+2026-10-14 11:22:55,376 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88838 (14 s)
+2026-10-14 11:23:02,315 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-382141 written
+2026-10-14 11:23:10,508 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-447707 written
+2026-10-14 11:23:13,933 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-290595 written
+2026-10-14 11:23:16,541 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-206798 written
+2026-10-14 11:23:17,507 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88987 (24 s)
+2026-10-14 11:23:19,444 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88347 (26 s)
+2026-10-14 11:23:27,834 [11] DEBUG Billing.Cache - Refreshed tariff cache (412 entries)
+2026-10-14 11:23:31,021 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-417669 written
+2026-10-14 11:23:33,321 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-167906 written
+2026-10-14 11:23:35,974 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-586546 written
+2026-10-14 11:23:49,045 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-555428 written
+2026-10-14 11:24:04,842 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88003 (20 s)
+2026-10-14 11:24:12,509 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-480418 written
+2026-10-14 11:24:14,962 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88456 (10 s)
+2026-10-14 11:24:29,854 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88571 (22 s)
+2026-10-14 11:24:35,068 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-697030 written
+2026-10-14 11:24:38,286 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-236156 written
+2026-10-14 11:24:56,211 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-720770 written
+2026-10-14 11:25:03,544 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88567 (28 s)
+2026-10-14 11:25:12,210 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-233700 written
+2026-10-14 11:25:12,522 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-240089 written
+2026-10-14 11:25:21,221 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-499607 written
+2026-10-14 11:25:42,146 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88103 (16 s)
+2026-10-14 11:25:48,127 [22] DEBUG Billing.Cache - Refreshed tariff cache (380 entries)
+2026-10-14 11:25:57,718 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-726885 written
+2026-10-14 11:26:10,712 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88407 (27 s)
+2026-10-14 11:26:13,398 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-322653 written
+2026-10-14 11:26:15,788 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88403 (21 s)
+2026-10-14 11:26:18,948 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-716356 written
+2026-10-14 11:26:27,296 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88830 (12 s)
+2026-10-14 11:26:30,038 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-788466 written
+2026-10-14 11:26:33,999 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88389 (24 s)
+2026-10-14 11:26:38,913 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88159 (24 s)
+2026-10-14 11:26:39,274 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-657341 written
+2026-10-14 11:26:42,377 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-210995 written
+2026-10-14 11:26:53,866 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-579480 written
+2026-10-14 11:26:57,810 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-942903 written
+2026-10-14 11:26:58,196 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88939 (12 s)
+2026-10-14 11:27:11,721 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-637153 written
+2026-10-14 11:27:15,029 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-270677 written
+2026-10-14 11:27:15,670 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-773568 written
+2026-10-14 11:27:19,149 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-108235 written
+2026-10-14 11:27:28,404 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88574 (13 s)
+2026-10-14 11:27:30,838 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-550979 written
+2026-10-14 11:27:40,899 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-329988 written
+2026-10-14 11:27:50,357 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-343323 written
+2026-10-14 11:27:57,460 [13] DEBUG Billing.Cache - Refreshed tariff cache (840 entries)
+2026-10-14 11:28:01,893 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-980267 written
+2026-10-14 11:28:02,811 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-330123 written
+2026-10-14 11:28:19,960 [19] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:28:24,446 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-710270 written
+2026-10-14 11:28:41,729 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88754 (28 s)
+2026-10-14 11:28:48,608 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88182 (30 s)
+2026-10-14 11:29:01,810 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-898157 written
+2026-10-14 11:29:05,600 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-597386 written
+2026-10-14 11:29:12,147 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-997308 written
+2026-10-14 11:29:18,740 [21] DEBUG Billing.Cache - Refreshed tariff cache (251 entries)
+2026-10-14 11:29:27,687 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-191716 written
+2026-10-14 11:29:38,817 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-585372 written
+2026-10-14 11:29:48,121 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-484163 written
+2026-10-14 11:29:49,096 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-490379 written
+2026-10-14 11:29:51,199 [6] DEBUG Billing.Cache - Refreshed tariff cache (835 entries)
+2026-10-14 11:29:56,980 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-116016 written
+2026-10-14 11:29:59,278 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88261 (8 s)
+2026-10-14 11:29:59,413 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-634479 written
+2026-10-14 11:30:00,230 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-959333 written
+2026-10-14 11:30:02,180 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-935770 written
+2026-10-14 11:30:04,013 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-404994 written
+2026-10-14 11:30:04,165 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88951 (25 s)
+2026-10-14 11:30:07,623 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-660231 written
+2026-10-14 11:30:16,199 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-749689 written
+2026-10-14 11:30:16,276 [24] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:30:22,233 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-410326 written
+2026-10-14 11:30:27,301 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88120 (17 s)
+2026-10-14 11:30:35,656 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-720834 written
+2026-10-14 11:30:47,830 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-143270 written
+2026-10-14 11:30:53,321 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-156331 written
+2026-10-14 11:30:53,661 [5] DEBUG Billing.Cache - Refreshed tariff cache (348 entries)
+2026-10-14 11:30:56,413 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-397837 written
+2026-10-14 11:30:57,316 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88312 (22 s)
+2026-10-14 11:31:02,554 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88601 (5 s)
+2026-10-14 11:31:08,262 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88116 (19 s)
+2026-10-14 11:31:08,467 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88745 (28 s)
+2026-10-14 11:31:12,808 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88249 (9 s)
+2026-10-14 11:31:16,698 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-214287 written
+2026-10-14 11:31:28,193 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-313977 written
+2026-10-14 11:31:38,174 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-832471 written
+2026-10-14 11:31:42,298 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-453832 written
+2026-10-14 11:31:45,434 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88763 (5 s)
+2026-10-14 11:31:48,621 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-308192 written
+2026-10-14 11:31:53,334 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88371 (23 s)
+2026-10-14 11:31:56,188 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88323 (14 s)
+2026-10-14 11:31:59,127 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-562389 written
+2026-10-14 11:32:03,263 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-894134 written
+2026-10-14 11:32:05,644 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88468 (17 s)
+2026-10-14 11:32:15,886 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-830593 written
+2026-10-14 11:32:16,796 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88130 (30 s)
+2026-10-14 11:32:26,905 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88077 (9 s)
+2026-10-14 11:32:27,725 [15] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:32:39,308 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-219050 written
+2026-10-14 11:32:40,037 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-881191 written
+2026-10-14 11:32:49,703 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479737 written
+2026-10-14 11:32:52,657 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-212363 written
+2026-10-14 11:32:55,596 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-614306 written
+2026-10-14 11:33:04,641 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-633187 written
+2026-10-14 11:33:04,971 [19] DEBUG Billing.Cache - Refreshed tariff cache (711 entries)
+2026-10-14 11:33:07,398 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-960793 written
+2026-10-14 11:33:21,593 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-203102 written
+2026-10-14 11:33:24,138 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-645620 written
+2026-10-14 11:33:26,488 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-466358 written
+2026-10-14 11:33:35,570 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-403545 written
+2026-10-14 11:33:37,364 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88648 (13 s)
+2026-10-14 11:33:42,833 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-608039 written
+2026-10-14 11:33:47,200 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88775 (11 s)
+2026-10-14 11:33:51,729 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-946934 written
+2026-10-14 11:34:10,643 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-746975 written
+2026-10-14 11:34:19,729 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88209 (28 s)
+2026-10-14 11:34:28,062 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88974 (24 s)
+2026-10-14 11:34:30,785 [10] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:34:33,383 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-371122 written
+2026-10-14 11:34:44,055 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88678 (30 s)
+2026-10-14 11:34:47,384 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-136727 written
+2026-10-14 11:35:02,421 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-744985 written
+2026-10-14 11:35:04,500 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-292390 written
+2026-10-14 11:35:10,809 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-755845 written
+2026-10-14 11:35:12,386 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-570229 written
+2026-10-14 11:35:17,526 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-164020 written
+2026-10-14 11:35:21,493 [21] DEBUG Billing.Cache - Refreshed tariff cache (867 entries)
+2026-10-14 11:35:21,920 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88398 (26 s)
+2026-10-14 11:35:22,454 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-365590 written
+2026-10-14 11:35:30,284 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88954 (17 s)
+2026-10-14 11:35:31,035 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-949404 written
+2026-10-14 11:35:34,813 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88219 (13 s)
+2026-10-14 11:35:42,388 [8] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88812 (6 s)
+2026-10-14 11:35:43,338 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88739 (28 s)
+2026-10-14 11:35:45,062 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-631235 written
+2026-10-14 11:35:53,474 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-428456 written
+2026-10-14 11:36:02,072 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-717528 written
+2026-10-14 11:36:02,807 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-455875 written
+2026-10-14 11:36:17,433 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-320941 written
+2026-10-14 11:36:21,055 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-256840 written
+2026-10-14 11:36:37,506 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-185311 written
+2026-10-14 11:36:45,447 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-827260 written
+2026-10-14 11:36:47,426 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-888268 written
+2026-10-14 11:36:51,967 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-658106 written
+2026-10-14 11:36:52,282 [8] DEBUG Billing.Cache - Refreshed tariff cache (883 entries)
+2026-10-14 11:36:55,362 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88790 (21 s)
+2026-10-14 11:36:56,108 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-385630 written
+2026-10-14 11:37:02,030 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-385948 written
+2026-10-14 11:37:06,118 [14] DEBUG Billing.Cache - Refreshed tariff cache (145 entries)
+2026-10-14 11:37:07,895 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-411593 written
+2026-10-14 11:37:09,497 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88402 (18 s)
+2026-10-14 11:37:12,608 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-342239 written
+2026-10-14 11:37:15,868 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88929 (22 s)
+2026-10-14 11:37:16,925 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88898 (16 s)
+2026-10-14 11:37:16,996 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-685310 written
+2026-10-14 11:37:25,824 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-132693 written
+2026-10-14 11:37:35,303 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88845 (22 s)
+2026-10-14 11:37:41,109 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-629326 written
+2026-10-14 11:37:41,857 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-904164 written
+2026-10-14 11:37:59,484 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-308906 written
+2026-10-14 11:38:02,198 [12] DEBUG Billing.Cache - Refreshed tariff cache (266 entries)
+2026-10-14 11:38:02,980 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-223355 written
+2026-10-14 11:38:21,534 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88653 (12 s)
+2026-10-14 11:38:29,920 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88672 (27 s)
+2026-10-14 11:38:37,861 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-813387 written
+2026-10-14 11:38:38,099 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88486 (26 s)
+2026-10-14 11:38:56,063 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-777878 written
+2026-10-14 11:39:03,767 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88012 (15 s)
+2026-10-14 11:39:13,054 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88541 (6 s)
+2026-10-14 11:39:33,696 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88895 (15 s)
+2026-10-14 11:39:51,157 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-617230 written
+2026-10-14 11:39:53,612 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88282 (19 s)
+2026-10-14 11:40:01,596 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88084 (16 s)
+2026-10-14 11:40:09,893 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88444 (13 s)
+2026-10-14 11:40:16,857 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-806275 written
+2026-10-14 11:40:18,640 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-128731 written
+2026-10-14 11:40:18,945 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-817321 written
+2026-10-14 11:40:23,252 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-682274 written
+2026-10-14 11:40:30,793 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-181714 written
+2026-10-14 11:40:30,842 [18] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:40:46,125 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88873 (10 s)
+2026-10-14 11:40:54,673 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88847 (15 s)
+2026-10-14 11:41:06,194 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-129569 written
+2026-10-14 11:41:10,900 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-747515 written
+2026-10-14 11:41:24,492 [12] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88844 (13 s)
+2026-10-14 11:41:28,245 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88743 (15 s)
+2026-10-14 11:41:30,005 [14] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88626 (20 s)
+2026-10-14 11:41:38,149 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-797771 written
+2026-10-14 11:41:51,277 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-515201 written
+2026-10-14 11:42:01,200 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-878670 written
+2026-10-14 11:42:02,572 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-232931 written
+2026-10-14 11:42:08,100 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-613811 written
+2026-10-14 11:42:11,654 [9] DEBUG Billing.Cache - Refreshed tariff cache (736 entries)
+2026-10-14 11:42:19,298 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-295003 written
+2026-10-14 11:42:19,524 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-588619 written
+2026-10-14 11:42:20,830 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-515737 written
+2026-10-14 11:42:21,559 [5] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:42:28,431 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-313020 written
+2026-10-14 11:42:51,192 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88685 (29 s)
+2026-10-14 11:42:51,301 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88772 (22 s)
+2026-10-14 11:42:52,181 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-682134 written
+2026-10-14 11:42:58,201 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88322 (16 s)
+2026-10-14 11:43:01,119 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-172174 written
+2026-10-14 11:43:06,570 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-252789 written
+2026-10-14 11:43:08,630 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-559314 written
+2026-10-14 11:43:10,255 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-904769 written
+2026-10-14 11:43:21,170 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-743887 written
+2026-10-14 11:43:27,533 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-330283 written
+2026-10-14 11:43:28,587 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88247 (16 s)
+2026-10-14 11:43:47,255 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-866291 written
+2026-10-14 11:44:07,775 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-853887 written
+2026-10-14 11:44:10,107 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-352023 written
+2026-10-14 11:44:12,990 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88585 (12 s)
+2026-10-14 11:44:14,300 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-993381 written
+2026-10-14 11:44:16,211 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88010 (16 s)
+2026-10-14 11:44:22,162 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-241210 written
+2026-10-14 11:44:23,185 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-151306 written
+2026-10-14 11:44:23,830 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-349516 written
+2026-10-14 11:44:27,181 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-247821 written
+2026-10-14 11:44:33,885 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88817 (23 s)
+2026-10-14 11:44:40,313 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-627782 written
+2026-10-14 11:44:46,037 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-307015 written
+2026-10-14 11:44:48,636 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-559740 written
+2026-10-14 11:44:48,671 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88148 (13 s)
+2026-10-14 11:44:58,487 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88074 (14 s)
+2026-10-14 11:44:58,831 [23] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88288 (30 s)
+2026-10-14 11:45:04,148 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88094 (19 s)
+2026-10-14 11:45:04,802 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-398023 written
+2026-10-14 11:45:05,138 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-534976 written
+2026-10-14 11:45:06,875 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-855538 written
+2026-10-14 11:45:10,206 [11] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:45:10,591 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-158430 written
+2026-10-14 11:45:10,773 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-789044 written
+2026-10-14 11:45:11,499 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-191172 written
+2026-10-14 11:45:29,085 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-141808 written
+2026-10-14 11:45:40,957 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-808051 written
+2026-10-14 11:45:43,978 [11] DEBUG Billing.Cache - Refreshed tariff cache (591 entries)
+2026-10-14 11:46:03,812 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-550136 written
+2026-10-14 11:46:04,453 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-916441 written
+2026-10-14 11:46:31,707 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-555793 written
+2026-10-14 11:46:40,494 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-171922 written
+2026-10-14 11:46:44,713 [17] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:47:00,455 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-287969 written
+2026-10-14 11:47:03,582 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-339844 written
+2026-10-14 11:47:10,393 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-851511 written
+2026-10-14 11:47:12,366 [17] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88801 (22 s)
+2026-10-14 11:47:17,068 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-319095 written
+2026-10-14 11:47:23,985 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-986057 written
+2026-10-14 11:47:31,014 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-381163 written
+2026-10-14 11:47:32,516 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-226590 written
+2026-10-14 11:47:34,060 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-425701 written
+2026-10-14 11:47:37,652 [11] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:47:49,648 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 89000 (26 s)
+2026-10-14 11:47:50,681 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88294 (30 s)
+2026-10-14 11:48:01,749 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88922 (11 s)
+2026-10-14 11:48:03,392 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-606678 written
+2026-10-14 11:48:04,807 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88449 (18 s)
+2026-10-14 11:48:12,539 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-895688 written
+2026-10-14 11:48:32,046 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-273644 written
+2026-10-14 11:48:42,607 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88586 (27 s)
+2026-10-14 11:48:46,535 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-802627 written
+2026-10-14 11:48:54,551 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-330131 written
+2026-10-14 11:48:54,574 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88913 (12 s)
+2026-10-14 11:49:02,212 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-339562 written
+2026-10-14 11:49:03,389 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88586 (15 s)
+2026-10-14 11:49:07,069 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-641721 written
+2026-10-14 11:49:10,993 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-457689 written
+2026-10-14 11:49:16,556 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-244413 written
+2026-10-14 11:49:20,721 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-309061 written
+2026-10-14 11:49:23,278 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-161715 written
+2026-10-14 11:49:29,114 [15] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-507301 written
+2026-10-14 11:49:33,850 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-770944 written
+2026-10-14 11:50:05,751 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-916139 written
+2026-10-14 11:50:11,495 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88353 (25 s)
+2026-10-14 11:50:12,134 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-180508 written
+2026-10-14 11:50:15,294 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88478 (9 s)
+2026-10-14 11:50:27,410 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88717 (5 s)
+2026-10-14 11:50:29,255 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88311 (21 s)
+2026-10-14 11:50:29,886 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88438 (30 s)
+2026-10-14 11:50:46,053 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-159376 written
+2026-10-14 11:51:05,137 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-741728 written
+2026-10-14 11:51:06,800 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-168494 written
+2026-10-14 11:51:11,308 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-912763 written
+2026-10-14 11:51:13,827 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-173952 written
+2026-10-14 11:51:23,136 [21] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88733 (13 s)
+2026-10-14 11:51:26,383 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88099 (22 s)
+2026-10-14 11:51:29,936 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-963915 written
+2026-10-14 11:51:32,354 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-149494 written
+2026-10-14 11:51:33,647 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-731378 written
+2026-10-14 11:51:37,818 [5] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-839018 written
+2026-10-14 11:51:39,952 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88691 (5 s)
+2026-10-14 11:51:42,762 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-479689 written
+2026-10-14 11:51:49,986 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-246827 written
+2026-10-14 11:51:52,830 [19] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88600 (18 s)
+2026-10-14 11:51:55,775 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-949596 written
+2026-10-14 11:52:12,671 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-536597 written
+2026-10-14 11:52:17,685 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-161651 written
+2026-10-14 11:52:19,097 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88143 (7 s)
+2026-10-14 11:52:32,793 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-352218 written
+2026-10-14 11:52:36,618 [6] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88236 (7 s)
+2026-10-14 11:52:45,869 [15] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88092 (9 s)
+2026-10-14 11:52:46,225 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88561 (6 s)
+2026-10-14 11:52:49,336 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-925920 written
+2026-10-14 11:52:54,790 [5] DEBUG Billing.Cache - Refreshed tariff cache (264 entries)
+2026-10-14 11:53:00,660 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-685264 written
+2026-10-14 11:53:07,548 [14] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-498673 written
+2026-10-14 11:53:15,689 [20] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88901 (8 s)
+2026-10-14 11:53:16,689 [18] DEBUG Billing.Cache - Refreshed tariff cache (716 entries)
+2026-10-14 11:53:18,560 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-660928 written
+2026-10-14 11:53:23,153 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-820170 written
+2026-10-14 11:53:37,450 [6] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:53:50,130 [22] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88503 (24 s)
+2026-10-14 11:53:52,101 [24] DEBUG Billing.Cache - Refreshed tariff cache (523 entries)
+2026-10-14 11:53:54,690 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88258 (29 s)
+2026-10-14 11:53:58,488 [16] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-998794 written
+2026-10-14 11:53:59,940 [18] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88220 (8 s)
+2026-10-14 11:54:01,472 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88644 (5 s)
+2026-10-14 11:54:09,533 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-576732 written
+2026-10-14 11:54:16,600 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-928239 written
+2026-10-14 11:54:34,731 [23] DEBUG Billing.Cache - Refreshed tariff cache (400 entries)
+2026-10-14 11:54:39,730 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-252650 written
+2026-10-14 11:54:44,305 [16] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88267 (18 s)
+2026-10-14 11:54:48,774 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-536554 written
+2026-10-14 11:55:00,941 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-860189 written
+2026-10-14 11:55:06,457 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-995286 written
+2026-10-14 11:55:10,239 [16] DEBUG Billing.Cache - Refreshed tariff cache (562 entries)
+2026-10-14 11:55:17,227 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-846734 written
+2026-10-14 11:55:28,984 [18] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:55:29,143 [20] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-886995 written
+2026-10-14 11:55:32,525 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-387241 written
+2026-10-14 11:55:35,597 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-804770 written
+2026-10-14 11:55:38,098 [10] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88463 (18 s)
+2026-10-14 11:55:41,168 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-590203 written
+2026-10-14 11:55:41,712 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-141526 written
+2026-10-14 11:55:56,563 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-995466 written
+2026-10-14 11:56:04,039 [17] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:56:04,490 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-722009 written
+2026-10-14 11:56:12,599 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-275136 written
+2026-10-14 11:56:16,007 [21] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-843342 written
+2026-10-14 11:56:16,028 [5] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88238 (30 s)
+2026-10-14 11:56:19,860 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-566147 written
+2026-10-14 11:56:20,283 [17] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-882822 written
+2026-10-14 11:56:21,458 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-717581 written
+2026-10-14 11:56:26,111 [7] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88412 (7 s)
+2026-10-14 11:56:33,604 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-835969 written
+2026-10-14 11:56:36,826 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88817 (12 s)
+2026-10-14 11:56:37,245 [12] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-381554 written
+2026-10-14 11:56:47,120 [16] DEBUG Billing.Cache - Refreshed tariff cache (675 entries)
+2026-10-14 11:56:48,586 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88106 (21 s)
+2026-10-14 11:57:08,754 [21] DEBUG Billing.Cache - Refreshed tariff cache (436 entries)
+2026-10-14 11:57:14,940 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-998816 written
+2026-10-14 11:57:16,342 [6] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 11:57:48,405 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-160208 written
+2026-10-14 11:57:56,345 [18] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-690151 written
+2026-10-14 11:57:58,344 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-910808 written
+2026-10-14 11:58:00,446 [11] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-216507 written
+2026-10-14 11:58:02,596 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-483258 written
+2026-10-14 11:58:06,304 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-876487 written
+2026-10-14 11:58:08,150 [10] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-510964 written
+2026-10-14 11:58:08,670 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-276075 written
+2026-10-14 11:58:19,879 [24] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-165218 written
+2026-10-14 11:58:21,643 [21] DEBUG Billing.Cache - Refreshed tariff cache (558 entries)
+2026-10-14 11:58:22,749 [19] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-678030 written
+2026-10-14 11:58:40,375 [24] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88680 (18 s)
+2026-10-14 11:58:42,964 [13] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-772089 written
+2026-10-14 11:58:44,097 [6] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-262077 written
+2026-10-14 11:58:49,282 [23] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-650716 written
+2026-10-14 11:59:01,162 [8] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-822983 written
+2026-10-14 11:59:02,705 [9] DEBUG Billing.Cache - Refreshed tariff cache (566 entries)
+2026-10-14 11:59:03,787 [7] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-545161 written
+2026-10-14 11:59:13,546 [9] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-425439 written
+2026-10-14 11:59:13,760 [9] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88870 (24 s)
+2026-10-14 11:59:16,678 [11] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88452 (26 s)
+2026-10-14 11:59:35,479 [22] INFO  Billing.Invoices.InvoiceWriter - Invoice INV-201361 written
+2026-10-14 11:59:48,345 [13] WARN  Billing.Invoices.InvoiceWriter - Waiting for payment confirmation of order 88445 (18 s)
+2026-10-14 11:59:57,132 [6] ERROR Billing.Invoices.InvoiceWriter - Could not post invoice to ERP
+System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Invoices.InvoiceWriter.Flush()
+2026-10-14 12:00:00,000 [1] INFO  Billing.Service - Billing service stopping

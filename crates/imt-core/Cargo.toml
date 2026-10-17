@@ -1,0 +1,17 @@
+[package]
+name = "imt-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Log and file analysis engine for IMT: importers, parsing profiles, query, timeline and chart aggregation"
+
+[dependencies]
+anyhow = "1.0"
+chrono = "0.4.45"
+csv = "1.4"
+globset = "0.4.20"
+rayon = "1.12"
+regex = "1.13"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+toml = "1"

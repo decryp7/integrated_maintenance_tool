@@ -1,0 +1,114 @@
+/**
+ * Shape of a parsing profile (TOML), mirroring crates/imt-core/src/default_profile.toml.
+ * Keys are snake_case as written in the file. Unknown keys are preserved by the editor.
+ */
+
+export type ConditionOp =
+  | 'eq'
+  | 'ne'
+  | 'contains'
+  | 'notContains'
+  | 'matches'
+  | 'exists'
+  | 'missing'
+  | 'gt'
+  | 'lt'
+  | 'in';
+
+export const CONDITION_OPS: ConditionOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt', 'in'];
+
+export interface Condition {
+  field: string;
+  op: ConditionOp;
+  value?: string;
+}
+
+export type ExtractFieldType = 'string' | 'number' | 'integer' | 'bool' | 'bytes' | 'duration';
+export const EXTRACT_FIELD_TYPES: ExtractFieldType[] = ['string', 'number', 'integer', 'bool', 'bytes', 'duration'];
+
+export interface ExtractField {
+  type: ExtractFieldType;
+  unit?: string;
+  unit_from?: string;
+  to?: string;
+  [key: string]: unknown;
+}
+
+export interface ExtractRule {
+  name: string;
+  from?: string;
+  regex: string;
+  when?: Condition[];
+  fields?: Record<string, ExtractField>;
+  [key: string]: unknown;
+}
+
+export interface MarkerRule {
+  kind: string;
+  label?: string;
+  lifecycle?: boolean;
+  color?: string;
+  when?: Condition[];
+  [key: string]: unknown;
+}
+
+export interface ChartRule {
+  id: string;
+  title?: string;
+  y: string;
+  bucket?: string;
+  split_by?: string[];
+  type?: 'line' | 'bar' | 'stacked';
+  unit?: string;
+  when?: Condition[];
+  [key: string]: unknown;
+}
+
+export interface ProfileModel {
+  name?: string;
+  files?: { include?: string[]; exclude?: string[]; [key: string]: unknown };
+  parse?: {
+    format?: string;
+    output_templates?: string[];
+    regexes?: string[];
+    timestamp_formats?: string[];
+    assume_timezone?: string;
+    day_first?: string | boolean;
+    json?: {
+      timestamp?: string[];
+      level?: string[];
+      message?: string[];
+      template?: string[];
+      exception?: string[];
+      properties?: string[];
+      default_level?: string;
+      [key: string]: unknown;
+    };
+    csv?: {
+      delimiter?: string;
+      has_header?: boolean;
+      timestamp?: string;
+      level?: string;
+      message?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  instance?: { key?: string[]; candidates?: string[]; [key: string]: unknown };
+  extract?: ExtractRule[];
+  marker?: MarkerRule[];
+  chart?: ChartRule[];
+  [key: string]: unknown;
+}
+
+/** Profile regexes are Rust syntax; JS needs (?<name>…) instead of (?P<name>…) and no inline flags. */
+export function toJsRegex(pattern: string, extraFlags = ''): RegExp {
+  let flags = extraFlags;
+  let src = pattern.replace(/\(\?P</g, '(?<');
+  const inline = /^\(\?([a-z]+)\)/.exec(src);
+  if (inline) {
+    src = src.slice(inline[0].length);
+    for (const f of inline[1]) if ('ims'.includes(f) && !flags.includes(f)) flags += f;
+  }
+  return new RegExp(src, flags);
+}

@@ -1,0 +1,23 @@
+//! IMT core: turns log and data files into events and answers the questions
+//! the UI asks about them (paging, timeline, facets, charts).
+//!
+//! Pipeline: [`importers`] parse files into [`model::Record`]s according to a
+//! [`profile::Profile`]; the [`workspace::Workspace`] merges them, runs the
+//! profile's extractors and marker rules and serves queries.
+
+pub mod api;
+pub mod chart;
+pub mod condition;
+pub mod importers;
+pub mod model;
+pub mod profile;
+pub mod query;
+pub mod store;
+pub mod template;
+pub mod time;
+pub mod user_regex;
+pub mod workspace;
+
+pub use profile::{Profile, ProfileError, DEFAULT_PROFILE_TOML};
+pub use store::LogStore;
+pub use workspace::Workspace;
