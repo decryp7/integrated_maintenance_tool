@@ -1,0 +1,28 @@
+[package]
+name = "imt-collect"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Diagnostics collector for IMT: gathers logs, event logs, system info and environment into a redacted .imtz bundle"
+
+[lib]
+name = "imt_collect"
+path = "src/lib.rs"
+
+[[bin]]
+name = "imt-collect"
+path = "src/bin/imt-collect.rs"
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+chrono = "0.4.45"
+globset = "0.4.20"
+regex = "1.13"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sysinfo = { version = "0.37", default-features = false, features = ["system", "disk"] }
+tempfile = "3"
+thiserror = "2.0"
+toml = "1"
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
