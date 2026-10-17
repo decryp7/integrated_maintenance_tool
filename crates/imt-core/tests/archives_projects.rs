@@ -385,7 +385,7 @@ fn imports_report_progress_and_can_be_cancelled() {
     assert!(snap.cancelled && !snap.running && snap.done == 200);
     let imported = ws.summary().total;
     assert!(
-        imported >= 1 && imported < 200,
+        (1..200).contains(&imported),
         "cancel stopped the import early ({imported} of 200)"
     );
     // Opening again imports the files that were skipped.
