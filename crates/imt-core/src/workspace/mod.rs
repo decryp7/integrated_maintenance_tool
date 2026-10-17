@@ -1,6 +1,7 @@
 //! The set of opened files and everything the UI asks about them.
 
 mod chart;
+mod context;
 mod export;
 mod facet;
 mod page;
@@ -98,11 +99,13 @@ impl Workspace {
             self.removed.remove(&p);
             self.collect_files(&p, &mut files);
         }
+        // Archive entries are recorded as "<archive>!/<entry>"; the archive itself counts as known.
         let known: HashSet<&str> = self
             .sources
             .iter()
             .map(|s| s.path.as_str())
             .chain(self.unrecognized.iter().map(|u| u.path.as_str()))
+            .map(|p| p.split(crate::archive::ENTRY_SEPARATOR).next().unwrap_or(p))
             .collect();
         files.retain(|f| !known.contains(f.to_string_lossy().as_ref()));
         files.sort();
@@ -166,6 +169,33 @@ impl Workspace {
         self.reload()
     }
 
+    /// The opened paths and removed files.
+    pub fn state(&self) -> WorkspaceState {
+        let s = |p: &PathBuf| p.to_string_lossy().into_owned();
+        let mut removed: Vec<String> = self.removed.iter().map(s).collect();
+        removed.sort();
+        WorkspaceState {
+            roots: self.roots.iter().map(s).collect(),
+            removed,
+        }
+    }
+
+    /// Replaces everything with `state` under `profile`. Paths that no longer
+    /// exist are skipped and returned.
+    pub fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
+        let compiled = CompiledProfile::compile_with(profile, &self.registry.transforms)?;
+        self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
+        self.profile = Arc::new(compiled);
+        self.reset();
+        self.removed = state.removed.iter().map(PathBuf::from).collect();
+        let (present, missing): (Vec<&String>, Vec<&String>) = state
+            .roots
+            .iter()
+            .partition(|p| Path::new(p.split(crate::archive::ENTRY_SEPARATOR).next().unwrap_or(p)).exists());
+        self.open(&present.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
+        Ok(missing.into_iter().cloned().collect())
+    }
+
     /// Checks that a profile compiles against the installed plugins.
     pub fn validate_profile(&self, profile: Profile) -> Result<()> {
         CompiledProfile::compile_with(profile, &self.registry.transforms).map(|_| ())
@@ -209,16 +239,13 @@ impl Workspace {
                 (p, name)
             })
             .collect();
-        let results: Vec<(PathBuf, String, ImportResult)> = named
+        let removed = &self.removed;
+        let results: Vec<(String, String, ImportResult)> = named
             .into_par_iter()
-            .map(|(path, name)| {
-                let r = import_one(importers, &profile, &path, &name);
-                (path, name, r)
-            })
+            .flat_map_iter(|(path, name)| import_file(importers, &profile, &path, &name, removed))
             .collect();
 
-        for (path, name, result) in results {
-            let path_s = path.to_string_lossy().into_owned();
+        for (path_s, name, result) in results {
             match result {
                 Ok((importer, imported, step_stats)) => {
                     let dropped = step_stats.first().map_or(0, |s| s.input) - step_stats.last().map_or(0, |s| s.output);
@@ -467,17 +494,63 @@ impl Workspace {
 type ImportResult = std::result::Result<(String, crate::importers::Imported, Vec<crate::pipeline::StepStats>), String>;
 
 /// Reads one file and runs the profile's ingest pipeline on its records.
-fn import_one(importers: &Importers, profile: &CompiledProfile, path: &Path, source_name: &str) -> ImportResult {
-    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-    if bytes.is_empty() {
-        return Err("empty file".into());
-    }
-    let content = decode(&bytes).ok_or("binary file")?;
+/// Reads one file from disk, expands it if it is compressed, and imports
+/// every resulting file. Returns (source path, display name, result) per file.
+fn import_file(
+    importers: &Importers,
+    profile: &CompiledProfile,
+    path: &Path,
+    name: &str,
+    removed: &HashSet<PathBuf>,
+) -> Vec<(String, String, ImportResult)> {
+    let path_s = path.to_string_lossy().into_owned();
+    let bytes = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) => return vec![(path_s, name.to_string(), Err(e.to_string()))],
+    };
+    let file_name = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    let compressed = crate::archive::is_zip(&bytes);
+    let entries = match crate::archive::expand(&file_name, bytes) {
+        Ok(e) => e,
+        Err(e) => return vec![(path_s, name.to_string(), Err(format!("{e:#}")))],
+    };
     let file_date = std::fs::metadata(path)
         .and_then(|m| m.modified())
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .and_then(|d| utc_date_of(d.as_millis() as i64));
+    entries
+        .into_iter()
+        .filter_map(|entry| {
+            // Zip members are separate sources; a gzip file stays one source.
+            let (source_path, source_name) = match (&entry.name, compressed) {
+                (Some(inner), true) => (
+                    format!("{path_s}{}{inner}", crate::archive::ENTRY_SEPARATOR),
+                    format!("{name}/{inner}"),
+                ),
+                _ => (path_s.clone(), name.to_string()),
+            };
+            if removed.contains(Path::new(&source_path)) {
+                return None;
+            }
+            let result = import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date);
+            Some((source_path, source_name, result))
+        })
+        .collect()
+}
+
+fn import_bytes(
+    importers: &Importers,
+    profile: &CompiledProfile,
+    path: &Path,
+    bytes: &[u8],
+    source_name: &str,
+    file_date: Option<chrono::NaiveDate>,
+) -> ImportResult {
+    if bytes.is_empty() {
+        return Err("empty file".into());
+    }
+    let content = decode(bytes).ok_or("binary file")?;
     let ctx = ImportCtx { profile, path, file_date };
     let head: String = content.chars().take(64 * 1024).collect();
     let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;

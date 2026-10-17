@@ -3,8 +3,8 @@
 //! DuckDB) can be swapped in by implementing [`LogStore`].
 
 use crate::api::{
-    ChartData, ChartRequest, ExportRequest, ExportResult, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Page, PageRequest,
-    Timeline, TimelineRequest, WorkspaceSummary,
+    ChartData, ChartRequest, ContextRequest, ExportRequest, ExportResult, ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, Page,
+    PageRequest, SourceContext, Timeline, TimelineRequest, WorkspaceState, WorkspaceSummary,
 };
 use crate::profile::Profile;
 use crate::workspace::Workspace;
@@ -54,6 +54,15 @@ pub trait LogStore: Send + Sync {
 
     /// Writes the records matching a query with a registered exporter.
     fn export(&self, req: &ExportRequest) -> Result<ExportResult>;
+
+    /// The original lines around an event.
+    fn source_context(&self, req: &ContextRequest) -> Result<SourceContext>;
+
+    /// Opened paths and removed files (for saving a project).
+    fn state(&self) -> WorkspaceState;
+
+    /// Rebuilds the workspace from a saved state; returns paths that no longer exist.
+    fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>>;
 }
 
 impl LogStore for Workspace {
@@ -111,5 +120,17 @@ impl LogStore for Workspace {
 
     fn export(&self, req: &ExportRequest) -> Result<ExportResult> {
         Workspace::export(self, req)
+    }
+
+    fn source_context(&self, req: &ContextRequest) -> Result<SourceContext> {
+        Workspace::source_context(self, req)
+    }
+
+    fn state(&self) -> WorkspaceState {
+        Workspace::state(self)
+    }
+
+    fn restore(&mut self, profile: Profile, state: &WorkspaceState) -> Result<Vec<String>> {
+        Workspace::restore(self, profile, state)
     }
 }

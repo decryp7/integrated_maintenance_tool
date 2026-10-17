@@ -6,6 +6,7 @@
 //! profile's extractors and marker rules and serves queries.
 
 pub mod api;
+pub mod archive;
 pub mod chart;
 pub mod condition;
 pub mod export;
@@ -14,6 +15,7 @@ pub mod model;
 pub mod pipeline;
 pub mod plugin;
 pub mod profile;
+pub mod project;
 pub mod query;
 pub mod store;
 pub mod template;

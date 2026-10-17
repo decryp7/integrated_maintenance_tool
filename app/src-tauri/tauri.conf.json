@@ -37,7 +37,18 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "Analyse logs and diagnostic files"
+    "shortDescription": "Analyse logs and diagnostic files",
+    "fileAssociations": [
+      {
+        "ext": [
+          "imtproj"
+        ],
+        "name": "IMT Project",
+        "description": "IMT analysis project",
+        "role": "Editor",
+        "mimeType": "application/x-imt-project"
+      }
+    ]
   },
   "mainBinaryName": "imt-app"
 }

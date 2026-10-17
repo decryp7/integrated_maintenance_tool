@@ -3,7 +3,10 @@
 
 mod clef;
 
-use imt_core::workspace::{ChartRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest};
+use imt_core::project::ProjectFile;
+use imt_core::workspace::{
+    ChartRequest, ContextRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest, WorkspaceState,
+};
 use imt_core::{LogStore, PluginRegistry, Profile, Workspace, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
@@ -17,7 +20,13 @@ struct AppState {
     workspace: Arc<RwLock<Box<dyn LogStore>>>,
     profile: RwLock<ProfileDoc>,
     profile_dir: Option<PathBuf>,
+    /// Paths to open that arrived before or outside the UI (launch arguments,
+    /// files opened from Finder/Explorer); the UI takes them after `imt://open`.
+    pending: std::sync::Mutex<Vec<String>>,
 }
+
+/// Event telling the UI that `take_pending_open` has paths for it.
+const OPEN_EVENT: &str = "imt://open";
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -225,6 +234,63 @@ async fn export_events(state: State<'_, AppState>, request: ExportRequest) -> Cm
     .await
 }
 
+#[tauri::command]
+async fn source_context(state: State<'_, AppState>, request: ContextRequest) -> CmdResult<Value> {
+    read(&state, move |ws| {
+        serde_json::to_value(ws.source_context(&request)?).map_err(anyhow::Error::from)
+    })
+    .await
+}
+
+/// Saves the open files, the active profile and the UI's state to a `.imtproj`.
+#[tauri::command]
+async fn save_project(state: State<'_, AppState>, path: String, name: String, ui: Value) -> CmdResult<Value> {
+    let profile = state.profile.read().map_err(err)?.toml.clone();
+    let ws_state = state.workspace.read().map_err(err)?.state();
+    let project = ProjectFile {
+        version: 1,
+        name,
+        sources: ws_state.roots,
+        removed: ws_state.removed,
+        profile,
+        ui,
+    };
+    project.save(std::path::Path::new(&path)).map_err(err)?;
+    log::info!(Sources = project.sources.len() as u64; "Project saved");
+    Ok(serde_json::json!({ "path": path, "name": project.name }))
+}
+
+/// Opens a `.imtproj`: applies its profile, reopens its files and returns the UI state.
+#[tauri::command]
+async fn open_project(state: State<'_, AppState>, path: String) -> CmdResult<Value> {
+    let project = ProjectFile::load(std::path::Path::new(&path)).map_err(err)?;
+    let profile = Profile::from_toml(&project.profile).map_err(err)?;
+    let doc = ProfileDoc {
+        name: profile.name.clone(),
+        path: None,
+        toml: project.profile.clone(),
+    };
+    let ws_state = WorkspaceState {
+        roots: project.sources.clone(),
+        removed: project.removed.clone(),
+    };
+    let (summary, missing) = write(&state, move |ws| {
+        let missing = ws.restore(profile, &ws_state)?;
+        Ok((serde_json::to_value(ws.summary())?, missing))
+    })
+    .await?;
+    *state.profile.write().map_err(err)? = doc.clone();
+    log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
+    Ok(serde_json::json!({
+        "path": path,
+        "name": project.name,
+        "summary": summary,
+        "profile": doc,
+        "ui": project.ui,
+        "missing": missing,
+    }))
+}
+
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
 fn import_profile(path: String) -> CmdResult<ProfileDoc> {
@@ -292,6 +358,19 @@ fn log_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
+/// Queues paths for the UI and tells it to take them.
+#[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(dead_code))]
+fn queue_open<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Vec<String>) {
+    use tauri::Emitter;
+    if paths.is_empty() {
+        return;
+    }
+    if let Ok(mut pending) = app.state::<AppState>().pending.lock() {
+        pending.extend(paths);
+    }
+    let _ = app.emit(OPEN_EVENT, ());
+}
+
 /// The engine plus every compiled-in plugin. Add new plugins here.
 fn plugins() -> anyhow::Result<PluginRegistry> {
     let mut registry = PluginRegistry::new();
@@ -300,22 +379,31 @@ fn plugins() -> anyhow::Result<PluginRegistry> {
 }
 
 /// Loads the saved profile and opens the paths given on the command line.
+/// Loads the saved profile; paths given on the command line are queued for
+/// the UI, which opens them after the window is shown.
 fn app_state(profile_dir: Option<PathBuf>, args: &[PathBuf]) -> anyhow::Result<AppState> {
     let mut workspace = Workspace::with_registry(Profile::default_profile(), plugins()?)?;
     let (profile, doc) = load_profile(profile_dir.as_ref(), &workspace);
     workspace.set_profile(profile)?;
-    let paths: Vec<PathBuf> = args.iter().filter(|p| p.exists()).cloned().collect();
-    if !paths.is_empty() {
-        if let Err(e) = workspace.open(&paths) {
-            log::error!("could not open {paths:?}: {e:#}");
-        }
-    }
+    let pending = args
+        .iter()
+        .filter(|p| p.exists())
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
     let workspace: Box<dyn LogStore> = Box::new(workspace);
     Ok(AppState {
         workspace: Arc::new(RwLock::new(workspace)),
         profile: RwLock::new(doc),
         profile_dir,
+        pending: std::sync::Mutex::new(pending),
     })
+}
+
+/// Paths waiting to be opened (launch arguments, files opened from the OS).
+/// `.imtproj` files should be opened with `open_project`, others with `open_paths`.
+#[tauri::command]
+fn take_pending_open(state: State<'_, AppState>) -> CmdResult<Vec<String>> {
+    Ok(std::mem::take(&mut *state.pending.lock().map_err(err)?))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -347,6 +435,10 @@ pub fn run() {
             query_chart,
             preview_extractor,
             export_events,
+            source_context,
+            take_pending_open,
+            save_project,
+            open_project,
             get_profile,
             validate_profile,
             save_profile,
@@ -355,10 +447,19 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building IMT")
-        .run(|_, event| {
-            if let tauri::RunEvent::Exit = event {
-                log::info!("Application is shutting down");
+        .run(|app, event| match event {
+            tauri::RunEvent::Exit => log::info!("Application is shutting down"),
+            // Files opened from Finder (double-click, "Open with").
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            tauri::RunEvent::Opened { urls } => {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                queue_open(app, paths);
             }
+            _ => {}
         });
 }
 
@@ -388,6 +489,14 @@ mod tests {
         }
     }
 
+    /// An app whose workspace has `paths` opened, as the UI does after startup.
+    fn opened(dir: Option<PathBuf>, paths: &[PathBuf]) -> tauri::App<MockRuntime> {
+        let app = app(app_state(dir, paths).unwrap());
+        let pending = take_pending_open(app.state::<AppState>()).unwrap();
+        block(open_paths(app.state::<AppState>(), pending)).unwrap();
+        app
+    }
+
     fn app(state: AppState) -> tauri::App<MockRuntime> {
         mock_builder().manage(state).build(mock_context(noop_assets())).unwrap()
     }
@@ -399,11 +508,10 @@ mod tests {
     #[test]
     fn commands_round_trip() {
         let dir = TempDir::new("cmds");
-        let app = app(app_state(
+        let app = opened(
             Some(dir.0.clone()),
             &[samples().join("serilog-clef"), PathBuf::from("/does/not/exist")],
-        )
-        .unwrap());
+        );
         let st = || app.state::<AppState>();
 
         let summary = block(workspace_summary(st())).unwrap();
@@ -536,7 +644,7 @@ mod tests {
     #[test]
     fn plugins_and_export() {
         let dir = TempDir::new("export");
-        let app = app(app_state(Some(dir.0.clone()), &[samples().join("unsupported"), samples().join("csv")]).unwrap());
+        let app = opened(Some(dir.0.clone()), &[samples().join("unsupported"), samples().join("csv")]);
         let st = || app.state::<AppState>();
         let summary = block(workspace_summary(st())).unwrap();
         assert!(summary["plugins"]
@@ -555,5 +663,52 @@ mod tests {
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
         assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
         assert!(plugins().unwrap().plugins().len() == 1);
+    }
+
+    #[test]
+    fn projects_and_context() {
+        let dir = TempDir::new("project");
+        let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
+        let st = || app.state::<AppState>();
+        block(save_profile(st(), "name = 'Project profile'".into())).unwrap();
+        let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
+        let saved = block(save_project(st(), file.clone(), "Incident".into(), json!({"bookmarks": [3]}))).unwrap();
+        assert_eq!(saved["name"], "Incident");
+
+        let ctx: ContextRequest = serde_json::from_value(json!({"recordId": 5, "before": 1, "after": 1})).unwrap();
+        assert_eq!(block(source_context(st(), ctx)).unwrap()["lines"].as_array().unwrap().len(), 3);
+
+        block(clear_workspace(st())).unwrap();
+        block(save_profile(st(), "name = 'Other'".into())).unwrap();
+        let opened = block(open_project(st(), file.clone())).unwrap();
+        assert_eq!(opened["name"], "Incident");
+        assert_eq!(opened["ui"]["bookmarks"][0], 3);
+        assert_eq!(opened["profile"]["name"], "Project profile");
+        assert_eq!(opened["summary"]["profileName"], "Project profile");
+        assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
+        assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
+        assert_eq!(get_profile(st()).unwrap().name, "Project profile");
+        assert!(block(open_project(st(), dir.0.join("nope.imtproj").to_string_lossy().into_owned())).is_err());
+        std::fs::write(
+            dir.0.join("bad.imtproj"),
+            r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
+        )
+        .unwrap();
+        assert!(block(open_project(st(), dir.0.join("bad.imtproj").to_string_lossy().into_owned())).is_err());
+        assert!(block(save_project(st(), "/no/such/dir/x.imtproj".into(), "x".into(), Value::Null)).is_err());
+    }
+
+    #[test]
+    fn pending_open_queue() {
+        let app = app(app_state(None, &[samples().join("csv"), PathBuf::from("/does/not/exist")]).unwrap());
+        assert_eq!(
+            take_pending_open(app.state::<AppState>()).unwrap().len(),
+            1,
+            "missing paths are not queued"
+        );
+        assert!(take_pending_open(app.state::<AppState>()).unwrap().is_empty());
+        queue_open(app.handle(), vec!["/a/b.imtproj".into()]);
+        queue_open(app.handle(), vec![]);
+        assert_eq!(take_pending_open(app.state::<AppState>()).unwrap(), ["/a/b.imtproj"]);
     }
 }

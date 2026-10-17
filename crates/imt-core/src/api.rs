@@ -77,6 +77,42 @@ pub struct WorkspaceSummary {
     pub exporters: Vec<ExporterInfo>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextRequest {
+    pub record_id: u32,
+    #[serde(default = "default_radius")]
+    pub before: usize,
+    #[serde(default = "default_radius")]
+    pub after: usize,
+}
+
+fn default_radius() -> usize {
+    10
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SourceLine {
+    pub line: u32,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceContext {
+    pub source_name: String,
+    /// Line of the event itself.
+    pub line: u32,
+    pub lines: Vec<SourceLine>,
+}
+
+/// Opened paths and removed files, enough to rebuild the workspace.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkspaceState {
+    pub roots: Vec<String>,
+    pub removed: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct PipelineStepInfo {
     pub index: usize,

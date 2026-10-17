@@ -14,7 +14,7 @@ name = "Default (Serilog)"
 # Globs matched against the path relative to the opened folder. Extensions do
 # not matter: the format is detected from the file content.
 include = ["**/*"]
-exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.gz", "**/*.zip", "**/*.exe", "**/*.dll", "**/.*"]
+exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.imtproj", "**/*.exe", "**/*.dll", "**/.*"]
 
 [parse]
 # auto | json | text | csv
