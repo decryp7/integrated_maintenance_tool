@@ -39,7 +39,7 @@ pub fn restart_elevated<R: tauri::Runtime>(app: tauri::AppHandle<R>, reopen: Vec
 /// the webview cannot read arbitrary files.
 #[tauri::command]
 pub fn read_file_head(state: State<'_, AppState>, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
-    let summary = state.workspace.read().map_err(err)?.summary();
+    let summary = state.store_read().summary();
     let known = summary
         .sources
         .iter()

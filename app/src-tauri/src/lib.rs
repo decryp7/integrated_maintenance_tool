@@ -3,6 +3,7 @@
 
 mod clef;
 mod insights;
+mod lifecycle;
 mod system;
 mod tools;
 
@@ -10,7 +11,7 @@ use imt_core::project::ProjectFile;
 use imt_core::workspace::{
     ChartRequest, ContextRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest, WorkspaceState,
 };
-use imt_core::{LogStore, PluginRegistry, Profile, Workspace, DEFAULT_PROFILE_TOML};
+use imt_core::{LogStore, Profile, Workspace, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -26,8 +27,28 @@ pub(crate) struct AppState {
     /// Paths to open that arrived before or outside the UI (launch arguments,
     /// files opened from Finder/Explorer); the UI takes them after `imt://open`.
     pending: std::sync::Mutex<Vec<String>>,
+    /// The app's configuration folder (plugin settings).
+    config_dir: Option<PathBuf>,
     /// File watcher while live tail is on.
     watcher: std::sync::Mutex<Option<notify_debouncer_mini::Debouncer<notify_debouncer_mini::notify::RecommendedWatcher>>>,
+}
+
+impl AppState {
+    /// The store for reading. A panic during an earlier command must not make
+    /// every later command fail, so a poisoned lock is recovered.
+    pub(crate) fn store_read(&self) -> std::sync::RwLockReadGuard<'_, Box<dyn LogStore>> {
+        self.workspace.read().unwrap_or_else(|p| {
+            log::warn!("recovering the workspace lock after a crash");
+            p.into_inner()
+        })
+    }
+
+    pub(crate) fn store_write(&self) -> std::sync::RwLockWriteGuard<'_, Box<dyn LogStore>> {
+        self.workspace.write().unwrap_or_else(|p| {
+            log::warn!("recovering the workspace lock after a crash");
+            p.into_inner()
+        })
+    }
 }
 
 /// Event telling the UI that live tail changed the workspace.
@@ -65,7 +86,7 @@ pub(crate) async fn read<T: Send + 'static>(
     f: impl FnOnce(&dyn LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
     let ws = state.workspace.clone();
-    tauri::async_runtime::spawn_blocking(move || f(ws.read().map_err(err)?.as_ref()).map_err(err))
+    tauri::async_runtime::spawn_blocking(move || f(ws.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(err))
         .await
         .map_err(err)?
 }
@@ -75,7 +96,7 @@ async fn write<T: Send + 'static>(
     f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
     let ws = state.workspace.clone();
-    tauri::async_runtime::spawn_blocking(move || f(ws.write().map_err(err)?.as_mut()).map_err(err))
+    tauri::async_runtime::spawn_blocking(move || f(ws.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(err))
         .await
         .map_err(err)?
 }
@@ -178,7 +199,7 @@ fn get_profile(state: State<'_, AppState>) -> CmdResult<ProfileDoc> {
 /// Parses and compiles a profile against the installed plugins.
 #[tauri::command]
 fn validate_profile(state: State<'_, AppState>, toml: String) -> CmdResult<ProfileValidation> {
-    let store = state.workspace.read().map_err(err)?;
+    let store = state.store_read();
     Ok(validate(store.as_ref(), &toml))
 }
 
@@ -255,7 +276,7 @@ async fn source_context(state: State<'_, AppState>, request: ContextRequest) -> 
 #[tauri::command]
 async fn save_project(state: State<'_, AppState>, path: String, name: String, ui: Value) -> CmdResult<Value> {
     let profile = state.profile.read().map_err(err)?.toml.clone();
-    let ws_state = state.workspace.read().map_err(err)?.state();
+    let ws_state = state.store_read().state();
     let project = ProjectFile {
         version: 1,
         name,
@@ -380,23 +401,30 @@ fn queue_open<R: tauri::Runtime>(app: &tauri::AppHandle<R>, paths: Vec<String>) 
     let _ = app.emit(OPEN_EVENT, ());
 }
 
-/// The engine plus every compiled-in plugin. Add new plugins here.
-fn plugins() -> anyhow::Result<PluginRegistry> {
-    let mut registry = PluginRegistry::new();
-    registry.install(&imt_plugin_registry::RegistryPlugin)?;
-    registry.install(&imt_plugin_otel::OtelPlugin)?;
-    registry.install(&imt_plugin_syslog::SyslogPlugin)?;
-    registry.install(&imt_plugin_windows::WindowsPlugin)?;
-    registry.install(&imt_plugin_web::WebPlugin)?;
-    Ok(registry)
-}
-
 /// Loads the saved profile and opens the paths given on the command line.
 /// Loads the saved profile; paths given on the command line are queued for
 /// the UI, which opens them after the window is shown.
+#[cfg(test)]
 fn app_state(profile_dir: Option<PathBuf>, args: &[PathBuf]) -> anyhow::Result<AppState> {
-    let mut workspace = Workspace::with_registry(Profile::default_profile(), plugins()?)?;
-    let (profile, doc) = load_profile(profile_dir.as_ref(), &workspace);
+    app_state_with(profile_dir, args, false)
+}
+
+/// In safe mode no plugin is installed and the saved profile is not loaded.
+fn app_state_with(profile_dir: Option<PathBuf>, args: &[PathBuf], safe_mode: bool) -> anyhow::Result<AppState> {
+    let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
+    let settings = lifecycle::load_plugin_settings(config_dir.as_deref());
+    let mut workspace = Workspace::with_registry(Profile::default_profile(), lifecycle::plugins(safe_mode, &settings.disabled)?)?;
+    let (profile, doc) = if safe_mode {
+        let p = Profile::default_profile();
+        let doc = ProfileDoc {
+            name: p.name.clone(),
+            path: None,
+            toml: DEFAULT_PROFILE_TOML.to_string(),
+        };
+        (p, doc)
+    } else {
+        load_profile(profile_dir.as_ref(), &workspace)
+    };
     workspace.set_profile(profile)?;
     let pending = args
         .iter()
@@ -408,6 +436,7 @@ fn app_state(profile_dir: Option<PathBuf>, args: &[PathBuf]) -> anyhow::Result<A
         workspace: Arc::new(RwLock::new(workspace)),
         profile: RwLock::new(doc),
         profile_dir,
+        config_dir,
         pending: std::sync::Mutex::new(pending),
         watcher: std::sync::Mutex::new(None),
     })
@@ -425,7 +454,7 @@ fn set_live<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppSta
     if !enabled {
         return Ok(0);
     }
-    let roots = state.workspace.read().map_err(err)?.state().roots;
+    let roots = state.store_read().state().roots;
     let handle = app.clone();
     let mut debouncer = new_debouncer(
         std::time::Duration::from_millis(750),
@@ -459,13 +488,10 @@ fn set_live<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppSta
 
 /// Re-imports changed files; returns how many sources were refreshed.
 fn apply_changes(state: &AppState, paths: &[PathBuf]) -> usize {
-    match state.workspace.write() {
-        Ok(mut ws) => ws.refresh_files(paths).unwrap_or_else(|e| {
-            log::warn!("live tail refresh failed: {e:#}");
-            0
-        }),
-        Err(_) => 0,
-    }
+    state.store_write().refresh_files(paths).unwrap_or_else(|e| {
+        log::warn!("live tail refresh failed: {e:#}");
+        0
+    })
 }
 
 /// Paths waiting to be opened (launch arguments, files opened from the OS).
@@ -483,13 +509,14 @@ pub fn run() {
         .setup(|app| {
             let profile_dir = app.path().app_config_dir().ok().map(|d| d.join("profiles"));
             // `imt-app <paths...>` opens files and folders at startup.
-            let args: Vec<PathBuf> = std::env::args()
-                .skip(1)
-                .filter(|a| !a.starts_with('-'))
-                .map(PathBuf::from)
-                .collect();
-            log::info!(Version = env!("CARGO_PKG_VERSION"); "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
-            app.manage(app_state(profile_dir, &args)?);
+            let raw: Vec<String> = std::env::args().skip(1).collect();
+            let safe_mode = raw.iter().any(|a| a == lifecycle::SAFE_MODE_FLAG) || std::env::var_os("IMT_SAFE_MODE").is_some();
+            let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with('-')).map(PathBuf::from).collect();
+            lifecycle::install_panic_logging();
+            let life = lifecycle::Lifecycle::begin(app.path().app_data_dir().ok(), safe_mode);
+            log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = life.previous_crash; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
+            app.manage(app_state_with(profile_dir, &args, safe_mode)?);
+            app.manage(life);
             app.manage(tools::Tools::default());
             Ok(())
         })
@@ -534,6 +561,12 @@ pub fn run() {
             tools::monitor_status,
             tools::collect_default_plan,
             tools::collect_diagnostics,
+            lifecycle::app_status,
+            lifecycle::restart_app,
+            lifecycle::plugin_reset,
+            lifecycle::plugin_set_enabled,
+            lifecycle::save_session,
+            lifecycle::last_session,
             save_project,
             open_project,
             get_profile,
@@ -545,7 +578,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building IMT")
         .run(|app, event| match event {
-            tauri::RunEvent::Exit => log::info!("Application is shutting down"),
+            tauri::RunEvent::Exit => {
+                if let Some(life) = app.try_state::<lifecycle::Lifecycle>() {
+                    life.end();
+                }
+                log::info!("Application is shutting down")
+            }
             // Files opened from Finder (double-click, "Open with").
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             tauri::RunEvent::Opened { urls } => {
@@ -759,7 +797,7 @@ mod tests {
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
         assert!(block(export_events(st(), bad)).unwrap_err().contains("unknown export format"));
-        assert_eq!(plugins().unwrap().plugins().len(), 5);
+        assert_eq!(lifecycle::plugins(false, &[]).unwrap().plugins().len(), 5);
     }
 
     #[test]

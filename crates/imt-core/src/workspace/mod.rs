@@ -262,8 +262,13 @@ impl Workspace {
         CompiledProfile::compile_with(profile, &self.registry.transforms).map(|_| ())
     }
 
+    /// Lifts a plugin's quarantine and forgets its crashes.
+    pub fn reset_plugin(&self, id: &str) {
+        self.registry.reset_plugin(id);
+    }
+
     /// Plugins installed in this workspace.
-    pub fn plugins(&self) -> &[crate::plugin::PluginInfo] {
+    pub fn plugins(&self) -> Vec<crate::plugin::PluginInfo> {
         self.registry.plugins()
     }
 
@@ -496,7 +501,7 @@ impl Workspace {
             load_ms: self.load_ms,
             dropped: self.sources.iter().map(|s| s.dropped).sum(),
             pipeline: self.pipeline_stats(),
-            plugins: self.registry.plugins().to_vec(),
+            plugins: self.registry.plugins(),
             exporters: self
                 .registry
                 .exporters
@@ -566,9 +571,9 @@ fn import_file(
     removed: &HashSet<PathBuf>,
 ) -> Vec<(String, String, ImportResult)> {
     let path_s = path.to_string_lossy().into_owned();
-    let bytes = match std::fs::read(path) {
+    let bytes = match read_with_retry(path) {
         Ok(b) => b,
-        Err(e) => return vec![(path_s, name.to_string(), Err(e.to_string()))],
+        Err(e) => return vec![(path_s, name.to_string(), Err(e))],
     };
     let file_name = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
     let compressed = crate::archive::is_zip(&bytes);
@@ -595,7 +600,9 @@ fn import_file(
             if removed.contains(Path::new(&source_path)) {
                 return None;
             }
-            let result = import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date);
+            // A crash anywhere while reading one file (even in built-in code) fails only that file.
+            let result = crate::guard::catch("IMT", || Ok(import_bytes(importers, profile, path, &entry.bytes, &source_name, file_date)))
+                .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")));
             Some((source_path, source_name, result))
         })
         .collect()
@@ -628,6 +635,30 @@ fn import_bytes(
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
     Ok((id.to_string(), imported, stats))
+}
+
+/// Reads a file, retrying briefly when another process holds it open
+/// exclusively (common for logs being written on Windows).
+fn read_with_retry(path: &Path) -> std::result::Result<Vec<u8>, String> {
+    const ATTEMPTS: u32 = 4;
+    let mut delay = std::time::Duration::from_millis(100);
+    for attempt in 1..=ATTEMPTS {
+        match std::fs::read(path) {
+            Ok(b) => return Ok(b),
+            Err(e) if is_locked(&e) && attempt < ATTEMPTS => {
+                std::thread::sleep(delay);
+                delay *= 2;
+            }
+            Err(e) if is_locked(&e) => return Err(format!("the file is locked by another process ({e})")),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    unreachable!("the last attempt always returns")
+}
+
+/// Sharing/lock violations (Windows error 32/33) or permission errors that may be transient.
+fn is_locked(e: &std::io::Error) -> bool {
+    matches!(e.raw_os_error(), Some(32) | Some(33)) && cfg!(windows) || e.kind() == std::io::ErrorKind::ResourceBusy
 }
 
 /// The file part of a source path ("x.zip!/a.log" -> "x.zip").

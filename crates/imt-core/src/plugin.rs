@@ -84,14 +84,29 @@ pub trait Collector: Send + Sync {
     fn run(&self, config: &serde_json::Value, sink: &dyn crate::export::EventSink, stop: &std::sync::atomic::AtomicBool) -> Result<()>;
 }
 
+/// Whether a plugin's contributions are being used.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum PluginStatus {
+    Active,
+    /// Turned off by the user (or safe mode); not registered at all.
+    Disabled,
+    /// Crashed repeatedly; installed but no longer called until reset.
+    Quarantined,
+}
+
 /// Registered plugin, as listed in the workspace summary.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginInfo {
     pub id: String,
     pub name: String,
     pub version: String,
     /// e.g. `["importer:registry", "transform:x", "exporter:y", "hook"]`.
     pub contributes: Vec<String>,
+    pub status: PluginStatus,
+    pub failures: u32,
+    pub last_error: Option<String>,
 }
 
 /// Everything the engine can be extended with.
@@ -104,6 +119,10 @@ pub struct PluginRegistry {
     plugins: Vec<PluginInfo>,
     /// Contributions of the plugin currently registering.
     pending: Vec<String>,
+    /// Guard of the plugin currently registering; built-ins are not wrapped.
+    current: Option<crate::guard::Guard>,
+    health: Arc<crate::guard::Health>,
+    disabled: std::collections::HashSet<String>,
 }
 
 impl Default for PluginRegistry {
@@ -131,6 +150,9 @@ impl PluginRegistry {
             collectors: Vec::new(),
             plugins: Vec::new(),
             pending: Vec::new(),
+            current: None,
+            health: Arc::new(crate::guard::Health::default()),
+            disabled: Default::default(),
         }
     }
 
@@ -146,25 +168,57 @@ impl PluginRegistry {
         if self.plugins.iter().any(|p| p.id == plugin.id()) {
             return Err(anyhow!("plugin \"{}\" is already installed", plugin.id()));
         }
-        self.pending.clear();
-        plugin.register(self).map_err(|e| anyhow!("plugin \"{}\": {e:#}", plugin.id()))?;
-        self.plugins.push(PluginInfo {
+        let mut info = PluginInfo {
             id: plugin.id().into(),
             name: plugin.name().into(),
             version: plugin.version().into(),
-            contributes: std::mem::take(&mut self.pending),
-        });
+            contributes: Vec::new(),
+            status: PluginStatus::Active,
+            failures: 0,
+            last_error: None,
+        };
+        if self.disabled.contains(plugin.id()) {
+            info.status = PluginStatus::Disabled;
+            self.plugins.push(info);
+            return Ok(());
+        }
+        self.pending.clear();
+        self.current = Some(crate::guard::Guard { owner: plugin.id().into(), health: self.health.clone() });
+        let registered = crate::guard::catch(&format!("plugin \"{}\" (register)", plugin.id()), || plugin.register(self));
+        self.current = None;
+        registered.map_err(|e| anyhow!("plugin \"{}\": {e:#}", plugin.id()))?;
+        info.contributes = std::mem::take(&mut self.pending);
+        self.plugins.push(info);
         Ok(())
+    }
+
+    /// Plugins to skip at install (user choice or safe mode); call before installing.
+    pub fn disable<I: IntoIterator<Item = S>, S: Into<String>>(&mut self, ids: I) -> &mut Self {
+        self.disabled.extend(ids.into_iter().map(Into::into));
+        self
+    }
+
+    /// Crash counts shared by every guarded contribution.
+    pub fn health(&self) -> Arc<crate::guard::Health> {
+        self.health.clone()
     }
 
     pub fn add_binary_importer(&mut self, importer: Box<dyn crate::importers::BinaryImporter>) -> &mut Self {
         self.pending.push(format!("importer:{}", importer.id()));
+        let importer: Box<dyn crate::importers::BinaryImporter> = match &self.current {
+            Some(guard) => Box::new(crate::guard::GuardedBinaryImporter { inner: importer, guard: guard.clone() }),
+            None => importer,
+        };
         self.importers.register_binary(importer);
         self
     }
 
     pub fn add_importer(&mut self, importer: Box<dyn Importer>) -> &mut Self {
         self.pending.push(format!("importer:{}", importer.id()));
+        let importer: Box<dyn Importer> = match &self.current {
+            Some(guard) => Box::new(crate::guard::GuardedImporter { inner: importer, guard: guard.clone() }),
+            None => importer,
+        };
         self.importers.register(importer);
         self
     }
@@ -175,12 +229,20 @@ impl PluginRegistry {
             return Err(anyhow!("a transform with id \"{id}\" is already registered"));
         }
         self.pending.push(format!("transform:{id}"));
+        let transform: Arc<dyn RecordTransform> = match &self.current {
+            Some(guard) => Arc::new(crate::guard::GuardedTransform { inner: transform, guard: guard.clone() }),
+            None => transform,
+        };
         self.transforms.insert(id, transform);
         Ok(self)
     }
 
     pub fn add_hook(&mut self, hook: Arc<dyn WorkspaceHook>) -> &mut Self {
         self.pending.push("hook".into());
+        let hook: Arc<dyn WorkspaceHook> = match &self.current {
+            Some(guard) => Arc::new(crate::guard::GuardedHook { inner: hook, guard: guard.clone() }),
+            None => hook,
+        };
         self.hooks.push(hook);
         self
     }
@@ -190,6 +252,10 @@ impl PluginRegistry {
             return Err(anyhow!("an exporter with id \"{}\" is already registered", exporter.id()));
         }
         self.pending.push(format!("exporter:{}", exporter.id()));
+        let exporter: Arc<dyn Exporter> = match &self.current {
+            Some(guard) => Arc::new(crate::guard::GuardedExporter { inner: exporter, guard: guard.clone() }),
+            None => exporter,
+        };
         self.exporters.push(exporter);
         Ok(self)
     }
@@ -199,6 +265,10 @@ impl PluginRegistry {
             return Err(anyhow!("a collector with id \"{}\" is already registered", collector.id()));
         }
         self.pending.push(format!("collector:{}", collector.id()));
+        let collector: Arc<dyn Collector> = match &self.current {
+            Some(guard) => Arc::new(crate::guard::GuardedCollector { inner: collector, guard: guard.clone() }),
+            None => collector,
+        };
         self.collectors.push(collector);
         Ok(self)
     }
@@ -211,8 +281,24 @@ impl PluginRegistry {
         &self.collectors
     }
 
-    pub fn plugins(&self) -> &[PluginInfo] {
-        &self.plugins
+    /// Installed plugins with their current health.
+    pub fn plugins(&self) -> Vec<PluginInfo> {
+        self.plugins
+            .iter()
+            .map(|p| {
+                let h = self.health.get(&p.id);
+                let status = match p.status {
+                    PluginStatus::Active if h.quarantined => PluginStatus::Quarantined,
+                    s => s,
+                };
+                PluginInfo { status, failures: h.failures, last_error: h.last_error, ..p.clone() }
+            })
+            .collect()
+    }
+
+    /// Lifts a quarantine and forgets a plugin's crashes.
+    pub fn reset_plugin(&self, id: &str) {
+        self.health.reset(id);
     }
 
     pub fn exporter(&self, id: &str) -> Option<&Arc<dyn Exporter>> {

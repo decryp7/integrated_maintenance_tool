@@ -76,6 +76,43 @@ The app reads untrusted, possibly huge files and renders their content:
 - Validation that matters is done in Rust; the UI may validate early for convenience, but the
   engine re-validates.
 
+## Robustness
+
+- **Contain failures.** A bug in one file, plugin, panel or command must never take down the
+  app or poison later work:
+  - Plugin contributions are always registered through `PluginRegistry`, which wraps them in
+    guarded adapters (`imt_core::guard`): panics become errors attributed to the plugin, and
+    repeat offenders are quarantined. Never call plugin code outside these adapters.
+  - Per-file work (`import_file`) runs under `guard::catch`: one bad file is reported as
+    unrecognised with a reason; the rest imports.
+  - Shared state behind locks recovers from poisoning (`store_read`/`store_write`); never
+    `unwrap()` a lock.
+  - Each UI panel has an error boundary; a failed request shows an inline error with Retry.
+- **Degrade, don't fail.** Missing paths, locked files, unavailable tools, missing rights and
+  platform limits produce a clear message (and a next step: retry, elevate, convert) instead of
+  an exception. External tools always run with timeouts.
+- **Recoverable sessions.** Work in progress is autosaved (session file) and an unclean
+  shutdown offers restore and safe mode. New persistent state must be versioned and must
+  tolerate missing/corrupt files by falling back to defaults.
+- **Bounded resources.** Respect the existing limits (line size, regex size, archive
+  expansion, result caps) and add limits for any new unbounded input.
+- **Every robustness behaviour has a test that triggers the failure** (crashing plugins,
+  corrupt files, locked files, poisoned locks, missing tools).
+
+## Working in parallel (agents)
+
+- Each task owns an explicit set of files; don't edit outside it. Shared integration points
+  (`lib.rs`, `api.rs`, `store.rs`, the workspace `Cargo.toml`, `api.types.ts`) are changed by the
+  integrating agent only, or by adding a single declared line.
+- Don't run `cargo fmt --all` / `cargo clippy --fix` across the workspace while others are
+  editing; format your own files (`rustfmt <files>`). Use a private `CARGO_TARGET_DIR` for
+  coverage runs to avoid clobbering others.
+- Commit only complete, owned work. Never commit a workspace `Cargo.toml` listing crates whose
+  sources aren't committed. After committing, verify the committed tree in isolation
+  (`git archive HEAD` → build and test) before pushing larger changes.
+- Windows-only code must at least type-check: `cargo check --target x86_64-pc-windows-msvc`
+  for crates that don't need the Windows SDK; otherwise rely on the Windows CI runner and say so.
+
 ## Contracts
 
 - The UI ↔ backend wire contract is `app/src/app/core/api.types.ts` (camelCase JSON).

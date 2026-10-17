@@ -113,6 +113,9 @@ pub trait LogStore: Send + Sync {
 
     /// Parses sample text with a candidate profile, without changing the workspace.
     fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview;
+
+    /// Lifts a plugin's quarantine after repeated crashes.
+    fn reset_plugin(&self, id: &str);
 }
 
 impl LogStore for Workspace {
@@ -238,5 +241,9 @@ impl LogStore for Workspace {
 
     fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
         Workspace::preview_parse(self, req)
+    }
+
+    fn reset_plugin(&self, id: &str) {
+        Workspace::reset_plugin(self, id)
     }
 }
