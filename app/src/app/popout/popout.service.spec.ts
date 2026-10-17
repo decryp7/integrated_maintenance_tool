@@ -161,7 +161,7 @@ describe('PopoutService (host side)', () => {
     expect(run.mock.calls).toEqual([['edit.undo']]);
   });
 
-  it('docks a pop-out dropped on a guide of the host (OS move events, then the settle rule)', async () => {
+  it('docks a pop-out resting on a guide where the release cannot be observed (OS move events, settle rule)', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     try {
       const { dock, popouts } = await setup();
@@ -185,6 +185,43 @@ describe('PopoutService (host side)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('docks an OS-moved pop-out only when the button is released, not while it hovers a guide', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    try {
+      const { dock, popouts } = await setup();
+      await popouts.popOut('inspector');
+      vi.spyOn(dock, 'dropTargetAt').mockReturnValue({ kind: 'edge', position: 'left' });
+      backend.buttonDown = true;
+      backend.moved!({ label: 'p-main-1', viewId: 'inspector', x: 40, y: 40 });
+      await settle();
+      // Resting on the guide with the button held, far longer than the settle time and the idle limit.
+      for (let i = 0; i < 50; i++) {
+        vi.advanceTimersByTime(100);
+        await settle();
+      }
+      expect(popouts.poppedIds().has('inspector')).toBe(true);
+      expect(backend.docked).toEqual([]);
+      backend.buttonDown = false;
+      vi.advanceTimersByTime(100);
+      await settle();
+      expect(popouts.poppedIds().size).toBe(0);
+      expect(backend.docked).toEqual(['p-main-1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores a pop-out moved without the button held (snapping, keyboard, restore)', async () => {
+    const { dock, popouts } = await setup();
+    await popouts.popOut('inspector');
+    const guides = vi.spyOn(dock, 'showDropGuides');
+    backend.buttonDown = false;
+    backend.moved!({ label: 'p-main-1', viewId: 'inspector', x: 40, y: 40 });
+    await settle();
+    expect(guides).not.toHaveBeenCalled();
+    expect(popouts.poppedIds().has('inspector')).toBe(true);
   });
 
   it('docks on the pop-out shell drag handle release, and gives up a drag released elsewhere', async () => {

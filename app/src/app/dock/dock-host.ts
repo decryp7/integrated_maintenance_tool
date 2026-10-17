@@ -176,6 +176,8 @@ export const HOVER_HIDE_MS = 300;
     .imt-tab.pinned .imt-tab-pin { display: inline; }
     .imt-tab-menu { width: 14px; text-align: center; font-size: 11px; color: var(--faint); visibility: hidden; border-radius: 3px; }
     .dv-tab:hover .imt-tab-menu, .dv-tab.dv-active-tab .imt-tab-menu, .dv-tab:focus-visible .imt-tab-menu { visibility: visible; }
+    /* Only the active tab carries the menu chevron, so inactive tabs stay as narrow as their label and close button. */
+    .dv-tab:not(.dv-active-tab) .imt-tab-menu { display: none; }
     .imt-tab-menu:hover { background: var(--bg-hover); color: var(--text); }
     .imt-dock-action[hidden] { display: none; }
 

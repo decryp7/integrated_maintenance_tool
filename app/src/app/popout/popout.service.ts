@@ -19,7 +19,10 @@ import { SyncedValue, UiSync } from './ui-sync';
 /** More pop-outs per window are refused (each is a whole webview). Mirrors `MAX_POPOUTS` in Rust. */
 export const MAX_POPOUTS = 12;
 export const BOUNDS_KEY = 'imt.popout.bounds.v1';
-/** How often a drag over this window is re-evaluated (the settle rule), and when an idle one is given up. */
+/**
+ * How often a drag over this window is re-evaluated (the release poll, or the settle rule where the release cannot be
+ * observed), and when an idle drag whose release cannot be observed is given up.
+ */
 export const DRAG_TICK_MS = 100;
 export const DRAG_IDLE_MS = 2000;
 /** Commands a pop-out may run in its host (global undo). */
@@ -107,6 +110,9 @@ export class PopoutService implements PanelWindows {
   private dragTimer: ReturnType<typeof setInterval> | null = null;
   private origin: Point | null = null;
   private lastMove = 0;
+  /** The current drag is an OS window move whose release is observed by polling the mouse button. */
+  private polling = false;
+  private pollBusy = false;
 
   readonly poppedIds = computed<ReadonlySet<string>>(() => new Set(this.popped().keys()));
 
@@ -122,7 +128,7 @@ export class PopoutService implements PanelWindows {
     await Promise.allSettled([
       this.backend.onClosed((e) => this.closed(e)),
       this.backend.onChanged(() => void this.refresh()),
-      this.backend.onMoved((e) => void this.draggedOver(e.label, { x: e.x, y: e.y })),
+      this.backend.onMoved((e) => void this.draggedOver(e.label, { x: e.x, y: e.y }, 'os')),
     ]);
     const port = this.backend.syncPort(label, true, () => [...this.popped().values()].map((p) => p.label));
     this.sync.start(port, true, label, [...sharedUiState(this.injector), hostTitle(this.injector)]);
@@ -271,36 +277,61 @@ export class PopoutService implements PanelWindows {
     else if (command === 'run' && arg && runsInHost(arg)) void this.injector.get(CommandRegistry).run(arg);
     else if (command === 'dragOver' && arg) {
       const over = parseDragOver(arg);
-      if (over) void this.draggedOver(over.label, over);
+      if (over) void this.draggedOver(over.label, over, 'handle');
     } else if (command === 'dragEnd' && arg) this.dragStep({ type: 'end', label: arg, now: Date.now() });
   }
 
   /* ------------------------------------------------ a pop-out dragged back over this window */
 
   /**
-   * A pop-out window (or its shell's drag handle) is at a screen point: show this window's dock guides under it,
-   * and dock the panel when it is dropped (or rests) on one.
+   * A pop-out window (moved by the OS, or by its shell's drag handle) is at a screen point: show this window's dock
+   * guides under it, and dock the panel when it is released on one. The handle reports its release (`dragEnd`); an
+   * OS move does not, so the mouse button is polled, and only where it cannot be the panel docks when the pointer
+   * rests on a guide.
    */
-  private async draggedOver(label: string, screen: Point): Promise<void> {
+  private async draggedOver(label: string, screen: Point, source: 'os' | 'handle'): Promise<void> {
     const entry = [...this.popped().values()].find((p) => p.label === label);
     if (!entry) return;
-    if (!this.drag) this.origin = await this.backend.contentOrigin().catch(() => null);
+    if (!this.drag) {
+      if (source === 'os') {
+        const down = await this.backend.primaryButtonDown().catch(() => null);
+        // Moved without the button held (snapping, keyboard, restore): not a drag.
+        if (down === false) return;
+        this.polling = down === true;
+      } else this.polling = false;
+      this.origin = await this.backend.contentOrigin().catch(() => null);
+    }
+    const settle = source === 'os' && !this.polling;
     const origin = this.origin ?? { x: 0, y: 0 };
     const p = screenToClient(screen, origin);
     const inside = p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight;
     const point = inside ? p : null;
     this.dock.showDropGuides(point);
     this.lastMove = Date.now();
-    this.dragStep({ type: 'move', label, viewId: entry.viewId, point, target: point ? this.dock.dropTargetAt(point) : null, now: Date.now() });
-    this.dragTimer ??= setInterval(() => this.dragStep({ type: 'tick', now: Date.now() }), DRAG_TICK_MS);
+    this.dragStep({ type: 'move', label, viewId: entry.viewId, point, target: point ? this.dock.dropTargetAt(point) : null, now: Date.now(), settle });
+    this.dragTimer ??= setInterval(() => this.tick(), DRAG_TICK_MS);
+  }
+
+  private tick(): void {
+    this.dragStep({ type: 'tick', now: Date.now() });
+    const drag = this.drag;
+    if (!drag || !this.polling || this.pollBusy) return;
+    this.pollBusy = true;
+    void this.backend
+      .primaryButtonDown()
+      .catch(() => false)
+      .then((down) => {
+        if (down !== true && this.drag === drag) this.dragStep({ type: 'end', label: drag.label, now: Date.now() });
+      })
+      .finally(() => (this.pollBusy = false));
   }
 
   private dragStep(e: PopoutDragEvent): void {
     const { state, dock } = popoutDragReduce(this.drag, e);
     this.drag = state;
-    // Gone (docked, ended, cancelled) or idle: an OS window move has no "dropped" event, so a drag that stopped
-    // somewhere without a guide is given up after a while.
-    if (!state || (e.type === 'tick' && e.now - this.lastMove > DRAG_IDLE_MS)) {
+    // Gone (docked, ended, cancelled), or idle where the release cannot be observed: a drag that stopped somewhere
+    // without a guide is given up after a while. A polled drag lasts as long as the button is held.
+    if (!state || (e.type === 'tick' && state.settle && e.now - this.lastMove > DRAG_IDLE_MS)) {
       this.drag = null;
       this.dock.showDropGuides(null);
       if (this.dragTimer !== null) clearInterval(this.dragTimer);

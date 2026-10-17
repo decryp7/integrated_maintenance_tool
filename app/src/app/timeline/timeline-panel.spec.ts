@@ -367,13 +367,17 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
     expect(items[1].title).toBe('Plain');
     expect(pay.querySelector('imt-marker-glyph')!.getAttribute('data-glyph')).toBe('badge');
     expect(pay.getAttribute('aria-pressed')).toBe('false');
+    // Without a kind filter no item looks switched off (the others are dimmed only while one kind is picked).
+    expect(el(fixture, '.legend').classList).not.toContain('filtering');
     pay.click();
     await settle(fixture);
     expect(store.query().markers).toEqual(['pay']);
     expect(all<HTMLButtonElement>(fixture, '.legend .lg')[0].getAttribute('aria-pressed')).toBe('true');
+    expect(el(fixture, '.legend').classList).toContain('filtering');
     all<HTMLButtonElement>(fixture, '.legend .lg')[0].click();
     await settle(fixture);
     expect(store.query().markers).toEqual([]);
+    expect(el(fixture, '.legend').classList).not.toContain('filtering');
   });
 
   it('draws the badge on the lane and describes it in the tooltip', async () => {

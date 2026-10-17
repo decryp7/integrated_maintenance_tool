@@ -347,33 +347,6 @@ textarea.input {
   white-space: nowrap;
 }
 
-.switch {
-  width: 26px;
-  height: 14px;
-  border-radius: 7px;
-  background: var(--border-3);
-  position: relative;
-  display: inline-block;
-  flex: none;
-  &::after {
-    content: '';
-    position: absolute;
-    left: 2px;
-    top: 2px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--bg-1);
-    transition: left 0.12s;
-  }
-  &.on {
-    background: var(--accent);
-    &::after {
-      left: 14px;
-    }
-  }
-}
-
 .lvl-Verbose { --lvl: var(--lvl-verbose); }
 .lvl-Debug { --lvl: var(--lvl-debug); }
 .lvl-Information { --lvl: var(--lvl-info); }
@@ -476,7 +449,7 @@ textarea.input {
 .imt-dock-action:hover { background: var(--bg-hover); color: var(--text); }
 .imt-dock-action:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-.imt-tab { display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 12px; white-space: nowrap; }
+.imt-tab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 8px 0 12px; white-space: nowrap; }
 .imt-tab-close { width: 16px; height: 16px; line-height: 15px; text-align: center; border-radius: 4px; font-size: 14px; color: var(--faint); visibility: hidden; }
 .dv-tab:hover .imt-tab-close, .dv-tab.dv-active-tab .imt-tab-close, .dv-tab:focus-visible .imt-tab-close { visibility: visible; }
 .imt-tab-close:hover { background: var(--bg-hover); color: var(--text); }

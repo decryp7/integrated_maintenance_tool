@@ -145,6 +145,8 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
       splitLine: { lineStyle: { color: t.grid } },
     },
     brush: { xAxisIndex: 0, brushType: 'lineX', brushMode: 'single', throttleType: 'debounce', brushStyle: { color: t.accentSoft, borderColor: t.accent, borderWidth: 1 }, outOfBrush: { colorAlpha: 1 } },
+    // Brushing is armed programmatically (see EChart), not from toolbox buttons.
+    toolbox: { show: false },
     series,
   };
 }

@@ -85,38 +85,6 @@ interface Hover {
       @if (store.timelineLoading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
       <span class="spacer"></span>
       <imt-live-window-controls />
-      <div class="legend">
-        @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
-          <button
-            type="button"
-            class="lg"
-            [attr.aria-pressed]="legendActive(k.kind)"
-            [attr.aria-describedby]="legendDesc(k)"
-            [title]="legendTitle(k)"
-            (click)="toggleKind(k.kind)"
-          ><imt-marker-glyph [kind]="k.kind" [size]="16" />{{ k.label }}</button>
-          @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
-        }
-      </div>
-      @if (ann.kinds().length || ann.error()) {
-        <div class="ann-legend" role="group" aria-label="Annotations">
-          <span class="lg-title">Annotations</span>
-          @for (k of ann.kinds(); track k.kind) {
-            <button
-              type="button"
-              class="lg"
-              [attr.aria-pressed]="ann.isShown(k.kind)"
-              [attr.data-kind]="k.kind"
-              [title]="(ann.isShown(k.kind) ? 'Hide ' : 'Show ') + k.label + ' (' + k.owner + ', ' + k.count + ')'"
-              (click)="ann.toggle(k.kind)"
-            ><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</button>
-          }
-          @if (ann.error(); as e) {
-            <span class="ann-err" role="alert" [title]="e">Annotations unavailable</span>
-            <button type="button" class="btn" (click)="ann.retry()">Retry</button>
-          }
-        </div>
-      }
       <div class="zoom" role="group" aria-label="Zoom">
         <button class="icon-btn" title="Previous range (Alt+←)" aria-label="Previous range" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
         <button class="icon-btn" title="Next range (Alt+→)" aria-label="Next range" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
@@ -125,6 +93,42 @@ interface Hover {
         <button class="btn" title="Fit all (double-click)" [disabled]="!zoom.isZoomed()" (click)="zoom.fit()"><imt-icon name="zoomOut" [size]="13" /> Fit</button>
       </div>
     </div>
+    @if ((store.summary()?.markerKinds?.length ?? 0) > 0 || ann.kinds().length || ann.error()) {
+      <div class="legend-row">
+        <div class="legend" role="group" aria-label="Markers" [class.filtering]="store.query().markers.length > 0">
+          @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
+            <button
+              type="button"
+              class="lg"
+              [attr.aria-pressed]="legendActive(k.kind)"
+              [attr.aria-describedby]="legendDesc(k)"
+              [title]="legendTitle(k)"
+              (click)="toggleKind(k.kind)"
+            ><imt-marker-glyph [kind]="k.kind" [size]="16" />{{ k.label }}</button>
+            @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
+          }
+        </div>
+        @if (ann.kinds().length || ann.error()) {
+          <div class="ann-legend" role="group" aria-label="Annotations">
+            <span class="lg-title">Annotations</span>
+            @for (k of ann.kinds(); track k.kind) {
+              <button
+                type="button"
+                class="lg"
+                [attr.aria-pressed]="ann.isShown(k.kind)"
+                [attr.data-kind]="k.kind"
+                [title]="(ann.isShown(k.kind) ? 'Hide ' : 'Show ') + k.label + ' (' + k.owner + ', ' + k.count + ')'"
+                (click)="ann.toggle(k.kind)"
+              ><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</button>
+            }
+            @if (ann.error(); as e) {
+              <span class="ann-err" role="alert" [title]="e">Annotations unavailable</span>
+              <button type="button" class="btn" (click)="ann.retry()">Retry</button>
+            }
+          </div>
+        }
+      </div>
+    }
 
     <div
       class="wrap"
@@ -275,14 +279,14 @@ interface Hover {
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
     .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .spacer { flex: 1; }
-    .legend, .ann-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); flex-wrap: nowrap; overflow-x: auto; max-width: 60%; }
+    .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
+    .legend, .ann-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
     .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; padding: 1px 6px; border-radius: 10px; cursor: pointer; }
     .lg:hover { background: var(--bg-hover); }
     .lg[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
     .tip-desc { color: var(--text); }
-    .ann-legend { max-width: 30%; }
     .lg-title { font-weight: 600; color: var(--text-2); white-space: nowrap; }
-    .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
+    .legend.filtering .lg[aria-pressed='false'], .ann-legend .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
     .ann-legend .lg[aria-pressed='true'] { border-color: transparent; background: transparent; }
     .ann-err { color: var(--danger-text); white-space: nowrap; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

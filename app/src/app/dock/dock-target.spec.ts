@@ -37,10 +37,16 @@ describe('hitDockTarget', () => {
 
 describe('popoutDragReduce (a pop-out dragged over its host)', () => {
   const t = { kind: 'edge' as const, position: 'left' as const };
-  const move = (state: PopoutDrag | null, now: number, target = t as typeof t | null, point = { x: 1, y: 1 } as { x: number; y: number } | null, label = 'p-main-1') =>
-    popoutDragReduce(state, { type: 'move', label, viewId: 'inspector', point, target, now });
+  const move = (state: PopoutDrag | null, now: number, target = t as typeof t | null, point = { x: 1, y: 1 } as { x: number; y: number } | null, label = 'p-main-1', settle = true) =>
+    popoutDragReduce(state, { type: 'move', label, viewId: 'inspector', point, target, now, settle });
 
-  it('docks after the pointer rests on a guide for the settle time', () => {
+  it('never docks while merely hovering a guide when the release can be observed', () => {
+    const s = move(null, 0, t, { x: 1, y: 1 }, 'p-main-1', false).state;
+    expect(popoutDragReduce(s, { type: 'tick', now: 60_000 })).toEqual({ state: s, dock: null });
+    expect(popoutDragReduce(s, { type: 'end', label: 'p-main-1', now: 60_001 }).dock).toEqual({ label: 'p-main-1', viewId: 'inspector', target: t });
+  });
+
+  it('docks after the pointer rests on a guide for the settle time where the release cannot be observed', () => {
     let s = move(null, 0).state;
     s = move(s, 100).state;
     expect(s!.since).toBe(0);

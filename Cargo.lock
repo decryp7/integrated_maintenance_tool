@@ -2772,6 +2772,7 @@ dependencies = [
  "imt-profile",
  "log",
  "notify-debouncer-mini",
+ "objc2-app-kit",
  "open",
  "serde",
  "serde_json",

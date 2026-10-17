@@ -43,7 +43,10 @@ export function screenToClient(screen: Point, origin: Point): Point {
 
 /* ------------------------------------------------- a pop-out dragged back over its host */
 
-/** How long the pointer must rest on a guide before the dragged pop-out docks there (no "drop" event from the OS). */
+/**
+ * How long the pointer must rest on a guide before the dragged pop-out docks there, on platforms that cannot report
+ * when the OS move of a window ends (elsewhere the panel docks only when the window is released).
+ */
 export const SETTLE_MS = 300;
 
 export interface PopoutDrag {
@@ -54,10 +57,12 @@ export interface PopoutDrag {
   target: DockTarget | null;
   /** When the target last changed (ms). */
   since: number;
+  /** The release cannot be observed: resting on a guide for `SETTLE_MS` docks instead. */
+  settle: boolean;
 }
 
 export type PopoutDragEvent =
-  | { type: 'move'; label: string; viewId: string; point: Point | null; target: DockTarget | null; now: number }
+  | { type: 'move'; label: string; viewId: string; point: Point | null; target: DockTarget | null; now: number; settle: boolean }
   | { type: 'tick'; now: number }
   | { type: 'end'; label: string; now: number }
   | { type: 'cancel' };
@@ -74,17 +79,18 @@ function sameTarget(a: DockTarget | null, b: DockTarget | null): boolean {
 
 /**
  * The host's view of a pop-out window being moved over it: guides follow the pointer; the panel docks when the
- * window is released on a guide (`end`, when the platform says) or rests on one for `SETTLE_MS` (`tick`).
+ * window is released on a guide (`end`), or, only where the release cannot be observed (`settle`), when it rests on
+ * one for `SETTLE_MS` (`tick`).
  */
 export function popoutDragReduce(state: PopoutDrag | null, e: PopoutDragEvent): { state: PopoutDrag | null; dock: DockAction | null } {
   switch (e.type) {
     case 'move': {
       if (state && state.label !== e.label && state.point) return { state, dock: null };
       const since = state && state.label === e.label && sameTarget(state.target, e.target) ? state.since : e.now;
-      return { state: { label: e.label, viewId: e.viewId, point: e.point, target: e.point ? e.target : null, since }, dock: null };
+      return { state: { label: e.label, viewId: e.viewId, point: e.point, target: e.point ? e.target : null, since, settle: e.settle }, dock: null };
     }
     case 'tick':
-      if (state?.target && e.now - state.since >= SETTLE_MS) return { state: null, dock: { label: state.label, viewId: state.viewId, target: state.target } };
+      if (state?.settle && state.target && e.now - state.since >= SETTLE_MS) return { state: null, dock: { label: state.label, viewId: state.viewId, target: state.target } };
       return { state, dock: null };
     case 'end':
       if (!state || state.label !== e.label) return { state, dock: null };

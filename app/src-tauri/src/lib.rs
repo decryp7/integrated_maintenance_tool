@@ -33,6 +33,7 @@ mod menu;
 mod notify;
 mod panel_windows;
 mod plugin_isolation;
+mod pointer;
 mod profile;
 mod profiling;
 mod settings;
@@ -208,6 +209,7 @@ macro_rules! commands {
             window_manager::resolve_close,
             window_manager::resolve_open,
             panel_windows::popout_panel,
+            pointer::pointer_button_down,
             panel_windows::dock_panel,
             panel_windows::list_popouts,
             panel_windows::set_popout_on_top,

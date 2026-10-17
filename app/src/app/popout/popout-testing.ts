@@ -88,6 +88,8 @@ export class FakeBackend extends PopoutBackend {
   moved: ((e: { label: string; viewId: string; x: number; y: number }) => void) | null = null;
   origin = { x: 0, y: 0 };
   windowDrag = false;
+  /** What `primaryButtonDown` answers (null: the platform cannot tell). */
+  buttonDown: boolean | null = null;
   supportsAlwaysOnTop = true;
   chrome: 'overlay' | 'frameless' | 'browser' = 'frameless';
   windowCalls: string[] = [];
@@ -127,6 +129,9 @@ export class FakeBackend extends PopoutBackend {
   }
   async startWindowDrag() {
     return this.windowDrag;
+  }
+  async primaryButtonDown() {
+    return this.buttonDown;
   }
   syncPort() {
     return this.bus.port();

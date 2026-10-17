@@ -143,6 +143,7 @@ const QUIET: &[&str] = &[
     "ai_chat_events_since",
     "set_window_title",
     "set_app_menu",
+    "pointer_button_down",
 ];
 
 /// Commands that change state or act for the user.

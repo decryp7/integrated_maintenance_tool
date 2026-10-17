@@ -75,6 +75,11 @@ export abstract class PopoutBackend {
   abstract contentOrigin(): Promise<{ x: number; y: number } | null>;
   /** In a pop-out: lets the OS move the window with the pointer (true), or false when the platform cannot. */
   abstract startWindowDrag(): Promise<boolean>;
+  /**
+   * Is the primary mouse button held anywhere on screen? null when the platform cannot tell. The host polls it while
+   * a pop-out is moved by the OS (which has no "dropped" event) to dock only when the window is released.
+   */
+  abstract primaryButtonDown(): Promise<boolean | null>;
   /** Can a window be kept above the others here? (not in a browser) */
   abstract readonly supportsAlwaysOnTop: boolean;
   /**
@@ -176,6 +181,9 @@ export class TauriPopoutBackend extends PopoutBackend {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     await getCurrentWindow().startDragging();
     return true;
+  }
+  primaryButtonDown() {
+    return this.call<boolean | null>('pointer_button_down');
   }
   readonly supportsAlwaysOnTop = true;
   readonly chrome: WindowChrome = isMac() ? 'overlay' : 'frameless';
@@ -361,6 +369,11 @@ export class BrowserPopoutBackend extends PopoutBackend {
 
   async startWindowDrag(): Promise<boolean> {
     return false;
+  }
+
+  async primaryButtonDown(): Promise<boolean | null> {
+    // Pop-outs here are moved with the shell's drag handle, which reports its own release.
+    return null;
   }
 
   readonly supportsAlwaysOnTop = false;

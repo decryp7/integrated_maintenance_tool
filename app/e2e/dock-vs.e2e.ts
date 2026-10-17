@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
@@ -13,7 +13,10 @@ const groupOf = (page: Page, name: string) => groups(page).filter({ has: tab(pag
 const SCREENSHOTS = '../docs/screenshots';
 
 async function box(page: Page, selector: string) {
-  const b = await page.locator(selector).first().boundingBox();
+  // A panel moving between the dock and the auto-hide fly-out is re-mounted: wait until it has a box again.
+  // (Follow-up in docs/dotnet-profiling-plan.md handoff: check whether pinning visibly flickers.)
+  let b: Awaited<ReturnType<Locator['boundingBox']>> = null;
+  await expect.poll(async () => (b = await page.locator(selector).filter({ visible: true }).first().boundingBox())).not.toBeNull();
   if (!b) throw new Error(`no box for ${selector}`);
   return b;
 }
@@ -105,9 +108,14 @@ test.describe('VS-style docking', () => {
     await expect(tab(page, 'Inspector')).toBeVisible();
     await expect(groups(page)).toHaveCount(4);
     await expect(page.locator('imt-inspector')).toBeVisible();
-    const inspector = await box(page, 'imt-inspector');
-    const events = await box(page, 'imt-events-grid');
-    expect(inspector.x).toBeGreaterThanOrEqual(events.x + events.width - 2);
+    // Back to the right of the events grid once the dock layout has settled.
+    await expect
+      .poll(async () => {
+        const inspector = await box(page, 'imt-inspector');
+        const events = await box(page, 'imt-events-grid');
+        return inspector.x - (events.x + events.width);
+      })
+      .toBeGreaterThanOrEqual(-2);
   });
 
   test('the auto-hide command toggles the active tool window', async ({ page }) => {

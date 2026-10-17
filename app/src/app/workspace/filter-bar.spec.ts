@@ -114,9 +114,12 @@ describe('FilterBar', () => {
     expect(text(fixture)).toContain('14 Oct 09:00:00 →');
     store.resetRange();
 
-    buttonByText(fixture, /Marked only/).click();
+    const switchFor = (name: RegExp) =>
+      [...fixture.nativeElement.querySelectorAll('imt-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
+    expect(switchFor(/Marked only/).checked).toBe(false);
+    switchFor(/Marked only/).click();
     expect(store.markedOnly()).toBe(true);
-    buttonByText(fixture, /Always show start/).click();
+    switchFor(/Always show start/).click();
     expect(store.alwaysShowLifecycle()).toBe(false);
     buttonByText(fixture, 'UTC').click();
     expect(store.timezone()).toBe('local');

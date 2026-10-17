@@ -156,3 +156,37 @@ test('engine settings: export and import', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Import…' }).click();
   await expect(dialog.getByText(/^Imported \d+ sections/)).toBeVisible();
 });
+
+test('settings: switches keep their labels beside them, readable and clear of badges, in every section', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 700 });
+  await openApp(page);
+  await openWithShortcut(page);
+  const dialog = settingsDialog(page);
+  const sections = sectionNav(page).getByRole('button');
+  let checked = 0;
+  for (let i = 0; i < (await sections.count()); i++) {
+    await sections.nth(i).click();
+    const problems = await dialog.evaluate((root) => {
+      const out: string[] = [];
+      for (const field of root.querySelectorAll('imt-setting-field')) {
+        const input = field.querySelector('input[role=switch]');
+        const text = field.querySelector('imt-switch .text');
+        if (!input || !text) continue;
+        const i = input.getBoundingClientRect();
+        const t = text.getBoundingClientRect();
+        const name = text.textContent?.trim();
+        if (i.width < 26 || i.height < 14) out.push(`${name}: switch is ${i.width}x${i.height}`);
+        if (t.left < i.right) out.push(`${name}: label starts under the switch`);
+        if (t.height > 40) out.push(`${name}: label wraps to ${Math.round(t.height)}px`);
+        for (const b of field.querySelectorAll('.badge, .reset')) {
+          const r = b.getBoundingClientRect();
+          if (r.left < t.right && r.right > t.left && r.top < t.bottom && r.bottom > t.top) out.push(`${name}: overlaps "${b.textContent?.trim()}"`);
+        }
+      }
+      return out;
+    });
+    expect(problems).toEqual([]);
+    checked += await dialog.locator('imt-setting-field input[role=switch]').count();
+  }
+  expect(checked).toBeGreaterThan(3);
+});

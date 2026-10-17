@@ -8,9 +8,7 @@ use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::{AiState, CHAT_EVENT, SETUP_EVENT, STATUS_EVENT};
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState};
-use imt_ai::assistant::{
-    Assistant, ExtractorsProposal, MarkersProposal, Narrative, PipelineProposal, ProfileProposal, QueryProposal, RegexProposal,
-};
+use imt_ai::assistant::{Assistant, Narrative, Proposal};
 use imt_ai::chat::{export_markdown, suggested_prompts, ChatContext, ChatEnv, ChatEvent, ChatHistoryRecord, ChatRecord, Envelope};
 use imt_ai::hardware::Hardware;
 use imt_ai::llm::LlmProvider;
@@ -292,6 +290,8 @@ pub fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
 }
 
 // ---- use cases ----
+// Proposals go out as the tagged `Proposal` (`"kind": "pipeline"`, ...), never as the bare struct: the UI picks the
+// evidence and the Apply action by `kind` (api contract: `Proposal` in app/src/app/ai/ai.types.ts).
 
 #[tauri::command]
 pub async fn ai_propose_regex<R: Runtime>(
@@ -299,11 +299,14 @@ pub async fn ai_propose_regex<R: Runtime>(
     win: CurrentWindow,
     lines: Vec<String>,
     intent: Option<String>,
-) -> Ai<RegexProposal> {
+) -> Ai<Proposal> {
     if lines.is_empty() || lines.len() > MAX_LINES || lines.iter().any(|l| l.chars().count() > MAX_TEXT_CHARS) {
         return Err(AiCmdError::invalid(format!("give 1 to {MAX_LINES} example lines")));
     }
-    use_case(&app, &win, move |a, _| Ok(a.propose_regex(&lines, intent.as_deref())?)).await
+    use_case(&app, &win, move |a, _| {
+        Ok(Proposal::Regex(a.propose_regex(&lines, intent.as_deref())?))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -313,10 +316,10 @@ pub async fn ai_propose_profile<R: Runtime>(
     record_id: Option<u32>,
     sample: Option<String>,
     file_name: Option<String>,
-) -> Ai<ProfileProposal> {
+) -> Ai<Proposal> {
     use_case(&app, &win, move |a, store| {
         let (sample, file) = sample_of(store, record_id, sample, file_name)?;
-        Ok(a.propose_profile(store, &sample, &file)?)
+        Ok(Proposal::Profile(a.propose_profile(store, &sample, &file)?))
     })
     .await
 }
@@ -328,11 +331,11 @@ pub async fn ai_propose_pipeline<R: Runtime>(
     goal: String,
     record_id: Option<u32>,
     sample: Option<String>,
-) -> Ai<PipelineProposal> {
+) -> Ai<Proposal> {
     let goal = bounded("the goal", &goal, MAX_TEXT_CHARS)?;
     use_case(&app, &win, move |a, store| {
         let (sample, _) = sample_of(store, record_id, sample, None)?;
-        Ok(a.propose_pipeline(store, &goal, &sample, None)?)
+        Ok(Proposal::Pipeline(a.propose_pipeline(store, &goal, &sample, None)?))
     })
     .await
 }
@@ -344,11 +347,11 @@ pub async fn ai_propose_markers<R: Runtime>(
     goal: String,
     record_id: Option<u32>,
     sample: Option<String>,
-) -> Ai<MarkersProposal> {
+) -> Ai<Proposal> {
     let goal = bounded("the goal", &goal, MAX_TEXT_CHARS)?;
     use_case(&app, &win, move |a, store| {
         let (sample, _) = sample_of(store, record_id, sample, None)?;
-        Ok(a.propose_markers(store, &goal, &sample, None)?)
+        Ok(Proposal::Markers(a.propose_markers(store, &goal, &sample, None)?))
     })
     .await
 }
@@ -360,19 +363,19 @@ pub async fn ai_propose_extractors<R: Runtime>(
     goal: String,
     record_id: Option<u32>,
     sample: Option<String>,
-) -> Ai<ExtractorsProposal> {
+) -> Ai<Proposal> {
     let goal = bounded("the goal", &goal, MAX_TEXT_CHARS)?;
     use_case(&app, &win, move |a, store| {
         let (sample, _) = sample_of(store, record_id, sample, None)?;
-        Ok(a.propose_extractors(store, &goal, &sample, None)?)
+        Ok(Proposal::Extractors(a.propose_extractors(store, &goal, &sample, None)?))
     })
     .await
 }
 
 #[tauri::command]
-pub async fn ai_nl_to_query<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, question: String) -> Ai<QueryProposal> {
+pub async fn ai_nl_to_query<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, question: String) -> Ai<Proposal> {
     let question = bounded("the question", &question, MAX_TEXT_CHARS)?;
-    use_case(&app, &win, move |a, store| Ok(a.nl_to_query(store, &question)?)).await
+    use_case(&app, &win, move |a, store| Ok(Proposal::Query(a.nl_to_query(store, &question)?))).await
 }
 
 #[tauri::command]
@@ -716,4 +719,23 @@ pub async fn ai_clear_brave_key<R: Runtime>(app: AppHandle<R>) -> Ai<()> {
 pub async fn ai_brave_key_set<R: Runtime>(app: AppHandle<R>) -> Ai<bool> {
     let core = core(&app)?;
     blocking(move || Ok(core.brave_key_set())).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use imt_ai::assistant::QueryProposal;
+
+    #[test]
+    fn proposals_reach_the_ui_tagged_with_their_kind() {
+        let p = Proposal::Query(QueryProposal {
+            ql: "level >= error".into(),
+            explanation: "Errors.".into(),
+            estimated_matches: Some(3),
+            repaired: false,
+        });
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(v["kind"], "query");
+        assert_eq!(v["estimatedMatches"], 3);
+    }
 }

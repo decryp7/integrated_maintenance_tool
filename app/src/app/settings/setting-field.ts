@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Icon } from '../shared/icon';
+import { Switch } from '../shared/switch';
 import { SettingsFiles } from './settings-files';
 import { displayValue, editUnit, parseList, parseNumber, precheck, rangeHint, sameValue } from './settings-model';
 import { SettingField, SettingValue } from './settings.types';
@@ -14,26 +15,14 @@ let nextId = 0;
 @Component({
   selector: 'imt-setting-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon],
+  imports: [Icon, Switch],
   host: { class: 'setting', '[class.invalid]': '!!message()', '[attr.data-key]': 'field().key' },
   template: `
     @let f = field();
     @let k = f.kind;
     <div class="head">
       @if (k.type === 'bool') {
-        <label class="switch" [for]="id">
-          <input
-            [id]="id"
-            type="checkbox"
-            role="switch"
-            [checked]="value() === true"
-            [disabled]="readOnly()"
-            [attr.aria-describedby]="describedBy()"
-            [attr.aria-invalid]="!!message()"
-            (change)="emit($any($event.target).checked)"
-          />
-          <span class="label">{{ f.label }}</span>
-        </label>
+        <imt-switch class="label" [inputId]="id" [checked]="value() === true" [disabled]="readOnly()" [describedBy]="describedBy()" [invalid]="!!message()" (checkedChange)="emit($event)">{{ f.label }}</imt-switch>
       } @else {
         <label class="label" [for]="id">{{ f.label }}</label>
       }
@@ -105,9 +94,8 @@ let nextId = 0;
   styles: `
     :host { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .head { display: flex; align-items: center; gap: 8px; min-height: 26px; }
-    .label { font-weight: 500; color: var(--text); }
-    .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-    .switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+    .label { font-weight: 500; color: var(--text); min-width: 0; }
+    .badge { flex: none; }
     .spacer { flex: 1; }
     .reset { height: 22px; font-size: 11px; }
     .control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

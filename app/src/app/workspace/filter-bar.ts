@@ -5,6 +5,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
+import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
 
 const OP_LABELS: Record<FilterOp, string> = {
@@ -22,7 +23,7 @@ const OP_LABELS: Record<FilterOp, string> = {
 @Component({
   selector: 'imt-filter-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside],
+  imports: [Icon, ClickOutside, Switch],
   template: `
     <div class="row">
       <label class="search" [class.invalid]="regexInvalid()">
@@ -137,12 +138,8 @@ const OP_LABELS: Record<FilterOp, string> = {
         <button class="btn ghost pill" (click)="store.clearQuery()">Clear all</button>
       }
       <span class="spacer"></span>
-      <button class="switch-row" (click)="store.setMarkedOnly(!store.markedOnly())" [attr.aria-pressed]="store.markedOnly()">
-        <span class="switch" [class.on]="store.markedOnly()"></span> Marked only
-      </button>
-      <button class="switch-row" (click)="store.setAlwaysShowLifecycle(!store.alwaysShowLifecycle())" [attr.aria-pressed]="store.alwaysShowLifecycle()">
-        <span class="switch" [class.on]="store.alwaysShowLifecycle()"></span> Always show start / stop
-      </button>
+      <imt-switch class="opt" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)">Marked only</imt-switch>
+      <imt-switch class="opt" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)">Always show start / stop</imt-switch>
     </div>
   `,
   styles: `
@@ -167,7 +164,7 @@ const OP_LABELS: Record<FilterOp, string> = {
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: 14px; line-height: 1; }
     .x:hover { color: var(--text); }
     .spacer { flex: 1; }
-    .switch-row { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; padding: 2px 4px; }
+    .opt { color: var(--muted); padding: 2px 4px; white-space: nowrap; }
     .group-pop { top: 34px; left: 0; width: 320px; display: flex; flex-direction: column; gap: 8px; }
     .chosen { display: flex; flex-wrap: wrap; gap: 6px; }
     .opts { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
