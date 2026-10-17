@@ -8,6 +8,7 @@
 //! | Record transform | [`RecordTransform`] | a `{ step = "plugin", id = ... }` pipeline step |
 //! | Workspace hook | [`WorkspaceHook`] | reacting to loads, clears and profile changes |
 //! | Exporter | [`Exporter`] | writing events in a new format |
+//! | Collector | [`Collector`] | producing events (monitors, probes) into an [`crate::export::EventSink`] |
 //!
 //! See `docs/plugins.md` for a step-by-step guide.
 
@@ -72,6 +73,17 @@ pub trait WorkspaceHook: Send + Sync {
     fn on_profile_changed(&self, _profile: &Profile) {}
 }
 
+/// Produces events instead of reading files (e.g. a process monitor). The host
+/// runs `run` on its own thread until `stop` becomes true, then joins it.
+pub trait Collector: Send + Sync {
+    /// Stable id (`"process-monitor"`).
+    fn id(&self) -> &str;
+    fn name(&self) -> &str;
+    /// Collects until `stop` is set, writing events to `sink`. `config` is the
+    /// collector's own settings (JSON, validated by the collector).
+    fn run(&self, config: &serde_json::Value, sink: &dyn crate::export::EventSink, stop: &std::sync::atomic::AtomicBool) -> Result<()>;
+}
+
 /// Registered plugin, as listed in the workspace summary.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct PluginInfo {
@@ -88,6 +100,7 @@ pub struct PluginRegistry {
     pub(crate) transforms: HashMap<String, Arc<dyn RecordTransform>>,
     pub(crate) hooks: Vec<Arc<dyn WorkspaceHook>>,
     pub(crate) exporters: Vec<Arc<dyn Exporter>>,
+    collectors: Vec<Arc<dyn Collector>>,
     plugins: Vec<PluginInfo>,
     /// Contributions of the plugin currently registering.
     pending: Vec<String>,
@@ -115,6 +128,7 @@ impl PluginRegistry {
             transforms: HashMap::new(),
             hooks: Vec::new(),
             exporters: Vec::new(),
+            collectors: Vec::new(),
             plugins: Vec::new(),
             pending: Vec::new(),
         }
@@ -178,6 +192,23 @@ impl PluginRegistry {
         self.pending.push(format!("exporter:{}", exporter.id()));
         self.exporters.push(exporter);
         Ok(self)
+    }
+
+    pub fn add_collector(&mut self, collector: Arc<dyn Collector>) -> Result<&mut Self> {
+        if self.collector(collector.id()).is_some() {
+            return Err(anyhow!("a collector with id \"{}\" is already registered", collector.id()));
+        }
+        self.pending.push(format!("collector:{}", collector.id()));
+        self.collectors.push(collector);
+        Ok(self)
+    }
+
+    pub fn collector(&self, id: &str) -> Option<&Arc<dyn Collector>> {
+        self.collectors.iter().find(|c| c.id() == id)
+    }
+
+    pub fn collectors(&self) -> &[Arc<dyn Collector>] {
+        &self.collectors
     }
 
     pub fn plugins(&self) -> &[PluginInfo] {

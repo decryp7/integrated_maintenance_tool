@@ -430,3 +430,51 @@ fn binary_importers_get_raw_bytes_first() {
     assert_eq!(ws.summary().total, 2);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// Emits one heartbeat per loop until stopped.
+struct Heartbeat;
+impl imt_core::plugin::Collector for Heartbeat {
+    fn id(&self) -> &str {
+        "heartbeat"
+    }
+    fn name(&self) -> &str {
+        "Heartbeat"
+    }
+    fn run(&self, config: &serde_json::Value, sink: &dyn imt_core::export::EventSink, stop: &std::sync::atomic::AtomicBool) -> Result<()> {
+        let max = config["max"].as_u64().unwrap_or(3);
+        let mut n = 0;
+        while !stop.load(Ordering::SeqCst) && n < max {
+            let mut r = Record::new(0);
+            r.ts = Some(1_791_972_000_000 + n as i64 * 1000);
+            r.message = format!("beat {n}");
+            sink.write(&[r])?;
+            n += 1;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn collectors_write_to_sinks_that_imt_can_open() {
+    let mut r = PluginRegistry::new();
+    r.add_collector(Arc::new(Heartbeat)).unwrap();
+    assert!(r.add_collector(Arc::new(Heartbeat)).is_err());
+    assert_eq!(r.collectors().len(), 1);
+    let c = r.collector("heartbeat").unwrap().clone();
+    assert_eq!(c.name(), "Heartbeat");
+    assert!(r.collector("nope").is_none());
+
+    let dir = std::env::temp_dir().join(format!("imt-collector-{}", std::process::id()));
+    let sink = imt_core::export::ClefFileSink::new(&dir, "heartbeat", 1 << 20, 2).unwrap();
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    c.run(&serde_json::json!({ "max": 4 }), &sink, &stop).unwrap();
+    stop.store(true, Ordering::SeqCst);
+    c.run(&serde_json::Value::Null, &sink, &stop).unwrap();
+
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(&[sink.current()]).unwrap();
+    let s = ws.summary();
+    assert_eq!((s.total, s.sources[0].importer.as_str()), (4, "json"));
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
