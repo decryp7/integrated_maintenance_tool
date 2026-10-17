@@ -1,0 +1,24 @@
+[package]
+name = "imt-monitor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+globset = "0.4"
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+ctrlc = "3"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Performance"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "imt-monitor"
+path = "src/bin/imt-monitor.rs"

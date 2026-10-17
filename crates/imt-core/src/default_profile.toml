@@ -71,7 +71,7 @@ message = "auto"
 # Fields forming the instance key. Empty = the candidates present on at least
 # half of the events, falling back to the source file.
 key = []
-candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName", "ProcessId", "InstanceId"]
+candidates = ["Application", "ApplicationName", "MachineName", "EnvironmentName", "ProcessName", "ProcessId", "InstanceId"]
 
 # [[extract]]
 # name = "process-stats"
