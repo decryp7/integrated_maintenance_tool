@@ -361,3 +361,72 @@ fn lookup_file_defaults_to_the_first_column() {
     assert!(ws.records().iter().all(|r| r.fields["Owner"] == "team-a"));
     std::fs::remove_file(file).unwrap();
 }
+
+/// A made-up binary format: "BIN1" then one u8 count of fixed events.
+struct Bin;
+impl imt_core::importers::BinaryImporter for Bin {
+    fn id(&self) -> &'static str {
+        "bin1"
+    }
+    fn sniff(&self, _: &imt_core::importers::ImportCtx, head: &[u8]) -> u8 {
+        if head.starts_with(b"BIN1") {
+            100
+        } else {
+            0
+        }
+    }
+    fn import(&self, _: &imt_core::importers::ImportCtx, bytes: &[u8]) -> Result<imt_core::importers::Imported> {
+        let n = *bytes.get(4).ok_or_else(|| anyhow::anyhow!("truncated"))?;
+        let mut out = imt_core::importers::Imported::default();
+        for i in 0..n {
+            let mut r = Record::new(u32::from(i) + 1);
+            r.message = format!("binary event {i}");
+            out.records.push(r);
+        }
+        Ok(out)
+    }
+}
+struct BinPlugin;
+impl Plugin for BinPlugin {
+    fn id(&self) -> &'static str {
+        "bin"
+    }
+    fn name(&self) -> &'static str {
+        "Binary"
+    }
+    fn version(&self) -> &'static str {
+        "0.0.1"
+    }
+    fn register(&self, r: &mut PluginRegistry) -> Result<()> {
+        r.add_binary_importer(Box::new(Bin));
+        Ok(())
+    }
+}
+
+#[test]
+fn binary_importers_get_raw_bytes_first() {
+    let dir = std::env::temp_dir().join(format!("imt-bin-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("a.dat"), [b'B', b'I', b'N', b'1', 3, 0, 0, 0, 0xff, 0xfe]).unwrap();
+    std::fs::write(dir.join("b.dat"), *b"BIN1").unwrap();
+    std::fs::write(dir.join("c.log"), "2026-10-14 10:00:00 INFO text still works\n").unwrap();
+    let mut registry = PluginRegistry::new();
+    registry.install(&BinPlugin).unwrap();
+    assert_eq!(registry.plugins()[0].contributes, ["importer:bin1"]);
+    let mut ws = Workspace::with_registry(Profile::default_profile(), registry).unwrap();
+    ws.open(std::slice::from_ref(&dir)).unwrap();
+    let s = ws.summary();
+    assert_eq!(s.sources.iter().map(|x| x.importer.as_str()).collect::<Vec<_>>(), ["bin1", "text"]);
+    assert_eq!(s.total, 4);
+    assert!(s.unrecognized.iter().any(|u| u.name == "b.dat" && u.reason == "truncated"));
+
+    // Forcing a format selects that binary importer even without its magic.
+    let mut registry = PluginRegistry::new();
+    registry.install(&BinPlugin).unwrap();
+    let forced = Profile::from_toml("[parse]\nformat = 'bin1'").unwrap();
+    let mut ws = Workspace::with_registry(forced, registry).unwrap();
+    std::fs::write(dir.join("d.dat"), [0u8, 0, 0, 0, 2]).unwrap();
+    ws.open(&[dir.join("d.dat")]).unwrap();
+    assert_eq!(ws.summary().total, 2);
+    std::fs::remove_dir_all(dir).unwrap();
+}

@@ -4,7 +4,7 @@
 //!
 //! | Extension point | Trait | Used for |
 //! |---|---|---|
-//! | Importer | [`Importer`] | reading a new file format |
+//! | Importer | [`Importer`] / [`crate::importers::BinaryImporter`] | reading a new text / binary file format |
 //! | Record transform | [`RecordTransform`] | a `{ step = "plugin", id = ... }` pipeline step |
 //! | Workspace hook | [`WorkspaceHook`] | reacting to loads, clears and profile changes |
 //! | Exporter | [`Exporter`] | writing events in a new format |
@@ -141,6 +141,12 @@ impl PluginRegistry {
             contributes: std::mem::take(&mut self.pending),
         });
         Ok(())
+    }
+
+    pub fn add_binary_importer(&mut self, importer: Box<dyn crate::importers::BinaryImporter>) -> &mut Self {
+        self.pending.push(format!("importer:{}", importer.id()));
+        self.importers.register_binary(importer);
+        self
     }
 
     pub fn add_importer(&mut self, importer: Box<dyn Importer>) -> &mut Self {

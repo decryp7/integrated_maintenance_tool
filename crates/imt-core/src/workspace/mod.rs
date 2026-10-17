@@ -197,7 +197,12 @@ impl Workspace {
                 }
             }
             let path_s = p.to_string_lossy().into_owned();
-            let ids: Vec<u32> = self.sources.iter().filter(|s| source_file(&s.path) == path_s).map(|s| s.id).collect();
+            let ids: Vec<u32> = self
+                .sources
+                .iter()
+                .filter(|s| source_file(&s.path) == path_s)
+                .map(|s| s.id)
+                .collect();
             self.drop_sources(&ids);
             self.unrecognized.retain(|u| source_file(&u.path) != path_s);
             files.push(p);
@@ -603,17 +608,22 @@ fn import_bytes(
     if bytes.is_empty() {
         return Err("empty file".into());
     }
-    let content = decode(bytes).ok_or("binary file")?;
     let ctx = ImportCtx { profile, path, file_date };
-    let head: String = content.chars().take(64 * 1024).collect();
-    let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;
-    let mut imported = importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?;
+    let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
+        Some(importer) => (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?),
+        None => {
+            let content = decode(bytes).ok_or("binary file")?;
+            let head: String = content.chars().take(64 * 1024).collect();
+            let importer = importers.select(&ctx, &head).ok_or("no importer recognises this format")?;
+            (importer.id(), importer.import(&ctx, &content).map_err(|e| format!("{e:#}"))?)
+        }
+    };
     if imported.records.is_empty() {
-        return Err(format!("{} importer found no events", importer.id()));
+        return Err(format!("{id} importer found no events"));
     }
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
-    Ok((importer.id().to_string(), imported, stats))
+    Ok((id.to_string(), imported, stats))
 }
 
 /// The file part of a source path ("x.zip!/a.log" -> "x.zip").

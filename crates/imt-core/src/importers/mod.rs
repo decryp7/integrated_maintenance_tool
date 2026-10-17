@@ -44,8 +44,22 @@ pub trait Importer: Send + Sync {
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported>;
 }
 
+/// An importer for binary formats (e.g. Windows `.evtx`). Binary importers
+/// are asked first, with the raw bytes; text importers only see files that
+/// decode as text.
+pub trait BinaryImporter: Send + Sync {
+    /// Stable id shown in the UI and usable in `parse.format`.
+    fn id(&self) -> &'static str;
+
+    /// Confidence 0..=100 from the first bytes (usually a magic number).
+    fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8;
+
+    fn import(&self, ctx: &ImportCtx, bytes: &[u8]) -> Result<Imported>;
+}
+
 pub struct Importers {
     list: Vec<Box<dyn Importer>>,
+    binary: Vec<Box<dyn BinaryImporter>>,
 }
 
 impl Default for Importers {
@@ -67,13 +81,36 @@ impl Importers {
 
     /// No importers at all; add them with [`Importers::register`].
     pub fn empty() -> Self {
-        Importers { list: Vec::new() }
+        Importers {
+            list: Vec::new(),
+            binary: Vec::new(),
+        }
     }
 
     /// Adds an importer. When several are equally confident the earliest registered wins.
     pub fn register(&mut self, importer: Box<dyn Importer>) -> &mut Self {
         self.list.push(importer);
         self
+    }
+
+    pub fn register_binary(&mut self, importer: Box<dyn BinaryImporter>) -> &mut Self {
+        self.binary.push(importer);
+        self
+    }
+
+    /// The binary importer for these bytes: the one forced by `parse.format`,
+    /// else the most confident one (earliest registered on ties).
+    pub fn select_binary(&self, ctx: &ImportCtx, head: &[u8]) -> Option<&dyn BinaryImporter> {
+        let forced = ctx.profile.profile.parse.format.as_str();
+        if forced != "auto" {
+            return self.binary.iter().find(|i| i.id() == forced).map(|b| b.as_ref());
+        }
+        self.binary
+            .iter()
+            .map(|i| (i.sniff(ctx, head), i))
+            .filter(|(score, _)| *score > 0)
+            .reduce(|best, c| if c.0 > best.0 { c } else { best })
+            .map(|(_, i)| i.as_ref())
     }
 
     /// Picks the importer for a file: the one forced by `parse.format`, else
