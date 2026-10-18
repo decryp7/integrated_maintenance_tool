@@ -109,6 +109,7 @@
             "tsConfig": "tsconfig.spec.json",
             "buildTarget": "::development",
             "runner": "vitest",
+            "runnerConfig": "vitest-base.config.mts",
             "coverageReporters": [
               "text-summary",
               "html",
