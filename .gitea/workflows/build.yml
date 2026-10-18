@@ -351,8 +351,10 @@ jobs:
             bundles: deb,rpm
           - os: windows-latest
             bundles: msi,nsis
-          - os: macos-latest
-            bundles: dmg
+          # macOS is off until a runner with the macos-latest label is registered (see docs/releasing.md);
+          # uncomment to build the .dmg again.
+          # - os: macos-latest
+          #   bundles: dmg
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
     container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
