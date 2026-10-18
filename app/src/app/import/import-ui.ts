@@ -37,7 +37,8 @@ function view(svc: ImportProgressService) {
   `,
   styles: `
     :host { display: contents; }
-    .wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+    /* Never shrinks: in a crowded status bar the Cancel button would otherwise spill over its neighbours. */
+    .wrap { display: inline-flex; align-items: center; gap: 8px; flex: none; }
     .bar { width: 80px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--accent-ink) 25%, transparent); overflow: hidden; flex: none; }
     .fill { display: block; height: 100%; background: var(--accent-ink); transition: width 0.2s; }
     .file { max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 11px; }

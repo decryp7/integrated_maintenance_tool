@@ -40,7 +40,13 @@ test.describe('import progress', () => {
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open folder' }).click();
     const status = page.getByTestId('import-status');
     await expect(status).toContainText(/Importing [1-3] of 6 files/, { timeout: 5_000 });
-    await status.getByRole('button', { name: 'Cancel' }).click();
+    // In a narrow window the status bar's other items give way: Cancel stays clear of the Live button (it once
+    // spilled over it, and the click went to Live).
+    await page.setViewportSize({ width: 1000, height: 800 });
+    const cancel = await status.getByRole('button', { name: 'Cancel' }).boundingBox();
+    const live = await page.getByTestId('live-toggle').boundingBox();
+    expect(cancel && live && cancel.x + cancel.width <= live.x).toBe(true);
+    await status.getByRole('button', { name: 'Cancel' }).click({ timeout: 2_000 });
     const banner = page.getByTestId('partial-import-banner');
     await expect(banner).toBeVisible({ timeout: 5_000 });
     await banner.getByRole('button', { name: 'Dismiss' }).click();

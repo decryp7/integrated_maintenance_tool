@@ -49,6 +49,8 @@ import { ImportStatus } from '../import/import-ui';
   `,
   styles: `
     :host { height: 24px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--accent); color: var(--accent-ink); font-size: 12px; white-space: nowrap; overflow: hidden; }
+    /* When space runs out the counts and labels truncate; the controls (import Cancel, Live, time zone) keep their size. */
+    :host > span:not(.spacer) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .strong { font-weight: 600; }
     .spacer { flex: 1; }
     .tz { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 12px; }
