@@ -94,7 +94,8 @@ fn a_bad_script_is_a_profile_error_with_its_position() {
 
 #[test]
 fn the_documented_example_compiles() {
-    let doc = imt_core::profile::DEFAULT_PROFILE_TOML;
+    // Windows checkouts may have CRLF line endings.
+    let doc = imt_core::profile::DEFAULT_PROFILE_TOML.replace("\r\n", "\n");
     let start = doc
         .find("# step = \"script\"\n# script = '''")
         .expect("the profile schema documents scripts");
