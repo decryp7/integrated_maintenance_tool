@@ -298,6 +298,9 @@ jobs:
         # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
         shell: cmd
         run: |
+          rem Which account runs the job: WebView2 smoke tests cannot run as SYSTEM (its temp is C:\Windows\SystemTemp).
+          whoami
+          echo TEMP=%TEMP%
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
           rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
@@ -419,6 +422,9 @@ jobs:
         # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
         shell: cmd
         run: |
+          rem Which account runs the job: WebView2 smoke tests cannot run as SYSTEM (its temp is C:\Windows\SystemTemp).
+          whoami
+          echo TEMP=%TEMP%
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
           rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
