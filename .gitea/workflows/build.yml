@@ -28,7 +28,7 @@ concurrency:
 jobs:
   # The checks run as parallel jobs; the installers and smoke tests wait for all of them. Cargo caches are
   # restored and saved separately (actions/cache/restore + save with `if: always()`), so a failing run still
-  # warms the cache for the next one. Each job keys its own cache: test, clippy and bundle builds differ.
+  # warms the cache for the next one; a cache is saved again when Cargo.lock changes. Each job keys its own cache.
 
   rust-lint:
     name: rust format + clippy
@@ -53,25 +53,30 @@ jobs:
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake
 
       - uses: actions/cache/restore@v4
+        id: cargo-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
+            !target/debug/incremental
           key: clippy-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: clippy-${{ runner.os }}-
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # Saved only when the dependencies changed (no exact hit): the workspace's own crates rebuild anyway, and
+      # uploading the whole target folder on every run cost about a minute per job.
       - uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: clippy-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+            !target/debug/incremental
+          key: clippy-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
   rust-test:
     name: rust tests
@@ -94,11 +99,13 @@ jobs:
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake
 
       - uses: actions/cache/restore@v4
+        id: cargo-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
+            !target/debug/incremental
           key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: test-${{ runner.os }}-
 
@@ -111,14 +118,17 @@ jobs:
       - name: Doc tests
         run: cargo test --workspace --doc
 
+      # Saved only when the dependencies changed (no exact hit): the workspace's own crates rebuild anyway, and
+      # uploading the whole target folder on every run cost about a minute per job.
       - uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+            !target/debug/incremental
+          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
   licences:
     name: licences, notices + commits
@@ -237,6 +247,11 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
+
       - name: Install
         run: |
           npm ci
@@ -260,7 +275,7 @@ jobs:
   # macOS has no WKWebView driver. Locally: see docs/testing-manual.md ("Smoke tests of the real app").
   tauri-smoke:
     name: real-app smoke (${{ matrix.os }})
-    needs: [rust-lint, rust-test, licences, frontend, e2e]
+    needs: [rust-lint]
     strategy:
       fail-fast: false
       matrix:
@@ -276,13 +291,17 @@ jobs:
       - uses: actions/checkout@v4
 
       # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
-      - name: Git bash on PATH (Windows)
+      # Also keeps the Rust build folder outside the job's checkout, so the next run builds incrementally instead of
+      # from scratch (host runners keep their disk; the Linux legs use the cache instead).
+      - name: Git bash on PATH and a persistent build folder (Windows)
         if: runner.os == 'Windows'
         # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
         shell: cmd
         run: |
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
+          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target")
+          echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -371,7 +390,7 @@ jobs:
 
   bundle:
     name: bundle (${{ matrix.os }})
-    needs: [rust-lint, rust-test, licences, frontend, e2e]
+    needs: [rust-lint]
     strategy:
       fail-fast: false
       matrix:
@@ -391,13 +410,17 @@ jobs:
       - uses: actions/checkout@v4
 
       # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
-      - name: Git bash on PATH (Windows)
+      # Also keeps the Rust build folder outside the job's checkout, so the next run builds incrementally instead of
+      # from scratch (host runners keep their disk; the Linux legs use the cache instead).
+      - name: Git bash on PATH and a persistent build folder (Windows)
         if: runner.os == 'Windows'
         # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
         shell: cmd
         run: |
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
+          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target")
+          echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -458,7 +481,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          find target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
+          dir="${CARGO_TARGET_DIR:-target}"
+          # Git bash on Windows: turn C:\... into a path find understands.
+          if command -v cygpath >/dev/null; then dir="$(cygpath -u "$dir")"; fi
+          find "$dir/release/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
           ls -la dist
 
       # Gitea Actions supports upload/download-artifact v3.
@@ -471,7 +497,7 @@ jobs:
   release:
     name: release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: bundle
+    needs: [bundle, tauri-smoke, rust-lint, rust-test, licences, frontend, e2e]
     runs-on: ubuntu-latest
     container:
       image: catthehacker/ubuntu:act-latest
