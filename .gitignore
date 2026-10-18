@@ -160,3 +160,7 @@ app/src-tauri/binaries/
 !sdk/dotnet/samples/OrderAudit/data/*.log
 # .NET test output
 sdk/dotnet/TestResults/
+
+# cargo-mutants results
+mutants.out/
+mutants.out.old/

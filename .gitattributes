@@ -1,0 +1,31 @@
+# Source text is stored with LF; checkouts may use the platform's line endings.
+* text=auto
+
+# Test inputs are byte-exact: generators and tests compare their bytes, and some formats are CRLF on
+# purpose (PerfMon CSV, log4net, SQL Server ERRORLOG). Never convert their line endings.
+samples/** -text
+fuzz/corpus/** -text
+crates/*/tests/fixtures/** -text
+crates/*/templates/samples/** -text
+sdk/dotnet/**/fixtures/** -text
+
+# Shell scripts must keep LF to run on macOS and Linux.
+*.sh text eol=lf
+
+# Binary formats.
+*.dmp binary
+*.evtx binary
+*.blg binary
+*.etl binary
+*.gguf binary
+*.pb binary
+*.gz binary
+*.zip binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
