@@ -23,7 +23,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v4
+      # Restore and save separately, with the run id in the saved key: a fixed key can never be updated once it
+      # exists, and a failing run still warms the cache (see build.yml).
+      - uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -34,6 +36,15 @@ jobs:
 
       - name: Benchmarks (quick)
         run: cargo bench -p imt-core --bench engine -- --quick
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: bench-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
 
       - name: Upload criterion report
         if: always()
