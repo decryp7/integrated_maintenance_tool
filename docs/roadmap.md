@@ -184,6 +184,10 @@ planned.)*
   - No stealth or bot-detection evasion. Remote pages get no IPC at all: page results come back as the
     return values of scripts IMT evaluates, each checked against a one-shot nonce, the expected origin and
     a size cap. *(Not yet verified on macOS hardware.)*
+  - **Later: vision for agent mode** *(planned, not started)*. When a vision-capable local model is
+    loaded (llama-server with a multimodal projector, e.g. a Qwen2.5-VL GGUF), send a screenshot of the
+    browser window alongside the DOM snapshot. It helps on visually complex pages (canvas content,
+    image buttons, layout cues). Text-only models keep working as today. It stays local; no cloud model.
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.
