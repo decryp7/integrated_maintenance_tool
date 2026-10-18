@@ -40,10 +40,11 @@
     },
     {
       "label": "IMT: build app (debug binary)",
-      "detail": "cargo build of the desktop app; the UI comes from the dev server",
+      "detail": "cargo build of the desktop app and its AI worker; the UI comes from the dev server",
       "type": "cargo",
       "command": "build",
-      "args": ["-p", "imt-app"],
+      // imt-ai-worker is the AI assistant's process (target/debug/imt-ai-worker next to imt-app).
+      "args": ["-p", "imt-app", "-p", "imt-ai-worker"],
       "problemMatcher": ["$rustc"],
       "group": { "kind": "build", "isDefault": true }
     },
