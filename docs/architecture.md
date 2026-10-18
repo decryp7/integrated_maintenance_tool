@@ -10,6 +10,50 @@ The diagrams follow [diagrams/STYLE.md](diagrams/STYLE.md): planned work (not bu
 with a dashed outline and "(planned)" after its name. The sections below describe the plugin runtime,
 multiple windows, live tail and annotations in text.
 
+## Overview
+
+The Rust engine is the single source of truth for data and behaviour; Angular only presents what the
+engine returns. The Tauri shell depends on the `LogStore` trait and importers on the `Importer` trait
+(ports and adapters), so the in-memory store can later be replaced without touching commands or UI.
+
+```mermaid
+flowchart LR
+  files["Log files<br/>(untrusted)"] --> imp["Importers<br/>(Importer trait)"]
+  plugins["Plugins<br/>(registry, windows, web, otel, syslog,<br/>tools, profiling)"] -. "guarded adapters" .-> imp
+  subgraph core["imt-core (Rust engine)"]
+    imp --> prof["Profile: extract, pipeline, markers"]
+    prof --> ws["Workspace<br/>(LogStore)"]
+    ws --> q["Query, timeline, charts,<br/>analysis, export"]
+  end
+  subgraph shell["app/src-tauri (Tauri 2 shell)"]
+    cmds["Commands (validate IPC)"]
+  end
+  subgraph ui["app/src (Angular 22 UI)"]
+    be["ImtBackend (DI token)"] --> stores["SignalStores"] --> views["Panels and views"]
+  end
+  q <--> cmds
+  cmds <-- "IPC (camelCase JSON)" --> be
+  be -. "browser dev and tests" .- mock["MockBackend"]
+```
+
+- **Engine** (`crates/imt-core`): importers, profiles and pipelines, query language, timeline and chart
+  aggregation, analysis, live tail and alerts, exports, projects, and the plugin runtime (registry,
+  manifests and dependency graph, services and extension points, the typed event bus, the watchdog,
+  plugin marker kinds and annotators).
+- **Shell** (`app/src-tauri`): thin Tauri 2 commands that validate every argument and run work off the
+  UI thread; least-privilege capabilities and a strict CSP. Every window has its own workspace:
+  commands take the calling window's state (`CurrentWindow`) and window-specific events go to that
+  window only. App-wide parts: the window manager (open, close, last-window behaviour), single-instance
+  hand-over, the tray, the background-task registry, desktop notifications, settings and the
+  lifecycle (safe mode, crash detection, per-window session autosave).
+- **UI** (`app/src`): standalone Angular components and signals, `@ngrx/signals` stores, dockview
+  panels, ECharts. Components never call `invoke` directly; they use the injected backend service.
+- **Around the core:** `imt-profile` (the profiling engine, a pure library), `imt-pdf` (PDF reports
+  behind the engine's `ReportRenderer` port), the plugin crates (including the tools and profiling
+  plugins), and the `imt-monitor`, `imt-collect` and `imt-agent` command-line tools.
+- **Contracts:** the wire contract is [`app/src/app/core/api.types.ts`](../app/src/app/core/api.types.ts)
+  (camelCase JSON), mirrored by the Rust DTOs.
+
 ## Crates
 
 | Crate | Kind | Responsibility |

@@ -1,7 +1,7 @@
 # IMT compared with other log tools
 
 How IMT sits among the log viewers and log platforms people already use, for anyone deciding whether
-it fits their job. The IMT column is taken from the [README](../README.md). The others are our reading
+it fits their job. The IMT column is taken from the [feature list](features.md). The others are our reading
 of each product's public pages as of October 2026, without testing every version; products change,
 so check their current documentation before relying on a cell. Corrections are welcome.
 
