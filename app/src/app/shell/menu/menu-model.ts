@@ -216,6 +216,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('project.saveAs'),
         SEP,
         cmd('file.reimport'),
+        cmd('folder.setupAnalysis'),
         cmd('live.toggle'),
         SEP,
         cmd('file.export'),

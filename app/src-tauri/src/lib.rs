@@ -256,6 +256,10 @@ macro_rules! commands {
             ai::commands::ai_summarize,
             ai::commands::ai_root_causes,
             ai::commands::ai_cancel,
+            ai::folder_setup::folder_survey,
+            ai::folder_setup::folder_survey_cancel,
+            ai::folder_setup::folder_setup_compose,
+            ai::folder_setup::ai_refine_folder_setup,
             ai::commands::ai_chat_sessions,
             ai::commands::ai_chat_new,
             ai::commands::ai_chat_get,
@@ -392,6 +396,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(tray::TrayState::default());
     app.manage(instance::SingleInstance(single));
     app.manage(query_cancel::QueryJobs::default());
+    app.manage(ai::folder_setup::SurveyJobs::default());
 
     // ---- settings ----
     settings::init(app.handle());
@@ -520,6 +525,7 @@ pub(crate) mod test_support {
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
         app.manage(query_cancel::QueryJobs::default());
+        app.manage(ai::folder_setup::SurveyJobs::default());
         app
     }
 

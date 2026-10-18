@@ -2,6 +2,7 @@
 //! The model proposes; the engine validates and previews every proposal before it is returned.
 
 mod citations;
+mod folder;
 mod markers;
 mod narrative;
 mod pipeline;
@@ -13,6 +14,7 @@ mod structured;
 mod tools;
 
 pub use citations::{parse_citations, Citation};
+pub use folder::FolderRefinement;
 #[allow(unused_imports)]
 pub(crate) use narrative::prefetch;
 pub use narrative::{Narrative, ANALYST_SYSTEM};

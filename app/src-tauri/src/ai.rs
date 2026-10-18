@@ -15,6 +15,7 @@ mod chats;
 pub(crate) mod commands;
 mod core;
 mod error;
+pub(crate) mod folder_setup;
 pub(crate) mod runtime_commands;
 mod runtimes;
 mod settings_section;

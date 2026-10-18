@@ -154,6 +154,7 @@ import { StorageBackend } from '../../settings/storage/storage-backend';
 import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
 import { RunsBackend } from '../../timeline/runs-backend';
+import { FolderSetupBackend } from '../../ai/folder-setup/folder-setup-backend';
 import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
 import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
@@ -166,6 +167,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ImtBackend,
   CollectBackend,
   EventLogBackend,
+  FolderSetupBackend,
   LifecycleBackend,
   PerfmonBackend,
   ProjectBackend,

@@ -14,15 +14,17 @@ import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
+import { FolderSetupHint } from './ai/folder-setup/folder-setup-hint';
 
 @Component({
   selector: 'imt-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay],
+  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay, FolderSetupHint],
   template: `
     <imt-title-bar />
     <imt-lifecycle-banners />
     <imt-partial-import-banner />
+    <imt-folder-setup-hint />
     <div class="body">
       <imt-activity-bar />
       @if (store.sidebarOpen()) {
