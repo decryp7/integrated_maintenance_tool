@@ -246,12 +246,44 @@ pub fn command(exe: &Path, args: &[String]) -> Command {
     cmd
 }
 
+/// Spawns `cmd`, retrying for up to a second while the executable is busy (`ETXTBSY`).
+///
+/// On Linux, exec fails with "Text file busy" while any process still holds the file open for writing. A
+/// runtime that was just unpacked (or, in tests, copied) can hit this when another thread forks at the
+/// same moment and the child briefly inherits the write handle; it clears as soon as that child execs.
+pub fn spawn_retrying(cmd: &mut Command) -> std::io::Result<Child> {
+    retry_while_busy(|| cmd.spawn(), Duration::from_millis(20), 50)
+}
+
+fn retry_while_busy<T>(mut f: impl FnMut() -> std::io::Result<T>, pause: Duration, attempts: u32) -> std::io::Result<T> {
+    let mut left = attempts;
+    loop {
+        match f() {
+            Err(e) if left > 1 && is_busy(&e) => {
+                left -= 1;
+                std::thread::sleep(pause);
+            }
+            other => return other,
+        }
+    }
+}
+
+#[cfg(unix)]
+fn is_busy(e: &std::io::Error) -> bool {
+    e.raw_os_error() == Some(libc::ETXTBSY)
+}
+
+#[cfg(not(unix))]
+fn is_busy(_: &std::io::Error) -> bool {
+    false
+}
+
 /// Runs a short llama-server command (e.g. `--list-devices`) and returns its standard output, killing it
 /// after `timeout`.
 pub fn run_briefly(exe: &Path, args: &[String], timeout: Duration) -> Result<String, String> {
     let mut cmd = command(exe, args);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
+    let mut child = spawn_retrying(&mut cmd).map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
     let out = child.stdout.take().map(|s| std::thread::spawn(move || read_capped(s, 256 * 1024)));
     let err = child.stderr.take().map(|s| std::thread::spawn(move || read_capped(s, 64 * 1024)));
     let deadline = Instant::now() + timeout;
@@ -366,7 +398,7 @@ impl ServerChild {
                 });
             }
         }
-        let mut child = cmd.spawn().map_err(|e| {
+        let mut child = spawn_retrying(&mut cmd).map_err(|e| {
             StartError::Spawn(match e.kind() {
                 std::io::ErrorKind::NotFound => format!("llama-server was not found at {}", exe.display()),
                 std::io::ErrorKind::PermissionDenied => format!("llama-server at {} is not executable", exe.display()),
@@ -523,6 +555,46 @@ impl Drop for ServerChild {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn a_busy_executable_is_retried_until_it_can_run() {
+        let mut calls = 0;
+        let r = super::retry_while_busy(
+            || {
+                calls += 1;
+                if calls < 3 {
+                    Err(std::io::Error::from_raw_os_error(libc::ETXTBSY))
+                } else {
+                    Ok(calls)
+                }
+            },
+            std::time::Duration::ZERO,
+            5,
+        );
+        assert_eq!(r.unwrap(), 3);
+        // It gives up after the last attempt, and other errors are returned at once.
+        let mut calls = 0;
+        let r: std::io::Result<()> = super::retry_while_busy(
+            || {
+                calls += 1;
+                Err(std::io::Error::from_raw_os_error(libc::ETXTBSY))
+            },
+            std::time::Duration::ZERO,
+            4,
+        );
+        assert_eq!((r.unwrap_err().raw_os_error(), calls), (Some(libc::ETXTBSY), 4));
+        let mut calls = 0;
+        let r: std::io::Result<()> = super::retry_while_busy(
+            || {
+                calls += 1;
+                Err(std::io::Error::from(std::io::ErrorKind::NotFound))
+            },
+            std::time::Duration::ZERO,
+            4,
+        );
+        assert_eq!((r.unwrap_err().kind(), calls), (std::io::ErrorKind::NotFound, 1));
+    }
+
     use super::*;
 
     #[test]
