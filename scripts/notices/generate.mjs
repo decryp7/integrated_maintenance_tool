@@ -17,6 +17,11 @@ const repo = resolve(here, '..', '..');
 const PERMISSIVE = new Set(['MIT', 'MIT-0', 'Apache-2.0', 'Apache-2.0 WITH LLVM-exception', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'Zlib', '0BSD', 'CC0-1.0', 'BSL-1.0', 'Unicode-3.0', 'Unlicense', 'MPL-2.0', 'CDLA-Permissive-2.0', 'OFL-1.1', 'Python-2.0', 'BlueOak-1.0.0']);
 const LICENCE_FILE = /^(licen[cs]e|licen[cs]ing|copying|notice|unlicense)([-_.].*)?$/i;
 
+/** Unifies line endings only, so a text embedded verbatim is the same on a CRLF (Windows) checkout. */
+export function lf(text) {
+  return text.replace(/\r\n?/g, '\n');
+}
+
 export function normalise(text) {
   return text.replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/\s+$/, '')).join('\n').trim();
 }
@@ -166,8 +171,8 @@ function main(argv) {
   const legal = join(app, 'src', 'app', 'about', 'generated');
   mkdirSync(legal, { recursive: true });
   writeFileSync(join(legal, 'notices.generated.ts'), ts('notices', `export const THIRD_PARTY_NOTICES = ${JSON.stringify(markdown)};\n`));
-  const mit = readFileSync(join(repo, 'LICENSE-MIT'), 'utf8');
-  const apache = readFileSync(join(repo, 'LICENSE-APACHE'), 'utf8');
+  const mit = lf(readFileSync(join(repo, 'LICENSE-MIT'), 'utf8'));
+  const apache = lf(readFileSync(join(repo, 'LICENSE-APACHE'), 'utf8'));
   writeFileSync(join(legal, 'licenses.generated.ts'), ts('licenses', `export const LICENSE_MIT = ${JSON.stringify(mit)};\nexport const LICENSE_APACHE = ${JSON.stringify(apache)};\n`));
   console.log(`notices: ${counts.rust} Rust crates, ${counts.npm} npm packages, ${counts.texts} distinct licence texts, ${counts.tally.size} licence expressions`);
   if (bad.length) process.exitCode = 0;

@@ -1,11 +1,15 @@
 // Run: node --test scripts/notices
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { lockProduction, nonPermissive, normalise, render, spdxIds } from './generate.mjs';
+import { lf, lockProduction, nonPermissive, normalise, render, spdxIds } from './generate.mjs';
 
 test('spdxIds splits expressions', () => {
   assert.deepEqual(spdxIds('(MIT OR Apache-2.0) AND Unicode-3.0'), ['MIT', 'Apache-2.0', 'Unicode-3.0']);
   assert.deepEqual(spdxIds(''), []);
+});
+
+test('lf unifies line endings and keeps everything else', () => {
+  assert.equal(lf('\r\n  a  \r\nb\rc\n\n'), '\n  a  \nb\nc\n\n');
 });
 
 test('normalise unifies line endings and trailing space', () => {
