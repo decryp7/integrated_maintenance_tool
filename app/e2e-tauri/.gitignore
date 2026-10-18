@@ -1,3 +1,4 @@
 # Drivers fetched by scripts/fetch-msedgedriver.mjs and failure artifacts of a run.
 /.drivers/
 /.artifacts/
+/.tmp/

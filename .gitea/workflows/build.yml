@@ -135,7 +135,18 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-about
+          tool: cargo-about,cargo-deny
+
+      # cargo about reads every crate's licence from its sources and cargo deny clones the advisory database:
+      # without a cache both download everything on every run.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/advisory-dbs
+          key: licences-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: licences-${{ runner.os }}-
 
       - uses: actions/setup-node@v4
         with:
@@ -147,17 +158,25 @@ jobs:
         if: github.event_name == 'pull_request'
         run: node scripts/commit-lint.mjs --range "origin/${{ github.base_ref }}..HEAD"
 
+      # The binary, not the Docker-based action: no image to pull on every run. Every workspace crate, not just
+      # the root package.
       - name: Licences, advisories and sources
-        uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          # Every workspace crate, not just the root package.
-          arguments: --all-features --workspace
+        run: cargo deny --all-features --workspace check
 
       - name: Third-party notices are up to date
         run: |
           node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs scripts/commit-lint.test.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/advisory-dbs
+          key: licences-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
 
   frontend:
     name: frontend build, lint + unit tests
@@ -329,7 +348,17 @@ jobs:
           WEBKIT_DISABLE_DMABUF_RENDERER: "1"
           WEBKIT_DISABLE_COMPOSITING_MODE: "1"
           LIBGL_ALWAYS_SOFTWARE: "1"
+          # Keep IMT's folders so a failure can show the app's own logs (next step).
+          IMT_E2E_KEEP_DATA: "1"
         run: dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" npm run e2e:tauri
+
+      - name: IMT logs of the failed smoke run (Linux)
+        if: failure() && runner.os == 'Linux'
+        run: |
+          for f in $(find /tmp -path '*imt-e2e-*' -name '*.log' 2>/dev/null | sort); do
+            echo "::group::$f"; tail -n 150 "$f"; echo "::endgroup::"
+          done
+          dmesg 2>/dev/null | tail -n 30 || true
 
       # Screenshots and page sources of failed smoke tests (wdio.conf.ts `afterTest`).
       - name: Smoke test failures

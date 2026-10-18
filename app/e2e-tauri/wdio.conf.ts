@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   appBinary,
   ARTIFACTS_DIR,
+  E2E_DIR,
   nativeDriver,
   RUN_DIR_VAR,
   runLayout,
@@ -25,13 +26,25 @@ const WINDOWS = platform() === 'win32';
 const app = appBinary();
 let driver: ChildProcess | undefined;
 
+// Windows runners that run as a service (SYSTEM) have C:\Windows\SystemTemp (or C:\Windows\TEMP) as their temp
+// folder, where WebView2 cannot create its profile ("couldn't create the data directory", then "DevToolsActivePort
+// file doesn't exist"). msedgedriver puts the profile in the temp folder, so point TEMP/TMP into the checkout.
+if (WINDOWS) {
+  const tmp = join(E2E_DIR, '.tmp');
+  mkdirSync(tmp, { recursive: true });
+  process.env['TEMP'] = process.env['TMP'] = tmp;
+}
+
 // Every run keeps IMT's data, config and logs and the webview's profile in a fresh temp folder, never the
 // user's: debug builds take that root from IMT_DATA_DIR (app_dirs.rs). The launcher creates the folder; the
 // workers load this file again with the launcher's environment, so they reuse it. `onComplete` removes it.
 const runDir = (process.env[RUN_DIR_VAR] ??= mkdtempSync(join(tmpdir(), 'imt-e2e-')));
 const layout = runLayout(runDir);
 process.env['IMT_DATA_DIR'] = layout.imt;
-if (WINDOWS) process.env['IMT_OPEN_PATHS'] = SAMPLES;
+// Every spec starts with the CLEF samples open, through the debug build's IMT_OPEN_PATHS (inherited by the app
+// through tauri-driver and the native driver). Command-line arguments are not reliable: msedgedriver turns them
+// into `--switches`, and WebKitWebDriver did not deliver them in a CI container.
+process.env['IMT_OPEN_PATHS'] = SAMPLES;
 if (!WINDOWS) {
   // Linux: WebKitGTK and GTK also write to the XDG folders.
   process.env['XDG_DATA_HOME'] = layout.xdg.data;
@@ -86,9 +99,8 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1,
   capabilities: [
     {
-      // Every spec starts with the CLEF samples open: on Linux they are on the command line; msedgedriver turns
-      // every argument into a `--switch`, so on Windows the debug build takes them from IMT_OPEN_PATHS (above).
-      'tauri:options': { application: app, args: WINDOWS ? [] : [SAMPLES] },
+      // The samples come from IMT_OPEN_PATHS (above), not the command line.
+      'tauri:options': { application: app, args: [] },
     } as WebdriverIO.Capabilities,
   ],
   logLevel: 'warn',
