@@ -213,7 +213,13 @@ fn crashing_plugins_are_contained_and_quarantined() {
             "{}",
             reason("bad.txt")
         );
-        assert!(reason("bin.dat").contains("binary exploded"), "{}", reason("bin.dat"));
+        // Files import in parallel: if the plugin was quarantined before bin.dat's turn, its crashing binary
+        // importer is skipped and the file is simply an unrecognised binary file.
+        assert!(
+            reason("bin.dat").contains("binary exploded") || reason("bin.dat").contains("binary file"),
+            "{}",
+            reason("bin.dat")
+        );
 
         // Sniff + import + binary + transform + hook crashes: well past the threshold.
         let chaos = s.plugins.iter().find(|p| p.id == "test.chaos").unwrap();
