@@ -34,10 +34,12 @@ test.describe('import progress', () => {
   });
 
   test('the status bar Cancel works too, and Dismiss hides the banner', async ({ page }) => {
-    await openAppWith(page, '?mockSlowImport=600');
+    // 1.5 s per file and Cancel while at most half is read: on a slow runner the import must still be running
+    // when the click lands, or there is nothing left to cancel.
+    await openAppWith(page, '?mockSlowImport=1500');
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open folder' }).click();
     const status = page.getByTestId('import-status');
-    await expect(status).toContainText(/Importing [1-5] of 6 files/, { timeout: 5_000 });
+    await expect(status).toContainText(/Importing [1-3] of 6 files/, { timeout: 5_000 });
     await status.getByRole('button', { name: 'Cancel' }).click();
     const banner = page.getByTestId('partial-import-banner');
     await expect(banner).toBeVisible({ timeout: 5_000 });
