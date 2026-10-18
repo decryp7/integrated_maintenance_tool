@@ -1480,6 +1480,8 @@ fn a_waiting_request_can_be_cancelled_and_a_queued_turn_frees_its_chat() {
     wait_until("running", || active_ai(&app).len() == 1);
     let w = main.clone();
     let second = std::thread::spawn(move || ipc(&w, "ai_root_causes", json!({})));
+    // The second request is queued before the chat adds its turn (on a busy machine its thread can start late).
+    wait_until("the second request queued", || active_ai(&app).len() == 2);
     let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
     ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "hello"})).unwrap();
     wait_until("three AI jobs", || active_ai(&app).len() == 3);
