@@ -31,13 +31,6 @@ jobs:
 
       # Restore and save separately, with the run id in the saved key: a fixed key can never be updated once it
       # exists, and a failing run still warms the cache (see build.yml).
-      # Diagnostics for the runner cache set-up (shows only the token's length, never the token).
-      - name: Cache service
-        run: |
-          echo "CACHE_URL=$ACTIONS_CACHE_URL"
-          echo "RESULTS_URL=$ACTIONS_RESULTS_URL"
-          echo "TOKEN_LEN=${#ACTIONS_RUNTIME_TOKEN}"
-
       - uses: actions/cache/restore@v4
         with:
           path: |
