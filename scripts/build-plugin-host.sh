@@ -2,9 +2,9 @@
 # Builds the plugin host (crates/imt-plugin-host: serves built-in plugins out of process when they run
 # isolated) for the target platform and puts it where Tauri bundles it as a sidecar:
 #   app/src-tauri/binaries/imt-plugin-host-<target-triple>[.exe]
-# Declare it in the bundle config that lists the sidecars (merged at bundle time, like the AI worker):
-#   "bundle": { "externalBin": ["binaries/imt-ai-worker", "binaries/imt-plugin-host"] }
-# and bundle with  (cd app && npx tauri build --config src-tauri/tauri.ai.conf.json)
+# Release builds do this for both sidecars (AI worker and plugin host) through app/scripts/build-sidecars.mjs:
+#   (cd app && npx tauri build --config src-tauri/tauri.sidecars.conf.json)
+# This script is for building the plugin host alone.
 # Pure Rust: no C toolchain needed. At run time IMT finds it next to its executable (IMT_PLUGIN_HOST
 # overrides the path, for development).
 #

@@ -405,11 +405,11 @@ jobs:
             if [ "$RUNNER_OS" = macOS ]; then bundles="app,$bundles"; fi
             mkdir -p ../target
             node -e 'process.stdout.write(JSON.stringify({ bundle: { createUpdaterArtifacts: true }, plugins: { updater: { pubkey: process.env.TAURI_UPDATER_PUBKEY } } }))' > ../target/updater.conf.json
-            npx tauri build --bundles "$bundles" --config ../target/updater.conf.json
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json
           else
             echo '::warning::No updater signing secrets: this build cannot update itself.'
             unset TAURI_UPDATER_PUBKEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-            npx tauri build --bundles "$bundles"
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json
           fi
 
       - name: Collect installers

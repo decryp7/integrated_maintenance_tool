@@ -1,6 +1,9 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build && node scripts/build-sidecars.mjs"
+  },
   "bundle": {
-    "externalBin": ["binaries/imt-ai-worker"]
+    "externalBin": ["binaries/imt-ai-worker", "binaries/imt-plugin-host"]
   }
 }

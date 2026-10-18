@@ -59,7 +59,8 @@
       // Installs the locked UI dependencies first: a stale node_modules (or one from another OS) breaks the build.
       "dependsOn": "IMT: install UI dependencies",
       "type": "shell",
-      "command": "npx tauri build",
+      // The sidecars config also builds and bundles the AI worker and the plugin host (scripts/build-sidecars.mjs).
+      "command": "npx tauri build --config src-tauri/tauri.sidecars.conf.json",
       "options": { "cwd": "${workspaceFolder}/app" },
       "problemMatcher": ["$rustc"],
       "group": "build"
