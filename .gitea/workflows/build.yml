@@ -3,6 +3,8 @@
 #
 # Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
 # if your act_runner instances use other labels.
+# Linux jobs run in the catthehacker/ubuntu:act-latest container (Node for JavaScript actions, git,
+# and sudo-free root), since the runner's default ubuntu-latest image has no Node.
 # Releases need a repository secret RELEASE_TOKEN (a Gitea access token with
 # write:repository scope).
 
@@ -21,6 +23,8 @@ jobs:
   check:
     name: test + lint
     runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -130,6 +134,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
+    container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
     timeout-minutes: 60
     # Windows runners usually run as administrator, where WebView2 ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (how
     # msedgedriver enables remote debugging); the debug build hands those arguments to WebView2 itself, so both legs
@@ -219,6 +225,8 @@ jobs:
           - os: macos-latest
             bundles: dmg
     runs-on: ${{ matrix.os }}
+    # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
+    container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -293,6 +301,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: bundle
     runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
     steps:
       - uses: actions/checkout@v4
         with:

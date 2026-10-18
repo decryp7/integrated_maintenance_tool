@@ -21,6 +21,8 @@ jobs:
   fuzz:
     name: ${{ matrix.target }}
     runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
     strategy:
       fail-fast: false
       matrix:

@@ -16,6 +16,8 @@ jobs:
   bench:
     name: engine benchmarks
     runs-on: ubuntu-latest
+    container:
+      image: catthehacker/ubuntu:act-latest
     steps:
       - uses: actions/checkout@v4
 
