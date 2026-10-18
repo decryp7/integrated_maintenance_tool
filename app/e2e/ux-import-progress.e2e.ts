@@ -46,6 +46,9 @@ test.describe('import progress', () => {
     const cancel = await status.getByRole('button', { name: 'Cancel' }).boundingBox();
     const live = await page.getByTestId('live-toggle').boundingBox();
     expect(cancel && live && cancel.x + cancel.width <= live.x).toBe(true);
+    // ...and the event count stays readable: it once shrank to nothing while the bar made room.
+    const events = await page.locator('imt-status-bar span', { hasText: /\d[\d,]* events/ }).boundingBox();
+    expect(events?.width ?? 0).toBeGreaterThan(30);
     await status.getByRole('button', { name: 'Cancel' }).click({ timeout: 2_000 });
     const banner = page.getByTestId('partial-import-banner');
     await expect(banner).toBeVisible({ timeout: 5_000 });
