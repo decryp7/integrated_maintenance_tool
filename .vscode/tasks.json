@@ -55,6 +55,8 @@
     },
     {
       "label": "IMT: build installers (release)",
+      // Installs the locked UI dependencies first: a stale node_modules (or one from another OS) breaks the build.
+      "dependsOn": "IMT: install UI dependencies",
       "type": "shell",
       "command": "npx tauri build",
       "options": { "cwd": "${workspaceFolder}/app" },
