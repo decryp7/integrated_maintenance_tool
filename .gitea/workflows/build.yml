@@ -300,7 +300,9 @@ jobs:
         run: |
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
-          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target")
+          rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
+          rem would otherwise wait for each other on the cargo lock.
+          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target-%GITHUB_JOB%") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target-%GITHUB_JOB%")
           echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
@@ -419,7 +421,9 @@ jobs:
         run: |
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
-          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target")
+          rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
+          rem would otherwise wait for each other on the cargo lock.
+          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target-%GITHUB_JOB%") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target-%GITHUB_JOB%")
           echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
