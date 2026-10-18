@@ -77,6 +77,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Linux dependencies for Tauri
         run: |
           SUDO=$(command -v sudo || true)
@@ -92,10 +96,14 @@ jobs:
           key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: test-${{ runner.os }}-
 
-      # --no-fail-fast: report every failing crate in one run, not just the first. (cargo-nextest would be faster,
-      # but a few supervisor/quarantine tests still assume they share one process with their neighbours.)
+      # nextest runs every test in its own process, in parallel across crates, and reports every failure;
+      # .config/nextest.toml serialises (and retries) the tests that time real child processes.
       - name: Tests
-        run: cargo test --workspace --no-fail-fast
+        run: cargo nextest run --workspace --no-fail-fast
+
+      # nextest does not run doc tests.
+      - name: Doc tests
+        run: cargo test --workspace --doc
 
       - uses: actions/cache/save@v4
         if: always()
