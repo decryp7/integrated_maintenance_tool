@@ -317,6 +317,13 @@ jobs:
       - name: Smoke tests (Linux)
         if: runner.os == 'Linux'
         working-directory: app
+        # WebKitGTK in a CI container: its web-process sandbox (bubblewrap) cannot start as root inside Docker, and
+        # there is no GPU. These switches apply to this throwaway test container only, never to IMT itself.
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
         run: dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" npm run e2e:tauri
 
       # Screenshots and page sources of failed smoke tests (wdio.conf.ts `afterTest`).
