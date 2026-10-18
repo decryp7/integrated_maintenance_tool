@@ -9,7 +9,6 @@ import {
   AiRuntimeEvent,
   AiRuntimeOverview,
   AiStatus,
-  ApprovalDecision,
   ChatContext,
   ChatEnvelope,
   ChatEventEnvelope,
@@ -186,22 +185,9 @@ export class TauriAiBackend extends AiBackend {
   suggestedPrompts() {
     return this.run<string[]>('ai_suggested_prompts');
   }
-  approvalRespond(sessionId: string, requestId: number, decision: ApprovalDecision) {
-    return this.run<boolean>('ai_approval_respond', { sessionId, requestId, decision });
-  }
   openLink(url: string) {
     return this.run<void>('ai_open_link', { url });
   }
-  setBraveKey(key: string) {
-    return this.run<void>('ai_set_brave_key', { key });
-  }
-  clearBraveKey() {
-    return this.run<void>('ai_clear_brave_key');
-  }
-  braveKeySet() {
-    return this.run<boolean>('ai_brave_key_set');
-  }
-
   onSetup(handler: (e: SetupEvent) => void) {
     return this.listen(AI_SETUP_EVENT, (p) => {
       if (isObject(p) && typeof p['stage'] === 'string') handler(p as unknown as SetupEvent);

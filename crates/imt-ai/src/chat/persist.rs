@@ -44,9 +44,6 @@ pub struct ChatRecord {
     pub title: String,
     #[serde(default)]
     pub turns: Vec<TurnRecord>,
-    /// The user allowed web searches for this chat (reset when the project is reopened is also fine).
-    #[serde(default)]
-    pub allow_searches: bool,
 }
 
 /// What goes into the project file under one optional key (for example `"chats"`).

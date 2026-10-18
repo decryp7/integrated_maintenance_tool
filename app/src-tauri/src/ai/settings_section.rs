@@ -1,6 +1,5 @@
 //! Settings → AI: the fields of `imt_ai::settings::schema()` as a section of the app's settings system.
-//! The active model is chosen in the model manager and the Brave key is write-only in the keychain, so
-//! neither is a field here; "ask before every search" is always on and not offered as a switch.
+//! The active model is chosen in the model manager, so it is not a field here.
 //! The section's values live in `settings.json` like every other section and are applied to the runtime
 //! (and written to `ai.json`) at startup and on every change, so `settings.json` is their source of truth;
 //! `ai.json` adds what is chosen elsewhere (the active model).
@@ -9,13 +8,12 @@ use super::core::AiCore;
 use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label as build_label;
 use imt_ai::settings::{AiSettings, GpuOffload};
-use imt_ai::web::WebProvider;
 use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde_json::Value;
 use std::sync::Arc;
 
 /// Schema keys that are not settings fields (see the module doc).
-const NOT_FIELDS: &[&str] = &["active_model", "web_search.brave_key", "web_search.require_approval"];
+const NOT_FIELDS: &[&str] = &["active_model"];
 const MAX_TEXT: usize = 2048;
 /// "all layers on the GPU".
 const ALL_LAYERS: u32 = 1000;
@@ -35,10 +33,6 @@ fn label_of(option: &str) -> String {
         "auto" => "Automatic".into(),
         "0" => "CPU only".into(),
         "all" => "All layers on the GPU".into(),
-        "none" => "Off".into(),
-        "searxng" => "SearXNG (self-hosted)".into(),
-        "brave" => "Brave Search".into(),
-        "manual" => "Manual (suggest the search, send nothing)".into(),
         n if n.parse::<u32>().is_ok() => format!("{n} layers on the GPU"),
         other => other.into(),
     }
@@ -137,7 +131,7 @@ pub fn section_with_builds(installed: &[String]) -> SettingsSection {
 fn build_section(installed: Option<&[String]>) -> SettingsSection {
     let mut s = SettingsSection::new(AI_SECTION, "AI assistant", SectionOwner::App).describe(
         "The assistant runs fully on this computer with a local model; nothing about your logs is sent anywhere. \
-Only the model file is downloaded (from Hugging Face). Web search is off unless you turn it on, and every search or page read asks you first.",
+Only the model file is downloaded (from Hugging Face). Web pages reach it only when you hand them over from the internal browser.",
     );
     if let Some(fields) = imt_ai::settings::schema().as_array() {
         for f in fields.iter().filter_map(field_of) {
@@ -181,17 +175,6 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
         s.inference_build = b;
     }
     s.llama_server_path = text(values, "llama_server_path");
-    s.web_search.provider = match values.text("web_search.provider") {
-        Some("searxng") => WebProvider::Searxng,
-        Some("brave") => WebProvider::Brave,
-        Some("manual") => WebProvider::Manual,
-        _ => WebProvider::None,
-    };
-    s.web_search.searxng_url = values.text("web_search.searxng_url").unwrap_or("").trim().to_string();
-    s.web_search.max_results = int("web_search.max_results", s.web_search.max_results as i64) as usize;
-    if let Some(b) = values.bool("web_search.allow_fetch") {
-        s.web_search.allow_fetch = b;
-    }
     s.clamp()
 }
 
@@ -258,9 +241,7 @@ mod tests {
                 "autoload": false, "idle_unload_minutes": 0, "gpu_offload": "all", "context_length": 4096,
                 "max_tokens": 512, "temperature": 0.5, "threads": 4, "hf_endpoint": "https://mirror.example",
                 "download_proxy": "http://p:3128", "max_download_gb": 9, "models_dir": models,
-                "inference_build": "vulkan", "llama_server_path": server,
-                "web_search.provider": "searxng", "web_search.searxng_url": " https://s.example ",
-                "web_search.max_results": 3, "web_search.allow_fetch": false
+                "inference_build": "vulkan", "llama_server_path": server
             }),
         );
         assert!(errors.is_empty(), "{errors:?}");
@@ -284,24 +265,12 @@ mod tests {
             (a.inference_build.as_str(), a.llama_server_path.as_deref()),
             ("vulkan", Some(server))
         );
-        assert_eq!(a.web_search.provider, WebProvider::Searxng);
-        assert_eq!(a.web_search.searxng_url, "https://s.example");
-        assert_eq!(a.web_search.max_results, 3);
-        assert!(!a.web_search.allow_fetch);
         for (word, expected) in [
             ("8", GpuOffload::Layers(8)),
             ("0", GpuOffload::Layers(0)),
             ("auto", GpuOffload::Auto),
         ] {
             assert_eq!(gpu_from(word), expected);
-        }
-        for (p, expected) in [
-            ("brave", WebProvider::Brave),
-            ("manual", WebProvider::Manual),
-            ("none", WebProvider::None),
-        ] {
-            let (v, _) = sanitize(&s, &json!({ "web_search.provider": p }));
-            assert_eq!(to_settings(&v, &base).web_search.provider, expected);
         }
     }
 }

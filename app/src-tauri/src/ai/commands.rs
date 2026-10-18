@@ -1,7 +1,6 @@
 //! The AI commands. Thin: they validate the IPC arguments, run the library off the UI thread and turn its
 //! errors into [`AiCmdError`]s. Long work (set-up, chat turns) runs on its own thread and streams events.
 
-use super::approvals::{DecisionDto, SessionApprover};
 use super::chats::SessionInfo;
 use super::core::{AiCore, AiStatus, ModelDto, SetupEvent};
 use super::error::{AiCmdError, AiErrorCode, AiResult};
@@ -440,8 +439,7 @@ pub fn ai_chat_get<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id
 
 #[tauri::command]
 pub fn ai_chat_delete<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
-    let core = core(&app)?;
-    core.approvals.deny_session(win.label(), &session_id);
+    core(&app)?;
     Ok(win.ai.chats.delete(&session_id))
 }
 
@@ -503,20 +501,9 @@ pub(crate) fn run_turn(
     let session = turn.session.clone();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Ai<()> {
         let assistant = core.assistant(turn.cancel.clone())?;
-        let web = core.web_toolkit();
-        let approver = SessionApprover {
-            approvals: core.approvals.clone(),
-            window: win.label().to_string(),
-            session: sid.to_string(),
-        };
         // Each tool call takes a short read lock; live tail and imports never wait for the model.
         let access = WindowStore(win.clone());
-        let env = ChatEnv {
-            assistant: &assistant,
-            store: (&access as &dyn StoreAccess).into(),
-            web: web.as_ref(),
-            approver: &approver,
-        };
+        let env = ChatEnv::new(&assistant, (&access as &dyn StoreAccess).into());
         let mut s = session.lock().unwrap_or_else(|p| p.into_inner());
         // Failures and cancellation were streamed as an `error` event by the session itself.
         let _ = s.send(&env, text, ctx, &mut |e| {
@@ -543,8 +530,7 @@ pub(crate) fn run_turn(
 
 #[tauri::command]
 pub fn ai_chat_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
-    let core = core(&app)?;
-    core.approvals.deny_session(win.label(), &session_id);
+    core(&app)?;
     Ok(win.ai.chats.cancel(&session_id))
 }
 
@@ -647,20 +633,6 @@ pub async fn ai_suggested_prompts<R: Runtime>(app: AppHandle<R>, win: CurrentWin
     blocking(move || Ok(suggested_prompts(&WindowStore(w) as &dyn StoreAccess))).await
 }
 
-/// The user's answer to a web search or page fetch request of a chat turn.
-#[tauri::command]
-pub fn ai_approval_respond<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    session_id: String,
-    request_id: u64,
-    decision: DecisionDto,
-) -> Ai<bool> {
-    let core = core(&app)?;
-    let d = decision.into_decision().map_err(AiCmdError::invalid)?;
-    Ok(core.approvals.respond(win.label(), &session_id, request_id, d))
-}
-
 /// Opens a web source of a chat answer in the system browser. Only https links the chat actually showed
 /// (a web citation or a suggested search) are opened; anything else from the webview is refused.
 #[tauri::command]
@@ -698,27 +670,6 @@ pub(super) fn check_link(url: &str) -> Ai<()> {
         return Err(refused());
     }
     Ok(())
-}
-
-// ---- secrets ----
-
-#[tauri::command]
-pub async fn ai_set_brave_key<R: Runtime>(app: AppHandle<R>, key: String) -> Ai<()> {
-    let core = core(&app)?;
-    blocking(move || core.set_brave_key(&key)).await
-}
-
-#[tauri::command]
-pub async fn ai_clear_brave_key<R: Runtime>(app: AppHandle<R>) -> Ai<()> {
-    let core = core(&app)?;
-    blocking(move || core.clear_brave_key()).await
-}
-
-/// Whether a Brave key is stored (the key itself can never be read back).
-#[tauri::command]
-pub async fn ai_brave_key_set<R: Runtime>(app: AppHandle<R>) -> Ai<bool> {
-    let core = core(&app)?;
-    blocking(move || Ok(core.brave_key_set())).await
 }
 
 #[cfg(test)]

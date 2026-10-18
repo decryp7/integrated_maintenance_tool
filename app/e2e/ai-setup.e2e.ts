@@ -48,18 +48,12 @@ test('a running set-up can be cancelled', async ({ page }) => {
   await expect(dialog.getByTestId('ai-setup-cancelled')).toBeVisible();
 });
 
-test('Settings → AI offers set-up and a write-only Brave key', async ({ page }) => {
+test('Settings → AI offers set-up', async ({ page }) => {
   await openAppWith(page, '');
   await page.keyboard.press('ControlOrMeta+Comma');
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: /AI assistant/ }).click();
   await expect(settings.getByTestId('ai-settings-status')).toContainText('Vulkan');
-  const key = settings.getByLabel('Brave Search API key');
-  await expect(key).toHaveAttribute('type', 'password');
-  await key.fill('BSA-123');
-  await settings.getByRole('button', { name: 'Save key' }).click();
-  await expect(settings.getByTestId('ai-key-state')).toContainText('A key is stored');
-  await expect(key).toHaveValue('');
   await settings.getByTestId('ai-settings-setup').click();
   await expect(wizard(page)).toBeVisible();
 });

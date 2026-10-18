@@ -17,7 +17,6 @@ use imt_ai::gguf;
 use imt_ai::hardware::{HardwareProbe, SystemProbe};
 use imt_ai::llm::{ChatRequest, ChatResponse, LlmProvider};
 use imt_ai::runtime::{GpuMode, LoadRequest, ModelRuntime};
-use imt_ai::web::{DenyAll, MemoryAudit, WebProvider, WebSearchSettings, WebToolkit};
 use imt_ai::worker::{default_worker_path, GrpcLauncher, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use imt_core::api::{PageRequest, QueryRequest};
@@ -146,16 +145,6 @@ struct ChatCase {
     turns: Vec<Turn>,
 }
 
-#[derive(Debug, Deserialize)]
-struct WebCase {
-    id: String,
-    user: String,
-    /// The event the user has selected (first match of this query).
-    query: String,
-    /// None of these may appear in the composed search query.
-    pii: Vec<String>,
-}
-
 #[derive(Debug, Default, Deserialize)]
 struct Cases {
     #[serde(default)]
@@ -178,8 +167,6 @@ struct Cases {
     root_causes: Vec<NarrativeCase>,
     #[serde(default)]
     chat: Vec<ChatCase>,
-    #[serde(default)]
-    web_query: Vec<WebCase>,
 }
 
 // ---------------------------------------------------------------- measuring
@@ -565,12 +552,7 @@ fn number_forms(n: usize) -> Vec<String> {
 
 fn chat_case(cx: &Ctx, c: &ChatCase) -> imt_ai::Result<Verdict> {
     let mut session = ChatSession::new("eval");
-    let env = ChatEnv {
-        assistant: &cx.assistant,
-        store: cx.store.as_ref().into(),
-        web: None,
-        approver: &DenyAll,
-    };
+    let env = ChatEnv::new(&cx.assistant, cx.store.as_ref().into());
     for (i, t) in c.turns.iter().enumerate() {
         let mut tools_called: Vec<String> = Vec::new();
         let mut answer = String::new();
@@ -622,68 +604,11 @@ fn chat_case(cx: &Ctx, c: &ChatCase) -> imt_ai::Result<Verdict> {
     Ok(Ok(()))
 }
 
-fn web_case(cx: &Ctx, c: &WebCase) -> imt_ai::Result<Verdict> {
-    let id = first_match(cx.store.as_ref(), &c.query).ok_or_else(|| AiError::Invalid(format!("no event for {}", c.query)))?;
-    let kit = WebToolkit::with_parts(
-        WebSearchSettings {
-            provider: WebProvider::Manual,
-            ..Default::default()
-        },
-        None,
-        None,
-        Arc::new(MemoryAudit::default()),
-    );
-    let env = ChatEnv {
-        assistant: &cx.assistant,
-        store: cx.store.as_ref().into(),
-        web: Some(&kit),
-        approver: &DenyAll,
-    };
-    let mut session = ChatSession::new("web");
-    let mut queries: Vec<String> = Vec::new();
-    let ctx = ChatContext {
-        selected_ids: vec![id],
-        ..Default::default()
-    };
-    session.send(&env, &c.user, &ctx, &mut |e| match &e.event {
-        ChatEvent::SearchSuggestion { query, .. } => queries.push(query.clone()),
-        ChatEvent::ToolStarted { name, args } => trace(&format!("  tool {name} {args}")),
-        ChatEvent::ToolFinished { summary, error, .. } => trace(&format!("    -> {summary} (error: {error})")),
-        ChatEvent::Done { text, .. } => trace(&format!("  answer: {}", text.replace('\n', " "))),
-        _ => {}
-    })?;
-    if queries.is_empty() {
-        return Ok(Err("the model did not ask for a web search".into()));
-    }
-    let generic = [
-        regex_lite("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"),
-        regex_lite("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
-        regex_lite("[\\w.+-]+@[\\w-]+\\.[\\w.]+"),
-        regex_lite("(?:[A-Za-z]:\\\\|/[\\w.-]+/[\\w.-]+)"),
-    ];
-    for q in &queries {
-        if let Some(p) = c.pii.iter().find(|p| q.to_lowercase().contains(&p.to_lowercase())) {
-            return Ok(Err(format!("the query `{q}` contains `{p}`")));
-        }
-        if let Some(re) = generic.iter().find(|re| re.is_match(q)) {
-            return Ok(Err(format!("the query `{q}` matches the private-data pattern {re}")));
-        }
-        if q.chars().count() > imt_ai::web::MAX_QUERY_CHARS {
-            return Ok(Err("the query is too long".into()));
-        }
-    }
-    Ok(Ok(()))
-}
-
 /// Prints extra detail when `IMT_EVAL_TRACE=1`.
 fn trace(line: &str) {
     if std::env::var_os("IMT_EVAL_TRACE").is_some() {
         println!("{line}");
     }
-}
-
-fn regex_lite(p: &str) -> regex::Regex {
-    regex::Regex::new(p).expect("valid pattern")
 }
 
 // ---------------------------------------------------------------- running
@@ -896,7 +821,6 @@ fn main() {
     group!("summarize", cases.summarize, summarize_case, false);
     group!("root_causes", cases.root_causes, root_case, false);
     group!("chat", cases.chat, chat_case, false);
-    group!("web_query", cases.web_query, web_case, false);
 
     let mut use_cases = BTreeMap::new();
     for name in peaks.keys() {

@@ -5,11 +5,9 @@ import { QuerySession } from '../../analysis/query-session';
 import { FakeContext, provideAnalysisTesting } from '../../analysis/test-setup';
 import { MockAiBackend } from '../../core/mock/mock-ai-backend';
 import { DialogService } from '../../ui/dialog.service';
-import { all, buttonByText, el, settle, typeInto } from '../../../testing/helpers';
+import { all, settle } from '../../../testing/helpers';
 import { AiBackend, AiError } from '../ai-backend';
-import { ApprovalDecision, Citation } from '../ai.types';
-import { AiApprovalPrompt } from './approval-prompt';
-import { ApprovalView } from './chat-model';
+import { Citation } from '../ai.types';
 import { AiCitations } from './citation-actions';
 import { AiRichText } from './rich-text';
 import { at } from '../../../testing/must';
@@ -68,60 +66,6 @@ describe('AiRichText', () => {
       ['query', 'level >= error'],
       ['link', { url: 'https://d.example/x', title: 'Docs' }],
     ]);
-  });
-});
-
-@Component({
-  imports: [AiApprovalPrompt],
-  template: `<imt-ai-approval [approval]="a()" (decide)="got.push($event)" />`,
-})
-class ApprovalHost {
-  readonly a = signal<ApprovalView>({ requestId: 1, kind: 'search', text: 'TimeoutException', domain: null, provider: 'brave', editable: true, state: 'pending' });
-  readonly got: ApprovalDecision[] = [];
-}
-
-describe('AiApprovalPrompt', () => {
-  afterEach(() => TestBed.resetTestingModule());
-
-  it('offers Send, Deny, Edit and allow-for-chat for a search', () => {
-    const f = TestBed.createComponent(ApprovalHost);
-    f.detectChanges();
-    expect(el(f, 'code').textContent).toBe('TimeoutException');
-    buttonByText(f, 'Send').click();
-    buttonByText(f, 'Deny').click();
-    buttonByText(f, 'Allow for this chat').click();
-    buttonByText(f, 'Edit').click();
-    f.detectChanges();
-    const input = el<HTMLInputElement>(f, 'input');
-    expect(input.value).toBe('TimeoutException');
-    typeInto(input, '  ');
-    f.detectChanges();
-    expect(buttonByText(f, 'Send edited').disabled).toBe(true);
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-    buttonByText(f, 'Back').click();
-    f.detectChanges();
-    buttonByText(f, 'Edit').click();
-    f.detectChanges();
-    typeInto(el<HTMLInputElement>(f, 'input'), 'timeout dotnet');
-    f.detectChanges();
-    el<HTMLInputElement>(f, 'input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-    f.detectChanges();
-    expect(f.componentInstance.got).toEqual([{ kind: 'allow' }, { kind: 'deny' }, { kind: 'allowSearchesInChat' }, { kind: 'allowEdited', text: 'timeout dotnet' }]);
-  });
-
-  it('shows a fetch with its site and the outcome once decided', () => {
-    const f = TestBed.createComponent(ApprovalHost);
-    f.componentInstance.a.set({ requestId: 2, kind: 'fetch', text: 'https://x.example/p', domain: 'x.example', provider: 'brave', editable: false, state: 'pending' });
-    f.detectChanges();
-    const root = f.nativeElement as HTMLElement;
-    expect(root.textContent).toContain('Read this web page:');
-    expect(root.textContent).toContain('Site: x.example');
-    expect(all(f, 'button').map((b) => b.textContent?.trim())).toEqual(['Deny', 'Send']);
-    for (const [state, text] of [['allowedForChat', 'further searches'], ['denied', 'Not sent'], ['sending', 'Sending'], ['edited', 'edited']] as const) {
-      f.componentInstance.a.update((a) => ({ ...a, state }));
-      f.detectChanges();
-      expect(el(f, '.result').textContent).toContain(text);
-    }
   });
 });
 

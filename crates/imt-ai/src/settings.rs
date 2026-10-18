@@ -3,7 +3,6 @@
 //! The Hugging Face access token is deliberately not a setting: it is never written to disk.
 
 use crate::runtimes::builds::is_build_id;
-use crate::web::{WebProvider, WebSearchSettings};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -77,8 +76,6 @@ pub struct AiSettings {
     pub max_download_gb: u32,
     /// Folder for downloaded models (default: `models` in the app data folder).
     pub models_dir: Option<String>,
-    /// Web search for error codes and messages. Off by default; every search and page fetch is approved by the user.
-    pub web_search: WebSearchSettings,
     /// Inference build of llama-server: `auto` (the best one that works here) or a build id such as
     /// `cpu`, `vulkan`, `cuda-13`, `metal` (see `imt-ai-worker --list-builds`).
     pub inference_build: String,
@@ -102,7 +99,6 @@ impl Default for AiSettings {
             download_proxy: None,
             max_download_gb: 20,
             models_dir: None,
-            web_search: WebSearchSettings::default(),
             inference_build: AUTO_BUILD.into(),
             llama_server_path: None,
         }
@@ -142,7 +138,6 @@ impl AiSettings {
         if self.hf_endpoint.trim().is_empty() {
             self.hf_endpoint = crate::models::hf::DEFAULT_ENDPOINT.into();
         }
-        self.web_search = self.web_search.clone().clamp();
         self.inference_build = self.inference_build.trim().to_ascii_lowercase();
         if !is_build_id(&self.inference_build) {
             self.inference_build = AUTO_BUILD.into();
@@ -177,14 +172,6 @@ impl AiSettings {
             if !(proxy.starts_with("http://") || proxy.starts_with("https://")) {
                 p.push("The download proxy must look like http://host:port".to_string());
             }
-        }
-        let w = &self.web_search;
-        if w.provider == WebProvider::Searxng
-            && !(w.searxng_url.starts_with("https://")
-                || w.searxng_url.starts_with("http://localhost")
-                || w.searxng_url.starts_with("http://127.0.0.1"))
-        {
-            p.push("The SearXNG address must start with https:// (http:// is allowed only for localhost)".to_string());
         }
         if let Some(m) = &self.active_model {
             if !crate::catalog::is_safe_file_name(m) {
@@ -266,12 +253,6 @@ pub fn schema() -> Value {
         f("models_dir", "Models folder", "Where downloaded models are stored. Empty uses the app data folder.", "path", Value::Null, json!({}), true),
         f("inference_build", "Inference build", "Which llama-server build runs the model. Automatic picks the best one that works on this computer: CUDA with an NVIDIA GPU, else Vulkan, else the CPU (Metal on Apple Silicon). If the chosen build cannot start, IMT falls back to the next one and says so.", "enum", json!(AUTO_BUILD), json!({"options": ["auto", "cpu", "vulkan", "cuda-13", "cuda-12", "rocm", "sycl", "sycl-fp32", "openvino", "metal"], "optionsSource": "aiInferenceBuilds"}), true),
         f("llama_server_path", "Custom llama-server", "Advanced: a llama-server executable to use instead of the inference runtimes IMT downloads. Empty uses the downloaded builds.", "file", Value::Null, json!({}), true),
-        f("web_search.provider", "Web search", "Look up error codes and messages on the web. Off by default. Only a cleaned-up query leaves this computer, and only after you approve it. Manual shows the query and lets you search yourself.", "enum", json!("none"), json!({"options": ["none", "searxng", "brave", "manual"]}), false),
-        f("web_search.searxng_url", "SearXNG address", "Your SearXNG instance, for example https://search.example.org. It must allow the JSON format.", "string", json!(""), json!({}), false),
-        f("web_search.brave_key", "Brave Search API key", "Stored in the system keychain, never in a file. Write-only: it cannot be read back.", "secret", Value::Null, json!({"writeOnly": true, "storage": "keychain"}), false),
-        f("web_search.max_results", "Results per search", "How many results the assistant sees.", "int", json!(5), json!({"min": 1, "max": 10}), false),
-        f("web_search.allow_fetch", "Allow reading result pages", "Lets the assistant read a page that a search returned, after you approve that page.", "bool", json!(true), json!({}), false),
-        f("web_search.require_approval", "Ask before every search and page", "Always on: every web search and page read needs your approval.", "bool", json!(true), json!({"readOnly": true}), false),
     ])
 }
 
@@ -369,9 +350,6 @@ mod tests {
             ..AiSettings::default()
         };
         assert_eq!(bad.validate().len(), 2);
-        // older settings files without the keys load with the defaults
-        let old: AiSettings = serde_json::from_str("{\"autoload\": true}").unwrap();
-        assert_eq!((old.inference_build.as_str(), old.llama_server_path), ("auto", None));
     }
 
     #[test]
@@ -384,32 +362,6 @@ mod tests {
             ..AiSettings::default()
         };
         assert_eq!(bad.validate().len(), 3);
-        let w = |provider, url: &str| AiSettings {
-            web_search: WebSearchSettings {
-                provider,
-                searxng_url: url.into(),
-                ..Default::default()
-            },
-            ..AiSettings::default()
-        };
-        assert_eq!(w(WebProvider::Searxng, "http://example.com").validate().len(), 1);
-        assert!(w(WebProvider::Searxng, "https://s.example.org").validate().is_empty());
-        assert!(w(WebProvider::Searxng, "http://localhost:8080").validate().is_empty());
-        assert!(w(WebProvider::None, "").validate().is_empty());
-        assert_eq!(AiSettings::default().web_search.provider, WebProvider::None);
-        assert_eq!(
-            AiSettings {
-                web_search: WebSearchSettings {
-                    max_results: 99,
-                    ..Default::default()
-                },
-                ..AiSettings::default()
-            }
-            .clamp()
-            .web_search
-            .max_results,
-            10
-        );
         assert!(AiSettings {
             download_proxy: Some("http://p:1".into()),
             ..AiSettings::default()
@@ -442,26 +394,9 @@ mod tests {
         let v = schema();
         let keys: Vec<&str> = v.as_array().unwrap().iter().map(|f| f["key"].as_str().unwrap()).collect();
         let settings = serde_json::to_value(AiSettings::default()).unwrap();
-        for k in settings
-            .as_object()
-            .unwrap()
-            .keys()
-            .filter(|k| *k != "version" && *k != "web_search")
-        {
+        for k in settings.as_object().unwrap().keys().filter(|k| *k != "version") {
             assert!(keys.contains(&k.as_str()), "{k} missing from the schema");
         }
-        for k in settings["web_search"].as_object().unwrap().keys() {
-            assert!(
-                keys.contains(&format!("web_search.{k}").as_str()),
-                "web_search.{k} missing from the schema"
-            );
-        }
-        let brave = v.as_array().unwrap().iter().find(|f| f["key"] == "web_search.brave_key").unwrap();
-        assert_eq!((brave["type"].as_str(), brave["writeOnly"].as_bool()), (Some("secret"), Some(true)));
-        assert!(
-            !settings.to_string().contains("brave_key"),
-            "the key never lives in the settings file"
-        );
         for f in v.as_array().unwrap() {
             for k in ["key", "label", "description", "type", "default", "restartRequired"] {
                 assert!(f.get(k).is_some(), "{f}");

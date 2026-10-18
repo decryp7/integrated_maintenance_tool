@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../../core/logger';
 import { MockAiBackend, MockAiOptions } from '../../core/mock/mock-ai-backend';
 import { MemoryLogger, settle } from '../../../testing/helpers';
-import { AiBackend, AiError } from '../ai-backend';
+import { AiBackend } from '../ai-backend';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
 import { AiSettingsExtras } from './ai-settings-extras';
@@ -51,46 +51,6 @@ describe('AiSettingsExtras', () => {
     store.setStatus(null as never);
     await flush();
     expect(q('ai-settings-unavailable')).not.toBeNull();
-  });
-
-  it('stores and removes the Brave key without ever showing it', async () => {
-    const { q, el, button, flush } = setup();
-    await flush();
-    expect(q('ai-key-state')!.textContent).toContain('No key is stored');
-    const input = el.querySelector<HTMLInputElement>('#ai-brave-key')!;
-    expect(input.type).toBe('password');
-    expect(button('Save key')!.disabled).toBe(true);
-    input.value = 'has space';
-    input.dispatchEvent(new Event('input'));
-    await flush();
-    button('Save key')!.click();
-    await flush();
-    expect(el.querySelector('[role=alert]')!.textContent).toContain('exactly');
-    input.value = 'BSA-123';
-    input.dispatchEvent(new Event('input'));
-    await flush();
-    button('Save key')!.click();
-    await flush();
-    await flush();
-    expect(q('ai-key-state')!.textContent).toContain('A key is stored');
-    expect(input.value).toBe('');
-    expect(input.placeholder).toContain('A key is stored');
-    button('Remove key')!.click();
-    await flush();
-    await flush();
-    expect(q('ai-key-state')!.textContent).toContain('No key is stored');
-  });
-
-  it('reports keychain failures', async () => {
-    const { backend, button, el, fixture, flush } = setup({ web: true });
-    vi.spyOn(backend, 'clearBraveKey').mockRejectedValue(new AiError('refused', 'keychain locked'));
-    await flush();
-    button('Remove key')!.click();
-    await flush();
-    expect(el.querySelector('[role=alert]')!.textContent).toContain('keychain locked');
-    vi.spyOn(backend, 'braveKeySet').mockRejectedValue(new Error('x'));
-    await (fixture.componentInstance as unknown as { refreshKey(): Promise<void> }).refreshKey();
-    expect(fixture.componentInstance.keySet()).toBe(false);
   });
 
   it('explains when AI is unavailable', async () => {

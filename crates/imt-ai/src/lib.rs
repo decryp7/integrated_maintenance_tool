@@ -1,5 +1,6 @@
 //! IMT's local AI layer. Inference runs in a separate worker process (`imt-ai-worker`, llama.cpp) so a native
-//! crash cannot take IMT down; nothing about the logs leaves the machine except web searches the user approves. The LLM only proposes: every proposal is validated and previewed by `imt-core`
+//! crash cannot take IMT down; nothing about the logs leaves the machine (web pages reach the model only when the user hands them over
+//! from the internal browser, as untrusted data). The LLM only proposes: every proposal is validated and previewed by `imt-core`
 //! before the user can apply it.
 
 pub mod access;

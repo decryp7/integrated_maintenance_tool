@@ -43,7 +43,6 @@ export interface AiErrorPayload {
 
 export type EngineState =
   'unavailable' | 'disabled' | 'noModel' | 'idle' | 'loading' | 'ready' | 'failed';
-export type WebProvider = 'none' | 'searxng' | 'brave' | 'manual';
 
 export interface AiStatus {
   available: boolean;
@@ -55,7 +54,6 @@ export interface AiStatus {
   notes: string[];
   safeMode: boolean;
   setupRunning: boolean;
-  webSearch: WebProvider;
 }
 
 export interface Gpu {
@@ -371,16 +369,6 @@ export type ChatEvent =
   | { type: 'toolStarted'; name: string; args: string }
   | { type: 'toolFinished'; name: string; summary: string; error: boolean; evidence: Evidence }
   | { type: 'proposal'; proposal: Proposal }
-  | {
-      type: 'approvalRequired';
-      requestId: number;
-      kind: 'search' | 'fetch';
-      text: string;
-      domain: string | null;
-      provider: string;
-      editable: boolean;
-    }
-  | { type: 'searchSuggestion'; query: string; openUrl: string }
   | { type: 'done'; text: string; citations: Citation[]; usage: Usage; notes: string[] }
   | { type: 'error'; message: string; cancelled: boolean };
 
@@ -410,7 +398,6 @@ export interface ChatRecord {
   id: string;
   title: string;
   turns: TurnRecord[];
-  allowSearches: boolean;
 }
 
 /** Saved with the project and the session under the UI state key `chats`. */
@@ -423,12 +410,6 @@ export interface RestoreResult {
   sessions: SessionInfo[];
   warning: string | null;
 }
-
-export type ApprovalDecision =
-  | { kind: 'allow' }
-  | { kind: 'allowEdited'; text: string }
-  | { kind: 'allowSearchesInChat' }
-  | { kind: 'deny' };
 
 /** Where a proposal's sample comes from: text the user gave, or the lines around an event. */
 export interface SampleSource {

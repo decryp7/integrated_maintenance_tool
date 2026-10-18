@@ -24,7 +24,7 @@ export function fingerprint(text: string): string {
 
 const SECRET_KEYS = ['secret', 'token', 'password', 'passwd', 'credential', 'cookie', 'authorization', 'apikey'];
 
-/** Names of secret values (`ApiKey`, `braveKey`, `api_key`, `Token`, ...), not `Keys` or `Keybinding`. Same rule as the engine. */
+/** Names of secret values (`ApiKey`, `serviceKey`, `api_key`, `Token`, ...), not `Keys` or `Keybinding`. Same rule as the engine. */
 export function isSecretKey(key: string): boolean {
   const k = key.toLowerCase();
   return k === 'auth' || k.endsWith('key') || k.includes('_key') || SECRET_KEYS.some((s) => k.includes(s));

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { QueryProposal, TurnRecord } from '../ai.types';
-import { ALL_CONTEXT, buildContext, ContextSources, decidedState, describeContext, reduceTurn, startTurn, toolLabel, turnFromRecord } from './chat-model';
-import { at } from '../../../testing/must';
+import { ALL_CONTEXT, buildContext, ContextSources, describeContext, reduceTurn, startTurn, toolLabel, turnFromRecord } from './chat-model';
 
 const q: QueryProposal = { kind: 'query', ql: 'level >= error', explanation: 'e', estimatedMatches: 2, repaired: false };
 const ev = { recordIds: [], queries: [] };
@@ -19,23 +18,19 @@ describe('reduceTurn', () => {
       [false, '3 events', '{"b":1}'],
     ]);
     // A finish without a start still shows a chip.
-    t = reduceTurn(t, { type: 'toolFinished', name: 'web_search', summary: 'declined', error: true, evidence: ev });
-    expect(t.tools[2]).toEqual({ name: 'web_search', args: '', running: false, summary: 'declined', error: true });
+    t = reduceTurn(t, { type: 'toolFinished', name: 'get_events', summary: 'declined', error: true, evidence: ev });
+    expect(t.tools[2]).toEqual({ name: 'get_events', args: '', running: false, summary: 'declined', error: true });
     t = reduceTurn(t, { type: 'proposal', proposal: q });
-    t = reduceTurn(t, { type: 'approvalRequired', requestId: 1, kind: 'search', text: 'x', domain: null, provider: 'brave', editable: true });
-    t = reduceTurn(t, { type: 'searchSuggestion', query: 'x', openUrl: 'https://duckduckgo.com/?q=x' });
     t = reduceTurn(t, { type: 'delta', text: 'Done.' });
     const done = reduceTurn(t, { type: 'done', text: 'Final', citations: [{ kind: 'query', ql: 'a' }], usage: { inputTokens: 1, outputTokens: 2 }, notes: ['n'] });
     expect(done).toMatchObject({ text: 'Final', running: false, notes: ['n'], usage: { inputTokens: 1, outputTokens: 2 } });
     expect(done.tools.every((c) => !c.running)).toBe(true);
-    expect(done.approvals[0]?.state).toBe('denied');
     expect(done.proposals).toEqual([{ proposal: q, state: 'open' }]);
-    expect(done.suggestions).toHaveLength(1);
 
     const failed = reduceTurn(t, { type: 'error', message: 'engine down', cancelled: false });
-    expect([failed.error, failed.cancelled, failed.running, failed.approvals[0]?.state]).toEqual(['engine down', false, false, 'denied']);
-    const stopped = reduceTurn({ ...t, approvals: [{ ...at(t.approvals, 0), state: 'allowed' }] }, { type: 'error', message: 'cancelled', cancelled: true });
-    expect([stopped.error, stopped.cancelled, stopped.approvals[0]?.state]).toEqual([null, true, 'allowed']);
+    expect([failed.error, failed.cancelled, failed.running]).toEqual(['engine down', false, false]);
+    const stopped = reduceTurn(t, { type: 'error', message: 'cancelled', cancelled: true });
+    expect([stopped.error, stopped.cancelled]).toEqual([null, true]);
   });
 });
 
@@ -63,13 +58,6 @@ describe('turnFromRecord', () => {
 });
 
 describe('helpers', () => {
-  it('maps decisions to states', () => {
-    expect(decidedState({ kind: 'allow' })).toBe('allowed');
-    expect(decidedState({ kind: 'allowEdited', text: 'x' })).toBe('edited');
-    expect(decidedState({ kind: 'allowSearchesInChat' })).toBe('allowedForChat');
-    expect(decidedState({ kind: 'deny' })).toBe('denied');
-  });
-
   const src: ContextSources = { ql: ' level >= error ', range: { from: 1, to: 2 }, selectedIds: Array.from({ length: 25 }, (_, i) => i), instance: 'WEB01', view: 'grid' };
 
   it('builds the context from what is on and describes it', () => {
@@ -85,7 +73,7 @@ describe('helpers', () => {
 
   it('names tools for their chips', () => {
     expect(toolLabel('run_query')).toBe('Query');
-    expect(toolLabel('web_search')).toBe('Web search');
+    expect(toolLabel('get_events')).toBe('Read events');
     expect(toolLabel('my_tool')).toBe('my tool');
   });
 });

@@ -7,7 +7,7 @@ import { ChatHistoryRecord } from './ai.types';
 /**
  * The window's chats as part of the project and session UI state (key `chats`, `ChatHistoryRecord` v1).
  * The engine owns the chats; this keeps the last copy it returned so saving stays synchronous, and hands
- * saved chats back to the engine (which validates them: old projects have none, damaged ones are dropped).
+ * saved chats back to the engine (which validates them: damaged or newer ones are dropped).
  */
 @Injectable({ providedIn: 'root' })
 export class AiChatPersistence {

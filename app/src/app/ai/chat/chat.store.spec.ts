@@ -122,23 +122,6 @@ describe('ChatStore', () => {
     expect(store.activeTurns()[0]?.cancelled).toBe(true);
   });
 
-  it('answers web-search approvals', async () => {
-    const { store, backend } = setup({ web: true });
-    await store.init();
-    await store.respond(1, { kind: 'allow' });
-    await store.send('search the web for this');
-    await vi.waitFor(() => expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('pending'));
-    const fail = vi.spyOn(backend, 'approvalRespond').mockRejectedValueOnce(new AiError('invalid', 'empty'));
-    await store.respond(1, { kind: 'allowEdited', text: '' });
-    expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('pending');
-    expect(store.error()).toBe('empty');
-    fail.mockRestore();
-    await store.respond(1, { kind: 'deny' });
-    await done(store);
-    expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('denied');
-    expect(store.activeTurns()[0]?.text).toContain('declined');
-  });
-
   it('manages several chats', async () => {
     const { store, backend } = setup();
     await store.init();
@@ -210,7 +193,7 @@ describe('ChatStore', () => {
     const { store } = setup();
     await store.init();
     const p = TestBed.inject(AiChatPersistence);
-    await p.restore({ version: 1, sessions: [{ id: 'chat-5', title: 'Saved', turns: [{ user: 'u', assistant: 'a', citations: [], proposals: [], web: [], cancelled: false, usage: { inputTokens: 0, outputTokens: 0 } }], allowSearches: false }] });
+    await p.restore({ version: 1, sessions: [{ id: 'chat-5', title: 'Saved', turns: [{ user: 'u', assistant: 'a', citations: [], proposals: [], web: [], cancelled: false, usage: { inputTokens: 0, outputTokens: 0 } }] }] });
     await store.reload();
     expect(store.activeId()).toBe('chat-5');
     expect(store.activeTurns()[0]?.text).toBe('a');
@@ -250,7 +233,6 @@ describe('ChatStore', () => {
   it('does nothing without an active chat', async () => {
     const { store } = setup();
     await store.cancel();
-    await store.respond(1, { kind: 'allow' });
     store.setProposalState(0, 0, 'applied');
     expect(await store.send('q')).toBe(false);
   });

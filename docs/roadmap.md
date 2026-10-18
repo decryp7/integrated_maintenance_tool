@@ -169,9 +169,10 @@ planned.)*
   (downloaded on demand like a model, ADR 0009), driven by a supervised worker process, runs a GGUF model chosen for the machine's hardware (one-click download from Hugging
   Face with checksum verification). It chats about the workspace with read-only engine tools and
   cited evidence, and proposes regexes, profiles, pipelines, markers, extractors and queries that
-  the engine validates and previews before the user applies them. Optional web search for error
-  codes is off by default, uses engine-built redacted queries and needs approval per request.
-- **Internal web browser** *(next; replaces the AI's web search: SearXNG and Brave are removed)*:
+  the engine validates and previews before the user applies them. The AI never searches the web
+  itself: the SearXNG and Brave web search it used to offer was removed in favour of the internal
+  browser below.
+- **Internal web browser** *(next; replaces the AI's web search)*:
   - A sandboxed browser window that the user drives: *Search the web for this error* opens the
     user's chosen engine.
   - *Add page to AI context* hands the visible page's text to the model as cited, untrusted

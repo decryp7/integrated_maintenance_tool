@@ -6,6 +6,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 const TAG: &str = "b200";
+/// The file name of an autosaved session (`lifecycle`).
+const SESSION_FILE: &str = "last-session.imtproj";
 
 /// Sets a file's modification time.
 fn touch(path: &Path, t: SystemTime) {
@@ -200,7 +202,6 @@ fn session_backups_older_than_this_run_are_cleared_and_this_runs_are_kept() {
     file_at(&data.join("sessions").join("main").join(SESSION_FILE), 10, t.new);
     file_at(&data.join("sessions").join("w-2").join(SESSION_FILE), 20, t.old);
     file_at(&data.join("recovered").join("main").join(SESSION_FILE), 30, t.old);
-    file_at(&data.join(SESSION_FILE), 40, t.old);
     write(&data.join("sessions").join("manifest.json"), 1);
     write(&data.join("running.marker"), 1);
 
@@ -208,7 +209,7 @@ fn session_backups_older_than_this_run_are_cleared_and_this_runs_are_kept() {
     let mut f = folders(&d.0, None, Some(t.start));
     f.previous_crash = true;
     let r = clear_one(&f, CategoryId::Sessions);
-    assert_eq!(r.freed_bytes, 60);
+    assert_eq!(r.freed_bytes, 20);
     assert!(data.join("recovered").join("main").join(SESSION_FILE).is_file());
     assert!(r.skipped.iter().any(|s| s.reason.contains("crash")));
 
@@ -221,7 +222,6 @@ fn session_backups_older_than_this_run_are_cleared_and_this_runs_are_kept() {
     );
     assert!(r.skipped.iter().any(|s| s.reason == "saved in this session"));
     assert!(!data.join("sessions").join("w-2").exists());
-    assert!(!data.join(SESSION_FILE).exists());
     assert!(
         data.join("sessions").join("manifest.json").is_file(),
         "only session folders are removed"

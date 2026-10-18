@@ -1,6 +1,6 @@
-//! The local AI assistant (`imt-ai`): set-up and models, the use cases, chat with approvals for web
-//! search, and the Settings → AI section. Inference runs in one `imt-ai-worker` process shared by every
-//! window (a downloaded llama.cpp `llama-server` build, ADR 0009; never a cloud service); each window has its own chats.
+//! The local AI assistant (`imt-ai`): set-up and models, the use cases, chat, and the Settings → AI section.
+//! Inference runs in one `imt-ai-worker` process shared by every window (a downloaded llama.cpp
+//! `llama-server` build, ADR 0009; never a cloud service); each window has its own chats.
 //!
 //! Everything is optional: in safe mode, without the worker binary or before a model is set up, every
 //! command fails with a typed [`AiCmdError`] (`code` = `unavailable` / `noModel`) and the UI hides or greys
@@ -10,7 +10,6 @@
 //! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat), `imt://ai-runtime`
 //! (inference runtime downloads, all windows).
 
-mod approvals;
 mod chats;
 pub(crate) mod commands;
 mod core;

@@ -21,7 +21,7 @@ disabled, quarantined and left out in safe mode:
 |---|---|
 | Workspace/`LogStore`, record model, built-in text/JSON/CLEF/CSV importers, archives | Extra formats: registry, msinfo, EVTX, BLG, PerfMon CSV, W3C/HAR, OTel, syslog/journald |
 | Profiles, pipelines, markers, query language, timeline/grid/facets/charts | Tools: PerfMon control, process monitor, diagnostics collector |
-| Plugin host, guard/quarantine, safe mode, session recovery, settings host | AI assistant (local LLM), web search for it |
+| Plugin host, guard/quarantine, safe mode, session recovery, settings host | AI assistant (local LLM), the internal web browser |
 | IMT's own logging, error snapshots, crash detection | Profilers (.NET, C++), WebView2 diagnostics |
 | | Analysis extras where they are optional (traces/requests); exporters beyond CSV/CLEF |
 

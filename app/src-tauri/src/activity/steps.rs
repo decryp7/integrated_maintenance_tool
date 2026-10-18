@@ -82,8 +82,6 @@ fn describe(b: &Breadcrumb) -> String {
         "live.off" => "Turned live tail off".into(),
         "ai.ask" => "Asked the AI assistant".into(),
         "ai.applyProposal" => "Applied an AI proposal".into(),
-        "ai.webSearch.approve" => "Approved a web search".into(),
-        "ai.webSearch.deny" => "Denied a web search".into(),
         "edit.undo" => "Undid the last change".into(),
         "edit.redo" => "Redid the last change".into(),
         _ if op.starts_with("ipc.") => format!("Ran {}", param(b, "Command").unwrap_or(&op[4..])),

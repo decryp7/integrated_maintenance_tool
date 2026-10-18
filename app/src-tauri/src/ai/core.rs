@@ -1,8 +1,7 @@
 //! The app-wide AI runtime: settings, the model catalog and folder, set-up, and the one active model shared
 //! by every window (one worker process, loaded lazily and unloaded when idle). Plain Rust, no Tauri, so it is
-//! testable with the fakes of `imt-ai` (scripted provider, fake runtime, memory secrets).
+//! testable with the fakes of `imt-ai` (scripted provider, fake runtime).
 
-use super::approvals::Approvals;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::{RuntimeDeps, RuntimeJobs};
 use imt_ai::assistant::{Assistant, AssistantConfig};
@@ -16,7 +15,6 @@ use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommend
 use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, LoadRequest, ModelRuntime};
 use imt_ai::settings::AiSettings;
 use imt_ai::setup::{Setup, SetupPlan, SetupStage};
-use imt_ai::web::{KeyringSecretStore, LogAudit, SecretStore, WebHttpConfig, WebProvider, WebToolkit, BRAVE_SECRET_NAME};
 use imt_ai::worker::{GrpcLauncher, Health, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use serde::Serialize;
@@ -25,12 +23,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::Duration;
 
-/// Keychain service name for IMT's secrets.
-pub const KEYCHAIN_SERVICE: &str = "net.decryptology.imt";
 const SETTINGS_FILE: &str = "ai.json";
 const CATALOG_FILE: &str = "local-models.json";
 const MAX_TOOL_ROUNDS: usize = 6;
-const MAX_KEY_CHARS: usize = 200;
 const MAX_PATH_CHARS: usize = 4096;
 
 /// Builds the download source from the current settings (endpoint, proxy).
@@ -44,7 +39,6 @@ pub struct AiDeps {
     pub probe: Arc<dyn HardwareProbe + Send + Sync>,
     pub source: SourceFactory,
     pub disk: Arc<dyn DiskSpace>,
-    pub secrets: Arc<dyn SecretStore>,
     /// The worker binary; when it is missing the AI is unavailable. `None` skips the check (tests).
     pub worker_path: Option<PathBuf>,
     pub download_backoff: Duration,
@@ -81,7 +75,6 @@ impl AiDeps {
                 Ok(Box::new(HuggingFace::new(cfg)?) as Box<dyn ModelSource>)
             }),
             disk: Arc::new(SystemDisk),
-            secrets: Arc::new(KeyringSecretStore::new(KEYCHAIN_SERVICE)),
             worker_path: Some(worker),
             download_backoff: Duration::from_secs(2),
             runtimes,
@@ -123,7 +116,6 @@ pub struct AiStatus {
     pub notes: Vec<String>,
     pub safe_mode: bool,
     pub setup_running: bool,
-    pub web_search: WebProvider,
 }
 
 /// An installed model with what it means for this machine.
@@ -261,7 +253,6 @@ pub struct AiCore {
     setup: Mutex<Option<Arc<Progress>>>,
     /// Runtime installs and the cached build report.
     pub(super) jobs: RuntimeJobs,
-    pub approvals: Arc<Approvals>,
 }
 
 impl AiCore {
@@ -293,7 +284,6 @@ impl AiCore {
             info: Arc::default(),
             setup: Mutex::default(),
             jobs: RuntimeJobs::default(),
-            approvals: Arc::default(),
         };
         core.install_active(None);
         core
@@ -436,28 +426,7 @@ impl AiCore {
         ))
     }
 
-    /// The web tools for a chat turn, when web search is configured (it is off by default).
-    pub fn web_toolkit(&self) -> Option<WebToolkit> {
-        let s = self.settings();
-        if s.web_search.provider == WebProvider::None {
-            return None;
-        }
-        match WebToolkit::from_settings(
-            &s.web_search,
-            self.deps.secrets.clone(),
-            WebHttpConfig::default(),
-            Arc::new(LogAudit),
-        ) {
-            Ok(kit) => Some(kit),
-            Err(e) => {
-                log::warn!("AI: web search is configured but unusable: {e}");
-                None
-            }
-        }
-    }
-
     pub fn status(&self) -> AiStatus {
-        let settings = self.settings();
         let mut notes = self.warnings.clone();
         let info = lock(&self.info);
         notes.extend(info.notes.iter().cloned());
@@ -471,7 +440,6 @@ impl AiCore {
             notes,
             safe_mode: self.safe_mode,
             setup_running: self.setup_running(),
-            web_search: settings.web_search.provider,
         };
         drop(info);
         if let Err(e) = self.availability() {
@@ -728,7 +696,7 @@ impl AiCore {
             .ok_or_else(|| AiCmdError::new(AiErrorCode::Io, "the model was added but cannot be listed"))
     }
 
-    // ---- settings and secrets ----
+    // ---- settings ----
 
     fn update_settings(&self, f: impl FnOnce(&mut AiSettings)) -> AiResult<AiSettings> {
         let mut s = self.settings();
@@ -769,24 +737,6 @@ impl AiCore {
             }
         }
         Ok(())
-    }
-
-    /// Stores the Brave Search API key in the OS keychain (never in a file; it cannot be read back).
-    pub fn set_brave_key(&self, key: &str) -> AiResult<()> {
-        let k = key.trim();
-        if k.is_empty() || k.chars().count() > MAX_KEY_CHARS || k.chars().any(|c| c.is_whitespace() || c.is_control()) {
-            return Err(AiCmdError::invalid("paste the API key exactly as Brave shows it"));
-        }
-        Ok(self.deps.secrets.set(BRAVE_SECRET_NAME, k)?)
-    }
-
-    pub fn clear_brave_key(&self) -> AiResult<()> {
-        Ok(self.deps.secrets.delete(BRAVE_SECRET_NAME)?)
-    }
-
-    /// Whether a key is stored (never the key itself).
-    pub fn brave_key_set(&self) -> bool {
-        self.deps.secrets.get(BRAVE_SECRET_NAME).ok().flatten().is_some()
     }
 }
 

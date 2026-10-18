@@ -5,8 +5,8 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { GridSelection } from '../../grid/grid-selection';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
-import { ApprovalDecision, ChatEventEnvelope, SessionInfo } from '../ai.types';
-import { ALL_CONTEXT, buildContext, ContextSources, ContextToggles, decidedState, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
+import { ChatEventEnvelope, SessionInfo } from '../ai.types';
+import { ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
 
 interface ChatState {
   sessions: SessionInfo[];
@@ -173,21 +173,6 @@ export const ChatStore = signalStore(
       async cancel(): Promise<void> {
         const id = store.activeId();
         if (id) await backend.chatCancel(id).catch(fail);
-      },
-
-      async respond(requestId: number, decision: ApprovalDecision): Promise<void> {
-        const id = store.activeId();
-        if (!id) return;
-        const mark = (state: ReturnType<typeof decidedState> | 'sending' | 'pending') =>
-          setTurns(id, (turns) => turns.map((t) => ({ ...t, approvals: t.approvals.map((a) => (a.requestId === requestId && t.running ? { ...a, state } : a)) })));
-        mark('sending');
-        try {
-          await backend.approvalRespond(id, requestId, decision);
-          mark(decidedState(decision));
-        } catch (e) {
-          mark('pending');
-          fail(e);
-        }
       },
 
       setProposalState(turnIndex: number, proposalIndex: number, state: 'applied' | 'dismissed'): void {

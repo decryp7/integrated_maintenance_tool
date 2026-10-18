@@ -5,7 +5,7 @@ import { openMenu } from './menu-support';
 import { hideInspectorFlyout } from './app';
 
 // The assistant chat against the scripted AI mock (src/app/core/mock/mock-ai-backend.ts): streaming with tool
-// chips, evidence links, proposals applied through the normal save paths, and web-search approvals.
+// chips, evidence links, and proposals applied through the normal save paths.
 
 test.describe('AI chat', () => {
   test('streams an answer with a tool chip, and a cited event jumps to the grid', async ({ page }, testInfo) => {
@@ -96,41 +96,5 @@ test.describe('AI chat', () => {
     await expect(card).toContainText('Pipeline steps added to the profile');
     await openMenu(page, 'Edit');
     await expect(page.getByRole('menuitem', { name: /^Undo AI: pipeline steps/ })).toBeVisible();
-  });
-
-  test('web searches wait for approval: deny, send, edit and open a source after confirming', async ({ page }, testInfo) => {
-    await openAiApp(page, 'mockAiWeb=1');
-    const chat = await openChat(page);
-
-    await ask(chat, 'search the web for this timeout');
-    const prompt = chat.getByTestId('ai-approval').last();
-    await expect(prompt).toContainText('Search the web for:');
-    await expect(prompt).toContainText('System.TimeoutException payment gateway');
-    for (const name of ['Send', 'Edit', 'Deny', 'Allow for this chat']) await expect(prompt.getByRole('button', { name, exact: true })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'ai-approval', 'imt-ai-chat-panel');
-    await prompt.getByRole('button', { name: 'Deny' }).click();
-    await expect(prompt).toContainText('Not sent');
-    await waitAnswered(chat);
-    await expect(chat.getByTestId('ai-answer-0')).toContainText('declined the web search');
-
-    await ask(chat, 'search the web again');
-    const second = chat.getByTestId('ai-answer-1').getByTestId('ai-approval');
-    await second.getByRole('button', { name: 'Send', exact: true }).click();
-    await waitAnswered(chat);
-    const answer = chat.getByTestId('ai-answer-1');
-    await expect(answer).toContainText('Web sources:');
-    await answer.locator('.sources').getByRole('button', { name: 'TimeoutException troubleshooting' }).click();
-    const confirm = page.getByRole('dialog', { name: 'Open web page?' });
-    await expect(confirm).toContainText('https://learn.example.com/dotnet/timeouts');
-    await confirm.getByRole('button', { name: 'Cancel' }).click();
-    await expect(confirm).toHaveCount(0);
-
-    await ask(chat, 'search the web once more');
-    const third = chat.getByTestId('ai-answer-2').getByTestId('ai-approval');
-    await third.getByRole('button', { name: 'Edit' }).click();
-    await third.getByRole('textbox', { name: 'Search text to send' }).fill('TimeoutException gateway pool');
-    await third.getByRole('button', { name: 'Send edited' }).click();
-    await expect(third).toContainText('Sent (edited)');
-    await waitAnswered(chat);
   });
 });

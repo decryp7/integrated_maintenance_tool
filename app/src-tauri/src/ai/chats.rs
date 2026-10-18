@@ -206,8 +206,8 @@ impl WindowChats {
         inner.slots = slots;
     }
 
-    /// Whether `url` is a web source or suggested search shown in one of these chats (the only links
-    /// the chat may open in the browser).
+    /// Whether `url` is a web source shown in one of these chats (the only links the chat may open in the
+    /// system browser).
     pub fn knows_url(&self, url: &str) -> bool {
         use imt_ai::assistant::Citation;
         use imt_ai::chat::ChatEvent;
@@ -216,7 +216,6 @@ impl WindowChats {
             s.record.turns.iter().any(|t| {
                 t.web.iter().any(|w| w.url == url) || t.citations.iter().any(|c| matches!(c, Citation::Web { url: u, .. } if u == url))
             }) || s.replay.iter().any(|e| match &e.event {
-                ChatEvent::SearchSuggestion { open_url, .. } => open_url == url,
                 ChatEvent::Done { citations, .. } => citations.iter().any(|c| matches!(c, Citation::Web { url: u, .. } if u == url)),
                 _ => false,
             })
@@ -311,16 +310,6 @@ mod tests {
         c.push_event(
             &id,
             &Envelope {
-                seq: 1,
-                event: ChatEvent::SearchSuggestion {
-                    query: "q".into(),
-                    open_url: "https://duckduckgo.com/?q=q".into(),
-                },
-            },
-        );
-        c.push_event(
-            &id,
-            &Envelope {
                 seq: 2,
                 event: ChatEvent::Done {
                     text: String::new(),
@@ -334,12 +323,7 @@ mod tests {
             },
         );
         c.push_event(&id, &env(3));
-        for u in [
-            "https://a.example/",
-            "https://b.example/",
-            "https://duckduckgo.com/?q=q",
-            "https://c.example/",
-        ] {
+        for u in ["https://a.example/", "https://b.example/", "https://c.example/"] {
             assert!(c.knows_url(u), "{u}");
         }
         assert!(!c.knows_url("https://evil.example/"));

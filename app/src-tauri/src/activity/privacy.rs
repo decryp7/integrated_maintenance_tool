@@ -27,7 +27,7 @@ pub fn fingerprint(text: &str) -> String {
     format!("{h:08x}")
 }
 
-/// Parameter names whose values are secrets, whatever they contain: `ApiKey`, `braveKey`, `api_key`,
+/// Parameter names whose values are secrets, whatever they contain: `ApiKey`, `serviceKey`, `api_key`,
 /// `Token`, `Password`, `Authorization`, ... (but not `Keys` or `Keybinding`, which name things).
 pub fn is_secret_key(key: &str) -> bool {
     let k = key.to_ascii_lowercase();
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn secrets_are_never_logged() {
-        assert_eq!(safe_param("braveApiKey", "abc"), SECRET);
+        assert_eq!(safe_param("serviceApiKey", "abc"), SECRET);
         assert_eq!(safe_param("Token", "abc"), SECRET);
         assert_eq!(safe_param("Password", ""), SECRET);
         assert!(is_secret_key("api_key_id") && is_secret_key("Authorization") && is_secret_key("auth"));

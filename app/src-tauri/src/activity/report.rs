@@ -662,7 +662,7 @@ pub(crate) mod tests {
         .unwrap();
         std::fs::write(
             config.join("settings.json"),
-            r#"{"version":1,"sections":{"ai":{"braveApiKey":"sk-secret","model":"small"},"web":{"token":"t0k"}}}"#,
+            r#"{"version":1,"sections":{"ai":{"serviceApiKey":"sk-secret","model":"small"},"web":{"token":"t0k"}}}"#,
         )
         .unwrap();
         let store = SnapshotStore::new(logs.join("snapshots"), Some(logs.join("imt.log")), Limits::default());
@@ -736,7 +736,7 @@ pub(crate) mod tests {
         assert_eq!(zip_text(&mut zip, "description.txt"), "It crashed when I exported");
         let info = zip_text(&mut zip, "system-info.json");
         assert!(
-            !info.contains("sk-secret") && !info.contains("t0k") && !info.contains("braveApiKey"),
+            !info.contains("sk-secret") && !info.contains("t0k") && !info.contains("serviceApiKey"),
             "{info}"
         );
         assert!(info.contains("\"model\": \"small\"") && info.contains("sessionId") && info.contains("commit"));

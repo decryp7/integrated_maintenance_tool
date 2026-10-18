@@ -69,7 +69,7 @@ describe('activity privacy', () => {
   });
 
   it('masks secrets by name and content, redacts paths, caps and drops empties', () => {
-    expect(isSecretKey('braveApiKey')).toBe(true);
+    expect(isSecretKey('serviceApiKey')).toBe(true);
     expect([isSecretKey('Keys'), isSecretKey('Keybinding'), isSecretKey('api_key_id'), isSecretKey('Authorization')]).toEqual([false, false, true, true]);
     expect(safeParam('Token', 'abc')).toBe('***');
     expect(safeParam('Note', 'Bearer abc.def')).toBe('***');
@@ -395,7 +395,7 @@ describe('steps to reproduce (mock port)', () => {
       '14. Asked the AI assistant with a button',
     ]);
     expect(steps([b('x', 'unknown', {}, { outcome: 'error' })])).toEqual(['1. Ran x → error E_UNKNOWN']);
-    const other = ['dock.open', 'dock.dockBack', 'dock.autoHide', 'live.off', 'ai.applyProposal', 'ai.webSearch.approve', 'ai.webSearch.deny', 'edit.redo', 'selection.change', 'settings.change'];
+    const other = ['dock.open', 'dock.dockBack', 'dock.autoHide', 'live.off', 'ai.applyProposal', 'edit.redo', 'selection.change', 'settings.change'];
     expect(steps(other.map((o) => b(o, 'unknown'))).length).toBe(other.length);
     expect(steps([b('settings.change', 'x', { Section: 'ai' })])).toEqual(['1. Changed ai settings']);
     expect(steps([b('file.export', 'x', { Path: 'a.csv' }), b('file.save', 'x'), b('file.open', 'x', { Path: 'a' })])).toEqual([

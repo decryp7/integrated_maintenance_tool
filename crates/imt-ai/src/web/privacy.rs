@@ -1,6 +1,5 @@
-//! The privacy guard for web search. The model never sends text of its own: it names an intent (exception
-//! type, error code, a message pattern, a product) and the ENGINE builds the query from those parts, then
-//! redacts it. Redaction removes hostnames, addresses, e-mails, user names, file paths, GUIDs, URLs, tokens,
+//! The privacy guard for anything headed to the web (search queries, browser actions). A search query is built by
+//! the ENGINE from an intent (exception type, error code, a message pattern, a product), then redacted. Redaction removes hostnames, addresses, e-mails, user names, file paths, GUIDs, URLs, tokens,
 //! keys and long numbers, and the result is capped in length. Everything that survives is generic enough
 //! to type into a search box.
 

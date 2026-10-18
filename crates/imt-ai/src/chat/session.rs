@@ -6,12 +6,9 @@ use super::context::{resolve, ChatContext};
 use super::host::{propose_specs, ChatHost};
 use super::persist::{ChatRecord, TurnRecord};
 use crate::access::StoreRef;
-use crate::assistant::{
-    parse_citations, truncate_chars, Assistant, Citation, EngineTools, Evidence, LoopEvent, Proposal, ToolHost, ANALYST_SYSTEM,
-};
+use crate::assistant::{parse_citations, truncate_chars, Assistant, Citation, EngineTools, Evidence, LoopEvent, Proposal, ANALYST_SYSTEM};
 use crate::error::{AiError, Result};
 use crate::llm::{ChatMessage, LlmProvider, Usage};
-use crate::web::{Approver, WebToolkit, WebTools};
 use serde::Serialize;
 use serde_json::Value;
 use std::cell::RefCell;
@@ -37,8 +34,6 @@ All conditions go before the first | joined with `and` (wrong: `level >= error |
 The `total` in a run_query result is the exact number of matching events: quote it and never add up numbers yourself. \
 Never state a number, time or name from memory: if the question needs data, call a tool, even when an earlier answer seems related.";
 
-const WEB_RULES: &str = "\nWhen the user asks you to look something up on the web, call web_search with query_intent fields (exception_type, error_code, product) taken from the event; never put names, hosts, addresses or paths in free_text.";
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ChatEvent {
@@ -58,20 +53,6 @@ pub enum ChatEvent {
     /// An engine-validated proposal; the UI shows it with an Apply button.
     Proposal {
         proposal: Proposal,
-    },
-    /// A web search or page fetch is waiting for the user's decision.
-    ApprovalRequired {
-        request_id: u64,
-        kind: String,
-        text: String,
-        domain: Option<String>,
-        provider: String,
-        editable: bool,
-    },
-    /// Manual web mode: the suggested search for the user to run themselves.
-    SearchSuggestion {
-        query: String,
-        open_url: String,
     },
     Done {
         text: String,
@@ -115,9 +96,12 @@ pub struct ChatEnv<'a, P: LlmProvider> {
     pub assistant: &'a Assistant<P>,
     /// The workspace, borrowed per tool call (never across generation); `&dyn LogStore` converts with `.into()`.
     pub store: StoreRef<'a>,
-    /// Web search (off unless configured).
-    pub web: Option<&'a WebToolkit>,
-    pub approver: &'a dyn Approver,
+}
+
+impl<'a, P: LlmProvider> ChatEnv<'a, P> {
+    pub fn new(assistant: &'a Assistant<P>, store: StoreRef<'a>) -> Self {
+        ChatEnv { assistant, store }
+    }
 }
 
 pub struct ChatSession {
@@ -126,7 +110,6 @@ pub struct ChatSession {
     turns: Vec<TurnRecord>,
     next_seq: u64,
     replay: VecDeque<Envelope>,
-    allow_searches: bool,
 }
 
 struct TurnOutcome {
@@ -136,8 +119,6 @@ struct TurnOutcome {
     web: Vec<crate::assistant::WebSource>,
     usage: Usage,
     notes: Vec<String>,
-    /// The user chose "allow searches for this chat" during the turn.
-    grant_searches: bool,
 }
 
 impl ChatSession {
@@ -148,7 +129,6 @@ impl ChatSession {
             turns: vec![],
             next_seq: 1,
             replay: VecDeque::new(),
-            allow_searches: false,
         }
     }
 
@@ -159,7 +139,6 @@ impl ChatSession {
             turns: r.turns,
             next_seq: 1,
             replay: VecDeque::new(),
-            allow_searches: r.allow_searches,
         }
     }
 
@@ -168,7 +147,6 @@ impl ChatSession {
             id: self.id.clone(),
             title: self.title.clone(),
             turns: self.turns.clone(),
-            allow_searches: self.allow_searches,
         }
     }
 
@@ -183,12 +161,6 @@ impl ChatSession {
     }
     pub fn turns(&self) -> &[TurnRecord] {
         &self.turns
-    }
-    pub fn allow_searches(&self) -> bool {
-        self.allow_searches
-    }
-    pub fn set_allow_searches(&mut self, v: bool) {
-        self.allow_searches = v;
     }
 
     /// Events after `seq` (so a reconnecting UI can resume the stream); `None` when too old to resume.
@@ -226,7 +198,6 @@ impl ChatSession {
         }
         let result = match outcome {
             Ok(o) => {
-                self.allow_searches |= o.grant_searches;
                 em.borrow_mut().emit(ChatEvent::Done {
                     text: o.text.clone(),
                     citations: o.citations.clone(),
@@ -302,20 +273,11 @@ impl ChatSession {
         let resolved = resolve(ctx, env.store, &engine, budget.context_chars);
         let emit = |e: ChatEvent| em.borrow_mut().emit(e);
         let mut host = ChatHost::new(a, env.store, engine, resolved.selected.first().copied(), budget.compact_tools);
-        let mut web_tools = None;
-        if let Some(w) = env.web.filter(|w| w.enabled()) {
-            let t = WebTools::new(w, env.approver, &emit, env.store, budget.tool_limits, self.allow_searches);
-            web_tools = Some(t.shared_state());
-            host = host.with_extra(Box::new(t) as Box<dyn ToolHost + '_>);
-        }
         let history: Vec<Turn> = self.turns.iter().map(TurnRecord::as_turn).collect();
         let kept = kept_turns(&history, budget.history_chars);
         let split = history.len() - kept;
         let summary = running_summary(&history[..split], budget.summary_chars);
         let mut system = format!("{ANALYST_SYSTEM}{CHAT_RULES}");
-        if env.web.is_some_and(|w| w.enabled()) {
-            system.push_str(WEB_RULES);
-        }
         if !summary.is_empty() {
             system.push_str(&format!("\nEarlier in this conversation:\n{summary}"));
         }
@@ -371,7 +333,6 @@ impl ChatSession {
                 url: w.url.clone(),
             });
         }
-        let grant_searches = web_tools.is_some_and(|s| s.allow_searches());
         Ok(TurnOutcome {
             text: r.text,
             citations,
@@ -379,7 +340,6 @@ impl ChatSession {
             web: r.web,
             usage: r.usage,
             notes,
-            grant_searches,
         })
     }
 }

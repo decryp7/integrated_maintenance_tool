@@ -1,7 +1,7 @@
 /**
  * A scripted local-AI backend for the browser build (ng serve, Playwright) and UI tests. It mimics the
  * contract of `app/src-tauri/src/ai` with plausible data: set-up progress on an 8 GB VRAM laptop, streamed
- * chat answers with tool activity, proposals, citations and web-search approvals. Never the reference for
+ * chat answers with tool activity, proposals and citations. Never the reference for
  * behaviour: the engine is.
  */
 import { AiBackend, AiError, Unlisten } from '../../ai/ai-backend';
@@ -9,7 +9,6 @@ import {
   AiErrorCode,
   AiRuntimeEvent,
   AiStatus,
-  ApprovalDecision,
   ChatContext,
   ChatEnvelope,
   ChatEvent,
@@ -26,7 +25,6 @@ import {
   SessionInfo,
   SetupEvent,
   TurnRecord,
-  WebProvider,
 } from '../../ai/ai.types';
 import {
   demoRecordIds,
@@ -61,8 +59,6 @@ export type AiFailable = (typeof AI_FAILABLE)[number];
 export interface MockAiOptions {
   /** `ready` (a model is active), `setup` (nothing set up yet), `off` (no AI in this build/run). */
   mode?: 'ready' | 'setup' | 'off';
-  /** Web search on (Brave): chat questions about the web ask for approval. */
-  web?: boolean;
   /** Delay between streamed pieces, ms (0 in unit tests). */
   stepMs?: number;
   fail?: AiFailable[];
@@ -73,7 +69,6 @@ export interface MockAiOptions {
 /**
  * Browser-demo switches (never used inside Tauri):
  *   ?mockAi=setup|off        start without a model, or with AI unavailable (hidden)
- *   ?mockAiWeb=1             web search is on (approvals in chat)
  *   ?mockAiFail=chat,setup   these operations fail (`runtime`: runtime downloads)
  *   ?mockAiRuntime=none|broken  no inference runtime installed, or one that finds no GPU
  *   ?mockAiStepMs=5          streaming speed
@@ -83,7 +78,6 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   const o: MockAiOptions = {};
   const mode = p.get('mockAi');
   if (mode === 'setup' || mode === 'off' || mode === 'ready') o.mode = mode;
-  if (p.get('mockAiWeb') === '1') o.web = true;
   const step = p.get('mockAiStepMs');
   if (step !== null && /^\d{1,4}$/.test(step)) o.stepMs = Number(step);
   const fail = (p.get('mockAiFail') ?? '')
@@ -109,17 +103,14 @@ export class MockAiBackend extends AiBackend {
   private readonly mode: 'ready' | 'setup' | 'off';
   private readonly stepMs: number;
   private readonly fails: Set<AiFailable>;
-  private web: WebProvider;
   private installed: InstalledModel[];
   private activeFile: string | null;
   private backend: string | null;
   private readonly rt: MockRuntimes;
   private setupCancelled = false;
   private setupRunning = false;
-  private braveKey = false;
   private readonly chats = new Map<string, MockChat>();
   private counter = 0;
-  private readonly approvals = new Map<string, (d: ApprovalDecision) => void>();
   private readonly setupHandlers = new Set<(e: SetupEvent) => void>();
   private readonly statusHandlers = new Set<(s: AiStatus) => void>();
   private readonly chatHandlers = new Set<(e: ChatEventEnvelope) => void>();
@@ -131,8 +122,6 @@ export class MockAiBackend extends AiBackend {
     this.mode = options.mode ?? 'ready';
     this.stepMs = options.stepMs ?? 25;
     this.fails = new Set(options.fail ?? []);
-    this.web = options.web ? 'brave' : 'none';
-    this.braveKey = !!options.web;
     const ready = this.mode === 'ready';
     this.installed = ready ? [installedFrom(catalogModel(1), true)] : [];
     this.activeFile = ready ? catalogModel(1).file : null;
@@ -177,7 +166,6 @@ export class MockAiBackend extends AiBackend {
         notes: [],
         safeMode: false,
         setupRunning: false,
-        webSearch: this.web,
       };
     }
     return {
@@ -190,7 +178,6 @@ export class MockAiBackend extends AiBackend {
       notes: [],
       safeMode: false,
       setupRunning: this.setupRunning,
-      webSearch: this.web,
     };
   }
 
@@ -537,7 +524,7 @@ export class MockAiBackend extends AiBackend {
       this.check();
       const id = `chat-${++this.counter}`;
       const c: MockChat = {
-        record: { id, title: '', turns: [], allowSearches: false },
+        record: { id, title: '', turns: [] },
         events: [],
         nextSeq: 1,
         running: false,
@@ -554,7 +541,6 @@ export class MockAiBackend extends AiBackend {
     return this.later(() => {
       const c = this.chats.get(sessionId);
       if (c) c.cancel = true;
-      this.approvals.get(sessionId)?.({ kind: 'deny' });
       return this.chats.delete(sessionId);
     }, 0);
   }
@@ -585,31 +571,6 @@ export class MockAiBackend extends AiBackend {
       await sleep(this.stepMs);
     }
     return !c.cancel;
-  }
-
-  private async askApproval(
-    c: MockChat,
-    requestId: number,
-    kind: 'search' | 'fetch',
-    text: string,
-    domain: string | null,
-  ): Promise<ApprovalDecision> {
-    if (c.record.allowSearches && kind === 'search') return { kind: 'allow' };
-    this.emitChat(c, {
-      type: 'approvalRequired',
-      requestId,
-      kind,
-      text,
-      domain,
-      provider: 'brave',
-      editable: kind === 'search',
-    });
-    const d = await new Promise<ApprovalDecision>((resolve) =>
-      this.approvals.set(`${c.record.id}#${requestId}`, resolve),
-    );
-    this.approvals.delete(`${c.record.id}#${requestId}`);
-    if (d.kind === 'allowSearchesInChat') c.record.allowSearches = true;
-    return d;
   }
 
   private async runTurn(c: MockChat, text: string): Promise<void> {
@@ -673,47 +634,7 @@ export class MockAiBackend extends AiBackend {
     };
     try {
       await sleep(this.stepMs);
-      if (this.web !== 'none' && /\b(web|internet|online|search)\b/.test(q)) {
-        this.emitChat(c, {
-          type: 'toolStarted',
-          name: 'web_search',
-          args: '{"query_intent":{"exception_type":"System.TimeoutException"}}',
-        });
-        const d = await this.askApproval(
-          c,
-          1,
-          'search',
-          'System.TimeoutException payment gateway',
-          null,
-        );
-        if (c.cancel) return finish(false, '');
-        if (d.kind === 'deny') {
-          this.emitChat(c, {
-            type: 'toolFinished',
-            name: 'web_search',
-            summary: 'declined',
-            error: false,
-            evidence: { recordIds: [], queries: [] },
-          });
-          answer =
-            'You declined the web search, so this answer uses only the logs: the payment gateway timed out repeatedly.';
-        } else {
-          this.emitChat(c, {
-            type: 'toolFinished',
-            name: 'web_search',
-            summary: '3 results',
-            error: false,
-            evidence: { recordIds: [], queries: [] },
-          });
-          const page = {
-            title: 'TimeoutException troubleshooting',
-            url: 'https://learn.example.com/dotnet/timeouts',
-          };
-          web.push(page);
-          citations.push({ kind: 'web', ...page });
-          answer = `A TimeoutException from the gateway usually means its connection pool is exhausted. See ${page.title} (${page.url}).`;
-        }
-      } else if (q.includes('regex')) {
+      if (q.includes('regex')) {
         await tool(
           'propose_regex',
           '{"example_lines":["…"]}',
@@ -804,8 +725,6 @@ export class MockAiBackend extends AiBackend {
       const c = this.chats.get(sessionId);
       if (!c?.running) return false;
       c.cancel = true;
-      for (const [k, resolve] of this.approvals)
-        if (k.startsWith(`${sessionId}#`)) resolve({ kind: 'deny' });
       return true;
     }, 0);
   }
@@ -872,16 +791,6 @@ export class MockAiBackend extends AiBackend {
       ];
     }, 0);
   }
-  approvalRespond(sessionId: string, requestId: number, decision: ApprovalDecision) {
-    return this.later(() => {
-      if (decision.kind === 'allowEdited' && !decision.text.trim())
-        throw new AiError('invalid', 'the edited search is empty');
-      const resolve = this.approvals.get(`${sessionId}#${requestId}`);
-      resolve?.(decision);
-      return !!resolve;
-    }, 0);
-  }
-
   /** Links "opened" in the system browser (the browser build never navigates away). */
   readonly opened: string[] = [];
   openLink(url: string) {
@@ -891,22 +800,6 @@ export class MockAiBackend extends AiBackend {
       this.opened.push(url);
     }, 0);
   }
-  setBraveKey(key: string) {
-    return this.later(() => {
-      if (!key.trim() || /\s/.test(key.trim()))
-        throw new AiError('invalid', 'paste the API key exactly as Brave shows it');
-      this.braveKey = true;
-    }, 0);
-  }
-  clearBraveKey() {
-    return this.later(() => {
-      this.braveKey = false;
-    }, 0);
-  }
-  braveKeySet() {
-    return this.later(() => this.braveKey, 0);
-  }
-
   private subscribe<T>(set: Set<(e: T) => void>, h: (e: T) => void): Promise<Unlisten> {
     set.add(h);
     return Promise.resolve(() => set.delete(h));

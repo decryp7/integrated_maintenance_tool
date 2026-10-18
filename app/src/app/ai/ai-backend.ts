@@ -6,7 +6,6 @@ import {
   AiRuntimeEvent,
   AiRuntimeOverview,
   AiStatus,
-  ApprovalDecision,
   ChatContext,
   ChatEnvelope,
   ChatEventEnvelope,
@@ -116,17 +115,8 @@ export abstract class AiBackend {
     overwrite?: boolean,
   ): Promise<string>;
   abstract suggestedPrompts(): Promise<string[]>;
-  abstract approvalRespond(
-    sessionId: string,
-    requestId: number,
-    decision: ApprovalDecision,
-  ): Promise<boolean>;
   /** Opens a web source an answer showed in the system browser (anything else is refused by the engine). */
   abstract openLink(url: string): Promise<void>;
-
-  abstract setBraveKey(key: string): Promise<void>;
-  abstract clearBraveKey(): Promise<void>;
-  abstract braveKeySet(): Promise<boolean>;
 
   abstract onSetup(handler: (e: SetupEvent) => void): Promise<Unlisten>;
   abstract onRuntime(handler: (e: AiRuntimeEvent) => void): Promise<Unlisten>;

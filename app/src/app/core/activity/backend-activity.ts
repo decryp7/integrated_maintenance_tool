@@ -14,7 +14,7 @@ export type MethodKind = 'query' | 'mutation' | 'quiet' | 'event';
 
 /** Read-only method names, by prefix. */
 const QUERY_PREFIX =
-  /^(get|list|query|preview|read|validate|check|complete|explain|infer|suggest|estimate|status|describe|find|search|load|fetch|count|summary|summar(y|ize)|catalog|recommend|hardware|history|version|templates|formats|is|has|can|sections|elevation|appStatus|lastSession|tail|liveState|workspaceSummary|annotations|pluginEvents|overview|fieldStats|correlate|compare|diff|sniff|automaticEnabled|models|chatSessions|chatGet|chatHistory|suggestedPrompts|braveKeySet|perfmonPresets|perfmonOutputs|monitorStatus|eventLog(Channels|Validate|Status)|collectDefaultPlan|toolsList|current|pageOf|windows|popouts|label|demoPaths|workAreas|windowBounds|contentOrigin|hostGone|profiling(?!Open|Close))/;
+  /^(get|list|query|preview|read|validate|check|complete|explain|infer|suggest|estimate|status|describe|find|search|load|fetch|count|summary|summar(y|ize)|catalog|recommend|hardware|history|version|templates|formats|is|has|can|sections|elevation|appStatus|lastSession|tail|liveState|workspaceSummary|annotations|pluginEvents|overview|fieldStats|correlate|compare|diff|sniff|automaticEnabled|models|chatSessions|chatGet|chatHistory|suggestedPrompts|perfmonPresets|perfmonOutputs|monitorStatus|eventLog(Channels|Validate|Status)|collectDefaultPlan|toolsList|current|pageOf|windows|popouts|label|demoPaths|workAreas|windowBounds|contentOrigin|hostGone|profiling(?!Open|Close))/;
 
 /** Bookkeeping the UI does on its own (autosave, polling): never an operation. */
 const QUIET = new Set(['saveSession', 'takePendingOpen', 'importProgress', 'chatEventsSince', 'setWindowTitle', 'setRecentProjects', 'cancel', 'syncPort', 'setAppMenu']);
@@ -64,10 +64,6 @@ const DOMAIN: Record<string, (args: unknown[]) => { operation: string; params: A
   reset: (a) => ({ operation: typeof a[0] === 'string' ? 'settings.reset' : 'backend.reset', params: { Section: typeof a[0] === 'string' ? a[0] : undefined } }),
   chatSend: () => ({ operation: 'ai.ask', params: {} }),
   nlToQuery: (a) => ({ operation: 'ai.ask', params: typeof a[0] === 'string' ? safeText('Question', a[0], 'normal') : {} }),
-  approvalRespond: (a) => {
-    const kind = (a[2] as { kind?: unknown } | undefined)?.kind;
-    return { operation: kind === 'deny' ? 'ai.webSearch.deny' : 'ai.webSearch.approve', params: { Decision: typeof kind === 'string' ? kind : undefined } };
-  },
 };
 
 /**

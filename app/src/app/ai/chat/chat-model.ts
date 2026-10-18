@@ -1,6 +1,6 @@
 /** Pure view model of a chat: turns built from saved records and from the streamed events of a running turn. */
 import { plural } from '../../i18n/locale';
-import { ApprovalDecision, ChatContext, ChatEvent, Citation, Proposal, TurnRecord, Usage } from '../ai.types';
+import { ChatContext, ChatEvent, Citation, Proposal, TurnRecord, Usage } from '../ai.types';
 
 export interface ToolChip {
   name: string;
@@ -8,18 +8,6 @@ export interface ToolChip {
   running: boolean;
   summary: string | null;
   error: boolean;
-}
-
-export type ApprovalState = 'pending' | 'sending' | 'allowed' | 'edited' | 'allowedForChat' | 'denied';
-
-export interface ApprovalView {
-  requestId: number;
-  kind: 'search' | 'fetch';
-  text: string;
-  domain: string | null;
-  provider: string;
-  editable: boolean;
-  state: ApprovalState;
 }
 
 export interface ProposalView {
@@ -33,8 +21,6 @@ export interface TurnView {
   citations: Citation[];
   proposals: ProposalView[];
   tools: ToolChip[];
-  approvals: ApprovalView[];
-  suggestions: { query: string; openUrl: string }[];
   notes: string[];
   error: string | null;
   cancelled: boolean;
@@ -43,7 +29,7 @@ export interface TurnView {
 }
 
 export function startTurn(user: string): TurnView {
-  return { user, text: '', citations: [], proposals: [], tools: [], approvals: [], suggestions: [], notes: [], error: null, cancelled: false, running: true, usage: null };
+  return { user, text: '', citations: [], proposals: [], tools: [], notes: [], error: null, cancelled: false, running: true, usage: null };
 }
 
 export function turnFromRecord(r: TurnRecord): TurnView {
@@ -76,13 +62,6 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
     }
     case 'proposal':
       return { ...t, proposals: [...t.proposals, { proposal: e.proposal, state: 'open' }] };
-    case 'approvalRequired':
-      return {
-        ...t,
-        approvals: [...t.approvals, { requestId: e.requestId, kind: e.kind, text: e.text, domain: e.domain, provider: e.provider, editable: e.editable, state: 'pending' }],
-      };
-    case 'searchSuggestion':
-      return { ...t, suggestions: [...t.suggestions, { query: e.query, openUrl: e.openUrl }] };
     case 'done':
       return {
         ...t,
@@ -92,7 +71,6 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
         usage: e.usage,
         running: false,
         tools: t.tools.map((c) => ({ ...c, running: false })),
-        approvals: t.approvals.map((a) => (a.state === 'pending' || a.state === 'sending' ? { ...a, state: 'denied' } : a)),
       };
     case 'error':
       return {
@@ -101,22 +79,7 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
         cancelled: e.cancelled,
         running: false,
         tools: t.tools.map((c) => ({ ...c, running: false })),
-        approvals: t.approvals.map((a) => (a.state === 'pending' || a.state === 'sending' ? { ...a, state: 'denied' } : a)),
       };
-  }
-}
-
-/** The state an approval shows after the user's decision. */
-export function decidedState(d: ApprovalDecision): ApprovalState {
-  switch (d.kind) {
-    case 'allow':
-      return 'allowed';
-    case 'allowEdited':
-      return 'edited';
-    case 'allowSearchesInChat':
-      return 'allowedForChat';
-    case 'deny':
-      return 'denied';
   }
 }
 
@@ -199,8 +162,6 @@ export function toolLabel(name: string): string {
     patterns: $localize`:@@ai.chatModel.tool.patterns:Patterns`,
     moment: $localize`:@@ai.chatModel.tool.moment:Moment`,
     anomalies: $localize`:@@ai.chatModel.tool.anomalies:Anomalies`,
-    web_search: $localize`:@@ai.chatModel.tool.webSearch:Web search`,
-    fetch_page: $localize`:@@ai.chatModel.tool.fetchPage:Read web page`,
     propose_regex: $localize`:@@ai.chatModel.tool.proposeRegex:Propose regex`,
     propose_query: $localize`:@@ai.chatModel.tool.proposeQuery:Propose query`,
     propose_profile: $localize`:@@ai.chatModel.tool.proposeProfile:Propose profile`,

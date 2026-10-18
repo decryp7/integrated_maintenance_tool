@@ -10,8 +10,6 @@ use std::time::SystemTime;
 
 /// Top-level entries one category lists at most (a folder with more is cleared in several goes).
 pub const MAX_ITEMS: usize = 10_000;
-/// The file name of an autosaved session (`lifecycle`).
-const SESSION_FILE: &str = "last-session.imtproj";
 
 /// What the storage view needs from the AI engine (implemented for `AiCore`; tests pass a fake).
 pub trait AiPort: Send + Sync {
@@ -359,11 +357,6 @@ fn sessions(f: &Folders<'_>) -> Category {
             let keep = from_this_run(&p, f.session_start, "saved");
             items.push(Item::path(p).protected(crash.clone()).protected(keep));
         }
-    }
-    let legacy = data.join(SESSION_FILE);
-    if legacy.is_file() {
-        let keep = from_this_run(&legacy, f.session_start, "saved");
-        items.push(Item::path(legacy).protected(keep));
     }
     c.items = items;
     c.note = Some("Sessions of this run are kept.".into());

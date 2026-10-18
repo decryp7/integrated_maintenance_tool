@@ -1,6 +1,6 @@
 //! The AI command layer through the real IPC path (`tauri::test`), with the fakes of `imt-ai`: a scripted
-//! model, a fake engine runtime, a fake model host and in-memory secrets. Set-up, models, use cases, chat
-//! streaming, approvals, background tasks, the settings section and saved chats.
+//! model, a fake engine runtime and a fake model host. Set-up, models, use cases, chat streaming,
+//! background tasks, the settings section and saved chats.
 
 use super::commands::{check_link, markdown_target, sample_of, DOWNLOAD_TASK};
 use super::core::{AiCore, AiDeps};
@@ -12,7 +12,6 @@ use imt_ai::llm::{LlmProvider, Reply, ScriptedProvider};
 use imt_ai::models::source::{ModelSource, Progress, RemoteFile};
 use imt_ai::models::DiskSpace;
 use imt_ai::runtime::{LoadRequest, Loaded, ModelRuntime};
-use imt_ai::web::MemorySecretStore;
 use imt_ai::AiError;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -179,7 +178,6 @@ impl Fixture {
                 }) as Box<dyn ModelSource>)
             }),
             disk: Arc::new(BigDisk),
-            secrets: Arc::new(MemorySecretStore::new()),
             worker_path: self.worker.clone(),
             download_backoff: Duration::from_millis(1),
             runtimes: test_runtimes(&self.tmp, self.host_delay),
@@ -617,137 +615,6 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
 }
 
 #[test]
-fn web_searches_wait_for_approval_and_deny_or_cancel_ends_them() {
-    let f = Fixture::new("approval");
-    let core = f.core();
-    let app = f.app(core.clone());
-    // Settings → AI is the source of truth for these values (registering applied the stored defaults).
-    let mut s = core.settings();
-    s.web_search.provider = imt_ai::web::WebProvider::Searxng;
-    s.web_search.searxng_url = "http://127.0.0.1:9".into();
-    core.apply_settings(s).unwrap();
-    let search = || {
-        Reply::Tools(
-            String::new(),
-            vec![(
-                "web_search".into(),
-                json!({"query_intent": {"exception_type": "System.TimeoutException"}}),
-            )],
-        )
-    };
-    core.set_fixed_provider(scripted(vec![
-        search(),
-        text("Nothing was searched."),
-        search(),
-        text("The search failed."),
-        search(),
-    ]));
-    let main = window(&app, "main");
-    open_samples(&main);
-    let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
-    let wait_for_question = || {
-        let start = Instant::now();
-        while core.approvals.waiting() != 1 {
-            if start.elapsed() > Duration::from_secs(20) {
-                panic!(
-                    "no approval request: {}",
-                    ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0})).unwrap()
-                );
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-    };
-
-    // Deny: nothing leaves the machine.
-    ipc(
-        &main,
-        "ai_chat_send",
-        json!({"sessionId": sid, "text": "look up the timeout on the web"}),
-    )
-    .unwrap();
-    wait_for_question();
-    let pending = ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0})).unwrap();
-    let ask = pending
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|e| e["type"] == "approvalRequired")
-        .unwrap()
-        .clone();
-    assert_eq!((ask["kind"].as_str(), ask["editable"].as_bool()), (Some("search"), Some(true)));
-    assert!(ask["text"].as_str().unwrap().contains("TimeoutException"));
-    let id = ask["requestId"].clone();
-    assert_eq!(
-        ipc(
-            &main,
-            "ai_approval_respond",
-            json!({"sessionId": "other", "requestId": id, "decision": {"kind": "deny"}})
-        )
-        .unwrap(),
-        false
-    );
-    assert_eq!(
-        code(
-            ipc(
-                &main,
-                "ai_approval_respond",
-                json!({"sessionId": sid, "requestId": id, "decision": {"kind": "allowEdited", "text": ""}})
-            )
-            .unwrap_err()
-        ),
-        "invalid"
-    );
-    assert_eq!(
-        ipc(
-            &main,
-            "ai_approval_respond",
-            json!({"sessionId": sid, "requestId": id, "decision": {"kind": "deny"}})
-        )
-        .unwrap(),
-        true
-    );
-    let ev = finish_turn(&main, &sid);
-    let finished = ev
-        .iter()
-        .find(|e| e["type"] == "toolFinished" && e["name"] == "web_search")
-        .unwrap();
-    assert_eq!(finished["summary"], "declined", "{finished}");
-
-    // Allow: the (unreachable) search is attempted and its failure reported to the model.
-    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "try again"})).unwrap();
-    wait_for_question();
-    let id = ipc(&main, "ai_chat_events_since", json!({"sessionId": sid, "seq": 0}))
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .iter()
-        .rev()
-        .find(|e| e["type"] == "approvalRequired")
-        .unwrap()["requestId"]
-        .clone();
-    ipc(
-        &main,
-        "ai_approval_respond",
-        json!({"sessionId": sid, "requestId": id, "decision": {"kind": "allow"}}),
-    )
-    .unwrap();
-    let ev = finish_turn(&main, &sid);
-    let last_search = ev
-        .iter()
-        .rev()
-        .find(|e| e["type"] == "toolFinished" && e["name"] == "web_search")
-        .unwrap();
-    assert_eq!(last_search["error"], true, "{last_search}");
-
-    // Cancel while waiting: the question is denied and the turn ends.
-    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "once more"})).unwrap();
-    wait_for_question();
-    assert_eq!(ipc(&main, "ai_chat_cancel", json!({"sessionId": sid})).unwrap(), true);
-    finish_turn(&main, &sid);
-    assert_eq!(core.approvals.waiting(), 0);
-}
-
-#[test]
 fn the_ai_settings_section_is_registered_and_applies() {
     let f = Fixture::new("settings");
     let core = f.core();
@@ -768,37 +635,26 @@ fn the_ai_settings_section_is_registered_and_applies() {
         .iter()
         .map(|f| f["key"].as_str().unwrap())
         .collect();
-    assert!(
-        keys.contains(&"web_search.provider") && keys.contains(&"context_length"),
-        "{keys:?}"
-    );
-    assert!(!keys.contains(&"web_search.brave_key"), "secrets are never settings values");
+    assert!(keys.contains(&"inference_build") && keys.contains(&"context_length"), "{keys:?}");
+    assert!(!keys.contains(&"active_model"), "the model is chosen in the model manager");
     let r = ipc(
         &main,
         "set_settings",
-        json!({"section": "ai", "values": {"web_search.provider": "manual", "max_tokens": 512}}),
+        json!({"section": "ai", "values": {"autoload": false, "max_tokens": 512}}),
     )
     .unwrap();
     assert_eq!(r["applied"], true, "{r}");
-    assert_eq!(core.settings().web_search.provider, imt_ai::web::WebProvider::Manual);
+    assert!(!core.settings().autoload);
     assert_eq!(core.settings().max_tokens, 512);
     let saved: Value = serde_json::from_str(&std::fs::read_to_string(f.tmp.0.join("ai/ai.json")).unwrap()).unwrap();
-    assert_eq!(saved["web_search"]["provider"], "manual");
-    assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["webSearch"], "manual");
+    assert_eq!(
+        (saved["autoload"].as_bool(), saved["max_tokens"].as_u64()),
+        (Some(false), Some(512))
+    );
     // Values the library refuses are not applied.
     let mut bad = core.settings();
     bad.hf_endpoint = "http://insecure".into();
     assert_eq!(core.apply_settings(bad).unwrap_err().code, super::error::AiErrorCode::Invalid);
-    // The Brave key is write-only and lives in the (here: memory) keychain.
-    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), false);
-    assert_eq!(
-        code(ipc(&main, "ai_set_brave_key", json!({"key": "has space"})).unwrap_err()),
-        "invalid"
-    );
-    ipc(&main, "ai_set_brave_key", json!({"key": "BSA-123"})).unwrap();
-    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), true);
-    ipc(&main, "ai_clear_brave_key", json!({})).unwrap();
-    assert_eq!(ipc(&main, "ai_brave_key_set", json!({})).unwrap(), false);
     assert!(app.try_state::<AiState>().is_some());
 }
 

@@ -188,7 +188,7 @@ describe('AiChatPersistence', () => {
     const c = await backend.chatNew();
     await p.sync();
     expect(p.history()?.sessions.map((s) => s.id)).toEqual([c.id]);
-    const saved: ChatHistoryRecord = { version: 1, sessions: [{ id: 'chat-7', title: 'old', turns: [], allowSearches: false }] };
+    const saved: ChatHistoryRecord = { version: 1, sessions: [{ id: 'chat-7', title: 'saved', turns: [] }] };
     p.contribution.restore(saved);
     await vi.waitFor(() => expect(p.restored()).toBe(1));
     expect(p.history()).toEqual(saved);

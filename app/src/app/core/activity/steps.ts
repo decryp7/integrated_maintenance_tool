@@ -85,12 +85,6 @@ function describe(b: Breadcrumb): string {
     case 'ai.applyProposal':
       s = 'Applied an AI proposal';
       break;
-    case 'ai.webSearch.approve':
-      s = 'Approved a web search';
-      break;
-    case 'ai.webSearch.deny':
-      s = 'Denied a web search';
-      break;
     case 'edit.undo':
       s = 'Undid the last change';
       break;

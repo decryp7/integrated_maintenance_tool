@@ -7,9 +7,7 @@ import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
-import { ApprovalDecision } from '../ai.types';
 import { AiProposalCard } from '../proposals/proposal-card';
-import { AiApprovalPrompt } from './approval-prompt';
 import { describeContext, toolLabel, TurnView } from './chat-model';
 import { ChatStore } from './chat.store';
 import { AiCitations } from './citation-actions';
@@ -18,12 +16,12 @@ import { AiRichText } from './rich-text';
 
 /**
  * The AI assistant chat (a dock view). Answers stream in with the tools the model used, proposals to
- * review and apply, approval prompts for web searches, and evidence links into the grid and query bar.
+ * review and apply, and evidence links into the grid and query bar.
  */
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AiApprovalPrompt],
+  imports: [AiRichText, AiProposalCard],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -72,16 +70,9 @@ import { AiRichText } from './rich-text';
                 }
               </ul>
             }
-            @for (a of t.approvals; track a.requestId) {
-              <imt-ai-approval [approval]="a" (decide)="respond(a.requestId, $event)" />
-            }
-            @for (s of t.suggestions; track s.openUrl) {
-              <p class="suggest"><ng-container i18n="@@ai.chat.suggest.text">Suggested web search (nothing was sent): </ng-container><code class="mono">{{ s.query }}</code>
-                <button type="button" class="link" (click)="openWeb(s.openUrl, theSearch)" i18n="@@ai.chat.suggest.open">Search in my browser…</button></p>
-            }
             @if (t.text) {
               <imt-ai-rich-text [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
-            } @else if (t.running && !t.approvals.length) {
+            } @else if (t.running) {
               <p class="muted thinking" aria-label="Thinking" i18n-aria-label="@@ai.chat.thinking.label" i18n="@@ai.chat.thinking">Thinking…</p>
             }
             @for (pv of t.proposals; track $index; let pi = $index) {
@@ -173,7 +164,7 @@ import { AiRichText } from './rich-text';
     .tool.err { border-color: var(--lvl-error); }
     .sum { color: var(--text-2); }
     .thinking { margin: 0; }
-    .suggest, .sources, .note { margin: 0; font-size: 12px; }
+    .sources, .note { margin: 0; font-size: 12px; }
     .sources .link { margin-left: 6px; }
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
@@ -244,8 +235,6 @@ export class AiChatPanel {
     return (e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
   }
 
-  protected readonly theSearch = $localize`:@@ai.chat.theSearch:the search`;
-
   protected sessionLabel(s: { title: string; running: boolean }): string {
     const title = s.title || $localize`:@@ai.chat.session.untitled:New chat`;
     return s.running ? $localize`:@@ai.chat.session.answering:${title}:title: (answering…)` : title;
@@ -276,10 +265,6 @@ export class AiChatPanel {
 
   async ask(question: string): Promise<void> {
     await this.store.send(question);
-  }
-
-  protected respond(requestId: number, d: ApprovalDecision): void {
-    void this.store.respond(requestId, d);
   }
 
   protected async jump(id: number): Promise<void> {

@@ -27,9 +27,9 @@ describe('mockAiOptionsFromSearch', () => {
     expect(mockAiOptionsFromSearch('')).toEqual({});
     expect(
       mockAiOptionsFromSearch(
-        '?mockAi=setup&mockAiWeb=1&mockAiStepMs=5&mockAiFail=chat,bogus,setup',
+        '?mockAi=setup&mockAiStepMs=5&mockAiFail=chat,bogus,setup',
       ),
-    ).toEqual({ mode: 'setup', web: true, stepMs: 5, fail: ['chat', 'setup'] });
+    ).toEqual({ mode: 'setup', stepMs: 5, fail: ['chat', 'setup'] });
     expect(mockAiOptionsFromSearch('?mockAi=weird&mockAiStepMs=x')).toEqual({});
     expect(mockAiOptionsFromSearch('?mockAiRuntime=none&mockAiFail=runtime')).toEqual({
       runtime: 'none',
@@ -127,7 +127,7 @@ describe('MockAiBackend', () => {
     expect(f.at(-1)).toMatchObject({ code: 'network' });
   });
 
-  it('manages installed models and the Brave key', async () => {
+  it('manages installed models and opens only https links', async () => {
     const b = new MockAiBackend({ stepMs: 0 });
     expect((await b.models())[0]?.active).toBe(true);
     expect(await code(b.addLocalModel('/x.bin'))).toBe('invalid');
@@ -141,12 +141,6 @@ describe('MockAiBackend', () => {
     expect(await code(b.deleteModel('none.gguf'))).toBe('notFound');
     expect((await b.reset()).state).toBe('noModel');
     expect(await code(new MockAiBackend({ stepMs: 0, fail: ['models'] }).models())).toBe('engine');
-    expect(await b.braveKeySet()).toBe(false);
-    expect(await code(b.setBraveKey('a b'))).toBe('invalid');
-    await b.setBraveKey('BSA-1');
-    expect(await b.braveKeySet()).toBe(true);
-    await b.clearBraveKey();
-    expect(await b.braveKeySet()).toBe(false);
     expect(await code(b.openLink('http://x'))).toBe('refused');
     await b.openLink('https://x');
     expect(b.opened).toEqual(['https://x']);
@@ -233,44 +227,6 @@ describe('MockAiBackend', () => {
         new MockAiBackend({ stepMs: 0, fail: ['chat'] }).chatSend(id, 'q', { selectedIds: [] }),
       ),
     ).toBe('engine');
-  });
-
-  it('asks before searching the web', async () => {
-    const b = new MockAiBackend({ stepMs: 0, web: true });
-    const events = chatOf(b);
-    const { id } = await b.chatNew();
-    const answer = async (q: string, decision: Parameters<MockAiBackend['approvalRespond']>[2]) => {
-      await b.chatSend(id, q, { selectedIds: [] });
-      await vi.waitFor(() => expect(events.some((e) => e.type === 'approvalRequired')).toBe(true));
-      expect(await code(b.approvalRespond(id, 1, { kind: 'allowEdited', text: ' ' }))).toBe(
-        'invalid',
-      );
-      expect(await b.approvalRespond(id, 1, decision)).toBe(true);
-      await vi.waitFor(() => expect(events.at(-1)?.type).toBe('done'));
-      return events.splice(0);
-    };
-    let ev = await answer('search the web', { kind: 'deny' });
-    expect(ev.find((e) => e.type === 'toolFinished')).toMatchObject({ summary: 'declined' });
-    ev = await answer('search the web', { kind: 'allowSearchesInChat' });
-    expect(ev.at(-1)).toMatchObject({ type: 'done', citations: [{ kind: 'web' }] });
-    // Searches are now allowed for this chat: no question.
-    await b.chatSend(id, 'web again', { selectedIds: [] });
-    await vi.waitFor(() => expect(events.at(-1)?.type).toBe('done'));
-    expect(events.splice(0).some((e) => e.type === 'approvalRequired')).toBe(false);
-    expect(await b.approvalRespond(id, 1, { kind: 'allow' })).toBe(false);
-    // Cancelling while the question waits.
-    const other = await b.chatNew();
-    await b.chatSend(other.id, 'web please', { selectedIds: [] });
-    await vi.waitFor(() => expect(events.some((e) => e.type === 'approvalRequired')).toBe(true));
-    expect(await b.chatCancel(other.id)).toBe(true);
-    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: 'error', cancelled: true }));
-    events.length = 0;
-    // Deleting a chat that waits denies it.
-    const third = await b.chatNew();
-    await b.chatSend(third.id, 'web please', { selectedIds: [] });
-    await vi.waitFor(() => expect(events.some((e) => e.type === 'approvalRequired')).toBe(true));
-    expect(await b.chatDelete(third.id)).toBe(true);
-    expect(await b.chatDelete(third.id)).toBe(false);
   });
 
   it('cancels while streaming and refuses a second turn', async () => {

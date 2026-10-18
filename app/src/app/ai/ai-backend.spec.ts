@@ -141,15 +141,7 @@ describe('TauriAiBackend', () => {
         { sessionId: 'c', path: '/a.md', overwrite: true },
       ],
       [() => b.suggestedPrompts(), 'ai_suggested_prompts', undefined],
-      [
-        () => b.approvalRespond('c', 1, { kind: 'deny' }),
-        'ai_approval_respond',
-        { sessionId: 'c', requestId: 1, decision: { kind: 'deny' } },
-      ],
       [() => b.openLink('https://x'), 'ai_open_link', { url: 'https://x' }],
-      [() => b.setBraveKey('k'), 'ai_set_brave_key', { key: 'k' }],
-      [() => b.clearBraveKey(), 'ai_clear_brave_key', undefined],
-      [() => b.braveKeySet(), 'ai_brave_key_set', undefined],
     ];
     for (const [run, cmd, args] of cases) {
       calls.length = 0;

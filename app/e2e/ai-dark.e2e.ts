@@ -4,12 +4,12 @@ import { ask, openAiApp, openChat, runCommand, waitAnswered } from './ai-support
 import { openAppWith } from './mock-url';
 
 // Every AI view in the DARK theme (the other ai-* files check the light one): contrast of chips, badges,
-// citation links, proposal cards and approval prompts on the dark tokens.
+// citation links and proposal cards on the dark tokens.
 test.use({ colorScheme: 'dark' });
 
 test.describe('AI views in the dark theme', () => {
-  test('chat answer, proposal card and approval prompt', async ({ page }, testInfo) => {
-    await openAiApp(page, 'mockAiWeb=1');
+  test('chat answer and proposal card', async ({ page }, testInfo) => {
+    await openAiApp(page);
     const chat = await openChat(page);
     await ask(chat, 'What crashed?');
     await waitAnswered(chat);
@@ -20,12 +20,6 @@ test.describe('AI views in the dark theme', () => {
     await expect(chat.getByTestId('ai-proposal')).toContainText('Matches 2 of 2');
     await waitAnswered(chat);
     await expectNoSeriousViolations(page, testInfo, 'dark-ai-chat-proposal', 'imt-ai-chat-panel');
-
-    await ask(chat, 'search the web for this timeout');
-    await expect(chat.getByTestId('ai-approval').last()).toContainText('Search the web for:');
-    await expectNoSeriousViolations(page, testInfo, 'dark-ai-approval', 'imt-ai-chat-panel');
-    await chat.getByTestId('ai-approval').last().getByRole('button', { name: 'Deny' }).click();
-    await waitAnswered(chat);
   });
 
   test('query, narrative and propose dialogs', async ({ page }, testInfo) => {

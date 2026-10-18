@@ -25,7 +25,6 @@ sysinfo = { version = "0.37", default-features = false, features = ["system", "d
 thiserror = "2.0"
 toml = "1"
 log = "0.4"
-keyring = "4"
 regex = "1.13"
 prost = "0.14"
 tokio = { version = "1", default-features = false, features = ["rt", "net", "time", "sync", "macros", "io-util"] }

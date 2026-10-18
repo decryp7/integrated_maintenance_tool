@@ -87,30 +87,7 @@ describe('AiChatPanel', () => {
     expect((f.nativeElement as HTMLElement).textContent).toContain('Stopped.');
   });
 
-  it('asks before searching the web and sends the answer', async () => {
-    const { f, root, store, backend } = setup({ web: true });
-    f.detectChanges();
-    await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
-    await ask(f, 'look this up on the web');
-    await until(f, () => !!root.querySelector('[data-testid=ai-approval]'));
-    buttonByText(f, 'Send').click();
-    await until(f, () => !store.running());
-    expect(root.textContent).toContain('Web sources:');
-    const web = vi.spyOn(TestBed.inject(AiCitations), 'web').mockResolvedValue('refused');
-    buttonByText(f, 'TimeoutException troubleshooting').click();
-    await settle();
-    f.detectChanges();
-    expect(web).toHaveBeenCalledWith('https://learn.example.com/dotnet/timeouts', 'TimeoutException troubleshooting');
-    expect(el(f, '.ok.banner').textContent).toContain('refused');
-    await ask(f, 'search the web again');
-    await until(f, () => all(f, '[data-testid=ai-approval]').length === 2);
-    all<HTMLButtonElement>(f, '[data-testid=ai-approval] button').filter((b) => b.textContent?.trim() === 'Deny').at(-1)!.click();
-    await until(f, () => !store.running());
-    expect(backend.sent).toHaveLength(2);
-    expect(store.activeTurns()[1]?.text).toContain('declined');
-  });
-
-  it('renders proposals, neutral "not found" answers, notes, errors and suggested searches', async () => {
+  it('renders proposals, neutral "not found" answers, notes, and errors', async () => {
     const { f, root, store, backend } = setup();
     f.detectChanges();
     await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
@@ -119,15 +96,11 @@ describe('AiChatPanel', () => {
     await until(f, () => !store.running());
     await ask(f, 'anything about kubernetes?');
     await until(f, () => !store.running() && !!root.querySelector('.answer.neutral'));
-    // A turn with a manual search suggestion, a note and an error.
+    // A turn with an error.
     await ask(f, 'another');
     const id = store.activeId()!;
-    store.onEvent({ sessionId: id, seq: 0, type: 'searchSuggestion', query: 'TimeoutException', openUrl: 'https://duckduckgo.com/?q=TimeoutException' });
     store.onEvent({ sessionId: id, seq: 0, type: 'error', message: 'the engine crashed', cancelled: false });
     await until(f, () => !!root.querySelector('.err[role=alert]'));
-    const web = vi.spyOn(TestBed.inject(AiCitations), 'web').mockResolvedValue(null);
-    buttonByText(f, 'Search in my browser…').click();
-    expect(web).toHaveBeenCalledWith('https://duckduckgo.com/?q=TimeoutException', 'the search');
     await until(f, () => !store.running());
     // The engine's own turn ends too before asking again.
     await vi.waitFor(async () => expect((await backend.chatSessions()).every((x) => !x.running)).toBe(true));

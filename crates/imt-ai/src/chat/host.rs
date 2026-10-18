@@ -1,6 +1,6 @@
 //! The tools of the chat model: the read-only engine tools, the propose_* tools (which return
-//! engine-validated proposals for the user to apply; nothing here changes anything) and, when web search
-//! is on, the web tools.
+//! engine-validated proposals for the user to apply; nothing here changes anything) and any extra tool
+//! hosts (the browser tools).
 
 use crate::access::StoreRef;
 use crate::assistant::{Assistant, EngineTools, Proposal, ToolHost, ToolOutcome};
