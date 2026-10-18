@@ -172,7 +172,7 @@ planned.)*
   the engine validates and previews before the user applies them. The AI never searches the web
   itself: the SearXNG and Brave web search it used to offer was removed in favour of the internal
   browser below.
-- **Internal web browser** *(next; replaces the AI's web search)*:
+- **Internal web browser** *(Done, [ADR 0011](adr/0011-internal-browser.md); replaces the AI's web search)*:
   - A sandboxed browser window that the user drives: *Search the web for this error* opens the
     user's chosen engine.
   - *Add page to AI context* hands the visible page's text to the model as cited, untrusted
@@ -181,8 +181,9 @@ planned.)*
     with a Stop button. Approval is needed for new sites, typed text and form submissions, and
     workspace data headed into a URL or form is highlighted. CAPTCHAs and logins go to the user,
     and every action is logged.
-  - No stealth or bot-detection evasion. Remote pages get no IPC except a one-shot capture that a
-    user click arms.
+  - No stealth or bot-detection evasion. Remote pages get no IPC at all: page results come back as the
+    return values of scripts IMT evaluates, each checked against a one-shot nonce, the expected origin and
+    a size cap. *(Not yet verified on macOS hardware.)*
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.

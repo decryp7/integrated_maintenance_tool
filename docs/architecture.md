@@ -25,7 +25,7 @@ multiple windows, live tail and annotations in text.
 | `imt-pdf` | adapter | PDF output for incident reports, implementing `imt-core`'s `ReportRenderer` port, with embedded font subsets ([ADR 0007](adr/0007-reports-pdf-and-redaction.md)). |
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-sdk`, `imt-plugin-host`, `imt-ipc` | SDK, host, transport | Out-of-process plugins over gRPC `imt.plugin.v1`: the Rust SDK and conformance kit, the host that serves built-in plugins isolated, and the shared transport ([ADR 0004](adr/0004-stable-plugin-abi.md)). The C#/.NET SDK is in `sdk/dotnet`. |
-| `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
+| `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
 | `imt-clr-format` | library | Capture format and pipe protocol prepared for the planned .NET profiler (not used yet). |
 | `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
@@ -53,6 +53,7 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
 | [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
 | [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
+| [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. |
 
 ## Plugin runtime (ADR 0003)
 

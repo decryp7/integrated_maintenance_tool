@@ -318,6 +318,21 @@ are resumable and checked against pinned SHA-256 hashes. Builds are not bundled 
 compiling ([ADR 0009](docs/adr/0009-prebuilt-llama-server-runtimes.md)). Settings ▸ AI chooses the
 build, or a `llama-server` of your own.
 
+### Internal web browser
+
+*Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens
+IMT's own browser window: the engine builds the search from the event without names from your logs or
+other private details, and you can edit it first. You browse in a separate window with its own cookies
+and history; the **Web** panel (Tools ▸ Web) has back and forward, the address box with your search engine
+(DuckDuckGo, Google, Bing, Stack Overflow or your own URL template with `{q}`), *Add page to AI context*
+and *Open in your browser*. The AI never searches the web by itself. It sees a page only when you add it
+to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
+read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
+asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
+stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
+can also suggest a search or a page as a card that opens only when you click it. Pages get no access to
+IMT at all; downloads and popups are blocked. See [ADR 0011](docs/adr/0011-internal-browser.md).
+
 ### Projects, sessions and export
 
 - **Projects** (`.imtproj`): sources, profile, filters, time range, zoom history, columns and
