@@ -11,7 +11,8 @@
 //! - **App-wide state**: `app.manage(...)` in [`setup`], in the "managed
 //!   state" block.
 //! - **Background work** the user can see and stop (tray, status bar):
-//!   register with [`background::BackgroundTasks`].
+//!   register with [`background::BackgroundTasks`] when it runs until stopped; work that ends is a
+//!   job ([`jobs::run`]), listed in the Jobs pane with progress, Cancel and Retry.
 //! - **Settings sections**: `settings::register(...)` in [`setup`].
 //! - **Events to one window**: [`windows::emit_to_window`]; never `emit` window-specific events to all.
 
@@ -30,10 +31,12 @@ mod diagnostics;
 mod engine_errors;
 mod insights;
 mod instance;
+mod jobs;
 mod lifecycle;
 mod live;
 mod logging;
 mod menu;
+mod notification_centre;
 mod notify;
 mod panel_windows;
 mod plugin_isolation;
@@ -222,6 +225,23 @@ macro_rules! commands {
             menu::set_app_menu,
             background::background_tasks,
             background::stop_background_task,
+            // Jobs and the notification centre (per window)
+            jobs::jobs_list,
+            jobs::jobs_cancel,
+            jobs::jobs_retry,
+            jobs::jobs_move,
+            jobs::jobs_clear_finished,
+            jobs::jobs_mark_seen,
+            jobs::jobs_result,
+            jobs::jobs_reveal,
+            jobs::jobs_record,
+            jobs::jobs_restore,
+            notification_centre::notifications_list,
+            notification_centre::notifications_mark_read,
+            notification_centre::notifications_mark_all_read,
+            notification_centre::notifications_dismiss,
+            notification_centre::notifications_record,
+            notification_centre::notifications_restore,
             // Local AI assistant (set-up, models, use cases, chat; see ai.rs)
             ai::commands::ai_status,
             ai::commands::ai_hardware,
@@ -400,6 +420,8 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(instance::SingleInstance(single));
     app.manage(query_cancel::QueryJobs::default());
     app.manage(ai::folder_setup::SurveyJobs::default());
+    jobs::init(app.handle());
+    notification_centre::init(app.handle());
 
     // ---- settings ----
     settings::init(app.handle());
@@ -430,6 +452,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
             let _ = main.set_focus();
         }
     }
+    session_notices(app.handle(), previous_crash, safe_mode);
     if previous_crash {
         notify::notify(
             app.handle(),
@@ -440,6 +463,34 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
         );
     }
     Ok(())
+}
+
+/// A recovered crash and safe mode are app messages in the notification centre (the lifecycle banner
+/// offers the restore itself).
+fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash: bool, safe_mode: bool) {
+    use notification_centre::centre::{NewNotice, NoticeScope, NoticeSeverity, NoticeSource};
+    if previous_crash {
+        let n = NewNotice::new(
+            NoticeSource::Session,
+            NoticeSeverity::Warning,
+            "IMT did not close properly",
+            NoticeScope::App,
+        )
+        .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.")
+        .dedupe(format!("session:crash:{}", activity::session_id()));
+        notification_centre::post(app, None, n, None);
+    }
+    if safe_mode {
+        let n = NewNotice::new(
+            NoticeSource::Session,
+            NoticeSeverity::Info,
+            "IMT runs in safe mode",
+            NoticeScope::App,
+        )
+        .body("Plugins and the AI are off for this run. Restart IMT normally to turn them on again.")
+        .dedupe(format!("session:safe:{}", activity::session_id()));
+        notification_centre::post(app, None, n, None);
+    }
 }
 
 /// The startup window from `tauri.conf.json` (`create: false` there), built here so it gets the same
@@ -462,6 +513,7 @@ fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
             if let Some(w) = app.try_state::<windows::Windows>() {
                 w.shutdown_plugins();
             }
+            jobs::shutdown(app);
             if let Some(life) = app.try_state::<lifecycle::Lifecycle>() {
                 life.end();
             }
@@ -514,6 +566,9 @@ pub(crate) mod test_support {
         tauri::async_runtime::block_on(f)
     }
 
+    /// The clock of the test app's jobs and notification centre.
+    pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
+
     fn manage(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         manage_in(app, profile_dir, false)
     }
@@ -530,6 +585,14 @@ pub(crate) mod test_support {
         app.manage(tray::TrayState::default());
         app.manage(query_cancel::QueryJobs::default());
         app.manage(ai::folder_setup::SurveyJobs::default());
+        // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
+        // and attention thresholds by accident.
+        let clock = std::sync::Arc::new(jobs::ManualClock::default());
+        app.manage(TestClock(clock.clone()));
+        let jobs = jobs::Jobs::new(clock.clone());
+        jobs::wire(app.handle(), &jobs);
+        app.manage(jobs);
+        app.manage(notification_centre::NotificationCentre::new(None, clock));
         browser::manage_state(app.handle(), std::sync::Arc::default());
         app
     }

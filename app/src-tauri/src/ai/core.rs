@@ -483,6 +483,11 @@ impl AiCore {
         s
     }
 
+    /// Why the engine was switched off for the session (repeated worker crashes), if it was.
+    pub fn quarantine_reason(&self) -> Option<String> {
+        self.deps.health.as_ref().and_then(|h| h.disabled_reason())
+    }
+
     /// Lets the user try again after the engine was switched off or a load failed.
     pub fn reset(&self) {
         if let Some(h) = &self.deps.health {

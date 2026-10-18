@@ -1,4 +1,4 @@
-//! The inference runtime commands (ADR 0009): list, install (a background task streaming
+//! The inference runtime commands (ADR 0009): list, install (a download job streaming
 //! `imt://ai-runtime`), cancel, delete and choose llama-server builds. Thin: they validate the IPC
 //! arguments, run the work off the UI thread and turn errors into [`AiCmdError`]s.
 
@@ -7,17 +7,14 @@ use super::core::AiCore;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::RuntimeEvent;
 use super::{RUNTIME_EVENT, STATUS_EVENT};
-use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
+use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label;
 use imt_ai::runtimes::RuntimeOverview;
 use serde_json::Value;
-use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
-/// Id of the runtime download in the background task list.
-pub const RUNTIME_TASK: &str = "ai:runtime";
 const MAX_ID_CHARS: usize = 32;
 /// How often the download ticker reports progress.
 const TICK: Duration = Duration::from_millis(250);
@@ -48,29 +45,22 @@ pub async fn ai_runtimes<R: Runtime>(app: AppHandle<R>) -> AiResult<RuntimeOverv
 }
 
 /// Downloads, verifies and unpacks a build. Returns at once; progress arrives as `imt://ai-runtime`
-/// events ending in `ready`, `failed` or `cancelled`. Listed as a background task (stop = cancel).
+/// events ending in `ready`, `failed` or `cancelled`. Runs as a download job (Cancel stops it).
 #[tauri::command]
 pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<()> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
-    if let Some(t) = app.try_state::<BackgroundTasks>() {
-        let c = core.clone();
-        let stop: crate::background::StopFn = Arc::new(move || {
-            c.cancel_runtime_install();
-            Ok(())
-        });
-        let spec = TaskSpec {
-            id: RUNTIME_TASK.into(),
-            label: format!("Downloading the {} inference runtime", label(&id)),
-            kind: TaskKind::Download,
-            window: None,
-        };
-        if let Err(e) = t.register(spec, Some(stop)) {
-            log::warn!("AI runtime download not listed as a background task: {e:#}");
-        }
-    }
-    let spawned = std::thread::Builder::new().name("imt-ai-runtime".into()).spawn(move || {
+    let spec = JobSpec::new(JobKind::Download, format!("Downloading the {} inference runtime", label(&id)))
+        .link(JobLink::Model { id: id.clone() })
+        .retry_with(serde_json::json!({"op": "runtime", "runtimeId": id}));
+    let c = core.clone();
+    let controls = Controls::cancel(move || {
+        c.cancel_runtime_install();
+    });
+    let (a, c) = (app.clone(), core.clone());
+    let queued = jobs::spawn(&app, spec, controls, move |ctx: &jobs::JobCtx| -> AiResult<Done<()>> {
+        let (app, core) = (a, c);
         let result = std::thread::scope(|scope| {
             let worker = scope.spawn(|| {
                 let a = app.clone();
@@ -87,9 +77,7 @@ pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult
                 if let RuntimeEvent::Progress { bytes, total, .. } = &ev {
                     if *total > 0 && last != Some((*bytes, *total)) {
                         last = Some((*bytes, *total));
-                        if let Some(t) = app.try_state::<BackgroundTasks>() {
-                            t.set_progress(RUNTIME_TASK, Some(*bytes as f32 / *total as f32));
-                        }
+                        ctx.progress(JobProgress::counts(*bytes, *total));
                         let _ = app.emit(RUNTIME_EVENT, ev);
                     }
                 }
@@ -99,9 +87,6 @@ pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult
                 .unwrap_or_else(|_| Err(AiCmdError::new(AiErrorCode::Engine, "the runtime install stopped unexpectedly")))
         });
         core.end_runtime_install();
-        if let Some(t) = app.try_state::<BackgroundTasks>() {
-            t.remove(RUNTIME_TASK);
-        }
         match &result {
             Ok(r) => log::info!(Build = id.as_str(), Tag = r.tag.as_str(); "Inference runtime installed"),
             Err(e) => {
@@ -110,10 +95,12 @@ pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult
         }
         let _ = app.emit(RUNTIME_EVENT, RuntimeEvent::of_result(&id, &result));
         emit_status(&app, &core);
+        result.map(|_| Done::new(()).with_result(JobResult::Model { file_name: None }))
     });
-    spawned
-        .map(|_| ())
-        .map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot start the download: {e}")))
+    queued.map(|_| ()).map_err(|e| {
+        core.end_runtime_install();
+        AiCmdError::busy(e)
+    })
 }
 
 /// Stops the running runtime install. False when none runs.

@@ -153,13 +153,19 @@ fn written(op: Option<&str>, kind: &str, target: &Path, extra: &[(&str, &str)]) 
 
 /// Writes a report as self-contained HTML or PDF, redacted when asked.
 #[tauri::command]
-pub(crate) async fn export_report(state: CurrentWindow, op: OpId, request: ReportExportRequest) -> CmdResult<ReportExported> {
+pub(crate) async fn export_report<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    op: OpId,
+    request: ReportExportRequest,
+) -> CmdResult<ReportExported> {
     let renderer = renderer(&request.format)?;
     let target = output_path(&request.path, &[renderer.extension()]).map_err(err)?;
     check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
     let report = parse_report(request.report)?;
     let (redact, theme) = (request.redact, request.theme);
-    read(&state, move |ws| {
+    let shown = target.clone();
+    crate::jobs::export(&app, &state, "Export report", &shown, move |ws| {
         let resolved = ws.resolve_report(&report, redact)?;
         let mut out = std::io::BufWriter::new(std::fs::File::create(&target)?);
         renderer.render(&resolved, theme, &mut out)?;
@@ -261,7 +267,8 @@ pub(crate) async fn estimate_bundle(state: CurrentWindow, options: BundleOptions
 
 /// Writes a shareable `.imtz` bundle of the window's workspace.
 #[tauri::command]
-pub(crate) async fn create_bundle(
+pub(crate) async fn create_bundle<R: Runtime>(
+    app: AppHandle<R>,
     state: CurrentWindow,
     op: OpId,
     options: BundleOptions,
@@ -272,7 +279,8 @@ pub(crate) async fn create_bundle(
     check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     parse_reports(options.reports.clone())?;
     let profile = state.profile_doc().toml;
-    read(&state, move |ws| {
+    let shown = target.clone();
+    crate::jobs::export(&app, &state, "Share bundle", &shown, move |ws| {
         let m = ws.write_bundle(&options, &profile, &target)?;
         log::info!(Entries = m.entries.len() as u64, Redacted = m.redacted; "Bundle written");
         written(op.as_deref(), "bundle", &target, &[("Entries", &m.entries.len().to_string())]);
@@ -493,7 +501,13 @@ mod tests {
             overwrite: false,
         };
         let _log = crate::activity::test_capture();
-        let html = block(export_report(st(), OpId(Some("op-report".into())), req("html", "r.html", true))).unwrap();
+        let html = block(export_report(
+            app.handle().clone(),
+            st(),
+            OpId(Some("op-report".into())),
+            req("html", "r.html", true),
+        ))
+        .unwrap();
         assert_eq!(
             crate::tools::tests::domain_event("export.written", "op-report").props["Export"],
             "report"
@@ -501,23 +515,45 @@ mod tests {
         let text = std::fs::read_to_string(&html.path).unwrap();
         assert!(text.contains("Outage &lt;b&gt;") && !text.contains("<script"));
         assert!(html.redaction.iter().any(|h| h.rule == "email"));
-        let pdf = block(export_report(st(), OpId::default(), req("pdf", "r.pdf", false))).unwrap();
+        let pdf = block(export_report(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            req("pdf", "r.pdf", false),
+        ))
+        .unwrap();
         assert!(std::fs::read(&pdf.path).unwrap().starts_with(b"%PDF-"));
         assert!(pdf.redaction.is_empty() && pdf.bytes > 0);
-        let again = block(export_report(st(), OpId::default(), req("pdf", "r.pdf", false))).unwrap_err();
+        let again = block(export_report(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            req("pdf", "r.pdf", false),
+        ))
+        .unwrap_err();
         assert!(again.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
         let mut confirmed = req("pdf", "r.pdf", false);
         confirmed.overwrite = true;
-        assert!(block(export_report(st(), OpId::default(), confirmed)).is_ok());
-        assert!(block(export_report(st(), OpId::default(), req("docx", "r.docx", false)))
-            .unwrap_err()
-            .contains("unknown report format"));
-        assert!(block(export_report(st(), OpId::default(), req("pdf", "r.html", false)))
-            .unwrap_err()
-            .contains(".pdf"));
+        assert!(block(export_report(app.handle().clone(), st(), OpId::default(), confirmed)).is_ok());
+        assert!(block(export_report(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            req("docx", "r.docx", false)
+        ))
+        .unwrap_err()
+        .contains("unknown report format"));
+        assert!(block(export_report(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            req("pdf", "r.html", false)
+        ))
+        .unwrap_err()
+        .contains(".pdf"));
         let mut bad = req("html", "x.html", false);
         bad.report = json!({"title": "no id"});
-        assert!(block(export_report(st(), OpId::default(), bad))
+        assert!(block(export_report(app.handle().clone(), st(), OpId::default(), bad))
             .unwrap_err()
             .contains("not a valid report"));
         assert!(parse_report(json!({"id": "x", "title": "a".repeat(MAX_REPORT_JSON)}))
@@ -540,6 +576,7 @@ mod tests {
         let path = d.0.join("case.imtz").to_string_lossy().into_owned();
         let _log = crate::activity::test_capture();
         let m = block(create_bundle(
+            app.handle().clone(),
             st(),
             OpId(Some("op-bundle".into())),
             options(true),
@@ -552,10 +589,27 @@ mod tests {
             "bundle"
         );
         assert!(m.redacted);
-        let again = block(create_bundle(st(), OpId::default(), options(true), path.clone(), None)).unwrap_err();
+        let again = block(create_bundle(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            options(true),
+            path.clone(),
+            None,
+        ))
+        .unwrap_err();
         assert_eq!(again, format!("{path} already exists; confirm to replace it"));
-        assert!(block(create_bundle(st(), OpId::default(), options(true), path.clone(), Some(true))).is_ok());
         assert!(block(create_bundle(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            options(true),
+            path.clone(),
+            Some(true)
+        ))
+        .is_ok());
+        assert!(block(create_bundle(
+            app.handle().clone(),
             st(),
             OpId::default(),
             options(false),
@@ -566,7 +620,15 @@ mod tests {
         .contains(".imtz"));
         let mut bad = options(false);
         bad.reports = vec![json!({})];
-        assert!(block(create_bundle(st(), OpId::default(), bad, path.clone(), Some(true))).is_err());
+        assert!(block(create_bundle(
+            app.handle().clone(),
+            st(),
+            OpId::default(),
+            bad,
+            path.clone(),
+            Some(true)
+        ))
+        .is_err());
 
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap()["total"].clone();
         let opened = block(open_bundle(app.handle().clone(), st(), OpId::default(), path.clone())).unwrap();

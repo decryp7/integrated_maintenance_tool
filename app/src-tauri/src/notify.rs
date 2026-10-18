@@ -18,13 +18,24 @@ pub enum NotificationKind {
     /// An import finished in a window that is not in front.
     ImportFinished,
     /// A download (e.g. an AI model) finished.
-    #[allow(dead_code)] // raised by the AI module once installed
+    #[allow(dead_code)] // kept for the policy table; downloads report as jobs (`JobFinished`)
     DownloadComplete,
+    /// A long job finished (finished work: shown at `All`).
+    JobFinished,
+    /// A job failed.
+    JobFailed,
+    /// Something needs the user: a plugin or the AI was switched off after crashes.
+    Attention,
+    /// An update can be installed.
+    UpdateAvailable,
 }
 
 impl NotificationKind {
     fn is_alert(self) -> bool {
-        matches!(self, NotificationKind::LiveAlert | NotificationKind::CrashDetected)
+        matches!(
+            self,
+            NotificationKind::LiveAlert | NotificationKind::CrashDetected | NotificationKind::JobFailed | NotificationKind::Attention
+        )
     }
 }
 
@@ -94,18 +105,21 @@ impl RateLimiter {
 #[derive(Default)]
 pub struct Notifier(Mutex<RateLimiter>);
 
-/// Shows a notification when the policy and the rate limit allow it. Never fails.
-pub fn notify<R: Runtime>(app: &AppHandle<R>, kind: NotificationKind, seen_in_window: bool, title: &str, body: &str) {
+/// Shows a notification when the policy and the rate limit allow it; returns whether it was shown. Never fails.
+pub fn notify<R: Runtime>(app: &AppHandle<R>, kind: NotificationKind, seen_in_window: bool, title: &str, body: &str) -> bool {
     let level = app.try_state::<SharedPrefs>().map(|p| p.get().notifications).unwrap_or_default();
     if !should_notify(level, kind, seen_in_window) {
-        return;
+        return false;
     }
-    let Some(notifier) = app.try_state::<Notifier>() else { return };
+    let Some(notifier) = app.try_state::<Notifier>() else {
+        return false;
+    };
     if !notifier.0.lock().unwrap_or_else(|p| p.into_inner()).allow(kind, Instant::now()) {
         log::debug!("notification rate-limited");
-        return;
+        return false;
     }
     show(app, title, body);
+    true
 }
 
 #[cfg(not(test))]

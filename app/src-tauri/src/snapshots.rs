@@ -612,6 +612,23 @@ pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &
         _ => log::error!(Kind = kind.as_str(), Plugin = plugin, Window = window; "{message}"),
     }
     crate::windows::emit_to_window(app, window, ERROR_EVENT, error);
+    if let (EngineErrorKind::PluginQuarantined, Some(id)) = (&error.kind, &error.plugin) {
+        use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource};
+        let notice = NewNotice::new(
+            NoticeSource::Plugin,
+            NoticeSeverity::Error,
+            "A plugin was switched off",
+            NoticeScope::Project,
+        )
+        .body(error.message.clone())
+        .primary(NoticeAction::ResetPlugin { plugin_id: id.clone() })
+        .dedupe(format!("plugin:{id}"))
+        .link(NoticeLink {
+            plugin_id: Some(id.clone()),
+            ..NoticeLink::default()
+        });
+        crate::notification_centre::post(app, Some(window), notice, Some(crate::notify::NotificationKind::Attention));
+    }
 }
 
 /// How long the OS file-manager helper may run before it is killed.
@@ -642,6 +659,34 @@ fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) -> std::io:
         }
     })?;
     Ok(())
+}
+
+/// The file manager command that shows `file` selected (Finder, Explorer; on Linux its folder).
+pub(crate) fn reveal_command(file: &Path) -> std::process::Command {
+    if cfg!(target_os = "macos") {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg("-R").arg(file);
+        cmd
+    } else if cfg!(windows) {
+        let mut cmd = std::process::Command::new("explorer");
+        let mut arg = std::ffi::OsString::from("/select,");
+        arg.push(file);
+        cmd.arg(arg);
+        cmd
+    } else {
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(file.parent().unwrap_or(file));
+        cmd
+    }
+}
+
+/// Shows `file` in the OS file manager without waiting (the opener path of the snapshots folder).
+pub(crate) fn reveal_file(file: &Path) -> std::io::Result<()> {
+    let cmd = reveal_command(file);
+    if cfg!(test) {
+        return Ok(());
+    }
+    spawn_detached(cmd, OPENER_TIMEOUT)
 }
 
 pub(crate) fn config_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
@@ -780,10 +825,16 @@ pub async fn export_diagnostics<R: tauri::Runtime>(
 ) -> CmdResult<usize> {
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let store = store(&app)?;
-    let count = tauri::async_runtime::spawn_blocking(move || store.export(&ids, Path::new(&path)))
-        .await
-        .map_err(err)?
-        .map_err(|e| e.to_string())?;
+    let target = PathBuf::from(&path);
+    let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
+    let result = crate::jobs::JobResult::File { path: path.clone() };
+    let count = crate::jobs::run(&app, spec, Default::default(), move |_| {
+        store
+            .export(&ids, Path::new(&path))
+            .map(|n| crate::jobs::Done::new(n).with_result(result))
+            .map_err(|e| e.to_string())
+    })
+    .await?;
     log::info!(Files = count as u64; "Diagnostics exported");
     Ok(count)
 }

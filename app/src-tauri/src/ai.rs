@@ -15,6 +15,7 @@ pub(crate) mod commands;
 mod core;
 mod error;
 pub(crate) mod folder_setup;
+pub(crate) mod requests;
 pub(crate) mod runtime_commands;
 mod runtimes;
 mod settings_section;
@@ -46,11 +47,9 @@ pub struct WindowAi {
 }
 
 impl WindowAi {
-    /// Registers a running use case; the returned flag cancels it.
-    pub fn begin_op(&self) -> Arc<AtomicBool> {
-        let flag = Arc::new(AtomicBool::new(false));
-        self.ops.lock().unwrap_or_else(|p| p.into_inner()).push(flag.clone());
-        flag
+    /// Registers the cancel flag of a running AI job, so `ai_cancel` reaches it too.
+    pub fn track_op(&self, flag: Arc<AtomicBool>) {
+        self.ops.lock().unwrap_or_else(|p| p.into_inner()).push(flag);
     }
 
     pub fn end_op(&self, flag: &Arc<AtomicBool>) {
@@ -93,6 +92,15 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
 /// Manages `core` and registers its settings section (separate from [`init`] so tests can pass fakes).
 pub fn manage<R: Runtime>(app: &AppHandle<R>, core: Arc<AiCore>) {
     app.manage(AiState(core.clone()));
+    if let Some(jobs) = app.try_state::<crate::jobs::Jobs>() {
+        // A quarantined worker pauses the AI queue (the waiting requests stay) until "Reset AI".
+        let c = core.clone();
+        jobs.set_gate(crate::jobs::JobKind::Ai, move || c.quarantine_reason());
+        let handle = app.clone();
+        jobs.set_retry(crate::jobs::JobKind::Ai, move |job| requests::retry(&handle, job));
+        let handle = app.clone();
+        jobs.set_retry(crate::jobs::JobKind::Download, move |job| commands::retry_download(&handle, job));
+    }
     if let Err(e) = crate::settings::register(app, Arc::new(AiSettingsSection { core }), crate::settings::SectionGroup::Ai) {
         log::warn!("AI settings section not registered: {e:#}");
     }

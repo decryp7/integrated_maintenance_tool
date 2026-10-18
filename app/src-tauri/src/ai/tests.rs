@@ -2,7 +2,7 @@
 //! model, a fake engine runtime and a fake model host. Set-up, models, use cases, chat streaming,
 //! background tasks, the settings section and saved chats.
 
-use super::commands::{check_link, markdown_target, sample_of, DOWNLOAD_TASK};
+use super::commands::{check_link, markdown_target, sample_of};
 use super::core::{AiCore, AiDeps};
 use super::{AiState, SETUP_EVENT};
 use crate::test_support::{samples, test_app_safe_mode, test_app_with_commands, window, TempDir};
@@ -222,6 +222,27 @@ fn wait_until(what: &str, mut f: impl FnMut() -> bool) {
     }
 }
 
+/// Lets the running job become visible (the test clock moves past the 2 s threshold) and returns its
+/// background task id once the tray lists it.
+fn job_task(app: &tauri::App<MockRuntime>, main: &tauri::WebviewWindow<MockRuntime>) -> String {
+    app.state::<crate::test_support::TestClock>().0.advance(3_000);
+    let mut id = String::new();
+    wait_until("the job in the background tasks", || {
+        let tasks = ipc(main, "background_tasks", json!({})).unwrap();
+        let found = tasks
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["kind"] == "job" && t["stoppable"] == true)
+            .cloned();
+        if let Some(t) = found {
+            id = t["id"].as_str().unwrap().to_string();
+        }
+        !id.is_empty()
+    });
+    id
+}
+
 fn code(e: Value) -> String {
     e["code"].as_str().unwrap_or_default().to_string()
 }
@@ -400,26 +421,25 @@ fn stages(events: &Arc<Mutex<Vec<Value>>>) -> Vec<String> {
 }
 
 #[test]
-fn set_up_downloads_as_a_background_task_and_becomes_ready() {
+fn set_up_downloads_as_a_job_and_becomes_ready() {
     let mut f = Fixture::new("setup");
     f.host_delay = Duration::from_millis(15);
     let core = f.core();
     let app = f.app(core.clone());
     let events = setup_events(&app);
     let main = window(&app, "main");
+    let finished = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let fin = finished.clone();
+    app.state::<crate::jobs::Jobs>().subscribe(move |e| {
+        if let crate::jobs::JobsEvent::Finished(f) = e {
+            fin.lock().unwrap().push(serde_json::to_value(&f.job).unwrap());
+        }
+    });
     ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
     assert_eq!(
         code(ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap_err()),
         "busy"
     );
-    wait_until("the download task", || {
-        ipc(&main, "background_tasks", json!({}))
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|t| t["id"] == DOWNLOAD_TASK && t["kind"] == "download" && t["stoppable"] == true)
-    });
     assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["setupRunning"], true);
     wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
     let s = stages(&events);
@@ -431,6 +451,12 @@ fn set_up_downloads_as_a_background_task_and_becomes_ready() {
     wait_until("the task to go", || {
         ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty() && !core.setup_running()
     });
+    // The download ran as a download job whose View opens the model manager.
+    wait_until("the job to end", || !finished.lock().unwrap().is_empty());
+    let job = finished.lock().unwrap()[0].clone();
+    assert_eq!((job["kind"].as_str(), job["state"].as_str()), (Some("download"), Some("done")));
+    assert_eq!(job["result"], json!({"type": "model", "fileName": TEST_FILE}));
+    assert_eq!(job["request"], json!({"op": "model", "modelId": TEST_MODEL}));
     let status = ipc(&main, "ai_status", json!({})).unwrap();
     assert_eq!(status["model"], TEST_FILE);
     wait_until("the primed model", || {
@@ -457,8 +483,9 @@ fn a_set_up_can_be_cancelled_from_the_app_or_the_tray() {
     assert_eq!(ipc(&main, "ai_setup_cancel", json!({})).unwrap(), false);
     ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
     wait_until("downloading", || stages(&events).contains(&"downloading".to_string()));
-    // Stop it like the tray does.
-    ipc(&main, "stop_background_task", json!({"id": DOWNLOAD_TASK})).unwrap();
+    // Stop it like the tray does (the running download job is listed there).
+    let task = job_task(&app, &main);
+    ipc(&main, "stop_background_task", json!({"id": task})).unwrap();
     wait_until("cancelled", || stages(&events).last().is_some_and(|s| s == "cancelled"));
     wait_until("no task", || {
         ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty()
@@ -1185,19 +1212,12 @@ fn a_runtime_install_can_be_cancelled_and_only_one_runs() {
     assert_eq!(ipc(&main, "ai_runtime_cancel", json!({})).unwrap(), false);
     ipc(&main, "ai_runtime_install", json!({"id": "vulkan"})).unwrap();
     assert_eq!(code(ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap_err()), "busy");
-    wait_until("the download task", || {
-        ipc(&main, "background_tasks", json!({}))
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|t| t["id"] == super::runtime_commands::RUNTIME_TASK && t["stoppable"] == true)
-    });
+    let task = job_task(&app, &main);
     wait_until("progress", || events.lock().unwrap().iter().any(|e| e["stage"] == "progress"));
     let tick = events.lock().unwrap().iter().find(|e| e["stage"] == "progress").cloned().unwrap();
     assert!(tick["total"].as_u64().unwrap() > 0 && tick.get("bytesPerSec").is_some() && tick["verifying"] == false);
     // Stop it like the tray does.
-    ipc(&main, "stop_background_task", json!({"id": super::runtime_commands::RUNTIME_TASK})).unwrap();
+    ipc(&main, "stop_background_task", json!({"id": task})).unwrap();
     assert_eq!(install_end(&events, "vulkan")["stage"], "cancelled");
     wait_until("no task", || {
         ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty()
@@ -1303,4 +1323,222 @@ fn worker_memory_counts_the_workers_llama_server_children() {
     ];
     assert_eq!(tree_rss_bytes(1, &rows), 3030, "only this IMT's workers and their direct children");
     assert_eq!(tree_rss_bytes(99, &rows), 0);
+}
+
+/// What the gated model does with its next call.
+enum Step {
+    Answer,
+    /// The worker died mid-answer.
+    Crash,
+}
+
+/// A model that answers (from a script) only when the test says so: requests visibly wait in the AI queue.
+struct GatedProvider {
+    inner: ScriptedProvider,
+    steps: Mutex<std::sync::mpsc::Receiver<Step>>,
+}
+
+impl LlmProvider for GatedProvider {
+    fn id(&self) -> &str {
+        "gated"
+    }
+    fn display_name(&self) -> String {
+        "Gated test model".into()
+    }
+    fn context_length(&self) -> usize {
+        self.inner.context_length()
+    }
+    fn chat(&self, req: &imt_ai::llm::ChatRequest, on_delta: &mut dyn FnMut(&str)) -> imt_ai::Result<imt_ai::llm::ChatResponse> {
+        match self.steps.lock().unwrap().recv() {
+            Ok(Step::Answer) => self.inner.chat(req, on_delta),
+            _ => Err(AiError::Engine("the AI worker crashed (exit code 3)".into())),
+        }
+    }
+}
+
+fn gated(replies: Vec<Reply>) -> (Arc<dyn LlmProvider>, std::sync::mpsc::Sender<Step>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let p = GatedProvider {
+        inner: ScriptedProvider::new(replies),
+        steps: Mutex::new(rx),
+    };
+    (Arc::new(p), tx)
+}
+
+fn jobs_of(app: &tauri::App<MockRuntime>) -> crate::jobs::Jobs {
+    app.state::<crate::jobs::Jobs>().inner().clone()
+}
+
+fn active_ai(app: &tauri::App<MockRuntime>) -> Vec<crate::jobs::JobId> {
+    jobs_of(app).find_active(|j| j.kind == crate::jobs::JobKind::Ai)
+}
+
+#[test]
+fn ai_requests_are_jobs_run_one_at_a_time_and_a_crash_fails_only_the_running_one() {
+    let f = Fixture::new("ai-jobs");
+    let core = f.core();
+    let (model, steps) = gated(vec![text("Chat answer: nothing unusual.")]);
+    core.set_fixed_provider(model);
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    // An explain request runs (waiting for the model), a chat turn waits behind it.
+    let w = main.clone();
+    let explain = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    wait_until("the explain job to run", || {
+        let ids = active_ai(&app);
+        ids.len() == 1 && jobs_of(&app).state_of(ids[0]) == Some(crate::jobs::JobState::Running)
+    });
+    let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
+    let chat_job = ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "anything unusual?"}))
+        .unwrap()
+        .as_u64()
+        .unwrap();
+    assert_eq!(
+        code(ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "again"})).unwrap_err()),
+        "busy",
+        "one turn per chat, also while it waits"
+    );
+    // Shown in the pane after 2 s: the turn waits at position 1, and may be moved.
+    app.state::<crate::test_support::TestClock>().0.advance(3_000);
+    let list = ipc(&main, "jobs_list", json!({})).unwrap();
+    let jobs = list["jobs"].as_array().unwrap();
+    assert_eq!(jobs.len(), 2);
+    assert_eq!(
+        (jobs[0]["state"].as_str(), jobs[0]["title"].as_str()),
+        (Some("running"), Some("Explain event 1"))
+    );
+    assert_eq!(jobs[1]["id"], chat_job);
+    assert_eq!(
+        (
+            jobs[1]["state"].as_str(),
+            jobs[1]["position"].as_u64(),
+            jobs[1]["movable"].as_bool()
+        ),
+        (Some("queued"), Some(1), Some(true))
+    );
+    assert_eq!(jobs[1]["source"]["link"], json!({"type": "chat", "sessionId": sid}));
+    assert_eq!(jobs[0]["source"]["link"], json!({"type": "event", "recordId": 1}));
+    // The worker crashes during the explain: only it fails, with the reason; the turn runs next.
+    steps.send(Step::Crash).unwrap();
+    let err = explain.join().unwrap().unwrap_err();
+    assert_eq!(code(err.clone()), "engine");
+    assert!(err["message"].as_str().unwrap().contains("crashed"));
+    steps.send(Step::Answer).unwrap();
+    let events = finish_turn(&main, &sid);
+    assert!(kinds(&events).contains(&"done".to_string()), "{events:?}");
+    wait_until("both jobs to end", || active_ai(&app).is_empty());
+    let list = ipc(&main, "jobs_list", json!({})).unwrap();
+    let failed = list["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|j| j["state"] == "failed")
+        .expect("the crashed request is listed")
+        .clone();
+    assert!(failed["error"].as_str().unwrap().contains("crashed"));
+    assert_eq!(
+        (failed["retryable"].as_bool(), failed["unseen"].as_bool()),
+        (Some(true), Some(true))
+    );
+    // Its failure is a message in the notification centre, with Retry.
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    let n = notices["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["source"] == "job")
+        .expect("a job message")
+        .clone();
+    assert_eq!(n["primary"], json!({"type": "retryJob", "jobId": failed["id"]}));
+    // The finished turn's View opens its chat.
+    assert_eq!(
+        ipc(&main, "jobs_result", json!({"id": chat_job})).unwrap(),
+        json!({"type": "chat", "sessionId": sid})
+    );
+    // A failed request runs again with Retry, as a job of its own linked to the failed one.
+    steps.send(Step::Crash).unwrap();
+    let retried = ipc(&main, "jobs_retry", json!({"id": failed["id"]})).unwrap().as_u64().unwrap();
+    assert_eq!(
+        jobs_of(&app).info(crate::jobs::JobId(retried)).and_then(|i| i.retry_of),
+        Some(crate::jobs::JobId(failed["id"].as_u64().unwrap()))
+    );
+    wait_until("the retry to end", || active_ai(&app).is_empty());
+}
+
+#[test]
+fn a_waiting_request_can_be_cancelled_and_a_queued_turn_frees_its_chat() {
+    let f = Fixture::new("ai-cancel-queued");
+    let core = f.core();
+    let (model, steps) = gated(vec![text("Explained.")]);
+    core.set_fixed_provider(model);
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let w = main.clone();
+    let first = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    wait_until("running", || active_ai(&app).len() == 1);
+    let w = main.clone();
+    let second = std::thread::spawn(move || ipc(&w, "ai_root_causes", json!({})));
+    let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
+    ipc(&main, "ai_chat_send", json!({"sessionId": sid, "text": "hello"})).unwrap();
+    wait_until("three AI jobs", || active_ai(&app).len() == 3);
+    // Stop in the chat drops its waiting turn: the chat is free again and told.
+    assert_eq!(ipc(&main, "ai_chat_cancel", json!({"sessionId": sid})).unwrap(), true);
+    wait_until("the chat to be free", || {
+        ipc(&main, "ai_chat_sessions", json!({})).unwrap()[0]["running"] == false
+    });
+    assert_eq!(active_ai(&app).len(), 2);
+    // The dialog's Cancel (`ai_cancel`) stops the running use case and drops the waiting one.
+    assert_eq!(ipc(&main, "ai_cancel", json!({})).unwrap(), 2);
+    assert_eq!(code(second.join().unwrap().unwrap_err()), "cancelled");
+    steps.send(Step::Answer).unwrap();
+    assert_eq!(code(first.join().unwrap().unwrap_err()), "cancelled");
+    wait_until("no AI jobs", || active_ai(&app).is_empty());
+}
+
+#[test]
+fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
+    let f = Fixture::new("ai-quarantine");
+    let health = Arc::new(imt_ai::worker::Health::new(1, Duration::from_secs(600)));
+    let mut deps = f.deps();
+    deps.health = Some(health.clone());
+    let core = Arc::new(AiCore::new(Some(ai_dir(&f.tmp)), f.tmp.0.join("models"), false, deps));
+    let (model, steps) = gated(vec![text("Explained."), text("Root causes: none found.")]);
+    core.set_fixed_provider(model);
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    let w = main.clone();
+    let first = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    wait_until("running", || active_ai(&app).len() == 1);
+    let w = main.clone();
+    let waiting = std::thread::spawn(move || ipc(&w, "ai_root_causes", json!({})));
+    wait_until("queued", || active_ai(&app).len() == 2);
+    // The worker crashes and is quarantined: the running request fails, the waiting one stays queued.
+    health.record_failure("crashed three times");
+    steps.send(Step::Crash).unwrap();
+    assert_eq!(code(first.join().unwrap().unwrap_err()), "engine");
+    wait_until("the pause", || {
+        !ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty()
+    });
+    let list = ipc(&main, "jobs_list", json!({})).unwrap();
+    assert_eq!(list["paused"][0]["kind"], "ai");
+    assert_eq!(active_ai(&app).len(), 1, "still waiting");
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    let paused = notices["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["source"] == "ai")
+        .expect("an AI message")
+        .clone();
+    assert_eq!(paused["primary"], json!({"type": "resetAi"}));
+    assert_eq!(paused["scope"], "app");
+    // Reset AI: the queue goes on.
+    steps.send(Step::Answer).unwrap();
+    ipc(&main, "ai_reset", json!({})).unwrap();
+    let r = waiting.join().unwrap();
+    assert!(r.is_ok(), "{r:?}");
+    assert!(ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty());
 }

@@ -99,6 +99,26 @@ impl From<AiError> for AiCmdError {
     }
 }
 
+/// AI requests run as jobs: a cancelled request cancels its job instead of failing it.
+impl crate::jobs::JobFailure for AiCmdError {
+    fn cancelled(&self) -> bool {
+        self.code == AiErrorCode::Cancelled
+    }
+}
+
+/// A request whose job never ran: the queue was full (busy), it was cancelled while waiting, or IMT closed.
+impl From<crate::jobs::Stopped> for AiCmdError {
+    fn from(s: crate::jobs::Stopped) -> Self {
+        use crate::jobs::Stopped;
+        match s {
+            Stopped::Refused(m) => AiCmdError::busy(m),
+            Stopped::Cancelled => AiCmdError::new(AiErrorCode::Cancelled, "cancelled"),
+            Stopped::Interrupted(m) => AiCmdError::new(AiErrorCode::Cancelled, m),
+            Stopped::Failed(m) => AiCmdError::new(AiErrorCode::Engine, m),
+        }
+    }
+}
+
 impl From<imt_core::overwrite::FileExists> for AiCmdError {
     fn from(e: imt_core::overwrite::FileExists) -> Self {
         AiCmdError::new(AiErrorCode::FileExists, e.to_string())

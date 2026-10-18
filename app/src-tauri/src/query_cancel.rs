@@ -7,7 +7,8 @@
 //! cancelled run answers `{ "cancelled": true }`: a normal outcome, not an error. `run_query` stays as
 //! it was for callers that need neither.
 
-use crate::windows::{read, CurrentWindow};
+use crate::jobs::{Controls, JobProgress};
+use crate::windows::CurrentWindow;
 use crate::{CmdResult, State};
 use imt_core::api::QueryRequest;
 use imt_core::ql::{QueryControl, QueryProgress, RunError};
@@ -17,6 +18,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::ipc::Channel;
+use tauri::{AppHandle, Runtime};
 
 /// How often progress is sent while a query runs.
 pub const PROGRESS_EVERY: Duration = Duration::from_millis(150);
@@ -124,8 +126,10 @@ pub fn outcome(out: Result<imt_core::ql::QlResult, RunError>) -> Value {
     }
 }
 
-/// Runs `request` under `control`, streaming progress to `on_progress`.
-pub async fn run_controlled(
+/// Runs `request` under `control` as an analysis job (Cancel in the Jobs pane cancels the run), streaming
+/// progress to `on_progress`.
+pub async fn run_controlled<R: Runtime>(
+    app: &AppHandle<R>,
     state: &CurrentWindow,
     control: QueryControl,
     request: QueryRequest,
@@ -133,7 +137,16 @@ pub async fn run_controlled(
 ) -> CmdResult<Value> {
     let _ticker = Ticker::start(control.clone(), on_progress.clone());
     let watched = control.clone();
-    let out = read(state, move |ws| Ok(ws.run_query_with(&request, &watched))).await?;
+    let (stop, probe) = (control.clone(), control.clone());
+    let controls = Controls::cancel(move || stop.cancel()).with_probe(move || {
+        let p = probe.progress();
+        Some(JobProgress::counts(p.done, p.total))
+    });
+    let ql = request.query.ql.clone();
+    let out = crate::jobs::analysis(app, state, "Run a query", "query", Some(ql), controls, move |ws, _| {
+        Ok(ws.run_query_with(&request, &watched))
+    })
+    .await?;
     if matches!(out, Err(RunError::Cancelled)) {
         log::info!(Stage = format!("{:?}", control.progress().stage).as_str(); "Query cancelled by the user");
     } else {
@@ -146,7 +159,8 @@ pub async fn run_controlled(
 /// Like `run_query`, cancellable with [`cancel_query`] (same `queryId`, same window), with progress on
 /// `onProgress`. See `api.types.ts` (`StreamedQueryOutcome`).
 #[tauri::command]
-pub async fn run_query_stream(
+pub async fn run_query_stream<R: Runtime>(
+    app: AppHandle<R>,
     state: CurrentWindow,
     jobs: State<'_, QueryJobs>,
     request: QueryRequest,
@@ -156,7 +170,7 @@ pub async fn run_query_stream(
     use tracing::Instrument;
     let (control, _job) = jobs.start(state.label(), &query_id)?;
     let span = tracing::info_span!("query", QueryId = query_id.as_str(), Window = state.label());
-    run_controlled(&state, control, request, on_progress).instrument(span).await
+    run_controlled(&app, &state, control, request, on_progress).instrument(span).await
 }
 
 /// Cancels the window's query `queryId`; false when it is not running (any more).
@@ -215,6 +229,7 @@ mod tests {
         let (channel, seen) = recorder();
         let (control, job) = jobs.start(MAIN, "q-1").unwrap();
         let out = block(run_controlled(
+            app.handle(),
             &main_window(&app),
             control,
             req("level >= information | stats count() as n"),
@@ -236,7 +251,7 @@ mod tests {
 
         let (channel, _) = recorder();
         let (control, _job) = jobs.start(MAIN, "q-2").unwrap();
-        let out = block(run_controlled(&main_window(&app), control, req("level >"), channel)).unwrap();
+        let out = block(run_controlled(app.handle(), &main_window(&app), control, req("level >"), channel)).unwrap();
         assert!(out["error"]["offset"].as_u64().unwrap() > 0, "{out}");
     }
 
@@ -248,14 +263,28 @@ mod tests {
         assert!(!jobs.cancel("other-window", "q-c"), "another window cannot cancel it");
         assert!(jobs.cancel(MAIN, "q-c"));
         let (channel, _) = recorder();
-        let out = block(run_controlled(&main_window(&app), control, req("level >= debug"), channel)).unwrap();
+        let out = block(run_controlled(
+            app.handle(),
+            &main_window(&app),
+            control,
+            req("level >= debug"),
+            channel,
+        ))
+        .unwrap();
         assert_eq!(out, json!({ "cancelled": true }));
         drop(job);
         assert!(!jobs.cancel(MAIN, "q-c"), "finished runs are gone");
         // The next run is complete.
         let (control, _job) = jobs.start(MAIN, "q-c").unwrap();
         let (channel, _) = recorder();
-        let out = block(run_controlled(&main_window(&app), control, req("level >= debug"), channel)).unwrap();
+        let out = block(run_controlled(
+            app.handle(),
+            &main_window(&app),
+            control,
+            req("level >= debug"),
+            channel,
+        ))
+        .unwrap();
         assert_eq!(out["result"]["kind"], "events");
     }
 

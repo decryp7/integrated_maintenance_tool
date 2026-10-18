@@ -4,6 +4,7 @@
 //! app/src/app/core/api.types.ts.
 
 use crate::activity::{domain_event, privacy, OpId};
+use crate::jobs::{Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::live;
 use crate::profile::ProfileDoc;
 use crate::windows::{read, write, write_reporting, CurrentWindow};
@@ -24,14 +25,113 @@ pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<Value> 
     read(&state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await
 }
 
+/// Runs an import (open, reload, project) as the window's import job: one at a time per window, with the
+/// import's progress and Cancel; View opens the workspace.
+pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    spec: JobSpec,
+    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
+) -> CmdResult<T> {
+    let (cancel, probe) = (state.progress.clone(), state.progress.clone());
+    let controls = Controls::cancel(move || cancel.cancel()).with_probe(move || {
+        let p = probe.snapshot();
+        p.running.then(|| JobProgress {
+            fraction: (p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
+            done: Some(p.done as u64),
+            total: Some(p.total as u64),
+            eta_ms: p.eta_ms,
+        })
+    });
+    let (handle, win) = (app.clone(), state.arc().clone());
+    crate::jobs::run(app, spec.window(state.label()), controls, move |ctx| {
+        ctx.message("Reading the files");
+        crate::windows::write_reporting_blocking(&handle, &win, f)
+            .map(|v| Done::new(v).with_result(JobResult::Workspace))
+            .map_err(err)
+    })
+    .await
+}
+
+/// The spec of an import of `paths` (Retry opens them again).
+fn open_spec(paths: &[String]) -> JobSpec {
+    let title = match paths {
+        [one] => format!(
+            "Open {}",
+            std::path::Path::new(one)
+                .file_name()
+                .map_or(one.clone(), |n| n.to_string_lossy().into_owned())
+        ),
+        many => format!("Open {} files and folders", many.len()),
+    };
+    let mut spec = JobSpec::new(JobKind::Import, title).retry_with(serde_json::json!({"op": "open", "paths": paths}));
+    if let Some(first) = paths.first() {
+        spec = spec.link(JobLink::Path { path: first.clone() });
+    }
+    spec
+}
+
+/// Retry of an import: the window opens the paths again (through its UI, as after a launch).
+pub(crate) fn retry_import<R: Runtime>(app: &AppHandle<R>, job: &crate::jobs::model::Job) -> Result<Option<crate::jobs::JobId>, String> {
+    let label = job.window().ok_or("this import has no window")?;
+    let paths: Vec<String> = job
+        .request
+        .as_ref()
+        .and_then(|r| r.get("paths"))
+        .and_then(|p| serde_json::from_value(p.clone()).ok())
+        .filter(|p: &Vec<String>| !p.is_empty() && p.len() <= 1000 && p.iter().all(|s| !s.is_empty() && s.len() <= 4096))
+        .ok_or("this import cannot be run again")?;
+    let existing = crate::instance::existing(&paths.iter().map(std::path::PathBuf::from).collect::<Vec<_>>());
+    if existing.is_empty() {
+        return Err("none of these files exist any more".into());
+    }
+    crate::windows::queue_open(app, label, existing);
+    Ok(None)
+}
+
+/// Files of an import that IMT could not use (not crashed: those are engine errors) become one message
+/// with "Set up format".
+fn report_not_imported<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    files: &[imt_core::api::UnrecognizedFile],
+    before: &std::collections::HashSet<String>,
+) {
+    use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource};
+    let new: Vec<_> = files
+        .iter()
+        .filter(|u| !before.contains(&u.path) && !u.reason.contains(" crashed: "))
+        .collect();
+    let Some(first) = new.first() else { return };
+    let title = match new.len() {
+        1 => format!("{} was not imported", first.name),
+        n => format!("{n} files were not imported"),
+    };
+    let names: Vec<&str> = new.iter().take(5).map(|u| u.name.as_str()).collect();
+    let notice = NewNotice::new(NoticeSource::Import, NoticeSeverity::Warning, title, NoticeScope::Project)
+        .body(format!("IMT does not know their format yet: {}.", names.join(", ")))
+        .primary(NoticeAction::SetUpFormat { path: first.path.clone() })
+        .dedupe(format!("import:not-imported:{}", first.path))
+        .link(NoticeLink {
+            path: Some(first.path.clone()),
+            ..NoticeLink::default()
+        });
+    crate::notification_centre::post(app, Some(label), notice, None);
+}
+
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
     let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
-    let summary = write_reporting(&app, &state, move |ws| {
+    if paths.is_empty() {
+        return write_reporting(&app, &state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await;
+    }
+    let (handle, label) = (app.clone(), state.label().to_string());
+    let summary = import_job(&app, &state, open_spec(&paths), move |ws| {
         let before = unrecognized_paths(&ws.summary());
         ws.open(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
         let summary = ws.summary();
         log_unrecognized(&summary.unrecognized, &before);
+        report_not_imported(&handle, &label, &summary.unrecognized, &before);
         // Counts only: file names and contents stay out of the logs.
         log::info!(
             Sources = summary.sources.len() as u64,
@@ -94,7 +194,7 @@ pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Value> {
 
 #[tauri::command]
 pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<Value> {
-    let summary = write_reporting(&app, &state, |ws| {
+    let summary = import_job(&app, &state, JobSpec::new(JobKind::Import, "Reload the files"), |ws| {
         ws.reload()?;
         log_unrecognized(&ws.summary().unrecognized, &Default::default());
         serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
@@ -200,8 +300,14 @@ pub(crate) fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
 
 /// Writes the events matching the query to a file chosen by the user.
 #[tauri::command]
-pub(crate) async fn export_events(state: CurrentWindow, op: OpId, request: ExportRequest) -> CmdResult<Value> {
-    read(&state, move |ws| {
+pub(crate) async fn export_events<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    op: OpId,
+    request: ExportRequest,
+) -> CmdResult<Value> {
+    let target = PathBuf::from(&request.path);
+    crate::jobs::export(&app, &state, "Export events to", &target, move |ws| {
         let result = ws.export(&request)?;
         log::info!(Format = result.format.as_str(), Events = result.events as u64; "Events exported");
         let path = privacy::safe_path(std::path::Path::new(&result.path));
@@ -279,7 +385,8 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
         removed: project.removed.clone(),
         offsets: project.clock.clone(),
     };
-    let (summary, missing) = write_reporting(&app, &state, move |ws| {
+    let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: path.clone() });
+    let (summary, missing) = import_job(&app, &state, spec, move |ws| {
         let missing = ws.restore(profile, &ws_state)?;
         Ok((serde_json::to_value(ws.summary())?, missing))
     })
@@ -550,11 +657,11 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let res = block(export_events(st(), OpId::default(), req)).unwrap();
+        let res = block(export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
         assert_eq!(res["events"], summary["total"]);
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
-        assert!(block(export_events(st(), OpId::default(), bad))
+        assert!(block(export_events(app.handle().clone(), st(), OpId::default(), bad))
             .unwrap_err()
             .contains("unknown export format"));
         assert_eq!(
@@ -672,7 +779,7 @@ mod tests {
         let op = |id: &str| OpId(Some(id.into()));
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        block(export_events(st(), op("op-export"), req)).unwrap();
+        block(export_events(app.handle().clone(), st(), op("op-export"), req)).unwrap();
         let e = crate::tools::tests::domain_event("export.written", "op-export");
         assert_eq!((e.props["Export"].as_str(), e.props["Format"].as_str()), ("events", "clef"));
         assert!(

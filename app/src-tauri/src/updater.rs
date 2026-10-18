@@ -400,6 +400,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
         crate::app_dirs::config(app).ok(),
         Box::new(move |s| {
             let _ = handle.emit(STATUS_EVENT, s);
+            if let UpdatePhase::Available { info } = &s.phase {
+                announce(&handle, info);
+            }
         }),
     ));
     log::info!(Available = available; "Updates are {}", if available { "available" } else { "not available in this build" });
@@ -407,6 +410,22 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
         start_auto_check(updates.clone());
     }
     app.manage(updates);
+}
+
+/// An available update is a notification-centre message (once per version) with "Install update".
+fn announce<R: Runtime>(app: &AppHandle<R>, info: &state::UpdateInfo) {
+    use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeScope, NoticeSeverity, NoticeSource};
+    let notice = NewNotice::new(
+        NoticeSource::Update,
+        NoticeSeverity::Info,
+        format!("IMT {} is available", info.version),
+        NoticeScope::App,
+    )
+    .body(format!("You have {}.", info.current_version))
+    .primary(NoticeAction::InstallUpdate)
+    .dedupe(format!("update:{}", info.version))
+    .once();
+    crate::notification_centre::post(app, None, notice, Some(crate::notify::NotificationKind::UpdateAvailable));
 }
 
 fn start_auto_check(updates: Arc<Updates>) {

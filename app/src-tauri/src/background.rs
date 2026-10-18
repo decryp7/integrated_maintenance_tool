@@ -1,6 +1,7 @@
 //! Background work the user may want to see or stop while IMT runs (also from
-//! the tray): live tail per window, the process monitor, PerfMon collection
-//! and, later, model downloads. Producers register a [`TaskSpec`] with an
+//! the tray): what keeps running until stopped (live tail per window, the
+//! process monitor, PerfMon collection), plus the running jobs, which
+//! [`crate::jobs`] mirrors here. Producers register a [`TaskSpec`] with an
 //! optional stop action; listeners (tray, UI event) are told about changes.
 //!
 //! The registry is plain Rust (no Tauri) so it is unit-testable; `lib.rs`
@@ -22,9 +23,8 @@ pub enum TaskKind {
     LiveTail,
     ProcessMonitor,
     Perfmon,
-    #[allow(dead_code)] // registered by the AI module's model download once installed
-    Download,
-    #[allow(dead_code)] // for future producers
+    /// A running job (see [`crate::jobs`]); its stop action cancels it.
+    Job,
     Other,
 }
 

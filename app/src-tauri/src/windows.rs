@@ -409,6 +409,27 @@ pub(crate) async fn write_reporting<R: Runtime, T: Send + 'static>(
     out.map_err(err)
 }
 
+/// Like [`write_reporting`], on the calling thread (a job's).
+pub(crate) fn write_reporting_blocking<R: Runtime, T>(
+    app: &tauri::AppHandle<R>,
+    win: &WindowState,
+    f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
+    let ws = win.workspace.clone();
+    let (out, errors) = {
+        let mut guard = ws.write().unwrap_or_else(|p| p.into_inner());
+        let store = guard.as_mut();
+        let before = crate::engine_errors::HealthSnapshot::of(&store.summary());
+        let out = f(store);
+        let errors = crate::engine_errors::new_errors(&before, &crate::engine_errors::HealthSnapshot::of(&store.summary()));
+        (out, errors)
+    };
+    for e in &errors {
+        crate::snapshots::emit_engine_error(app, win.label(), e);
+    }
+    out
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;

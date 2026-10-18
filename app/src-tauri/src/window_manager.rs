@@ -287,6 +287,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
             }
+            crate::notification_centre::on_focus(app, panel_windows::resolve(label));
         }
         WindowEvent::Moved(_) if panel_windows::is_popout(label) => {
             panel_windows::moved(app, label);
@@ -357,6 +358,8 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if let Some(tasks) = app.try_state::<BackgroundTasks>() {
         tasks.remove_window(label);
     }
+    crate::jobs::forget_window(app, label);
+    crate::notification_centre::forget_window(app, label);
     if !exiting {
         if let Some(life) = app.try_state::<crate::lifecycle::Lifecycle>() {
             life.forget_session(label);

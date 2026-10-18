@@ -4,12 +4,10 @@
 //!
 //! Wire contract: `app/src/app/ai/folder-setup/folder-setup.types.ts`.
 
-use super::commands::{core, WindowStore};
-use super::error::{AiCmdError, AiErrorCode, AiResult};
+use super::error::{AiCmdError, AiResult};
 use crate::windows::{read, CurrentWindow};
 use crate::{CmdResult, State};
 use imt_ai::assistant::FolderRefinement;
-use imt_ai::StoreAccess;
 use imt_core::survey::{self, ComposedProfile, Fragment, SurveyControl, SurveyError, SurveyProgress, SurveyRequest};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -116,7 +114,8 @@ fn outcome(r: Result<survey::FolderSetup, SurveyError>) -> anyhow::Result<Value>
 /// Surveys the window's files and returns validated heuristic proposals; cancellable with
 /// [`folder_survey_cancel`] (same `surveyId`, same window), with progress on `onProgress`.
 #[tauri::command]
-pub async fn folder_survey(
+pub async fn folder_survey<R: Runtime>(
+    app: AppHandle<R>,
     state: CurrentWindow,
     jobs: State<'_, SurveyJobs>,
     survey_id: String,
@@ -128,7 +127,15 @@ pub async fn folder_survey(
     let base = state.profile_doc().toml;
     let req = request.unwrap_or_default();
     let watched = control.clone();
-    let out = read(&state, move |ws| outcome(ws.survey_folder(&base, &req, &watched))).await?;
+    let (stop, probe) = (control.clone(), control.clone());
+    let controls = crate::jobs::Controls::cancel(move || stop.cancel()).with_probe(move || {
+        let p = probe.progress();
+        Some(crate::jobs::JobProgress::counts(p.done as u64, p.total as u64))
+    });
+    let out = crate::jobs::analysis(&app, &state, "Survey the folder", "folderSetup", None, controls, move |ws, _| {
+        outcome(ws.survey_folder(&base, &req, &watched))
+    })
+    .await?;
     let _ = on_progress.send(control.progress());
     Ok(out)
 }
@@ -150,43 +157,25 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
     read(&state, move |ws| survey::compose(ws, &base, &fragments)).await
 }
 
-/// AI proposals for the folder (the model refines the survey's facts; the engine validates every answer).
-/// Cancel with `ai_cancel`. Fails with `unavailable` / `noModel` when no model is set up.
+/// AI proposals for the folder (the model refines the survey's facts; the engine validates every answer),
+/// as an AI job. Cancel with `ai_cancel`. Fails with `unavailable` / `noModel` when no model is set up.
 #[tauri::command]
 pub async fn ai_refine_folder_setup<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
-    request: Option<SurveyRequest>,
+    request: Option<Value>,
 ) -> AiResult<FolderRefinement> {
-    let core = core(&app)?;
-    let flag = win.ai.begin_op();
-    let assistant = match core.assistant(flag.clone()) {
-        Ok(a) => a,
-        Err(e) => {
-            win.ai.end_op(&flag);
-            return Err(e);
-        }
-    };
-    let base = win.profile_doc().toml;
-    let w = win.arc().clone();
-    let req = request.unwrap_or_default();
-    let r = tauri::async_runtime::spawn_blocking(move || {
-        // The store is borrowed per engine step, never across the model's generation.
-        let access = WindowStore(w);
-        assistant
-            .refine_folder_setup(&access as &dyn StoreAccess, &base, &req)
-            .map_err(AiCmdError::from)
-    })
-    .await
-    .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the AI task stopped unexpectedly ({e})")))
-    .and_then(|r| r);
-    win.ai.end_op(&flag);
-    r
+    if let Some(v) = &request {
+        serde_json::from_value::<SurveyRequest>(v.clone())
+            .map_err(|e| AiCmdError::invalid(format!("the survey request is not valid: {e}")))?;
+    }
+    super::commands::refine_folder_setup(&app, &win, request).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ai::error::AiErrorCode;
     use crate::test_support::{block, main_window, samples, test_app};
     use tauri::ipc::InvokeResponseBody;
     use tauri::Manager;
@@ -210,7 +199,15 @@ mod tests {
             .unwrap();
         let jobs = app.state::<SurveyJobs>();
         let (ch, _) = sink();
-        let out = block(folder_survey(win.clone(), jobs.clone(), "s-1".into(), None, ch)).unwrap();
+        let out = block(folder_survey(
+            app.handle().clone(),
+            win.clone(),
+            jobs.clone(),
+            "s-1".into(),
+            None,
+            ch,
+        ))
+        .unwrap();
         let proposals = out["setup"]["proposals"].as_array().unwrap();
         let key = proposals
             .iter()
@@ -225,7 +222,15 @@ mod tests {
         assert!(block(folder_setup_compose(win.clone(), vec![])).is_err());
         // Ids are validated; unknown surveys cannot be cancelled.
         let (ch, _) = sink();
-        assert!(block(folder_survey(win.clone(), jobs.clone(), "bad id!".into(), None, ch)).is_err());
+        assert!(block(folder_survey(
+            app.handle().clone(),
+            win.clone(),
+            jobs.clone(),
+            "bad id!".into(),
+            None,
+            ch
+        ))
+        .is_err());
         assert!(!folder_survey_cancel(win.clone(), jobs.clone(), "nope".into()));
     }
 

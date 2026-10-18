@@ -68,20 +68,27 @@ fn clearing_several_categories_reports_each_with_progress_and_stops_when_cancell
 }
 
 #[test]
-fn one_clear_runs_at_a_time_as_a_stoppable_background_task() {
+fn one_clear_runs_at_a_time_as_a_maintenance_job() {
     let app = test_app_with_commands(None);
     let job = Job::begin(app.handle()).unwrap();
     assert!(Job::begin(app.handle()).err().is_some_and(|e| e.contains("already clearing")));
-    let tasks = app.state::<BackgroundTasks>();
-    let task = tasks.list().into_iter().find(|t| t.id == TASK_ID).unwrap();
-    assert!(task.stoppable);
-    job.progress(0.5);
-    assert_eq!(tasks.list().into_iter().find(|t| t.id == TASK_ID).unwrap().progress, Some(0.5));
-    tasks.stop(TASK_ID).unwrap();
-    assert!(job.cancel.load(Ordering::Relaxed), "stopping the task cancels the clear");
+    assert!(!job.cancel.load(Ordering::Relaxed));
     drop(job);
-    assert!(tasks.list().iter().all(|t| t.id != TASK_ID));
-    // The slot is free again.
+    // The slot is free again, and a clear runs as a maintenance job.
+    let ended = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let e = ended.clone();
+    app.state::<crate::jobs::Jobs>().subscribe(move |ev| {
+        if let crate::jobs::JobsEvent::Finished(f) = ev {
+            e.lock().unwrap().push((f.job.kind, f.job.state()));
+        }
+    });
+    let main = window(&app, "main");
+    ipc(&main, "storage_clear", json!({ "ids": ["stores"] })).unwrap();
+    crate::jobs::wait_until("the job", || !ended.lock().unwrap().is_empty());
+    assert_eq!(
+        ended.lock().unwrap()[0],
+        (crate::jobs::JobKind::Maintenance, crate::jobs::JobState::Done)
+    );
     drop(Job::begin(app.handle()).unwrap());
 }
 

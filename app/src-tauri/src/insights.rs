@@ -8,6 +8,22 @@ use imt_core::api::{
     RequestsRequest, TraceRequest,
 };
 use serde_json::{json, Value};
+use tauri::{AppHandle, Runtime};
+
+/// An analysis view's computation as an analysis job (visible in the Jobs pane when it takes a while).
+async fn analysis<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    title: &str,
+    view: &str,
+    ql: &str,
+    f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<Value> + Send + 'static,
+) -> CmdResult<Value> {
+    crate::jobs::analysis(app, state, title, view, Some(ql.to_string()), Default::default(), move |ws, _| {
+        f(ws)
+    })
+    .await
+}
 
 fn to_value(v: impl serde::Serialize) -> anyhow::Result<Value> {
     Ok(serde_json::to_value(v)?)
@@ -37,23 +53,38 @@ pub async fn complete_query(state: CurrentWindow, request: CompletionRequest) ->
 }
 
 #[tauri::command]
-pub async fn query_patterns(state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
-    read(&state, move |ws| to_value(ws.patterns(&request)?)).await
+pub async fn query_patterns<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
+    let ql = request.query.ql.clone();
+    analysis(&app, &state, "Find patterns", "patterns", &ql, move |ws| {
+        to_value(ws.patterns(&request)?)
+    })
+    .await
 }
 
 #[tauri::command]
-pub async fn query_exceptions(state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
-    read(&state, move |ws| to_value(ws.exception_groups(&request)?)).await
+pub async fn query_exceptions<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
+    let ql = request.query.ql.clone();
+    analysis(&app, &state, "Group exceptions", "exceptions", &ql, move |ws| {
+        to_value(ws.exception_groups(&request)?)
+    })
+    .await
 }
 
 #[tauri::command]
-pub async fn query_anomalies(state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
-    read(&state, move |ws| to_value(ws.anomalies(&request)?)).await
+pub async fn query_anomalies<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
+    let ql = request.query.ql.clone();
+    analysis(&app, &state, "Detect anomalies", "anomalies", &ql, move |ws| {
+        to_value(ws.anomalies(&request)?)
+    })
+    .await
 }
 
 #[tauri::command]
-pub async fn compare_windows(state: CurrentWindow, request: CompareRequest) -> CmdResult<Value> {
-    read(&state, move |ws| to_value(ws.compare(&request)?)).await
+pub async fn compare_windows<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: CompareRequest) -> CmdResult<Value> {
+    analysis(&app, &state, "Compare two time windows", "compare", "", move |ws| {
+        to_value(ws.compare(&request)?)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -82,8 +113,11 @@ pub async fn query_requests(state: CurrentWindow, request: RequestsRequest) -> C
 }
 
 #[tauri::command]
-pub async fn query_moment(state: CurrentWindow, request: MomentRequest) -> CmdResult<Value> {
-    read(&state, move |ws| to_value(ws.moment(&request)?)).await
+pub async fn query_moment<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: MomentRequest) -> CmdResult<Value> {
+    analysis(&app, &state, "Analyse a moment", "moment", "", move |ws| {
+        to_value(ws.moment(&request)?)
+    })
+    .await
 }
 
 #[tauri::command]

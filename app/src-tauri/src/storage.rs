@@ -21,7 +21,7 @@ mod walk;
 
 use crate::activity::{domain_event, OpId};
 use crate::ai::{AiCore, AiState};
-use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
+use crate::jobs::{Controls, Done, JobKind, JobProgress, JobSpec};
 use crate::{err, CmdResult};
 use model::{CategoryClearResult, CategoryId, StorageClearResult, StorageUsage};
 use plan::{AiPort, Category, Folders};
@@ -33,7 +33,6 @@ use tauri::{AppHandle, Manager, Runtime};
 use walk::Budget;
 
 /// Id of the background task while a clear runs.
-const TASK_ID: &str = "storage-clear";
 /// How long the OS file manager may run before it is killed.
 const OPENER_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -162,7 +161,7 @@ struct StorageJobs {
     running: Mutex<bool>,
 }
 
-/// Holds the slot and the background task while a clear runs; releases both when dropped.
+/// Holds the slot while a clear runs; releases it when dropped. The clear itself is a maintenance job.
 struct Job<R: Runtime> {
     app: AppHandle<R>,
     cancel: Arc<AtomicBool>,
@@ -179,38 +178,15 @@ impl<R: Runtime> Job<R> {
             return Err("IMT is already clearing its storage; wait for it to finish".into());
         }
         *running = true;
-        let cancel = Arc::new(AtomicBool::new(false));
-        if let Some(tasks) = app.try_state::<BackgroundTasks>() {
-            let flag = cancel.clone();
-            let spec = TaskSpec {
-                id: TASK_ID.into(),
-                label: "Clearing IMT's storage".into(),
-                kind: TaskKind::Other,
-                window: None,
-            };
-            let stop = Arc::new(move || {
-                flag.store(true, Ordering::Relaxed);
-                Ok(())
-            });
-            if let Err(e) = tasks.register(spec, Some(stop)) {
-                log::warn!("storage clearing is not listed as a background task: {e:#}");
-            }
-        }
-        Ok(Job { app: app.clone(), cancel })
-    }
-
-    fn progress(&self, fraction: f32) {
-        if let Some(tasks) = self.app.try_state::<BackgroundTasks>() {
-            tasks.set_progress(TASK_ID, Some(fraction));
-        }
+        Ok(Job {
+            app: app.clone(),
+            cancel: Arc::new(AtomicBool::new(false)),
+        })
     }
 }
 
 impl<R: Runtime> Drop for Job<R> {
     fn drop(&mut self) {
-        if let Some(tasks) = self.app.try_state::<BackgroundTasks>() {
-            tasks.remove(TASK_ID);
-        }
         if let Some(jobs) = self.app.try_state::<StorageJobs>() {
             *jobs.running.lock().unwrap_or_else(|p| p.into_inner()) = false;
         }
@@ -237,14 +213,24 @@ pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<Str
     let job = Job::begin(&app)?;
     let started = Instant::now();
     let names = ids.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(",");
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        let ai = ai_port(&job.app);
-        let port = ai.as_ref().map(|a| a as &dyn AiPort);
-        let folders = folders(&job.app, port);
-        clear_all(&plan::categories(&folders), &ids, port, &job.cancel, &mut |f| job.progress(f))
-    })
-    .await
-    .map_err(err)?;
+    let flag = job.cancel.clone();
+    let spec = JobSpec::new(JobKind::Maintenance, "Clear IMT's storage");
+    let result = crate::jobs::run(
+        &app,
+        spec,
+        Controls::cancel(move || flag.store(true, Ordering::Relaxed)),
+        move |ctx| {
+            let ai = ai_port(&job.app);
+            let port = ai.as_ref().map(|a| a as &dyn AiPort);
+            let folders = folders(&job.app, port);
+            let r = clear_all(&plan::categories(&folders), &ids, port, &job.cancel, &mut |f| {
+                ctx.progress(JobProgress::fraction(f))
+            });
+            let cancelled = r.cancelled;
+            Ok::<_, String>(Done::new(r).cancelled_if(cancelled))
+        },
+    )
+    .await?;
     let freed = result.freed_bytes.to_string();
     let skipped = result.categories.iter().map(|c| c.skipped_count).sum::<u64>().to_string();
     let ms = started.elapsed().as_millis().to_string();

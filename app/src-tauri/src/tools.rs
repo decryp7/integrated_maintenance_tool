@@ -4,10 +4,11 @@
 //! tool: arguments are validated by the host against the tool's schema, and
 //! the call runs under the plugin's guard and the operation's time budget.
 //!
-//! Background work a tool reports (a running process monitor, a started
-//! collector set, a diagnostics collection) is listed in
-//! [`BackgroundTasks`] (tray, status bar) through [`ShellTasks`]; stopping it
-//! there calls the tool back through the same host.
+//! Background work a tool reports goes through [`ShellTasks`]: what runs until
+//! stopped (the process monitor, a PerfMon collector set) is listed in
+//! [`BackgroundTasks`] (tray, status bar); a collection that ends by itself (a
+//! diagnostics collection) is a collection job (one at a time; a second one is
+//! stopped with a reason). Stopping either calls the tool back through the same host.
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::windows::CurrentWindow;
@@ -53,6 +54,74 @@ impl<R: Runtime> ShellTasks<R> {
     }
 }
 
+/// The collection jobs of tool tasks, by task id: the job ends when the tool reports the task finished.
+#[derive(Default)]
+struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>>);
+
+impl CollectionJobs {
+    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>> {
+        self.0.lock().unwrap_or_else(|p| p.into_inner())
+    }
+}
+
+/// Whether a tool task runs until stopped (a background task) rather than ending by itself (a job).
+fn is_service(hint: &str) -> bool {
+    matches!(hint, "process-monitor" | "perfmon")
+}
+
+impl<R: Runtime> ShellTasks<R> {
+    fn stop_task(&self, tool: &str, id: &str) -> anyhow::Result<()> {
+        let ctx = ToolCtx::new(self.data_dir.clone(), Arc::new(self.clone()));
+        self.host.stop(tool, id, &ctx).map_err(anyhow::Error::from)
+    }
+
+    /// Lists a collection as a collection job, or stops it when another one runs.
+    fn track_collection(&self, tool: &str, task: &ToolTask) {
+        let Some(jobs) = self.app.try_state::<crate::jobs::Jobs>() else {
+            return;
+        };
+        if self.app.try_state::<CollectionJobs>().is_none() {
+            self.app.manage(CollectionJobs::default());
+        }
+        let Some(registry) = self.app.try_state::<CollectionJobs>() else {
+            return;
+        };
+        if !jobs.find_active(|j| j.kind == crate::jobs::JobKind::Collection).is_empty() {
+            log::warn!(Tool = tool; "A second collection was stopped: one runs at a time");
+            let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
+            // Off the caller's thread: stopping may run a system tool.
+            let _ = std::thread::Builder::new().name("imt-tool-stop".into()).spawn(move || {
+                if let Err(e) = sink.stop_task(&tool, &id) {
+                    log::warn!(Tool = tool.as_str(); "could not stop the second collection: {e:#}");
+                }
+            });
+            return;
+        }
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
+        let mut spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Collection, task.label.clone());
+        if !task.stoppable {
+            spec = spec.not_cancellable();
+        }
+        let (sink, t, id) = (self.clone(), tool.to_string(), task.id.clone());
+        let controls = crate::jobs::Controls::cancel(move || {
+            if let Err(e) = sink.stop_task(&t, &id) {
+                log::warn!(Tool = t.as_str(); "could not stop the collection: {e:#}");
+            }
+        });
+        let rx = std::sync::Mutex::new(rx);
+        match jobs.submit_work(spec, controls, move |_| {
+            // The tool says when it is done (or the sender goes with IMT).
+            let _ = rx.lock().unwrap_or_else(|p| p.into_inner()).recv();
+            crate::jobs::queue::JobEnd::Done(None)
+        }) {
+            Ok(job) => {
+                registry.lock().insert(task.id.clone(), (job, tx));
+            }
+            Err(e) => log::warn!(Tool = tool; "collection not listed as a job: {e}"),
+        }
+    }
+}
+
 /// The tray icon of a tool's task kind hint.
 fn task_kind(hint: &str) -> TaskKind {
     match hint {
@@ -64,6 +133,9 @@ fn task_kind(hint: &str) -> TaskKind {
 
 impl<R: Runtime> TaskSink for ShellTasks<R> {
     fn started(&self, tool: &str, task: &ToolTask) {
+        if !is_service(&task.kind) {
+            return self.track_collection(tool, task);
+        }
         let Some(tasks) = self.tasks() else { return };
         let stop: Option<crate::background::StopFn> = task.stoppable.then(|| {
             let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
@@ -85,12 +157,31 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
     }
 
     fn progress(&self, _tool: &str, task: &str, fraction: Option<f32>) {
-        if let Some(tasks) = self.tasks() {
-            tasks.set_progress(task, fraction);
+        let job = self
+            .app
+            .try_state::<CollectionJobs>()
+            .and_then(|r| r.lock().get(task).map(|(id, _)| *id));
+        match (job, self.app.try_state::<crate::jobs::Jobs>()) {
+            (Some(id), Some(jobs)) => jobs.report(
+                id,
+                crate::jobs::JobProgress {
+                    fraction,
+                    ..Default::default()
+                },
+            ),
+            _ => {
+                if let Some(tasks) = self.tasks() {
+                    tasks.set_progress(task, fraction);
+                }
+            }
         }
     }
 
     fn finished(&self, _tool: &str, task: &str) {
+        if let Some((_, done)) = self.app.try_state::<CollectionJobs>().and_then(|r| r.lock().remove(task)) {
+            let _ = done.send(());
+            return;
+        }
         if let Some(tasks) = self.tasks() {
             tasks.remove(task);
         }
@@ -384,6 +475,42 @@ pub(crate) mod tests {
         assert_eq!(status["running"], false);
         assert_eq!(task_kind("perfmon"), TaskKind::Perfmon);
         assert_eq!(task_kind("collect"), TaskKind::Other);
+    }
+
+    #[test]
+    fn collections_are_collection_jobs_one_at_a_time() {
+        let app = test_app_with_commands(None);
+        let host = crate::test_support::main_window(&app).tools.clone().expect("the tools host");
+        let sink = ShellTasks {
+            app: app.handle().clone(),
+            host,
+            data_dir: None,
+        };
+        let task = |id: &str| ToolTask {
+            id: id.into(),
+            label: "Collecting diagnostics".into(),
+            kind: "collect".into(),
+            stoppable: true,
+        };
+        let jobs = app.state::<crate::jobs::Jobs>().inner().clone();
+        let collections = || jobs.find_active(|j| j.kind == crate::jobs::JobKind::Collection);
+        sink.started("diag", &task("collect-1"));
+        crate::jobs::wait_until("the collection job", || collections().len() == 1);
+        assert!(app.state::<BackgroundTasks>().list().is_empty(), "not a background service");
+        let id = collections()[0];
+        sink.progress("diag", "collect-1", Some(0.5));
+        assert_eq!(jobs.info(id).unwrap().progress.fraction, Some(0.5));
+        // A second collection while one runs is stopped (through the tool), not queued behind a running tool.
+        let _g = crate::activity::test_capture();
+        sink.started("diag", &task("collect-2"));
+        assert_eq!(collections().len(), 1);
+        assert!(crate::activity::captured().iter().any(|c| c.message.contains("second collection")));
+        sink.finished("diag", "collect-1");
+        crate::jobs::wait_until("the job to end", || collections().is_empty());
+        // Unknown tasks are ignored.
+        sink.progress("diag", "nope", None);
+        sink.finished("diag", "nope");
+        assert!(is_service("perfmon") && !is_service("collect"));
     }
 
     /// `tool_invoke` for `tool`'s `op`.

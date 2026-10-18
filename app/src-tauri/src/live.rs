@@ -195,12 +195,45 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
     for alert in &report.alerts {
         log::info!(Kind = alert.kind.as_str(); "Live alert");
         emit_to_window(app, label, ALERT_EVENT, alert);
+        crate::notification_centre::post(app, Some(label), alert_notice(alert), None);
     }
     let body = match report.alerts.len() {
         1 => "A live tail alert was raised. Open IMT to see it.".to_string(),
         n => format!("{n} live tail alerts were raised. Open IMT to see them."),
     };
     notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
+}
+
+/// A live alert as a notification-centre message: repeats of the same kind on the same instance (or rule)
+/// merge into one with a count. (Muted alerts never get here; the OS notification is raised below.)
+pub(crate) fn alert_notice(alert: &imt_core::workspace::LiveAlert) -> crate::notification_centre::centre::NewNotice {
+    use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeScope, NoticeSeverity, NoticeSource};
+    let what = match alert.kind.as_str() {
+        "errorSpike" => "Error spike".to_string(),
+        "silence" => "Silence".into(),
+        "crash" => "Crash".into(),
+        "slowOutlier" => "Slow outlier".into(),
+        "rateChange" => "Rate change".into(),
+        "memoryGrowth" => "Memory growth".into(),
+        "rule" => alert.rule.clone().unwrap_or_else(|| "Alert rule".into()),
+        other => other.to_string(),
+    };
+    let who = alert.rule.clone().or_else(|| alert.instance.clone()).unwrap_or_default();
+    let title = match &alert.instance {
+        Some(i) if !i.is_empty() => format!("{what} on {i}"),
+        _ => what,
+    };
+    let severity = match alert.severity {
+        imt_core::api::Severity::Critical => NoticeSeverity::Error,
+        imt_core::api::Severity::Warning => NoticeSeverity::Warning,
+        imt_core::api::Severity::Info => NoticeSeverity::Info,
+    };
+    NewNotice::new(NoticeSource::LiveAlert, severity, title, NoticeScope::Project)
+        .body(alert.message.clone())
+        .primary(NoticeAction::ShowAlert {
+            alert_id: alert.id.clone(),
+        })
+        .dedupe(format!("live:{}:{who}", alert.kind))
 }
 
 /// Turns a window's live tail on (replacing a running session) or off;
@@ -633,5 +666,38 @@ mod tests {
             ("Io(PermissionDenied)", "1")
         );
         assert!(logged.iter().all(|c| !format!("{:?}", c.props).contains("secret")));
+    }
+
+    #[test]
+    fn live_alerts_become_messages_that_merge_per_kind_and_instance() {
+        let alert = |kind: &str, instance: Option<&str>, rule: Option<&str>| imt_core::workspace::LiveAlert {
+            id: format!("{kind}:x:1"),
+            kind: kind.into(),
+            rule: rule.map(String::from),
+            instance: instance.map(String::from),
+            severity: imt_core::api::Severity::Critical,
+            from: 0,
+            to: 1,
+            message: "12 errors in a minute".into(),
+            evidence_query: Default::default(),
+        };
+        let n = alert_notice(&alert("errorSpike", Some("WEB02"), None));
+        assert_eq!(n.title, "Error spike on WEB02");
+        assert_eq!(n.dedupe_key.as_deref(), Some("live:errorSpike:WEB02"));
+        assert_eq!(n.severity, crate::notification_centre::centre::NoticeSeverity::Error);
+        let r = alert_notice(&alert("rule", None, Some("payment errors")));
+        assert_eq!((r.title.as_str(), r.dedupe_key.as_deref()), ("payment errors", Some("live:rule:payment errors")));
+        for k in ["silence", "crash", "slowOutlier", "rateChange", "memoryGrowth", "other"] {
+            assert!(!alert_notice(&alert(k, None, None)).title.is_empty());
+        }
+        let app = crate::test_support::test_app(None);
+        let a = alert("errorSpike", Some("WEB02"), None);
+        let report = TailReport {
+            alerts: vec![a.clone(), a],
+            ..TailReport::default()
+        };
+        emit_report(app.handle(), "main", &report);
+        let list = app.state::<crate::notification_centre::NotificationCentre>().snapshot("main");
+        assert_eq!((list.notices.len(), list.notices[0].count), (1, 2), "merged: ERROR spike on WEB02 (×2)");
     }
 }
