@@ -181,15 +181,38 @@ fn a_child_that_ignores_the_lifeline_is_killed_by_close() {
     p.close(Duration::from_millis(200));
     assert!(p.exited());
     assert!(started.elapsed() < Duration::from_secs(3));
-    // Writing to a dead child is a crash.
-    assert!(matches!(
-        p.send_handshake(&imt_ipc::endpoint::Handshake {
+    // Writing to a dead child is a crash while starting, the same message whichever way the race goes.
+    let e = p
+        .send_handshake(&imt_ipc::endpoint::Handshake {
             address: "a".into(),
-            token: "t".into()
-        }),
-        Err(IpcError::Died(_))
-    ));
+            token: "t".into(),
+        })
+        .unwrap_err();
+    assert!(
+        matches!(&e, IpcError::Died(m) if m.contains("closed the connection while starting")),
+        "{e:?}"
+    );
     drop(rt);
+}
+
+#[test]
+fn a_child_that_exits_before_the_handshake_is_reported_as_dying_while_starting() {
+    // The race CI hit: the child exits before IMT writes the handshake, so the write fails rather than the connect.
+    let p = ChildProcess::spawn(&spec(&["--exit-now"])).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !p.exited() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let e = p
+        .send_handshake(&imt_ipc::endpoint::Handshake {
+            address: "a".into(),
+            token: "t".into(),
+        })
+        .unwrap_err();
+    assert!(
+        matches!(&e, IpcError::Died(m) if m.contains("the fake child exited while starting")),
+        "{e:?}"
+    );
 }
 
 struct Conn(Launched);

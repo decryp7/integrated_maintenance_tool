@@ -256,9 +256,14 @@ impl ChildProcess {
         let wrote = lock(&self.stdin)
             .as_mut()
             .map(|s| s.write_all(format!("{line}\n").as_bytes()).and_then(|_| s.flush()));
+        // The handshake is the first thing a child reads, so a failed write means it died while starting (one
+        // that exits at once can break the pipe before IMT writes).
         match wrote {
             Some(Ok(())) => Ok(()),
-            _ => Err(IpcError::Died(self.exit_text())),
+            _ => Err(IpcError::Died(match self.exit_soon() {
+                Some(s) => format!("{} exited while starting ({s})", self.label),
+                None => format!("{} closed the connection while starting", self.label),
+            })),
         }
     }
 
@@ -274,13 +279,21 @@ impl ChildProcess {
 
     /// Describes how the child ended, waiting briefly for the OS to publish its exit status.
     pub fn exit_text(&self) -> String {
+        match self.exit_soon() {
+            Some(s) => format!("{} exited ({s})", self.label),
+            None => format!("{} closed the connection", self.label),
+        }
+    }
+
+    /// The exit status, waiting up to 200 ms for the OS to publish it.
+    fn exit_soon(&self) -> Option<ExitStatus> {
         for _ in 0..20 {
             if let Some(s) = self.try_exit() {
-                return format!("{} exited ({s})", self.label);
+                return Some(s);
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        format!("{} closed the connection", self.label)
+        None
     }
 
     /// Closes the child's stdin: a well-behaved child exits on its own (this is what happens when IMT dies).
@@ -356,6 +369,7 @@ pub async fn launch(spec: &SpawnSpec) -> Result<Launched, IpcError> {
         .map_err(|e| IpcError::Spawn(format!("cannot prepare a private socket: {e}")))?;
     let token = new_token().map_err(|e| IpcError::Spawn(e.to_string()))?;
     let process = ChildProcess::spawn(spec)?;
+    let label = spec.label.clone();
     if let Err(e) = process.send_handshake(&Handshake {
         address: endpoint.address.clone(),
         token: token.clone(),
@@ -363,7 +377,6 @@ pub async fn launch(spec: &SpawnSpec) -> Result<Launched, IpcError> {
         process.kill();
         return Err(e);
     }
-    let label = spec.label.clone();
     let channel = connect_with_retry(&endpoint.address, spec.connect_window, || {
         process.try_exit().map(|s| format!("{label} exited while starting ({s})"))
     })
