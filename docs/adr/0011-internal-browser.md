@@ -1,6 +1,6 @@
 # 11. The AI gets web content only through an internal browser the user drives
 
-- Status: accepted
+- Status: accepted (amended by [ADR 0012](0012-jobs.md): read-only research mode)
 - Date: 2026-10-18
 
 ## Context

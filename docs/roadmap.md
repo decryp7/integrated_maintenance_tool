@@ -188,6 +188,14 @@ planned.)*
     loaded (llama-server with a multimodal projector, e.g. a Qwen2.5-VL GGUF), send a screenshot of the
     browser window alongside the DOM snapshot. It helps on visually complex pages (canvas content,
     image buttons, layout cues). Text-only models keep working as today. It stays local; no cloud model.
+- **Jobs and notifications** *(Done, [ADR 0012](adr/0012-jobs.md))*: every long task (AI requests, research,
+  imports, long queries and analyses, exports, downloads, survey, storage clean-up, collections) is a job
+  with per-kind queues and limits enforced in Rust, a Jobs pane with progress, Cancel, Retry and View, toasts
+  and OS notifications for long jobs, history saved with the project, and a notification centre for what needs
+  attention (deduplicated, capped, saved per project and per app).
+- **Research mode** *(Done, ADR 0012 amending 0011)*: the AI researches the web by itself, read-only: results
+  page links only, 1–10 pages, CAPTCHA/login/payment pages skipped, a citation per claim; a confirmation when
+  the search text contains workspace data. *(The real browser flow is not yet verified on every webview.)*
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.

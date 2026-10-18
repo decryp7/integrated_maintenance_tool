@@ -53,7 +53,8 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
 | [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
 | [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
-| [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. |
+| [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode. |
+| [0012](adr/0012-jobs.md) | Jobs and notifications: every long task is a job with per-kind queues and limits in Rust; a notification centre for what needs attention; research mode as a job. |
 
 ## Plugin runtime (ADR 0003)
 
@@ -101,7 +102,9 @@ state go.
 | `window_manager.rs` | `new_window`, `close_window`, `list_windows`, `focus_window`, `set_window_title`, `resolve_close`, `resolve_open`; what closing the last window does (quit, tray, ask); the "open in this window / new window" question (`imt://open-ask`; `resolve_open` with `cancel` drops the queued paths). Events `imt://windows-changed`, `imt://close-requested`. |
 | `instance.rs` | Single instance (`tauri-plugin-single-instance`): a second launch hands its paths to the running process, planned by the pure `plan` function from `openFilesIn`, `--new-window` and whether the target window is empty. `--new-instance` and safe mode run a separate process. |
 | `tray.rs` | Tray menu as a pure model: windows, new window, recent projects (pushed by the UI with `set_recent_projects`), background tasks with Stop, diagnostic capture, quit. Without a tray, closing the last window quits. |
-| `background.rs` | Registry of background work (live tail per window, process monitor, PerfMon collection) with optional stop actions; `background_tasks`, `stop_background_task`, event `imt://background-tasks`. |
+| `background.rs` | Registry of what runs until stopped (live tail per window, process monitor, PerfMon collection) with optional stop actions, plus the running jobs mirrored from `jobs`; `background_tasks`, `stop_background_task`, event `imt://background-tasks`. |
+| `jobs/` | Jobs (ADR 0012): `model.rs` (kinds, the state machine), `queue.rs` (pure queue: per-kind FIFO and limits, cap, AI reorder, pause, visibility and attention on an injected clock), `persist.rs` (`JobsRecord` v1 in the project), `service.rs` (threads, stop actions, probes, Retry, listeners; Tauri-free), `mod.rs` (`run`/`spawn`/`analysis`/`export` for commands, the tray mirror, messages for finished jobs, `jobs_*` commands, event `imt://jobs`). |
+| `notification_centre/` | The notification centre (ADR 0012): `centre.rs` (pure list: dedupe with counts, caps trimming read messages first), `persist.rs` (project record, `notifications.json`), `mod.rs` (`post` for producers with OS notifications when IMT is not focused, the click-to-open on focus, `notifications_*` commands, events `imt://notifications`, `imt://notifications-open`). |
 | `notify.rs` | Desktop notification policy (level × kind × whether a window already shows it), rate limiter, and the adapter over `tauri-plugin-notification`; never includes file contents. |
 | `window_prefs.rs` | The *Window & tray* settings section: `openFilesIn`, `onClose`, `notifications`, `startMinimized`. |
 | `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave. |
@@ -117,6 +120,18 @@ Sessions (format version 2): each window autosaves to `sessions/<window>/last-se
 `sessions/manifest.json` lists the windows of the current run. At start, the previous run's sessions
 are copied to `recovered/` for the restore offer; a version 1 single session is recovered as the
 main window's. Missing or corrupt files fall back to "no session".
+
+## Jobs and notifications
+
+Every long task is a job (ADR 0012). A command hands its work to `jobs::run` and awaits the value; the
+service queues it by kind, runs it on its own thread when a slot is free, samples its progress, and
+stores what View opens (`JobResult`). The window gets its visible jobs as `imt://jobs` (at most every
+400 ms); the tray lists the running ones. A finished job that needs attention becomes a message in the
+notification centre (`notification_centre::post`), which also raises the OS notification when no IMT
+window is focused. AI use cases and chat turns are AI jobs (`ai/requests.rs`): the request is saved with
+the job for Retry, a quarantined worker pauses the AI queue through a gate. Web research
+(`imt_ai::browser::research`, `browser/research.rs`) is a `research` job that holds the window's
+browser while it reads result pages.
 
 ## Live tail
 

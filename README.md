@@ -330,8 +330,36 @@ to a chat (as cited, untrusted web content it must not take instructions from), 
 read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
 asks before new sites, typing and forms, highlights data from your logs headed into an address or a field,
 stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the browser back at once. It
-can also suggest a search or a page as a card that opens only when you click it. Pages get no access to
-IMT at all; downloads and popups are blocked. See [ADR 0011](docs/adr/0011-internal-browser.md).
+can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read
+it* opens it and the chat goes on with the page. Pages get no access to IMT at all; downloads and popups
+are blocked. See [ADR 0011](docs/adr/0011-internal-browser.md).
+
+**Research mode:** when a question needs outside information (an error code, an exception, how a product
+behaves), or you say "search" or "look up", the AI researches by itself, read-only: it searches with your
+engine in the visible browser, reads up to five result pages of that search (1–10 in Settings ▸ Web
+browser, or "read 10 results"), never follows links further, types nothing and fills no forms, skips
+logins, payments and CAPTCHAs, and answers with a summary, likely causes and fixes as steps, a citation per
+claim, and the pages it read or skipped. If the search text contains data from your logs, you confirm or
+edit it first. *Research this* (an event, the inspector, the chat's *Research…*) does the same on demand,
+with a 3/5/10 picker; turn automatic research off and the AI only offers the button. Research runs as a
+job you can stop from the Jobs pane or the Web panel.
+
+### Jobs and notifications
+
+Everything that takes a while is a **job**: AI answers and chat turns, web research, imports, long queries
+and analyses, exports and bundles, model and runtime downloads, the folder survey, storage clean-up and
+diagnostics collections. The engine runs them in queues per kind with limits (one AI request at a time,
+because there is one model; one import per window; two exports and two downloads; analyses on all but one
+core), so starting one never blocks the UI. The **Jobs** pane (activity bar, *View ▸ Jobs*) lists running,
+waiting and finished jobs with progress, time left, Cancel, Retry, View and, for waiting AI requests, move
+up and down; a job shows only once it has run about two seconds. When a job of ten seconds or more
+finishes, a toast says so with **View** (the answer and its citations, the analysis with its query, the
+exported file in Finder or Explorer, the workspace, the model manager), and a desktop notification when
+IMT is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
+interrupted, with Retry. **Notifications** (the bell) collects what may need you: finished and failed jobs,
+live alerts (repeats merge: "Error spike on WEB02 (×4)"), files that were not imported (*Set up format*), a
+plugin that was switched off (*Reset plugin*), the paused AI (*Reset AI*), an update, a recovered session.
+See [ADR 0012](docs/adr/0012-jobs.md).
 
 ### Projects, sessions and export
 
@@ -396,8 +424,9 @@ Everything else is one click away on the **activity bar** on the left: Explorer,
   diagnostic screenshot and *Quit*. IMT can also start hidden in the tray. Without a tray (for
   example Linux without an app indicator) closing the last window quits.
 - **Desktop notifications** (off, alerts only (the default), or alerts and finished work): live
-  alerts in a window you cannot see, a crash detected at start, and imports finished in background
-  windows. They are rate-limited and never contain file contents.
+  alerts in a window you cannot see, a crash detected at start, failed jobs, a plugin or the AI
+  switched off, imports and long jobs finished while IMT is not in front, and updates. They are
+  rate-limited and never contain file contents; clicking one opens its message in Notifications.
 
 The tray and notifications use the platform's own facilities; they are covered by unit tests of
 their pure logic but have not been checked on every desktop environment.
