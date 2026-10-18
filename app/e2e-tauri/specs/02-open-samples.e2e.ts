@@ -11,17 +11,17 @@ describe('real app: open the samples folder', () => {
     await expect($('imt-status-bar')).toHaveText(/\d+ sources?/);
     // Both instances of the sample (web01, web02) have a lane.
     await expect($$('imt-timeline-panel .lane')).toBeElementsArrayOfSize({ gte: 1 });
-    // On failure, say how the Explorer rows are laid out (a squeezed name once read as missing).
+    // The Explorer rows: width and text of each file name.
     const rows = await browser.execute(() =>
       Array.from(document.querySelectorAll('imt-sidebar .src')).map((r) => {
         const name = r.querySelector('.name') as HTMLElement | null;
         return `${Math.round(r.getBoundingClientRect().width)}px row, name ${Math.round(name?.getBoundingClientRect().width ?? -1)}px "${name?.textContent ?? ''}"`;
       }),
     );
-    await browser.waitUntil(async () => (await $('imt-sidebar').getText()).includes('web01'), {
-      timeout: 15_000,
-      timeoutMsg: `the Explorer does not show web01: ${rows.join('; ')}`,
-    });
+    // The names themselves (text content): WebKitWebDriver leaves ellipsis-truncated text out of getText, although
+    // the names are on screen (the rows report their widths).
+    // web01 is listed and its name has room on screen (it once collapsed to 0 px).
+    expect(rows.filter((r) => r.includes('"web01/') && !r.includes(', name 0px'))).toHaveLength(1);
     expect(await visibleAlerts()).toEqual([]);
   });
 });

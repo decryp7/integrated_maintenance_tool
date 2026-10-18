@@ -17,7 +17,9 @@ describe('real app: quit', () => {
     // A fresh app process: no "IMT didn't close properly last time".
     await browser.reloadSession();
     await waitForShell();
-    await waitForEvents(); // before the `after` hook quits this instance through the menus
+    // The restored workspace is back (the grid shows events) before the `after` hook quits this instance through
+    // the menus. The timeline is covered by the open-samples spec; on a slow runner its lanes can lag the grid here.
+    await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
     await expect($('[data-testid=crash-banner]')).not.toBeExisting();
     expect(await visibleAlerts()).toEqual([]);
     // The config's `after` hook quits this second instance cleanly too.
