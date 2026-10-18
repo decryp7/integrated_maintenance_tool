@@ -17,7 +17,7 @@ impl Echo for Svc {
         let r = req.into_inner();
         tokio::time::sleep(Duration::from_millis(r.delay_ms)).await;
         match r.action.as_str() {
-            "abort" => std::process::abort(),
+            "abort" => crash(),
             "panic" => panic!("handler panicked"),
             "error" => Err(imt_ipc::error::to_status(
                 tonic::Code::FailedPrecondition,
@@ -55,4 +55,14 @@ fn main() {
         eprintln!("fake child: {e}");
         std::process::exit(1);
     }
+}
+
+/// Dies like a crash. On Windows `abort` goes through Windows Error Reporting, which can keep a crashing process
+/// alive for seconds on a busy machine (and the crash then looks like a hang); exit at once instead, with the
+/// status an abort leaves (STATUS_STACK_BUFFER_OVERRUN).
+fn crash() -> ! {
+    #[cfg(windows)]
+    std::process::exit(0xC000_0409_u32 as i32);
+    #[cfg(not(windows))]
+    std::process::abort();
 }

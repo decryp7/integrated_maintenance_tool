@@ -349,9 +349,10 @@ fn a_crashing_process_is_restarted_then_quarantined() {
 fn a_hung_call_is_stopped_at_its_deadline_and_the_process_replaced() {
     let p = fake(&[]);
     let r = installed(&p);
+    // Long enough for the replacement process to start and answer on a busy machine, well under the 5 s bound.
     r.set_budgets(Budgets {
-        import: Some(Duration::from_millis(800)),
-        transform: Some(Duration::from_millis(800)),
+        import: Some(Duration::from_millis(2_000)),
+        transform: Some(Duration::from_millis(2_000)),
         ..Budgets::default()
     });
     let before = pid(&p);

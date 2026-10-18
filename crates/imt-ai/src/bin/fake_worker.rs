@@ -20,7 +20,7 @@ impl Fake {
 impl WorkerBackend for Fake {
     fn load(&mut self, p: &LoadParams) -> Result<LoadResult, RpcError> {
         if self.has("--crash-on-load") {
-            std::process::abort();
+            crash();
         }
         if self.has("--fail-load") || (self.has("--fail-gpu-load") && p.gpu_layers != 0) {
             return Err(RpcError::new(code::LOAD_FAILED, "device initialisation failed"));
@@ -36,12 +36,12 @@ impl WorkerBackend for Fake {
 
     fn chat(&mut self, p: &ChatParams, delta: &mut dyn FnMut(&str), cancelled: &dyn Fn() -> bool) -> Result<ChatResult, RpcError> {
         if self.has("--crash-on-chat") {
-            std::process::abort();
+            crash();
         }
         if let Some(marker) = self.value("--crash-once") {
             if !std::path::Path::new(&marker).exists() {
                 let _ = std::fs::write(&marker, b"crashed");
-                std::process::abort();
+                crash();
             }
         }
         if self.has("--hang-on-chat") {
@@ -95,4 +95,14 @@ fn main() {
         eprintln!("fake worker: {e}");
         std::process::exit(1);
     }
+}
+
+/// Dies like a crash. On Windows `abort` goes through Windows Error Reporting, which can keep a crashing process
+/// alive for seconds on a busy machine (and the crash then looks like a hang); exit at once instead, with the
+/// status an abort leaves (STATUS_STACK_BUFFER_OVERRUN).
+fn crash() -> ! {
+    #[cfg(windows)]
+    std::process::exit(0xC000_0409_u32 as i32);
+    #[cfg(not(windows))]
+    std::process::abort();
 }
