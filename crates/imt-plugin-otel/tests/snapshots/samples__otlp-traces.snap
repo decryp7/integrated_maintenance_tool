@@ -1,0 +1,90 @@
+---
+source: crates/imt-plugin-otel/tests/samples.rs
+expression: snapshot_of(TRACES)
+---
+sample: otel/collector/traces-20261014.jsonl
+records: 2656
+skipped: 0
+first_ts: 1791968405888
+last_ts: 1791979192429
+fields:
+  - DurationMs
+  - EventName
+  - ParentSpanId
+  - ScopeName
+  - SpanId
+  - SpanKind
+  - SpanName
+  - StatusCode
+  - StatusMessage
+  - TraceId
+  - db.namespace
+  - db.system
+  - deployment.environment
+  - host.name
+  - http.request.method
+  - http.response.status_code
+  - http.route
+  - order.id
+  - payment.provider
+  - server.address
+  - service.name
+  - service.version
+  - url.path
+first:
+  - ts: 1791968405888
+    level: Information
+    message: "POST /api/orders/{id}/capture (86.0 ms)"
+    fields:
+      service.name: gateway
+      service.version: 2.2.0
+      host.name: GATEWAY
+      deployment.environment: production
+      ScopeName: Yarp.ReverseProxy
+      TraceId: 3aac77fef2ad108f583e20b534897f60
+      SpanId: ad461558a260a627
+      SpanName: "POST /api/orders/{id}/capture"
+      SpanKind: Server
+      DurationMs: 85.969
+      StatusCode: Ok
+      http.request.method: POST
+      url.path: /api/orders/88731/capture
+      http.response.status_code: 200
+      server.address: shop.contoso.com
+  - ts: 1791968405889
+    level: Information
+    message: POST (84.0 ms)
+    fields:
+      service.name: gateway
+      service.version: 2.2.0
+      host.name: GATEWAY
+      deployment.environment: production
+      ScopeName: Yarp.ReverseProxy
+      TraceId: 3aac77fef2ad108f583e20b534897f60
+      SpanId: 62540ae83fe8a214
+      ParentSpanId: ad461558a260a627
+      SpanName: POST
+      SpanKind: Client
+      DurationMs: 83.969
+      StatusCode: Unset
+      server.address: "web01:8080"
+      http.response.status_code: 200
+  - ts: 1791968405889
+    level: Information
+    message: "POST /api/orders/{id}/capture (83.0 ms)"
+    fields:
+      service.name: order-service
+      service.version: 3.14.2
+      host.name: WEB01
+      deployment.environment: production
+      ScopeName: OrderService
+      TraceId: 3aac77fef2ad108f583e20b534897f60
+      SpanId: 50e6fa74bc6e2725
+      ParentSpanId: 62540ae83fe8a214
+      SpanName: "POST /api/orders/{id}/capture"
+      SpanKind: Server
+      DurationMs: 82.969
+      StatusCode: Ok
+      http.route: "/api/orders/{id}/capture"
+      order.id: 88731
+      http.response.status_code: 200

@@ -65,7 +65,7 @@ fn seeds() -> &'static Vec<Vec<u8>> {
     static S: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
     S.get_or_init(|| {
         let base = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let paths: Vec<PathBuf> = ["../../samples/unsupported/registry-export.reg"].iter().map(|p| base.join(p)).collect();
+        let paths: Vec<PathBuf> = ["../../samples/windows/registry-export.reg"].iter().map(|p| base.join(p)).collect();
         let mut out: Vec<Vec<u8>> = paths
             .iter()
             .map(|p| {

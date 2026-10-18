@@ -11,6 +11,10 @@ test.describe('lifecycle banners and elevation', () => {
     await expect(page.locator('imt-title-bar + imt-lifecycle-banners')).toHaveCount(1);
     await expect(page.locator('imt-title-bar').getByTestId('project-title')).toContainText('Untitled');
     await expectNoSeriousViolations(page, testInfo, 'safe-mode-banner');
+    // Save diagnostics… asks where to save (the browser build takes the suggested name) and reports the result.
+    await banner.getByTestId('save-diagnostics').click();
+    await expect(page.getByTestId('diagnostics-export-status')).toContainText(/Saved diagnostics \(\d+ files\) to imt-diagnostics-\d{8}-\d{6}\.zip/);
+    await page.getByTestId('diagnostics-export-status').getByRole('button', { name: 'Dismiss' }).click();
     await banner.getByRole('button', { name: 'Restart normally' }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Could not restart' })).toHaveCount(0);
   });
@@ -20,6 +24,7 @@ test.describe('lifecycle banners and elevation', () => {
     const banner = page.getByTestId('crash-banner');
     await expect(banner).toContainText("IMT didn't close properly last time");
     await expect(banner.getByRole('button', { name: 'Start in safe mode' })).toBeVisible();
+    await expect(banner.getByTestId('save-diagnostics')).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'crash-banner');
     await banner.getByRole('button', { name: 'Restore last session' }).click();
     await expect(banner).toHaveCount(0);

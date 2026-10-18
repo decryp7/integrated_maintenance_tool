@@ -9,7 +9,9 @@ export function isTauri(): boolean {
 /** Shows the native open dialog. Returns the chosen paths (empty when cancelled). */
 export async function pickPaths(directory: boolean): Promise<string[]> {
   if (!isTauri()) {
-    // Browser development mode: the mock backend understands any path.
+    // Browser development mode: the mock backend understands any path; `?mockOpen=<path>` picks that one (UI tests).
+    const forced = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('mockOpen');
+    if (forced) return [forced];
     return [directory ? '/demo/extra-folder' : '/demo/extra-service.log'];
   }
   const { open } = await import('@tauri-apps/plugin-dialog');

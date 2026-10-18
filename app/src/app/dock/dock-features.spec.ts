@@ -51,6 +51,11 @@ describe('DockService VS-style features', () => {
     document.body.appendChild(container);
     const dock = TestBed.inject(DockService);
     dock.attach(container);
+    // The feature tests start from the fuller arrangement: the inspector docked, metrics tabbed with the timeline.
+    if (!stored) {
+      dock.pin(PANEL.inspector);
+      dock.show(PANEL.metrics, { inactive: true });
+    }
     return dock;
   }
 
@@ -397,6 +402,21 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     expect(el.querySelector('.imt-ah-bar')).toBeNull();
   });
 
+  it('hides a slide-out on Escape anywhere, unless something else handled the key', async () => {
+    const { fixture, dock } = await host();
+    dock.revealInspector();
+    await settle(fixture);
+    expect(dock.autoHide().open).toBe('inspector');
+    const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    handled.preventDefault();
+    document.body.dispatchEvent(handled);
+    expect(dock.autoHide().open).toBe('inspector');
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(dock.autoHide().open).toBe('inspector');
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(dock.autoHide().open).toBeNull();
+  });
+
   it('shows an inline notice with Retry and Dismiss', async () => {
     const { fixture, dock, el } = await host();
     const retry = vi.fn();
@@ -413,6 +433,7 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
 
   it('renders the navigator with tool windows and documents in two lists', async () => {
     const { fixture, dock, el } = await host();
+    dock.pin(PANEL.inspector);
     dock.switch();
     await settle(fixture);
     const lists = [...el.querySelectorAll('imt-dock-switcher [role=listbox]')];

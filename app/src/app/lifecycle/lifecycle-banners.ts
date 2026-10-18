@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Icon } from '../shared/icon';
 import { ProjectService } from '../projects/project.service';
 import { baseName } from '../tools/tool-errors';
+import { DiagnosticsExport } from '../diagnostics/diagnostics-export.service';
 import { LifecycleService } from './lifecycle.service';
 import { BundleBanner } from '../share/bundle/bundle-banner';
 import { RedactionBanner } from '../share/redaction/redaction-banner';
@@ -18,6 +19,7 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
         <imt-icon name="alert" [size]="14" />
         <span class="msg" i18n="@@lifecycle.banners.safeMode">Running in safe mode: plugins and saved profile are off.</span>
         <button type="button" class="btn" (click)="life.restartNormally()" i18n="@@lifecycle.banners.restartNormally">Restart normally</button>
+        <button type="button" class="btn" [disabled]="diagnostics.busy()" (click)="diagnostics.save()" data-testid="save-diagnostics" i18n="@@lifecycle.banners.saveDiagnostics">Save diagnostics…</button>
       </div>
     }
     @if (life.showCrashBanner()) {
@@ -26,7 +28,15 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
         <span class="msg" i18n="@@lifecycle.banners.crashed">IMT didn't close properly last time.</span>
         <button type="button" class="btn primary" [disabled]="!life.sessionAvailable()" (click)="life.restoreLastSession()" i18n="@@lifecycle.banners.restore">Restore last session</button>
         <button type="button" class="btn" (click)="life.startInSafeMode()" i18n="@@lifecycle.banners.startSafeMode">Start in safe mode</button>
+        <button type="button" class="btn" [disabled]="diagnostics.busy()" (click)="diagnostics.save()" data-testid="save-diagnostics" i18n="@@lifecycle.banners.saveDiagnostics">Save diagnostics…</button>
         <button type="button" class="btn ghost" (click)="life.dismissCrash()" i18n="@@lifecycle.banners.dismissCrash">Dismiss</button>
+      </div>
+    }
+    @if (diagnostics.status(); as s) {
+      <div class="banner" [class.warn]="s.kind === 'failed'" [class.info]="s.kind === 'saved'" [attr.role]="s.kind === 'failed' ? 'alert' : 'status'" data-testid="diagnostics-export-status">
+        <imt-icon [name]="s.kind === 'failed' ? 'alert' : 'check'" [size]="14" />
+        <span class="msg" [title]="s.text">{{ s.text }}</span>
+        <button type="button" class="btn ghost" (click)="diagnostics.dismiss()" i18n="@@lifecycle.banners.dismissDiagnostics">Dismiss</button>
       </div>
     }
     @if (projects.missing().length; as n) {
@@ -50,6 +60,7 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
 export class LifecycleBanners {
   protected readonly life = inject(LifecycleService);
   protected readonly projects = inject(ProjectService);
+  protected readonly diagnostics = inject(DiagnosticsExport);
 
   protected names(): string {
     const names = this.projects.missing().map(baseName);

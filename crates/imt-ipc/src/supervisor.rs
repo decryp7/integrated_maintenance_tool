@@ -133,6 +133,8 @@ pub struct SupervisorConfig {
     pub crash_window: Duration,
     pub backoff_base: Duration,
     pub backoff_max: Duration,
+    /// The child's log (see [`crate::child_log`]): a quarantine is recorded there too.
+    pub log: Option<crate::child_log::ChildLogSpec>,
 }
 
 impl SupervisorConfig {
@@ -143,6 +145,7 @@ impl SupervisorConfig {
             crash_window: Duration::from_secs(600),
             backoff_base: Duration::from_millis(500),
             backoff_max: Duration::from_secs(8),
+            log: None,
         }
     }
 }
@@ -243,9 +246,12 @@ impl<C: Connection> Supervisor<C> {
     fn record(&self, e: &IpcError) {
         let label = self.cfg.label.clone();
         let minutes = (self.cfg.crash_window.as_secs() / 60).max(1);
-        self.ledger.record_failure(&e.to_string(), |n, reason| {
+        let quarantined = self.ledger.record_failure(&e.to_string(), |n, reason| {
             format!("{label} failed {n} times in {minutes} minutes (last: {reason}) and was stopped; reset it to try again")
         });
+        if let (true, Some(log)) = (quarantined, &self.cfg.log) {
+            crate::child_log::get(log).quarantined(&self.ledger.disabled_reason().unwrap_or_default());
+        }
     }
 
     /// Tells the supervisor a call on `lease` failed. A process failure (anything but a typed remote
@@ -423,11 +429,16 @@ mod tests {
 
     #[test]
     fn launch_failures_count_and_quarantine() {
-        let sup: Supervisor<Fake> = Supervisor::new(cfg(), || Err(IpcError::Spawn("no such file".into())));
+        let log = crate::child_log::ChildLogSpec::new("supervisor-quarantine-test", crate::child_log::ChildKind::Plugin);
+        let c = SupervisorConfig { log: Some(log), ..cfg() };
+        let sup: Supervisor<Fake> = Supervisor::new(c, || Err(IpcError::Spawn("no such file".into())));
         for _ in 0..3 {
             assert!(matches!(sup.lease(), Err(IpcError::Spawn(_))));
         }
         assert_eq!(sup.status().state, ChildState::Quarantined);
         assert!(sup.status().reason.unwrap().contains("no such file"));
+        // The quarantine is in the child's log, with its reason.
+        let s = crate::child_log::find("supervisor-quarantine-test").unwrap().status();
+        assert!(s.quarantined && s.quarantine_reason.unwrap().contains("failed 3 times"));
     }
 }

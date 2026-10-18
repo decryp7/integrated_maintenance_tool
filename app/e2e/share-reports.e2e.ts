@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
+import { openView } from './app';
 import { openAppWith, runCommand } from './tools-support';
 
 /** What the mock share backend "wrote" (it records every report and image save). */
@@ -17,7 +18,7 @@ test.describe('incident report builder', () => {
     const view = page.locator('imt-report-view');
     await expect(view.getByRole('group', { name: /^Events block/ })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Metrics' }).click();
+    await openView(page, 'metrics');
     const card = page.locator('imt-chart-card').first();
     await expect(card.locator('canvas').first()).toBeVisible();
     await card.getByRole('button', { name: /^Add chart .* to report$/ }).click();

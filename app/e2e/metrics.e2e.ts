@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { openApp } from './app';
+import { openApp, openView } from './app';
 
 test('metrics tab renders chart cards with a canvas each', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('tab', { name: 'Metrics' }).click();
+  await openView(page, 'metrics');
   await expect(page.getByRole('tab', { name: 'Metrics', selected: true })).toBeVisible();
 
   const cards = page.locator('imt-chart-card');

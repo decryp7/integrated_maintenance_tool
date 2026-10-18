@@ -95,6 +95,24 @@ when the feature was added.
 | 43 | Shift+Alt+Enter with the default "Full screen does" setting, then press Escape, then Shift+Alt+Enter again. | The window goes OS full screen with the chrome and tool windows hidden. Escape does not leave full screen. The shortcut restores both. |
 | 44 | Close the main window while two panels are popped out. | The pop-outs close with it. Start IMT again: they reopen where they were, or on the primary display when their monitor is gone. |
 
+## Diagnostics: child-process logs, export without the UI, opening a report
+
+Child processes' standard error and start/exit lines go to `<IMT log folder>/children/<name>.log` (`ai-worker`,
+`llama-server`, `plugin-host-<id>`, `plugin-<name>`; CLEF, at most 1 MB each, this session and the two before as
+`<name>.1.log`, `<name>.2.log`). In debug builds `IMT_DATA_DIR=<root>` puts them under `<root>/logs/children`.
+
+| # | Steps | Expected |
+|---|-------|----------|
+| 45 | Turn plugin isolation on, open the samples, then *Help ▸ Report a problem…*. | The file list shows `manifest.json`, `processes.json`, `session-recovery.json` and `logs/children/plugin-host-*.log` with summaries such as "Isolated plugin: 1 run, running". |
+| 46 | Ask the AI assistant something, kill `llama-server` in Task Manager / `kill -9`, ask again, then report a problem. | `logs/children/llama-server.log` has a `Crashed: llama-server … ended with …` line and a second `Started llama-server (… run 2)`; `processes.json` shows 1 restart. No prompt text and no API key appear in any child log. |
+| 47 | Close IMT. Run `imt-app --export-diagnostics` (debug: with `IMT_DATA_DIR` set) from a terminal. | No window opens; the zip's path is printed (in Documents, else Downloads) and the exit code is 0. |
+| 48 | Run `imt-app --export-diagnostics out.zip` twice, then with `--force`; then `imt-app --export-diagnostics missing/out.zip` and `… out.txt`. | The second run fails (exit 1, "already exists; add --force"); `--force` replaces it; the missing folder and the wrong extension fail with a message saying what to fix. |
+| 49 | Write `{ broken` into `config/settings.json`, then export again. | The export succeeds; stderr says `settings.json is not valid JSON …`; `system-info.json` lists it under `unreadable`. Put the file back. |
+| 50 | Start in safe mode (`--safe-mode`); click *Save diagnostics…* on the banner. Kill IMT, start it, click *Save diagnostics…* on the crash banner. | Both save a zip; `session-recovery.json` of the second says the previous run did not close properly. |
+| 51 | Open `samples/diagnostics/imt-diagnostics-sample.zip` (File ▸ Open, drag and drop, and `imt-app <zip>`). | One lane per log (IMT log, activity, `ai-worker`, `llama-server`, the order-audit plugin); crash (fatal) and start markers on the child lanes; the *Diagnostics report* panel opens with system info, the processes table (llama-server 1 restart, last exit code 3; the plugin quarantined), steps, breadcrumbs (click → the timeline zooms there) and the snapshot (click → large image). The JSON files are not events. |
+| 52 | Edit the sample's `manifest.json` to `"schemaVersion": 99` (or break its JSON) and open it. | It opens as a plain archive with a notice saying why (newer format / not valid). |
+| 53 | Restart IMT with the sample open (session restore). | The panel shows the report again while the zip still exists. |
+
 
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 

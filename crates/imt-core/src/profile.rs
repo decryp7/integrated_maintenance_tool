@@ -50,6 +50,9 @@ pub struct Profile {
     /// Dashboards: grids of chart, stat, table, top, alert and annotation tiles.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dashboard: Vec<crate::dashboard::DashboardCfg>,
+    /// Runs between lifecycle markers (start … stop), paired per lane.
+    #[serde(default)]
+    pub span: Vec<crate::spans::SpanCfg>,
 }
 
 /// `[[marker_override]]`: switches a marker kind off or changes its look.
@@ -308,6 +311,7 @@ impl Profile {
             message: e.message().to_string(),
             line: e.span().map(|s| text[..s.start.min(text.len())].lines().count().max(1)),
         })?;
+        crate::spans::config::check_toml(&user, text)?;
         let mut merged: toml::Table = toml::from_str(DEFAULT_PROFILE_TOML).expect("default profile is valid TOML");
         merge(&mut merged, user);
         toml::Value::Table(merged).try_into().map_err(|e: toml::de::Error| ProfileError {
@@ -375,6 +379,8 @@ pub struct CompiledProfile {
     pub lifecycle_mask: crate::model::MarkerMask,
     pub pipeline: crate::pipeline::Pipeline,
     pub icons: Vec<crate::icons::CustomIcon>,
+    /// `[[span]]` rules, their marker bits resolved against `markers` (see [`CompiledProfile::resolve_spans`]).
+    pub spans: Vec<crate::spans::SpanRule>,
 }
 
 impl CompiledProfile {
@@ -482,8 +488,11 @@ impl CompiledProfile {
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
         crate::redact::Redactor::from_config(&profile.redact, crate::redact::Salt::fixed([0; 16])).context("[redact]")?;
         crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
+        let mut spans = crate::spans::config::compile(&profile.span)?;
+        crate::spans::config::resolve(&mut spans, &markers);
 
         Ok(CompiledProfile {
+            spans,
             icons,
             pipeline,
             profile,
@@ -495,6 +504,11 @@ impl CompiledProfile {
             markers,
             lifecycle_mask,
         })
+    }
+
+    /// Re-resolves the `[[span]]` marker kinds after the marker set changed (plugin kinds merged in).
+    pub fn resolve_spans(&mut self) {
+        crate::spans::config::resolve(&mut self.spans, &self.markers);
     }
 
     /// The ingest pipeline for one file: extractors, the `[[pipeline]]`

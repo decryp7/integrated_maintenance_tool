@@ -1,10 +1,12 @@
-import { FILE_EXISTS_SUFFIX } from '../../core/api.types';
+import { FILE_EXISTS_SUFFIX, WorkspaceSummary } from '../../core/api.types';
 import { SnapshotBackend, Unlisten } from '../snapshot-backend';
 import { EngineError, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../../core/api.types';
 import { activity } from '../../core/activity/runtime';
 import { Breadcrumb } from '../../core/activity/types';
 import { steps } from '../../core/activity/steps';
 import { CapturedImage } from '../snapshot.types';
+import { DiagnosticsReportState } from '../diagnostics-report.types';
+import { SAMPLE_REPORT_IMAGE, sampleReportState } from './mock-diagnostics-report';
 
 /**
  * In-memory snapshot store for browser development and UI tests. It keeps the images the UI really captured,
@@ -22,7 +24,11 @@ export class MockSnapshotBackend extends SnapshotBackend {
   folderOpened = 0;
 
   /** `crumbs`: the window's latest activity (the Rust shell reads its own ring; the mock asks the UI's). */
-  constructor(private readonly crumbs: (n: number) => Breadcrumb[] = (n) => activity.breadcrumbs(n)) {
+  constructor(
+    private readonly crumbs: (n: number) => Breadcrumb[] = (n) => activity.breadcrumbs(n),
+    /** The workspace as it is now, to find an opened diagnostics zip. */
+    private readonly workspace: () => WorkspaceSummary | null = () => null,
+  ) {
     super();
   }
 
@@ -85,6 +91,11 @@ export class MockSnapshotBackend extends SnapshotBackend {
       { name: 'steps-to-reproduce.txt', bytes: 400, summary: `${steps(crumbs).length} steps from your recent activity` },
       { name: 'breadcrumbs.json', bytes: 2048, summary: `${crumbs.length} recent operations (no file contents)` },
       { name: 'system-info.json', bytes: 1536, summary: 'OS, IMT version and build, memory, plugins, settings without secrets' },
+      { name: 'manifest.json', bytes: 900, summary: 'What the report contains' },
+      { name: 'processes.json', bytes: 700, summary: 'AI engine: 2 runs, 1 restart, last exit code 3' },
+      { name: 'session-recovery.json', bytes: 300, summary: 'Previous run: closed properly, no recoverable session' },
+      { name: 'logs/children/ai-worker.log', bytes: 4096, summary: 'AI worker: 1 run, no restarts' },
+      { name: 'logs/children/llama-server.log', bytes: 8192, summary: 'AI engine: 2 runs, 1 restart, last exit code 3' },
       { name: 'logs/activity.log', bytes: 4096, summary: `${crumbs.length} activity entries` },
       { name: 'logs/imt.log', bytes: 65536, summary: "IMT's own log (recent part)" },
       ...this.items.flatMap((i) => [
@@ -108,6 +119,13 @@ export class MockSnapshotBackend extends SnapshotBackend {
   async openActivityLog() {
     this.activityLogOpened++;
     return 'mock-activity';
+  }
+  async diagnosticsReport(): Promise<DiagnosticsReportState> {
+    return sampleReportState(this.workspace()?.sources ?? []);
+  }
+  async diagnosticsReportImage(id: string) {
+    if (!sampleReportState(this.workspace()?.sources ?? []).report?.snapshots.some((s) => s.id === id)) throw new Error(`no snapshot "${id}" in the report`);
+    return SAMPLE_REPORT_IMAGE;
   }
   /** Test helper: delivers an `imt://error` event. */
   emit(error: EngineError): void {

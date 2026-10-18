@@ -1,0 +1,19 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  batch:
+    timeout: 1s
+  probabilistic_sampler:
+    sampling_percentage: 100
+exporters:
+  file:
+    path: /var/log/otel/traces-20261014.jsonl
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, probabilistic_sampler]
+      exporters: [file]

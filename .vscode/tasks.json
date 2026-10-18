@@ -1,0 +1,161 @@
+{
+  // Build, run and check IMT from VS Code (Terminal ▸ Run Task…, or Ctrl+Shift+B for the default build).
+  // Prerequisites: Rust (MSVC toolchain on Windows), Node.js ≥ 24.15, the Tauri system dependencies
+  // (WebView2 on Windows; webkit2gtk on Linux). Run "IMT: install UI dependencies" once after cloning.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "IMT: install UI dependencies",
+      "type": "shell",
+      "command": "npm ci",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": []
+    },
+    {
+      "label": "IMT: run app (tauri dev)",
+      "detail": "Starts the Angular dev server and the desktop app with hot reload",
+      "type": "shell",
+      "command": "npx tauri dev",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "isBackground": true,
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "IMT: UI dev server",
+      "detail": "Angular dev server on http://localhost:4200 (used by the debug configurations)",
+      "type": "shell",
+      "command": "npm run start",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": { "regexp": "Changes detected|Building" },
+          "endsPattern": { "regexp": "bundle generation (complete|failed)|Local:\\s+http" }
+        }
+      }
+    },
+    {
+      "label": "IMT: build app (debug binary)",
+      "detail": "cargo build of the desktop app; the UI comes from the dev server",
+      "type": "cargo",
+      "command": "build",
+      "args": ["-p", "imt-app"],
+      "problemMatcher": ["$rustc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "IMT: debug prerequisites",
+      "detail": "UI dev server + debug binary, for the launch configurations",
+      "dependsOn": ["IMT: UI dev server", "IMT: build app (debug binary)"],
+      "problemMatcher": []
+    },
+    {
+      "label": "IMT: build installers (release)",
+      "type": "shell",
+      "command": "npx tauri build",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "Rust: check",
+      "type": "cargo",
+      "command": "check",
+      "args": ["--workspace", "--all-targets"],
+      "problemMatcher": ["$rustc"],
+      "group": "build"
+    },
+    {
+      "label": "Rust: clippy",
+      "type": "cargo",
+      "command": "clippy",
+      "args": ["--workspace", "--all-targets", "--", "-D", "warnings"],
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "Rust: format check",
+      "type": "cargo",
+      "command": "fmt",
+      "args": ["--all", "--check"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Rust: test workspace",
+      "type": "cargo",
+      "command": "test",
+      "args": ["--workspace", "-j", "4"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+    {
+      "label": "Rust: test imt-core",
+      "type": "cargo",
+      "command": "test",
+      "args": ["-p", "imt-core"],
+      "problemMatcher": ["$rustc"],
+      "group": "test"
+    },
+    {
+      "label": "Rust: cargo deny",
+      "type": "shell",
+      "command": "cargo deny --workspace check",
+      "problemMatcher": []
+    },
+    {
+      "label": "UI: lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "UI: build",
+      "type": "shell",
+      "command": "npx ng build",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "UI: unit tests",
+      "type": "shell",
+      "command": "npx ng test --watch=false",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "UI: unit tests (watch)",
+      "type": "shell",
+      "command": "npx ng test",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "UI: e2e (Chromium, mock backend)",
+      "type": "shell",
+      "command": "npx playwright test --project=chromium",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "UI: extract i18n",
+      "type": "shell",
+      "command": "npm run i18n",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": []
+    },
+    {
+      "label": "IMT: all quality gates",
+      "detail": "The gates from AGENTS.md, in order",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Rust: format check", "Rust: clippy", "Rust: test workspace", "Rust: cargo deny", "UI: lint", "UI: build", "UI: unit tests"],
+      "problemMatcher": []
+    }
+  ]
+}

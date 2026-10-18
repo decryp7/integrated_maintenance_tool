@@ -275,6 +275,41 @@ pub fn run_briefly(exe: &Path, args: &[String], timeout: Duration) -> Result<Str
     }
 }
 
+/// llama-server's output goes on to IMT through the worker's standard error, tagged so IMT keeps it in a log
+/// of its own (`imt_ipc::child_log`: `[llama-server] text`, and `[llama-server] @imt start|exit ...` for its
+/// lifecycle). IMT discards the worker's standard error unless it captures it.
+fn forward_line(line: &[u8]) {
+    let text = String::from_utf8_lossy(line);
+    let text = text.trim_end();
+    if !text.is_empty() {
+        eprintln!("[llama-server] {text}");
+    }
+}
+
+fn forward_event(words: &str) {
+    eprintln!("[llama-server] @imt {words}");
+}
+
+/// The exit as `imt_ipc::child_log::Exit::wire` writes it: `code 3`, `signal 11`, `stopped`, `unknown`.
+fn exit_words(status: Option<&ExitStatus>) -> String {
+    match status {
+        Some(s) => match s.code() {
+            Some(c) => format!("code {c}"),
+            None => {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::process::ExitStatusExt;
+                    if let Some(sig) = s.signal() {
+                        return format!("signal {sig}");
+                    }
+                }
+                "unknown".into()
+            }
+        },
+        None => "stopped".into(),
+    }
+}
+
 fn read_capped(r: impl std::io::Read, cap: usize) -> Vec<u8> {
     let mut out = Vec::new();
     let _ = std::io::Read::read_to_end(&mut r.take(cap as u64), &mut out);
@@ -287,6 +322,8 @@ pub struct ServerChild {
     pub exe: PathBuf,
     client: Client,
     tail: Arc<Mutex<Tail>>,
+    /// Its exit was forwarded to IMT (see [`forward_event`]).
+    exit_reported: bool,
     #[cfg(windows)]
     _job: Option<job::JobGuard>,
 }
@@ -340,6 +377,7 @@ impl ServerChild {
         reaper::register(child.id() as i32);
         #[cfg(windows)]
         let job = job::JobGuard::assign(&child);
+        forward_event(&format!("start {}", child.id()));
         let tail = Arc::new(Mutex::new(Tail::default()));
         if let Some(err) = child.stderr.take() {
             let tail = tail.clone();
@@ -350,7 +388,10 @@ impl ServerChild {
                     line.clear();
                     match r.by_ref().take(8192).read_until(b'\n', &mut line) {
                         Ok(0) | Err(_) => break,
-                        Ok(_) => lock(&tail).push(&line),
+                        Ok(_) => {
+                            lock(&tail).push(&line);
+                            forward_line(&line);
+                        }
                     }
                 }
             });
@@ -360,6 +401,7 @@ impl ServerChild {
             exe: exe.to_path_buf(),
             client: Client { port, key },
             tail,
+            exit_reported: false,
             #[cfg(windows)]
             _job: job,
         })
@@ -428,6 +470,9 @@ impl ServerChild {
         // Give the stderr reader a moment to collect the last lines.
         std::thread::sleep(Duration::from_millis(50));
         let status = status.or_else(|| self.exit_status());
+        if let Some(s) = &status {
+            self.report_exit(Some(s));
+        }
         let how = match status {
             Some(s) => format!("llama-server exited ({s})"),
             None => "llama-server stopped answering".to_string(),
@@ -440,12 +485,33 @@ impl ServerChild {
 
     /// Kills and reaps the process.
     pub fn stop(&mut self) {
+        // One that already ended on its own is reported as such (crash or normal), not as stopped.
+        if let Some(s) = self.exit_status() {
+            self.report_exit(Some(&s));
+        }
         if let Some(mut c) = self.child.take() {
             #[cfg(unix)]
             reaper::unregister(c.id() as i32);
+            let pid = c.id();
             let _ = c.kill();
             let _ = c.wait();
+            self.report_exit_of(pid, None);
         }
+    }
+
+    fn report_exit(&mut self, status: Option<&ExitStatus>) {
+        if let Some(pid) = self.pid() {
+            self.report_exit_of(pid, status);
+        }
+    }
+
+    /// Forwards how llama-server ended, once (`None`: the worker stopped it).
+    fn report_exit_of(&mut self, pid: u32, status: Option<&ExitStatus>) {
+        if self.exit_reported {
+            return;
+        }
+        self.exit_reported = true;
+        forward_event(&format!("exit {pid} {}", exit_words(status)));
     }
 }
 
@@ -471,6 +537,17 @@ mod tests {
         let long = "é".repeat(800);
         let s = summarize(long.as_bytes());
         assert!(s.starts_with('…') && s.len() <= 610);
+    }
+
+    #[test]
+    fn exits_are_forwarded_in_the_child_log_wire_form() {
+        assert_eq!(exit_words(None), "stopped");
+        let ok = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--list")
+            .stdout(Stdio::null())
+            .status()
+            .unwrap();
+        assert_eq!(exit_words(Some(&ok)), "code 0");
     }
 
     #[test]

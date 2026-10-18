@@ -1,0 +1,18 @@
+# Android logcat in the default "threadtime" format (adb logcat, bug reports):
+# "MM-dd HH:mm:ss.fff  pid  tid L Tag: message", L one of V D I W E F. Logcat
+# writes no year: the current year is assumed (the previous one for dates that
+# would lie in the future). Times are device-local; read as UTC unless you
+# change [parse] assume_timezone.
+name = "Android logcat"
+
+[parse]
+format = "text"
+output_templates = []
+regexes = [
+  '^(?P<timestamp>\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(?P<Pid>\d+)\s+(?P<Tid>\d+)\s+(?P<level>[VDIWEF])\s+(?P<Tag>[^:]*?)\s*: (?P<message>.*)$',
+]
+timestamp_formats = ["%m-%d %H:%M:%S%.f"]
+
+[instance]
+candidates = ["Pid"]
+key = []

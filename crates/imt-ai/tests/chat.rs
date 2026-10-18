@@ -63,10 +63,12 @@ fn kinds(events: &[Envelope]) -> Vec<&'static str> {
 
 #[test]
 fn a_multi_turn_session_with_tool_calls_streams_numbered_events() {
-    let fatal = first_id("level = fatal");
+    let fatal = first_id("level = fatal and MachineName = WEB02");
     let a = assistant(vec![
-        tools("run_query", json!({"ql": "level = fatal"})),
-        text(&format!("The service crashed: see event {fatal} and `level = fatal`.")),
+        tools("run_query", json!({"ql": "level = fatal and MachineName = WEB02"})),
+        text(&format!(
+            "The service crashed: see event {fatal} and `level = fatal and MachineName = WEB02`."
+        )),
         text("It was restarted afterwards."),
     ]);
     let mut s = ChatSession::new("c1");
@@ -90,7 +92,7 @@ fn a_multi_turn_session_with_tool_calls_streams_numbered_events() {
         panic!()
     };
     assert_eq!((name.as_str(), summary.as_str(), *error), ("run_query", "1 events", false));
-    assert!(evidence.record_ids.contains(&fatal) && evidence.queries == ["level = fatal"]);
+    assert!(evidence.record_ids.contains(&fatal) && evidence.queries == ["level = fatal and MachineName = WEB02"]);
     let ChatEvent::Done {
         text, citations, usage, ..
     } = &ev1.last().unwrap().event
@@ -100,7 +102,7 @@ fn a_multi_turn_session_with_tool_calls_streams_numbered_events() {
     assert!(text.contains("crashed"));
     assert!(citations.contains(&Citation::Record { id: fatal, verified: true }));
     assert!(citations.contains(&Citation::Query {
-        ql: "level = fatal".into()
+        ql: "level = fatal and MachineName = WEB02".into()
     }));
     assert!(usage.output_tokens > 0);
     assert_eq!(s.title(), "What was the fatal error?");

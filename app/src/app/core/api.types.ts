@@ -30,7 +30,9 @@
  *   open_paths_live        { paths: string[], startAtEnd?: boolean } -> WorkspaceSummary (startAtEnd: only lines written from now on)
  *   infer_regex            { lines: string[] }             -> InferredRegex
  *   explain_regex          { pattern: string }             -> ExplainNode[]
- *   annotations            { request: AnnotationsRequest } -> AnnotationDto[] (plugin annotator spans/points, by start time)
+ *   annotations            { request: AnnotationsRequest } -> AnnotationDto[] (plugin annotator spans/points and runs, by start time)
+ *   query_runs             { request: RunsRequest }        -> RunsReply     (runs between lifecycle markers; see "Runs")
+ *   preview_spans          { request: SpanPreviewRequest } -> SpanPreview   (the Runs editor's preview of a candidate rule)
  *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
  * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots".
@@ -863,6 +865,8 @@ export interface MomentSummary {
  *                                                             filtered to SourceContext = "IMT.Activity")
  */
 
+export type * from '../diagnostics/diagnostics-report.types';
+
 /** Why a snapshot was taken. */
 export type SnapshotReason = 'unhandled-error' | 'panel-failed' | 'backend-failed' | 'engine-error' | 'manual';
 
@@ -1126,13 +1130,16 @@ export interface FieldMatch {
   value: string;
 }
 
-/** A point (`from == to`) or range a plugin annotator found, e.g. a reboot window or a service's uptime. */
+/**
+ * A point (`from == to`) or range a plugin annotator found, e.g. a reboot window or a service's uptime — or a run
+ * between lifecycle markers of the profile's `[[span]]` rules (owner "profile", with `run`).
+ */
 export interface AnnotationDto {
   /** Id of the annotator that produced it. */
   annotator: string;
-  /** Plugin id that contributed it. */
+  /** Plugin id that contributed it ("profile" for runs). */
   owner: string;
-  /** `<plugin-id>/<kind>`, usually one of the plugin's marker kinds (shares its style). */
+  /** `<plugin-id>/<kind>`, usually one of the plugin's marker kinds (shares its style); the `[[span]]` kind for runs. */
   kind: string;
   from: number;
   to: number;
@@ -1143,6 +1150,8 @@ export interface AnnotationDto {
   severity: Severity;
   /** The query that shows the evidence. */
   evidenceQuery: Query;
+  /** Present on runs between lifecycle markers only. */
+  run?: RunInfo;
 }
 
 /** Which annotations `annotations` returns; every key is optional. */
@@ -1152,6 +1161,160 @@ export interface AnnotationsRequest {
   to?: number | null;
   /** Only those for this instance (plus those for every instance). */
   instance?: string | null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Runs between lifecycle markers (crates/imt-core/src/spans): `[[span]]` rules pair start and stop
+// markers per timeline lane. Runs are annotations (owner "profile", annotator RUN_ANNOTATOR) with `run`.
+//   query_runs     { request: RunsRequest }        -> RunsReply   (sorted page + summaries per span kind)
+//   preview_spans  { request: SpanPreviewRequest } -> SpanPreview (the Runs editor's live preview)
+// ---------------------------------------------------------------------------------------------
+
+/** Annotator id of runs. */
+export const RUN_ANNOTATOR = 'profile.spans';
+
+/** How a run ended: started and stopped; still running at the end of the data; started again without a stop; a stop without a start (a point). */
+export type RunStatus = 'closed' | 'open' | 'noStop' | 'noStart';
+export const RUN_STATUSES: readonly RunStatus[] = ['closed', 'open', 'noStop', 'noStart'];
+
+/** The start or stop event of a run (message cut to 240 characters). */
+export interface RunEvent {
+  id: number;
+  ts: number;
+  message: string;
+}
+
+/** What a run annotation adds to `AnnotationDto`. */
+export interface RunInfo {
+  /** The `[[span]]` kind. */
+  span: string;
+  spanLabel: string;
+  status: RunStatus;
+  start: RunEvent | null;
+  stop: RunEvent | null;
+  /** `to - from` (0 for a stop without start). */
+  durationMs: number;
+  /** Longer than the rule's `max_duration`. */
+  tooLong: boolean;
+  /** The field value it was paired by (`per = "field:<Name>"`). */
+  group: FieldMatch | null;
+  color: string | null;
+}
+
+/** Counts and durations of one span kind's runs over a selection. */
+export interface SpanSummary {
+  kind: string;
+  label: string;
+  color: string | null;
+  enabled: boolean;
+  runs: number;
+  closed: number;
+  open: number;
+  noStop: number;
+  noStart: number;
+  tooLong: number;
+  lanes: number;
+  /** Over runs with a duration (all but stops without start). */
+  totalMs: number;
+  avgMs: number;
+  maxMs: number;
+  /** Runs dropped by the per-lane cap (1,000) plus events ignored by the group cap. */
+  dropped: number;
+  /** Marker kinds the rule names that are not defined (or switched off). */
+  missingMarkers: string[];
+}
+
+export type RunSort = 'start' | 'stop' | 'duration' | 'status' | 'lane';
+
+/** Which runs `query_runs` returns; every key is optional. */
+export interface RunsRequest {
+  /** Overlapping `[from, to]` (inclusive). */
+  from?: number | null;
+  to?: number | null;
+  /** Only these lanes; empty = every lane. */
+  instances?: string[];
+  /** Only this span kind. */
+  kind?: string | null;
+  statuses?: RunStatus[];
+  sort?: RunSort;
+  descending?: boolean;
+  offset?: number;
+  /** Page size (default 200, at most 1000). */
+  limit?: number | null;
+}
+
+/** A `[[span]]` table as the profile writes it (snake_case keys; default_profile.toml documents them). */
+export interface SpanCfgToml {
+  kind: string;
+  label?: string;
+  start: string | string[];
+  stop: string | string[];
+  /** "instance" or "field:<Name>". */
+  per?: string;
+  color?: string;
+  max_duration?: string;
+  restart_on_start?: boolean;
+  enabled?: boolean;
+}
+
+export interface RunsReply {
+  /** Every span kind (switched-off rules too, without runs), over the selection. */
+  summaries: SpanSummary[];
+  /** The profile's `[[span]]` rules as written (switched-off ones too). */
+  rules: SpanCfgToml[];
+  /** Run annotations (each with `run`), sorted as requested. */
+  runs: AnnotationDto[];
+  total: number;
+  offset: number;
+}
+
+/** What starts or stops a run in the Runs editor: existing marker kinds, or a text pattern (saving creates a marker rule). */
+export type SpanTrigger = { type: 'markers'; kinds: string[] } | { type: 'pattern'; pattern: string; caseSensitive?: boolean };
+
+/** A candidate `[[span]]` rule. `per` is "instance" or "field:<Name>". */
+export interface SpanDraft {
+  kind: string;
+  label: string;
+  start: SpanTrigger;
+  stop: SpanTrigger;
+  per: string;
+  maxDuration?: string | null;
+  restartOnStart?: boolean | null;
+  color?: string | null;
+}
+
+export interface SpanPreviewRequest {
+  draft: SpanDraft;
+}
+
+export type SpanField = 'kind' | 'label' | 'start' | 'stop' | 'per' | 'color' | 'maxDuration' | 'general';
+
+export interface SpanIssue {
+  field: SpanField;
+  message: string;
+}
+
+/** What saving a draft writes into the profile (TOML-shaped, snake_case keys). */
+export interface SpanPlan {
+  /** The draft's `[[span]]` table. */
+  span: SpanCfgToml;
+  /** Every `[[span]]` table of the profile after saving (the draft replacing a rule of its kind, else added last). */
+  spans: SpanCfgToml[];
+  /** `[[marker]]` rules its text patterns need; each replaces one of the same kind. */
+  markers: (Record<string, unknown> & { kind: string })[];
+}
+
+export interface SpanPreview {
+  /** Problems that prevent saving, by form field. */
+  errors: SpanIssue[];
+  warnings: string[];
+  /** Over the loaded data; null while there are errors. */
+  summary: SpanSummary | null;
+  /** The first 20 runs by start time. */
+  runs: AnnotationDto[];
+  /** The first 20 anomalies (no start, no stop, too long). */
+  anomalies: AnnotationDto[];
+  plan: SpanPlan | null;
 }
 
 // ---- Clock-skew correction (`set_source_offset`, `suggest_offsets`) ----

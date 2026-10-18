@@ -15,6 +15,7 @@ import { MarkerRuleX, RuleRow } from './markers.types';
 import { MarkerOverrideDialog } from './marker-override-dialog';
 import { OverrideStyle, PluginKindRow, pluginRows, readOverrides, resetStyle, setOverride } from './marker-overrides';
 import { ProfileModel } from '../core/profile.model';
+import { RunsEditor } from './runs-editor';
 
 /** The engine's failure message, with the profile line it points at when it has one. */
 function failureText(f: { message: string; line: number | null }): string {
@@ -25,7 +26,7 @@ function failureText(f: { message: string; line: number | null }): string {
 @Component({
   selector: 'imt-markers-manager',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton],
+  imports: [MarkerGlyph, Icon, CdkDropList, CdkDrag, CdkDragHandle, AiButton, RunsEditor],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@markers.manager.title">Markers</span>
@@ -118,6 +119,7 @@ function failureText(f: { message: string; line: number | null }): string {
           </tbody>
         </table>
       }
+      <imt-runs-editor />
     </div>
   `,
   styles: `

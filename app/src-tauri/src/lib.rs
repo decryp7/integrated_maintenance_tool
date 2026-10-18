@@ -89,6 +89,8 @@ macro_rules! commands {
             workspace_commands::cancel_import,
             workspace_commands::overview,
             workspace_commands::annotations,
+            workspace_commands::query_runs,
+            workspace_commands::preview_spans,
             workspace_commands::plugin_events,
             workspace_commands::save_project,
             workspace_commands::open_project,
@@ -170,6 +172,8 @@ macro_rules! commands {
             activity::report::problem_report_preview,
             activity::report::save_problem_report,
             activity::report::open_activity_log,
+            activity::report::open::diagnostics_report,
+            activity::report::open::diagnostics_report_image,
             diagnostics::diagnostics_settings,
             diagnostics::set_diagnostics_settings,
             // System and tools
@@ -316,6 +320,10 @@ pub fn run() {
         eprintln!("IMT cannot start: {e}");
         std::process::exit(2);
     }
+    // `imt-app --export-diagnostics [<path.zip>] [--force]`: the problem report without the UI, then exit.
+    if let Some(code) = activity::report::cli::run_if_requested() {
+        std::process::exit(code);
+    }
     // `imt-app [--safe-mode] [--new-instance] [--new-window] <paths...>`
     let mut launch = instance::parse_args(std::env::args().skip(1), std::env::current_dir().ok().as_deref());
     launch.paths.extend(dev_overrides::current().open_paths.iter().cloned());
@@ -357,6 +365,10 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     // dedup) on their way to it, the webview's through the log plugin's command: see `logging`.
     logging::init(app.handle(), app_dirs::log(app.handle()).ok().as_deref(), &diag.log)?;
     activity::set_config(diag.activity);
+    // Child processes' stderr and start/exit lines (for problem reports): `<logs>/children/<name>.log`.
+    if let Ok(dir) = app_dirs::log(app.handle()) {
+        imt_ipc::child_log::set_dir(activity::report::children_dir(&dir));
+    }
     if let Ok(dir) = app_dirs::log(app.handle()) {
         diagnostics::prune_old_logs(&dir, diag.log.max_age_days, std::time::SystemTime::now());
     }

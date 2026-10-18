@@ -119,6 +119,9 @@ pub struct AnnotationDto {
     pub label: String,
     pub severity: Severity,
     pub evidence_query: Query,
+    /// Set on runs between lifecycle markers (`[[span]]`, owner `profile`); absent on plugin annotations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run: Option<crate::spans::RunInfo>,
 }
 
 /// Which annotations to return.
@@ -218,6 +221,7 @@ impl Store {
                             label: x.label.chars().take(500).collect(),
                             severity: x.severity,
                             evidence_query: x.evidence_query,
+                            run: None,
                         })
                         .collect();
                     self.lock().insert(id, items);

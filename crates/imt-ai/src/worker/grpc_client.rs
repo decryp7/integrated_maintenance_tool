@@ -20,6 +20,19 @@ use tonic::{Request, Status};
 
 type Client = WorkerClient<AuthChannel>;
 
+/// Name of the AI worker's child log (its llama-server's is [`LLAMA_LOG`]).
+pub const WORKER_LOG: &str = "ai-worker";
+/// Name of llama-server's child log; the worker forwards its output as `[llama-server] text`.
+pub const LLAMA_LOG: &str = "llama-server";
+
+/// The worker's log spec: its own standard error, and llama-server's forwarded into a log of its own.
+pub fn worker_log() -> imt_ipc::child_log::ChildLogSpec {
+    use imt_ipc::child_log::{ChildKind, ChildLogSpec};
+    ChildLogSpec::new(WORKER_LOG, ChildKind::AiWorker)
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .forwarding(ChildLogSpec::new(LLAMA_LOG, ChildKind::LlamaServer))
+}
+
 /// How long to wait for a freshly started worker to start listening.
 const CONNECT_WINDOW: Duration = Duration::from_secs(15);
 
@@ -77,6 +90,7 @@ impl GrpcTransport {
         spec.env = env.to_vec();
         spec.endpoint_prefix = "imt-ai".into();
         spec.connect_window = CONNECT_WINDOW;
+        spec.log = Some(worker_log());
         let launched = rt.block_on(launch(&spec))?;
         Ok(GrpcTransport {
             client: make_client(launched.channel),

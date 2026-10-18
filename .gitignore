@@ -164,3 +164,7 @@ sdk/dotnet/TestResults/
 # cargo-mutants results
 mutants.out/
 mutants.out.old/
+
+# macOS Finder metadata
+.DS_Store
+._*

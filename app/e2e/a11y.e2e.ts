@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, Page, test, TestInfo } from '@playwright/test';
-import { openApp } from './app';
+import { openApp, openView } from './app';
 import { WCAG_TAGS } from './axe';
 
 /** Runs axe against WCAG 2.2 A/AA and fails on any serious or critical violation. */
@@ -25,7 +25,7 @@ for (const scheme of ['dark', 'light'] as const) {
 
 test('metrics and profile tabs have no serious accessibility violations', async ({ page }, testInfo) => {
   await openApp(page);
-  await page.getByRole('tab', { name: /Metrics/ }).click();
+  await openView(page, 'metrics');
   await expect(page.locator('imt-chart-card').first()).toBeVisible();
   await expectNoSeriousViolations(page, testInfo, 'metrics');
   await page.getByRole('button', { name: 'Profile editor' }).click();

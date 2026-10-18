@@ -96,9 +96,14 @@ impl Health {
     /// Records a failure; returns whether the AI is now disabled.
     pub fn record_failure(&self, reason: &str) -> bool {
         let minutes = self.ledger.window().as_secs() / 60;
-        self.ledger.record_failure(reason, |n, reason| {
+        let disabled = self.ledger.record_failure(reason, |n, reason| {
             format!("The AI engine failed {n} times in {minutes} minutes (last: {reason}). The AI assistant is off for this session.")
-        })
+        });
+        if disabled {
+            // In the worker's child log too, for problem reports.
+            imt_ipc::child_log::get(&super::grpc_client::worker_log()).quarantined(&self.disabled_reason().unwrap_or_default());
+        }
+        disabled
     }
 
     pub fn check(&self) -> Result<()> {
@@ -503,6 +508,19 @@ impl ModelRuntime for WorkerRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_disabled_engine_is_recorded_in_the_worker_log() {
+        let h = Health::new(2, Duration::from_secs(60));
+        assert!(!h.record_failure("it crashed (exit code 3)"));
+        assert!(h.record_failure("it crashed (exit code 3)"));
+        let s = imt_ipc::child_log::find(super::super::grpc_client::WORKER_LOG).unwrap().status();
+        assert!(s.quarantined, "{s:?}");
+        assert!(s.quarantine_reason.unwrap().contains("failed 2 times"));
+        assert_eq!(s.kind, imt_ipc::child_log::ChildKind::AiWorker);
+        let spec = super::super::grpc_client::worker_log();
+        assert_eq!(spec.forwarded[0].name, super::super::grpc_client::LLAMA_LOG);
+    }
 
     #[test]
     fn typed_worker_errors_map_to_library_errors() {

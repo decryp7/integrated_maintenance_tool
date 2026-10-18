@@ -1,4 +1,4 @@
-import { EnvironmentProviders, ErrorHandler, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
+import { EnvironmentProviders, ErrorHandler, inject, Injector, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { ApplicationRef, createComponent, EnvironmentInjector } from '@angular/core';
 import { FailureReporter } from '../core/failure-reporter';
 import { Logger, LoggingErrorHandler, withFailureLogging } from '../core/logger';
@@ -10,10 +10,15 @@ import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
+import { DiagnosticsReportService } from './diagnostics-report.service';
+import { ImtEvents } from '../extensions/events';
 
 /** The real backend inside Tauri, an in-memory one in a plain browser (ng serve, e2e). */
 export function createSnapshotBackend(): SnapshotBackend {
-  return withFailureLogging<SnapshotBackend>(isTauri() ? new TauriSnapshotBackend() : new MockSnapshotBackend(), inject(Logger), { category: 'ui.snapshot' });
+  const injector = inject(Injector);
+  // The mock finds an opened diagnostics zip in the workspace; looked up late to avoid a cycle with the workspace store.
+  const mock = () => new MockSnapshotBackend(undefined, () => injector.get(ImtEvents).workspace());
+  return withFailureLogging<SnapshotBackend>(isTauri() ? new TauriSnapshotBackend() : mock(), inject(Logger), { category: 'ui.snapshot' });
 }
 
 /** Mounts the toast once over the app and starts listening. Not awaited: it must not delay the first paint. */
@@ -23,6 +28,7 @@ export function startDiagnostics(): void {
   const ref = createComponent(SnapshotToast, { environmentInjector: inject(EnvironmentInjector), hostElement: host });
   inject(ApplicationRef).attachView(ref.hostView);
   void inject(ErrorSnapshotService).start();
+  inject(DiagnosticsReportService).start();
 }
 
 /**

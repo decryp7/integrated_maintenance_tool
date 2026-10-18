@@ -1,0 +1,165 @@
+2026-10-14 09:04:58.420 +00:00 [INF] ReportService 2.3.0 ready; export schedule */30 at :05 and :35 {"MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:05:00.478 +00:00 [INF] Report worker started: run 1 (sales-daily) {"RunId": 1, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:05:30.316 +00:00 [INF] Exported 2,089 rows of sales-daily {"RunId": 1, "Rows": 2089, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:06:09.711 +00:00 [INF] Exported 3,291 rows of sales-daily {"RunId": 1, "Rows": 3291, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:06:43.366 +00:00 [WRN] Slow query for sales-daily page 4 took 4922 ms {"RunId": 1, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:07:20.256 +00:00 [INF] Exported 6,624 rows of sales-daily {"RunId": 1, "Rows": 6624, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:07:42.365 +00:00 [INF] Exported 7,869 rows of sales-daily {"RunId": 1, "Rows": 7869, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:08:04.292 +00:00 [INF] Exported 8,886 rows of sales-daily {"RunId": 1, "Rows": 8886, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:08:48.523 +00:00 [INF] Exported 9,801 rows of sales-daily {"RunId": 1, "Rows": 9801, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:09:17.321 +00:00 [INF] Exported 11,477 rows of sales-daily {"RunId": 1, "Rows": 11477, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:09:50.471 +00:00 [INF] Exported 13,769 rows of sales-daily {"RunId": 1, "Rows": 13769, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:10:17.964 +00:00 [INF] Exported 15,259 rows of sales-daily {"RunId": 1, "Rows": 15259, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:10:51.099 +00:00 [INF] Exported 16,299 rows of sales-daily {"RunId": 1, "Rows": 16299, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:11:31.425 +00:00 [INF] Exported 17,171 rows of sales-daily {"RunId": 1, "Rows": 17171, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:12:10.053 +00:00 [INF] Exported 19,498 rows of sales-daily {"RunId": 1, "Rows": 19498, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:12:40.850 +00:00 [INF] Exported 21,491 rows of sales-daily {"RunId": 1, "Rows": 21491, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:13:12.839 +00:00 [INF] Exported 22,663 rows of sales-daily {"RunId": 1, "Rows": 22663, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:13:44.540 +00:00 [INF] Exported 25,022 rows of sales-daily {"RunId": 1, "Rows": 25022, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:14:05.040 +00:00 [INF] Exported 26,030 rows of sales-daily {"RunId": 1, "Rows": 26030, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:14:35.079 +00:00 [INF] Exported 27,037 rows of sales-daily {"RunId": 1, "Rows": 27037, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:15:02.681 +00:00 [INF] Exported 28,821 rows of sales-daily {"RunId": 1, "Rows": 28821, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:15:28.025 +00:00 [INF] Exported 30,130 rows of sales-daily {"RunId": 1, "Rows": 30130, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:15:59.157 +00:00 [INF] Exported 31,190 rows of sales-daily {"RunId": 1, "Rows": 31190, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:16:23.431 +00:00 [INF] Exported 32,248 rows of sales-daily {"RunId": 1, "Rows": 32248, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:16:52.478 +00:00 [INF] Report worker stopped: run 1 exported 32,248 rows in 712 s {"RunId": 1, "Rows": 32248, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:35:00.686 +00:00 [INF] Report worker started: run 2 (sales-daily) {"RunId": 2, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:35:30.871 +00:00 [INF] Exported 1,476 rows of sales-daily {"RunId": 2, "Rows": 1476, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:35:53.754 +00:00 [INF] Exported 3,704 rows of sales-daily {"RunId": 2, "Rows": 3704, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:36:34.204 +00:00 [WRN] Slow query for sales-daily page 4 took 8244 ms {"RunId": 2, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:37:05.395 +00:00 [WRN] Slow query for sales-daily page 7 took 5395 ms {"RunId": 2, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:37:41.875 +00:00 [INF] Exported 7,857 rows of sales-daily {"RunId": 2, "Rows": 7857, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:38:11.696 +00:00 [INF] Exported 9,357 rows of sales-daily {"RunId": 2, "Rows": 9357, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:38:39.539 +00:00 [INF] Exported 10,448 rows of sales-daily {"RunId": 2, "Rows": 10448, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:39:03.656 +00:00 [INF] Exported 12,475 rows of sales-daily {"RunId": 2, "Rows": 12475, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:39:46.461 +00:00 [INF] Exported 14,220 rows of sales-daily {"RunId": 2, "Rows": 14220, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:40:27.249 +00:00 [INF] Exported 16,270 rows of sales-daily {"RunId": 2, "Rows": 16270, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:40:53.440 +00:00 [INF] Exported 17,988 rows of sales-daily {"RunId": 2, "Rows": 17988, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:41:36.101 +00:00 [INF] Exported 19,348 rows of sales-daily {"RunId": 2, "Rows": 19348, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:42:14.455 +00:00 [INF] Exported 21,578 rows of sales-daily {"RunId": 2, "Rows": 21578, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:42:36.185 +00:00 [INF] Exported 23,654 rows of sales-daily {"RunId": 2, "Rows": 23654, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:43:15.543 +00:00 [INF] Exported 25,571 rows of sales-daily {"RunId": 2, "Rows": 25571, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:43:37.480 +00:00 [INF] Exported 27,394 rows of sales-daily {"RunId": 2, "Rows": 27394, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:44:05.949 +00:00 [INF] Exported 29,365 rows of sales-daily {"RunId": 2, "Rows": 29365, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:44:40.545 +00:00 [INF] Exported 30,207 rows of sales-daily {"RunId": 2, "Rows": 30207, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:45:14.801 +00:00 [INF] Exported 31,775 rows of sales-daily {"RunId": 2, "Rows": 31775, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:45:46.055 +00:00 [INF] Exported 33,955 rows of sales-daily {"RunId": 2, "Rows": 33955, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:46:07.576 +00:00 [INF] Exported 34,996 rows of sales-daily {"RunId": 2, "Rows": 34996, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:46:31.586 +00:00 [INF] Exported 36,371 rows of sales-daily {"RunId": 2, "Rows": 36371, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:46:52.682 +00:00 [INF] Exported 37,852 rows of sales-daily {"RunId": 2, "Rows": 37852, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:47:26.159 +00:00 [WRN] Slow query for sales-daily page 39 took 6019 ms {"RunId": 2, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 09:47:30.686 +00:00 [INF] Report worker stopped: run 2 exported 39,334 rows in 750 s {"RunId": 2, "Rows": 39334, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:05:00.791 +00:00 [INF] Report worker started: run 3 (sales-daily) {"RunId": 3, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:05:43.436 +00:00 [WRN] Slow query for sales-daily page 1 took 6648 ms {"RunId": 3, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:06:16.366 +00:00 [INF] Exported 2,049 rows of sales-daily {"RunId": 3, "Rows": 2049, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:07:00.932 +00:00 [INF] Exported 4,299 rows of sales-daily {"RunId": 3, "Rows": 4299, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:07:34.299 +00:00 [INF] Exported 6,303 rows of sales-daily {"RunId": 3, "Rows": 6303, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:07:58.129 +00:00 [INF] Exported 8,427 rows of sales-daily {"RunId": 3, "Rows": 8427, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:08:19.716 +00:00 [INF] Exported 10,485 rows of sales-daily {"RunId": 3, "Rows": 10485, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:08:57.106 +00:00 [INF] Exported 12,286 rows of sales-daily {"RunId": 3, "Rows": 12286, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:09:39.751 +00:00 [INF] Exported 13,381 rows of sales-daily {"RunId": 3, "Rows": 13381, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:10:24.185 +00:00 [INF] Exported 15,211 rows of sales-daily {"RunId": 3, "Rows": 15211, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:10:56.957 +00:00 [INF] Exported 16,313 rows of sales-daily {"RunId": 3, "Rows": 16313, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:11:39.545 +00:00 [INF] Exported 17,722 rows of sales-daily {"RunId": 3, "Rows": 17722, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:12:06.305 +00:00 [INF] Exported 19,834 rows of sales-daily {"RunId": 3, "Rows": 19834, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:12:33.977 +00:00 [INF] Exported 21,550 rows of sales-daily {"RunId": 3, "Rows": 21550, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:13:10.271 +00:00 [INF] Exported 23,253 rows of sales-daily {"RunId": 3, "Rows": 23253, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:13:48.821 +00:00 [INF] Exported 25,364 rows of sales-daily {"RunId": 3, "Rows": 25364, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:14:15.087 +00:00 [INF] Exported 26,511 rows of sales-daily {"RunId": 3, "Rows": 26511, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:14:38.019 +00:00 [INF] Exported 28,461 rows of sales-daily {"RunId": 3, "Rows": 28461, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:15:15.642 +00:00 [WRN] Slow query for sales-daily page 30 took 8288 ms {"RunId": 3, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:15:29.791 +00:00 [INF] Report worker stopped: run 3 exported 30,278 rows in 629 s {"RunId": 3, "Rows": 30278, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:35:00.055 +00:00 [INF] Report worker started: run 4 (sales-daily) {"RunId": 4, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:35:43.007 +00:00 [INF] Exported 1,159 rows of sales-daily {"RunId": 4, "Rows": 1159, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:36:05.469 +00:00 [WRN] Slow query for sales-daily page 2 took 4006 ms {"RunId": 4, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:36:40.983 +00:00 [INF] Exported 2,940 rows of sales-daily {"RunId": 4, "Rows": 2940, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:37:07.409 +00:00 [INF] Exported 3,789 rows of sales-daily {"RunId": 4, "Rows": 3789, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:37:31.219 +00:00 [INF] Exported 5,772 rows of sales-daily {"RunId": 4, "Rows": 5772, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:37:52.261 +00:00 [WRN] Slow query for sales-daily page 6 took 7937 ms {"RunId": 4, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:38:28.483 +00:00 [INF] Exported 8,421 rows of sales-daily {"RunId": 4, "Rows": 8421, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:39:09.442 +00:00 [INF] Exported 9,346 rows of sales-daily {"RunId": 4, "Rows": 9346, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:39:43.023 +00:00 [INF] Exported 11,021 rows of sales-daily {"RunId": 4, "Rows": 11021, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:40:13.285 +00:00 [INF] Exported 13,206 rows of sales-daily {"RunId": 4, "Rows": 13206, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:40:57.681 +00:00 [INF] Exported 15,285 rows of sales-daily {"RunId": 4, "Rows": 15285, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:41:40.579 +00:00 [INF] Exported 16,608 rows of sales-daily {"RunId": 4, "Rows": 16608, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:42:13.282 +00:00 [INF] Exported 18,520 rows of sales-daily {"RunId": 4, "Rows": 18520, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:42:47.932 +00:00 [INF] Exported 20,596 rows of sales-daily {"RunId": 4, "Rows": 20596, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:43:14.231 +00:00 [INF] Exported 21,473 rows of sales-daily {"RunId": 4, "Rows": 21473, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:43:48.162 +00:00 [INF] Exported 23,504 rows of sales-daily {"RunId": 4, "Rows": 23504, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:44:32.777 +00:00 [INF] Exported 25,757 rows of sales-daily {"RunId": 4, "Rows": 25757, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:45:01.814 +00:00 [INF] Exported 27,990 rows of sales-daily {"RunId": 4, "Rows": 27990, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:45:30.029 +00:00 [INF] Exported 30,294 rows of sales-daily {"RunId": 4, "Rows": 30294, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:45:53.669 +00:00 [INF] Exported 32,386 rows of sales-daily {"RunId": 4, "Rows": 32386, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:46:30.791 +00:00 [INF] Exported 33,474 rows of sales-daily {"RunId": 4, "Rows": 33474, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:46:54.250 +00:00 [INF] Exported 34,777 rows of sales-daily {"RunId": 4, "Rows": 34777, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:47:26.628 +00:00 [INF] Exported 36,948 rows of sales-daily {"RunId": 4, "Rows": 36948, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:47:50.527 +00:00 [INF] Exported 38,389 rows of sales-daily {"RunId": 4, "Rows": 38389, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:48:26.520 +00:00 [INF] Exported 40,406 rows of sales-daily {"RunId": 4, "Rows": 40406, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:48:55.045 +00:00 [INF] Exported 41,933 rows of sales-daily {"RunId": 4, "Rows": 41933, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:49:36.066 +00:00 [INF] Exported 42,734 rows of sales-daily {"RunId": 4, "Rows": 42734, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:50:17.554 +00:00 [INF] Exported 44,411 rows of sales-daily {"RunId": 4, "Rows": 44411, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:50:44.079 +00:00 [INF] Exported 46,443 rows of sales-daily {"RunId": 4, "Rows": 46443, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:51:20.682 +00:00 [INF] Exported 48,615 rows of sales-daily {"RunId": 4, "Rows": 48615, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:52:02.218 +00:00 [INF] Exported 50,424 rows of sales-daily {"RunId": 4, "Rows": 50424, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:56:40.120 +00:00 [INF] ReportService 2.3.0 ready; export schedule */30 at :05 and :35 {"MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:56:40.500 +00:00 [WRN] Run 4 has no completion record; it will be resumed {"MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:57:00.380 +00:00 [INF] Report worker started: run 5 (sales-daily, resumed after restart) {"RunId": 5, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:57:21.875 +00:00 [INF] Exported 2,268 rows of sales-daily {"RunId": 5, "Rows": 2268, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:57:49.084 +00:00 [INF] Exported 4,038 rows of sales-daily {"RunId": 5, "Rows": 4038, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:58:13.028 +00:00 [INF] Exported 5,728 rows of sales-daily {"RunId": 5, "Rows": 5728, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:58:33.994 +00:00 [INF] Exported 6,531 rows of sales-daily {"RunId": 5, "Rows": 6531, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:58:56.633 +00:00 [INF] Exported 7,713 rows of sales-daily {"RunId": 5, "Rows": 7713, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:59:35.724 +00:00 [INF] Exported 8,707 rows of sales-daily {"RunId": 5, "Rows": 8707, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 10:59:57.156 +00:00 [INF] Exported 10,329 rows of sales-daily {"RunId": 5, "Rows": 10329, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:00:18.861 +00:00 [INF] Exported 12,160 rows of sales-daily {"RunId": 5, "Rows": 12160, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:01:03.759 +00:00 [INF] Exported 14,235 rows of sales-daily {"RunId": 5, "Rows": 14235, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:01:40.083 +00:00 [INF] Exported 15,346 rows of sales-daily {"RunId": 5, "Rows": 15346, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:02:24.972 +00:00 [WRN] Slow query for sales-daily page 16 took 4329 ms {"RunId": 5, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:02:46.695 +00:00 [INF] Exported 18,990 rows of sales-daily {"RunId": 5, "Rows": 18990, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:03:21.833 +00:00 [INF] Exported 19,998 rows of sales-daily {"RunId": 5, "Rows": 19998, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:03:58.923 +00:00 [WRN] Slow query for sales-daily page 21 took 7976 ms {"RunId": 5, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:04:42.471 +00:00 [INF] Exported 23,319 rows of sales-daily {"RunId": 5, "Rows": 23319, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:05:26.588 +00:00 [INF] Exported 24,280 rows of sales-daily {"RunId": 5, "Rows": 24280, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:05:49.234 +00:00 [INF] Exported 25,791 rows of sales-daily {"RunId": 5, "Rows": 25791, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:06:19.915 +00:00 [WRN] Slow query for sales-daily page 27 took 5447 ms {"RunId": 5, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:06:50.481 +00:00 [INF] Exported 28,241 rows of sales-daily {"RunId": 5, "Rows": 28241, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:07:30.363 +00:00 [INF] Exported 29,240 rows of sales-daily {"RunId": 5, "Rows": 29240, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:07:52.294 +00:00 [INF] Exported 30,841 rows of sales-daily {"RunId": 5, "Rows": 30841, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:08:16.222 +00:00 [INF] Exported 32,863 rows of sales-daily {"RunId": 5, "Rows": 32863, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:08:23.380 +00:00 [INF] Report worker stopped: run 5 exported 32,863 rows in 683 s {"RunId": 5, "Rows": 32863, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:35:00.210 +00:00 [INF] Report worker started: run 6 (sales-daily) {"RunId": 6, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:35:42.987 +00:00 [INF] Exported 2,190 rows of sales-daily {"RunId": 6, "Rows": 2190, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:36:22.402 +00:00 [INF] Exported 3,120 rows of sales-daily {"RunId": 6, "Rows": 3120, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:36:49.141 +00:00 [INF] Exported 4,705 rows of sales-daily {"RunId": 6, "Rows": 4705, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:37:11.763 +00:00 [INF] Exported 6,390 rows of sales-daily {"RunId": 6, "Rows": 6390, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:37:35.019 +00:00 [INF] Exported 8,577 rows of sales-daily {"RunId": 6, "Rows": 8577, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:38:03.883 +00:00 [INF] Exported 10,141 rows of sales-daily {"RunId": 6, "Rows": 10141, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:38:27.704 +00:00 [INF] Exported 11,506 rows of sales-daily {"RunId": 6, "Rows": 11506, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:39:00.769 +00:00 [INF] Exported 12,583 rows of sales-daily {"RunId": 6, "Rows": 12583, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:39:29.015 +00:00 [INF] Exported 13,775 rows of sales-daily {"RunId": 6, "Rows": 13775, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:40:09.205 +00:00 [INF] Exported 14,717 rows of sales-daily {"RunId": 6, "Rows": 14717, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:40:36.817 +00:00 [INF] Exported 16,719 rows of sales-daily {"RunId": 6, "Rows": 16719, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:40:57.516 +00:00 [INF] Exported 18,126 rows of sales-daily {"RunId": 6, "Rows": 18126, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:41:36.344 +00:00 [INF] Exported 20,173 rows of sales-daily {"RunId": 6, "Rows": 20173, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:42:02.822 +00:00 [INF] Exported 21,871 rows of sales-daily {"RunId": 6, "Rows": 21871, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:42:30.817 +00:00 [INF] Exported 23,872 rows of sales-daily {"RunId": 6, "Rows": 23872, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:42:54.466 +00:00 [INF] Exported 24,998 rows of sales-daily {"RunId": 6, "Rows": 24998, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:43:24.473 +00:00 [INF] Exported 26,518 rows of sales-daily {"RunId": 6, "Rows": 26518, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:44:04.746 +00:00 [INF] Exported 28,194 rows of sales-daily {"RunId": 6, "Rows": 28194, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:44:27.682 +00:00 [INF] Exported 30,184 rows of sales-daily {"RunId": 6, "Rows": 30184, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:45:06.991 +00:00 [INF] Exported 31,715 rows of sales-daily {"RunId": 6, "Rows": 31715, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:45:16.210 +00:00 [INF] Report worker stopped: run 6 exported 31,715 rows in 616 s {"RunId": 6, "Rows": 31715, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:52:00.037 +00:00 [INF] Report worker started: run 7 (sales-weekly, requested by ops) {"RunId": 7, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:52:21.629 +00:00 [INF] Exported 1,215 rows of sales-weekly {"RunId": 7, "Rows": 1215, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:52:52.966 +00:00 [INF] Exported 2,210 rows of sales-weekly {"RunId": 7, "Rows": 2210, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:53:28.279 +00:00 [INF] Exported 3,807 rows of sales-weekly {"RunId": 7, "Rows": 3807, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:54:02.671 +00:00 [WRN] Slow query for sales-weekly page 4 took 8993 ms {"RunId": 7, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:54:40.938 +00:00 [WRN] Slow query for sales-weekly page 5 took 4261 ms {"RunId": 7, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:55:09.988 +00:00 [INF] Exported 6,841 rows of sales-weekly {"RunId": 7, "Rows": 6841, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:55:37.005 +00:00 [INF] Exported 7,970 rows of sales-weekly {"RunId": 7, "Rows": 7970, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:56:20.419 +00:00 [INF] Exported 9,477 rows of sales-weekly {"RunId": 7, "Rows": 9477, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:57:05.294 +00:00 [INF] Exported 11,077 rows of sales-weekly {"RunId": 7, "Rows": 11077, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:57:38.718 +00:00 [INF] Exported 12,815 rows of sales-weekly {"RunId": 7, "Rows": 12815, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:58:08.592 +00:00 [INF] Exported 15,004 rows of sales-weekly {"RunId": 7, "Rows": 15004, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:58:38.037 +00:00 [INF] Exported 16,196 rows of sales-weekly {"RunId": 7, "Rows": 16196, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}
+2026-10-14 11:59:19.860 +00:00 [INF] Exported 17,101 rows of sales-weekly {"RunId": 7, "Rows": 17101, "MachineName": "BATCH01", "Application": "ReportService", "SourceContext": "Reports.ExportWorker"}

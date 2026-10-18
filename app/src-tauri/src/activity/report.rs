@@ -1,14 +1,30 @@
 //! "Report a problem": one zip the user reviews and saves, to attach to a bug report. Nothing is sent
-//! anywhere. It holds the activity log and a bounded window of IMT's own logs, the error snapshots (with
-//! their breadcrumbs), the steps to reproduce, system information (no secrets) and the user's
-//! description. Also Help ▸ Show activity log, which opens IMT's own logs filtered to the activity entries.
+//! anywhere. It holds the activity log and a bounded window of IMT's own logs, the logs of the child
+//! processes IMT supervises (AI engine, llama-server, plugin processes) with a `processes.json` summary,
+//! the error snapshots (with their breadcrumbs), the steps to reproduce, system information (no secrets),
+//! the last crash marker and recoverable sessions, the user's description, and a versioned `manifest.json`
+//! listing every file with its kind (IMT opens such a zip as a diagnostics workspace: [`open`]).
+//! Also Help ▸ Show activity log, which opens IMT's own logs filtered to the activity entries.
 //!
-//! Commands: `problem_report_preview`, `save_problem_report`, `open_activity_log`.
+//! The same report is written without the UI by `imt-app --export-diagnostics` ([`cli`]).
+//!
+//! Commands: `problem_report_preview`, `save_problem_report`, `open_activity_log`, and [`open`]'s.
+
+mod children;
+pub mod cli;
+pub mod manifest;
+pub mod open;
+mod recovery;
+#[cfg(test)]
+mod sample;
 
 use super::breadcrumbs::Breadcrumb;
 use super::privacy::is_secret_key;
 use crate::snapshots::{tail_of, SnapshotStore};
 use crate::{err, CmdResult};
+use chrono::{DateTime, Datelike, SecondsFormat, Timelike, Utc};
+use imt_ipc::child_log::ProcessSummary;
+use manifest::{FileKind, Manifest, ManifestFile};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::io::Write;
@@ -23,6 +39,8 @@ pub const MAX_DESCRIPTION: usize = 10 * 1024;
 const REPORT_BREADCRUMBS: usize = 200;
 /// Most error snapshots included (the newest).
 const MAX_SNAPSHOTS: usize = 10;
+/// Largest settings file read for the system information.
+const MAX_CONFIG_FILE: u64 = 1 << 20;
 
 /// One file of the report as previewed.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -51,21 +69,61 @@ pub struct PluginLine {
     pub status: String,
 }
 
-/// Everything a report is made from (gathered from the app, or built by tests).
+/// Everything a report is made from (gathered from the app, by the command line, or built by tests).
 pub struct ReportInputs {
     pub log_dir: Option<PathBuf>,
     pub config_dir: Option<PathBuf>,
+    /// IMT's data folder: the running marker and the sessions a crash restore offers.
+    pub data_dir: Option<PathBuf>,
     pub snapshots: Option<SnapshotStore>,
     pub plugins: Vec<PluginLine>,
     pub breadcrumbs: Vec<Breadcrumb>,
     pub safe_mode: bool,
+    /// The children as this session supervises them now (empty when none run, e.g. on the command line).
+    pub live_children: Vec<ProcessSummary>,
+    /// Whether this run found that the previous one did not close properly (`None`: not known here).
+    pub previous_crash: Option<bool>,
+    /// When the report is made (also the time of every zip entry).
+    pub created_at: DateTime<Utc>,
+    /// Replaces the gathered system information (reproducible samples).
+    pub system_override: Option<Value>,
+}
+
+impl ReportInputs {
+    /// Inputs with nothing in them, made now.
+    pub fn empty() -> ReportInputs {
+        ReportInputs {
+            log_dir: None,
+            config_dir: None,
+            data_dir: None,
+            snapshots: None,
+            plugins: Vec::new(),
+            breadcrumbs: Vec::new(),
+            safe_mode: false,
+            live_children: Vec::new(),
+            previous_crash: None,
+            created_at: Utc::now(),
+            system_override: None,
+        }
+    }
+
+    /// The children's log folder (`<logs>/children`).
+    pub fn children_dir(&self) -> Option<PathBuf> {
+        self.log_dir.as_deref().map(children_dir)
+    }
+}
+
+/// The children's log folder under IMT's log folder.
+pub fn children_dir(log_dir: &Path) -> PathBuf {
+    log_dir.join("children")
 }
 
 /// One file of the zip.
-struct ReportFile {
-    name: String,
-    data: Vec<u8>,
-    summary: String,
+pub(crate) struct ReportFile {
+    pub name: String,
+    pub kind: FileKind,
+    pub data: Vec<u8>,
+    pub summary: String,
 }
 
 /// The description, cut to [`MAX_DESCRIPTION`] bytes at a character boundary.
@@ -105,13 +163,13 @@ pub fn log_files(log_dir: &Path) -> Vec<PathBuf> {
                 .flatten()
                 .filter(|e| {
                     let n = e.file_name().to_string_lossy().into_owned();
-                    n.starts_with(name) && n.ends_with(".log") && e.path() != active
+                    n.starts_with(name) && n.ends_with(".log") && e.path() != active && e.path().is_file()
                 })
                 .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
                 .collect()
         })
         .unwrap_or_default();
-    rotated.sort_by_key(|(t, _)| std::cmp::Reverse(*t));
+    rotated.sort_by(|(ta, pa), (tb, pb)| tb.cmp(ta).then_with(|| pb.cmp(pa)));
     let mut out = Vec::new();
     if active.is_file() {
         out.push(active);
@@ -138,17 +196,19 @@ fn log_window(log_dir: &Path) -> Vec<(String, Vec<u8>)> {
     out
 }
 
+/// Whether a CLEF line is an activity entry (`SourceContext = IMT.Activity`).
+fn activity_entry(line: &str) -> Option<Value> {
+    let v = serde_json::from_str::<Value>(line).ok()?;
+    (v.get("SourceContext").and_then(Value::as_str) == Some(super::SOURCE_CONTEXT)).then_some(v)
+}
+
 /// The activity entries (`SourceContext = IMT.Activity`) among CLEF lines, oldest first.
 fn activity_lines(logs: &[(String, Vec<u8>)]) -> Vec<u8> {
     let mut out = Vec::new();
     // Oldest file first, so the result reads in time order.
     for (_, bytes) in logs.iter().rev() {
         for line in String::from_utf8_lossy(bytes).lines() {
-            let is_activity = serde_json::from_str::<Value>(line)
-                .ok()
-                .and_then(|v| v.get("SourceContext").and_then(|s| s.as_str().map(|s| s == super::SOURCE_CONTEXT)))
-                .unwrap_or(false);
-            if is_activity {
+            if activity_entry(line).is_some() {
                 out.extend_from_slice(line.as_bytes());
                 out.push(b'\n');
             }
@@ -157,24 +217,74 @@ fn activity_lines(logs: &[(String, Vec<u8>)]) -> Vec<u8> {
     out
 }
 
-fn read_json(path: &Path) -> Option<Value> {
-    let meta = std::fs::metadata(path).ok()?;
-    if meta.len() > 1 << 20 {
-        return None;
-    }
-    serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
+/// Breadcrumbs rebuilt from the activity entries of a log (the newest `max`), for a report made when the
+/// session that logged them is gone (the command line).
+pub fn breadcrumbs_from_log(activity: &[u8], max: usize) -> Vec<Breadcrumb> {
+    let mut out: Vec<Breadcrumb> = String::from_utf8_lossy(activity)
+        .lines()
+        .filter_map(activity_entry)
+        .filter_map(|v| {
+            let time = v.get("@t").and_then(Value::as_str)?.to_string();
+            let props = v
+                .as_object()?
+                .iter()
+                .filter(|(k, _)| !k.starts_with('@'))
+                .map(|(k, v)| {
+                    let s = match v {
+                        Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    (k.clone(), s)
+                })
+                .collect();
+            Breadcrumb::from_props(time, &props)
+        })
+        .collect();
+    let skip = out.len().saturating_sub(max);
+    out.split_off(skip)
 }
 
-/// OS, build, memory, plugins and settings (secrets removed).
+/// A settings file: missing is fine (`None`); too large or not JSON is a reason (never its content).
+fn read_config(path: &Path) -> Result<Option<Value>, String> {
+    let meta = match std::fs::metadata(path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("cannot be read ({})", e.kind())),
+    };
+    if meta.len() > MAX_CONFIG_FILE {
+        return Err(format!("is larger than {} KB", MAX_CONFIG_FILE / 1024));
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| format!("cannot be read ({})", e.kind()))?;
+    serde_json::from_str(&text)
+        .map(Some)
+        .map_err(|e| format!("is not valid JSON (line {}, column {})", e.line(), e.column()))
+}
+
+/// OS, build, memory, plugins and settings (secrets removed), and the settings files that could not be read.
 pub fn system_info(inputs: &ReportInputs) -> Value {
+    if let Some(fixed) = &inputs.system_override {
+        return fixed.clone();
+    }
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
+    let mut unreadable = Vec::new();
     let settings = inputs.config_dir.as_deref().map(|d| {
-        json!({
-            "settings": read_json(&d.join("settings.json")).map(|v| without_secrets(&v)),
-            "diagnostics": read_json(&d.join("diagnostics.json")).map(|v| without_secrets(&v)),
-            "plugins": read_json(&d.join("plugins.json")).map(|v| without_secrets(&v)),
-        })
+        let mut section = serde_json::Map::new();
+        for (key, file) in [
+            ("settings", "settings.json"),
+            ("diagnostics", "diagnostics.json"),
+            ("plugins", "plugins.json"),
+        ] {
+            let value = match read_config(&d.join(file)) {
+                Ok(v) => v.map(|v| without_secrets(&v)),
+                Err(why) => {
+                    unreadable.push(json!({ "file": file, "reason": why }));
+                    None
+                }
+            };
+            section.insert(key.into(), value.unwrap_or(Value::Null));
+        }
+        Value::Object(section)
     });
     json!({
         "appVersion": env!("CARGO_PKG_VERSION"),
@@ -190,15 +300,30 @@ pub fn system_info(inputs: &ReportInputs) -> Value {
         "activityDetail": format!("{:?}", super::config().detail).to_lowercase(),
         "plugins": inputs.plugins,
         "configuration": settings,
+        "unreadable": unreadable,
     })
 }
 
-/// The zip's files, in order.
+/// The settings files the system information could not read, as "file: reason".
+pub fn unreadable_settings(info: &Value) -> Vec<String> {
+    info.get("unreadable")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|u| Some(format!("{} {}", u.get("file")?.as_str()?, u.get("reason")?.as_str()?)))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The zip's files, in order, without the manifest.
 fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
     let mut files = Vec::new();
     let description = cap_description(description.trim());
     files.push(ReportFile {
         name: "description.txt".into(),
+        kind: FileKind::Description,
         summary: if description.is_empty() {
             "No description".into()
         } else {
@@ -209,32 +334,67 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
     let steps = super::steps_text(&inputs.breadcrumbs, None);
     files.push(ReportFile {
         name: "steps-to-reproduce.txt".into(),
+        kind: FileKind::Steps,
         summary: format!("{} steps from your recent activity", super::steps(&inputs.breadcrumbs, None).len()),
         data: steps.into_bytes(),
     });
     files.push(ReportFile {
         name: "breadcrumbs.json".into(),
+        kind: FileKind::Breadcrumbs,
         summary: format!("{} recent operations (no file contents)", inputs.breadcrumbs.len()),
         data: serde_json::to_vec_pretty(&inputs.breadcrumbs).unwrap_or_default(),
     });
     let info = system_info(inputs);
+    let unreadable = unreadable_settings(&info);
     files.push(ReportFile {
         name: "system-info.json".into(),
-        summary: "OS, IMT version and build, memory, plugins, settings without secrets".into(),
+        kind: FileKind::SystemInfo,
+        summary: if unreadable.is_empty() {
+            "OS, IMT version and build, memory, plugins, settings without secrets".into()
+        } else {
+            format!(
+                "OS, IMT version and build, memory, plugins, settings without secrets ({} unreadable)",
+                unreadable.len()
+            )
+        },
         data: serde_json::to_vec_pretty(&info).unwrap_or_default(),
+    });
+    let kids = children::collect(inputs.children_dir().as_deref(), &inputs.live_children);
+    files.push(ReportFile {
+        name: "processes.json".into(),
+        kind: FileKind::Processes,
+        summary: children::processes_summary(&kids.processes),
+        data: serde_json::to_vec_pretty(&kids.processes).unwrap_or_default(),
+    });
+    let recovery = recovery::session_recovery(inputs.data_dir.as_deref(), inputs.previous_crash);
+    files.push(ReportFile {
+        name: "session-recovery.json".into(),
+        kind: FileKind::SessionRecovery,
+        summary: recovery::summary(&recovery),
+        data: serde_json::to_vec_pretty(&recovery).unwrap_or_default(),
     });
     let logs = inputs.log_dir.as_deref().map(log_window).unwrap_or_default();
     let activity = activity_lines(&logs);
     files.push(ReportFile {
         name: "logs/activity.log".into(),
+        kind: FileKind::Activity,
         summary: format!("{} activity entries", activity.iter().filter(|b| **b == b'\n').count()),
         data: activity,
     });
     for (name, bytes) in logs {
         files.push(ReportFile {
             name: format!("logs/{name}"),
+            kind: FileKind::Log,
             summary: "IMT's own log (recent part)".into(),
             data: bytes,
+        });
+    }
+    for log in kids.logs {
+        files.push(ReportFile {
+            name: format!("logs/children/{}", log.file),
+            kind: FileKind::ChildLog,
+            summary: log.summary,
+            data: log.data,
         });
     }
     if let Some(store) = &inputs.snapshots {
@@ -244,6 +404,7 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
             if let Ok((format, image)) = store.read_image(&info.id) {
                 files.push(ReportFile {
                     name: format!("snapshots/{}.{}", info.id, format.extension()),
+                    kind: FileKind::Snapshot,
                     summary: format!("Screenshot: {}", info.reason),
                     data: image,
                 });
@@ -252,6 +413,7 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
             sidecar.push(b'\n');
             files.push(ReportFile {
                 name: format!("snapshots/{}.json", info.id),
+                kind: FileKind::SnapshotDetails,
                 summary: format!("Error details and {} breadcrumbs", info.breadcrumbs.len()),
                 data: sidecar,
             });
@@ -260,10 +422,39 @@ fn report_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
     files
 }
 
+/// Every file of the zip: `manifest.json` (listing the others) first.
+pub(crate) fn all_files(inputs: &ReportInputs, description: &str) -> Vec<ReportFile> {
+    let files = report_files(inputs, description);
+    let info = system_info(inputs);
+    let text = |k: &str| info.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let manifest = Manifest::new(
+        text("appVersion"),
+        text("commit"),
+        inputs.created_at.to_rfc3339_opts(SecondsFormat::Millis, true),
+        files
+            .iter()
+            .map(|f| ManifestFile {
+                name: f.name.clone(),
+                kind: f.kind,
+                bytes: f.data.len() as u64,
+            })
+            .collect(),
+    );
+    let mut all = Vec::with_capacity(files.len() + 1);
+    all.push(ReportFile {
+        name: manifest::MANIFEST_NAME.into(),
+        kind: FileKind::Other,
+        summary: format!("Index of the {} files (IMT opens this zip as a diagnostics report)", files.len()),
+        data: serde_json::to_vec_pretty(&manifest).unwrap_or_default(),
+    });
+    all.extend(files);
+    all
+}
+
 /// The preview the user reviews before saving.
 pub fn preview(inputs: &ReportInputs, description: &str) -> ProblemReportPreview {
     ProblemReportPreview {
-        entries: report_files(inputs, description)
+        entries: all_files(inputs, description)
             .into_iter()
             .map(|f| ReportEntry {
                 name: f.name,
@@ -276,14 +467,33 @@ pub fn preview(inputs: &ReportInputs, description: &str) -> ProblemReportPreview
     }
 }
 
+/// A zip entry time (zip times are local wall clock without a zone; IMT writes UTC). Clamped to the
+/// format's range (1980..2107).
+fn zip_time(t: &DateTime<Utc>) -> zip::DateTime {
+    let year = t.year().clamp(1980, 2107) as u16;
+    zip::DateTime::from_date_and_time(
+        year,
+        t.month() as u8,
+        t.day() as u8,
+        t.hour() as u8,
+        t.minute() as u8,
+        t.second() as u8,
+    )
+    .unwrap_or_default()
+}
+
 /// Writes the report to `dest` (a `.zip` in an existing folder). Returns the number of files written.
-/// A failed write leaves no partial file.
+/// A failed write leaves no partial file. Entries are written in a fixed order with the report's time, so
+/// the same inputs give the same bytes.
 pub fn write(inputs: &ReportInputs, description: &str, dest: &Path) -> anyhow::Result<usize> {
     let dest = crate::snapshots::checked_destination(dest).map_err(|e| anyhow::anyhow!("{e}"))?;
     let result = (|| -> anyhow::Result<usize> {
-        let files = report_files(inputs, description);
+        let files = all_files(inputs, description);
         let mut zip = zip::ZipWriter::new(std::fs::File::create(&dest)?);
-        let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        let opts = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .last_modified_time(zip_time(&inputs.created_at))
+            .unix_permissions(0o644);
         for f in &files {
             zip.start_file(f.name.as_str(), opts)?;
             zip.write_all(&f.data)?;
@@ -317,13 +527,19 @@ fn inputs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> ReportInputs {
                 .collect()
         })
         .unwrap_or_default();
+    let life = app.try_state::<crate::lifecycle::Lifecycle>();
     ReportInputs {
         log_dir: crate::app_dirs::log(app).ok(),
         config_dir: crate::snapshots::config_dir(app),
+        data_dir: crate::app_dirs::data(app).ok(),
         snapshots: crate::snapshots::store(app).ok(),
         plugins,
         breadcrumbs: super::breadcrumbs(None, REPORT_BREADCRUMBS),
-        safe_mode: app.try_state::<crate::lifecycle::Lifecycle>().is_some_and(|l| l.safe_mode),
+        safe_mode: life.as_ref().is_some_and(|l| l.safe_mode),
+        live_children: imt_ipc::child_log::statuses(),
+        previous_crash: life.as_ref().map(|l| l.previous_crash),
+        created_at: Utc::now(),
+        system_override: None,
     }
 }
 
@@ -404,12 +620,12 @@ pub fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResu
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::snapshots::{Environment, ImageFormat, Limits, SnapshotContext};
     use std::collections::BTreeMap;
 
-    fn temp(tag: &str) -> PathBuf {
+    pub(crate) fn temp(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("imt-report-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
@@ -431,14 +647,14 @@ mod tests {
         }
     }
 
-    fn inputs_in(d: &Path) -> ReportInputs {
+    pub(crate) fn inputs_in(d: &Path) -> ReportInputs {
         let logs = d.join("logs");
         let config = d.join("config");
         std::fs::create_dir_all(&logs).unwrap();
         std::fs::create_dir_all(&config).unwrap();
         std::fs::write(
             logs.join("imt.log"),
-            "{\"@m\":\"started\",\"SourceContext\":\"imt_app\"}\n{\"@m\":\"User export.csv via menu\",\"SourceContext\":\"IMT.Activity\"}\n",
+            "{\"@t\":\"2026-10-17T08:00:00Z\",\"@m\":\"started\",\"SourceContext\":\"imt_app\"}\n{\"@t\":\"2026-10-17T08:00:01Z\",\"@m\":\"User export.csv via menu\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"export.csv\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":12}\n",
         )
         .unwrap();
         std::fs::write(
@@ -476,11 +692,11 @@ mod tests {
                 status: "active".into(),
             }],
             breadcrumbs: vec![crumb("file.open"), crumb("query.change")],
-            safe_mode: false,
+            ..ReportInputs::empty()
         }
     }
 
-    fn zip_text(zip: &mut zip::ZipArchive<std::fs::File>, name: &str) -> String {
+    pub(crate) fn zip_text(zip: &mut zip::ZipArchive<std::fs::File>, name: &str) -> String {
         let mut s = String::new();
         std::io::Read::read_to_string(&mut zip.by_name(name).unwrap(), &mut s).unwrap();
         s
@@ -493,15 +709,19 @@ mod tests {
         let p = preview(&inputs, "It crashed when I exported");
         let names: Vec<&str> = p.entries.iter().map(|e| e.name.as_str()).collect();
         for want in [
+            "manifest.json",
             "description.txt",
             "steps-to-reproduce.txt",
             "breadcrumbs.json",
             "system-info.json",
+            "processes.json",
+            "session-recovery.json",
             "logs/activity.log",
             "logs/imt.log",
         ] {
             assert!(names.contains(&want), "{want} missing from {names:?}");
         }
+        assert_eq!(names[0], "manifest.json");
         assert!(names.iter().any(|n| n.starts_with("snapshots/") && n.ends_with(".png")));
         assert_eq!(p.steps, vec!["1. Opened files from the menu", "2. Applied query from the menu"]);
         assert_eq!(p.system_info["plugins"][0]["id"], "net.decryptology.web");
@@ -527,10 +747,120 @@ mod tests {
             .unwrap()
             .into_owned();
         assert!(zip_text(&mut zip, &sidecar).contains("\"breadcrumbs\""));
+        // The manifest lists every other file with its kind and size.
+        let m = manifest::parse(zip_text(&mut zip, "manifest.json").as_bytes()).unwrap();
+        assert_eq!(m.files.len(), n - 1);
+        assert_eq!(m.imt_version, env!("CARGO_PKG_VERSION"));
+        let kind = |name: &str| m.files.iter().find(|f| f.name == name).map(|f| f.kind);
+        assert_eq!(kind("logs/activity.log"), Some(FileKind::Activity));
+        assert_eq!(kind("logs/imt.log"), Some(FileKind::Log));
+        assert_eq!(kind(&sidecar), Some(FileKind::SnapshotDetails));
+        assert_eq!(
+            m.files.iter().find(|f| f.name == "description.txt").unwrap().bytes,
+            "It crashed when I exported".len() as u64
+        );
         // Not a zip, or a missing folder: refused and nothing written.
         assert!(write(&inputs, "", &d.join("report.txt")).is_err());
         assert!(write(&inputs, "", &d.join("missing/r.zip")).is_err());
         std::fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn child_logs_and_processes_are_in_the_report_and_capped() {
+        use imt_ipc::child_log::{ChildEvent, ChildKind, ChildLog, ChildLogSpec, Exit};
+        let d = temp("children");
+        let mut inputs = inputs_in(&d);
+        inputs.snapshots = None;
+        let dir = inputs.children_dir().unwrap();
+        let worker = ChildLog::open(Some(&dir), &ChildLogSpec::new("ai-worker", ChildKind::AiWorker));
+        worker.record(&ChildEvent::Start { pid: 10 });
+        worker.record(&ChildEvent::Exit {
+            pid: Some(10),
+            exit: Exit::Code(3),
+        });
+        worker.record(&ChildEvent::Start { pid: 11 });
+        // A big log of another child: only its tail goes in.
+        let noisy = ChildLog::open(Some(&dir), &ChildLogSpec::new("plugin-noisy", ChildKind::Plugin));
+        noisy.record(&ChildEvent::Start { pid: 12 });
+        for i in 0..2000 {
+            noisy.record(&ChildEvent::Output(format!("{i} {}", "y".repeat(300))));
+        }
+        // And a previous session's file.
+        std::fs::write(dir.join("ai-worker.1.log"), "{\"Event\":\"start\",\"Pid\":1}\n").unwrap();
+        std::fs::write(dir.join("../children/not-a-log.txt"), "x").unwrap();
+        // The worker runs now: its live state wins over its file.
+        inputs.live_children = vec![worker.status()];
+        let p = preview(&inputs, "");
+        let entry = |n: &str| p.entries.iter().find(|e| e.name == n).cloned();
+        let w = entry("logs/children/ai-worker.log").unwrap();
+        assert_eq!(w.summary, "AI engine: 2 runs, 1 restart, last exit code 3, running");
+        let noisy_entry = entry("logs/children/plugin-noisy.log").unwrap();
+        assert!(noisy_entry.bytes <= children::CHILD_LOG_TAIL, "{}", noisy_entry.bytes);
+        assert!(entry("logs/children/ai-worker.1.log").unwrap().summary.contains("previous session"));
+        assert!(entry("logs/children/not-a-log.txt").is_none());
+        let total: u64 = p
+            .entries
+            .iter()
+            .filter(|e| e.name.starts_with("logs/children/"))
+            .map(|e| e.bytes)
+            .sum();
+        assert!(total <= children::CHILD_LOGS_TOTAL);
+        let processes = entry("processes.json").unwrap();
+        assert_eq!(processes.summary, "2 child processes, 1 restart, 0 quarantined");
+
+        let out = d.join("r.zip");
+        write(&inputs, "", &out).unwrap();
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
+        let procs: Vec<ProcessSummary> = serde_json::from_str(&zip_text(&mut zip, "processes.json")).unwrap();
+        let w = procs.iter().find(|p| p.name == "ai-worker").unwrap();
+        assert_eq!(
+            (w.state, w.restarts, w.pid),
+            (imt_ipc::child_log::ChildRunState::Running, 1, Some(11))
+        );
+        // The noisy plugin is not running live: its file ends on a start, so its state is unknown.
+        let n = procs.iter().find(|p| p.name == "plugin-noisy").unwrap();
+        assert_eq!(n.state, imt_ipc::child_log::ChildRunState::Unknown);
+        // Its tail starts at a whole line.
+        let tail = zip_text(&mut zip, "logs/children/plugin-noisy.log");
+        assert!(tail.lines().all(|l| serde_json::from_str::<Value>(l).is_ok()));
+        std::fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn corrupt_settings_are_listed_not_fatal() {
+        let d = temp("corrupt");
+        let mut inputs = inputs_in(&d);
+        inputs.snapshots = None;
+        let config = inputs.config_dir.clone().unwrap();
+        std::fs::write(config.join("settings.json"), "{ not json").unwrap();
+        std::fs::write(config.join("plugins.json"), vec![b' '; (MAX_CONFIG_FILE + 1) as usize]).unwrap();
+        let info = system_info(&inputs);
+        let bad = unreadable_settings(&info);
+        assert_eq!(bad.len(), 2, "{bad:?}");
+        assert!(bad[0].starts_with("settings.json is not valid JSON"));
+        assert!(bad[1].starts_with("plugins.json is larger than"));
+        assert!(info["configuration"]["settings"].is_null());
+        let out = d.join("r.zip");
+        assert!(write(&inputs, "", &out).is_ok());
+        let p = preview(&inputs, "");
+        assert!(p
+            .entries
+            .iter()
+            .any(|e| e.name == "system-info.json" && e.summary.contains("2 unreadable")));
+        std::fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn breadcrumbs_are_rebuilt_from_the_activity_log() {
+        let lines = b"{\"@t\":\"2026-10-14T09:00:00Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\",\"DurationMs\":5,\"Files\":3}\n\
+            {\"@t\":\"2026-10-14T09:00:01Z\",\"SourceContext\":\"imt_app\",\"Operation\":\"x\"}\n\
+            not json\n\
+            {\"@t\":\"2026-10-14T09:00:02Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"query.change\",\"Trigger\":\"keyboard\"}\n";
+        let b = breadcrumbs_from_log(lines, 10);
+        assert_eq!(b.len(), 2);
+        assert_eq!((b[0].operation.as_str(), b[0].duration_ms), ("file.open", Some(5)));
+        assert_eq!(b[0].params.get("Files").map(String::as_str), Some("3"));
+        assert_eq!(breadcrumbs_from_log(lines, 1)[0].operation, "query.change");
     }
 
     #[test]
@@ -545,10 +875,23 @@ mod tests {
         inputs.log_dir = None;
         inputs.config_dir = None;
         let p = preview(&inputs, "   ");
-        assert_eq!(p.entries[0].summary, "No description");
-        assert_eq!(p.entries[0].bytes, 0);
+        let desc = p.entries.iter().find(|e| e.name == "description.txt").unwrap();
+        assert_eq!(desc.summary, "No description");
+        assert_eq!(desc.bytes, 0);
         assert!(p.system_info["configuration"].is_null());
         std::fs::remove_dir_all(d).unwrap();
+    }
+
+    #[test]
+    fn zip_times_are_clamped_to_the_format() {
+        let t = DateTime::parse_from_rfc3339("1970-01-01T00:00:00Z").unwrap().with_timezone(&Utc);
+        assert_eq!(zip_time(&t).year(), 1980);
+        let t = DateTime::parse_from_rfc3339("2026-10-14T09:30:15Z").unwrap().with_timezone(&Utc);
+        let z = zip_time(&t);
+        assert_eq!(
+            (z.year(), z.month(), z.day(), z.hour(), z.minute(), z.second()),
+            (2026, 10, 14, 9, 30, 14)
+        );
     }
 
     #[test]

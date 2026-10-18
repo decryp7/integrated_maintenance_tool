@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { CAPTURE_TIMEOUT, openApp } from './app';
+import { CAPTURE_TIMEOUT, openApp, openView } from './app';
 import { openAppWith } from './mock-url';
 
 // Error snapshots: the window is rendered to an image inside the webview (html-to-image), so this runs
@@ -106,7 +106,7 @@ test('a second automatic error within 10 seconds does not take another snapshot'
 
 test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the charts', async ({ page }) => {
   await openApp(page);
-  await page.getByRole('tab', { name: /Metrics/ }).click();
+  await openView(page, 'metrics');
   const chart = page.locator('imt-chart-card canvas').first();
   await expect(chart).toBeVisible();
   // ECharts draws after the canvas appears: wait until it shows more than a flat background.

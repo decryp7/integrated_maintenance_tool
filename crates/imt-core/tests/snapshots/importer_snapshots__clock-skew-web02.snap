@@ -1,0 +1,87 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: clock-skew/web02/requests-20261014.clef
+importer: json
+records: 1141
+skipped: 0
+levels:
+  2-Information: 1141
+with_timestamp: 1141
+first_timestamp: "2026-10-14T09:59:56.309Z"
+last_timestamp: "2026-10-14T10:29:55.485Z"
+fields:
+  - Application
+  - CorrelationId
+  - MachineName
+  - ProcessId
+  - RequestMethod
+  - RequestPath
+  - SourceContext
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:59:56.309Z"
+    level: Information
+    message: Received GET /api/orders/88590 (79556a23-4418-634c-b197-388843be7167)
+    template: "Received {RequestMethod} {RequestPath} ({CorrelationId})"
+    fields:
+      Application: OrderService
+      CorrelationId: 79556a23-4418-634c-b197-388843be7167
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: GET
+      RequestPath: /api/orders/88590
+      SourceContext: OrderService.Diagnostics.RequestTracing
+  - line: 2
+    timestamp: "2026-10-14T09:59:58.353Z"
+    level: Information
+    message: Received GET /api/orders/88102 (51f0861d-c660-8a26-bdfb-1c828668859d)
+    template: "Received {RequestMethod} {RequestPath} ({CorrelationId})"
+    fields:
+      Application: OrderService
+      CorrelationId: 51f0861d-c660-8a26-bdfb-1c828668859d
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: GET
+      RequestPath: /api/orders/88102
+      SourceContext: OrderService.Diagnostics.RequestTracing
+  - line: 3
+    timestamp: "2026-10-14T09:59:58.907Z"
+    level: Information
+    message: Received GET /api/orders/88837 (e7746c56-3df5-b5af-45a1-cb52b8732718)
+    template: "Received {RequestMethod} {RequestPath} ({CorrelationId})"
+    fields:
+      Application: OrderService
+      CorrelationId: e7746c56-3df5-b5af-45a1-cb52b8732718
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: GET
+      RequestPath: /api/orders/88837
+      SourceContext: OrderService.Diagnostics.RequestTracing
+  - line: 4
+    timestamp: "2026-10-14T10:00:02.930Z"
+    level: Information
+    message: Received POST /api/cart (ccc3be9b-ab06-a9bd-df84-75c59952dd3d)
+    template: "Received {RequestMethod} {RequestPath} ({CorrelationId})"
+    fields:
+      Application: OrderService
+      CorrelationId: ccc3be9b-ab06-a9bd-df84-75c59952dd3d
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: POST
+      RequestPath: /api/cart
+      SourceContext: OrderService.Diagnostics.RequestTracing
+  - line: 5
+    timestamp: "2026-10-14T10:00:04.810Z"
+    level: Information
+    message: Received POST /api/cart (26945c5b-29a0-37a3-6092-312459bb1a4c)
+    template: "Received {RequestMethod} {RequestPath} ({CorrelationId})"
+    fields:
+      Application: OrderService
+      CorrelationId: 26945c5b-29a0-37a3-6092-312459bb1a4c
+      MachineName: WEB02
+      ProcessId: 4120
+      RequestMethod: POST
+      RequestPath: /api/cart
+      SourceContext: OrderService.Diagnostics.RequestTracing

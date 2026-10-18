@@ -1,6 +1,6 @@
 //! A fake child for the imt-ipc tests (never bundled). Flags: `--exit-now` (dies before listening),
 //! `--no-listen` (reads the handshake and never binds), `--write-pid=<file>` (records its pid, for the
-//! orphan test). It serves the test `Echo` service, whose request picks crashes, panics and delays.
+//! orphan test), `--say=<text>` (writes a line to stderr first). It serves the test `Echo` service, whose request picks crashes, panics and delays.
 
 use imt_ipc::server::{child_main, RuntimeKind, ServeOptions};
 use imt_ipc::testing::echo_server::{Echo, EchoServer};
@@ -32,6 +32,9 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     if let Some(file) = args.iter().find_map(|a| a.strip_prefix("--write-pid=")) {
         let _ = std::fs::write(file, std::process::id().to_string());
+    }
+    for say in args.iter().filter_map(|a| a.strip_prefix("--say=")) {
+        eprintln!("{say}");
     }
     if args.iter().any(|a| a == "--exit-now") {
         std::process::exit(3);

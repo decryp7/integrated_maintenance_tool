@@ -1,6 +1,6 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { provideToolsBackend } from '../core/tools-backend';
-import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
 import { CoreUiState } from '../lifecycle/core-ui-state';
 import { LifecycleCommands } from '../lifecycle/lifecycle-commands';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
@@ -11,6 +11,7 @@ import { OpenRequests } from '../projects/open-requests';
 import { ProjectCommands } from '../projects/project-commands';
 import { ProjectUiState } from '../projects/project-ui-state';
 import { ToolCatalog } from './tool-catalog.store';
+import { toolsActivityItems } from './tools-activity';
 import { ToolsCommands, toolsViews } from './tools-commands';
 
 /**
@@ -23,6 +24,7 @@ export function provideTools(): EnvironmentProviders {
     ...provideToolsBackend(),
     { provide: IMT_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
+    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: toolsActivityItems },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LifecycleCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProjectCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BookmarkCommands).commands },

@@ -102,6 +102,56 @@ export interface ImtFieldFormatter {
   format: (value: unknown, record: RecordView) => string;
 }
 
+/** What an activity-bar button or fly-out entry does: show a view, or run a command. */
+export type ImtActivityTarget = { view: string } | { command: string };
+
+/** One entry of an activity-bar fly-out menu. */
+export interface ImtActivityMenuItem {
+  /** Unique within the menu. */
+  id: string;
+  label: string;
+  /** Name of an `<imt-icon>` icon. */
+  icon?: string;
+  /** Shows a check mark (e.g. the view is open). */
+  checked?: boolean;
+  /** Key binding in command syntax, shown as a hint. */
+  keybinding?: string;
+  run: ImtActivityTarget;
+}
+
+/**
+ * A button in the left activity bar (built in or from a plugin). `run` shows a view, runs a command, or opens a
+ * fly-out menu whose entries are built on every opening. Every function is evaluated defensively: one that throws
+ * hides the button (`when`) or drops just that extra (`badge`, `active`, `pulse`, `disabled`, `menu`), never the bar.
+ */
+export interface ImtActivityItem {
+  /** Unique, stable id (also `data-activity-id` on the button). */
+  id: string;
+  /** Accessible name and tooltip. */
+  label: string;
+  /** Name of an `<imt-icon>` icon. */
+  icon: string;
+  /** Ascending, top to bottom within its section; built-in items use multiples of 100. Higher orders collapse into More first. */
+  order: number;
+  /** `bottom`: pinned at the bottom of the bar (Settings). Defaults to `top`. */
+  section?: 'top' | 'bottom';
+  /** Shown only while this returns true. Items that show a view are also hidden while the view is not offered. */
+  when?: (ctx: CommandContext) => boolean;
+  /** A short count or label drawn on the icon (null or '' draws none). */
+  badge?: (ctx: CommandContext) => string | number | null;
+  /** Highlighted while true. Defaults to: the item's view is open (items that show a view), else never. */
+  active?: (ctx: CommandContext) => boolean;
+  /** A toggle button: `aria-pressed` follows `active`. */
+  toggle?: boolean;
+  /** A small pulsing dot while true (e.g. following live). */
+  pulse?: (ctx: CommandContext) => boolean;
+  /** Shown but inert while this returns a reason, which becomes the tooltip. */
+  disabled?: (ctx: CommandContext) => string | null;
+  /** Key binding in command syntax (e.g. "Mod+B"), or a key as shown (e.g. "/"). Defaults to the run command's binding. */
+  keybinding?: string;
+  run: ImtActivityTarget | { menu: () => readonly ImtActivityMenuItem[] };
+}
+
 /**
  * Multi-provider tokens. Each provider supplies one batch (an array) of contributions, so
  * `provideImtPlugin` registers a whole plugin with one provider per kind. Readers flatten the
@@ -111,6 +161,7 @@ export const IMT_VIEWS = new InjectionToken<readonly ImtView[]>('IMT_VIEWS');
 export const IMT_COMMANDS = new InjectionToken<readonly ImtCommand[]>('IMT_COMMANDS');
 export const IMT_INSPECTOR_SECTIONS = new InjectionToken<readonly ImtInspectorSection[]>('IMT_INSPECTOR_SECTIONS');
 export const IMT_FIELD_FORMATTERS = new InjectionToken<readonly ImtFieldFormatter[]>('IMT_FIELD_FORMATTERS');
+export const IMT_ACTIVITY_ITEMS = new InjectionToken<readonly ImtActivityItem[]>('IMT_ACTIVITY_ITEMS');
 
 /** Flattens what a multi-provider token injects (batches, or single items) into one list. */
 export function flattenContributions<T>(injected: readonly (T | readonly T[])[] | null | undefined): T[] {

@@ -1,0 +1,187 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: monitor/BILL01/process-monitor.clef
+importer: json
+records: 1444
+skipped: 0
+levels:
+  2-Information: 1443
+  3-Warning: 1
+with_timestamp: 1444
+first_timestamp: "2026-10-14T09:00:05.000Z"
+last_timestamp: "2026-10-14T11:59:50.000Z"
+fields:
+  - AlreadyRunning
+  - CpuPercent
+  - DotnetAssemblies
+  - DotnetContentionPerSec
+  - DotnetExceptionsPerSec
+  - DotnetGen0Collections
+  - DotnetGen0HeapBytes
+  - DotnetGen1Collections
+  - DotnetGen1HeapBytes
+  - DotnetGen2Collections
+  - DotnetGen2HeapBytes
+  - DotnetHeapBytes
+  - DotnetLohBytes
+  - DotnetPhysicalThreads
+  - DotnetPinnedObjects
+  - DotnetQueueLengthPerSec
+  - DotnetRuntime
+  - DotnetThreads
+  - DotnetTimeInGcPercent
+  - Exe
+  - Handles
+  - MachineName
+  - PrivateMb
+  - ProcessId
+  - ProcessName
+  - ReadBytesPerSec
+  - Restarted
+  - RestartedAs
+  - SourceContext
+  - Threads
+  - UptimeSec
+  - VirtualMb
+  - WorkingSetMb
+  - WriteBytesPerSec
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:05.000Z"
+    level: Information
+    message: "Now monitoring Billing.Service.exe (3044), running for 266405s"
+    template: "Now monitoring {ProcessName} ({ProcessId}), running for {UptimeSec}s"
+    fields:
+      AlreadyRunning: true
+      Exe: "C:\\Program Files\\Contoso\\Billing\\Billing.Service.exe"
+      MachineName: BILL01
+      ProcessId: 3044
+      ProcessName: Billing.Service.exe
+      SourceContext: IMT.Monitor
+      UptimeSec: 266405
+  - line: 2
+    timestamp: "2026-10-14T09:00:05.000Z"
+    level: Information
+    message: "Now monitoring w3wp.exe (6120), running for 7385s"
+    template: "Now monitoring {ProcessName} ({ProcessId}), running for {UptimeSec}s"
+    fields:
+      AlreadyRunning: true
+      Exe: "C:\\Windows\\System32\\inetsrv\\w3wp.exe"
+      MachineName: BILL01
+      ProcessId: 6120
+      ProcessName: w3wp.exe
+      SourceContext: IMT.Monitor
+      UptimeSec: 7385
+  - line: 3
+    timestamp: "2026-10-14T09:00:05.000Z"
+    level: Information
+    message: Process stats Billing.Service.exe CPU 4.0% · WorkingSet 411.6 MB
+    template: "Process stats {ProcessName} CPU {CpuPercent}% · WorkingSet {WorkingSetMb} MB"
+    fields:
+      CpuPercent: 4
+      DotnetAssemblies: 112
+      DotnetContentionPerSec: 0.38
+      DotnetExceptionsPerSec: 0.04
+      DotnetGen0Collections: 2
+      DotnetGen0HeapBytes: 6291456
+      DotnetGen1Collections: 0
+      DotnetGen1HeapBytes: 43011883
+      DotnetGen2Collections: 0
+      DotnetGen2HeapBytes: 117569498
+      DotnetHeapBytes: 189628223
+      DotnetLohBytes: 22755386
+      DotnetPhysicalThreads: 36
+      DotnetPinnedObjects: 6
+      DotnetQueueLengthPerSec: 0
+      DotnetRuntime: framework
+      DotnetThreads: 39
+      DotnetTimeInGcPercent: 2.9
+      Exe: "C:\\Program Files\\Contoso\\Billing\\Billing.Service.exe"
+      Handles: 819
+      MachineName: BILL01
+      PrivateMb: 444.5
+      ProcessId: 3044
+      ProcessName: Billing.Service.exe
+      ReadBytesPerSec: 14245
+      SourceContext: IMT.Monitor
+      Threads: 45
+      UptimeSec: 266405
+      VirtualMb: 5289.6
+      WorkingSetMb: 411.6
+      WriteBytesPerSec: 9629
+  - line: 4
+    timestamp: "2026-10-14T09:00:05.000Z"
+    level: Information
+    message: Process stats w3wp.exe CPU 5.6% · WorkingSet 521.7 MB
+    template: "Process stats {ProcessName} CPU {CpuPercent}% · WorkingSet {WorkingSetMb} MB"
+    fields:
+      CpuPercent: 5.6
+      DotnetAssemblies: 186
+      DotnetContentionPerSec: 0.47
+      DotnetExceptionsPerSec: 0.07
+      DotnetGen0Collections: 2
+      DotnetGen0HeapBytes: 6291456
+      DotnetGen1Collections: 0
+      DotnetGen1HeapBytes: 64870023
+      DotnetGen2Collections: 0
+      DotnetGen2HeapBytes: 169692753
+      DotnetHeapBytes: 273697990
+      DotnetLohBytes: 32843758
+      DotnetPhysicalThreads: 35
+      DotnetPinnedObjects: 6
+      DotnetQueueLengthPerSec: 0
+      DotnetRuntime: framework
+      DotnetThreads: 38
+      DotnetTimeInGcPercent: 2.7
+      Exe: "C:\\Windows\\System32\\inetsrv\\w3wp.exe"
+      Handles: 810
+      MachineName: BILL01
+      PrivateMb: 563.4
+      ProcessId: 6120
+      ProcessName: w3wp.exe
+      ReadBytesPerSec: 30118
+      SourceContext: IMT.Monitor
+      Threads: 44
+      UptimeSec: 7385
+      VirtualMb: 5608.9
+      WorkingSetMb: 521.7
+      WriteBytesPerSec: 3544
+  - line: 5
+    timestamp: "2026-10-14T09:00:20.000Z"
+    level: Information
+    message: Process stats Billing.Service.exe CPU 3.6% · WorkingSet 413.9 MB
+    template: "Process stats {ProcessName} CPU {CpuPercent}% · WorkingSet {WorkingSetMb} MB"
+    fields:
+      CpuPercent: 3.6
+      DotnetAssemblies: 112
+      DotnetContentionPerSec: 0.21
+      DotnetExceptionsPerSec: 0.04
+      DotnetGen0Collections: 5
+      DotnetGen0HeapBytes: 6291456
+      DotnetGen1Collections: 1
+      DotnetGen1HeapBytes: 43083069
+      DotnetGen2Collections: 1
+      DotnetGen2HeapBytes: 117739250
+      DotnetHeapBytes: 189902017
+      DotnetLohBytes: 22788242
+      DotnetPhysicalThreads: 36
+      DotnetPinnedObjects: 12
+      DotnetQueueLengthPerSec: 0
+      DotnetRuntime: framework
+      DotnetThreads: 39
+      DotnetTimeInGcPercent: 1.7
+      Exe: "C:\\Program Files\\Contoso\\Billing\\Billing.Service.exe"
+      Handles: 824
+      MachineName: BILL01
+      PrivateMb: 447
+      ProcessId: 3044
+      ProcessName: Billing.Service.exe
+      ReadBytesPerSec: 4578
+      SourceContext: IMT.Monitor
+      Threads: 45
+      UptimeSec: 266420
+      VirtualMb: 5296.3
+      WorkingSetMb: 413.9
+      WriteBytesPerSec: 6592

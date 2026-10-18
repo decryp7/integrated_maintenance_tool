@@ -39,6 +39,8 @@ import type { ImtBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
 import { generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
+import { mockPreviewSpans, mockQueryRuns, mockRunAnnotations, RunContext, spanRules } from './mock-runs';
+import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
 import { MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
 import type { Failable } from './mock-options';
@@ -652,9 +654,34 @@ export class MockBackend implements ImtBackend {
       this.failing('annotations') ??
       this.delay(() => {
         const groupBy = this.engine.defaultGroupBy;
-        return mockAnnotations(this.engine.records, (r) => this.engine.groupKey(r, groupBy), request);
+        const runs = mockRunAnnotations(spanRules(this.profile), this.runContext())
+          .flat()
+          .filter((a) => (request.from == null || a.to >= request.from) && (request.to == null || a.from <= request.to) && (request.instance == null || a.instance === request.instance));
+        return [...mockAnnotations(this.engine.records, (r) => this.engine.groupKey(r, groupBy), request), ...runs].sort((a, b) => a.from - b.from || a.kind.localeCompare(b.kind));
       }, 25)
     );
+  }
+
+  /** The run context over the current records (lanes by the default group-by). */
+  private runContext(): RunContext {
+    const groupBy = this.engine.defaultGroupBy;
+    return { records: this.engine.records, laneOf: (r) => this.engine.groupKey(r, groupBy), groupBy };
+  }
+
+  /** `query_runs`; see mock-runs.ts. */
+  queryRuns(request: RunsRequest): Promise<RunsReply> {
+    return (
+      this.failing('queryRuns') ??
+      this.delay(() => {
+        const rules = spanRules(this.profile);
+        return mockQueryRuns(rules, mockRunAnnotations(rules, this.runContext()), request, this.engine.markerKinds);
+      }, 25)
+    );
+  }
+
+  /** `preview_spans`; see mock-runs.ts. */
+  previewSpans(request: SpanPreviewRequest): Promise<SpanPreview> {
+    return this.failing('previewSpans') ?? this.delay(() => mockPreviewSpans(request.draft, this.profile, this.runContext(), this.engine.markerKinds), 30);
   }
 
   /** Clock-skew correction (`set_source_offset`); see mock-skew.ts. */

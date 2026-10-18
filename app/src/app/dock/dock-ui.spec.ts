@@ -47,10 +47,10 @@ describe('window layouts, dialogs and commands', () => {
     expect(layouts.saveCurrent('Triage')).toBe('Triage');
     expect(store.notice()).toContain('Triage');
     expect(stored.map((l) => l.name)).toEqual(['Triage']);
-    dock.close('metrics');
+    dock.show('metrics');
     expect(layouts.has(1)).toBe(true);
     expect(layouts.applyAt(1)).toBe(true);
-    expect(dock.isOpen('metrics')).toBe(true);
+    expect(dock.isOpen('metrics')).toBe(false);
     expect(layouts.applyAt(2)).toBe(false);
     expect(layouts.apply('nope')).toBe(false);
     layouts.rename('Triage', 'Debug');
@@ -112,9 +112,11 @@ describe('window layouts, dialogs and commands', () => {
     await settle(fixture);
     button('Apply Uno').click();
     expect(close).toHaveBeenCalled();
-    dock.close('metrics');
+    dock.show('metrics');
+    dock.pin('inspector');
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.includes('Reset window layout'))!.click();
-    expect(dock.isOpen('metrics')).toBe(true);
+    expect(dock.isOpen('metrics')).toBe(false);
+    expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
     layouts.remove('Uno');
     await settle(fixture);
     expect(el.textContent).toContain('No saved window layouts yet');
@@ -129,6 +131,9 @@ describe('window layouts, dialogs and commands', () => {
     expect(commands.find((c) => c.id === 'window.layout.apply1')!.keybinding).toBe('Ctrl+Alt+1');
     expect(when('window.layout.apply1')).toBe(false);
     expect(when('window.popOut')).toBe(false);
+    // The inspector starts auto-hidden.
+    expect(when('window.pinAll')).toBe(true);
+    await run('window.pinAll');
     expect(when('window.pinAll')).toBe(false);
     run('window.layout.save');
     run('window.layout.manage');

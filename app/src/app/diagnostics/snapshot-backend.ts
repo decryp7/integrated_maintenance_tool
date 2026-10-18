@@ -1,4 +1,5 @@
 import { invoke } from '../core/activity/ipc';
+import { DiagnosticsReportState } from './diagnostics-report.types';
 import { EngineError, ENGINE_ERROR_EVENT, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../core/api.types';
 import { CapturedImage } from './snapshot.types';
 import { listenHere } from '../windowing/window-events';
@@ -29,6 +30,10 @@ export abstract class SnapshotBackend {
   abstract saveReport(path: string, description: string, overwrite?: boolean): Promise<number>;
   /** Opens IMT's own logs in a new window, filtered to the activity entries (Help ▸ Show activity log). Resolves to the window label. */
   abstract openActivityLog(): Promise<string>;
+  /** The diagnostics report this window opened (a zip saved by "Report a problem"), if any. */
+  abstract diagnosticsReport(): Promise<DiagnosticsReportState>;
+  /** One error snapshot of the opened report, as a `data:` URL. */
+  abstract diagnosticsReportImage(id: string): Promise<string>;
 }
 
 export type ListenFn = (event: string, handler: (payload: unknown) => void) => Promise<Unlisten>;
@@ -78,5 +83,11 @@ export class TauriSnapshotBackend extends SnapshotBackend {
   }
   openActivityLog() {
     return this.call<string>('open_activity_log');
+  }
+  diagnosticsReport() {
+    return this.call<DiagnosticsReportState>('diagnostics_report', {});
+  }
+  diagnosticsReportImage(id: string) {
+    return this.call<string>('diagnostics_report_image', { id });
   }
 }

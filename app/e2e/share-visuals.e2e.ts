@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
+import { openView } from './app';
 import { openAppWith, runCommand } from './tools-support';
 
 async function written(page: Page): Promise<{ path: string; kind: string; bytes: number }[]> {
@@ -9,7 +10,7 @@ async function written(page: Page): Promise<{ path: string; kind: string; bytes:
 test.describe('chart and timeline images', () => {
   test('exports a chart as PNG and SVG through the save dialog', async ({ page }, testInfo) => {
     await openAppWith(page);
-    await page.getByRole('tab', { name: 'Metrics' }).click();
+    await openView(page, 'metrics');
     const card = page.locator('imt-chart-card').first();
     await expect(card.locator('canvas').first()).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'chart-actions', 'imt-chart-card');

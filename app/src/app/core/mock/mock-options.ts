@@ -1,7 +1,7 @@
 import type { MockBackendOptions } from './mock-backend';
 
 /** Commands that `mockFail` may name (the mock rejects their first N calls). */
-export const FAILABLE = ['workspaceSummary', 'queryPage', 'queryTimeline', 'queryFacet', 'sourceContext', 'readFileHead', 'previewParse', 'annotations'] as const;
+export const FAILABLE = ['workspaceSummary', 'queryPage', 'queryTimeline', 'queryFacet', 'sourceContext', 'readFileHead', 'previewParse', 'annotations', 'queryRuns', 'previewSpans'] as const;
 export type Failable = (typeof FAILABLE)[number];
 
 function positiveInt(v: string | null): number | undefined {

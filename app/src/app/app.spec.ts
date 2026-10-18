@@ -14,7 +14,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await settle(fixture, 8);
     await vi.waitFor(() => {
-      for (const tag of ['imt-timeline-panel', 'imt-events-grid', 'imt-inspector']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
+      for (const tag of ['imt-timeline-panel', 'imt-events-grid']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
     });
     return { fixture, store: TestBed.inject(WorkspaceStore), dock: TestBed.inject(DockService) };
   }
@@ -24,10 +24,12 @@ describe('App', () => {
     for (const tag of ['imt-title-bar', 'imt-activity-bar', 'imt-sidebar', 'imt-filter-bar', 'imt-dock-host', 'imt-status-bar', 'imt-command-palette']) {
       expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
     }
-    // Only the core views: the profile editor, analysis and tool windows open on demand.
-    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'timeline']);
+    // Only the core views: the inspector waits auto-hidden on the right; metrics, the profile editor, analysis and
+    // tool windows open on demand.
+    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'timeline']);
+    expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
     expect(fixture.nativeElement.querySelector('imt-timeline-panel')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('imt-inspector')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('imt-inspector')).toBeNull();
     expect(fixture.nativeElement.querySelector('imt-events-grid')).not.toBeNull();
   });
 

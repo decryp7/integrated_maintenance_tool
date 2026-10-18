@@ -8,8 +8,10 @@
 //!   [`pb::control_server::Control`] health service; [`server::child_main`] bootstraps a child process.
 //! - [`process`]: starting a child (below-normal priority, job object / stdin lifeline, no orphans).
 //! - [`supervisor`]: lazy start, restart with backoff, quarantine after repeated failures.
+//! - [`child_log`]: each child's captured standard error and start/exit lines, for problem reports.
 
 pub mod auth;
+pub mod child_log;
 pub mod client;
 pub mod endpoint;
 pub mod error;

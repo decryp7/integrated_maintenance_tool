@@ -1,5 +1,6 @@
 import {
   adjacentNeighbour,
+  atEdge,
   compassCells,
   DropPosition,
   edgeCells,
@@ -42,6 +43,27 @@ describe('adjacentNeighbour', () => {
       { rect: r(-100, 10, 100, 80), value: 'long' },
     ];
     expect(adjacentNeighbour(me, others)).toEqual({ value: 'long', direction: 'right' });
+  });
+});
+
+describe('atEdge', () => {
+  const root = r(0, 0, 1000, 800);
+
+  it('a full-height column on the right is at the right edge, not the bottom', () => {
+    expect(atEdge(r(640, 0, 360, 800), root, 'right')).toBe(true);
+    expect(atEdge(r(640, 0, 360, 800), root, 'bottom')).toBe(false);
+  });
+
+  it('a full-width strip at the bottom is at the bottom edge, not the right', () => {
+    expect(atEdge(r(0, 560, 1000, 240), root, 'bottom')).toBe(true);
+    expect(atEdge(r(0, 560, 1000, 240), root, 'right')).toBe(false);
+  });
+
+  it('a group in the middle or spanning the whole window is at neither edge', () => {
+    expect(atEdge(r(200, 200, 300, 300), root, 'right')).toBe(false);
+    expect(atEdge(r(200, 200, 300, 300), root, 'bottom')).toBe(false);
+    expect(atEdge(root, root, 'right')).toBe(false);
+    expect(atEdge(root, root, 'bottom')).toBe(false);
   });
 });
 

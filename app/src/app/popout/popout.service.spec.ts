@@ -36,6 +36,9 @@ describe('PopoutService (host side)', () => {
     document.body.appendChild(container);
     const dock = TestBed.inject(DockService);
     dock.attach(container);
+    // Pop-outs of the inspector (docked) and Metrics, which the minimal default layout does not open.
+    dock.pin('inspector');
+    dock.show('metrics', { inactive: true });
     const popouts = TestBed.inject(PopoutService);
     await popouts.startHost();
     return { dock, popouts };

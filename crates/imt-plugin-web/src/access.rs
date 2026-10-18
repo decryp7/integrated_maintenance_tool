@@ -13,7 +13,10 @@ fn line_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
         Regex::new(
-            r#"^(?P<ip>\S+) (?P<ident>\S+) (?P<user>\S+) \[(?P<ts>[^\]]+)\] "(?P<req>[^"]*)" (?P<status>\d{3}|-) (?P<bytes>\d+|-)(?: "(?P<ref>[^"]*)" "(?P<ua>[^"]*)")?(?: (?P<rt>\d+(?:\.\d+)?))?\s*$"#,
+            // The client may be an X-Forwarded-For list ("a, b, c"); the referrer may be a bare "-";
+            // a number at the end is the request time; other fields some servers append (Traefik,
+            // nginx's "$http_x_forwarded_for") are kept as `Extra`.
+            r#"^(?P<ip>\S+(?:, \S+)*) (?P<ident>\S+) (?P<user>\S+) \[(?P<ts>[^\]]+)\] "(?P<req>[^"]*)" (?P<status>\d{3}|-) (?P<bytes>\d+|-)(?: (?:"(?P<ref>[^"]*)"|-) "(?P<ua>[^"]*)")?(?: (?P<rt>\d+(?:\.\d+)?)\s*$| (?P<extra>.*?\S)\s*$|\s*$)"#,
         )
         .expect("static regex")
     })
@@ -55,7 +58,17 @@ fn record(line: u32, c: &regex::Captures) -> Record {
     r.ts = DateTime::parse_from_str(&c["ts"], "%d/%b/%Y:%H:%M:%S %z")
         .ok()
         .map(|d| d.timestamp_millis());
-    r.fields.insert("ClientIp".into(), Value::from(&c["ip"]));
+    let ip = &c["ip"];
+    match ip.split_once(", ") {
+        // The first address of a forwarded-for list is the original client.
+        Some((client, _)) => {
+            r.fields.insert("ClientIp".into(), Value::from(client));
+            r.fields.insert("ForwardedFor".into(), Value::from(ip));
+        }
+        None => {
+            r.fields.insert("ClientIp".into(), Value::from(ip));
+        }
+    }
     if &c["user"] != "-" {
         r.fields.insert("User".into(), Value::from(&c["user"]));
     }
@@ -77,8 +90,8 @@ fn record(line: u32, c: &regex::Captures) -> Record {
     if let Ok(b) = c["bytes"].parse::<u64>() {
         r.fields.insert("Bytes".into(), Value::from(b));
     }
-    for (group, name) in [("ref", "Referer"), ("ua", "UserAgent")] {
-        if let Some(m) = c.name(group).filter(|m| m.as_str() != "-") {
+    for (group, name) in [("ref", "Referer"), ("ua", "UserAgent"), ("extra", "Extra")] {
+        if let Some(m) = c.name(group).filter(|m| !matches!(m.as_str(), "-" | "\"-\"")) {
             r.fields.insert(name.into(), Value::from(m.as_str()));
         }
     }
@@ -146,6 +159,32 @@ mod tests {
         let odd = &out.records[4];
         assert_eq!(odd.message, "- \u{2192} 408");
         assert!(!odd.fields.contains_key("Method"));
+    }
+
+    #[test]
+    fn real_world_variants() {
+        // Traefik (bare "-" referrer, fields after the user agent), nginx behind proxies
+        // (forwarded-for list, an extra quoted field). Synthetic lines in those shapes.
+        let log = concat!(
+            "10.0.0.9 - - [02/Oct/2026:20:22:07 +0000] \"GET /ui/ HTTP/2.0\" 200 2814 - \"curl/8\" 13 \"Host-web-0\" \"http://10.0.0.6:80\" 2ms\n",
+            "10.0.0.2, 10.0.0.1, 127.0.0.1 - - [07/Dec/2026:11:05:07 +0100] \"GET /a HTTP/1.1\" 200 571 \"-\" \"Firefox/49.0\"\n",
+            "172.17.0.1 - - [29/May/2026:19:02:48 +0000] \"GET /b HTTP/1.1\" 404 612 \"-\" \"Firefox/15.0\" \"-\"   \n",
+        );
+        let out = with_ctx(|c| {
+            assert_eq!(AccessLogImporter.sniff(c, log), 90);
+            AccessLogImporter.import(c, log).unwrap()
+        });
+        assert_eq!((out.records.len(), out.skipped), (3, 0));
+        let traefik = &out.records[0];
+        assert_eq!(traefik.fields["UserAgent"], "curl/8");
+        assert!(!traefik.fields.contains_key("Referer") && !traefik.fields.contains_key("RequestTimeMs"));
+        assert_eq!(traefik.fields["Extra"], "13 \"Host-web-0\" \"http://10.0.0.6:80\" 2ms");
+        let forwarded = &out.records[1];
+        assert_eq!(forwarded.fields["ClientIp"], "10.0.0.2");
+        assert_eq!(forwarded.fields["ForwardedFor"], "10.0.0.2, 10.0.0.1, 127.0.0.1");
+        assert!(!forwarded.fields.contains_key("Extra"));
+        assert_eq!(out.records[2].level, Level::Warning);
+        assert!(!out.records[2].fields.contains_key("Extra"), "a bare \"-\" is no value");
     }
 
     #[test]

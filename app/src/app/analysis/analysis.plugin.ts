@@ -4,8 +4,9 @@ import { ImtBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { IMT_COMMANDS, ImtView } from '../extensions/tokens';
+import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtView } from '../extensions/tokens';
 import { provideImtPlugin } from '../extensions/provide';
+import { analysisActivityItems } from './analysis-activity';
 import { AnalysisCommands } from './analysis-commands';
 import { MockAnalysisBackend, recordsFrom } from './mock/mock-analysis-backend';
 
@@ -42,6 +43,7 @@ export function provideAnalysis(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: AnalysisBackend, useFactory: createAnalysisBackend },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(AnalysisCommands).commands },
+    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: analysisActivityItems },
     provideImtPlugin({ views: ANALYSIS_VIEWS }),
   ]);
 }

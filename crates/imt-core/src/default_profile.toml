@@ -31,8 +31,12 @@ output_templates = [
 regexes = [
   # log4net / NLog: %date [%thread] %-5level %logger [%ndc] - %message
   '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
-  # Generic: timestamp, optional level, message
-  '^(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+(?:\[?(?P<level>VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL|Verbose|Debug|Information|Warning|Error|Fatal)\]?\s*[:|-]?\s+)?(?P<message>.*)$',
+  # Python logging: %(asctime)s - %(name)s - %(levelname)s - %(message)s
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?) - (?P<Logger>\S+) - (?P<level>[A-Za-z]+) - (?P<message>.*)$',
+  # Generic: a timestamp, maybe in brackets or followed by "," or " - " (log4j,
+  # Kafka, Elasticsearch, ZooKeeper, CBS), then maybe a thread or process number
+  # and a level in any case (MySQL, OpenStack), then the message.
+  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
 ]
 # Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
 # ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always
@@ -48,12 +52,13 @@ day_first = "auto"
 [parse.json]
 # JSON lines (one object per line) or a whole-file JSON array. Keys are tried in
 # order; nested keys use dots ("log.level"). Covers Serilog CLEF (@t/@mt/@l/@x),
-# Serilog JsonFormatter, NLog/ECS-style and most JSON loggers.
-timestamp = ["@t", "Timestamp", "timestamp", "@timestamp", "time", "ts", "date", "datetime"]
+# Serilog JsonFormatter, NLog/ECS-style and most JSON loggers ("timeMillis" is
+# log4j2's JsonLayout, "stacktrace" Elasticsearch's). An object may span lines.
+timestamp = ["@t", "Timestamp", "timestamp", "@timestamp", "time", "ts", "date", "datetime", "timeMillis"]
 level = ["@l", "Level", "level", "log.level", "severity", "lvl", "loglevel"]
 message = ["@m", "RenderedMessage", "Message", "message", "msg", "text"]
 template = ["@mt", "MessageTemplate"]
-exception = ["@x", "Exception", "exception", "error.stack_trace", "stack_trace", "error"]
+exception = ["@x", "Exception", "exception", "error.stack_trace", "stack_trace", "stacktrace", "error"]
 # Objects whose members are lifted to top-level fields; other nested objects
 # are flattened with dotted names.
 properties = ["Properties", "properties", "fields", "context"]
@@ -257,6 +262,44 @@ kind = "warning"
 label = "Warning"
 color = "#E9AE3F"
 when = [{ field = "@level", op = "eq", value = "Warning" }]
+
+# Runs: the time between a start and a stop marker ("Service started" …
+# "Service stopped"), drawn as a band on each timeline lane and listed in the
+# Runs view. Starts and stops are paired in time order, separately for each
+# lane, even when many instances write to one shared file.
+#
+#   kind              id of the run kind (letters, digits, - _ .), unique
+#   label             shown in the legend, tooltips and the Runs view (default: kind)
+#   start, stop       marker kind(s) that start / stop a run: "start" or ["a", "b"]
+#                     (any [[marker]] kind, a built-in one or a plugin's "<plugin-id>/<kind>")
+#   per               "instance": pair within each timeline lane (the instance key), or
+#                     "field:<Name>": pair separately for each value of a field within a
+#                     lane, e.g. "field:ProcessId" when several processes share one lane.
+#                     Events without the field are paired among themselves.
+#   color             #RGB / #RRGGBB of the band (default: the theme's run colour)
+#   max_duration      "12h", "90m", "2d": longer runs are flagged as anomalies
+#   restart_on_start  true (default): a second start before a stop ends the previous run
+#                     as "no stop seen" (likely a crash or restart) and starts a new one;
+#                     false: the extra start is ignored (it belongs to the running run)
+#   enabled           false switches the rule off without deleting it
+#
+# Statuses: closed (start … stop); still running (no stop before the end of the data,
+# drawn to the lane's last event); no stop seen (another start came first); stop
+# without start (a point). Consecutive starts with nothing else logged in between
+# count as one start ("starting…", "started"), consecutive stops as one stop; an event
+# matching both a start and a stop marker ("Application started. Press Ctrl+C to shut
+# down.") is a start. A run resets at every start, so a process id reused later
+# gives a separate run.
+# Limits: at most 16 rules; per rule at most 1,000 runs per lane (the oldest are
+# dropped first) and 10,000 lanes or field values. A rule naming a marker kind that
+# is not defined (or switched off) matches nothing for it; the Runs view says so.
+# Your own [[span]] list replaces this default one; `span = []` turns runs off.
+[[span]]
+kind = "run"
+label = "Running"
+start = "start"
+stop = "stop"
+per = "instance"
 
 [[chart]]
 id = "events-by-level"

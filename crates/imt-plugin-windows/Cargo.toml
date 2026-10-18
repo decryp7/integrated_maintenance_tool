@@ -20,4 +20,6 @@ minidump = "0.27"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_EventLog", "Win32_System_Threading"] }
 
 [dev-dependencies]
+# Snapshot tests of the importers against /samples (tests/samples.rs, snapshots in tests/snapshots/).
+insta = { version = "1", features = ["yaml"] }
 proptest = "1"

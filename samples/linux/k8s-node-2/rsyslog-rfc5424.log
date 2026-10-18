@@ -1,0 +1,458 @@
+<30>1 2026-10-14T09:00:20.115Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:00:40.106Z k8s-node-2 containerd 902 - - shim disconnected id=9ee58997bd773553 namespace=k8s.io
+<30>1 2026-10-14T09:02:53.842Z k8s-node-2 containerd 902 - - shim disconnected id=39f9e32399ebad10 namespace=k8s.io
+<30>1 2026-10-14T09:03:03.417Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:03:03.484Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:03:12.387Z k8s-node-2 containerd 902 - - shim disconnected id=3551f5c7a3cf87c0 namespace=k8s.io
+<30>1 2026-10-14T09:03:19.806Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:03:23.132Z k8s-node-2 containerd 902 - - shim disconnected id=792344e5b513f792 namespace=k8s.io
+<30>1 2026-10-14T09:03:33.548Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:03:35.605Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:03:44.903Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:04:14.445Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:04:20.899Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:04:24.150Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:05:26.143Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:05:38.344Z k8s-node-2 containerd 902 - - shim disconnected id=10a0f2230a40484a namespace=k8s.io
+<30>1 2026-10-14T09:06:07.476Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:06:29.316Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:06:33.016Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:06:44.924Z k8s-node-2 containerd 902 - - shim disconnected id=1947321b00aa1d49 namespace=k8s.io
+<30>1 2026-10-14T09:06:55.019Z k8s-node-2 containerd 902 - - shim disconnected id=cdf9c8d8e9e1daed namespace=k8s.io
+<30>1 2026-10-14T09:07:58.690Z k8s-node-2 containerd 902 - - shim disconnected id=9980c7f60845b4a4 namespace=k8s.io
+<30>1 2026-10-14T09:08:00.894Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:08:21.177Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:08:30.744Z k8s-node-2 containerd 902 - - shim disconnected id=9e105149717c47fb namespace=k8s.io
+<30>1 2026-10-14T09:08:46.562Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:08:58.729Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:09:51.489Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:10:22.032Z k8s-node-2 containerd 902 - - shim disconnected id=918cf64060e80027 namespace=k8s.io
+<30>1 2026-10-14T09:10:52.477Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:11:05.138Z k8s-node-2 containerd 902 - - shim disconnected id=d72bb2bc08c3c136 namespace=k8s.io
+<28>1 2026-10-14T09:11:27.557Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:11:49.869Z k8s-node-2 containerd 902 - - shim disconnected id=0ec259813624a918 namespace=k8s.io
+<30>1 2026-10-14T09:12:57.083Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:13:04.635Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:13:26.924Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:14:12.470Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:14:15.618Z k8s-node-2 containerd 902 - - shim disconnected id=378a19b3c48fe9a1 namespace=k8s.io
+<30>1 2026-10-14T09:15:05.302Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:16:50.033Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:17:07.029Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:17:20.721Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:17:22.654Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:17:40.814Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:17:53.656Z k8s-node-2 containerd 902 - - shim disconnected id=26a25617730206bd namespace=k8s.io
+<30>1 2026-10-14T09:17:54.217Z k8s-node-2 containerd 902 - - shim disconnected id=74cd990741603f0d namespace=k8s.io
+<30>1 2026-10-14T09:17:58.165Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:18:10.856Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:18:12.069Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:18:13.495Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:18:17.080Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:18:45.991Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:19:16.868Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:19:21.441Z k8s-node-2 containerd 902 - - shim disconnected id=4bbba2c74bf17fd9 namespace=k8s.io
+<30>1 2026-10-14T09:19:32.531Z k8s-node-2 containerd 902 - - shim disconnected id=2af52ebaf691048b namespace=k8s.io
+<30>1 2026-10-14T09:20:03.531Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:20:03.617Z k8s-node-2 containerd 902 - - shim disconnected id=f5dfd22d0d1fea5f namespace=k8s.io
+<30>1 2026-10-14T09:20:06.772Z k8s-node-2 containerd 902 - - shim disconnected id=987586481b686c69 namespace=k8s.io
+<30>1 2026-10-14T09:20:34.790Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:21:38.749Z k8s-node-2 containerd 902 - - shim disconnected id=2a86229d55d4bb7c namespace=k8s.io
+<30>1 2026-10-14T09:21:59.724Z k8s-node-2 containerd 902 - - shim disconnected id=2dc184bd3964c352 namespace=k8s.io
+<30>1 2026-10-14T09:22:50.016Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:23:35.102Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:23:49.172Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:23:57.401Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:24:05.751Z k8s-node-2 containerd 902 - - shim disconnected id=a2ef17c648400010 namespace=k8s.io
+<30>1 2026-10-14T09:24:37.029Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:24:58.190Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:25:30.830Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:25:40.223Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:26:05.668Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:26:06.384Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:26:26.659Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:27:02.944Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:27:10.278Z k8s-node-2 containerd 902 - - shim disconnected id=0d19ac3de6332e97 namespace=k8s.io
+<30>1 2026-10-14T09:27:47.764Z k8s-node-2 containerd 902 - - shim disconnected id=b3f8dc4ba14e019a namespace=k8s.io
+<30>1 2026-10-14T09:29:08.007Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:29:46.708Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:30:04.884Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:30:18.408Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:30:55.652Z k8s-node-2 containerd 902 - - shim disconnected id=333ccc91e680fafd namespace=k8s.io
+<30>1 2026-10-14T09:31:34.188Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:31:34.453Z k8s-node-2 containerd 902 - - shim disconnected id=60ed3f23dee3a2b4 namespace=k8s.io
+<30>1 2026-10-14T09:31:54.489Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:31:56.584Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:32:16.417Z k8s-node-2 containerd 902 - - shim disconnected id=84d220bf25afc6fd namespace=k8s.io
+<30>1 2026-10-14T09:32:26.372Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:32:33.664Z k8s-node-2 containerd 902 - - shim disconnected id=da349fab4371fa64 namespace=k8s.io
+<30>1 2026-10-14T09:32:34.152Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:32:40.214Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:32:57.950Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:34:25.112Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:34:37.850Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:36:17.525Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:36:57.734Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:37:52.622Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:38:33.597Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:38:47.063Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:39:48.488Z k8s-node-2 containerd 902 - - shim disconnected id=967dfba213f88812 namespace=k8s.io
+<30>1 2026-10-14T09:40:26.911Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:40:36.320Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:41:14.201Z k8s-node-2 containerd 902 - - shim disconnected id=255692984bbc3901 namespace=k8s.io
+<30>1 2026-10-14T09:41:26.182Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:41:49.743Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:41:54.513Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:41:57.096Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:41:57.140Z k8s-node-2 containerd 902 - - shim disconnected id=39802d2e171d37cb namespace=k8s.io
+<30>1 2026-10-14T09:42:52.655Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:42:59.597Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:43:26.134Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:43:47.048Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:43:50.075Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:44:55.158Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:45:28.173Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:45:44.251Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:46:03.671Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:46:37.131Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:46:43.481Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:46:46.538Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:46:55.902Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:48:00.678Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:48:27.871Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:48:59.253Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:49:26.315Z k8s-node-2 containerd 902 - - shim disconnected id=d9a378bd0c22768e namespace=k8s.io
+<30>1 2026-10-14T09:49:48.271Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:50:22.875Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:50:23.867Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:50:26.269Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:51:28.621Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:51:55.653Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:52:03.087Z k8s-node-2 containerd 902 - - shim disconnected id=2a482495d413eca4 namespace=k8s.io
+<28>1 2026-10-14T09:53:18.033Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:53:18.914Z k8s-node-2 containerd 902 - - shim disconnected id=82749731df94ee79 namespace=k8s.io
+<30>1 2026-10-14T09:53:36.733Z k8s-node-2 containerd 902 - - shim disconnected id=9964d85fefdba3ac namespace=k8s.io
+<30>1 2026-10-14T09:53:41.103Z k8s-node-2 containerd 902 - - shim disconnected id=047a3c07d4d45fe6 namespace=k8s.io
+<28>1 2026-10-14T09:54:07.891Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:55:16.229Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:55:17.100Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:56:10.225Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:57:05.412Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:57:47.394Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:58:05.476Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:58:45.048Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:58:46.800Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:58:54.559Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T09:59:03.688Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T09:59:05.128Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:59:36.430Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T09:59:52.311Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:00:31.828Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:00:44.566Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:00:45.148Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:00:57.658Z k8s-node-2 containerd 902 - - shim disconnected id=9e73870df52ceda1 namespace=k8s.io
+<30>1 2026-10-14T10:01:09.815Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:01:11.860Z k8s-node-2 containerd 902 - - shim disconnected id=a6f6581c877bbfcd namespace=k8s.io
+<30>1 2026-10-14T10:01:37.556Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:02:52.761Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:03:21.265Z k8s-node-2 containerd 902 - - shim disconnected id=9ae5851a3c5e641d namespace=k8s.io
+<30>1 2026-10-14T10:04:13.463Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:04:51.119Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:05:32.743Z k8s-node-2 containerd 902 - - shim disconnected id=9bf6562a821b9cba namespace=k8s.io
+<30>1 2026-10-14T10:05:59.231Z k8s-node-2 containerd 902 - - shim disconnected id=02d6d6517f6068c2 namespace=k8s.io
+<30>1 2026-10-14T10:06:25.457Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:06:32.402Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:06:42.682Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:07:17.727Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:07:38.198Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:08:22.288Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:09:33.405Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:09:52.961Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:10:27.774Z k8s-node-2 containerd 902 - - shim disconnected id=788057b231c4a3ba namespace=k8s.io
+<30>1 2026-10-14T10:10:58.296Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:11:04.657Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:11:53.620Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:11:55.389Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:12:58.811Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:13:28.773Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:13:33.433Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:14:39.932Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:15:14.076Z k8s-node-2 containerd 902 - - shim disconnected id=b4c5a11fc96d3004 namespace=k8s.io
+<30>1 2026-10-14T10:15:47.984Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:15:52.811Z k8s-node-2 containerd 902 - - shim disconnected id=c599725411283265 namespace=k8s.io
+<30>1 2026-10-14T10:17:14.888Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:17:55.941Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:18:02.209Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:18:31.664Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:19:18.768Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:19:45.842Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:20:05.387Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:20:21.242Z k8s-node-2 containerd 902 - - shim disconnected id=060f89de5414b251 namespace=k8s.io
+<28>1 2026-10-14T10:20:28.862Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:20:50.883Z k8s-node-2 containerd 902 - - shim disconnected id=6276df204ca9d0bb namespace=k8s.io
+<30>1 2026-10-14T10:20:51.834Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:21:17.778Z k8s-node-2 containerd 902 - - shim disconnected id=92dda2ff3b6cc309 namespace=k8s.io
+<30>1 2026-10-14T10:21:26.231Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:21:28.172Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:21:59.733Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:22:10.008Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:22:18.852Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:22:30.547Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:22:32.231Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:22:56.128Z k8s-node-2 containerd 902 - - shim disconnected id=5f04cf80ed377f66 namespace=k8s.io
+<30>1 2026-10-14T10:23:03.732Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:23:21.700Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:23:24.956Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:23:31.334Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:23:32.733Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:23:42.309Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:23:50.039Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:24:21.407Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:24:25.647Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:25:15.308Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:25:35.261Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:25:35.987Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:25:37.065Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:25:46.737Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:26:21.751Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:26:30.190Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:27:18.818Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:27:34.625Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:27:57.317Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:28:05.302Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:28:07.601Z k8s-node-2 containerd 902 - - shim disconnected id=a5ee5c04a90996fe namespace=k8s.io
+<30>1 2026-10-14T10:29:27.325Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:29:51.622Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:30:46.632Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:31:16.343Z k8s-node-2 containerd 902 - - shim disconnected id=876d1edc47437163 namespace=k8s.io
+<28>1 2026-10-14T10:31:30.752Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:31:50.415Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:32:58.511Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:32:59.294Z k8s-node-2 containerd 902 - - shim disconnected id=9dd9d5fce1aca94c namespace=k8s.io
+<30>1 2026-10-14T10:33:02.914Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:33:04.909Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:33:57.473Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:34:09.544Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:34:17.277Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:34:21.506Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:34:59.031Z k8s-node-2 containerd 902 - - shim disconnected id=5a940d97478a2c68 namespace=k8s.io
+<30>1 2026-10-14T10:35:21.195Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<26>1 2026-10-14T10:35:24.050Z k8s-node-2 kernel - - - Memory cgroup out of memory: Killed process 88213 (log-shipper) total-vm:812044kB, anon-rss:498212kB
+<30>1 2026-10-14T10:35:43.315Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:36:18.916Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:36:22.383Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:36:47.624Z k8s-node-2 containerd 902 - - shim disconnected id=fdfe9245dc98f02b namespace=k8s.io
+<28>1 2026-10-14T10:36:54.953Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:38:00.589Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:39:39.030Z k8s-node-2 containerd 902 - - shim disconnected id=eaeb887f811748e0 namespace=k8s.io
+<30>1 2026-10-14T10:40:15.513Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:40:16.886Z k8s-node-2 containerd 902 - - shim disconnected id=3f897430ebb0d604 namespace=k8s.io
+<27>1 2026-10-14T10:41:24.230Z k8s-node-2 kubelet 1380 CRASH [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" exitCode="2"] Container "consumer" terminated: reason=Error exitCode=2 (panic: runtime error: invalid memory address or nil pointer dereference)
+<28>1 2026-10-14T10:41:25.050Z k8s-node-2 kubelet 1380 BACKOFF [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer"] Back-off restarting failed container consumer in pod order-events-7c9d8b5f4-x2k4p_shop
+<28>1 2026-10-14T10:42:08.676Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:42:13.008Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:42:13.052Z k8s-node-2 kubelet 1380 START [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" restartCount="1"] Started container consumer
+<28>1 2026-10-14T10:42:32.880Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:42:43.966Z k8s-node-2 containerd 902 - - shim disconnected id=2544634abfe2b3b9 namespace=k8s.io
+<28>1 2026-10-14T10:42:45.401Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:43:41.023Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:43:41.461Z k8s-node-2 containerd 902 - - shim disconnected id=5400ba8da806570f namespace=k8s.io
+<28>1 2026-10-14T10:43:49.993Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:44:45.442Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:44:49.971Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:45:26.779Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:46:42.179Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:46:56.500Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:47:08.970Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:47:18.795Z k8s-node-2 containerd 902 - - shim disconnected id=ce146d263894ca1a namespace=k8s.io
+<28>1 2026-10-14T10:47:28.777Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:47:40.758Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:48:57.237Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:49:23.247Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:49:55.186Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:49:56.377Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:50:14.333Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:51:00.682Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:51:18.858Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:52:26.027Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:52:41.389Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:52:50.027Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:53:22.672Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:54:12.896Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:54:14.388Z k8s-node-2 containerd 902 - - shim disconnected id=e5c6d46f345bf35a namespace=k8s.io
+<28>1 2026-10-14T10:54:30.949Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:55:06.338Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:55:27.735Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T10:55:52.923Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:55:53.250Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:55:56.088Z k8s-node-2 containerd 902 - - shim disconnected id=8ecfcb79f6cc5aef namespace=k8s.io
+<30>1 2026-10-14T10:56:08.919Z k8s-node-2 containerd 902 - - shim disconnected id=e854049bc543fde3 namespace=k8s.io
+<30>1 2026-10-14T10:56:09.253Z k8s-node-2 containerd 902 - - shim disconnected id=3026d24b28092d6b namespace=k8s.io
+<30>1 2026-10-14T10:56:27.766Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:57:04.362Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:57:31.954Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:57:40.832Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T10:58:22.248Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T10:59:11.829Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:59:35.124Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T10:59:45.838Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:00:20.401Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:00:38.535Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:01:13.751Z k8s-node-2 containerd 902 - - shim disconnected id=5a085c8227c5cd6b namespace=k8s.io
+<28>1 2026-10-14T11:01:25.422Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:03:10.078Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:03:42.461Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:04:01.104Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:04:20.412Z k8s-node-2 containerd 902 - - shim disconnected id=4ceb03b76a765ba0 namespace=k8s.io
+<28>1 2026-10-14T11:04:44.675Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:04:44.958Z k8s-node-2 containerd 902 - - shim disconnected id=db394da1c7a55a55 namespace=k8s.io
+<28>1 2026-10-14T11:05:01.688Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:05:12.074Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:05:21.471Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:05:32.470Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:05:33.857Z k8s-node-2 containerd 902 - - shim disconnected id=c0650fe7f8cb4bc4 namespace=k8s.io
+<30>1 2026-10-14T11:05:46.663Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:05:53.648Z k8s-node-2 containerd 902 - - shim disconnected id=32ce8098ddc72eab namespace=k8s.io
+<30>1 2026-10-14T11:06:04.400Z k8s-node-2 containerd 902 - - shim disconnected id=9039a240c28d0e7f namespace=k8s.io
+<28>1 2026-10-14T11:06:23.944Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:06:44.960Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:06:55.243Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:07:44.656Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:09:10.786Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:09:11.808Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:09:36.086Z k8s-node-2 containerd 902 - - shim disconnected id=08b60374de77502e namespace=k8s.io
+<30>1 2026-10-14T11:09:41.707Z k8s-node-2 containerd 902 - - shim disconnected id=429a782c45bbffe8 namespace=k8s.io
+<28>1 2026-10-14T11:10:09.993Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:11:28.188Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:12:24.437Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:12:47.503Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:12:59.961Z k8s-node-2 containerd 902 - - shim disconnected id=8ab0d4e37cb43aee namespace=k8s.io
+<30>1 2026-10-14T11:13:08.423Z k8s-node-2 containerd 902 - - shim disconnected id=adce4f4540071c94 namespace=k8s.io
+<28>1 2026-10-14T11:14:50.966Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:14:53.126Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:15:27.773Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:15:52.043Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:16:12.293Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:16:17.275Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:16:41.574Z k8s-node-2 containerd 902 - - shim disconnected id=d307c5785cffb791 namespace=k8s.io
+<28>1 2026-10-14T11:16:41.860Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:16:47.888Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:16:48.514Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:16:51.724Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:16:58.863Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:17:03.855Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:17:27.388Z k8s-node-2 containerd 902 - - shim disconnected id=9cc0aa3a319f39b7 namespace=k8s.io
+<28>1 2026-10-14T11:17:28.945Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:17:42.267Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:18:15.527Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:18:22.245Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:18:34.089Z k8s-node-2 containerd 902 - - shim disconnected id=6cf59bc5a5f1f871 namespace=k8s.io
+<28>1 2026-10-14T11:19:11.186Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:20:15.607Z k8s-node-2 containerd 902 - - shim disconnected id=ba2f48a1111b3092 namespace=k8s.io
+<28>1 2026-10-14T11:20:41.737Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:20:46.604Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:20:56.795Z k8s-node-2 containerd 902 - - shim disconnected id=e3801d9118559442 namespace=k8s.io
+<28>1 2026-10-14T11:20:56.943Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:21:23.639Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:21:26.450Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:22:10.780Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:22:13.207Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:22:13.816Z k8s-node-2 containerd 902 - - shim disconnected id=6a9b9d6beba45a0c namespace=k8s.io
+<30>1 2026-10-14T11:22:23.450Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:22:32.946Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:22:37.256Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:23:09.900Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:24:06.901Z k8s-node-2 containerd 902 - - shim disconnected id=a7bac1ce3bd63fed namespace=k8s.io
+<30>1 2026-10-14T11:25:15.136Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:25:37.157Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:26:01.855Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:26:44.859Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:27:04.209Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:28:14.960Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:28:22.900Z k8s-node-2 containerd 902 - - shim disconnected id=e9a1c295ca6a16c8 namespace=k8s.io
+<28>1 2026-10-14T11:28:42.381Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:28:58.495Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:29:13.172Z k8s-node-2 containerd 902 - - shim disconnected id=c89fb37af42f4db0 namespace=k8s.io
+<30>1 2026-10-14T11:29:38.887Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:30:11.775Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:30:32.551Z k8s-node-2 containerd 902 - - shim disconnected id=6b9b95b532f6130f namespace=k8s.io
+<30>1 2026-10-14T11:30:34.229Z k8s-node-2 containerd 902 - - shim disconnected id=ea29a941b0eb55c9 namespace=k8s.io
+<28>1 2026-10-14T11:30:58.656Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:31:05.061Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:31:45.204Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:32:42.116Z k8s-node-2 containerd 902 - - shim disconnected id=91b1422d71e45426 namespace=k8s.io
+<30>1 2026-10-14T11:33:35.752Z k8s-node-2 containerd 902 - - shim disconnected id=ec729e06cedadd44 namespace=k8s.io
+<30>1 2026-10-14T11:35:18.628Z k8s-node-2 containerd 902 - - shim disconnected id=c9b625a1ee73c6b7 namespace=k8s.io
+<30>1 2026-10-14T11:35:21.417Z k8s-node-2 containerd 902 - - shim disconnected id=60d89ded0b59247c namespace=k8s.io
+<30>1 2026-10-14T11:35:21.933Z k8s-node-2 containerd 902 - - shim disconnected id=2fc9861687f44567 namespace=k8s.io
+<28>1 2026-10-14T11:36:22.823Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:36:38.244Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:37:39.634Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:37:43.375Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:37:43.706Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:37:55.578Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:38:08.716Z k8s-node-2 containerd 902 - - shim disconnected id=eb2fd73fb2bb9875 namespace=k8s.io
+<30>1 2026-10-14T11:38:09.820Z k8s-node-2 containerd 902 - - shim disconnected id=79baa2fd60995c66 namespace=k8s.io
+<30>1 2026-10-14T11:38:28.280Z k8s-node-2 containerd 902 - - shim disconnected id=79e26d4cc53ba4c1 namespace=k8s.io
+<28>1 2026-10-14T11:38:55.680Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:39:00.422Z k8s-node-2 containerd 902 - - shim disconnected id=20284a2d5a3dcc92 namespace=k8s.io
+<30>1 2026-10-14T11:39:00.675Z k8s-node-2 containerd 902 - - shim disconnected id=0d32f25bcdfd7392 namespace=k8s.io
+<30>1 2026-10-14T11:39:30.405Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:40:40.950Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:41:05.296Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:41:10.949Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:41:52.923Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:42:03.508Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:42:04.949Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:42:34.665Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:42:45.886Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:43:06.051Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:43:20.266Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:43:36.729Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:44:15.982Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:44:21.862Z k8s-node-2 containerd 902 - - shim disconnected id=669a5baf5da17ee7 namespace=k8s.io
+<28>1 2026-10-14T11:44:41.803Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:44:50.519Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:45:06.970Z k8s-node-2 containerd 902 - - shim disconnected id=2293ab09e3a6675d namespace=k8s.io
+<28>1 2026-10-14T11:45:15.227Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:45:47.473Z k8s-node-2 containerd 902 - - shim disconnected id=b839bb0b99c8d763 namespace=k8s.io
+<30>1 2026-10-14T11:46:04.801Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:46:07.181Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:46:27.058Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:47:21.044Z k8s-node-2 containerd 902 - - shim disconnected id=6d718ea8e282d24e namespace=k8s.io
+<28>1 2026-10-14T11:48:01.216Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:48:15.483Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:48:24.527Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:48:57.165Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:48:58.801Z k8s-node-2 containerd 902 - - shim disconnected id=b3e244aa1d51ac6b namespace=k8s.io
+<30>1 2026-10-14T11:49:19.326Z k8s-node-2 containerd 902 - - shim disconnected id=da14ed15d35d4f3b namespace=k8s.io
+<30>1 2026-10-14T11:49:33.495Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:50:31.283Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:50:42.359Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:51:29.714Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:51:40.448Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:52:40.544Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:52:42.919Z k8s-node-2 containerd 902 - - shim disconnected id=1f94bf22931d0bda namespace=k8s.io
+<28>1 2026-10-14T11:53:17.874Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:53:30.474Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:53:43.362Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:53:51.405Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:54:15.105Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:54:23.724Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:54:29.858Z k8s-node-2 containerd 902 - - shim disconnected id=7752ab5daba43fc0 namespace=k8s.io
+<30>1 2026-10-14T11:54:38.878Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:54:52.557Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:55:04.559Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:55:36.905Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:55:38.026Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:55:41.551Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<30>1 2026-10-14T11:55:49.190Z k8s-node-2 kubelet 1380 SYNC [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p"] SyncLoop (PLEG): event for pod; ContainerStarted
+<28>1 2026-10-14T11:56:24.059Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:56:49.108Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<28>1 2026-10-14T11:57:14.851Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded
+<30>1 2026-10-14T11:57:18.926Z k8s-node-2 containerd 902 - - shim disconnected id=34da54c60b968e7e namespace=k8s.io
+<30>1 2026-10-14T11:58:01.805Z k8s-node-2 containerd 902 - - shim disconnected id=59543ebde1719e47 namespace=k8s.io
+<30>1 2026-10-14T11:58:20.522Z k8s-node-2 containerd 902 - - shim disconnected id=d70e2dd958b6fe63 namespace=k8s.io
+<30>1 2026-10-14T11:58:26.906Z k8s-node-2 containerd 902 - - shim disconnected id=7a98a14d29d0f5e9 namespace=k8s.io
+<30>1 2026-10-14T11:58:30.705Z k8s-node-2 containerd 902 - - shim disconnected id=21bb4b7c54dcf43d namespace=k8s.io
+<28>1 2026-10-14T11:58:48.279Z k8s-node-2 kubelet 1380 PROBE [k8s@32473 namespace="shop" pod="order-events-7c9d8b5f4-x2k4p" container="consumer" probe="readiness"] Readiness probe failed: Get "http://10.244.2.17:8081/ready": context deadline exceeded

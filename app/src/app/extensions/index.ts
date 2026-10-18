@@ -11,10 +11,12 @@
  * - `ImtCommand`         palette / menu action with optional key binding; receives a `CommandContext`
  * - `ImtInspectorSection` extra block in the event inspector (component with a `record` input)
  * - `ImtFieldFormatter`  display formatting for fields in the grid and inspector
+ * - `ImtActivityItem`    button in the left activity bar: shows a view, runs a command or opens a fly-out menu
  * - `ImtEvents`          read-only streams of workspace / query / selection / profile changes
  *
  * Plugins never touch the stores: they observe through `ImtEvents` and act through `CommandContext`.
  */
+export { ActivityItems, viewCategoryMenu } from './activity-items';
 export { CommandRegistry, COMMAND_CONTEXT } from './command-registry';
 export { JUMP_TIMEOUT_MS, WorkspaceCommandContext } from './command-context';
 export { ImtEvents, StoreImtEvents } from './events';
@@ -25,11 +27,15 @@ export { formatKeybinding, matchesKeybinding } from './keybinding';
 export { provideImtPlugin, type ImtPlugin } from './provide';
 export {
   flattenContributions,
+  IMT_ACTIVITY_ITEMS,
   IMT_COMMANDS,
   IMT_FIELD_FORMATTERS,
   IMT_INSPECTOR_SECTIONS,
   IMT_VIEWS,
   type CommandContext,
+  type ImtActivityItem,
+  type ImtActivityMenuItem,
+  type ImtActivityTarget,
   type ImtCommand,
   type ImtFieldFormatter,
   type ImtInspectorSection,

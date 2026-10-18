@@ -179,6 +179,8 @@ export const HOVER_HIDE_MS = 300;
     /* Only the active tab carries the menu chevron, so inactive tabs stay as narrow as their label and close button. */
     .dv-tab:not(.dv-active-tab) .imt-tab-menu { display: none; }
     .imt-tab-menu:hover { background: var(--bg-hover); color: var(--text); }
+    /* Header and tab actions keep a full 24x24 target (WCAG 2.5.8) in a crowded header: never shrink. */
+    .imt-dock-action { flex: none; min-width: 24px; min-height: 24px; }
     .imt-dock-action[hidden] { display: none; }
 
     /* Full screen (Shift+Alt+Enter): only the document well; the app's chrome is hidden. */
@@ -266,6 +268,13 @@ export class DockHost implements OnDestroy {
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     this.cleanup.push(() => document.removeEventListener('pointerdown', onPointerDown, true));
+    // Escape anywhere hides a slide-out (one opened by selecting an event leaves the focus where it was), unless
+    // something else (a menu, a dialog, an editor) used the key.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented && this.open()) this.dock.autoHideEvent({ type: 'escape' });
+    };
+    document.addEventListener('keydown', onKeyDown);
+    this.cleanup.push(() => document.removeEventListener('keydown', onKeyDown));
   }
 
   private readonly cleanup: (() => void)[] = [];

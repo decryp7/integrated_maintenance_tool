@@ -102,6 +102,13 @@ pub const TEMPLATES: &[ProfileTemplate] = &[
         "access.log"
     ),
     template!(
+        "apache-error",
+        "Apache error log",
+        "Web servers",
+        "Apache httpd ErrorLog in the 2.2 and 2.4 layouts: the level in brackets (with the module), process, thread and client as fields.",
+        "apache-error.log"
+    ),
+    template!(
         "syslog",
         "Syslog",
         "System",
@@ -118,6 +125,20 @@ pub const TEMPLATES: &[ProfileTemplate] = &[
         sample_name: "System.evtx",
         sample_text: "",
     },
+    template!(
+        "android-logcat",
+        "Android logcat",
+        "System",
+        "Logcat in the default threadtime format (adb logcat, bug reports): process and thread ids, tag and the one-letter level; the year is assumed.",
+        "logcat.txt"
+    ),
+    template!(
+        "hadoop-spark",
+        "Hadoop / Spark (log4j)",
+        "Java",
+        "Spark and Hadoop with their default log4j layouts (\"yy/MM/dd HH:mm:ss LEVEL Logger: message\", and HDFS's \"yyMMdd HHmmss\"); logger as a field, stack traces kept with their event.",
+        "spark.log"
+    ),
     template!(
         "csv",
         "CSV with a header row",

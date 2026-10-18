@@ -1,0 +1,36 @@
+---
+source: crates/imt-plugin-windows/tests/samples.rs
+expression: "snapshot_of(\"configs/WEB02/msinfo32.nfo\", &imt_plugin_windows::NfoImporter)"
+---
+sample: configs/WEB02/msinfo32.nfo
+importer: msinfo
+records: 14
+skipped: 0
+first_ts: ~
+last_ts: ~
+fields:
+  - Category
+  - Item
+  - Value
+first:
+  - ts: ~
+    level: Information
+    message: System Summary › OS Name = Microsoft Windows Server 2022 Datacenter
+    fields:
+      Category: System Summary
+      Item: OS Name
+      Value: Microsoft Windows Server 2022 Datacenter
+  - ts: ~
+    level: Information
+    message: System Summary › Version = 10.0.20348 Build 20348.2700
+    fields:
+      Category: System Summary
+      Item: Version
+      Value: 10.0.20348 Build 20348.2700
+  - ts: ~
+    level: Information
+    message: System Summary › System Name = WEB02
+    fields:
+      Category: System Summary
+      Item: System Name
+      Value: WEB02

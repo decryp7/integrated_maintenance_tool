@@ -6,7 +6,7 @@ IMT can be extended at three levels. Pick the lowest one that does the job:
 |---|---|---|---|
 | 1. Profiles | TOML configuration | nothing | new text/JSON/CSV layouts, extracting values, cleaning (pipeline), markers, charts |
 | 2. Engine plugins | Rust crates implementing `imt_core` traits | a rebuild of IMT | new file formats (text or binary), custom pipeline steps, exporters, collectors, reacting to workspace events |
-| 3. UI plugins | Angular providers | a rebuild of the UI | new views (panels), commands, inspector sections, field formatters |
+| 3. UI plugins | Angular providers | a rebuild of the UI | new views (panels), commands, activity-bar buttons, inspector sections, field formatters |
 | Process plugins | gRPC `imt.plugin.v1`, Rust or C#/.NET SDK or any gRPC language | nothing (no rebuild of IMT) | third-party importers, transforms, exporters, marker kinds and annotators with crash isolation |
 
 Plugins that need no rebuild of IMT run as separate processes over gRPC (`imt.plugin.v1`), written in Rust or
@@ -637,6 +637,51 @@ isolation (ADR 0002):
 | In-process, guarded (today) | first-party safe Rust plugins | panic → error, quarantine | watchdog: hung, fail fast, abandon where possible |
 | Plugin host process (`imt-plugin-host`) | any built-in Rust plugin, opt-in, after a quarantine, or all in isolated mode; third-party process plugins | process dies, restarted with backoff, counted towards quarantine | call fails at its deadline (90% of the budget), process killed and replaced |
 | Worker process (`imt-ai-worker`, which runs `llama-server`) | native code (llama.cpp, PDH, profilers) | as above | as above |
+
+## UI plugins (Angular)
+
+### UI contributions
+
+A UI plugin is a set of contributions registered with one provider call in `app/src/app/app.config.ts`
+(`provideImtPlugin`, public API in `app/src/app/extensions/index.ts`). Built-in features use the same extension
+points, so whatever a plugin adds behaves like the built-in parts:
+
+| Contribution | Token | What it adds |
+|---|---|---|
+| `ImtView` | `IMT_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category` |
+| `ImtCommand` | `IMT_COMMANDS` | a palette / menu action with an optional key binding |
+| `ImtActivityItem` | `IMT_ACTIVITY_ITEMS` | a button in the left activity bar |
+| `ImtInspectorSection` | `IMT_INSPECTOR_SECTIONS` | a block in the event inspector |
+| `ImtFieldFormatter` | `IMT_FIELD_FORMATTERS` | display formatting of a field |
+
+**Activity-bar buttons.** Every button of the left bar (Explorer, Search, Timeline, Analysis, Metrics, Live tail,
+AI, Tools, Profile editor, Settings) is an `ImtActivityItem` contributed by the feature that owns it. An item shows
+a view (`run: { view }`: highlighted while the view is open, hidden while the view is not offered), runs a command
+(`run: { command }`: the tooltip shows the command's key binding), or opens a fly-out menu (`run: { menu }`, built
+on every opening; `viewCategoryMenu('Tools')` lists the offered views of a View-menu category). `order` places it
+(built-ins use multiples of 100: Explorer 100, Search 200, Timeline 300, Analysis 400, Metrics 500, Live tail 600,
+AI 700, Tools 800, Profile editor 900; `section: 'bottom'` pins Settings below); higher orders collapse into the More
+fly-out first when the window is short. The optional `when`, `badge`, `active`, `toggle`, `pulse` and `disabled`
+(a reason, shown as the tooltip) receive the `CommandContext` and may read signals. Contributions are validated: a
+duplicate id or a malformed item is logged and skipped, and a function that throws hides the item (`when`) or drops
+just that extra, so a plugin bug never breaks the bar.
+
+```ts
+// my-plugin.ts: a panel, a command that opens it, and an activity-bar button between Analysis and Metrics.
+export function provideMyPlugin(): EnvironmentProviders {
+  return provideImtPlugin({
+    views: [{ id: 'my-view', title: 'My view', icon: 'puzzle', component: () => import('./my-view').then((m) => m.MyView) }],
+    commands: [{ id: 'my.show', title: 'Show my view', keybinding: 'Mod+Alt+M', run: (ctx) => ctx.showView('my-view') }],
+    activityItems: [
+      // The tooltip reads "My view (Ctrl+Alt+M)": the binding comes from the command.
+      { id: 'my-plugin', label: 'My view', icon: 'puzzle', order: 450, run: { command: 'my.show' }, badge: (ctx) => ctx.summary?.sources.length ?? null },
+    ],
+  });
+}
+```
+
+A feature whose item reads services (signals for `active` or `badge`) registers a factory instead, one line in its
+`provide…()` function: `{ provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => myItems(inject(MyStore)) }`.
 
 ## Level 3: process plugins (`imt.plugin.v1`)
 

@@ -46,6 +46,8 @@ const QUERIES: &[&str] = &[
     "source_context",
     "overview",
     "annotations",
+    "query_runs",
+    "preview_spans",
     "plugin_events",
     "tail_status",
     "live_state",
@@ -138,6 +140,8 @@ const QUERIES: &[&str] = &[
     "dashboard_tile",
     "estimate_bundle",
     "problem_report_preview",
+    "diagnostics_report",
+    "diagnostics_report_image",
 ];
 
 /// Polling and bookkeeping the UI does on its own.

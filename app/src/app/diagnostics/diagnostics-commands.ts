@@ -2,6 +2,7 @@ import { inject, Injectable, Injector } from '@angular/core';
 import { ImtCommand, ImtView } from '../extensions/tokens';
 import { describeError } from '../core/logger';
 import { DialogService } from '../ui/dialog.service';
+import { DiagnosticsExport } from './diagnostics-export.service';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { SnapshotBackend } from './snapshot-backend';
 import { ACTIVITY_LOG_COMMAND, REPORT_PROBLEM_COMMAND } from './snapshot.types';
@@ -18,6 +19,14 @@ export const DIAGNOSTICS_VIEWS: ImtView[] = [
     defaultPosition: 'center',
     component: () => import('./error-snapshots-view').then((m) => m.ErrorSnapshotsView),
   },
+  {
+    id: 'diagnostics-report',
+    title: $localize`:@@diagnostics.commands.reportView.title:Diagnostics report`,
+    category: 'Diagnostics',
+    icon: 'file',
+    defaultPosition: 'center',
+    component: () => import('./diagnostics-report-view').then((m) => m.DiagnosticsReportPanel),
+  },
 ];
 
 /** Keyboard shortcut of the manual capture. */
@@ -28,6 +37,7 @@ export class DiagnosticsCommands {
   private readonly snapshots = inject(ErrorSnapshotService);
   private readonly dialogs = inject(DialogService);
   private readonly injector = inject(Injector);
+  private readonly exporter = inject(DiagnosticsExport);
 
   readonly commands: ImtCommand[] = [
     {
@@ -47,6 +57,12 @@ export class DiagnosticsCommands {
         const { ReportProblemDialog } = await import('./report-problem-dialog');
         this.dialogs.open(ReportProblemDialog, { title: $localize`:@@diagnostics.commands.report.dialogTitle:Report a problem`, width: 680 });
       },
+    },
+    {
+      id: 'diagnostics.saveDiagnostics',
+      title: $localize`:@@diagnostics.commands.saveDiagnostics:Save diagnostics…`,
+      category: $localize`:@@diagnostics.commands.category.help:Help`,
+      run: () => this.exporter.save(),
     },
     {
       id: ACTIVITY_LOG_COMMAND,

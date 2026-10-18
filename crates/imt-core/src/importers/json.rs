@@ -22,8 +22,8 @@ impl Importer for JsonImporter {
         let first = first.trim_start();
         if first.starts_with('{') && serde_json::from_str::<Map<String, Value>>(first).is_ok() {
             95
-        } else if first.starts_with('[') || first.starts_with('{') {
-            // Pretty-printed array or object; confirmed during import.
+        } else if (first.starts_with('[') || first.starts_with('{')) && starts_with_json(head) {
+            // Pretty-printed array or object (possibly cut off at the end of the head).
             60
         } else {
             0
@@ -79,11 +79,27 @@ impl Importer for JsonImporter {
     }
 }
 
+/// Whether `head` (the start of a file) begins with a JSON value, possibly cut off where the head
+/// ends. Text such as `[Sun Dec 04 04:47:44 2005] [error] ...` or `[2026-10-14 10:00:00] INFO` starts
+/// with a bracket too but is not JSON.
+fn starts_with_json(head: &str) -> bool {
+    match serde_json::Deserializer::from_str(head.trim_start()).into_iter::<Value>().next() {
+        Some(Err(e)) => e.is_eof(),
+        other => other.is_some(),
+    }
+}
+
+/// JSON lines. An object may also span several lines (pretty-printed objects one after another, as
+/// `journalctl -o json-pretty` writes them, or Elasticsearch's JSON logs with the stack trace on the
+/// lines below); such an object is at most [`MAX_LINE_LEN`] bytes. Looking ahead for the end of such
+/// objects reads at most about twice the content in all, so broken files stay linear.
 fn json_lines(ctx: &ImportCtx, content: &str, out: &mut Imported) {
     let cfg = &ctx.profile.profile.parse.json;
     let ts = &ctx.profile.timestamps;
     let default_level = Level::parse(&cfg.default_level).unwrap_or(Level::Information);
-    for (i, line) in content.lines().enumerate() {
+    let mut lines = content.lines().enumerate();
+    let mut budget = content.len().saturating_mul(2).saturating_add(MAX_LINE_LEN);
+    while let Some((i, line)) = lines.next() {
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -92,10 +108,75 @@ fn json_lines(ctx: &ImportCtx, content: &str, out: &mut Imported) {
             out.skipped += 1;
             continue;
         }
-        match serde_json::from_str::<Value>(line) {
-            Ok(Value::Object(obj)) => out.records.push(to_record(obj, cfg, ts, default_level, i as u32 + 1)),
+        let value = match serde_json::from_str::<Value>(line) {
+            Err(e) if e.is_eof() && line.starts_with('{') => multiline_object(line, &mut lines, &mut budget),
+            other => other.ok(),
+        };
+        match value {
+            Some(Value::Object(obj)) => out.records.push(to_record(obj, cfg, ts, default_level, i as u32 + 1)),
             _ => out.skipped += 1,
         }
+    }
+}
+
+/// The object that starts with `first` and continues on the next lines, which are consumed when
+/// it is complete and valid. When it is not (broken, cut off, or larger than [`MAX_LINE_LEN`]),
+/// nothing is consumed and `None` is returned, so the next lines are read on their own. Every byte
+/// looked at is taken from `budget`; once it is spent, objects no longer span lines.
+fn multiline_object(first: &str, lines: &mut std::iter::Enumerate<std::str::Lines<'_>>, budget: &mut usize) -> Option<Value> {
+    let mut depth = Depth::default();
+    depth.feed(first);
+    let mut buf = first.to_string();
+    let mut ahead = lines.clone();
+    while let Some((_, line)) = ahead.next() {
+        if buf.len() + line.len() >= MAX_LINE_LEN || line.len() >= *budget {
+            return None;
+        }
+        *budget -= line.len() + 1;
+        buf.push('\n');
+        buf.push_str(line);
+        if depth.feed(line) {
+            let value = serde_json::from_str::<Value>(&buf).ok()?;
+            *lines = ahead;
+            return Some(value);
+        }
+    }
+    None
+}
+
+/// Nesting depth of JSON text fed line by line, so a multi-line object is parsed once, when it closes.
+#[derive(Default)]
+struct Depth {
+    depth: usize,
+    in_string: bool,
+    escaped: bool,
+}
+
+impl Depth {
+    /// Feeds one line; true when the outermost object or array closed on it.
+    fn feed(&mut self, text: &str) -> bool {
+        let mut closed = false;
+        for b in text.bytes() {
+            if self.in_string {
+                match b {
+                    _ if self.escaped => self.escaped = false,
+                    b'\\' => self.escaped = true,
+                    b'"' => self.in_string = false,
+                    _ => {}
+                }
+                continue;
+            }
+            match b {
+                b'"' => self.in_string = true,
+                b'{' | b'[' => self.depth += 1,
+                b'}' | b']' => {
+                    self.depth = self.depth.saturating_sub(1);
+                    closed |= self.depth == 0;
+                }
+                _ => {}
+            }
+        }
+        closed
     }
 }
 
@@ -118,6 +199,10 @@ fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &TimestampParser, d
     rec.template = take_first(&mut obj, &cfg.template).map(|v| as_text(&v));
     rec.exception = take_first(&mut obj, &cfg.exception).map(|v| match v {
         Value::String(s) => s,
+        // A stack trace as one string per frame (Elasticsearch's "stacktrace").
+        Value::Array(frames) if !frames.is_empty() && frames.iter().all(Value::is_string) => {
+            frames.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("\n")
+        }
         other => serde_json::to_string_pretty(&other).unwrap_or_default(),
     });
 
@@ -272,6 +357,62 @@ mod tests {
         assert_eq!(JsonImporter.sniff(&ctx, "{\n  \"a\": 1\n}"), 60);
         assert_eq!(JsonImporter.sniff(&ctx, "hello"), 0);
         assert_eq!(JsonImporter.sniff(&ctx, ""), 0);
+        // Cut off where the head ends: still JSON.
+        assert_eq!(JsonImporter.sniff(&ctx, "[\n {\"msg\": \"a\"},\n {\"msg\": \"b"), 60);
+        // Text logs that start with a bracket are left to the text importers.
+        for text in [
+            "[Sun Dec 04 04:47:44 2005] [error] mod_jk child workerEnv in error state 6\n",
+            "[2026-10-14T10:00:00,123][INFO ][o.e.n.Node] [node-1] started\n",
+            "[2026-10-14 10:00:00,123] WARN [Controller id=1] slow (kafka.controller.KafkaController)\n",
+            "[10:00:00 INF] Started\n",
+            "{ not json }\n",
+        ] {
+            assert_eq!(JsonImporter.sniff(&ctx, text), 0, "{text}");
+        }
+    }
+
+    #[test]
+    fn objects_spanning_lines() {
+        // Pretty-printed objects one after another (journalctl -o json-pretty).
+        let out = import("{\n  \"time\": \"2026-10-14T10:00:00Z\",\n  \"msg\": \"a\"\n}\n{\n  \"msg\": \"b {\\\"x\\\": [\"\n}\n");
+        assert_eq!(out.records.len(), 2);
+        assert_eq!((out.records[1].message.as_str(), out.records[1].line), ("b {\"x\": [", 5));
+        // Elasticsearch JSON logs: the stack trace array continues on the next lines.
+        let out = import(concat!(
+            "{\"timestamp\": \"2026-10-14T10:00:00,123+0100\", \"level\": \"ERROR\", \"message\": \"boom\",\n",
+            "\"stacktrace\": [\"java.lang.Exception: boom\",\n",
+            "\"at org.example.Foo.bar(Foo.java:12) [app.jar]\"] }\n",
+            "{\"timestamp\": \"2026-10-14T10:00:01,000+0100\", \"level\": \"INFO\", \"message\": \"next\"}\n",
+        ));
+        assert_eq!((out.records.len(), out.skipped), (2, 0));
+        assert_eq!(out.records[0].level, Level::Error);
+        assert_eq!(
+            out.records[0].exception.as_deref(),
+            Some("java.lang.Exception: boom\nat org.example.Foo.bar(Foo.java:12) [app.jar]")
+        );
+        assert_eq!(out.records[1].line, 4);
+        // A broken object consumes only its first line; the lines after it are read on their own.
+        let out = import("{\"msg\": \"a\",\n\"x\": nope }\n{\"msg\": \"c\"}\n");
+        assert_eq!((out.records.len(), out.skipped), (1, 2));
+        assert_eq!(out.records[0].message, "c");
+        // Cut off at the end of the file, or larger than a line may be.
+        let out = import("{\"msg\": \"ok\"}\n{\"msg\": \"a\",\n\"more\": 1,\n");
+        assert_eq!((out.records.len(), out.skipped), (1, 2));
+        let big = format!("{{\"msg\": \"a\",\n\"x\": \"{}\"\n}}\n", "y".repeat(MAX_LINE_LEN));
+        let out = import(&format!("{{\"msg\": \"ok\"}}\n{big}"));
+        assert_eq!(out.records.len(), 1);
+        // Many unclosed objects: the look-ahead budget runs out and lines are read one by one.
+        let unclosed = "{\"a\": [\n".repeat(3);
+        let mut lines = unclosed.lines().enumerate();
+        let mut budget = 5;
+        assert!(multiline_object("{", &mut lines, &mut budget).is_none());
+        assert_eq!((budget, lines.next().map(|(i, _)| i)), (5, Some(0)));
+        let out = import(&"{\"a\": [\n".repeat(2000));
+        assert_eq!((out.records.len(), out.skipped), (0, 2000));
+        // Empty or mixed arrays as the exception stay JSON text.
+        let out = import("{\"msg\": \"m\", \"stacktrace\": []}\n{\"msg\": \"m\", \"stacktrace\": [\"a\", 1]}\n");
+        assert_eq!(out.records[0].exception.as_deref(), Some("[]"));
+        assert!(out.records[1].exception.as_deref().unwrap().contains('1'));
     }
 
     #[test]

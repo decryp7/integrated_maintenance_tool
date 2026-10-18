@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { openApp } from '../../e2e/app';
+import { ensureInspector, openApp } from '../../e2e/app';
 
 /**
  * Captures the README screenshots from the browser build (mock backend) into docs/screenshots.
@@ -74,6 +74,21 @@ async function showPanel(page: Page, tab: string, toggleCommand: string): Promis
   await page.getByRole('tab', { name: tab, exact: true }).first().click();
 }
 
+/**
+ * Selects the first row with this text that is on screen (the grid renders a few rows beyond its viewport, which a
+ * click cannot reach); the first row when none is.
+ */
+async function clickRow(page: Page, text: string): Promise<void> {
+  const grid = (await page.locator('imt-events-grid').boundingBox())!;
+  const rows = page.locator('imt-events-grid [role=row].row');
+  for (let i = 0; i < (await rows.count()); i++) {
+    const row = rows.nth(i);
+    const b = await row.boundingBox();
+    if (b && b.y >= grid.y && b.y + b.height <= grid.y + grid.height && (await row.innerText()).includes(text)) return row.click();
+  }
+  await rows.first().click();
+}
+
 /** Gives the timeline more height by dragging the horizontal sash between it and the events grid. */
 async function growTimeline(page: Page, by = 150): Promise<void> {
   const sashes = page.locator('.dv-sash');
@@ -112,6 +127,9 @@ test('capture README screenshots', async ({ page }) => {
   await growTimeline(page);
 
   await shot(page, 'workspace', async () => {
+    // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
+    await clickRow(page, 'HTTP POST');
+    await ensureInspector(page);
     await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
   });
 
@@ -129,8 +147,7 @@ test('capture README screenshots', async ({ page }) => {
   await page.getByRole('button', { name: 'Fit', exact: true }).click().catch(() => undefined);
 
   await shot(page, 'inspector', async () => {
-    const row = page.locator('imt-events-grid [role=row].row', { hasText: 'HTTP POST' }).first();
-    await row.click();
+    await clickRow(page, 'HTTP POST');
     await expect(page.locator('imt-inspector')).toContainText(/Properties|RequestPath/i);
   });
 
@@ -212,7 +229,7 @@ test('capture README screenshots', async ({ page }) => {
   await fresh(page, 'light');
   await growTimeline(page);
   await shot(page, 'light-theme', async () => {
-    await page.locator('imt-events-grid [role=row].row', { hasText: 'HTTP POST' }).first().click();
+    await clickRow(page, 'HTTP POST');
   });
 
   if (skipped.length) console.warn(`\nSkipped ${skipped.length} shot(s):\n  ${skipped.join('\n  ')}`);

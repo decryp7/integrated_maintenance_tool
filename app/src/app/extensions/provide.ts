@@ -1,5 +1,16 @@
 import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, IMT_FIELD_FORMATTERS, IMT_INSPECTOR_SECTIONS, IMT_VIEWS, ImtCommand, ImtFieldFormatter, ImtInspectorSection, ImtView } from './tokens';
+import {
+  IMT_ACTIVITY_ITEMS,
+  IMT_COMMANDS,
+  IMT_FIELD_FORMATTERS,
+  IMT_INSPECTOR_SECTIONS,
+  IMT_VIEWS,
+  ImtActivityItem,
+  ImtCommand,
+  ImtFieldFormatter,
+  ImtInspectorSection,
+  ImtView,
+} from './tokens';
 
 /** Everything a UI plugin can contribute. All parts are optional. */
 export interface ImtPlugin {
@@ -7,6 +18,8 @@ export interface ImtPlugin {
   commands?: ImtCommand[];
   inspectorSections?: ImtInspectorSection[];
   fieldFormatters?: ImtFieldFormatter[];
+  /** Buttons in the left activity bar. */
+  activityItems?: ImtActivityItem[];
 }
 
 /**
@@ -22,5 +35,6 @@ export function provideImtPlugin(plugin: ImtPlugin): EnvironmentProviders {
   if (plugin.commands?.length) providers.push({ provide: IMT_COMMANDS, multi: true, useValue: plugin.commands });
   if (plugin.inspectorSections?.length) providers.push({ provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: plugin.inspectorSections });
   if (plugin.fieldFormatters?.length) providers.push({ provide: IMT_FIELD_FORMATTERS, multi: true, useValue: plugin.fieldFormatters });
+  if (plugin.activityItems?.length) providers.push({ provide: IMT_ACTIVITY_ITEMS, multi: true, useValue: plugin.activityItems });
   return makeEnvironmentProviders(providers);
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openApp } from './app';
+import { openApp, openView } from './app';
 
 // Regression guard: the production build must run under the Tauri CSP (see serve-prod.mjs).
 // Angular's critical-CSS inlining once emitted an inline handler that this CSP blocked, which
@@ -26,7 +26,7 @@ test('production build loads under the Tauri CSP without violations', async ({ p
   await expect(page.locator('imt-timeline-panel .lane-label')).toHaveCount(7);
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-  await page.getByRole('tab', { name: /Metrics/ }).click();
+  await openView(page, 'metrics');
   await expect(page.locator('imt-chart-card canvas').first()).toBeVisible();
   await page.getByRole('button', { name: 'Profile editor' }).click();
   await expect(page.getByText('Parsing profile')).toBeVisible();

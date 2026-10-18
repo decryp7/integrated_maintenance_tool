@@ -183,6 +183,20 @@ pub trait LogStore: Send + Sync {
         Vec::new()
     }
 
+    /// Runs between lifecycle markers (`[[span]]`): a sorted page plus every
+    /// span kind's summary over the selection. A store without runs has none.
+    fn runs(&self, req: &crate::spans::RunsRequest) -> crate::spans::RunsReply {
+        let _ = req;
+        crate::spans::RunsReply::default()
+    }
+
+    /// The Runs editor's preview of a candidate rule over the loaded data
+    /// (validation messages, counts, first runs and anomalies, what saving writes).
+    fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> Result<crate::spans::SpanPreview> {
+        let _ = req;
+        Err(anyhow::anyhow!("this store cannot preview runs"))
+    }
+
     /// The event bus between the engine and its plugins, for publishing
     /// host events (e.g. [`crate::events::SnapshotTaken`]) and reading
     /// per-subscriber delivery metrics. A store without plugins has none.
@@ -454,6 +468,14 @@ impl LogStore for Workspace {
 
     fn annotations(&self, req: &crate::plugin::annotate::AnnotationsRequest) -> Vec<crate::plugin::annotate::AnnotationDto> {
         Workspace::annotations(self, req)
+    }
+
+    fn runs(&self, req: &crate::spans::RunsRequest) -> crate::spans::RunsReply {
+        Workspace::runs(self, req)
+    }
+
+    fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> Result<crate::spans::SpanPreview> {
+        Ok(Workspace::preview_spans(self, req))
     }
 
     fn event_bus(&self) -> Option<std::sync::Arc<crate::events::EventBus>> {

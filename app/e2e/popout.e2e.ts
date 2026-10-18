@@ -1,5 +1,5 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
-import { gridTotal, initialTotal, openApp, parseCount } from './app';
+import { ensureInspector, gridTotal, initialTotal, openApp, openView, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
 import { menuItem, openMenu } from './menu-support';
@@ -23,7 +23,12 @@ async function popOut(page: Page, context: BrowserContext, name: string): Promis
 }
 
 test.describe('pop-out windows', () => {
-  test.beforeEach(async ({ page }) => openApp(page));
+  // Pop-outs of the inspector (docked) and Metrics, which the minimal default layout does not open.
+  test.beforeEach(async ({ page }) => {
+    await openApp(page);
+    await ensureInspector(page);
+    await openView(page, 'metrics');
+  });
 
   test('a panel pops out into a second window and the host selection reaches its inspector', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');

@@ -7,7 +7,8 @@ import { chooseMenu, menubar, menuItem, openMenu, openMenuPath } from './menu-su
 // default layout. Also runs against the production build with the Tauri CSP.
 
 const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-const CORE_TABS = ['Events', 'Inspector', 'Metrics', 'Query', 'Registry', 'Timeline'];
+const CORE_TABS = ['Events', 'Query', 'Registry', 'Timeline'];
+const inspectorTab = (page: Page) => page.locator('.imt-ah-tab[data-ah-id="inspector"]');
 
 function watchProblems(page: Page): string[] {
   const problems: string[] = [];
@@ -26,6 +27,7 @@ test.describe('menus', () => {
 
   test('startup opens only the core views (the registry export opened is shown in its viewer)', async ({ page }) => {
     await expect.poll(() => tabNames(page)).toEqual(CORE_TABS);
+    await expect(inspectorTab(page)).toBeVisible();
   });
 
   test('View ▸ Analysis ▸ Anomalies opens the anomalies view, and the View menu shows it checked', async ({ page }) => {
@@ -132,9 +134,10 @@ test.describe('menus', () => {
     await chooseMenu(page, 'View', 'Diagnostics', 'Plugin health');
     await chooseMenu(page, 'View', 'Inspector');
     await expect(page.getByRole('tab', { name: 'Patterns' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Inspector' })).toHaveCount(0);
+    await expect(inspectorTab(page)).toHaveCount(0);
     await chooseMenu(page, 'Window', 'Layouts', 'Reset window layout');
     await expect.poll(() => tabNames(page)).toEqual(CORE_TABS);
+    await expect(inspectorTab(page)).toBeVisible();
   });
 
   test('Help has no dummy items, and keeps the app version in About', async ({ page }) => {

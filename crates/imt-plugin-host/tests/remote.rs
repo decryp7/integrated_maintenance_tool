@@ -463,3 +463,14 @@ fn a_quarantined_process_is_not_restarted_and_counts_in_the_registry() {
     assert!(e.contains("failed 2 times") || e.contains("disabled after repeated crashes"), "{e}");
     p.shutdown();
 }
+
+#[test]
+fn the_plugin_process_has_a_child_log_with_its_version() {
+    let p = fake(&[]);
+    assert!(pid(&p).is_some());
+    let log = imt_ipc::child_log::find("plugin-the-fake-plugin").expect("a log for the plugin process");
+    let s = log.status();
+    assert!(s.starts >= 1, "{s:?}");
+    assert_eq!(s.version.as_deref(), Some("1.2.3"));
+    assert_eq!(s.kind, imt_ipc::child_log::ChildKind::Plugin);
+}

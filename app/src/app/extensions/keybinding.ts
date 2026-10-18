@@ -32,3 +32,11 @@ export function formatKeybinding(binding: string, mac = isMac()): string {
   });
   return mac ? out.join('') : out.join('+');
 }
+
+/** `aria-keyshortcuts` value of a binding, e.g. "Control+Shift+O" ("Mod" is Meta on macOS, Control elsewhere). */
+export function ariaKeyshortcuts(binding: string, mac = isMac()): string {
+  return binding
+    .split('+')
+    .map((p) => (p.toLowerCase() === 'mod' ? (mac ? 'Meta' : 'Control') : p.toLowerCase() === 'ctrl' ? 'Control' : p))
+    .join('+');
+}

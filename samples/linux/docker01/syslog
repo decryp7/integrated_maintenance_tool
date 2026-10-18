@@ -1,0 +1,257 @@
+Oct 14 09:01:04 docker01 sshd[34561]: Accepted publickey for deploy from 10.20.9.26 port 50437 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:01:10 docker01 systemd[1]: Started session-774.scope - Session of User deploy.
+Oct 14 09:01:37 docker01 containerd[914]: time="2026-10-14T09:01:37.327392000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:03:03 docker01 containerd[914]: time="2026-10-14T09:03:03.684738000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:03:20 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:04:13 docker01 sshd[35729]: Accepted publickey for deploy from 10.20.9.32 port 57453 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:04:40 docker01 containerd[914]: time="2026-10-14T09:04:40.340663000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:05:00 docker01 CRON[40135]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:05:31 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:06:54 docker01 sshd[32178]: Accepted publickey for deploy from 10.20.9.15 port 54271 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:06:59 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:07:44 docker01 kernel: [860876.827467] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.113 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=44398 DPT=22
+Oct 14 09:08:30 docker01 systemd[1]: Started session-441.scope - Session of User deploy.
+Oct 14 09:08:40 docker01 containerd[914]: time="2026-10-14T09:08:40.808531000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:08:47 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:09:28 docker01 containerd[914]: time="2026-10-14T09:09:28.154284000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:10:08 docker01 sshd[31478]: Accepted publickey for deploy from 10.20.9.32 port 40564 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:10:10 docker01 sshd[34684]: Accepted publickey for deploy from 10.20.9.15 port 40418 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:11:12 docker01 systemd[1]: Started session-586.scope - Session of User deploy.
+Oct 14 09:11:12 docker01 systemd[1]: Started session-379.scope - Session of User deploy.
+Oct 14 09:15:00 docker01 CRON[40422]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:15:07 docker01 sshd[33150]: Accepted publickey for deploy from 10.20.9.33 port 45933 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:17:26 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:20:00 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:20:21 docker01 sshd[37888]: Accepted publickey for deploy from 10.20.9.4 port 47384 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:21:35 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:23:15 docker01 systemd[1]: Started session-976.scope - Session of User deploy.
+Oct 14 09:24:25 docker01 kernel: [861877.126168] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.93 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=33358 DPT=22
+Oct 14 09:25:00 docker01 CRON[40952]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:25:21 docker01 sshd[39440]: Accepted publickey for deploy from 10.20.9.37 port 43478 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:27:10 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:28:13 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:28:44 docker01 containerd[914]: time="2026-10-14T09:28:44.806636000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:29:32 docker01 containerd[914]: time="2026-10-14T09:29:32.154349000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:31:03 docker01 systemd-resolved[611]: Clock change detected. Flushing caches.
+Oct 14 09:31:41 docker01 containerd[914]: time="2026-10-14T09:31:41.737989000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:31:44 docker01 containerd[914]: time="2026-10-14T09:31:44.088048000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:31:49 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:34:08 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:34:15 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:35:00 docker01 CRON[40610]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:35:06 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:35:43 docker01 containerd[914]: time="2026-10-14T09:35:43.359699000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:38:14 docker01 sshd[38181]: Accepted publickey for deploy from 10.20.9.23 port 48458 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:39:11 docker01 containerd[914]: time="2026-10-14T09:39:11.751632000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:39:12 docker01 sshd[37549]: Accepted publickey for deploy from 10.20.9.12 port 53461 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:39:30 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:41:42 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:43:17 docker01 containerd[914]: time="2026-10-14T09:43:17.812094000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:43:57 docker01 systemd[1]: Started session-816.scope - Session of User deploy.
+Oct 14 09:44:36 docker01 sshd[36503]: Accepted publickey for deploy from 10.20.9.40 port 45868 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:44:55 docker01 systemd[1]: Started session-292.scope - Session of User deploy.
+Oct 14 09:44:59 docker01 sshd[37200]: Accepted publickey for deploy from 10.20.9.23 port 48851 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:45:00 docker01 CRON[40369]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:45:04 docker01 containerd[914]: time="2026-10-14T09:45:04.619123000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:45:42 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:47:40 docker01 containerd[914]: time="2026-10-14T09:47:40.529276000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:49:48 docker01 containerd[914]: time="2026-10-14T09:49:48.677924000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:50:24 docker01 containerd[914]: time="2026-10-14T09:50:24.793158000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:50:55 docker01 systemd[1]: Started session-376.scope - Session of User deploy.
+Oct 14 09:51:07 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:51:12 docker01 sshd[39882]: Accepted publickey for deploy from 10.20.9.33 port 42842 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:51:15 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:53:20 docker01 containerd[914]: time="2026-10-14T09:53:20.871829000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 09:53:31 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:54:39 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:54:43 docker01 sshd[37030]: Accepted publickey for deploy from 10.20.9.37 port 56622 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 09:54:43 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:55:00 docker01 CRON[40088]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 09:55:10 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:55:26 docker01 systemd[1]: Started session-808.scope - Session of User deploy.
+Oct 14 09:56:10 docker01 systemd[1]: Started session-319.scope - Session of User deploy.
+Oct 14 09:57:17 docker01 systemd[1]: Started session-516.scope - Session of User deploy.
+Oct 14 09:58:39 docker01 rsyslogd[702]: -- MARK --
+Oct 14 09:59:22 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:00:32 docker01 kernel: [864044.909110] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.154 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=64456 DPT=22
+Oct 14 10:01:12 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:03:40 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:03:57 docker01 sshd[34983]: Accepted publickey for deploy from 10.20.9.17 port 49531 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:04:43 docker01 containerd[914]: time="2026-10-14T10:04:43.026611000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:05:00 docker01 CRON[40835]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:06:18 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:06:29 docker01 systemd[1]: Started session-236.scope - Session of User deploy.
+Oct 14 10:06:51 docker01 sshd[33991]: Accepted publickey for deploy from 10.20.9.36 port 46049 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:07:10 docker01 systemd[1]: Started session-549.scope - Session of User deploy.
+Oct 14 10:07:11 docker01 systemd[1]: Started session-975.scope - Session of User deploy.
+Oct 14 10:07:33 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:08:50 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:08:51 docker01 systemd[1]: Started session-981.scope - Session of User deploy.
+Oct 14 10:08:56 docker01 kernel: [864548.867861] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.54 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=63886 DPT=22
+Oct 14 10:09:06 docker01 systemd[1]: Started session-244.scope - Session of User deploy.
+Oct 14 10:11:21 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:11:35 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:13:28 docker01 systemd[1]: Started session-444.scope - Session of User deploy.
+Oct 14 10:13:49 docker01 containerd[914]: time="2026-10-14T10:13:49.651909000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:14:49 docker01 containerd[914]: time="2026-10-14T10:14:49.198798000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:14:51 docker01 systemd[1]: Started session-115.scope - Session of User deploy.
+Oct 14 10:15:00 docker01 CRON[40400]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:15:43 docker01 systemd[1]: Started session-328.scope - Session of User deploy.
+Oct 14 10:16:52 docker01 systemd[1]: Started session-827.scope - Session of User deploy.
+Oct 14 10:16:54 docker01 containerd[914]: time="2026-10-14T10:16:54.597445000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:17:22 docker01 systemd[1]: Started session-361.scope - Session of User deploy.
+Oct 14 10:17:50 docker01 containerd[914]: time="2026-10-14T10:17:50.105665000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:17:58 docker01 systemd[1]: Started session-326.scope - Session of User deploy.
+Oct 14 10:18:54 docker01 containerd[914]: time="2026-10-14T10:18:54.324693000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:18:58 docker01 containerd[914]: time="2026-10-14T10:18:58.211993000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:20:18 docker01 containerd[914]: time="2026-10-14T10:20:18.867790000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:22:33 docker01 containerd[914]: time="2026-10-14T10:22:33.682031000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:23:44 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:23:57 docker01 systemd[1]: Started session-214.scope - Session of User deploy.
+Oct 14 10:24:28 docker01 systemd[1]: Started session-370.scope - Session of User deploy.
+Oct 14 10:24:41 docker01 systemd[1]: Started session-950.scope - Session of User deploy.
+Oct 14 10:25:00 docker01 CRON[40557]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:25:02 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:25:43 docker01 sshd[30702]: Accepted publickey for deploy from 10.20.9.12 port 57974 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:27:01 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:27:36 docker01 kernel: [865668.447860] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.224 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=57806 DPT=22
+Oct 14 10:27:44 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:28:50 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:30:48 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:31:46 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:31:54 docker01 sshd[34932]: Accepted publickey for deploy from 10.20.9.31 port 50805 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:32:11 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:32:29 docker01 dockerd[1022]: time="2026-10-14T10:32:29.137565000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:32:30 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:32:38 docker01 systemd[1]: Started session-699.scope - Session of User deploy.
+Oct 14 10:32:46 docker01 sshd[39935]: Accepted publickey for deploy from 10.20.9.8 port 54064 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:32:52 docker01 systemd[1]: Started session-371.scope - Session of User deploy.
+Oct 14 10:32:57 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:33:16 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:33:35 docker01 sshd[38913]: Accepted publickey for deploy from 10.20.9.24 port 44303 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:34:22 docker01 kernel: [866074.273400] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:34:28 docker01 containerd[914]: time="2026-10-14T10:34:28.931247000Z" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+Oct 14 10:34:59 docker01 kernel: [866111.021368] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:35:00 docker01 CRON[40684]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:35:10 docker01 kernel: [866122.264138] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:36:27 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:37:02 docker01 sshd[32428]: Accepted publickey for deploy from 10.20.9.33 port 47069 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:37:03 docker01 systemd[1]: Started session-908.scope - Session of User deploy.
+Oct 14 10:37:10 docker01 kernel: [866242.776905] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:37:27 docker01 kernel: [866259.170543] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:38:05 docker01 dockerd[1022]: time="2026-10-14T10:38:05.674583000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:39:41 docker01 dockerd[1022]: time="2026-10-14T10:39:41.937799000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:40:14 docker01 kernel: [866426.850687] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:40:22 docker01 kernel: [866434.108913] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:40:22 docker01 dockerd[1022]: time="2026-10-14T10:40:22.830828000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:40:43 docker01 kernel: [866455.861286] nf_conntrack: nf_conntrack: table full, dropping packet
+Oct 14 10:42:51 docker01 dockerd[1022]: time="2026-10-14T10:42:51.674884000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:43:29 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:43:31 docker01 dockerd[1022]: time="2026-10-14T10:43:31.261677000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:43:48 docker01 kernel: [866640.313437] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.187 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=40840 DPT=22
+Oct 14 10:44:44 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:45:00 docker01 CRON[40676]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:45:05 docker01 dockerd[1022]: time="2026-10-14T10:45:05.331427000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:46:02 docker01 dockerd[1022]: time="2026-10-14T10:46:02.856751000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:46:14 docker01 sshd[34882]: Accepted publickey for deploy from 10.20.9.19 port 49703 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:46:55 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:48:24 docker01 dockerd[1022]: time="2026-10-14T10:48:24.981950000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:52:44 docker01 dockerd[1022]: time="2026-10-14T10:52:44.316882000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:52:48 docker01 dockerd[1022]: time="2026-10-14T10:52:48.274272000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 10:53:05 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:53:28 docker01 sshd[37615]: Accepted publickey for deploy from 10.20.9.13 port 50717 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:54:29 docker01 sshd[38459]: Accepted publickey for deploy from 10.20.9.7 port 47461 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 10:55:00 docker01 CRON[40069]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 10:55:29 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:58:26 docker01 rsyslogd[702]: -- MARK --
+Oct 14 10:59:39 docker01 sshd[32618]: Accepted publickey for deploy from 10.20.9.8 port 51367 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 11:00:04 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:00:18 docker01 dockerd[1022]: time="2026-10-14T11:00:18.480114000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:00:52 docker01 dockerd[1022]: time="2026-10-14T11:00:52.440718000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:00:52 docker01 systemd-resolved[611]: Clock change detected. Flushing caches.
+Oct 14 11:01:01 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:01:59 docker01 sshd[37727]: Accepted publickey for deploy from 10.20.9.8 port 40919 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 11:02:07 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:03:54 docker01 dockerd[1022]: time="2026-10-14T11:03:54.091194000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:04:39 docker01 dockerd[1022]: time="2026-10-14T11:04:39.370023000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:04:47 docker01 dockerd[1022]: time="2026-10-14T11:04:47.925452000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:04:59 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:05:00 docker01 CRON[40737]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:05:30 docker01 dockerd[1022]: time="2026-10-14T11:05:30.390187000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:08:35 docker01 dockerd[1022]: time="2026-10-14T11:08:35.517459000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:09:13 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:12:28 docker01 dockerd[1022]: time="2026-10-14T11:12:28.758433000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:12:40 docker01 dockerd[1022]: time="2026-10-14T11:12:40.373107000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:12:47 docker01 dockerd[1022]: time="2026-10-14T11:12:47.906023000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:13:22 docker01 dockerd[1022]: time="2026-10-14T11:13:22.406868000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:13:30 docker01 sshd[33149]: Accepted publickey for deploy from 10.20.9.3 port 49494 ssh2: ED25519 SHA256:3qBv7RkqVZb1
+Oct 14 11:13:38 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:14:02 docker01 dockerd[1022]: time="2026-10-14T11:14:02.877521000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:14:15 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:14:40 docker01 dockerd[1022]: time="2026-10-14T11:14:40.106074000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:15:00 docker01 CRON[40878]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:15:01 docker01 dockerd[1022]: time="2026-10-14T11:15:01.231245000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:15:17 docker01 dockerd[1022]: time="2026-10-14T11:15:17.192532000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:17:19 docker01 dockerd[1022]: time="2026-10-14T11:17:19.995888000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:17:56 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:19:40 docker01 dockerd[1022]: time="2026-10-14T11:19:40.758560000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:20:41 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:20:49 docker01 dockerd[1022]: time="2026-10-14T11:20:49.045108000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:21:54 docker01 dockerd[1022]: time="2026-10-14T11:21:54.366754000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:22:38 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:25:00 docker01 CRON[40360]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:25:06 docker01 dockerd[1022]: time="2026-10-14T11:25:06.065579000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:26:03 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:26:21 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:27:04 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:27:21 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:27:31 docker01 dockerd[1022]: time="2026-10-14T11:27:31.334038000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:28:08 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:28:31 docker01 dockerd[1022]: time="2026-10-14T11:28:31.079491000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:28:34 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:28:40 docker01 dockerd[1022]: time="2026-10-14T11:28:40.598674000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:29:02 docker01 systemd-resolved[611]: Clock change detected. Flushing caches.
+Oct 14 11:29:35 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:29:47 docker01 dockerd[1022]: time="2026-10-14T11:29:47.937638000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:34:13 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:34:51 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:34:56 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:35:00 docker01 CRON[40243]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:35:28 docker01 dockerd[1022]: time="2026-10-14T11:35:28.218048000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:35:35 docker01 dockerd[1022]: time="2026-10-14T11:35:35.660608000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:36:05 docker01 dockerd[1022]: time="2026-10-14T11:36:05.306948000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:36:19 docker01 dockerd[1022]: time="2026-10-14T11:36:19.089724000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:36:22 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:36:30 docker01 dockerd[1022]: time="2026-10-14T11:36:30.949484000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:37:09 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:38:12 docker01 kernel: [869904.892926] [UFW BLOCK] IN=eth0 OUT= MAC= SRC=192.0.2.138 DST=10.20.3.4 LEN=60 PROTO=TCP SPT=37478 DPT=22
+Oct 14 11:38:36 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:38:47 docker01 dockerd[1022]: time="2026-10-14T11:38:47.351852000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:39:18 docker01 dockerd[1022]: time="2026-10-14T11:39:18.908166000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:39:57 docker01 dockerd[1022]: time="2026-10-14T11:39:57.926829000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:42:16 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:43:13 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:43:29 docker01 dockerd[1022]: time="2026-10-14T11:43:29.761083000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:45:00 docker01 CRON[40442]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:45:15 docker01 dockerd[1022]: time="2026-10-14T11:45:15.093546000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:45:26 docker01 dockerd[1022]: time="2026-10-14T11:45:26.492728000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:47:07 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:47:36 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:48:02 docker01 dockerd[1022]: time="2026-10-14T11:48:02.320811000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:50:36 docker01 dockerd[1022]: time="2026-10-14T11:50:36.676735000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:51:14 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:52:13 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:52:14 docker01 dockerd[1022]: time="2026-10-14T11:52:14.483665000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:52:32 docker01 dockerd[1022]: time="2026-10-14T11:52:32.941844000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:53:19 docker01 dockerd[1022]: time="2026-10-14T11:53:19.112214000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:53:34 docker01 dockerd[1022]: time="2026-10-14T11:53:34.716458000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:54:06 docker01 dockerd[1022]: time="2026-10-14T11:54:06.135652000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:54:30 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:55:00 docker01 CRON[40056]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Oct 14 11:56:04 docker01 rsyslogd[702]: -- MARK --
+Oct 14 11:56:40 docker01 dockerd[1022]: time="2026-10-14T11:56:40.466964000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:57:13 docker01 dockerd[1022]: time="2026-10-14T11:57:13.691288000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:57:16 docker01 dockerd[1022]: time="2026-10-14T11:57:16.673479000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:58:41 docker01 dockerd[1022]: time="2026-10-14T11:58:41.867628000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:58:56 docker01 dockerd[1022]: time="2026-10-14T11:58:56.085478000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd
+Oct 14 11:58:57 docker01 dockerd[1022]: time="2026-10-14T11:58:57.495893000Z" level=warning msg="Health check for container f4a5f340c2fd failing: context deadline exceeded" container=f4a5f340c2fd

@@ -8,7 +8,7 @@ import { ViewRegistry } from '../extensions/view-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { AutoHideEvent, AutoHideItem, autoHideReduce, AutoHideState, EMPTY_AUTO_HIDE } from './auto-hide';
-import { adjacentNeighbour, DockSlot, isLayoutTarget, nearestSide, Point, Rect, resolveGuideDrop } from './dock-geometry';
+import { adjacentNeighbour, atEdge, DockSlot, isLayoutTarget, nearestSide, Point, Rect, resolveGuideDrop } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, targetPreview } from './dock-target';
 import { TabDragOut } from './tab-drag-out';
 import { DropGuides } from './drop-guides';
@@ -28,8 +28,8 @@ const PERSIST_DELAY_MS = 250;
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
 const FLOAT_SIZE = { width: 560, height: 380 };
-/** Size of a new tool window group at a window edge, px. */
-const TOOL_SIZE = { side: 340, bottom: 240 };
+/** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
+const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
 
 /** A view with a fixed place in the default layout, relative to a built-in panel. */
 interface Pin {
@@ -132,12 +132,37 @@ export class DockService {
       const anchor = this.store.anchor();
       if (anchor && this.apiReady()) untracked(() => this.show(PANEL.events));
     });
+    // Selecting an event slides the auto-hidden inspector out (it stays docked when the user pinned it).
+    let shownId: number | null = null;
+    effect(() => {
+      const id = this.store.selected()?.id ?? null;
+      const ready = this.apiReady();
+      untracked(() => {
+        if (id === shownId) return;
+        shownId = id;
+        if (id !== null && ready) this.revealInspector();
+      });
+    });
     // Conditional views (e.g. the registry viewer) follow what the workspace contains.
     effect(() => {
       const summary = this.store.summary();
       this.views.available();
       if (summary && this.apiReady()) untracked(() => this.syncConditionalViews());
     });
+  }
+
+  /**
+   * Slides the auto-hidden inspector out (without taking focus). Nothing when it is docked, popped out or closed, or
+   * when a tool window is docked on its edge: sliding over it would hide what the user is working with there.
+   */
+  revealInspector(): void {
+    const api = this.api;
+    if (this.remote || !api) return;
+    const s = this.autoHideState();
+    const item = s.items.find((i) => i.id === PANEL.inspector);
+    if (!item || s.open === PANEL.inspector) return;
+    if (item.side !== 'left' && this.toolGroupFor(api, item.side)) return;
+    this.autoHideEvent({ type: 'activate', id: PANEL.inspector });
   }
 
   private windows(): PanelWindows | null {
@@ -237,6 +262,7 @@ export class DockService {
       tabDrag,
       guides,
       observeFloatingAria(container),
+      keepGroupsUnscrolled(container),
       api.onDidAddPanel(() => this.refreshOpen()),
       api.onDidRemovePanel(() => this.refreshOpen()),
       api.onDidLayoutFromJSON(() => this.refreshOpen()),
@@ -249,7 +275,7 @@ export class DockService {
       }),
     ];
     this.restoring = true;
-    let extras: DockExtras = EMPTY_EXTRAS;
+    let extras: DockExtras;
     try {
       const saved = this.layoutStore.load();
       if (saved) {
@@ -261,11 +287,11 @@ export class DockService {
           this.layoutStore.clear();
           api.clear();
           this.fresh = true;
-          this.buildDefault(api);
+          extras = this.buildDefault(api);
         }
       } else {
         this.fresh = true;
-        this.buildDefault(api);
+        extras = this.buildDefault(api);
       }
       this.applyExtras(extras);
     } finally {
@@ -289,6 +315,7 @@ export class DockService {
     this.guides = null;
     this.apiReady.set(false);
     this.docked.set(new Set());
+    this.autoHideState.set(EMPTY_AUTO_HIDE);
   }
 
   /** Restores the default arrangement and forgets the saved one. */
@@ -299,8 +326,7 @@ export class DockService {
     this.restoring = true;
     try {
       api.clear();
-      this.buildDefault(api);
-      this.applyExtras(EMPTY_EXTRAS);
+      this.applyExtras(this.buildDefault(api));
     } finally {
       this.restoring = false;
     }
@@ -336,6 +362,9 @@ export class DockService {
       if (!options.inactive) this.autoHideEvent({ type: 'activate', id });
       return;
     }
+    // A tool window docks at a window edge, where a slid-out one would cover it.
+    const open = this.autoHideState().open;
+    if (open && !options.inactive && viewKind(view) === 'tool') this.autoHideEvent({ type: 'blur' });
     const existing = api.getPanel(id);
     if (existing) {
       if (api.hasMaximizedGroup() && !existing.group.api.isMaximized()) api.exitMaximizedGroup();
@@ -810,8 +839,7 @@ export class DockService {
         ok = false;
         this.logger.warn('ui.layout', 'Window layout could not be applied; using the default', { Error: String(e) });
         api.clear();
-        this.buildDefault(api);
-        this.applyExtras(EMPTY_EXTRAS);
+        this.applyExtras(this.buildDefault(api));
       }
     } finally {
       this.restoring = false;
@@ -877,7 +905,8 @@ export class DockService {
     for (const p of api.panels) {
       if (this.kindOf(p.id) !== 'tool' || p.group.api.location.type !== 'grid') continue;
       const rect = rectOf(p.group.element);
-      if (!root || !rect || nearestSide(rect, root) === want) return p.id;
+      // Without a layout (nothing measured yet) any docked tool window counts.
+      if (!root || !rect || !root.width || atEdge(rect, root, want)) return p.id;
     }
     return null;
   }
@@ -888,24 +917,23 @@ export class DockService {
   }
 
   /**
-   * The clean default: documents in the centre (timeline and metrics tabbed; the query bar over the events), the
-   * inspector tool window on the right. Everything else (profile editor, analysis, tools, ...) opens on demand.
+   * The minimal default: the timeline over the events (with the query bar pinned above them); the inspector is an
+   * auto-hidden tool window on the right edge that slides out when an event is selected (pin it to keep it docked).
+   * Everything else (metrics, profile editor, analysis, tools, ...) opens on demand. Returns the extras to apply.
    */
-  private buildDefault(api: DockviewApi): void {
+  private buildDefault(api: DockviewApi): DockExtras {
     const add = (id: string, position?: Parameters<DockviewApi['addPanel']>[0]['position']) => {
       const view = this.views.find(id);
       if (view) api.addPanel({ id, component: id, title: view.title, ...(position ? { position } : {}) });
     };
     add(PANEL.timeline);
-    add(PANEL.inspector, { referencePanel: PANEL.timeline, direction: 'right' });
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
     const query = this.views.find(QUERY_VIEW);
     if (query) this.addView(api, query, false);
-    add(PANEL.metrics, { referencePanel: PANEL.timeline, direction: 'within' });
     api.getPanel(PANEL.timeline)?.api.setActive();
-    api.getPanel(PANEL.inspector)?.group.api.setSize({ width: INSPECTOR_WIDTH });
     api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });
     api.getPanel(QUERY_VIEW)?.group.api.setSize({ height: QUERY_HEIGHT });
+    return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(this.views.find(PANEL.inspector)) };
   }
 
   /** Opens/closes views that depend on the workspace (`ImtView.when`). */
@@ -946,9 +974,32 @@ export class DockService {
   }
 }
 
+/**
+ * The inspector, auto-hidden on the right edge. Pinning it docks it as a full-height tool window on the right
+ * (no reference panel: it opens where a right-hand tool window opens by default).
+ */
+export function defaultAutoHidden(inspector: ImtView | undefined): AutoHideItem[] {
+  if (!inspector) return [];
+  return [{ id: inspector.id, title: inspector.title, side: 'right', size: INSPECTOR_WIDTH, slot: { referencePanel: null, direction: 'within' } }];
+}
+
 function rectOf(el: Element | null | undefined): Rect | null {
   const r = el?.getBoundingClientRect?.();
   return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
+}
+
+/**
+ * A group never scrolls sideways. Focusing something wider than a group (a dialog opened from a narrow tool window)
+ * would scroll the group's box (overflow: hidden still scrolls programmatically) and push its tab strip over the
+ * neighbouring group's header. Vertical scrolling is left alone (a short query bar shows its status that way).
+ */
+export function keepGroupsUnscrolled(root: HTMLElement): { dispose(): void } {
+  const onScroll = (e: Event) => {
+    const t = e.target;
+    if (t instanceof HTMLElement && t.classList.contains('dv-groupview') && t.scrollLeft !== 0) t.scrollLeft = 0;
+  };
+  root.addEventListener('scroll', onScroll, true);
+  return { dispose: () => root.removeEventListener('scroll', onScroll, true) };
 }
 
 /**

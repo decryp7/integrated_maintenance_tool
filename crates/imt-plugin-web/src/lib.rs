@@ -136,14 +136,24 @@ mod tests {
         assert!(ws.records().iter().any(|r| r.fields.contains_key("ClientIp")));
         assert!(ws.records().iter().any(|r| r.fields.contains_key("Url")));
 
-        // The repository samples are never claimed by these importers.
+        // In the repository samples these importers claim the files under samples/web and nothing else.
         let mut registry = PluginRegistry::new();
         registry.install(&WebPlugin).unwrap();
         let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
         let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
         let _ = ws.open(&[samples]);
-        for src in &ws.summary().sources {
-            assert!(!["w3c", "access-log", "har"].contains(&src.importer.as_str()), "{}", src.importer);
+        let summary = ws.summary();
+        let mut claimed: Vec<&str> = Vec::new();
+        for src in &summary.sources {
+            let in_web = src.path.replace('\\', "/").contains("/samples/web/");
+            let ours = ["w3c", "access-log", "har"].contains(&src.importer.as_str());
+            assert_eq!(ours, in_web, "{} claimed by {}", src.path, src.importer);
+            if ours {
+                claimed.push(src.importer.as_str());
+            }
         }
+        claimed.sort();
+        claimed.dedup();
+        assert_eq!(claimed, vec!["access-log", "har", "w3c"]);
     }
 }

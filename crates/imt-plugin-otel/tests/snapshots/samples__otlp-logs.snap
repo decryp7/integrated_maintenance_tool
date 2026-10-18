@@ -1,0 +1,63 @@
+---
+source: crates/imt-plugin-otel/tests/samples.rs
+expression: snapshot_of(LOGS)
+---
+sample: otel/collector/logs-20261014.jsonl
+records: 442
+skipped: 0
+first_ts: 1791968405964
+last_ts: 1791979192548
+fields:
+  - ScopeName
+  - SeverityText
+  - SpanId
+  - TraceId
+  - deployment.environment
+  - duration.ms
+  - host.name
+  - order.id
+  - service.name
+  - service.version
+first:
+  - ts: 1791968405964
+    level: Information
+    message: capture ok
+    fields:
+      service.name: payments-adapter
+      service.version: 1.7.3
+      host.name: docker01
+      deployment.environment: production
+      ScopeName: payments
+      order.id: 88731
+      duration.ms: 68.9
+      SeverityText: INFO
+      TraceId: 3aac77fef2ad108f583e20b534897f60
+      SpanId: 4b3c8284bf53fef3
+  - ts: 1791968436211
+    level: Information
+    message: capture ok
+    fields:
+      service.name: payments-adapter
+      service.version: 1.7.3
+      host.name: docker01
+      deployment.environment: production
+      ScopeName: payments
+      order.id: 88335
+      duration.ms: 132.2
+      SeverityText: INFO
+      TraceId: 01cb1516fd4f1f78845f43e8e0adb924
+      SpanId: 68e07d07a936da92
+  - ts: 1791968544538
+    level: Information
+    message: capture ok
+    fields:
+      service.name: payments-adapter
+      service.version: 1.7.3
+      host.name: docker01
+      deployment.environment: production
+      ScopeName: payments
+      order.id: 88960
+      duration.ms: 152.7
+      SeverityText: INFO
+      TraceId: 5ca00edffc647c94db4a406f64fb6438
+      SpanId: 421a706ac2a0ec0f

@@ -31,6 +31,9 @@ import { SeverityBadge } from '../live/severity-badge';
 import { AnnotationVm, layoutAnnotations } from './annotation-layout';
 import { AnnotationHover, AnnotationTrack } from './annotation-track';
 import { TimelineAnnotations } from './annotations.store';
+import { layoutRuns, RunBandVm } from './run-layout';
+import { RunHover, RunTrack } from './run-track';
+import { runAnomalyText, runDuration, runStatusLabel } from './run-text';
 import { ProfileSpanTrack } from '../profiling/integration/profile-span-track';
 import { DOCK_PANEL_ID } from '../dock/angular-panel';
 import { DockService } from '../dock/dock.service';
@@ -98,7 +101,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus],
+  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, RunTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main', '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
@@ -165,7 +168,7 @@ interface Hover {
         <imt-switch size="small" [checked]="s.synced()" (checkedChange)="s.setSync($event)" i18n="@@timeline.config.syncTime">Sync time</imt-switch>
       </div>
     }
-    @if ((store.summary()?.markerKinds?.length ?? 0) > 0 || ann.kinds().length || ann.error()) {
+    @if ((store.summary()?.markerKinds?.length ?? 0) > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
       <div class="legend-row">
         <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0">
           @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
@@ -180,6 +183,41 @@ interface Hover {
             @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
           }
         </div>
+        @if (ann.runKinds().length) {
+          <div class="run-legend" role="group" aria-label="Runs" i18n-aria-label="@@timeline.legend.runsAria">
+            <button
+              type="button"
+              class="lg runs-toggle"
+              data-testid="runs-toggle"
+              [attr.aria-pressed]="ann.runsShown()"
+              [title]="ann.runsShown() ? hideRunsTitle : showRunsTitle"
+              (click)="ann.toggleRuns()"
+            ><span class="pill"><span class="run-swatch" aria-hidden="true"></span><span class="lg-title" i18n="@@timeline.legend.runs">Runs</span></span></button>
+            @if (ann.runsShown()) {
+              @for (k of ann.runKinds(); track k.kind) {
+                <button
+                  type="button"
+                  class="lg"
+                  [attr.aria-pressed]="ann.isRunKindShown(k.kind)"
+                  [attr.data-run-kind]="k.kind"
+                  [title]="runKindTitle(k)"
+                  (click)="ann.toggleRunKind(k.kind)"
+                ><span class="pill">{{ k.label }} <span class="faint mono">{{ k.count }}</span>@if (k.anomalies) { <span class="run-anoms" [attr.aria-label]="anomaliesAria(k.anomalies)">⚠ {{ k.anomalies }}</span> }</span></button>
+              }
+            }
+            @if (!ann.kinds().length && !ann.error() && annInView().length) {
+              <!-- Without plugin annotations the keyboard path to the runs lives here. -->
+              <button
+                type="button"
+                class="lg ann-list"
+                aria-haspopup="menu"
+                title="Show the events of a run in view"
+                i18n-title="@@timeline.legend.runEvidenceTitle"
+                (click)="annMenu($event)"
+              ><span class="pill" i18n="@@timeline.legend.evidence">Evidence…</span></button>
+            }
+          </div>
+        }
         @if (ann.kinds().length || ann.error()) {
           <div class="ann-legend" role="group" aria-label="Annotations" i18n-aria-label="@@timeline.legend.annotationsAria">
             <span class="lg-title" i18n="@@timeline.legend.annotations">Annotations</span>
@@ -256,6 +294,9 @@ interface Hover {
             <div class="plot track">
               <div class="baseline"></div>
               <div class="bar" [style.left.%]="l.left" [style.width.%]="l.width"></div>
+              @if (runLayout().get(l.lane.key); as runs) {
+                <imt-run-track [items]="runs" (hovered)="runHover.set($event)" (activated)="ann.showRun($event.ann)" />
+              }
               @if (annLayout().lanes.get(l.lane.key); as items) {
                 <imt-annotation-track [items]="items" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
               }
@@ -366,6 +407,32 @@ interface Hover {
       </div>
     }
 
+    @if (runHover(); as h) {
+      <div class="popover tip" data-testid="run-tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
+        <div class="tip-head">
+          <strong>{{ h.vm.run.spanLabel }}</strong>
+          <span class="badge run-status" [attr.data-status]="h.vm.status">{{ statusLabel(h.vm.status) }}</span>
+          <span class="spacer"></span>
+          <span class="mono faint">{{ runDur(h.vm) }}</span>
+        </div>
+        <div class="mono small">{{ h.vm.ann.instance }}@if (h.vm.run.group; as g) { · {{ g.field }} = {{ g.value }} }</div>
+        @if (h.vm.run.start; as s) {
+          <div class="small"><span class="faint" i18n="@@timeline.runTip.started">Started</span> <span class="mono">{{ time(s.ts) }}</span></div>
+          <div class="tip-msg">{{ s.message }}</div>
+        }
+        @if (h.vm.run.stop; as s) {
+          <div class="small"><span class="faint" i18n="@@timeline.runTip.stopped">Stopped</span> <span class="mono">{{ time(s.ts) }}</span></div>
+          <div class="tip-msg">{{ s.message }}</div>
+        } @else if (h.vm.status === 'open') {
+          <div class="small faint" i18n="@@timeline.runTip.open">No stop yet: drawn to the lane's last event ({{ time(h.vm.ann.to) //i18n(ph="time") }}).</div>
+        } @else if (h.vm.status === 'noStop') {
+          <div class="small faint" i18n="@@timeline.runTip.lastEvent">Last event before the next start: {{ time(h.vm.ann.to) //i18n(ph="time") }}</div>
+        }
+        @if (anomalyText(h.vm); as w) { <div class="small warn-text">⚠ {{ w }}</div> }
+        <div class="faint small" i18n="@@timeline.runTip.click">Click to show this run's events</div>
+      </div>
+    }
+
     @if (annHover(); as h) {
       <div class="popover tip" data-testid="annotation-tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
         <div class="tip-head">
@@ -394,7 +461,7 @@ interface Hover {
     .config .ql { flex: 1 1 260px; min-width: 160px; height: 24px; padding: 0 6px; }
     .spacer { flex: 1; }
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
-    .legend, .ann-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+    .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
     /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
     .lg { display: inline-flex; align-items: center; min-height: 24px; margin: -2px 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
     .lg:focus-visible { outline: none; }
@@ -404,7 +471,8 @@ interface Hover {
     .lg[aria-pressed='true'] .pill { border-color: var(--accent); background: var(--accent-soft); }
     .tip-desc { color: var(--text); }
     .lg-title { font-weight: 600; color: var(--text-2); white-space: nowrap; }
-    .legend.filtering .lg[aria-pressed='false'], .ann-legend .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
+    .legend.filtering .lg[aria-pressed='false'], .ann-legend .lg[aria-pressed='false'], .run-legend .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
+    .run-legend .lg[aria-pressed='true'] .pill { border-color: transparent; background: transparent; }
     .ann-legend .lg[aria-pressed='true'] .pill { border-color: transparent; background: transparent; }
     .ann-err { color: var(--danger-text); white-space: nowrap; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -453,6 +521,11 @@ interface Hover {
     .tip { position: fixed; width: 340px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; line-height: 1.45; }
     .tip-head { display: flex; align-items: center; gap: 8px; }
     .tip-msg { color: var(--text-2); }
+    .run-swatch { width: 14px; height: 10px; border: 1.5px solid color-mix(in srgb, var(--accent) 75%, transparent); border-radius: 3px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+    .run-legend .lg-title { font-weight: 600; }
+    .run-anoms { color: var(--warn-text); }
+    .warn-text { color: var(--warn-text); }
+    .run-status { font-size: 11px; }
   `,
 })
 export class TimelinePanel {
@@ -494,12 +567,47 @@ export class TimelinePanel {
   protected readonly tl = this.src.timeline;
   protected readonly ann = inject(TimelineAnnotations);
   protected readonly annHover = signal<AnnotationHover | null>(null);
+  protected readonly runHover = signal<RunHover | null>(null);
+  protected readonly hideRunsTitle = $localize`:@@timeline.legend.hideRuns:Hide the runs between start and stop markers`;
+  protected readonly showRunsTitle = $localize`:@@timeline.legend.showRuns:Show the runs between start and stop markers`;
+  protected readonly statusLabel = runStatusLabel;
+
+  /** Run bands per lane (behind the markers). */
+  protected readonly runLayout = computed(() => {
+    const view = this.range();
+    if (!view) return new Map<string, RunBandVm[]>();
+    return layoutRuns(this.ann.runs(), {
+      laneKeys: this.lanes().map((l) => l.lane.key),
+      view,
+      hidden: this.ann.hiddenRuns(),
+      shown: this.ann.runsShown(),
+    });
+  });
+
+  protected runDur(v: RunBandVm): string {
+    return runDuration(v.run);
+  }
+
+  protected anomalyText(v: RunBandVm): string | null {
+    return runAnomalyText(v.run);
+  }
+
+  protected runKindTitle(k: { kind: string; label: string; count: number }): string {
+    const { label, count } = k;
+    return this.ann.isRunKindShown(k.kind)
+      ? $localize`:@@timeline.legend.hideRunKind:Hide ${label}:label: runs (${count}:count:)`
+      : $localize`:@@timeline.legend.showRunKind:Show ${label}:label: runs (${count}:count:)`;
+  }
+
+  protected anomaliesAria(n: number): string {
+    return $localize`:@@timeline.legend.runAnomalies:${n}:count: anomalies`;
+  }
 
   /** Annotation bands and glyphs per lane, plus the full-height ones. */
   protected readonly annLayout = computed(() => {
     const view = this.range();
     if (!view) return { lanes: new Map(), global: [] };
-    return layoutAnnotations(this.ann.items(), {
+    return layoutAnnotations(this.ann.plugin(), {
       laneKeys: this.lanes().map((l) => l.lane.key),
       view,
       groupBy: [...this.src.groupBy()],
@@ -507,11 +615,12 @@ export class TimelinePanel {
     });
   });
 
-  /** The annotations in view, once each (one may be drawn on several lanes), in time order. */
+  /** The annotations and runs in view, once each (one may be drawn on several lanes), in time order. */
   protected readonly annInView = computed(() => {
     const { lanes, global } = this.annLayout();
     const seen = new Set<AnnotationDto>();
     for (const v of [...global, ...[...lanes.values()].flat()] as AnnotationVm[]) seen.add(v.ann);
+    for (const v of [...this.runLayout().values()].flat()) seen.add(v.ann);
     return [...seen].sort((a, b) => a.from - b.from || a.label.localeCompare(b.label));
   });
 
@@ -519,7 +628,11 @@ export class TimelinePanel {
   protected annMenu(e: MouseEvent): void {
     const anns = this.annInView();
     const at = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const items: MenuEntry[] = anns.slice(0, MAX_ANN_MENU).map((a) => ({ label: `${a.label} · ${this.time(a.from)}`, run: () => this.ann.showEvidence(a) }));
+    const items: MenuEntry[] = anns.slice(0, MAX_ANN_MENU).map((a) =>
+      a.run
+        ? { label: `${a.label} · ${a.instance ?? ''} · ${this.time(a.from)}`, run: () => this.ann.showRun(a) }
+        : { label: `${a.label} · ${this.time(a.from)}`, run: () => this.ann.showEvidence(a) },
+    );
     const more = anns.length - items.length;
     if (more > 0) items.push({ label: $localize`:@@timeline.legend.evidenceMore:${more}:count: more — zoom in to list them`, run: () => undefined, disabled: true });
     this.menu.open(at.left, at.bottom, items, e.currentTarget as HTMLElement);

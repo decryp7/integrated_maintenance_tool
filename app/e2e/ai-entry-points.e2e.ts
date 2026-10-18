@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gridTotal, parseCount } from './app';
+import { gridTotal, hideInspectorFlyout, parseCount } from './app';
 import { openQuery } from './analysis-support';
 import { expectNoSeriousViolations } from './axe';
 import { openAiApp, rowMenu, runCommand } from './ai-support';
@@ -61,6 +61,7 @@ test.describe('AI entry points', () => {
   test('Propose markers from the markers manager, and pipeline changes from the profile editor', async ({ page }, testInfo) => {
     await openAiApp(page);
     await page.locator('imt-events-grid [role=row].row').first().click();
+    await hideInspectorFlyout(page);
     await runCommand(page, 'Manage markers');
     await page.getByTestId('ai-propose-markers').click();
     const dialog = page.getByRole('dialog', { name: 'Propose markers' });

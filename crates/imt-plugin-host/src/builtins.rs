@@ -104,6 +104,10 @@ pub fn spec(host: impl Into<PathBuf>, id: &str, granted: Vec<PermissionRequest>)
     s.args = vec!["--plugin".into(), id.into()];
     s.expected_id = Some(id.into());
     s.grants = granted;
+    // One "plugin-host-<id>" log per isolated built-in.
+    let log = imt_ipc::child_log::ChildLogSpec::new(format!("plugin-host-{id}"), imt_ipc::child_log::ChildKind::PluginHost);
+    s.supervisor.log = Some(log.clone());
+    s.log = Some(log);
     s
 }
 
@@ -128,6 +132,8 @@ mod tests {
         let s = spec("/x/host", "net.decryptology.web", Vec::new());
         assert_eq!(s.args, ["--plugin", "net.decryptology.web"]);
         assert_eq!(s.expected_id.as_deref(), Some("net.decryptology.web"));
+        assert_eq!(s.log.as_ref().map(|l| l.name.as_str()), Some("plugin-host-net.decryptology.web"));
+        assert_eq!(s.supervisor.log, s.log);
     }
 
     #[test]

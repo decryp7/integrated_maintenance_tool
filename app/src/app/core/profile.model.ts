@@ -1,3 +1,5 @@
+import type { SpanCfgToml } from './api.types';
+
 /**
  * Shape of a parsing profile (TOML), mirroring crates/imt-core/src/default_profile.toml.
  * Keys are snake_case as written in the file. Unknown keys are preserved by the editor.
@@ -144,6 +146,9 @@ export interface PipelineStep {
   [key: string]: unknown;
 }
 
+/** A `[[span]]` rule: runs between a start and a stop marker (default_profile.toml documents every key). */
+export type SpanRuleToml = SpanCfgToml;
+
 export interface ProfileModel {
   name?: string;
   files?: { include?: string[]; exclude?: string[]; [key: string]: unknown };
@@ -181,6 +186,8 @@ export interface ProfileModel {
   marker_override?: MarkerOverride[];
   chart?: ChartRule[];
   pipeline?: PipelineStep[];
+  /** Runs between lifecycle markers; absent = the default rule, `[]` = none. */
+  span?: SpanRuleToml[];
   [key: string]: unknown;
 }
 

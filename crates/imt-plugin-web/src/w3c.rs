@@ -1,4 +1,5 @@
-//! W3C extended log format (IIS).
+//! W3C extended log format (IIS, Windows Firewall), and its comma-separated variant with quoted
+//! values and a `date-time` column (Exchange message tracking and protocol logs).
 
 use crate::level_for_status;
 use anyhow::Result;
@@ -30,6 +31,7 @@ impl Importer for W3cImporter {
     fn import(&self, _ctx: &ImportCtx, content: &str) -> Result<Imported> {
         let mut out = Imported::default();
         let mut columns: Vec<&str> = Vec::new();
+        let mut commas = false;
         for (i, line) in content.trim_start_matches('\u{feff}').lines().enumerate() {
             let line = line.trim_end();
             if line.is_empty() {
@@ -37,11 +39,22 @@ impl Importer for W3cImporter {
             }
             if let Some(rest) = line.strip_prefix('#') {
                 if let Some(fields) = rest.strip_prefix("Fields:") {
-                    columns = fields.split_whitespace().collect();
+                    commas = fields.contains(',');
+                    columns = if commas {
+                        fields.split(',').map(str::trim).collect()
+                    } else {
+                        fields.split_whitespace().collect()
+                    };
                 }
                 continue;
             }
-            let values: Vec<&str> = line.split(' ').collect();
+            let quoted;
+            let values: Vec<&str> = if commas {
+                quoted = split_quoted(line);
+                quoted.iter().map(String::as_str).collect()
+            } else {
+                line.split(' ').collect()
+            };
             if columns.is_empty() || values.len() != columns.len() {
                 out.skipped += 1;
                 continue;
@@ -52,22 +65,47 @@ impl Importer for W3cImporter {
     }
 }
 
+/// One comma-separated row; values may be quoted, with `""` for a quote.
+fn split_quoted(line: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut value = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                chars.next();
+                value.push('"');
+            }
+            '"' => quoted = !quoted,
+            ',' if !quoted => values.push(std::mem::take(&mut value)),
+            _ => value.push(c),
+        }
+    }
+    values.push(value);
+    values
+}
+
 fn record(line: u32, columns: &[&str], values: &[&str]) -> Record {
     let mut r = Record::new(line);
-    let (mut date, mut time) = ("", "");
+    let (mut date, mut time, mut date_time) = ("", "", "");
     for (name, value) in columns.iter().zip(values) {
         match *name {
             "date" => date = value,
             "time" => time = value,
-            _ if *value == "-" => {}
+            "date-time" => date_time = value,
+            _ if value.is_empty() || *value == "-" => {}
             _ => {
                 r.fields.insert((*name).into(), auto_value(value));
             }
         }
     }
-    r.ts = NaiveDateTime::parse_from_str(&format!("{date} {time}"), "%Y-%m-%d %H:%M:%S%.f")
-        .ok()
-        .map(|d| d.and_utc().timestamp_millis());
+    r.ts = match date_time {
+        "" => NaiveDateTime::parse_from_str(&format!("{date} {time}"), "%Y-%m-%d %H:%M:%S%.f")
+            .ok()
+            .map(|d| d.and_utc().timestamp_millis()),
+        dt => chrono::DateTime::parse_from_rfc3339(dt).ok().map(|d| d.timestamp_millis()),
+    };
     let text = |k: &str| r.fields.get(k).map(|v| imt_core::model::value_text(v).into_owned());
     let status = r.fields.get("sc-status").and_then(Value::as_i64);
     let mut msg = format!(
@@ -86,6 +124,11 @@ fn record(line: u32, columns: &[&str], values: &[&str]) -> Record {
         msg.push_str(&format!(" in {t} ms"));
     }
     r.message = msg.trim().to_string();
+    if r.message.is_empty() {
+        // Not a web request (Exchange, firewall): the row's values.
+        let parts: Vec<String> = r.fields.values().map(|v| imt_core::model::value_text(v).into_owned()).collect();
+        r.message = parts.join(", ");
+    }
     if let Some(s) = status {
         r.level = level_for_status(s);
     }
@@ -126,6 +169,29 @@ mod tests {
     }
 
     #[test]
+    fn comma_separated_with_date_time() {
+        // The Exchange message tracking layout (synthetic values).
+        let log = concat!(
+            "\u{feff}#Software: Microsoft Exchange Server\r\n#Version: 15.0.0.0\r\n#Log-type: Message Tracking Log\r\n",
+            "#Fields: date-time,client-ip,source,event-id,message-subject,recipient-count\r\n",
+            "2026-10-14T10:00:02.052Z,,STOREDRIVER,NOTIFYMAPI,\"Quota, \"\"warning\"\"\",1\r\n",
+            "2026-10-14T10:00:03.000Z,10.0.0.5,SMTP,RECEIVE,Hello,2\r\n",
+            "2026-10-14T10:00:04.000Z,too,few\r\n",
+        );
+        let out = with_ctx(|c| {
+            assert_eq!(W3cImporter.sniff(c, log), 100);
+            W3cImporter.import(c, log).unwrap()
+        });
+        assert_eq!((out.records.len(), out.skipped), (2, 1));
+        let r = &out.records[0];
+        assert_eq!(r.ts, Some(1_791_972_002_052));
+        assert_eq!(r.fields["message-subject"], "Quota, \"warning\"");
+        assert!(!r.fields.contains_key("client-ip"));
+        assert_eq!(r.message, "STOREDRIVER, NOTIFYMAPI, Quota, \"warning\", 1");
+        assert_eq!(out.records[1].fields["recipient-count"], 2);
+    }
+
+    #[test]
     fn sniff_and_edge_cases() {
         with_ctx(|c| {
             assert_eq!(W3cImporter.sniff(c, "\u{feff}#Software: x\n#Fields: date time\n"), 100);
@@ -141,7 +207,8 @@ mod tests {
                 .unwrap();
             assert_eq!(out.skipped, 1);
             assert!(out.records[0].ts.is_none());
-            assert_eq!(out.records[0].message, "");
+            assert_eq!(out.records[0].message, "1", "not a request: the row's values");
+            assert_eq!(out.records[1].message, "");
             assert_eq!(out.records[1].ts, Some(1_767_225_600_500));
         });
     }

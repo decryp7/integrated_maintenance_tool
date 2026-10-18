@@ -12,6 +12,7 @@ import { TitleExtras } from './title-extras';
 import { UI_STATE_CONTRIBUTIONS } from './ui-state';
 import { CoreUiState } from './core-ui-state';
 import { WindowingBackend } from '../windowing/windowing-backend';
+import { DiagnosticsExport } from '../diagnostics/diagnostics-export.service';
 
 async function setup(options: Partial<MockToolsOptions> = {}) {
   TestBed.configureTestingModule({ providers: [...provideToolsTesting(options), { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(CoreUiState).contributions }] });
@@ -190,6 +191,35 @@ describe('LifecycleBanners and TitleExtras', () => {
     buttonByText(f, 'Dismiss').click();
     await settle(f);
     expect(fixtureHas(f, 'crash-banner')).toBe(false);
+  });
+
+  it('offers Save diagnostics in the safe-mode and crash banners', async () => {
+    await setup({ safeMode: true, previousCrash: true });
+    const exporter = TestBed.inject(DiagnosticsExport);
+    const save = vi.spyOn(exporter, 'save').mockResolvedValue();
+    const f = TestBed.createComponent(LifecycleBanners);
+    await settle(f);
+    for (const banner of ['safe-mode-banner', 'crash-banner']) {
+      const button = el(f, `[data-testid=${banner}] [data-testid=save-diagnostics]`) as HTMLButtonElement;
+      expect(button.textContent).toContain('Save diagnostics…');
+      button.click();
+    }
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the outcome of saving diagnostics and lets the user dismiss it', async () => {
+    await setup({ safeMode: true });
+    const exporter = TestBed.inject(DiagnosticsExport);
+    const f = TestBed.createComponent(LifecycleBanners);
+    exporter.status.set({ kind: 'saved', text: 'Saved diagnostics (9 files) to /x.zip' });
+    await settle(f);
+    expect(el(f, '[data-testid=diagnostics-export-status]').textContent).toContain('Saved diagnostics (9 files)');
+    exporter.status.set({ kind: 'failed', text: 'Could not save the diagnostics: no' });
+    await settle(f);
+    expect(el(f, '[data-testid=diagnostics-export-status]').getAttribute('role')).toBe('alert');
+    (el(f, '[data-testid=diagnostics-export-status] .ghost') as HTMLButtonElement).click();
+    await settle(f);
+    expect(fixtureHas(f, 'diagnostics-export-status')).toBe(false);
   });
 
   it('disables restore when there is no session file', async () => {

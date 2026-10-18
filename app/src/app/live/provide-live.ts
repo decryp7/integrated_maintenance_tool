@@ -1,6 +1,6 @@
 import { ApplicationRef, createComponent, effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
 import { DockService } from '../dock/dock.service';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { DialogService } from '../ui/dialog.service';
 import { LiveTail } from '../workspace/live-tail';
@@ -8,6 +8,7 @@ import { AlertToasts } from './alert-toasts';
 import { AlertsStore } from './alerts.store';
 import { LiveAlerts } from './live-alerts';
 import { LiveAutoOpen } from './live-auto-open';
+import { liveActivityItems } from './live-activity';
 import { LiveFeed } from './live-feed';
 import { LiveFollow } from './live-follow.store';
 import { LiveUiState } from './live-ui-state';
@@ -103,6 +104,7 @@ export function provideLive(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_VIEWS, multi: true, useValue: LIVE_VIEWS },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LiveCommands).commands },
+    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(inject(LiveTail), inject(LiveFollow)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(LiveUiState).contributions },
     provideAppInitializer(() => startLive()),
   ]);

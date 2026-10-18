@@ -727,6 +727,7 @@ impl PluginRegistry {
     pub fn compile_profile(&self, profile: crate::profile::Profile) -> Result<crate::profile::CompiledProfile> {
         let mut compiled = crate::profile::CompiledProfile::compile_with(profile, &self.transforms)?;
         let notes = markers::apply(&mut compiled, &self.marker_kinds)?;
+        compiled.resolve_spans();
         *self.marker_notes.lock().unwrap_or_else(|p| p.into_inner()) = notes;
         Ok(compiled)
     }

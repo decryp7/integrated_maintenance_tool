@@ -11,7 +11,7 @@ import { REGISTRY_PLUGIN } from '../plugins/registry/registry.plugin';
 import { ImtPlugin, provideImtPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { DockHost } from './dock-host';
-import { DockService, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
+import { DockService, keepGroupsUnscrolled, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
 import { GroupActions } from './group-actions';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
@@ -24,9 +24,12 @@ beforeAll(() => loadDockview());
 @Component({ selector: 'imt-test-query', template: 'query bar' })
 class QueryStub {}
 
-/** Stand-in for the analysis plugin's query bar: a conditional bottom view. */
+/** Stand-in for the analysis plugin's query bar (a conditional bottom view), plus a right-hand tool window opened on demand. */
 const QUERY_PLUGIN: ImtPlugin = {
-  views: [{ id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0, autoOpen: true }],
+  views: [
+    { id: QUERY_VIEW, title: 'Query', icon: 'search', defaultPosition: 'bottom', component: async () => QueryStub, when: (s) => s.total > 0, autoOpen: true },
+    { id: 'test-tool', title: 'Tool', icon: 'panel', defaultPosition: 'right', component: async () => QueryStub },
+  ],
 };
 
 /** Ids of the panels in each group, in grid order (depth first). */
@@ -445,15 +448,97 @@ describe('DockService with dockview', () => {
   const ids = (d: DockService) => [...d.openIds()].sort();
   const persisted = () => new Promise((r) => setTimeout(r, 300));
 
-  it('builds the clean default arrangement: timeline over events, inspector right, metrics stacked with the timeline (the profile editor opens on demand)', () => {
+  /** The fuller arrangement most feature tests exercise: the inspector docked on the right, metrics tabbed with the timeline. */
+  const withPanels = (d: DockService) => {
+    d.pin(PANEL.inspector);
+    d.show(PANEL.metrics, { inactive: true });
+    return d;
+  };
+
+  it('builds the minimal default arrangement: timeline over events, the inspector auto-hidden on the right (metrics and the rest open on demand)', () => {
     const { dock } = setup();
     dock.attach(container);
-    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'timeline']);
+    expect(ids(dock)).toEqual(['events', 'inspector', 'timeline']);
+    expect(dock.isOpen('metrics')).toBe(false);
     const groups = [...container.querySelectorAll('.dv-groupview')];
-    expect(groups).toHaveLength(3);
+    expect(groups).toHaveLength(2);
     const tabsOf = (g: Element) => [...g.querySelectorAll('[role=tab]')].map((t) => t.getAttribute('aria-label'));
-    expect(groups.map(tabsOf).sort()).toEqual([['Events'], ['Inspector'], ['Timeline', 'Metrics']].sort());
+    expect(groups.map(tabsOf).sort()).toEqual([['Events'], ['Timeline']].sort());
+    expect(dock['api']!.getPanel('inspector')).toBeUndefined();
+    expect(dock.autoHide()).toMatchObject({ items: [{ id: 'inspector', side: 'right', slot: { referencePanel: null } }], open: null });
     expect(container.querySelector('[role=tab][aria-selected=true]')).not.toBeNull();
+  });
+
+  it('slides the inspector back in when another tool window is shown (it would cover it), not for documents', async () => {
+    const { dock } = setup({ query: true });
+    dock.attach(container);
+    await settle();
+    dock.show('inspector');
+    dock.show('profile');
+    expect(dock.autoHide().open).toBe('inspector');
+    dock.show('test-tool', { inactive: true });
+    expect(dock.autoHide().open).toBe('inspector');
+    dock.close('test-tool');
+    dock.show('test-tool');
+    expect(dock.autoHide().open).toBeNull();
+    expect(dock.isOpen('test-tool')).toBe(true);
+  });
+
+  it('does not slide the inspector out over a tool window docked on its edge', async () => {
+    const { dock, store } = setup({ query: true });
+    dock.attach(container);
+    await settle();
+    dock.show('test-tool');
+    store.select({ id: 4 } as never);
+    await settle();
+    expect(dock.autoHide().open).toBeNull();
+    dock.close('test-tool');
+    store.select({ id: 5 } as never);
+    await settle();
+    expect(dock.autoHide().open).toBe('inspector');
+  });
+
+  it('pins the default auto-hidden inspector as a full-height tool window on the right', () => {
+    const { dock } = setup();
+    dock.attach(container);
+    dock.pin('inspector');
+    expect(dock.autoHide().items).toHaveLength(0);
+    const api = dock['api']!;
+    expect(api.getPanel('inspector')!.group).not.toBe(api.getPanel('timeline')!.group);
+    expect(container.querySelectorAll('.dv-groupview')).toHaveLength(3);
+  });
+
+  it('slides the auto-hidden inspector out when an event is selected, but not for the same one or a cleared selection', async () => {
+    const { dock, store } = setup();
+    dock.attach(container);
+    await settle();
+    const row = { id: 7 } as never;
+    store.select(row);
+    await settle();
+    expect(dock.autoHide().open).toBe('inspector');
+    dock.autoHideEvent({ type: 'blur' });
+    store.select(row);
+    await settle();
+    expect(dock.autoHide().open).toBeNull();
+    store.select(null);
+    await settle();
+    expect(dock.autoHide().open).toBeNull();
+    store.select({ id: 8 } as never);
+    await settle();
+    expect(dock.autoHide().open).toBe('inspector');
+    // Docked (pinned) or closed, selecting leaves the inspector alone; a pop-out window never slides it out.
+    dock.pin('inspector');
+    store.select({ id: 9 } as never);
+    await settle();
+    expect(dock.autoHide().open).toBeNull();
+    dock.unpin('inspector');
+    dock.setRemote(() => undefined);
+    dock.revealInspector();
+    expect(dock.autoHide().open).toBeNull();
+    dock.setRemote(null);
+    dock.close('inspector');
+    dock.revealInspector();
+    expect(dock.isOpen('inspector')).toBe(false);
   });
 
   it('opens, focuses, closes and toggles views; ignores unknown ones', () => {
@@ -485,11 +570,13 @@ describe('DockService with dockview', () => {
     dock.attach(container);
     dock.detach();
     expect(dock.openIds().size).toBe(0);
+    expect(dock.autoHide().items).toHaveLength(0);
   });
 
   it('un-maximizes when showing a panel in another group', () => {
     const { dock } = setup();
     dock.attach(container);
+    withPanels(dock);
     const maximize = container.querySelector<HTMLButtonElement>('button[aria-label="Maximize panel"]')!;
     maximize.click();
     expect(container.querySelector('button[aria-label="Restore panel size"]')).not.toBeNull();
@@ -500,6 +587,7 @@ describe('DockService with dockview', () => {
   it('floats a group and docks it back', () => {
     const { dock } = setup();
     dock.attach(container);
+    withPanels(dock);
     container.querySelector<HTMLButtonElement>('button[aria-label="Float panel"]')!.click();
     expect(container.querySelector('.dv-resize-container')).not.toBeNull();
     const dockBack = container.querySelector<HTMLButtonElement>('button[aria-label="Dock panel back into the window"]')!;
@@ -512,6 +600,7 @@ describe('DockService with dockview', () => {
   it('docks a floated view back next to where it opens by default (below or right of the timeline)', () => {
     const { dock } = setup();
     dock.attach(container);
+    withPanels(dock);
     const api = dock['api']!;
     for (const id of ['events', 'inspector']) {
       dock.toggleFloat(api.getPanel(id)!.group);
@@ -534,6 +623,7 @@ describe('DockService with dockview', () => {
   it('closes a focused tab with Delete and ignores other keys', () => {
     const { dock } = setup();
     dock.attach(container);
+    withPanels(dock);
     const tab = [...container.querySelectorAll<HTMLElement>('[role=tab]')].find((t) => t.getAttribute('aria-label') === 'Metrics')!;
     tab.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(dock.isOpen('metrics')).toBe(true);
@@ -545,6 +635,7 @@ describe('DockService with dockview', () => {
   it('persists the layout after changes (debounced) and restores it', async () => {
     const first = setup();
     first.dock.attach(container);
+    withPanels(first.dock);
     first.dock.close('metrics');
     await persisted();
     expect(layoutStore.saves).toBeGreaterThan(0);
@@ -562,7 +653,8 @@ describe('DockService with dockview', () => {
     const { dock } = setup({ stored: { grid: null, panels: {} } as never });
     dock.attach(container);
     expect(layoutStore.cleared).toBe(1);
-    expect(ids(dock)).toHaveLength(4);
+    expect(ids(dock)).toEqual(['events', 'inspector', 'timeline']);
+    expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
     expect(testLogger().entries.some((e) => e.category === 'ui.layout' && e.level === 'warn')).toBe(true);
   });
 
@@ -583,19 +675,19 @@ describe('DockService with dockview', () => {
     await settle();
     expect(dock.isOpen(QUERY_VIEW)).toBe(true);
     const order = () => groupsInOrder((dock as unknown as { api: { toJSON(): SerializedDockview } }).api.toJSON());
-    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
     // Gone while there is nothing to query; back above the grid (not tabbed with it) when there is.
     await store.clearWorkspace();
     await settle();
     expect(dock.isOpen(QUERY_VIEW)).toBe(false);
     await store.openPaths(['/x/a.log']);
     await settle();
-    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
     // With a real size (jsdom has no layout), the query group gets its short fixed height.
     const api = (dock as unknown as { api: DockviewApi }).api;
     api.layout(1200, 800);
     dock.reset();
-    expect(order()).toEqual([['timeline', 'metrics'], [QUERY_VIEW], ['events'], ['inspector']]);
+    expect(order()).toEqual([['timeline'], [QUERY_VIEW], ['events']]);
     expect(api.getPanel(QUERY_VIEW)!.group.api.height).toBe(QUERY_HEIGHT);
     expect(api.getPanel('timeline')!.group.api.height).toBe(300);
   });
@@ -614,10 +706,11 @@ describe('DockService with dockview', () => {
   it('reset restores the default arrangement and forgets the saved one', async () => {
     const { dock } = setup();
     dock.attach(container);
-    dock.close('metrics');
+    withPanels(dock);
     dock.close('events');
     dock.reset();
-    expect(ids(dock)).toEqual(['events', 'inspector', 'metrics', 'timeline']);
+    expect(ids(dock)).toEqual(['events', 'inspector', 'timeline']);
+    expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
     expect(layoutStore.cleared).toBeGreaterThan(0);
     await persisted();
     expect(Object.keys(saved!.panels)).toContain('events');
@@ -712,5 +805,30 @@ describe('GroupActions', () => {
     const a = new GroupActions({ toggleFloat: () => undefined, popOut: () => undefined, autoHide: () => undefined, isTool: () => false, canPopOut: () => true, openMenu: () => undefined });
     a.dispose();
     expect(a.element.querySelectorAll('button')).toHaveLength(5);
+  });
+});
+
+describe('keepGroupsUnscrolled', () => {
+  it('puts a group scrolled sideways back, leaves vertical scrolling and other elements alone, and stops when disposed', () => {
+    const root = document.createElement('div');
+    const group = document.createElement('div');
+    group.className = 'dv-groupview';
+    const other = document.createElement('div');
+    root.append(group, other);
+    let left = 35;
+    let otherLeft = 10;
+    Object.defineProperty(group, 'scrollLeft', { get: () => left, set: (v: number) => (left = v) });
+    Object.defineProperty(other, 'scrollLeft', { get: () => otherLeft, set: (v: number) => (otherLeft = v) });
+    const watch = keepGroupsUnscrolled(root);
+    group.dispatchEvent(new Event('scroll'));
+    other.dispatchEvent(new Event('scroll'));
+    expect(left).toBe(0);
+    expect(otherLeft).toBe(10);
+    group.dispatchEvent(new Event('scroll'));
+    expect(left).toBe(0);
+    watch.dispose();
+    left = 20;
+    group.dispatchEvent(new Event('scroll'));
+    expect(left).toBe(20);
   });
 });

@@ -425,7 +425,7 @@ mod tests {
         let mut registry = PluginRegistry::new();
         registry.install(&RegistryPlugin).unwrap();
         let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let sample = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/unsupported/registry-export.reg");
+        let sample = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/windows/registry-export.reg");
         ws.open(&[sample]).unwrap();
         let s = ws.summary();
         assert_eq!(s.sources.len(), 1);

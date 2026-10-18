@@ -595,7 +595,7 @@ impl Importer for RegistryImporter {
 
 #[test]
 fn custom_importers_can_be_registered() {
-    let reg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/unsupported/registry-export.reg");
+    let reg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/windows/registry-export.reg");
     let mut builtin = Workspace::new(Profile::default_profile()).unwrap();
     builtin.open(std::slice::from_ref(&reg)).unwrap();
     assert_eq!(builtin.summary().unrecognized.len(), 1);
@@ -608,7 +608,7 @@ fn custom_importers_can_be_registered() {
     assert!(s.unrecognized.is_empty());
     assert_eq!(s.sources.len(), 1);
     assert_eq!(s.sources[0].importer, "registry");
-    assert_eq!(s.sources[0].name, "unsupported/registry-export.reg");
+    assert_eq!(s.sources[0].name, "windows/registry-export.reg");
     assert_eq!(s.total, s.sources[0].records);
     assert!(page(&ws, Query::default()).iter().all(|(_, m)| m.starts_with("[HKEY")));
 }

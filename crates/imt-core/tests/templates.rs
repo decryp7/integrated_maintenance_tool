@@ -112,6 +112,48 @@ fn templates_keep_details_of_their_format() {
     let pattern = preview("log4net-pattern");
     assert_eq!(pattern.records[3].fields["Ndc"], "tariffs");
     assert!(pattern.records[2].exception.is_some());
+    let apache = preview("apache-error");
+    let lv: Vec<Level> = apache.records.iter().map(|r| r.level).collect();
+    assert_eq!(lv, [Level::Information, Level::Warning, Level::Error, Level::Error]);
+    assert_eq!(apache.records[2].fields["Module"], "proxy_http");
+    assert_eq!(apache.records[2].fields["Tid"], 151);
+    assert_eq!(apache.records[2].fields["Client"], "10.0.0.5:50514");
+    assert_eq!(apache.records[3].message, "File does not exist: /var/www/favicon.ico");
+    assert_eq!(
+        apache.records[3].ts,
+        Some(1_791_974_490_000),
+        "2026-10-14 10:41:30 UTC, the 2.2 layout"
+    );
+    let logcat = preview("android-logcat");
+    let lv: Vec<Level> = logcat.records.iter().map(|r| r.level).collect();
+    assert_eq!(lv[..2], [Level::Information, Level::Warning]);
+    assert_eq!(lv[5], Level::Debug);
+    assert_eq!(logcat.records[1].fields["Tag"], "OkHttp");
+    assert_eq!(logcat.records[1].fields["Tid"], 4230);
+    assert_eq!(logcat.records[1].message, "Slow response from /api/orders (1500 ms)");
+    let spark = preview("hadoop-spark");
+    assert_eq!(spark.records[2].fields["Logger"], "Executor");
+    assert!(spark.records[2]
+        .exception
+        .as_deref()
+        .is_some_and(|x| x.starts_with("java.io.IOException")));
+    // The older HDFS layout, with a thread number.
+    let t = imt_core::templates::find("hadoop-spark").unwrap();
+    let hdfs = ws.preview_parse(&ParsePreviewRequest {
+        toml: t.toml.to_string(),
+        sample: "081109 203615 148 INFO dfs.DataNode$PacketResponder: PacketResponder 1 terminating\n\
+                 081109 203807 222 WARN dfs.DataNode: Slow BlockReceiver\n"
+            .to_string(),
+        file_name: "hdfs.log".into(),
+        limit: 10,
+    });
+    let r = &hdfs.records[0];
+    assert_eq!(
+        (r.fields["Thread"].clone(), r.fields["Logger"].clone()),
+        (148.into(), "dfs.DataNode$PacketResponder".into())
+    );
+    assert_eq!(r.ts, Some(1_226_262_975_000), "2008-11-09 20:36:15 UTC");
+    assert_eq!(hdfs.records[1].level, Level::Warning);
 }
 
 #[test]

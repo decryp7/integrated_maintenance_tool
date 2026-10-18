@@ -90,6 +90,9 @@ fn level_of(n: i64) -> Level {
     }
 }
 
+/// 1601-01-01T00:00:00Z, the FILETIME epoch, in Unix milliseconds.
+const FILETIME_ZERO_MS: i64 = -11_644_473_600_000;
+
 pub(crate) fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
     let mut r = Record::new(line);
     let event = data.get("Event").unwrap_or(data);
@@ -118,7 +121,9 @@ pub(crate) fn to_record(data: &Value, record_id: u64, line: u32) -> Record {
         .and_then(|t| attr(t, "SystemTime"))
         .and_then(Value::as_str)
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-        .map(|d| d.timestamp_millis());
+        .map(|d| d.timestamp_millis())
+        // A zero FILETIME (1601-01-01) means "not recorded", not an event 400 years ago.
+        .filter(|ms| *ms > FILETIME_ZERO_MS);
     r.ts = ts;
     r.level = system
         .get("Level")
@@ -289,5 +294,8 @@ mod tests {
         assert_eq!(r.message.chars().count(), MAX_MESSAGE);
         let r = to_record(&json!({}), 1, 1);
         assert_eq!(r.message, " ");
+        // A zero FILETIME is no time.
+        let zero = json!({"Event": {"System": {"TimeCreated": {"#attributes": {"SystemTime": "1601-01-01T00:00:00.000000Z"}}}}});
+        assert_eq!(to_record(&zero, 1, 1).ts, None);
     }
 }

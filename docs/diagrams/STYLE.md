@@ -14,11 +14,37 @@ Edit them with draw.io (desktop or diagrams.net); keep the source `.drawio` unco
 
 ## Typography
 
-- Font: `fontFamily=IBM Plex Sans` plus `fontSource=` the URL-encoded Google Fonts CSS
-  (`https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,700;1,400&display=block`) on every cell, so
-  draw.io and the viewer load it; without it the renderer falls back to Helvetica.
-- Title 20 px bold. Element names 13–14 px bold. Technology line 11 px italic in the muted colour, in square brackets
-  (`[Rust crate]`). Descriptions 11 px.
+Two font roles, both system fonts that ship with Windows and macOS, so every viewer (draw.io desktop, the VS Code
+extension, diagrams.net, Gitea previews, offline) renders the same text. No web fonts: never add `fontSource=`.
+
+| Role | Used for | Cell style / inline markup |
+| ---- | -------- | -------------------------- |
+| Text | Titles, descriptions, element names, technology lines, edge labels, notes, legends, guards | `fontFamily=Arial,Helvetica,sans-serif;` on **every** cell |
+| Code | Code identifiers (see below) | Whole label: `fontFamily=Consolas,Menlo,monospace;` — inside a mixed label: `<span style="font-family:Consolas,Menlo,monospace;white-space:nowrap">…</span>` around just the identifier |
+
+- Arial is on Windows and macOS; Liberation Sans (metric-compatible) stands in on Linux. Consolas is on Windows, Menlo
+  on macOS; `monospace` is the fallback elsewhere. Always give the full stack so a missing font falls back to the
+  right kind of face, never to a serif.
+- **Code identifiers** are anything you could grep for in the code: type, trait and module names (`LogStore`,
+  `ql::Filter`), functions, commands and messages (`run_query_stream(…)`, `query_timeline`), fields and settings keys
+  (`group_by`, `liveTailDebounce`), enum variants, crate and binary names (`imt-core`, `imt-plugin-host`), file names,
+  extensions and paths (`latest.json`, `.imtz`, `app/src/app`), CLI flags, event names (`imt://error`), protocol
+  packages (`imt.plugin.v1`) and profile values (`5m`).
+  - Class diagrams: member compartments are whole-label monospace; the class name in the header is a monospace span,
+    the «stereotype» stays in the text font.
+  - Sequence diagrams: a message label that is only code (a call, a reply type, a struct literal) is whole-label
+    monospace; a label that mixes prose and code uses spans.
+  - Element names in C4 and deployment boxes, sequence-diagram participant names, titles, the diagram-type line and
+    legend entries stay in the text font, even when they name a crate. Technology lines and descriptions use spans.
+  - Keep the span `white-space:nowrap` so an identifier never breaks across lines.
+- Sizes: title 20 px bold; diagram type 12 px muted; one-line description 11 px muted; element names 13–14 px bold;
+  technology line 11 px italic muted in square brackets (`[Rust crate]`); descriptions, edge labels, notes, members and
+  messages 11 px; legend heading 12 px bold muted, legend entries 11 px; footer 10 px muted. Code uses the same size as
+  the text around it (never below 11 px); Consolas runs about as wide as Arial at the same size, so when a code line
+  does not fit, widen the shape or break the line, don't shrink the font.
+- Typography: real characters, not ASCII stand-ins — `→` (not `->`), `…` (not `...`), `×`, `≤`/`≥`, `≠`, en dash in
+  ranges (`5–600 s`, `500 ms – 8 s`), curly quotes and apostrophes in prose (straight ones only inside code); no double
+  spaces; sentence case for descriptions, notes and decision questions; UML multiplicities stay `0..*`, `0..1`.
 - Labels are HTML (`html=1;whiteSpace=wrap`) so text wraps inside the shape. Text never overflows a shape: size the
   shape to the text and check every shape in a rendered preview.
 
@@ -82,4 +108,5 @@ The app's colour-blind-safe series tokens (light theme). Fills are ~12–15 % ti
 
 Parse each file as XML and render it (draw.io desktop CLI `draw.io -x -f png`, or the official viewer
 `viewer-static.min.js` in a headless browser) and inspect the PNG for overlaps, overflowing text and alignment
-before committing.
+before committing. Check that no cell lacks `fontFamily=`, that no `fontSource=` crept in, and that the page loads no web
+fonts (`document.fonts` is empty and a render with `fonts.googleapis.com` blocked is identical).

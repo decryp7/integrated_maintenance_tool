@@ -26,6 +26,7 @@ pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<Value> 
 
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
+    let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
     let summary = write_reporting(&app, &state, move |ws| {
         let before = unrecognized_paths(&ws.summary());
         ws.open(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
@@ -170,6 +171,24 @@ pub(crate) async fn overview(state: CurrentWindow, request: imt_core::api::Query
 #[tauri::command]
 pub(crate) async fn annotations(state: CurrentWindow, request: AnnotationsRequest) -> CmdResult<Vec<AnnotationDto>> {
     read(&state, move |ws| Ok(ws.annotations(&request))).await
+}
+
+/// Runs between lifecycle markers (`[[span]]`): a sorted page for the Runs
+/// view plus every span kind's summary over the selection. The request is
+/// bounded in the engine (page size, lane list).
+#[tauri::command]
+pub(crate) async fn query_runs(state: CurrentWindow, request: imt_core::spans::RunsRequest) -> CmdResult<imt_core::spans::RunsReply> {
+    read(&state, move |ws| Ok(ws.runs(&request))).await
+}
+
+/// The Runs editor's preview of a candidate rule over the loaded data: field
+/// errors, warnings, counts, the first runs and anomalies, and what saving writes.
+#[tauri::command]
+pub(crate) async fn preview_spans(
+    state: CurrentWindow,
+    request: imt_core::spans::SpanPreviewRequest,
+) -> CmdResult<imt_core::spans::SpanPreview> {
+    read(&state, move |ws| ws.preview_spans(&request)).await
 }
 
 /// Delivery counters of the plugins' event subscribers (plugin health).
@@ -396,6 +415,70 @@ mod tests {
     }
 
     #[test]
+    fn runs_and_their_preview_of_the_calling_window() {
+        let dir = TempDir::new("runs");
+        let line = |t: &str, msg: &str, pid: u32| {
+            format!("{{\"@t\":\"2026-10-14T{t}Z\",\"@mt\":\"{msg}\",\"ProcessId\":{pid},\"MachineName\":\"WEB01\"}}\n")
+        };
+        let text = [
+            line("10:00:00", "Application started", 1),
+            line("10:01:00", "Application started", 2),
+            line("10:05:00", "working", 1),
+            line("10:09:00", "Application stopped", 1),
+            line("10:10:00", "working", 2),
+        ]
+        .concat();
+        std::fs::write(dir.0.join("app.clef"), text).unwrap();
+        let app = opened(None, std::slice::from_ref(&dir.0));
+
+        let req: imt_core::spans::RunsRequest = serde_json::from_value(json!({"sort": "duration", "descending": true})).unwrap();
+        let reply = serde_json::to_value(block(query_runs(main_window(&app), req)).unwrap()).unwrap();
+        // The wire shape the UI reads (api.types.ts RunsReply / RunInfo).
+        assert_eq!(reply["total"], 2);
+        assert_eq!(reply["summaries"][0]["kind"], "run");
+        assert_eq!(reply["summaries"][0]["closed"], 1);
+        assert_eq!(reply["summaries"][0]["open"], 1);
+        let first = &reply["runs"][0];
+        assert_eq!(first["run"]["status"], "closed");
+        assert_eq!(first["run"]["durationMs"], 9 * 60_000);
+        assert_eq!(first["run"]["start"]["message"], "Application started");
+        assert_eq!(first["instance"], "1");
+        assert_eq!(reply["runs"][1]["run"]["status"], "open");
+        // Runs are annotations too.
+        let anns = block(annotations(main_window(&app), AnnotationsRequest::default())).unwrap();
+        assert_eq!(anns.iter().filter(|a| a.run.is_some()).count(), 2);
+
+        let draft: imt_core::spans::SpanPreviewRequest = serde_json::from_value(json!({"draft": {
+            "kind": "work", "label": "Work",
+            "start": {"type": "pattern", "pattern": "working"},
+            "stop": {"type": "markers", "kinds": ["stop"]},
+            "per": "field:ProcessId"
+        }}))
+        .unwrap();
+        let preview = serde_json::to_value(block(preview_spans(main_window(&app), draft)).unwrap()).unwrap();
+        assert_eq!(preview["errors"], json!([]));
+        assert_eq!(preview["summary"]["runs"], 2);
+        assert_eq!(preview["plan"]["span"]["start"], "work-start");
+        assert_eq!(preview["plan"]["markers"][0]["kind"], "work-start");
+        let bad: imt_core::spans::SpanPreviewRequest = serde_json::from_value(
+            json!({"draft": {"kind": "a b", "start": {"type": "markers", "kinds": []}, "stop": {"type": "pattern", "pattern": "("}}}),
+        )
+        .unwrap();
+        let preview = serde_json::to_value(block(preview_spans(main_window(&app), bad)).unwrap()).unwrap();
+        let fields: Vec<&str> = preview["errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["field"].as_str().unwrap())
+            .collect();
+        assert_eq!(fields, ["kind", "start", "stop"]);
+        assert!(preview["plan"].is_null());
+        // Another window has its own (empty) workspace.
+        window(&app, "w-2");
+        let other = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+        assert_eq!(block(query_runs(other, Default::default())).unwrap().total, 0);
+    }
+    #[test]
     fn annotations_and_event_metrics_of_the_calling_window() {
         let dir = TempDir::new("annotations");
         let line = |t: &str, provider: &str, id: u32| {
@@ -451,7 +534,10 @@ mod tests {
     #[test]
     fn plugins_and_export() {
         let dir = TempDir::new("export");
-        let app = opened(Some(dir.0.clone()), &[samples().join("unsupported"), samples().join("csv")]);
+        let app = opened(
+            Some(dir.0.clone()),
+            &[samples().join("windows").join("registry-export.reg"), samples().join("csv")],
+        );
         let st = || main_window(&app);
         let summary = block(workspace_summary(st())).unwrap();
         assert!(summary["plugins"]

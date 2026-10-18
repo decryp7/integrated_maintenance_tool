@@ -1,0 +1,5 @@
+26/10/14 10:41:00 INFO SparkContext: Running Spark version 3.5.1
+26/10/14 10:41:02 WARN TaskSetManager: Stage 2 contains a task of very large size (1500 KiB)
+26/10/14 10:41:24 ERROR Executor: Exception in task 0.0 in stage 2.0 (TID 7)
+java.io.IOException: Connection reset by peer
+	at org.apache.spark.network.Client.send(Client.java:88)

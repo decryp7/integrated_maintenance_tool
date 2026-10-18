@@ -226,6 +226,89 @@ mod tests {
     }
 
     #[test]
+    fn common_layouts_via_default_regexes() {
+        // (line, level, message) for layouts seen in real logs (synthetic lines).
+        let cases = [
+            // ZooKeeper / log4j "%d - %-5p [%t] - %m"
+            (
+                "2026-10-14 10:00:00,747 - WARN  [main:QuorumPeer@1] - Interrupted",
+                Level::Warning,
+                "[main:QuorumPeer@1] - Interrupted",
+            ),
+            // Kafka "[%d] %p %m (%c)"
+            (
+                "[2026-10-14 10:00:00,163] ERROR [Controller id=1] failed (kafka.Controller)",
+                Level::Error,
+                "[Controller id=1] failed (kafka.Controller)",
+            ),
+            // Elasticsearch / Logstash "[%d][%-5p][%c]"
+            (
+                "[2026-10-14T10:00:00,177][INFO ][o.e.n.Node] [n1] started",
+                Level::Information,
+                "[o.e.n.Node] [n1] started",
+            ),
+            // Windows CBS.log / DISM.log
+            (
+                "2026-10-14 10:00:00, Info                  CBS    Loaded Servicing Stack",
+                Level::Information,
+                "CBS    Loaded Servicing Stack",
+            ),
+            (
+                "2026-10-14 10:00:01, Error                 CSI    Failed",
+                Level::Error,
+                "CSI    Failed",
+            ),
+            // MySQL: thread id, then the level in brackets
+            (
+                "2026-10-14T10:00:00.335060Z 0 [Warning] TIMESTAMP is deprecated",
+                Level::Warning,
+                "TIMESTAMP is deprecated",
+            ),
+            ("2026-10-14T10:00:00.335060Z 3 [Note] Ready", Level::Information, "Ready"),
+            // OpenStack / oslo.log: process id, then the level
+            (
+                "2026-10-14 10:00:00.008 25746 ERROR nova.compute.manager [-] boom",
+                Level::Error,
+                "nova.compute.manager [-] boom",
+            ),
+            // nginx error log
+            (
+                "2026/10/14 10:00:00 [error] 1176#1176: *1 connect() failed",
+                Level::Error,
+                "1176#1176: *1 connect() failed",
+            ),
+            // Python logging default
+            (
+                "2026-10-14 10:00:00,123 - app.db - CRITICAL - lost connection",
+                Level::Fatal,
+                "lost connection",
+            ),
+            // A number that is not followed by a level stays in the message.
+            ("2026-10-14 10:00:00 42 items left", Level::Information, "42 items left"),
+            ("2026-10-14 10:00:00 errors: 3", Level::Information, "errors: 3"),
+        ];
+        for (line, level, message) in cases {
+            let out = import("", &format!("{line}\n"));
+            assert_eq!(out.records.len(), 1, "{line}");
+            let r = &out.records[0];
+            assert!(r.ts.is_some(), "{line}");
+            assert_eq!((r.level, r.message.as_str()), (level, message), "{line}");
+        }
+        let out = import("", "2026-10-14 10:00:00,123 - app.db - ERROR - x\n");
+        assert_eq!(out.records[0].fields["Logger"], "app.db");
+        // A Java stack trace stays with its event.
+        let out = import(
+            "",
+            "[2026-10-14 10:00:00,163] ERROR failed (kafka.Controller)\njava.io.IOException: closed\n\tat kafka.Foo.bar(Foo.scala:1)\n[2026-10-14 10:00:01,000] INFO next\n",
+        );
+        assert_eq!(out.records.len(), 2);
+        assert!(out.records[0]
+            .exception
+            .as_deref()
+            .is_some_and(|x| x.starts_with("java.io.IOException")));
+    }
+
+    #[test]
     fn custom_template_and_console_rollover() {
         let out = import(
             "[parse]\noutput_templates = [\"[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}\"]\nregexes = []",

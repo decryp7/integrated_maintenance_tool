@@ -1,5 +1,6 @@
 //! Starting a plugin process and keeping a handshaken connection to it.
 
+use imt_ipc::child_log::{ChildKind, ChildLogSpec};
 use imt_ipc::process::{launch, Launched, SpawnSpec};
 use imt_ipc::supervisor::{Connection, SupervisorConfig};
 use imt_ipc::IpcError;
@@ -40,15 +41,25 @@ pub struct PluginSpec {
     pub supervisor: SupervisorConfig,
     pub connect_window: Duration,
     pub handshake_timeout: Duration,
+    /// Where the process's standard error and start/exit lines go (see `imt_ipc::child_log`).
+    pub log: Option<ChildLogSpec>,
 }
 
 impl PluginSpec {
     pub fn new(exe: impl Into<PathBuf>, label: impl Into<String>) -> PluginSpec {
         let label = label.into();
+        let log = ChildLogSpec::new(
+            format!("plugin-{}", label.strip_prefix("plugin ").unwrap_or(&label)),
+            ChildKind::Plugin,
+        );
         PluginSpec {
             exe: exe.into(),
             args: Vec::new(),
-            supervisor: SupervisorConfig::new(label.clone()),
+            supervisor: SupervisorConfig {
+                log: Some(log.clone()),
+                ..SupervisorConfig::new(label.clone())
+            },
+            log: Some(log),
             label,
             expected_id: None,
             grants: Vec::new(),
@@ -76,6 +87,7 @@ impl PluginConnection {
         s.current_dir = Some(std::env::temp_dir());
         s.endpoint_prefix = "imt-plugin".into();
         s.connect_window = spec.connect_window;
+        s.log = spec.log.clone();
         let launched = client::block_on(rt.handle(), launch(&s))?;
         let mut c = client::client(launched.channel.clone());
         let hs = client::block_on(rt.handle(), client::handshake(&mut c, &spec.grants, Some(spec.handshake_timeout)));
@@ -89,6 +101,9 @@ impl PluginConnection {
                 });
             }
         };
+        if let Some(log) = launched.process.log() {
+            log.set_version(&manifest.version);
+        }
         if let Some(id) = &spec.expected_id {
             if &manifest.id != id {
                 launched.process.kill();

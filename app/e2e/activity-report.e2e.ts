@@ -47,6 +47,11 @@ test('Help commands are in the palette: report a problem and show the activity l
   await runFromPalette(page, 'Report a problem');
   const dialog = page.getByRole('dialog', { name: 'Report a problem' });
   await expect(dialog.locator('[data-testid=report-contents]')).toContainText('system-info.json');
+  // The report also carries the manifest, the child-process summary and the child logs.
+  for (const name of ['manifest.json', 'processes.json', 'session-recovery.json', 'logs/children/ai-worker.log', 'logs/children/llama-server.log']) {
+    await expect(dialog.locator('[data-testid=report-contents]')).toContainText(name);
+  }
+  await expect(dialog.locator('[data-testid=report-contents]')).toContainText('AI engine: 2 runs, 1 restart, last exit code 3');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
   // In a browser there is no second window: the command runs without an error.

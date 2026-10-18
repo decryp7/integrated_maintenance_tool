@@ -1,0 +1,4 @@
+[Wed Oct 14 10:41:00.120000 2026] [mpm_event:notice] [pid 4211:tid 140] AH00489: Apache/2.4.58 configured -- resuming normal operations
+[Wed Oct 14 10:41:02.540000 2026] [proxy:warn] [pid 4230:tid 151] [client 10.0.0.5:50512] AH01144: No protocol handler was valid for the URL /api
+[Wed Oct 14 10:41:24.050000 2026] [proxy_http:error] [pid 4230:tid 151] [client 10.0.0.5:50514] AH01114: HTTP: failed to make connection to backend: 10.0.0.9
+[Wed Oct 14 10:41:30 2026] [error] [client 10.0.0.7] File does not exist: /var/www/favicon.ico

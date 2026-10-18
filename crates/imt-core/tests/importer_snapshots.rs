@@ -24,7 +24,9 @@ const EXCEPTION_LINES: usize = 3;
 const FILE_DATE: (i32, u32, u32) = (2026, 10, 14);
 
 /// Every `/samples` log the built-in importers read: (snapshot name, path under `/samples`, expected importer).
-/// `log4j-xml` is read by the formats plugin and snapshotted there; `profiling` and `unsupported` are not logs.
+/// `log4j-xml` is read by the formats plugin; `windows`, `web`, `linux` and `otel` by their plugins, which
+/// snapshot them in their own `tests/samples.rs`; `profiling`, `configs` and `share` are not logs; archive members
+/// (`archives/`) are checked in `tests/samples.rs`.
 const SAMPLES: &[(&str, &str, &str)] = &[
     ("csv-perfmon", "csv/perfmon-export.csv", "csv"),
     (
@@ -42,7 +44,12 @@ const SAMPLES: &[(&str, &str, &str)] = &[
         "kubernetes/pods/shop_order-events-7c9d8b5f4-x2k4p_1d2ee59b-03c2-8ba5-2786-5799c6b578de/consumer/1.log",
         "text",
     ),
+    ("clock-skew-gateway", "clock-skew/gateway/requests-20261014.clef", "json"),
+    ("clock-skew-web02", "clock-skew/web02/requests-20261014.clef", "json"),
     ("log4net", "log4net/legacy-billing/billing.log.2026-10-14", "text"),
+    ("monitor-bill01", "monitor/BILL01/process-monitor.clef", "json"),
+    ("runs-batch01", "runs/batch01/report-service-20261014.txt", "text"),
+    ("runs-shared", "runs/shared/workers-20261014.log", "text"),
     ("serilog-clef-web01", "serilog-clef/web01/orders-20261014.clef", "json"),
     ("serilog-clef-web02", "serilog-clef/web02/orders-20261014.clef", "json"),
     ("serilog-json-gateway", "serilog-json/gateway/gateway-20261014.json", "json"),

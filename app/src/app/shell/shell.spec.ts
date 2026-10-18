@@ -1,7 +1,6 @@
 import { Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
-import { DialogService } from '../ui/dialog.service';
 import { PaletteService } from '../palette/palette.service';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -9,7 +8,6 @@ import { TimelineZoom } from '../timeline/zoom';
 import { provideToolsBackend } from '../core/tools-backend';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { LiveTail } from '../workspace/live-tail';
-import { ActivityBar } from './activity-bar';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
 import { TitleBar } from './title-bar';
@@ -206,24 +204,6 @@ describe('TitleBar', () => {
     await store.openPaths(['/more/added.log']);
     await settle(fixture);
     expect(host.querySelector('[aria-label="Unsaved changes"]')).not.toBeNull();
-  });
-});
-
-describe('ActivityBar', () => {
-  it('switches views and settings', async () => {
-    const { fixture, store, dock } = setup(ActivityBar);
-    await settle(fixture);
-    const click = (label: string) => el<HTMLButtonElement>(fixture, `[aria-label="${label}"]`).click();
-    click('Metrics');
-    click('Profile editor');
-    click('Timeline');
-    expect(dock.calls).toEqual(['show:metrics', 'show:profile', 'show:timeline']);
-    click('Search');
-    expect(store.focusSearchNonce()).toBe(1);
-    click('Explorer');
-    expect(store.sidebarOpen()).toBe(false);
-    click('Settings');
-    expect(TestBed.inject(DialogService).stack().map((d) => d.options.title)).toEqual(['Settings']);
   });
 });
 

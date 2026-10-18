@@ -1,0 +1,64 @@
+{
+  // Debug IMT from VS Code (Run and Debug, F5).
+  // The desktop app in a debug build loads its UI from the Angular dev server (tauri.conf.json devUrl),
+  // so the app configurations start "IMT: UI dev server" first and build the binary with cargo.
+  // Windows uses the C/C++ extension's debugger (cppvsdbg); macOS and Linux use CodeLLDB.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug IMT app (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/imt-app.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "IMT: debug prerequisites"
+    },
+    {
+      "name": "Debug IMT app (macOS / Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/imt-app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "IMT: debug prerequisites"
+    },
+    {
+      "name": "Debug IMT app with the samples (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/imt-app.exe",
+      "args": ["${workspaceFolder}/samples/serilog-clef"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "IMT: debug prerequisites"
+    },
+    {
+      "name": "Debug IMT app with the samples (macOS / Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/imt-app",
+      "args": ["${workspaceFolder}/samples/serilog-clef"],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "IMT: debug prerequisites"
+    },
+    {
+      "name": "Debug UI in the browser (mock backend)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:4200/",
+      "webRoot": "${workspaceFolder}/app",
+      "preLaunchTask": "IMT: UI dev server"
+    },
+    {
+      "name": "Debug imt-core tests (macOS / Linux)",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": { "args": ["test", "--no-run", "-p", "imt-core", "--lib"], "filter": { "kind": "lib" } },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "compounds": []
+}

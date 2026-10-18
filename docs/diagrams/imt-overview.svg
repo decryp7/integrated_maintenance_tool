@@ -2,11 +2,11 @@
   <title id="t">IMT architecture overview</title>
   <desc id="d">Many sources and collectors feed importers contributed by plugins in Rust, C# or any gRPC language; the Rust engine parses, transforms, stores, queries and analyses; the Angular and Tauri workbench shows timelines, grids, charts, analysis, profiling and AI, and shares projects, reports and bundles.</desc>
   <style>
-    :root { --bg:#ffffff; --panel:#f5f7fb; --ink:#1b2130; --muted:#5a6375; --line:#c9cfdb; --a:#3869bb; --b:#e65f2a; --c:#29a077; --d:#a664fe; --soft-a:#e7eefb; --soft-b:#fdeee7; --soft-c:#e6f5ee; --soft-d:#f1eaff; }
+        :root { --bg:#ffffff; --panel:#f5f7fb; --ink:#1b2130; --muted:#5a6375; --line:#c9cfdb; --a:#3869bb; --b:#e65f2a; --c:#29a077; --d:#a664fe; --soft-a:#e7eefb; --soft-b:#fdeee7; --soft-c:#e6f5ee; --soft-d:#f1eaff; }
     @media (prefers-color-scheme: dark) {
       :root { --bg:#0f131b; --panel:#171c27; --ink:#e3e6ee; --muted:#9aa3b5; --line:#2d3546; --a:#1795fa; --b:#db551d; --c:#0a9068; --d:#b16ec0; --soft-a:#13243b; --soft-b:#2b1a12; --soft-c:#0f2a21; --soft-d:#251a2c; }
     }
-    text { font-family: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: var(--ink); }
+    text { font-family: Arial, Helvetica, sans-serif; fill: var(--ink); }
     .bg { fill: var(--bg); }
     .h { font-size: 15px; font-weight: 700; }
     .h2 { font-size: 13px; font-weight: 700; }

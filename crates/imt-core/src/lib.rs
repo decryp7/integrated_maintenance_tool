@@ -34,6 +34,7 @@ pub mod report;
 pub mod script;
 pub mod settings;
 pub mod skew;
+pub mod spans;
 pub mod store;
 pub mod svg;
 pub mod template;

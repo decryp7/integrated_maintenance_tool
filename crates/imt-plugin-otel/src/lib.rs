@@ -593,11 +593,16 @@ mod tests {
     #[test]
     fn does_not_steal_sample_files() {
         let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+        // OTLP exports of its own live in samples/otel; every other sample belongs to another importer.
+        let own = samples.join("otel");
         let mut checked = 0;
         let mut stack = vec![samples];
         while let Some(dir) = stack.pop() {
             for entry in std::fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
+                if path == own {
+                    continue;
+                }
                 if path.is_dir() {
                     stack.push(path);
                     continue;

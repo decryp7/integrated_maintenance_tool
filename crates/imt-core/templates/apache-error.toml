@@ -1,0 +1,14 @@
+# Apache httpd error log (ErrorLog), 2.2 and 2.4 layouts:
+# "[Wed Oct 14 10:41:00.120000 2026] [core:error] [pid 42:tid 7] [client 10.0.0.5:5050] message"
+# (2.2 has no module, pid or fraction). The module, process, thread and client
+# become fields. Times carry no zone; read as UTC unless you change
+# [parse] assume_timezone.
+name = "Apache error log"
+
+[parse]
+format = "text"
+output_templates = []
+regexes = [
+  '^\[(?P<timestamp>[A-Z][a-z]{2} [A-Z][a-z]{2} \d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})? \d{4})\] \[(?:(?P<Module>[^:\]]+):)?(?P<level>[a-z]+\d?)\](?: \[pid (?P<Pid>\d+)(?::tid (?P<Tid>\d+))?\])?(?: \[client (?P<Client>[^\]]+)\])? (?P<message>.*)$',
+]
+timestamp_formats = ["%a %b %d %H:%M:%S%.f %Y"]

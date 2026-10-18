@@ -1,3 +1,4 @@
+import { ANALYSIS_MENU_ORDER } from '../../analysis/analysis-menu-order';
 import { ViewCategory } from '../../extensions/tokens';
 
 /**
@@ -114,7 +115,7 @@ export const VIEW_SUBMENUS: readonly Exclude<ViewCategory, 'core'>[] = ['Analysi
 
 /** Views listed first in their submenu, in this order; the others follow after a separator. */
 const SUBMENU_ORDER: Partial<Record<ViewCategory, readonly string[]>> = {
-  Analysis: ['query-results', 'moment', 'anomalies', 'patterns', 'exceptions', 'compare', 'field-stats', 'traces'],
+  Analysis: ANALYSIS_MENU_ORDER,
 };
 
 /** A submenu's views: the ones with a set order first, then the rest (in registration order). */

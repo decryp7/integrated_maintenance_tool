@@ -101,8 +101,14 @@ impl Workspace {
         self.registry.visible_markers(&self.profile.markers)
     }
 
-    /// Ranges and points found by annotators, overlapping the request.
+    /// Ranges and points found by annotators, plus the runs of the profile's
+    /// `[[span]]` rules, overlapping the request, by start time (at most
+    /// [`crate::plugin::annotate::MAX_REPLY`]).
     pub fn annotations(&self, req: &AnnotationsRequest) -> Vec<AnnotationDto> {
-        self.registry.annotations(req)
+        let mut out = self.registry.annotations(req);
+        out.extend(self.run_annotations(req));
+        out.sort_by(|a, b| a.from.cmp(&b.from).then_with(|| a.kind.cmp(&b.kind)));
+        out.truncate(crate::plugin::annotate::MAX_REPLY);
+        out
     }
 }

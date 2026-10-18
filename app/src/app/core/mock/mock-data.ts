@@ -255,6 +255,13 @@ export function generateDemo(seed = 42): MockDataset {
     emit(sync, t, slow ? 'Warning' : 'Information', 'csv', slow ? 'Sync of {Warehouse} slow: {Items} items in {DurationMs} ms' : 'Synced {Items} items from {Warehouse}', { Warehouse: pick(['AMS-1', 'SIN-2', 'NYC-3']), Items: Math.floor(rnd() * 500), DurationMs: Math.floor((slow ? 9000 : 400) + rnd() * 900) });
   }
 
+  // Runs between lifecycle markers: the shared worker file shows 2208 restarting without a stop (a "no stop seen"
+  // run), and WEB01's log begins with the tail of an earlier process (a "stop without start").
+  const worker = instances[3];
+  if (worker) emit(worker, DEMO_START + 50 * MIN, 'Information', 'Program', 'Application starting — {Application} {Version} ({Framework})', { Application: worker.app, Version: '3.14.1', Framework: 'net9.0' });
+  const web01 = instances[0];
+  if (web01) emit(web01, DEMO_START, 'Information', 'Microsoft.Hosting.Lifetime', 'Application is shutting down...');
+
   records.push(...registryRecords(5));
 
   return {

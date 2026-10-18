@@ -39,6 +39,11 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   panel: 'M4 5h16v14H4zM15 5v14',
   chart: 'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',
   puzzle: 'M5 9h4a2 2 0 1 1 4 0h4v4a2 2 0 1 1 0 4v3H5z',
+  analysis: 'M4 4v16h16M7 15l3-4l3 2l4-6M15.5 15.5a2 2 0 1 0 0 .1',
+  live: 'M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8',
+  ai: 'M11 3l1.8 4.7L17.5 9.5l-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8zM18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z',
+  tools: 'M14.5 4a4.5 4.5 0 0 0-4.2 6.1L4 16.4V20h3.6l6.3-6.3A4.5 4.5 0 0 0 20 9.5l-2.8 2.8l-2.9-.8l-.8-2.9L16.3 5.8A4.5 4.5 0 0 0 14.5 4z',
+  more: 'M5.5 12h.01M12 12h.01M18.5 12h.01',
 };
 
 /** True when `name` is part of IMT's icon set. */

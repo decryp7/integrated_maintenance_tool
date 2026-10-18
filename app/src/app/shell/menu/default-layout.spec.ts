@@ -45,15 +45,15 @@ describe('default layout', () => {
   it('opens only the core views, plus views that ask to open with what was imported; reset gives the same', async () => {
     const { dock, store } = setup();
     dock.attach(container);
-    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'timeline']);
+    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'timeline']);
     await settle();
     expect(store.summary()?.total).toBeGreaterThan(0);
-    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'timeline', 'viewer']);
+    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'timeline', 'viewer']);
     dock.show('offered');
     dock.show('tool');
     dock.show('profile');
     expect(dock.isOpen('offered') && dock.isOpen('tool') && dock.isOpen('profile')).toBe(true);
     dock.reset();
-    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'metrics', 'timeline', 'viewer']);
+    expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'timeline', 'viewer']);
   });
 });

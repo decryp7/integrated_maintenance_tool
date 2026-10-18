@@ -1,5 +1,5 @@
 import { expect, Locator, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { ensureInspector, openApp, openView } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
 import { showProfileEditor } from './menu-support';
@@ -40,7 +40,13 @@ async function panelMenu(page: Page, name: string) {
 }
 
 test.describe('VS-style docking', () => {
-  test.beforeEach(async ({ page }) => openApp(page));
+  // These start from the fuller arrangement (the inspector docked, Metrics tabbed with the timeline) that the
+  // minimal default no longer opens.
+  test.beforeEach(async ({ page }) => {
+    await openApp(page);
+    await ensureInspector(page);
+    await openView(page, 'metrics');
+  });
 
   test('dragging a tab onto the left edge guide docks it along the whole left edge', async ({ page, browserName }) => {
     const dock = await box(page, '.imt-dock-mount');
@@ -193,14 +199,15 @@ test.describe('VS-style docking', () => {
     await expectNoSeriousViolations(page, test.info(), 'manage-layouts');
   });
 
-  test('Reset window layout restores the default arrangement', async ({ page }) => {
-    await groupOf(page, 'Inspector').getByRole('button', { name: 'Auto hide' }).click();
+  test('Reset window layout restores the minimal default arrangement', async ({ page }) => {
     await (await panelMenu(page, 'Metrics')).getByRole('menuitem', { name: 'Pin tab' }).click();
     await runCommand(page, 'Reset window layout');
-    await expect(tab(page, 'Inspector')).toBeVisible();
-    await expect(page.getByRole('navigation', { name: /Auto-hidden tool windows/ })).toHaveCount(0);
+    // Timeline, query bar and events; the inspector auto-hidden on the right; Metrics closed.
+    await expect(tab(page, 'Inspector')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
+    await expect(tab(page, 'Metrics')).toHaveCount(0);
     await expect(page.locator('.imt-tab.pinned')).toHaveCount(0);
-    await expect(groups(page)).toHaveCount(4);
+    await expect(groups(page)).toHaveCount(3);
   });
 
   test('full screen hides the chrome and the tool windows; again restores them', async ({ page }) => {

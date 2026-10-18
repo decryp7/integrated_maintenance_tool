@@ -10,6 +10,7 @@ import { provideTools } from './tools/provide-tools';
 import { provideSchedules } from './schedules/provide-schedules';
 import { provideConfigDiff } from './config-diff/provide-config-diff';
 import { provideMarkers } from './markers/markers.plugin';
+import { provideRuns } from './timeline/runs.plugin';
 import { REGISTRY_PLUGIN } from './plugins/registry/registry.plugin';
 import { provideWindowing } from './windowing/provide-windowing';
 import { provideClockSkew } from './skew/skew.plugin';
@@ -37,6 +38,7 @@ export const appConfig: ApplicationConfig = {
     provideImtBuiltins(),
     provideImtPlugin(REGISTRY_PLUGIN),
     provideMarkers(),
+    provideRuns(),
     provideTools(),
     provideSchedules(),
     provideConfigDiff(),

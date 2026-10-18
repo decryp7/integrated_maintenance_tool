@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 pub const INSTANCE_GROUPS: usize = 20;
 
 /// Sample folders that are not logs (profiler captures) or not readable by the engine.
-const NOT_LOGS: &[&str] = &["profiling", "profiles", "unsupported", "generate.py"];
+const NOT_LOGS: &[&str] = &["profiling", "profiles", "windows", "web", "linux", "otel", "configs", "share", "live", "generate.py"];
 
 /// The sample profile (instance key `MachineName`, `ProcessId`, extractors, charts).
 pub fn sample_profile(samples: &Path) -> Result<Profile> {

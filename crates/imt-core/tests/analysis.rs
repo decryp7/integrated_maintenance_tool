@@ -769,7 +769,8 @@ fn detect_on_the_generated_samples() {
         .unwrap_or_else(|| panic!("no error spike in {found:#?}"));
     assert!(spike.from < crash.from, "{} !< {}", spike.from, crash.from);
     assert!(spike.message.starts_with("Error rate on OrderService · WEB02 · 4120 rose to "));
-    assert!(found.iter().filter(|a| a.kind == AnomalyKind::Crash).count() <= 2, "{found:#?}");
+    // Besides WEB02, the diagnostics sample has a deliberate plugin crash, and the billing log stops after an error.
+    assert!(found.iter().filter(|a| a.kind == AnomalyKind::Crash).count() <= 3, "{found:#?}");
 }
 
 #[test]

@@ -7,11 +7,13 @@ import { TimeCursor } from '../analysis/time-cursor';
 import { DockService, PANEL } from '../dock/dock.service';
 import { annotationKinds } from './annotation-layout';
 import { TimelineZoom } from './zoom';
+import { runKinds, runRange } from './run-layout';
 
 /**
  * Plugin annotations for the visible time range. They are fetched again whenever the data changes (open,
  * reload, profile save, and each coalesced live-tail refresh, which bumps the data version) or the visible
- * range moves; responses to superseded requests are ignored. Kinds can be hidden from the legend.
+ * range moves; responses to superseded requests are ignored. Kinds can be hidden from the legend. Runs between lifecycle
+ * markers (annotations with `run`) are kept apart: they have their own legend toggles and click action.
  */
 @Injectable({ providedIn: 'root' })
 export class TimelineAnnotations {
@@ -28,7 +30,52 @@ export class TimelineAnnotations {
   /** Kinds switched off in the legend. */
   readonly hidden = signal<ReadonlySet<string>>(new Set());
   /** Legend entries for the kinds present. */
-  readonly kinds = computed(() => annotationKinds(this.items(), this.ws.markerKindMap()));
+  readonly kinds = computed(() => annotationKinds(this.plugin(), this.ws.markerKindMap()));
+
+  /** Plugin annotations (everything but runs). */
+  readonly plugin = computed(() => this.items().filter((a) => !a.run));
+  /** Runs between lifecycle markers (`[[span]]`), drawn as bands behind the lane markers. */
+  readonly runs = computed(() => this.items().filter((a) => !!a.run));
+  /** Legend entries for the span kinds present. */
+  readonly runKinds = computed(() => runKinds(this.runs()));
+  /** The "Runs" legend toggle: draws every run kind or none. */
+  readonly runsShown = signal(true);
+  /** Span kinds switched off in the legend. */
+  readonly hiddenRuns = signal<ReadonlySet<string>>(new Set());
+
+  isRunKindShown(kind: string): boolean {
+    return !this.hiddenRuns().has(kind);
+  }
+
+  toggleRuns(): void {
+    this.runsShown.update((v) => !v);
+  }
+
+  /** Shows or hides one span kind. */
+  toggleRunKind(kind: string): void {
+    this.hiddenRuns.update((h) => {
+      const next = new Set(h);
+      if (!next.delete(kind)) next.add(kind);
+      return next;
+    });
+  }
+
+  /**
+   * Filters to a run: its lane (and field value) over its time range, zooms there and selects its start event (its stop
+   * for a stop without start) in the events grid.
+   */
+  showRun(a: AnnotationDto): void {
+    const range = runRange(a);
+    const query: Query = { ...EMPTY_QUERY, ...a.evidenceQuery, ...range, window: undefined };
+    this.ws.patchQuery(query);
+    if (this.ws.textInput() !== query.text) this.ws.setTextInput(query.text);
+    this.zoom.apply(range);
+    this.cursor.select(range);
+    this.dock.show(PANEL.events);
+    const event = a.run?.start ?? a.run?.stop;
+    if (event) this.ws.jumpTo(event.id);
+    this.logger.info('ui.timeline', 'Run shown', { Kind: a.kind, Status: a.run?.status ?? '' });
+  }
 
   private seq = 0;
   private readonly retryNonce = signal(0);

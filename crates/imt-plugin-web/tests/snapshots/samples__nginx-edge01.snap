@@ -1,0 +1,58 @@
+---
+source: crates/imt-plugin-web/tests/samples.rs
+expression: "snapshot_of(\"web/nginx/edge01/access.log\", &imt_plugin_web::AccessLogImporter)"
+---
+sample: web/nginx/edge01/access.log
+importer: access-log
+records: 5663
+skipped: 0
+first_ts: 1791968400000
+last_ts: 1791979197000
+fields:
+  - Bytes
+  - ClientIp
+  - Method
+  - Path
+  - Protocol
+  - Referer
+  - RequestTimeMs
+  - Status
+  - UserAgent
+first:
+  - ts: 1791968400000
+    level: Information
+    message: GET /static/app.css?v=3.14.2 → 304 in 106 ms
+    fields:
+      ClientIp: 203.0.113.95
+      Method: GET
+      Path: /static/app.css?v=3.14.2
+      Protocol: HTTP/2.0
+      Status: 304
+      Bytes: 0
+      UserAgent: curl/8.9.1
+      RequestTimeMs: 106
+  - ts: 1791968401000
+    level: Information
+    message: POST /api/orders/88282/capture → 200 in 180 ms
+    fields:
+      ClientIp: 203.0.113.49
+      Method: POST
+      Path: /api/orders/88282/capture
+      Protocol: HTTP/2.0
+      Status: 200
+      Bytes: 1799
+      Referer: "https://shop.contoso.com/checkout"
+      UserAgent: curl/8.9.1
+      RequestTimeMs: 180
+  - ts: 1791968403000
+    level: Information
+    message: GET /checkout → 200 in 31 ms
+    fields:
+      ClientIp: 203.0.113.2
+      Method: GET
+      Path: /checkout
+      Protocol: HTTP/2.0
+      Status: 200
+      Bytes: 13446
+      UserAgent: curl/8.9.1
+      RequestTimeMs: 31

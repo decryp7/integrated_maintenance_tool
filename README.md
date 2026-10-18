@@ -24,7 +24,8 @@ profile, and it never leaves your machine.
 Many inputs, one engine, any plugin language: logs, Windows diagnostics, profiler captures and
 built-in collectors flow through importers (built in, or plugins in Rust, C#/.NET or any gRPC
 language) into one Rust engine that parses, cleans, stores, queries and analyses them. The
-workbench only shows and shares what the engine computes. Details: [Architecture](#architecture).
+workbench only shows and shares what the engine computes. Details: [Architecture](#architecture)
+and every design diagram in [docs/design.md](docs/design.md). How IMT compares with other log tools: [docs/comparison.md](docs/comparison.md).
 
 ## Contents
 
@@ -61,6 +62,12 @@ scale to that. IMT is built for exactly this job:
   with an event-density histogram and markers for start, stop, crash, exception, error and warning.
 - Drag to zoom, `Zoom in`/`Zoom out`/`Fit`, and previous/next range history (`Alt+←` / `Alt+→`).
 - Lifecycle markers (start/stop) can be kept visible at any zoom level.
+- **Runs.** Each start → stop on a lane is drawn as a band, even when many instances share one log
+  file: pair per lane or by a field such as `Worker` or `ProcessId`. A run still going shows as
+  *still running*; a start without a stop (often a crash) and a stop without a start are flagged.
+  Hover for times, duration and both messages, click to filter to the run. Set rules up with the
+  guided editor in the Markers manager (presets for services and processes, live preview), and see
+  every run in the **Runs** view. Profiles use `[[span]]` rules; a default rule ships enabled.
 - Time can be shown in UTC or local time.
 - **Several timelines.** *New timeline* adds more timeline panels, each with its own query and
   instance selection. While a panel is linked (*Sync time*) it zooms, pans and shares the time cursor
@@ -350,6 +357,13 @@ build, or a `llama-server` of your own.
 Every view is a panel. Drag tabs to split, float a panel (`Float panel` button), maximise it, and
 reset the layout from the command palette. Layouts are remembered.
 
+The default layout is minimal: the timeline, and the events grid with the query bar. The inspector
+waits at the right edge and slides out when you select an event (pin it to keep it docked); views for
+what you just opened (a registry export, a profile capture, a diagnostics report) open by themselves.
+Everything else is one click away on the **activity bar** on the left: Explorer, Search, Timeline,
+*Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*,
+*AI*, *Tools ▸* and the profile editor. Plugins can add their own buttons to it.
+
 ### Windows, tray and notifications
 
 - **Several windows, one workspace each.** *New window* (`Mod+Shift+N`) opens a window with its own
@@ -421,6 +435,7 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 - **Bounded resources.** Limits on line length, regex size, archive expansion and result sizes;
   external tools run with timeouts; locked files and missing rights produce a message and a next step
   (retry, restart as administrator) instead of an error dialog.
+- **Diagnostics with or without the UI.** *Help ▸ Report a problem…* (and *Save diagnostics…* on the safe-mode and crash banners) and `imt-app --export-diagnostics [<file.zip>] [--force]` (no window, no plugins; exits 0/1) write one zip with IMT's logs, each child process's log (AI engine, llama-server, plugin processes; secrets scrubbed), `processes.json`, steps, snapshots, crash marker and a versioned `manifest.json`; opening that zip in IMT shows it as a diagnostics workspace (one lane per log, crash/restart markers, the *Diagnostics report* panel). Sample: `samples/diagnostics/imt-diagnostics-sample.zip`.
 
 ### Easy to start, hard to get wrong
 
@@ -434,8 +449,9 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 - **Undo and redo** for user edits; changes to the profile are undone by saving the previous version
   through the normal, validated save. The profile editor keeps the last 20 saved versions with a diff
   and *Restore*.
-- **Templates** for common formats (Serilog, log4net, NLog, Microsoft.Extensions.Logging, IIS, Apache/Nginx,
-  syslog, Windows events, CSV, plain text) with a live preview against your own file.
+- **Templates** for common formats (Serilog, log4net, NLog, Microsoft.Extensions.Logging, IIS, Apache/Nginx
+  access and Apache error logs, syslog, Windows events, Android logcat, Hadoop/Spark, CSV, plain text) with a
+  live preview against your own file.
 - **"Did you mean"** for unknown field names in the query language (computed by the engine) and for
   commands in the palette; helpful empty states say what to do next.
 - **IMT never modifies your files.** Opened logs and folders are only read. IMT writes only where you
@@ -467,8 +483,9 @@ No release yet, or you want the latest? [Build from source](#building-from-sourc
 ![The welcome screen](docs/screenshots/welcome.png)
 
 1. **Open the samples.** Start IMT, choose *Open folder…* (`Ctrl/⌘+Shift+O`) and pick the
-   [`samples/`](samples/) folder (or drag it onto the window). It holds Serilog CLEF/JSON/text,
-   log4net and CSV files from several machines.
+   [`samples/`](samples/) folder (or drag it onto the window). It holds one incident seen through
+   every supported format: Serilog CLEF/JSON/text, log4net, CSV, Windows event logs, IIS/nginx
+   logs, syslog, OpenTelemetry and more, from several machines (see [`samples/README.md`](samples/README.md)).
 2. **Load the sample profile.** Open the **Profile** tab, *Import…* and choose
    [`samples/profiles/orderservice.imtprofile.toml`](samples/profiles/orderservice.imtprofile.toml), then *Save & apply*.
    It extracts CPU and memory from text lines, so the CPU chart gets data.
@@ -501,14 +518,14 @@ are detected by magic bytes and expanded (with size caps against zip bombs).
 | Process Monitor exports | `.csv` (Sysinternals ProcMon) | `imt-plugin-windows` | One record per row; the level follows `Result`; optional columns are kept |
 | Windows minidumps | `.dmp` | `imt-plugin-windows` | A short summary: system, process, exception (code, address, module), the crashing thread's stack (scanned, not a verified unwind) and loaded modules |
 | Windows registry exports | `.reg` | `imt-plugin-registry` | One record per key/value, shown as a tree in the Registry panel |
-| IIS / W3C extended, Apache / Nginx common and combined | `.log` | `imt-plugin-web` | |
+| IIS / W3C extended, Apache / Nginx common and combined | `.log` | `imt-plugin-web` | Also the comma-separated W3C variant (Exchange tracking logs), forwarded-for client lists and extra trailing fields (Traefik) |
 | HAR captures | `.har` | `imt-plugin-web` | One record per request |
 | OpenTelemetry OTLP/JSON logs and traces | `.json`, `.jsonl` | `imt-plugin-otel` | Spans and span events linked by `TraceId` / `SpanId` |
 | syslog (RFC 5424, RFC 3164) and journald (`journalctl -o json`) | `syslog`, `.log`, `.json` | `imt-plugin-syslog` | Severity is mapped to IMT levels |
 | log4j / log4net / NLog XML events | `.xml`, `.log` | `imt-plugin-formats` | `XMLLayout` and `Log4JXmlEventLayout`; one malformed event costs only that event |
 | SQL Server `ERRORLOG` | `ERRORLOG` | `imt-plugin-formats` | UTF-16 or UTF-8; error number, severity and state become fields |
 | Docker `json-file` and Kubernetes CRI container logs | `*-json.log`, `*.log` | `imt-plugin-formats` | Partial lines are joined; `Stream`, pod, namespace and container are fields |
-| CBS / DISM text logs | `CBS.log` | built-in text importer | Needs a one-line profile regex, no plugin |
+| CBS / DISM text logs | `CBS.log` | built-in text importer | Read by the default profile; a one-line profile regex adds the component as a field |
 
 Timestamps: ISO 8601/RFC 3339, Serilog defaults, `/` and `.` dates (day-first or month-first, detected
 per file), month names, 12-hour clocks, epoch seconds/milliseconds, time-only console logs, and your own
@@ -771,7 +788,31 @@ npx tauri dev         # the desktop app with the real engine (starts `npm run st
 cargo test -p imt-core        # engine tests, including end-to-end runs over /samples
 ```
 
-Regenerate the sample logs with `python3 samples/generate.py` (do not edit them by hand).
+Regenerate the sample logs with `python3 samples/generate.py` (do not edit them by hand);
+[`samples/README.md`](samples/README.md) lists every sample, its format and the views it shows.
+
+### Visual Studio Code (Windows and macOS)
+
+Open the **repository root** (not `app/`) and accept the recommended extensions
+(`.vscode/extensions.json`: rust-analyzer, Tauri, C/C++ for debugging on Windows, CodeLLDB for
+macOS and Linux, Angular, ESLint, Prettier, Playwright, draw.io, ...).
+
+1. Install the prerequisites above. On macOS: `xcode-select --install`, Rust from
+   [rustup.rs](https://rustup.rs), Node.js 24 (for example `brew install node@24`). On Windows: the
+   Rust MSVC toolchain, the "Desktop development with C++" workload (Build Tools) and Node.js 24.
+2. *Terminal ▸ Run Task… ▸ IMT: install UI dependencies* (runs `npm ci` in `app/`).
+3. Run or debug:
+   - *IMT: run app (tauri dev)* — the desktop app with hot reload.
+   - **F5** with *Debug IMT app (Windows)* or *Debug IMT app (macOS / Linux)* — starts the UI dev
+     server, builds the debug binary and attaches the native debugger (breakpoints in Rust).
+     The *with the samples* variants open `samples/serilog-clef` on start.
+   - *Debug UI in the browser (mock backend)* — the Angular UI alone, with Chrome DevTools-style
+     breakpoints in TypeScript.
+4. **Ctrl/Cmd+Shift+B** builds the debug binary; other tasks run the checks (`Rust: clippy`,
+   `Rust: test workspace`, `UI: lint`, `UI: unit tests`, `UI: e2e`, ...) or all of them in order
+   (*IMT: all quality gates*). `IMT: build installers (release)` runs `tauri build`.
+
+rust-analyzer checks into its own target folder, so it never blocks a build in the terminal.
 
 ### Package
 

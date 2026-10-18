@@ -1,0 +1,37 @@
+{
+  // rust-analyzer checks into its own target folder, so its background checks never block
+  // `cargo build` / `tauri dev` in the terminal (a shared folder makes them wait on each other).
+  "rust-analyzer.cargo.targetDir": true,
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.extraArgs": ["--all-targets"],
+  "rust-analyzer.rustfmt.extraArgs": ["--config-path", "${workspaceFolder}/rustfmt.toml"],
+  "rust-analyzer.files.excludeDirs": ["app/node_modules", "app/dist", "fuzz/target", "crates/imt-store-spike"],
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true
+  },
+
+  // The UI lives in app/: use its TypeScript, ESLint config and Prettier settings.
+  "typescript.tsdk": "app/node_modules/typescript/lib",
+  "eslint.workingDirectories": ["app"],
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[scss]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  "[toml]": { "editor.defaultFormatter": "tamasfe.even-better-toml" },
+
+  "files.exclude": { "**/.angular": true },
+  "search.exclude": {
+    "**/target": true,
+    "**/node_modules": true,
+    "app/dist": true,
+    "app/.angular": true,
+    "app/src/locale/messages.pseudo.json": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/node_modules/**": true,
+    "app/dist/**": true,
+    "app/.angular/**": true
+  }
+}

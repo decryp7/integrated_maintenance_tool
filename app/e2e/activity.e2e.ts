@@ -1,5 +1,5 @@
 import { BrowserContext, ConsoleMessage, expect, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { ensureInspector, openApp } from './app';
 import { chooseMenu } from './menu-support';
 
 // The activity log in the browser build: entries go to the console logger (the mock "log sink"), as
@@ -70,7 +70,8 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await row.click();
   await expect.poll(() => find(entries, 0, { Operation: 'selection.change' })).toBeGreaterThanOrEqual(0);
 
-  // Pop out the inspector.
+  // Pop out the inspector (docked first: by default it is auto-hidden).
+  await ensureInspector(page);
   await popOut(page, context, 'Inspector');
 
   // Change a setting.

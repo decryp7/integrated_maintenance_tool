@@ -11,4 +11,6 @@ anyhow = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
 [dev-dependencies]
+# Snapshot tests of the importers against /samples (tests/samples.rs, snapshots in tests/snapshots/).
+insta = { version = "1", features = ["yaml"] }
 proptest = "1"

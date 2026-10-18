@@ -64,7 +64,7 @@ fn query_language_filters_everything_and_runs_stats() {
         .all(|r| r.fields["MachineName"] == "WEB02" && r.level >= imt_core::model::Level::Error));
     let tl = s
         .timeline(&TimelineRequest {
-            query: q("level = fatal"),
+            query: q("level = fatal and MachineName = WEB02"),
             buckets: 50,
             always_show_lifecycle: false,
         })

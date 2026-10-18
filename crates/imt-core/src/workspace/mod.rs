@@ -14,6 +14,7 @@ mod redaction;
 pub use redaction::{RedactionPreviewRequest, RedactionSample, RedactionSummary, RedactionSummaryRequest};
 mod report;
 mod skew;
+mod spans;
 mod tail;
 mod timeline;
 
@@ -192,6 +193,8 @@ pub struct Workspace {
     offsets: crate::skew::ClockOffsets,
     /// The "Redacted view": pages, facets and source context pass through it.
     view_redaction: Option<Arc<crate::redact::Redactor>>,
+    /// Runs between lifecycle markers, computed on first use and fed live-tail appends.
+    spans: Mutex<spans::SpanBook>,
 }
 
 impl Workspace {
@@ -235,6 +238,7 @@ impl Workspace {
             tail: tail::TailBook::default(),
             offsets: crate::skew::ClockOffsets::default(),
             view_redaction: None,
+            spans: Mutex::new(spans::SpanBook::default()),
         })
     }
 

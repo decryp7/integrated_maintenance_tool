@@ -26,6 +26,10 @@ impl Importer for SyslogImporter {
             .filter(|l| !l.trim().is_empty())
             .take(SNIFF_LINES)
         {
+            // Indented lines continue the previous message (macOS writes multi-line messages so).
+            if line.starts_with(char::is_whitespace) {
+                continue;
+            }
             seen += 1;
             hits += usize::from(parse_line(line).is_some());
         }
@@ -531,6 +535,15 @@ mod tests {
         assert_eq!(sniff(BSD), 75);
         assert_eq!(sniff("\u{feff}Oct 14 10:00:00 h a: x\nnot syslog\n"), 75);
         assert_eq!(sniff("Oct 14 10:00:00 h a: x\nnot syslog\nnot syslog\n"), 0);
+        // Indented continuation lines do not count against the file.
+        let continued =
+            "Oct 14 10:00:00 mac app[1]: Checking <Store:0x1\n\t\tpath=\"/a\"\n\t\tlocked=NO\n\t>\nOct 14 10:00:01 mac app[1]: done\n";
+        assert_eq!(sniff(continued), 75);
+        assert_eq!(
+            import(continued, None).records[0].message,
+            "Checking <Store:0x1\n\t\tpath=\"/a\"\n\t\tlocked=NO\n\t>"
+        );
+        assert_eq!(sniff("\tonly indented\n"), 0);
         assert_eq!(sniff(""), 0);
         assert_eq!(sniff("   \n\n"), 0);
         assert_eq!(sniff("{\"__REALTIME_TIMESTAMP\":\"1\",\"MESSAGE\":\"x\"}"), 0);
@@ -544,11 +557,16 @@ mod tests {
     #[test]
     fn does_not_steal_sample_files() {
         let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+        // Syslog and journald samples of its own live in samples/linux; every other sample belongs to another importer.
+        let own = samples.join("linux");
         let mut checked = 0;
         let mut stack = vec![samples];
         while let Some(dir) = stack.pop() {
             for entry in std::fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
+                if path == own {
+                    continue;
+                }
                 if path.is_dir() {
                     stack.push(path);
                     continue;

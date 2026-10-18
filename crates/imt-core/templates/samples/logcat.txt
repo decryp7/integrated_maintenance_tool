@@ -1,0 +1,6 @@
+10-14 10:41:00.120  1702  1702 I ActivityManager: Start proc 4211:com.contoso.shop/u0a77 for activity
+10-14 10:41:02.540  4211  4230 W OkHttp  : Slow response from /api/orders (1500 ms)
+10-14 10:41:24.050  4211  4211 E AndroidRuntime: FATAL EXCEPTION: main
+10-14 10:41:24.050  4211  4211 E AndroidRuntime: java.lang.IllegalStateException: payment failed
+10-14 10:41:24.051  4211  4211 E AndroidRuntime: 	at com.contoso.shop.Pay.capture(Pay.java:88)
+10-14 10:41:30.000  1702  1720 D WindowManager: Removing window for com.contoso.shop

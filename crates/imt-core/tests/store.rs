@@ -244,6 +244,12 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
 
     assert_eq!(store.tail_status(), Default::default());
     assert!(store.annotations(&Default::default()).is_empty());
+    assert!(store.runs(&Default::default()).runs.is_empty());
+    let draft = serde_json::from_str(
+        r#"{"draft": {"kind": "run", "start": {"type": "markers", "kinds": ["start"]}, "stop": {"type": "markers", "kinds": ["stop"]}}}"#,
+    )
+    .unwrap();
+    assert!(store.preview_spans(&draft).unwrap_err().to_string().contains("cannot preview runs"));
     assert!(store.event_bus().is_none());
     // Clock-skew correction: refused, and nothing to suggest.
     let req: imt_core::skew::SetOffsetRequest = serde_json::from_str(r#"{"kind": "manual", "source": 0, "offsetMs": 5}"#).unwrap();

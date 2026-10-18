@@ -1,6 +1,6 @@
 import { CdkMenu, CdkMenuBar, CdkMenuItem, CdkMenuItemCheckbox, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { formatKeybinding, isMac } from '../../extensions/keybinding';
+import { ariaKeyshortcuts, formatKeybinding } from '../../extensions/keybinding';
 import { AppMenu } from './app-menu.service';
 import { MenuTriggerGuard } from './submenu-trigger';
 import { MenuNode, TopMenu } from './menu-model';
@@ -134,10 +134,6 @@ export class MenuBar {
 
   /** `aria-keyshortcuts` value, e.g. "Meta+Shift+O" (Mod is Cmd on macOS, Ctrl elsewhere). */
   protected keys(binding: string | undefined): string | null {
-    if (!binding) return null;
-    return binding
-      .split('+')
-      .map((p) => (p.toLowerCase() === 'mod' ? (isMac() ? 'Meta' : 'Control') : p.toLowerCase() === 'ctrl' ? 'Control' : p))
-      .join('+');
+    return binding ? ariaKeyshortcuts(binding) : null;
   }
 }

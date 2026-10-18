@@ -54,6 +54,15 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
   2026-10-18: out of scope; copy logs locally or use the diagnostics collector.)*
 - **Diff view** for configuration-like data (registry exports, JSON/XML configs, msinfo of
   two machines). *(Done: JSON, XML, INI, TOML, YAML, `.reg`, `.nfo`, and folder snapshots.)*
+- **Format gaps found with real-world samples** (October 2026, still open):
+  - `.tar` / `.tar.gz` archives.
+  - journald export format and `json-pretty` output.
+  - CSV files whose first row is data, not a header (e.g. HealthApp).
+  - MongoDB 4.4+ JSON logs with `{"$date": …}` timestamps.
+  - Logstash events whose `message` is itself nested JSON.
+  - Templates for PostgreSQL, MongoDB and Redis logs.
+  - W3C `s-computername` mapped to the machine name.
+  - SQL Server ERRORLOG time zones in the core text importer.
 
 ## Phase 4: collect, not just read
 
@@ -162,6 +171,17 @@ planned.)*
   cited evidence, and proposes regexes, profiles, pipelines, markers, extractors and queries that
   the engine validates and previews before the user applies them. Optional web search for error
   codes is off by default, uses engine-built redacted queries and needs approval per request.
+- **Internal web browser** *(next; replaces the AI's web search: SearXNG and Brave are removed)*:
+  - A sandboxed browser window that the user drives: *Search the web for this error* opens the
+    user's chosen engine.
+  - *Add page to AI context* hands the visible page's text to the model as cited, untrusted
+    evidence. The AI can also read along (opt-in per chat) and suggest links that the user opens.
+  - **Agent mode:** the AI drives the visible browser (navigate, click, type, read) at human pace,
+    with a Stop button. Approval is needed for new sites, typed text and form submissions, and
+    workspace data headed into a URL or form is highlighted. CAPTCHAs and logins go to the user,
+    and every action is logged.
+  - No stealth or bot-detection evasion. Remote pages get no IPC except a one-shot capture that a
+    user click arms.
 - **Redaction / PII masking** rules (emails, tokens, IPs, custom regexes) applied to views,
   exports and bundles. *(Done: `[redact]`, redacted view, redacted exports, reports and bundles.)*
 - **Incident report builder:** pick bookmarks, charts and notes into a narrative report.
