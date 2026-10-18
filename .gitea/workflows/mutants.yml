@@ -1,0 +1,55 @@
+# Mutation testing of the engine with cargo-mutants: how many deliberately injected bugs the tests catch.
+# Weekly over all of imt-core; on pull requests only the mutants in the changed lines (--in-diff).
+# Surviving mutants are listed in mutants.out (uploaded); they point at untested behaviour.
+
+name: mutants
+
+on:
+  schedule:
+    - cron: "41 3 * * 0"
+  pull_request:
+    paths: ["crates/imt-core/**"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-mutants
+          key: mutants-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: mutants-${{ runner.os }}-
+
+      - name: Install cargo-mutants
+        run: command -v cargo-mutants || cargo install cargo-mutants --locked
+
+      - name: Mutants in the changed lines
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" -- crates/imt-core > pr.diff
+          cargo mutants -p imt-core --in-diff pr.diff --timeout-multiplier 3 --no-shuffle
+
+      - name: Mutants in imt-core
+        if: github.event_name != 'pull_request'
+        run: cargo mutants -p imt-core --timeout-multiplier 3 --jobs 2
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: mutants-out
+          path: mutants.out/
+          if-no-files-found: ignore

@@ -46,6 +46,13 @@ jobs:
           - fuzz_prof_perf_script
           - fuzz_prof_nettrace
           - fuzz_prof_heapsnapshot
+          - fuzz_procmon_csv
+          - fuzz_minidump
+          - fuzz_eventlog
+          - fuzz_log4j_xml
+          - fuzz_sql_errorlog
+          - fuzz_docker_json
+          - fuzz_cri
     steps:
       - uses: actions/checkout@v4
 
