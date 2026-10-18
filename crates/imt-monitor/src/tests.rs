@@ -254,6 +254,11 @@ fn glob_matching() {
     // `.exe` is optional in a name pattern.
     let t = cfg(json!({"targets": [{"name": "svc"}]})).unwrap().targets;
     assert!(t.matches(1, "svc.exe", None) && t.matches(1, "SVC.EXE", None) && t.matches(1, "svc", None));
+    // Linux cuts process names to 15 characters; the executable's file name still matches.
+    let t = cfg(json!({"targets": [{"name": "order-service-worker"}]})).unwrap().targets;
+    assert!(t.matches(1, "order-service-w", Some("/opt/shop/bin/order-service-worker")));
+    assert!(t.matches(1, "order-service-w", Some(r"C:\Shop\order-service-worker.exe")));
+    assert!(!t.matches(1, "order-service-w", None) && !t.matches(1, "order-service-w", Some("/opt/shop/bin/")));
     assert!(!t.matches(1, "svc2.exe", None));
     assert_eq!(t.only_pids(), None);
     assert_eq!(

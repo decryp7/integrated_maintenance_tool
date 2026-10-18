@@ -81,6 +81,10 @@ fn glob(pattern: &str) -> Result<GlobMatcher> {
         .compile_matcher())
 }
 
+fn without_exe(name: &str) -> &str {
+    name.strip_suffix(".exe").or_else(|| name.strip_suffix(".EXE")).unwrap_or(name)
+}
+
 fn normalise_path(p: &str) -> String {
     p.replace('\\', "/")
 }
@@ -91,10 +95,13 @@ impl Targets {
     }
 
     pub fn matches(&self, pid: u32, name: &str, exe: Option<&str>) -> bool {
-        let bare = name.strip_suffix(".exe").or_else(|| name.strip_suffix(".EXE")).unwrap_or(name);
         let exe = exe.map(normalise_path);
+        // Linux reports at most 15 characters of a process name, so a name target also matches the executable's
+        // file name.
+        let file = exe.as_deref().and_then(|e| e.rsplit('/').next()).filter(|f| !f.is_empty());
+        let names = [Some(name), file].into_iter().flatten().flat_map(|n| [n, without_exe(n)]);
         self.0.iter().any(|t| match t {
-            Target::Name(g) => g.is_match(name) || g.is_match(bare),
+            Target::Name(g) => names.clone().any(|n| g.is_match(n)),
             Target::Path(g) => exe.as_deref().is_some_and(|e| g.is_match(e)),
             Target::Pid(p) => *p == pid,
         })
