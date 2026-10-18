@@ -553,6 +553,13 @@ fn a_crashing_adapter_is_contained() {
 }
 
 #[test]
+fn the_queue_length_never_reports_a_negative_dip_as_huge() {
+    // The writer may subtract before the sending reader adds (the race once reported 18446744073709551615).
+    assert_eq!(super::queued_now(-3), 0);
+    assert_eq!((super::queued_now(0), super::queued_now(4)), (0, 4));
+}
+
+#[test]
 fn a_full_queue_slows_readers_without_losing_events() {
     let log = FakeLog::with(&[("System", 200)]);
     let sink = Arc::new(MemSink {

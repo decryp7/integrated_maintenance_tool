@@ -26,7 +26,7 @@ use imt_core::model::{Level, Record};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -256,10 +256,17 @@ impl Stats {
     }
 }
 
+/// The queue length to report: a brief negative dip (see [`Shared::queued`]) is an empty queue.
+fn queued_now(value: isize) -> usize {
+    usize::try_from(value).unwrap_or(0)
+}
+
 struct Shared {
     stop: AtomicBool,
     paused: AtomicBool,
-    queued: AtomicUsize,
+    /// Events handed to the writer and not yet taken. Signed: the writer can take an event (and subtract) a
+    /// moment before the reader that sent it adds, so the value may dip below zero briefly.
+    queued: AtomicIsize,
     stats: Mutex<Stats>,
 }
 
@@ -365,7 +372,7 @@ impl Follower {
         let shared = Arc::new(Shared {
             stop: AtomicBool::new(false),
             paused: AtomicBool::new(false),
-            queued: AtomicUsize::new(0),
+            queued: AtomicIsize::new(0),
             stats: Mutex::new(Stats {
                 channels: config
                     .channels
@@ -467,7 +474,7 @@ impl Follower {
             channels: s.channels.clone(),
             errors: s.errors.iter().cloned().collect(),
             unreadable: s.unreadable,
-            queued: self.shared.queued.load(Ordering::SeqCst),
+            queued: queued_now(self.shared.queued.load(Ordering::SeqCst)),
             queue_capacity: self.capacity,
             xpath: self.xpath.clone(),
         }
@@ -687,7 +694,9 @@ impl Writer {
                 Err(RecvTimeoutError::Disconnected) => true,
             };
             if !batch.is_empty() {
-                self.shared.queued.fetch_sub(batch.len(), Ordering::SeqCst);
+                self.shared
+                    .queued
+                    .fetch_sub(isize::try_from(batch.len()).unwrap_or(isize::MAX), Ordering::SeqCst);
                 if let Err(e) = self.write(&mut batch) {
                     self.save();
                     let message = format!("writing the event log files failed: {e:#}");
