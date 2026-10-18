@@ -250,6 +250,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
+      - name: Git bash on PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bash = "$env:ProgramFiles\Gitin"
+          if (-not (Test-Path "$bashash.exe")) { throw "Git for Windows is not installed on this runner ($bashash.exe is missing)" }
+          $bash | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Linux dependencies for Tauri and WebDriver
@@ -336,6 +345,15 @@ jobs:
     container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
+      - name: Git bash on PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bash = "$env:ProgramFiles\Gitin"
+          if (-not (Test-Path "$bashash.exe")) { throw "Git for Windows is not installed on this runner ($bashash.exe is missing)" }
+          $bash | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - uses: dtolnay/rust-toolchain@stable
 
