@@ -27,6 +27,15 @@ import { mockTileError } from './mock-dashboards';
 import { MockAnalysisBackend, recordsFrom } from '../../analysis/mock/mock-analysis-backend';
 import { MockFiles } from '../../core/mock/mock-import';
 import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock-redact';
+import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
+
+/** How long a mock export takes (`?mockExportMs=`, default instant), to see it as a job in the Jobs pane. */
+export function mockExportMs(search = typeof window === 'undefined' ? '' : window.location.search): number {
+  const v = new URLSearchParams(search).get('mockExportMs');
+  return v !== null && /^\d{1,6}$/.test(v) ? Number(v) : 0;
+}
+
+const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
 /** A bundle "written" by the mock (nothing reaches a disk): what opening it gives back. */
 interface MockBundle {
@@ -183,9 +192,13 @@ export class MockShareBackend extends ShareBackend {
       hits = r.hits(counts);
     }
     this.files.write(request.path, request.overwrite);
-    const bytes = JSON.stringify(request.report).length;
-    this.written.push({ path: request.path, kind: request.format, bytes });
-    return { path: request.path, bytes, redaction: hits };
+    // The file is checked first (like the engine); writing it is an export job.
+    return mockJobs().run({ kind: 'export', title: `Export report ${fileName(request.path)}`, link: { type: 'path', path: request.path } }, async (ctx) => {
+      await mockSteps(ctx, mockExportMs());
+      const bytes = JSON.stringify(request.report).length;
+      this.written.push({ path: request.path, kind: request.format, bytes });
+      return { value: { path: request.path, bytes, redaction: hits }, result: { type: 'file', path: request.path } };
+    });
   }
 
   async saveVisual(request: VisualRequest): Promise<VisualSaved> {
@@ -224,9 +237,12 @@ export class MockShareBackend extends ShareBackend {
       entries: [{ path: 'project.imtproj', kind: 'project', bytes: 1200, sha256: '0'.repeat(64) }],
       skipped: [],
     };
-    this.bundles.set(path, { options: structuredClone(options), manifest });
-    this.written.push({ path, kind: 'imtz', bytes: est.bytes });
-    return manifest;
+    return mockJobs().run({ kind: 'export', title: `Share bundle ${fileName(path)}`, link: { type: 'path', path } }, async (ctx) => {
+      await mockSteps(ctx, mockExportMs());
+      this.bundles.set(path, { options: structuredClone(options), manifest });
+      this.written.push({ path, kind: 'imtz', bytes: est.bytes });
+      return { value: manifest, result: { type: 'file', path } };
+    });
   }
 
   /** Findings derived from the mock anomalies, unrecognised files and plugin problems (the engine's health check covers much more). */

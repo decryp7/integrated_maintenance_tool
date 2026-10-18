@@ -4,11 +4,12 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { LiveTail } from '../workspace/live-tail';
 import { BackgroundWork } from '../windowing/background-work';
 import { ImportStatus } from '../import/import-ui';
+import { StatusJobs } from '../jobs/status-jobs';
 
 @Component({
   selector: 'imt-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BackgroundWork, ImportStatus],
+  imports: [BackgroundWork, ImportStatus, StatusJobs],
   template: `
     @if (store.summary(); as s) {
       <span class="strong" i18n="@@shell.statusBar.sources">{s.sources.length, plural, =1 {{{ s.sources.length }} source} other {{{ s.sources.length }} sources}}</span>
@@ -43,6 +44,7 @@ import { ImportStatus } from '../import/import-ui';
       <span class="live-dot" aria-hidden="true"></span>Live
     </button>
     <imt-background-work />
+    <imt-status-jobs />
     <span i18n="@@shell.statusBar.importers">Importers: {{ importers() }}</span>
     <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@shell.statusBar.toggleTimezone">{{ tz() }}</button>
     <span>IMT 0.1.0</span>

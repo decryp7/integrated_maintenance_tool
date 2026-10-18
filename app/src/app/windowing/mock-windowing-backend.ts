@@ -62,7 +62,7 @@ export function seededTasks(now = Date.now()): BackgroundTask[] {
   return [
     { id: 'live-main', label: 'Live tail — main', kind: 'liveTail', window: 'main', progress: null, stoppable: true, startedAt: now - 60_000 },
     { id: 'monitor', label: 'Process monitor', kind: 'processMonitor', window: null, progress: null, stoppable: true, startedAt: now - 120_000 },
-    { id: 'symbols', label: 'Downloading symbols', kind: 'download', window: null, progress: 0.4, stoppable: false, startedAt: now - 5_000 },
+    { id: 'symbols', label: 'Downloading symbols', kind: 'job', window: null, progress: 0.4, stoppable: false, startedAt: now - 5_000 },
   ];
 }
 

@@ -27,6 +27,8 @@ import {
   SessionInfo,
   SetupEvent,
   SetupPlan,
+  ResearchArgs,
+  ResearchStarted,
 } from './ai.types';
 
 /** A rejected AI command: a stable `code` (hide AI, offer set-up, retry) and a message for the user. */
@@ -95,6 +97,9 @@ export abstract class AiBackend {
   abstract explainEvent(recordId: number): Promise<Narrative>;
   abstract summarize(from: number, to: number): Promise<Narrative>;
   abstract rootCauses(): Promise<Narrative>;
+  /** Web research ("Research this", the chat's "Research…"): a research job whose answer becomes a chat turn, or a
+   * search text with workspace data to confirm first. */
+  abstract research(args: ResearchArgs): Promise<ResearchStarted>;
   /** Stops this window's running use cases. */
   abstract cancel(): Promise<number>;
 
@@ -102,8 +107,8 @@ export abstract class AiBackend {
   abstract chatNew(): Promise<SessionInfo>;
   abstract chatGet(sessionId: string): Promise<ChatRecord>;
   abstract chatDelete(sessionId: string): Promise<boolean>;
-  /** Starts a turn; the answer streams through `onChat`. */
-  abstract chatSend(sessionId: string, text: string, context: ChatContext): Promise<void>;
+  /** Starts a turn as an AI job (resolves with its id); the answer streams through `onChat` once it runs. */
+  abstract chatSend(sessionId: string, text: string, context: ChatContext): Promise<number>;
   abstract chatCancel(sessionId: string): Promise<boolean>;
   abstract chatEventsSince(sessionId: string, seq: number): Promise<ChatEnvelope[] | null>;
   abstract chatHistory(): Promise<ChatHistoryRecord>;

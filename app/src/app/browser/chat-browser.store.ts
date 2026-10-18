@@ -112,6 +112,10 @@ export const ChatBrowserStore = signalStore(
         return (await run(() => backend.openSuggested(id, url))) !== null;
       },
 
+      async openAndRead(id: string, url: string): Promise<boolean> {
+        return (await run(() => backend.openAndRead(id, url))) !== null;
+      },
+
       dismissError(): void {
         patchState(store, { error: null });
       },

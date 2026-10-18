@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { AgentApprovalView, LinkView, PauseView } from '../ai/chat/chat-model';
+import { AgentApprovalView, LinkView, PauseView, ResearchOfferView } from '../ai/chat/chat-model';
 import { AgentDecision, Segment } from './browser.types';
 import { handOffText, leakText } from './browser-text';
 
@@ -114,23 +114,61 @@ export class AgentApprovalCard {
     <section class="card" role="group" [attr.aria-label]="link().title" data-testid="link-card">
       <p><strong>{{ link().title }}</strong> <span class="muted small">{{ kindText() }}</span></p>
       <p><imt-segments [segments]="segments()" /></p>
-      <div class="row"><button type="button" class="btn" (click)="open.emit(link().url)" i18n="@@browser.link.open">Open</button></div>
+      <div class="row">
+        <button type="button" class="btn ghost" (click)="open.emit(link().url)" i18n="@@browser.link.open">Open</button>
+        <button type="button" class="btn" (click)="read.emit(link().url)" data-testid="link-card-read" title="Opens the page in IMT's browser, adds it to this chat as untrusted web content, and the AI goes on with it" i18n-title="@@browser.link.readTitle" i18n="@@browser.link.read">Open and let AI read it</button>
+      </div>
     </section>
   `,
   styles: `
     .card { border: 1px solid var(--border-3); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
     p { margin: 0; }
     .small { font-size: 12px; }
-    .row { display: flex; justify-content: flex-end; }
+    .row { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
   `,
 })
 export class LinkCard {
   readonly link = input.required<LinkView>();
   readonly open = output<string>();
+  readonly read = output<string>();
   protected readonly segments = computed(() => (this.link().segments.length ? this.link().segments : [{ text: this.link().url, leak: null }]));
   protected readonly kindText = computed(() =>
     this.link().kind === 'search' ? $localize`:@@browser.link.kindSearch:suggested search` : $localize`:@@browser.link.kindLink:suggested page`,
   );
+}
+
+/** The AI offers to research the web (automatic research is off, or the search text has workspace data in it). */
+@Component({
+  selector: 'imt-research-offer',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Segments],
+  template: `
+    <section class="card" role="group" [attr.aria-label]="heading()" data-testid="research-offer">
+      <p><strong>{{ heading() }}</strong></p>
+      <p><span class="muted small" i18n="@@browser.research.searchText">Search text: </span><imt-segments [segments]="segments()" /></p>
+      @if (offer().needsConfirm) {
+        <p class="warn small" role="note" i18n="@@browser.research.confirmNote">Highlighted parts come from your logs or look private: check the search text before it is sent.</p>
+      }
+      <div class="row">
+        <button type="button" class="btn ghost" (click)="agent.emit()" data-testid="research-offer-agent" title="Turns on agent mode for this chat only: the AI drives the browser step by step and asks before new sites, typing and forms" i18n-title="@@browser.research.agentTitle" i18n="@@browser.research.agent">Let the AI drive the browser</button>
+        <button type="button" class="btn primary" (click)="research.emit()" data-testid="research-offer-run" title="The AI searches and reads the top results by itself, read-only, and answers with citations" i18n-title="@@browser.research.runTitle" i18n="@@browser.research.run">Research this</button>
+      </div>
+    </section>
+  `,
+  styles: `
+    .card { border: 1px solid var(--border-3); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+    p { margin: 0; }
+    .small { font-size: 12px; }
+    .warn { color: var(--warn-text); }
+    .row { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+  `,
+})
+export class ResearchOfferCard {
+  readonly offer = input.required<ResearchOfferView>();
+  readonly research = output<void>();
+  readonly agent = output<void>();
+  protected readonly heading = computed(() => $localize`:@@browser.research.heading:Research the web: ${this.offer().question}:question:`);
+  protected readonly segments = computed(() => (this.offer().segments.length ? this.offer().segments : [{ text: this.offer().query, leak: null }]));
 }
 
 /** Why agent mode stopped, with Continue after the step cap. */

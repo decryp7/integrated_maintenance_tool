@@ -378,6 +378,8 @@ export type ChatEvent =
   | { type: 'agentStep'; step: number; limit: number; action: string; site: string | null }
   /** Agent mode stopped and handed the browser back. */
   | { type: 'agentPaused'; reason: PauseReason; steps: number; handOff: HandOff | null }
+  /** The model offers web research (or the search text needs confirming): "Research this" and agent mode buttons. */
+  | { type: 'researchOffer'; question: string; query: string; segments: Segment[]; needsConfirm: boolean }
   | { type: 'done'; text: string; citations: Citation[]; usage: Usage; notes: string[] }
   | { type: 'error'; message: string; cancelled: boolean };
 
@@ -426,3 +428,25 @@ export interface SampleSource {
   sample?: string | null;
   fileName?: string | null;
 }
+
+/** `ai_research` arguments (app/src-tauri/src/browser/research.rs `ResearchArgs`). */
+export interface ResearchArgs {
+  question?: string | null;
+  recordId?: number | null;
+  sessionId?: string | null;
+  /** 1..10; the setting when absent. */
+  maxResults?: number | null;
+  /** The search text as the user confirmed or edited it. */
+  query?: string | null;
+  confirmed?: boolean;
+}
+
+/** A search text checked by the leak guard. */
+export interface CheckedQuery {
+  query: string;
+  needsConfirm: boolean;
+  segments: Segment[];
+}
+
+/** `ai_research` answer: the research job started, or the search text needs the user's confirmation first. */
+export type ResearchStarted = { status: 'started'; jobId: number } | { status: 'confirm'; checked: CheckedQuery; question: string };

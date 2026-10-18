@@ -31,6 +31,8 @@ export abstract class BrowserBackend {
   abstract nav(command: NavCommand): Promise<void>;
   /** Closes the browser window; false when it was not open. */
   abstract close(): Promise<boolean>;
+  /** Stops the research reading pages in this window's browser; resolves with how many stopped. */
+  abstract researchStop(): Promise<number>;
   /** Opens the page shown, or a popup it asked for, in the system browser (anything else is refused). */
   abstract openExternal(url: string): Promise<void>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
@@ -53,6 +55,8 @@ export abstract class ChatBrowserBackend {
   abstract respond(sessionId: string, requestId: number, decision: AgentDecision): Promise<boolean>;
   /** Opens a link the chat suggested in the internal browser (other links are refused). */
   abstract openSuggested(sessionId: string, url: string): Promise<void>;
+  /** "Open and let AI read it": opens a suggested link, adds the page to the chat and lets the chat go on (a new turn; its job). */
+  abstract openAndRead(sessionId: string, url: string): Promise<number>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
 }
 
@@ -79,6 +83,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   close() {
     return this.call<boolean>('browser_close');
+  }
+  researchStop() {
+    return this.call<number>('browser_research_stop');
   }
   openExternal(url: string) {
     return this.call<void>('browser_open_external', { url });
@@ -112,6 +119,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   openSuggested(sessionId: string, url: string) {
     return this.call<void>('browser_open_suggested', { sessionId, url });
+  }
+  openAndRead(sessionId: string, url: string) {
+    return this.call<number>('browser_open_and_read', { sessionId, url });
   }
   onEvent(handler: (e: BrowserEvent) => void) {
     return this.listen(BROWSER_EVENT, (p) => {

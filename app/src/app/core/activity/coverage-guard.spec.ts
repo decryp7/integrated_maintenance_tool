@@ -160,6 +160,8 @@ import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
 import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
 import { WindowingBackend } from '../../windowing/windowing-backend';
+import { JobsBackend } from '../../jobs/jobs-backend';
+import { NotificationsBackend } from '../../notifications/notifications-backend';
 import { at, must } from '../../../testing/must';
 
 const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
@@ -189,4 +191,6 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   UxBackend,
   UpdatesBackend,
   WindowingBackend,
+  JobsBackend,
+  NotificationsBackend,
 };

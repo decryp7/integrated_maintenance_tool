@@ -29,6 +29,8 @@ import { provideBrowser } from './browser/provide-browser';
 import { provideActivity } from './core/activity/provide-activity';
 import { provideImtIcons } from './shared/material/imt-icons';
 import { provideUpdates } from './updates/provide-updates';
+import { provideJobs } from './jobs/provide-jobs';
+import { provideNotifications } from './notifications/provide-notifications';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -63,5 +65,7 @@ export const appConfig: ApplicationConfig = {
     provideActivity(),
     provideImtIcons(),
     provideUpdates(),
+    provideJobs(),
+    provideNotifications(),
   ],
 };

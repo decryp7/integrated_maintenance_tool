@@ -9,11 +9,13 @@ import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
 import { AiProposalCard } from '../proposals/proposal-card';
 import { AgentDecision } from '../../browser/browser.types';
-import { AgentApprovalCard, AgentPaused, LinkCard } from '../../browser/chat-cards';
+import { AgentApprovalCard, AgentPaused, LinkCard, ResearchOfferCard } from '../../browser/chat-cards';
 import { ChatBrowserBar } from '../../browser/chat-browser-bar';
 import { ChatBrowserStore } from '../../browser/chat-browser.store';
-import { describeContext, toolLabel, TurnView } from './chat-model';
+import { describeContext, ResearchOfferView, toolLabel, TurnView } from './chat-model';
 import { ChatStore } from './chat.store';
+import { JobsStore } from '../../jobs/jobs.store';
+import { queuedLabel } from '../../jobs/jobs-text';
 import { AiCitations } from './citation-actions';
 import { isNotFound } from './markdown';
 import { AiRichText } from './rich-text';
@@ -26,7 +28,7 @@ import { AiRichText } from './rich-text';
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar],
+  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -82,7 +84,10 @@ import { AiRichText } from './rich-text';
               <imt-agent-approval [approval]="ap" (decide)="respond(ap.request.requestId, $event)" />
             }
             @for (l of t.links; track l.url) {
-              <imt-link-card [link]="l" (open)="openSuggested($event)" />
+              <imt-link-card [link]="l" (open)="openSuggested($event)" (read)="readSuggested($event)" />
+            }
+            @for (o of t.offers; track o.query) {
+              <imt-research-offer [offer]="o" (research)="researchOffer(o)" (agent)="agentForChat()" />
             }
             @if (t.paused; as p) {
               <imt-agent-paused [paused]="p" [canContinue]="!t.running && $last" (continue)="continueTask()" />
@@ -90,7 +95,11 @@ import { AiRichText } from './rich-text';
             @if (t.text) {
               <imt-ai-rich-text [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
             } @else if (t.running && !hasPendingApproval(t)) {
-              <p class="muted thinking" aria-label="Thinking" i18n-aria-label="@@ai.chat.thinking.label" i18n="@@ai.chat.thinking">Thinking…</p>
+              @if (queuedTurn(); as q) {
+                <p class="muted thinking" role="status" data-testid="ai-chat-queued">{{ queuedText(q.position) }}</p>
+              } @else {
+                <p class="muted thinking" aria-label="Thinking" i18n-aria-label="@@ai.chat.thinking.label" i18n="@@ai.chat.thinking">Thinking…</p>
+              }
             }
             @for (pv of t.proposals; track $index; let pi = $index) {
               <imt-ai-proposal-card [proposal]="pv.proposal" [state]="pv.state" (applied)="store.setProposalState(ti, pi, 'applied')" (dismissed)="store.setProposalState(ti, pi, 'dismissed')" />
@@ -203,6 +212,16 @@ import { AiRichText } from './rich-text';
 })
 export class AiChatPanel {
   protected readonly store = inject(ChatStore);
+  private readonly jobs = inject(JobsStore);
+  /** The active chat's turn while it waits in the AI queue behind other requests. */
+  protected readonly queuedTurn = computed(() => {
+    const id = this.store.activeId();
+    return id ? this.jobs.queuedTurn(id) : null;
+  });
+
+  protected queuedText(position: number | null): string {
+    return `${queuedLabel(position)} · ${$localize`:@@ai.chat.queuedHint:the AI answers one request at a time`}`;
+  }
   protected readonly status = inject(AiStatusStore);
   protected readonly launcher = inject(AiLauncher);
   private readonly citations = inject(AiCitations);
@@ -289,6 +308,24 @@ export class AiChatPanel {
     this.store.setApprovalState(requestId, 'sending');
     const delivered = await this.browser.respond(id, requestId, d);
     this.store.setApprovalState(requestId, delivered ? d : 'expired');
+  }
+
+  /** "Open and let AI read it": the page joins the chat as untrusted content and the AI goes on with it. */
+  protected async readSuggested(url: string): Promise<void> {
+    const id = this.store.activeId();
+    if (id) await this.browser.openAndRead(id, url);
+  }
+
+  /** "Research this" on an offer card (the engine asks to confirm a search text with workspace data in it). */
+  protected async researchOffer(o: ResearchOfferView): Promise<void> {
+    const id = this.store.activeId();
+    await this.launcher.research({ question: o.question, query: o.query, sessionId: id });
+  }
+
+  /** "Let the AI drive the browser": agent mode for this chat only. */
+  protected async agentForChat(): Promise<void> {
+    const id = this.store.activeId();
+    if (id) await this.browser.setAgent(id, true);
   }
 
   protected async openSuggested(url: string): Promise<void> {

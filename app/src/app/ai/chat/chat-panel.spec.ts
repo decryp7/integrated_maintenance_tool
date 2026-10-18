@@ -131,7 +131,7 @@ describe('AiChatPanel', () => {
     expect(store.toggles().view).toBe(false);
     expect(chip.textContent).toContain('nothing selected');
     // The engine's notes about the context show under the answer.
-    vi.spyOn(TestBed.inject(AiBackend), 'chatSend').mockResolvedValue();
+    vi.spyOn(TestBed.inject(AiBackend), 'chatSend').mockResolvedValue(1);
     await store.send('q');
     store.onEvent({ sessionId: store.activeId()!, seq: 0, type: 'done', text: 'ok', citations: [], usage: { inputTokens: 0, outputTokens: 0 }, notes: ['3 selected event ids do not exist and were ignored.'] });
     f.detectChanges();

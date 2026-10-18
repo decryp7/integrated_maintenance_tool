@@ -30,6 +30,8 @@ import {
   SessionInfo,
   SetupEvent,
   SetupPlan,
+  ResearchArgs,
+  ResearchStarted,
 } from './ai.types';
 
 /** Subscribes to an event with its payload; tests pass fakes. */
@@ -145,6 +147,9 @@ export class TauriAiBackend extends AiBackend {
   rootCauses() {
     return this.run<Narrative>('ai_root_causes');
   }
+  research(args: ResearchArgs) {
+    return this.run<ResearchStarted>('ai_research', { args });
+  }
   cancel() {
     return this.run<number>('ai_cancel');
   }
@@ -161,7 +166,7 @@ export class TauriAiBackend extends AiBackend {
     return this.run<boolean>('ai_chat_delete', { sessionId });
   }
   chatSend(sessionId: string, text: string, context: ChatContext) {
-    return this.run<void>('ai_chat_send', { sessionId, text, context });
+    return this.run<number>('ai_chat_send', { sessionId, text, context });
   }
   chatCancel(sessionId: string) {
     return this.run<boolean>('ai_chat_cancel', { sessionId });

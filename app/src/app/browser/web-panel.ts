@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, OnI
 import { AiStatusStore } from '../ai/ai-status.store';
 import { ChatStore } from '../ai/chat/chat.store';
 import { DockService } from '../dock/dock.service';
+import { JobsStore } from '../jobs/jobs.store';
+import { BrowserBackend } from './browser-backend';
 import { Icon } from '../shared/icon';
 import { BrowserStore } from './browser.store';
 import { SearchEngine } from './browser.types';
@@ -42,6 +44,12 @@ export const AI_CHAT_VIEW_ID = 'ai-chat';
     </div>
 
     <div class="body">
+      @if (research(); as r) {
+        <div class="research" role="status" data-testid="web-research">
+          <span class="grow">{{ researchText(r.message) }}</span>
+          <button type="button" class="btn primary" (click)="stopResearch()" data-testid="web-research-stop" i18n="@@browser.panel.researchStop">Stop</button>
+        </div>
+      }
       @if (page().open) {
         <div class="page" data-testid="web-page">
           <p class="title">{{ page().title || untitled }}@if (page().loading) {<span class="muted" i18n="@@browser.panel.loading"> (loading…)</span>}</p>
@@ -103,6 +111,8 @@ export const AI_CHAT_VIEW_ID = 'ai-chat';
     </div>
   `,
   styles: `
+    .research { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--accent); border-radius: 6px; margin-bottom: 8px; }
+    .research .grow { flex: 1; }
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; background: var(--bg-2); }
     .bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
     .address { display: flex; flex: 1; gap: 6px; min-width: 0; }
@@ -130,6 +140,18 @@ export class WebPanel implements OnInit {
   protected readonly ai = inject(AiStatusStore);
   private readonly chat = inject(ChatStore);
   private readonly dock = inject(DockService);
+  private readonly jobs = inject(JobsStore);
+  private readonly backend = inject(BrowserBackend);
+  /** A research reading pages in this browser (Stop ends it). */
+  protected readonly research = computed(() => this.jobs.snapshot().jobs.find((j) => j.kind === 'research' && j.state === 'running') ?? null);
+
+  protected researchText(message: string | null): string {
+    return message ? $localize`:@@browser.panel.researching:The AI is researching: ${message}:step:` : $localize`:@@browser.panel.researchingPlain:The AI is researching the web.`;
+  }
+
+  protected async stopResearch(): Promise<void> {
+    await this.backend.researchStop().catch(() => 0);
+  }
 
   protected readonly page = this.store.page;
   /** The address box follows the page shown until the user types. */

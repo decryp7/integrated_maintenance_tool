@@ -1,3 +1,4 @@
+import { mockJobs } from '../jobs/mock-jobs';
 /**
  * The internal browser for the browser build (dev and UI tests): a pretend page per IMT window, pages handed
  * to chats, and the per-chat read-along and agent switches the scripted AI mock plays with. It mimics the
@@ -57,6 +58,10 @@ export class MockWeb {
   /** The step limit of a new task (Settings ▸ Web browser). */
   stepLimit = 25;
   smallModel = false;
+  /** Settings ▸ Web browser ▸ "Let the AI research the web automatically" (`?mockResearch=off` turns it off). */
+  researchAuto = typeof window === 'undefined' || new URLSearchParams(window.location.search).get('mockResearch') !== 'off';
+  /** "Open and let AI read it" hands the page to the chat; the mock AI backend sets this to ask the follow-up. */
+  continueChat: ((sessionId: string, title: string) => Promise<number>) | null = null;
 
   emit(e: BrowserEvent): void {
     for (const h of this.handlers) h(e);
@@ -77,7 +82,7 @@ export class MockWeb {
   status(sessionId: string): ChatBrowserStatus {
     let s = this.statuses.get(sessionId);
     if (!s) {
-      s = { sessionId, readAlong: false, agent: false, stepsUsed: 0, stepLimit: this.stepLimit, paused: false, sites: [], smallModel: this.smallModel, modelParamsB: this.smallModel ? 4 : 9 };
+      s = { sessionId, readAlong: false, agent: false, stepsUsed: 0, stepLimit: this.stepLimit, paused: false, sites: [], smallModel: this.smallModel, modelParamsB: this.smallModel ? 4 : 9, researchAuto: this.researchAuto };
       this.statuses.set(sessionId, s);
     }
     return s;
@@ -254,6 +259,14 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
       if (!this.w.suggested.get(sessionId)?.has(url)) throw new Error('refused: this link was not suggested in this chat');
       this.w.show(url);
     });
+  }
+  async openAndRead(sessionId: string, url: string): Promise<number> {
+    await this.openSuggested(sessionId, url);
+    await this.capture(sessionId);
+    return this.w.continueChat ? this.w.continueChat(sessionId, this.w.page.title) : 0;
+  }
+  researchStop() {
+    return later(() => mockJobs().cancelWhere((j) => j.kind === 'research'));
   }
   onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten> {
     this.w.handlers.add(handler);

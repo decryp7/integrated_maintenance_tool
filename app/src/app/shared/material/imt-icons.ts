@@ -46,6 +46,12 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   ai: 'M11 3l1.8 4.7L17.5 9.5l-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8zM18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z',
   tools: 'M14.5 4a4.5 4.5 0 0 0-4.2 6.1L4 16.4V20h3.6l6.3-6.3A4.5 4.5 0 0 0 20 9.5l-2.8 2.8l-2.9-.8l-.8-2.9L16.3 5.8A4.5 4.5 0 0 0 14.5 4z',
   more: 'M5.5 12h.01M12 12h.01M18.5 12h.01',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0',
+  jobs: 'M4 6h11M4 12h7M4 18h9M18 10v8M15 15l3 3l3-3',
+  arrowUp: 'M12 19V5M6 11l6-6l6 6',
+  arrowDown: 'M12 5v14M6 13l6 6l6-6',
+  stop: 'M7 7h10v10H7z',
+  research: 'M10.5 4.5a6 6 0 1 0 0 12a6 6 0 1 0 0-12M15 15l5 5M8 10.5h5M10.5 8v5',
 };
 
 /** True when `name` is part of IMT's icon set. */

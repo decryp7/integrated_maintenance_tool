@@ -56,6 +56,7 @@ import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
 import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
 import { ImportProgress, ProfileVersionInfo } from '../api.types';
+import { mockNotifications } from '../../notifications/mock-notifications';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
@@ -603,7 +604,10 @@ export class MockBackend implements ImtBackend {
     report.alertsRaised = alerts.length;
     report.elapsedMs = Math.round((performance.now() - t0) * 10) / 10;
     for (const handler of [...this.changeHandlers]) handler(report);
-    for (const alert of alerts) for (const handler of [...this.alertHandlers]) handler(alert);
+    for (const alert of alerts) {
+      for (const handler of [...this.alertHandlers]) handler(alert);
+      mockNotifications().post(alertNotice(alert));
+    }
   }
 
   /** The newest raw record of each source (for the instance fields and line numbers of new lines). */
@@ -830,4 +834,20 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
     if (!/^(count|avg|min|max|sum|last)\(\s*[^)]*\)$/.test(c.y)) return { validation: { ok: false, error: `Chart '${c.id}': y must look like avg(field)`, line: lineOf(c.y) }, model };
   }
   return { validation: { ok: true, error: null, line: null }, model };
+}
+
+/** A live alert as the engine posts it to the notification centre: repeats merge per kind and instance (or rule). */
+function alertNotice(alert: LiveAlert) {
+  const names: Record<string, string> = { errorSpike: 'Error spike', silence: 'Silence', crash: 'Crash', slowOutlier: 'Slow outlier', rateChange: 'Rate change', memoryGrowth: 'Memory growth' };
+  const what = alert.kind === 'rule' ? (alert.rule ?? 'Alert rule') : (names[alert.kind] ?? alert.kind);
+  const who = alert.rule ?? alert.instance ?? '';
+  const severity = alert.severity === 'critical' ? ('error' as const) : alert.severity === 'warning' ? ('warning' as const) : ('info' as const);
+  return {
+    source: 'liveAlert' as const,
+    severity,
+    title: alert.instance ? `${what} on ${alert.instance}` : what,
+    body: alert.message,
+    primary: { type: 'showAlert' as const, alertId: alert.id },
+    dedupeKey: `live:${alert.kind}:${who}`,
+  };
 }

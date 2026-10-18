@@ -1,7 +1,8 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { DialogService } from '../ui/dialog.service';
 import { AiStatusStore } from './ai-status.store';
-import { ProfileChangeKind, SampleSource } from './ai.types';
+import { Narrative, ProfileChangeKind, Proposal, ResearchArgs, SampleSource } from './ai.types';
+import { AiBackend, toAiError } from './ai-backend';
 
 /** What a "Propose …" entry point asks for. */
 export type ProposeKind = ProfileChangeKind | 'profile';
@@ -22,6 +23,7 @@ const TITLES: Record<ProposeKind, string> = {
 export class AiLauncher {
   private readonly dialogs = inject(DialogService);
   private readonly status = inject(AiStatusStore);
+  private readonly injector = inject(Injector);
 
   private lazy() {
     return import('./ai-lazy');
@@ -61,6 +63,44 @@ export class AiLauncher {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
     this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.rootCauses:Likely root causes`, width: 680, inputs: { kind: 'rootCauses' } });
+  }
+
+  /**
+   * "Research this": starts web research (the answer becomes a chat turn); with workspace data in the search text the
+   * user confirms or edits it first. Resolves with an error message when it did not start.
+   */
+  async research(args: ResearchArgs): Promise<string | null> {
+    if (!(await this.ensureModel())) return null;
+    try {
+      const r = await this.injector.get(AiBackend).research({ ...args, confirmed: false });
+      if (r.status === 'confirm') await this.askResearch({ ...args, question: r.question, query: r.checked.query, segments: r.checked.segments });
+      return null;
+    } catch (e) {
+      return toAiError(e).message;
+    }
+  }
+
+  /** The Research dialog: the question, the search text (with what the leak guard found) and how many results to read. */
+  async askResearch(args: ResearchArgs & { segments?: import('../browser/browser.types').Segment[] }): Promise<void> {
+    if (!(await this.ensureModel())) return;
+    const { ResearchDialog } = await import('../browser/research-dialog');
+    this.dialogs.open(ResearchDialog, {
+      title: $localize`:@@ai.launcher.title.research:Research the web`,
+      width: 600,
+      inputs: { question: args.question ?? '', query: args.query ?? '', segments: args.segments ?? [], sessionId: args.sessionId ?? null, recordId: args.recordId ?? null, maxResults: args.maxResults ?? null },
+    });
+  }
+
+  /** A finished request's answer with its citations (View of an AI job). */
+  async showNarrative(narrative: Narrative, title: string): Promise<void> {
+    const m = await this.lazy();
+    this.dialogs.open(m.AiNarrativeDialog, { title, width: 680, inputs: { preset: narrative } });
+  }
+
+  /** A finished request's proposal, to review and apply (View of an AI job). */
+  async showProposal(proposal: Proposal, title: string): Promise<void> {
+    const m = await this.lazy();
+    this.dialogs.open(m.AiProposalResultDialog, { title, width: 760, inputs: { proposal } });
   }
 
   /** "Ask AI to write a query": a question in plain words becomes a query the user can apply. */

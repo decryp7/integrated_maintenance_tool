@@ -77,6 +77,10 @@ export const ChatStore = signalStore(
           if (e.seq <= (store.lastSeq()[id] ?? 0)) return;
           patchState(store, (s) => ({ lastSeq: { ...s.lastSeq, [id]: e.seq } }));
         }
+        // An answer recorded outside a turn (a research from a Research button): read the chat again.
+        // (Not after a turn that ended with an error the user still sees: its own late `done` must not hide it.)
+        const lastTurn = store.turns()[id]?.at(-1);
+        if (e.type === 'done' && !lastTurn?.running && !lastTurn?.error && !lastTurn?.cancelled) void loadTurns(id).catch(() => undefined);
         setTurns(id, (turns) => {
           const last = turns.at(-1);
           if (!last?.running) return turns;

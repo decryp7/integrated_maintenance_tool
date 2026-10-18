@@ -43,6 +43,10 @@ import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 import { mockWeb } from '../../browser/mock-browser-backend';
 import { mockBrowserTurn } from './mock-ai-browser';
+import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
+import { JobLink, JobResult } from '../../jobs/jobs.types';
+import { mockLeaks, runMockResearch, startMockResearch, wantsResearch, webCitations } from './mock-ai-research';
+import { ResearchArgs, ResearchStarted } from '../../ai/ai.types';
 
 /** Operations `mockAiFail` may name: their calls reject with an engine error. */
 export const AI_FAILABLE = [
@@ -116,6 +120,7 @@ export class MockAiBackend extends AiBackend {
   private readonly setupHandlers = new Set<(e: SetupEvent) => void>();
   private readonly statusHandlers = new Set<(s: AiStatus) => void>();
   private readonly chatHandlers = new Set<(e: ChatEventEnvelope) => void>();
+  private readonly continueHook = (mockWeb().continueChat = (sessionId: string, title: string) => this.chatSend(sessionId, `I opened "${title}" for you: read it and go on with my question.`, {} as ChatContext));
   /** Every chat send, for tests. */
   readonly sent: { sessionId: string; text: string; context: ChatContext }[] = [];
 
@@ -149,6 +154,25 @@ export class MockAiBackend extends AiBackend {
         'noModel',
         'No AI model is set up yet: choose "Set up AI assistant" first.',
       );
+  }
+
+  /** A use case as an AI job (one at a time, visible in the Jobs pane), like the engine; no model fails at once. */
+  private aiJob<T>(op: AiFailable, title: string, link: JobLink | null, f: () => T, result: (v: T) => JobResult | null): Promise<T> {
+    if (this.mode !== 'ready' || !this.activeFile)
+      return this.later(() => {
+        this.needModel(op);
+        return f();
+      }, 0);
+    return mockJobs()
+      .run({ kind: 'ai', title, link }, async (ctx) => {
+        await mockSteps(ctx, this.stepMs * 4, 4);
+        this.needModel(op);
+        const value = f();
+        return { value, result: result(value) };
+      })
+      .catch((e: unknown) => {
+        throw e instanceof MockJobCancelled ? new AiError('cancelled', 'cancelled') : e;
+      });
   }
 
   private async later<T>(f: () => T, ms = this.stepMs * 4): Promise<T> {
@@ -404,39 +428,23 @@ export class MockAiBackend extends AiBackend {
   // ---- use cases ----
 
   proposeRegex(lines: string[]) {
-    return this.later(() => {
-      this.needModel('propose');
-      if (!lines.length) throw new AiError('invalid', 'give 1 to 50 example lines');
-      return mockRegexProposal(lines);
-    });
+    if (!lines.length) return Promise.reject(new AiError('invalid', 'give 1 to 50 example lines'));
+    return this.aiJob('propose', 'Suggest a regex', null, () => mockRegexProposal(lines), proposal);
   }
-  proposeProfile(_source: SampleSource) {
-    return this.later(() => {
-      this.needModel('propose');
-      return mockProfileProposal();
-    });
+  proposeProfile(source: SampleSource) {
+    return this.aiJob('propose', 'Propose a parsing profile', eventLink(source), () => mockProfileProposal(), proposal);
   }
-  proposePipeline(goal: string) {
-    return this.later(() => {
-      this.needModel('propose');
-      return mockPipelineProposal(goal);
-    });
+  proposePipeline(goal: string, source?: SampleSource) {
+    return this.aiJob('propose', `Propose pipeline steps: ${goal}`, eventLink(source), () => mockPipelineProposal(goal), proposal);
   }
-  proposeMarkers(goal: string) {
-    return this.later(() => {
-      this.needModel('propose');
-      return mockMarkersProposal(goal);
-    });
+  proposeMarkers(goal: string, source?: SampleSource) {
+    return this.aiJob('propose', `Propose markers: ${goal}`, eventLink(source), () => mockMarkersProposal(goal), proposal);
   }
-  proposeExtractors(goal: string) {
-    return this.later(() => {
-      this.needModel('propose');
-      return mockExtractorsProposal(goal);
-    });
+  proposeExtractors(goal: string, source?: SampleSource) {
+    return this.aiJob('propose', `Propose extractors: ${goal}`, eventLink(source), () => mockExtractorsProposal(goal), proposal);
   }
   nlToQuery(question: string) {
-    return this.later((): QueryProposal => {
-      this.needModel('nlToQuery');
+    return this.aiJob('nlToQuery', `Write a query: ${question.trim().slice(0, 60)}`, null, (): QueryProposal => {
       const q = question.toLowerCase();
       const ql = q.includes('warn')
         ? 'level = warning'
@@ -450,11 +458,10 @@ export class MockAiBackend extends AiBackend {
         estimatedMatches: 37,
         repaired: false,
       };
-    });
+    }, proposal);
   }
   explainEvent(recordId: number) {
-    return this.later((): Narrative => {
-      this.needModel('explain');
+    return this.aiJob('explain', `Explain event ${recordId}`, { type: 'event', recordId }, (): Narrative => {
       return {
         text: `Event ${recordId} is a failed order submission: the payment gateway timed out after 30 s.\n\n- **Likely cause:** the gateway pool was exhausted\n- **Next step:** check \`level >= error\` around it`,
         citations: [
@@ -464,11 +471,10 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [recordId], queries: ['level >= error'] },
         usage: { inputTokens: 900, outputTokens: 80 },
       };
-    });
+    }, narrative);
   }
   summarize(from: number, to: number) {
-    return this.later((): Narrative => {
-      this.needModel('summarize');
+    return this.aiJob('summarize', 'Summarize a time range', { type: 'range', from, to }, (): Narrative => {
       const { fatal } = demoRecordIds();
       return {
         text: `Between ${new Date(from).toISOString().slice(11, 16)} and ${new Date(to).toISOString().slice(11, 16)} UTC, WEB02 ran out of memory and crashed (event ${fatal}); it restarted a minute later.`,
@@ -476,11 +482,10 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [fatal], queries: [] },
         usage: { inputTokens: 1200, outputTokens: 60 },
       };
-    });
+    }, narrative);
   }
   rootCauses() {
-    return this.later((): Narrative => {
-      this.needModel('rootCauses');
+    return this.aiJob('rootCauses', 'Find likely root causes', null, (): Narrative => {
       const { fatal, error } = demoRecordIds();
       return {
         text: `1. **Memory leak on WEB02** led to an OutOfMemoryException (event ${fatal}).\n2. **Payment gateway timeouts** caused failed orders (event ${error}); see \`level >= error\`.`,
@@ -492,10 +497,41 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [fatal, error], queries: ['level >= error'] },
         usage: { inputTokens: 2400, outputTokens: 120 },
       };
-    });
+    }, narrative);
   }
+  /** "Research this" / "Research…": a research job whose answer becomes a chat turn, or a search text to confirm. */
+  async research(args: ResearchArgs): Promise<ResearchStarted> {
+    this.needModel('chat');
+    const question = (args.question ?? '').trim() || (args.recordId !== null && args.recordId !== undefined ? 'What does this error mean and how can it be fixed: System.UnauthorizedAccessException 0x80070005' : '');
+    if (!question) throw new AiError('invalid', 'give the question to research');
+    if (args.sessionId && !this.chats.has(args.sessionId)) throw new AiError('notFound', 'this chat no longer exists');
+    const query = (args.query ?? '').trim() || question;
+    if (mockLeaks(query) && !args.confirmed) {
+      const segments = query.split(/(\bWEB0\d\b)/i).filter((t) => t).map((t) => ({ text: t, leak: mockLeaks(t) ? ('logValue' as const) : null }));
+      return { status: 'confirm', question, checked: { query, needsConfirm: true, segments } };
+    }
+    const max = Math.max(1, Math.min(10, args.maxResults ?? 5));
+    const jobId = startMockResearch(question, max, this.stepMs, args.sessionId ?? null, (r) => this.recordAnswer(args.sessionId ?? null, `Research: ${question}`, r.answer, webCitations(r)));
+    return { status: 'started', jobId };
+  }
+
+  /** Adds an answer as a turn of the chat (a new chat when it is missing or busy); returns the chat. */
+  private recordAnswer(sessionId: string | null, user: string, text: string, citations: Citation[]): string {
+    let c = sessionId ? this.chats.get(sessionId) : undefined;
+    if (!c || c.running) {
+      const id = `chat-${++this.counter}`;
+      c = { record: { id, title: '', turns: [] }, events: [], nextSeq: 1, running: false, cancel: false };
+      this.chats.set(id, c);
+    }
+    if (!c.record.title) c.record.title = user.slice(0, 60);
+    this.emitChat(c, { type: 'done', text, citations, usage: { inputTokens: 0, outputTokens: 0 }, notes: [] });
+    c.record.turns.push({ user, assistant: text, citations, proposals: [], web: citations.flatMap((x) => (x.kind === 'web' ? [{ title: x.title, url: x.url }] : [])), cancelled: false, usage: { inputTokens: 0, outputTokens: 0 } } as TurnRecord);
+    return c.record.id;
+  }
+
+  /** Stops the window's use cases (running and waiting), not its chat turns. */
   cancel() {
-    return this.later(() => 0, 0);
+    return this.later(() => mockJobs().cancelWhere((j) => j.kind === 'ai' && j.source.link?.type !== 'chat'), 0);
   }
 
   // ---- chat ----
@@ -548,7 +584,8 @@ export class MockAiBackend extends AiBackend {
     }, 0);
   }
 
-  async chatSend(sessionId: string, text: string, context: ChatContext): Promise<void> {
+  /** Starts the turn as an AI job (it may wait behind other AI requests); resolves with the job's id. */
+  async chatSend(sessionId: string, text: string, context: ChatContext): Promise<number> {
     this.needModel('chat');
     const c = this.chat(sessionId);
     if (c.running)
@@ -557,7 +594,26 @@ export class MockAiBackend extends AiBackend {
     this.sent.push({ sessionId, text, context });
     c.running = true;
     c.cancel = false;
-    void this.runTurn(c, text.trim());
+    const question = text.trim();
+    const job = mockJobs().start({ kind: 'ai', title: `Chat: ${question.slice(0, 60)}`, link: { type: 'chat', sessionId } }, async (ctx) => {
+      const stop = setInterval(() => {
+        if (ctx.cancelled()) c.cancel = true;
+      }, 20);
+      try {
+        await this.runTurn(c, question);
+      } finally {
+        clearInterval(stop);
+      }
+      return { value: undefined, result: { type: 'chat', sessionId } };
+    });
+    job.done.catch(() => {
+      // Cancelled while waiting: the chat is free again and told.
+      if (c.running) {
+        c.running = false;
+        this.emitChat(c, { type: 'error', message: 'Stopped before it started.', cancelled: true });
+      }
+    });
+    return job.id;
   }
 
   private emitChat(c: MockChat, event: ChatEvent): void {
@@ -649,6 +705,23 @@ export class MockAiBackend extends AiBackend {
       });
       if (browsed !== null) {
         answer = browsed;
+      } else if (wantsResearch(text) && mockWeb().researchAuto) {
+        // Research mode: the model calls web_research; the research runs as a job (Jobs pane) and the turn waits.
+        this.emitChat(c, { type: 'toolStarted', name: 'web_research', args: JSON.stringify({ question: text }) });
+        const report = await mockJobs().run({ kind: 'research', title: `Research: ${text.slice(0, 60)}`, link: { type: 'chat', sessionId: c.record.id } }, async (ctx) => ({
+          value: await runMockResearch(ctx, text, 5, this.stepMs),
+          result: { type: 'chat', sessionId: c.record.id } as JobResult,
+        }));
+        this.emitChat(c, { type: 'toolFinished', name: 'web_research', summary: `read ${report.sources.length} of 5 results`, error: false, evidence: { recordIds: [], queries: [] } });
+        answer = report.answer;
+        for (const s of report.sources) {
+          citations.push({ kind: 'web', title: s.title, url: s.url });
+          web.push(s);
+        }
+      } else if (wantsResearch(text)) {
+        // Automatic research is off: the model offers the buttons instead of guessing.
+        this.emitChat(c, { type: 'researchOffer', question: text, query: text, segments: [], needsConfirm: false });
+        answer = 'This needs information from the web. Use **Research this** below, or let the AI drive the browser for this chat.';
       } else if (q.includes('regex')) {
         await tool(
           'propose_regex',
@@ -740,6 +813,7 @@ export class MockAiBackend extends AiBackend {
       const c = this.chats.get(sessionId);
       if (!c?.running) return false;
       c.cancel = true;
+      mockJobs().cancelWhere((j) => j.state === 'queued' && j.source.link?.type === 'chat' && j.source.link.sessionId === sessionId);
       mockWeb().denyAll(sessionId);
       return true;
     }, 0);
@@ -837,4 +911,18 @@ export class MockAiBackend extends AiBackend {
   static codeOf(e: unknown): AiErrorCode | null {
     return e instanceof AiError ? e.code : null;
   }
+}
+
+/** View of a proposal job opens the proposal to review. */
+function proposal(p: unknown): JobResult {
+  return { type: 'proposal', proposal: p };
+}
+
+/** View of an answer job shows the answer with its citations. */
+function narrative(n: unknown): JobResult {
+  return { type: 'narrative', narrative: n };
+}
+
+function eventLink(source?: SampleSource): JobLink | null {
+  return source && 'recordId' in source && typeof source.recordId === 'number' ? { type: 'event', recordId: source.recordId } : null;
 }

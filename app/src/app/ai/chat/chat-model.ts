@@ -33,6 +33,14 @@ export interface LinkView {
   segments: Segment[];
 }
 
+/** The model offers web research (or a search text needs confirming): "Research this" and agent mode. */
+export interface ResearchOfferView {
+  question: string;
+  query: string;
+  segments: Segment[];
+  needsConfirm: boolean;
+}
+
 /** The agent step running now (one model call each, so the UI shows the progress). */
 export interface AgentStepView {
   step: number;
@@ -55,6 +63,7 @@ export interface TurnView {
   tools: ToolChip[];
   approvals: AgentApprovalView[];
   links: LinkView[];
+  offers: ResearchOfferView[];
   step: AgentStepView | null;
   paused: PauseView | null;
   notes: string[];
@@ -65,7 +74,7 @@ export interface TurnView {
 }
 
 export function startTurn(user: string): TurnView {
-  return { user, text: '', citations: [], proposals: [], tools: [], approvals: [], links: [], step: null, paused: null, notes: [], error: null, cancelled: false, running: true, usage: null };
+  return { user, text: '', citations: [], proposals: [], tools: [], approvals: [], links: [], offers: [], step: null, paused: null, notes: [], error: null, cancelled: false, running: true, usage: null };
 }
 
 export function turnFromRecord(r: TurnRecord): TurnView {
@@ -111,6 +120,8 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
       return { ...t, proposals: [...t.proposals, { proposal: e.proposal, state: 'open' }] };
     case 'linkSuggestion':
       return t.links.some((l) => l.url === e.url) ? t : { ...t, links: [...t.links, { kind: e.kind, url: e.url, title: e.title, query: e.query, segments: e.segments }] };
+    case 'researchOffer':
+      return t.offers.some((o) => o.query === e.query) ? t : { ...t, offers: [...t.offers, { question: e.question, query: e.query, segments: e.segments, needsConfirm: e.needsConfirm }] };
     case 'agentApproval':
       return { ...t, approvals: [...t.approvals, { request: e.request, state: 'pending' }] };
     case 'agentStep':

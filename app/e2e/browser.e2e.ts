@@ -79,7 +79,7 @@ test.describe('internal browser', () => {
     await waitAnswered(chat);
     const card = chat.getByTestId('link-card');
     await expect(card).toContainText('https://duckduckgo.com/?q=System.TimeoutException+gateway');
-    await card.getByRole('button', { name: 'Open' }).click();
+    await card.getByRole('button', { name: 'Open', exact: true }).click();
     await runCommand(page, 'Web: Open the browser panel');
     await expect(page.locator('imt-web-panel').getByTestId('web-page')).toContainText('duckduckgo.com');
   });

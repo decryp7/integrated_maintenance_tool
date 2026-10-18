@@ -2,7 +2,7 @@ import { BackgroundTask, OpenAsk, TaskKind, WindowInfo } from './windowing.types
 
 /** Event payloads come from the shell; they are checked once here and typed afterwards. */
 
-const KINDS: readonly TaskKind[] = ['liveTail', 'processMonitor', 'perfmon', 'download', 'other'];
+const KINDS: readonly TaskKind[] = ['liveTail', 'processMonitor', 'perfmon', 'job', 'other'];
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 

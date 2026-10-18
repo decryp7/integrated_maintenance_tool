@@ -11,7 +11,7 @@ export interface WindowInfo {
   visible: boolean;
 }
 
-export type TaskKind = 'liveTail' | 'processMonitor' | 'perfmon' | 'download' | 'other';
+export type TaskKind = 'liveTail' | 'processMonitor' | 'perfmon' | 'job' | 'other';
 
 /** Work that keeps running while windows are closed (shown in the tray and the status bar). */
 export interface BackgroundTask {

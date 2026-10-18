@@ -62,6 +62,8 @@ export interface ChatBrowserStatus {
   /** The model may be too small for multi-step browsing (a hint only). */
   smallModel: boolean;
   modelParamsB: number | null;
+  /** The AI researches the web by itself when a question needs it (Settings ▸ Web browser). */
+  researchAuto: boolean;
 }
 
 export type NoticeKind = 'blocked' | 'download' | 'popup' | 'agentBlocked';

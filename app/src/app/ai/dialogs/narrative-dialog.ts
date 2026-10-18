@@ -57,6 +57,8 @@ export class AiNarrativeDialog implements OnInit {
   readonly recordId = input<number | null>(null);
   readonly from = input<number | null>(null);
   readonly to = input<number | null>(null);
+  /** An answer already given (a finished AI job's result, opened from the Jobs pane or a notification). */
+  readonly preset = input<Narrative | null>(null);
 
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -66,7 +68,9 @@ export class AiNarrativeDialog implements OnInit {
   protected readonly notFound = computed(() => isNotFound(this.result()?.text ?? ''));
 
   ngOnInit(): void {
-    void this.run();
+    const preset = this.preset();
+    if (preset) this.result.set(preset);
+    else void this.run();
   }
 
   private request(): Promise<Narrative> {

@@ -88,9 +88,9 @@ describe('windowing payloads', () => {
 
   it('keeps well-formed tasks, clamps progress and defaults unknown kinds', () => {
     expect(parseTasks({})).toEqual([]);
-    expect(parseTasks([{ id: 'x' }, { id: 'a', label: 'A', kind: 'weird', progress: 7, stoppable: 'no' }, { id: 'b', label: 'B', kind: 'download', progress: -1, window: 'w', startedAt: 5, stoppable: true }])).toEqual([
+    expect(parseTasks([{ id: 'x' }, { id: 'a', label: 'A', kind: 'weird', progress: 7, stoppable: 'no' }, { id: 'b', label: 'B', kind: 'job', progress: -1, window: 'w', startedAt: 5, stoppable: true }])).toEqual([
       { id: 'a', label: 'A', kind: 'other', window: null, progress: 1, stoppable: false, startedAt: 0 },
-      { id: 'b', label: 'B', kind: 'download', window: 'w', progress: 0, stoppable: true, startedAt: 5 },
+      { id: 'b', label: 'B', kind: 'job', window: 'w', progress: 0, stoppable: true, startedAt: 5 },
     ]);
     expect(parseTasks([{ id: 'n', label: 'N', progress: Number.NaN }])[0]?.progress).toBeNull();
   });
