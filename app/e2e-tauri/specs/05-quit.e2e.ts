@@ -1,14 +1,15 @@
 import { $, browser, expect } from '@wdio/globals';
 import { existsSync } from 'node:fs';
-import { quitApp, visibleAlerts, waitForEvents, waitForShell } from '../support/app';
+import { quitApp, visibleAlerts, waitForShell } from '../support/app';
 import { runningMarker } from '../support/paths';
 
 describe('real app: quit', () => {
   it('quits cleanly and the next start reports no crash', async () => {
     await waitForShell();
     // Let the start-up import settle first: the menus change while it runs, and a click on File ▸ Close window
-    // could land on File ▸ Close (which only clears the workspace).
-    await waitForEvents();
+    // could land on File ▸ Close (which only clears the workspace). The grid is enough here: the restored layout of
+    // the previous spec can leave the timeline in a background tab (the open-samples spec covers the timeline).
+    await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
     expect(existsSync(runningMarker())).toBe(true);
 
     // File ▸ Close window ▸ Quit; resolves once the process is gone and its marker removed.

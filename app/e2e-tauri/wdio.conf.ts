@@ -77,13 +77,35 @@ function fail(message: string): never {
 }
 
 /** Resolves once something listens on the port (tauri-driver takes a moment to bind). */
+function portOpen(port: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const s = connect({ host: '127.0.0.1', port }, () => (s.end(), resolve(true)));
+    s.once('error', () => resolve(false));
+  });
+}
+
+/** tauri-driver's port and its native driver's: a leftover driver there (e.g. from a run that hung) would answer
+ *  for the new one, with its own account and settings, so refuse to start instead. */
+const DRIVER_PORTS = [4444, 4445];
+async function ensureDriverPortsFree(): Promise<void> {
+  const deadline = Date.now() + 10_000; // the previous spec's driver may still be closing
+  for (;;) {
+    const busy: number[] = [];
+    for (const p of DRIVER_PORTS) if (await portOpen(p)) busy.push(p);
+    if (!busy.length) return;
+    if (Date.now() > deadline)
+      throw new Error(
+        `Port ${busy.join(' and ')} is already in use: a leftover tauri-driver or msedgedriver/WebKitWebDriver is running ` +
+          '(e.g. from a smoke run that hung). Stop it (Windows: taskkill /F /IM tauri-driver.exe /IM msedgedriver.exe) and run again.',
+      );
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
 async function waitForPort(port: number, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const open = await new Promise<boolean>((resolve) => {
-      const s = connect({ host: '127.0.0.1', port }, () => (s.end(), resolve(true)));
-      s.once('error', () => resolve(false));
-    });
+    const open = await portOpen(port);
     if (open) return;
     if (Date.now() > deadline)
       throw new Error(`tauri-driver did not listen on port ${port} within ${timeoutMs} ms`);
@@ -142,6 +164,7 @@ export const config: WebdriverIO.Config = {
   async beforeSession() {
     const native = nativeDriver();
     const args = native ? ['--native-driver', native] : [];
+    await ensureDriverPortsFree();
     driver = spawn(tauriDriver(), args, { stdio: [null, process.stdout, process.stderr] });
     await waitForPort(4444, 20_000);
   },
