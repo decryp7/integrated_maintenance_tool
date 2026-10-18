@@ -490,9 +490,12 @@ pub fn write(inputs: &ReportInputs, description: &str, dest: &Path) -> anyhow::R
     let result = (|| -> anyhow::Result<usize> {
         let files = all_files(inputs, description);
         let mut zip = zip::ZipWriter::new(std::fs::File::create(&dest)?);
+        // The zip crate records the writing platform (DOS on Windows, Unix elsewhere) unless told; fixing it keeps
+        // a report byte-identical wherever it is built (the committed sample is checked on every CI platform).
         let opts = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
             .last_modified_time(zip_time(&inputs.created_at))
+            .system(zip::System::Unix)
             .unix_permissions(0o644);
         for f in &files {
             zip.start_file(f.name.as_str(), opts)?;

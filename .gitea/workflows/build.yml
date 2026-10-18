@@ -51,7 +51,8 @@ jobs:
           restore-keys: check-${{ runner.os }}-
 
       - name: Tests
-        run: cargo test --workspace
+        # --no-fail-fast: report every failing crate in one run, not just the first.
+        run: cargo test --workspace --no-fail-fast
 
       - name: Format
         run: cargo fmt --all --check
