@@ -88,7 +88,10 @@ try {
   writeFileSync(zip, Buffer.from(await res.arrayBuffer()));
   const unpacked = join(work, 'x');
   mkdirSync(unpacked);
-  execFileSync('tar', ['-xf', zip, '-C', unpacked], { stdio: 'inherit' });
+  // Windows' own bsdtar (System32), which reads zips: a GNU tar earlier on PATH (Git for Windows) cannot, and
+  // takes `C:\…` for a remote host.
+  const tar = process.env.SystemRoot ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+  execFileSync(tar, ['-xf', zip, '-C', unpacked], { stdio: 'inherit' });
   mkdirSync(outDir, { recursive: true });
   copyFileSync(join(unpacked, 'msedgedriver.exe'), exe);
   writeFileSync(stamp, `${version}\n`);
