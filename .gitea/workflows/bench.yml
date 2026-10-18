@@ -12,6 +12,12 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# A newer push to the same branch (or pull request) supersedes the run still going; tags have their own ref,
+# so releases are never cancelled by later pushes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   bench:
     name: engine benchmarks
