@@ -3,6 +3,8 @@ import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import {
   AiErrorCode,
+  AiRuntimeEvent,
+  AiRuntimeOverview,
   AiStatus,
   ApprovalDecision,
   ChatContext,
@@ -42,11 +44,16 @@ export class AiError extends Error {
 /** Turns whatever a command rejected with into an `AiError` (never trusts the wire blindly). */
 export function toAiError(e: unknown): AiError {
   if (e instanceof AiError) return e;
-  if (e && typeof e === 'object' && typeof (e as { code?: unknown }).code === 'string' && typeof (e as { message?: unknown }).message === 'string') {
+  if (
+    e &&
+    typeof e === 'object' &&
+    typeof (e as { code?: unknown }).code === 'string' &&
+    typeof (e as { message?: unknown }).message === 'string'
+  ) {
     return new AiError((e as { code: AiErrorCode }).code, (e as { message: string }).message);
   }
   if (e instanceof Error) return new AiError('engine', e.message);
-  return new AiError('engine', typeof e === 'string' ? e : 'The AI assistant failed.');
+  return new AiError('engine', typeof e === 'string' ? e : $localize`:@@ai.backend.failed:The AI assistant failed.`);
 }
 
 export type Unlisten = () => void;
@@ -71,6 +78,15 @@ export abstract class AiBackend {
   abstract addLocalModel(path: string): Promise<InstalledModel>;
   abstract reset(): Promise<AiStatus>;
 
+  /** The inference runtimes (llama-server builds) for this platform: installed, usable, suggested, active. */
+  abstract runtimes(): Promise<AiRuntimeOverview>;
+  /** Starts downloading a build; progress arrives through `onRuntime`. */
+  abstract runtimeInstall(id: string): Promise<void>;
+  abstract runtimeCancel(): Promise<boolean>;
+  abstract runtimeDelete(tag: string, id: string): Promise<void>;
+  /** Makes an installed build (or `auto`) the one that runs the model; the engine restarts with it. */
+  abstract runtimeChoose(id: string): Promise<void>;
+
   abstract proposeRegex(lines: string[], intent?: string | null): Promise<RegexProposal>;
   abstract proposeProfile(source: SampleSource): Promise<ProfileProposal>;
   abstract proposePipeline(goal: string, source: SampleSource): Promise<PipelineProposal>;
@@ -94,9 +110,17 @@ export abstract class AiBackend {
   abstract chatHistory(): Promise<ChatHistoryRecord>;
   abstract chatRestore(record: unknown): Promise<RestoreResult>;
   /** Writes the chat as Markdown; refuses to replace an existing file unless `overwrite`. */
-  abstract chatExportMarkdown(sessionId: string, path: string, overwrite?: boolean): Promise<string>;
+  abstract chatExportMarkdown(
+    sessionId: string,
+    path: string,
+    overwrite?: boolean,
+  ): Promise<string>;
   abstract suggestedPrompts(): Promise<string[]>;
-  abstract approvalRespond(sessionId: string, requestId: number, decision: ApprovalDecision): Promise<boolean>;
+  abstract approvalRespond(
+    sessionId: string,
+    requestId: number,
+    decision: ApprovalDecision,
+  ): Promise<boolean>;
   /** Opens a web source an answer showed in the system browser (anything else is refused by the engine). */
   abstract openLink(url: string): Promise<void>;
 
@@ -105,6 +129,7 @@ export abstract class AiBackend {
   abstract braveKeySet(): Promise<boolean>;
 
   abstract onSetup(handler: (e: SetupEvent) => void): Promise<Unlisten>;
+  abstract onRuntime(handler: (e: AiRuntimeEvent) => void): Promise<Unlisten>;
   abstract onStatus(handler: (s: AiStatus) => void): Promise<Unlisten>;
   abstract onChat(handler: (e: ChatEventEnvelope) => void): Promise<Unlisten>;
 }
@@ -112,13 +137,26 @@ export abstract class AiBackend {
 /** Loads the backend for this host: the Tauri one inside the app, the scripted mock in a plain browser. */
 export function loadAiBackend(): Promise<AiBackend> {
   if (isTauri()) return import('./ai-backend-tauri').then((m) => new m.TauriAiBackend());
-  return import('../core/mock/mock-ai-backend').then((m) => new m.MockAiBackend(m.mockAiOptionsFromSearch(typeof window === 'undefined' ? '' : window.location.search)));
+  return import('../core/mock/mock-ai-backend').then(
+    (m) =>
+      new m.MockAiBackend(
+        m.mockAiOptionsFromSearch(typeof window === 'undefined' ? '' : window.location.search),
+      ),
+  );
 }
 
 /** The AI backend, loaded on first use so neither adapter weighs on the initial bundle. */
 export function provideAiBackend(): Provider[] {
   // Behind the shared backend proxy like every backend: failures are logged and calls join the activity log.
-  return [{ provide: AiBackend, useFactory: () => withFailureLogging<AiBackend>(lazyAiBackend(loadAiBackend), inject(Logger), { category: 'ui.ai' }) }];
+  return [
+    {
+      provide: AiBackend,
+      useFactory: () =>
+        withFailureLogging<AiBackend>(lazyAiBackend(loadAiBackend), inject(Logger), {
+          category: 'ui.ai',
+        }),
+    },
+  ];
 }
 
 /** An `AiBackend` whose every method waits for the real one, loaded once on the first call. */
@@ -133,8 +171,13 @@ export function lazyAiBackend(load: () => Promise<AiBackend>): AiBackend {
       if (!m) {
         m = async (...args: unknown[]) => {
           real ??= load();
-          const b = (await real) as unknown as Record<PropertyKey, (...a: unknown[]) => Promise<unknown>>;
-          return b[name](...args);
+          const b = (await real) as unknown as Record<
+            PropertyKey,
+            (...a: unknown[]) => Promise<unknown>
+          >;
+          const method = b[name];
+          if (!method) throw new TypeError(`${name} is not a function`);
+          return method.apply(b, args);
         };
         methods.set(name, m);
       }

@@ -1,4 +1,5 @@
 import { cellText, downloadText, sortRows, toCsv } from './table-utils';
+import { at } from '../../testing/must';
 
 describe('table utils', () => {
   it('renders cells', () => {
@@ -15,7 +16,7 @@ describe('table utils', () => {
     expect(sortRows(rows, 0, 'desc').map((r) => r[0])).toEqual(['d', 'c', 'b', 'a']);
     expect(sortRows([['x2'], ['x10'], [''], [null]], 0, 'asc').map((r) => r[0])).toEqual(['x2', 'x10', '', null]);
     expect(sortRows([[null], [undefined]], 0, 'asc')).toEqual([[null], [undefined]]);
-    expect(rows[0][0]).toBe('b');
+    expect(at(at(rows, 0), 0)).toBe('b');
   });
 
   it('builds CSV with quoting and formula neutralisation', () => {
@@ -31,7 +32,7 @@ describe('table utils', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     downloadText('f.csv', 'a,b');
     expect(click).toHaveBeenCalled();
-    expect(created[0].type).toContain('text/csv');
+    expect(created[0]?.type).toContain('text/csv');
     vi.runAllTimers();
     expect(url.revokeObjectURL).toHaveBeenCalledWith('blob:x');
     click.mockRestore();

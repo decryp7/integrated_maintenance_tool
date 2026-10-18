@@ -76,12 +76,12 @@ export const SYNC_START_TIMEOUT_MS = 5000;
   template: `
     <imt-popout-title-bar [title]="title()" [host]="state.hostTitle()" [onTop]="state.alwaysOnTop()" (dockBack)="dockBack()" (toggleOnTop)="toggleOnTop()" />
     <main #viewHost class="view" [attr.aria-label]="title()" [attr.aria-busy]="!mounted()">
-      <p class="connecting">Connecting to the main window…</p>
+      <p class="connecting" i18n="@@popout.shell.connecting">Connecting to the main window…</p>
     </main>
     @if (store.error(); as error) {
       <div class="toast" role="alert">
         <span>{{ error }}</span>
-        <button type="button" class="btn" (click)="store.dismissError()">Dismiss</button>
+        <button type="button" class="btn" (click)="store.dismissError()" i18n="@@popout.shell.dismiss">Dismiss</button>
       </div>
     }
     <imt-command-palette />
@@ -94,7 +94,7 @@ export const SYNC_START_TIMEOUT_MS = 5000;
     .view > .imt-panel { flex: 1; }
     .connecting { margin: auto; color: var(--muted); font-size: 13px; }
     .toast {
-      position: fixed; right: 12px; bottom: 12px; max-width: 420px; z-index: 100; display: flex; align-items: center; gap: 10px;
+      position: fixed; inset-inline-end: 12px; bottom: 12px; max-width: 420px; z-index: 100; display: flex; align-items: center; gap: 10px;
       padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--lvl-error); box-shadow: var(--shadow);
     }
   `,
@@ -155,7 +155,7 @@ export class PopoutShell {
     if (this.mounted()) return;
     this.mounted.set(true);
     const view = this.views.find(this.route.view);
-    this.renderer = view ? new AngularContentRenderer(view.component, this.appRef, this.environment, view.title) : new MissingViewRenderer(this.route.view);
+    this.renderer = view ? new AngularContentRenderer(view.component, this.appRef, this.environment, view.title, this.route.view) : new MissingViewRenderer(this.route.view);
     this.renderer.init({} as never);
     this.viewHost().nativeElement.replaceChildren(this.renderer.element);
   }
@@ -189,7 +189,7 @@ export class PopoutShell {
     try {
       await this.backend.dockSelf(this.route);
     } catch (e) {
-      this.store.setError(`Could not dock the panel back: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@popout.shell.dockBackFailed:Could not dock the panel back: ${errorMessage(e)}:error:`);
     }
   }
 
@@ -199,7 +199,7 @@ export class PopoutShell {
       await this.backend.setAlwaysOnTop(on);
       this.state.alwaysOnTop.set(on);
     } catch (e) {
-      this.store.setError(`Could not keep the window on top: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@popout.shell.onTopFailed:Could not keep the window on top: ${errorMessage(e)}:error:`);
     }
   }
 

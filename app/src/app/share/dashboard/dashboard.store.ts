@@ -69,7 +69,7 @@ export class DashboardStore {
   }
 
   /** Starts a new, empty dashboard in edit mode. */
-  newDashboard(title = 'New dashboard'): void {
+  newDashboard(title = $localize`:@@share.dashboardStore.newTitle:New dashboard`): void {
     const id = uniqueId(this.dashboards().map((d) => d.id), title);
     this.isNew.set(true);
     this.draft.set({ id, title, columns: 12, tile: [] });
@@ -83,11 +83,11 @@ export class DashboardStore {
   }
 
   setTitle(title: string): void {
-    this.update((d) => ({ ...d, title }), 'dashboard title edit', 'dashboard.title');
+    this.update((d) => ({ ...d, title }), $localize`:@@share.dashboardStore.undoTitle:dashboard title edit`, 'dashboard.title');
   }
 
   /** Changes the draft; undoable while the edit lasts (the entries are dropped on Save or Cancel). */
-  private update(change: (d: DashboardCfg) => DashboardCfg, label = 'dashboard layout change', mergeKey?: string): void {
+  private update(change: (d: DashboardCfg) => DashboardCfg, label = $localize`:@@share.dashboardStore.undoLayout:dashboard layout change`, mergeKey?: string): void {
     const before = this.draft();
     if (!before) return;
     const after = change(before);
@@ -108,7 +108,7 @@ export class DashboardStore {
   }
 
   private static where(t: TileCfg | undefined): string {
-    return t ? `${t.title || t.id}: column ${t.x + 1}, row ${t.y + 1}, ${t.w} by ${t.h}` : '';
+    return t ? $localize`:@@share.dashboardStore.where:${t.title || t.id}:title: column ${t.x + 1}:column:, row ${t.y + 1}:row:, ${t.w}:w: by ${t.h}:h:` : '';
   }
 
   move(id: string, dx: number, dy: number): void {
@@ -129,7 +129,7 @@ export class DashboardStore {
 
   remove(id: string): void {
     const t = this.draft()?.tile.find((x) => x.id === id);
-    this.tiles((tiles) => removeTile(tiles, id), () => (t ? `${t.title || t.id} removed` : ''), id, 'dashboard tile removal');
+    this.tiles((tiles) => removeTile(tiles, id), () => (t ? $localize`:@@share.dashboardStore.removed:${t.title || t.id}:title: removed` : ''), id, $localize`:@@share.dashboardStore.undoRemove:dashboard tile removal`);
   }
 
   /** Adds a tile (a fresh id when its id is taken); returns the id. */
@@ -137,7 +137,7 @@ export class DashboardStore {
     const d = this.draft();
     if (!d) return null;
     const id = uniqueId(d.tile.map((t) => t.id), tile.id || tile.title || tile.type);
-    this.tiles((tiles, cols) => addTile(tiles, { ...tile, id }, cols), (t) => `${t?.title || id} added: ${DashboardStore.where(t)}`, id, 'dashboard tile addition');
+    this.tiles((tiles, cols) => addTile(tiles, { ...tile, id }, cols), (t) => $localize`:@@share.dashboardStore.added:${t?.title || id}:title: added: ${DashboardStore.where(t)}:where:`, id, $localize`:@@share.dashboardStore.undoAdd:dashboard tile addition`);
     return id;
   }
 
@@ -154,11 +154,11 @@ export class DashboardStore {
         const entry = toProfileDashboard(d);
         const at = list.findIndex((x) => x['id'] === d.id);
         model['dashboard'] = at >= 0 && !isNew ? list.map((x, i) => (i === at ? entry : x)) : [...list, entry];
-      }, 'dashboard save');
+      }, $localize`:@@share.dashboardStore.undoSave:dashboard save`);
       this.selectedId.set(d.id);
       this.draft.set(null);
       this.undo.discard(DRAFT_GROUP);
-      this.announcement.set(`Dashboard ${d.title} saved`);
+      this.announcement.set($localize`:@@share.dashboardStore.saved:Dashboard ${d.title}:title: saved`);
       return true;
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));

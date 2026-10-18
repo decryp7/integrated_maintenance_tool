@@ -8,8 +8,9 @@ import { UndoStack } from './undo-stack';
  * changes with every zoom and pan and has its own Back/Forward history (Analyze menu), so undoing a filter
  * never jumps the timeline. Instance selection (`groups`) is timeline interaction, also left out.
  */
-const TRACKED = ['text', 'regex', 'caseSensitive', 'levels', 'filters', 'groupBy', 'markers', 'ql'] as const;
-type Tracked = Pick<Query, (typeof TRACKED)[number]>;
+const SEARCH_TEXT_CHANGE = $localize`:Undo history entry|@@undo.query.text:search text change`;
+
+type Tracked = Pick<Query, 'text' | 'regex' | 'caseSensitive' | 'levels' | 'filters' | 'groupBy' | 'markers' | 'ql'>;
 
 /** The undoable part of a query. */
 export function trackedPart(q: Query): Tracked {
@@ -19,13 +20,13 @@ export function trackedPart(q: Query): Tracked {
 /** "Undo <label>" for a change between two queries (the first tracked difference names it). */
 export function queryChangeLabel(before: Tracked, after: Tracked): string {
   const differs = (k: keyof Tracked) => JSON.stringify(before[k]) !== JSON.stringify(after[k]);
-  if (differs('filters')) return 'field filter change';
-  if (differs('levels')) return 'level filter change';
-  if (differs('text')) return 'search text change';
-  if (differs('regex') || differs('caseSensitive')) return 'search option change';
-  if (differs('markers')) return 'marked-only filter change';
-  if (differs('groupBy')) return 'group-by change';
-  return 'query change';
+  if (differs('filters')) return $localize`:Undo history entry|@@undo.query.filters:field filter change`;
+  if (differs('levels')) return $localize`:Undo history entry|@@undo.query.levels:level filter change`;
+  if (differs('text')) return SEARCH_TEXT_CHANGE;
+  if (differs('regex') || differs('caseSensitive')) return $localize`:Undo history entry|@@undo.query.searchOption:search option change`;
+  if (differs('markers')) return $localize`:Undo history entry|@@undo.query.markers:marked-only filter change`;
+  if (differs('groupBy')) return $localize`:Undo history entry|@@undo.query.groupBy:group-by change`;
+  return $localize`:Undo history entry|@@undo.query.other:query change`;
 }
 
 /**
@@ -68,7 +69,7 @@ export class QueryUndo {
     const label = queryChangeLabel(prev, next);
     this.undo.record({
       label,
-      mergeKey: label === 'search text change' ? 'query.text' : undefined,
+      mergeKey: label === SEARCH_TEXT_CHANGE ? 'query.text' : undefined,
       undo: () => this.restore(prev),
       do: () => this.restore(next),
     });

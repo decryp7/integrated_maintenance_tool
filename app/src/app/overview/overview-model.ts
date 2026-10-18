@@ -1,3 +1,4 @@
+import { plural } from '../i18n/locale';
 import { Finding, FindingAction, PluginInfo, Severity, SEVERITIES, UnrecognizedFile, WorkspaceSummary } from '../core/api.types';
 
 /** Findings of one severity, in the engine's order. */
@@ -9,7 +10,11 @@ export interface SeverityGroup {
   findings: Finding[];
 }
 
-export const SEVERITY_LABELS: Record<Severity, string> = { critical: 'Critical', warning: 'Warning', info: 'Info' };
+export const SEVERITY_LABELS: Record<Severity, string> = {
+  critical: $localize`:@@overview.severity.critical:Critical`,
+  warning: $localize`:@@overview.severity.warning:Warning`,
+  info: $localize`:@@overview.severity.info:Info`,
+};
 const SEVERITY_ICONS: Record<Severity, string> = { critical: 'alert', warning: 'alert', info: 'check' };
 
 /** Groups findings by severity, most severe first; empty groups are left out. */
@@ -29,10 +34,24 @@ export interface PluginProblem {
 /** Quarantined, inactive, failing or warning plugins. */
 export function pluginProblems(plugins: readonly PluginInfo[]): PluginProblem[] {
   return plugins.flatMap((p): PluginProblem[] => {
-    if (p.status === 'quarantined') return [{ id: p.id, name: p.name, problem: `disabled after crashes${p.lastError ? `: ${p.lastError}` : ''}` }];
-    if (p.status === 'inactive') return [{ id: p.id, name: p.name, problem: p.inactiveReason ?? 'not running' }];
-    if (p.failures > 0) return [{ id: p.id, name: p.name, problem: `${p.failures} contained error${p.failures === 1 ? '' : 's'}${p.lastError ? `: ${p.lastError}` : ''}` }];
-    if (p.warnings.length) return [{ id: p.id, name: p.name, problem: p.warnings[0] }];
+    if (p.status === 'quarantined') {
+      const error = p.lastError;
+      const problem = error
+        ? $localize`:@@overview.plugin.quarantinedWithError:disabled after crashes: ${error}:error:`
+        : $localize`:@@overview.plugin.quarantined:disabled after crashes`;
+      return [{ id: p.id, name: p.name, problem }];
+    }
+    if (p.status === 'inactive') return [{ id: p.id, name: p.name, problem: p.inactiveReason ?? $localize`:@@overview.plugin.inactive:not running` }];
+    if (p.failures > 0) {
+      const n = p.failures;
+      const error = p.lastError;
+      const count = plural(n, {
+        one: $localize`:@@overview.plugin.errors.one:${n}:count: contained error`,
+        other: $localize`:@@overview.plugin.errors.other:${n}:count: contained errors`,
+      });
+      return [{ id: p.id, name: p.name, problem: error ? $localize`:@@overview.plugin.errorsWithLast:${count}:count:: ${error}:error:` : count }];
+    }
+    if (p.warnings.length) return [{ id: p.id, name: p.name, problem: p.warnings[0] ?? '' }];
     return [];
   });
 }
@@ -74,8 +93,8 @@ export interface ActionButton {
 
 /** Views a finding's `openPanel` may name, mapped to the app's view ids and titles. */
 const PANELS: Record<string, { view: string; title: string }> = {
-  pipeline: { view: 'profile', title: 'Profile pipeline' },
-  plugins: { view: 'plugins', title: 'Plugins' },
+  pipeline: { view: 'profile', title: $localize`:@@overview.panel.pipeline:Profile pipeline` },
+  plugins: { view: 'plugins', title: $localize`:@@overview.panel.plugins:Plugins` },
 };
 
 /** The view an `openPanel` action opens (unknown panels are opened by their own id). */
@@ -88,18 +107,18 @@ export function actionButtons(action: FindingAction | null): ActionButton[] {
   switch (action?.kind) {
     case 'zoom':
       return [
-        { id: 'jump', label: 'Jump to time' },
-        { id: 'showRange', label: 'Show these events' },
+        { id: 'jump', label: $localize`:@@overview.action.jump:Jump to time` },
+        { id: 'showRange', label: $localize`:@@overview.action.showRange:Show these events` },
       ];
     case 'exception':
       return [
-        { id: 'showException', label: 'Show events' },
-        { id: 'openExceptions', label: 'Open Exceptions' },
+        { id: 'showException', label: $localize`:@@overview.action.showException:Show events` },
+        { id: 'openExceptions', label: $localize`:@@overview.action.openExceptions:Open Exceptions` },
       ];
     case 'setupFormat':
-      return [{ id: 'setupFormat', label: 'Set up format…' }];
+      return [{ id: 'setupFormat', label: $localize`:@@overview.action.setupFormat:Set up format…` }];
     case 'openPanel':
-      return [{ id: 'openPanel', label: `Open ${panelTarget(action.panel).title}` }];
+      return [{ id: 'openPanel', label: $localize`:@@overview.action.openPanel:Open ${panelTarget(action.panel).title}:panel:` }];
     default:
       return [];
   }

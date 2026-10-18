@@ -1,7 +1,8 @@
 /**
  * Wire contract of the local AI assistant (`app/src-tauri/src/ai/**`, `crates/imt-ai`), camelCase JSON.
  * Commands: `ai_*` (see `ai-backend.ts`). Events: `imt://ai-setup` (`SetupEvent`, all windows),
- * `imt://ai-status` (`AiStatus`, all windows), `imt://ai-chat` (`ChatEventEnvelope`, the chat's window).
+ * `imt://ai-status` (`AiStatus`, all windows), `imt://ai-chat` (`ChatEventEnvelope`, the chat's window),
+ * `imt://ai-runtime` (`AiRuntimeEvent`, all windows).
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
 import { ExplainNode, InferredGroup, ParsedPreview } from '../core/api.types';
@@ -9,10 +10,12 @@ import { ExplainNode, InferredGroup, ParsedPreview } from '../core/api.types';
 export const AI_SETUP_EVENT = 'imt://ai-setup';
 export const AI_STATUS_EVENT = 'imt://ai-status';
 export const AI_CHAT_EVENT = 'imt://ai-chat';
+export const AI_RUNTIME_EVENT = 'imt://ai-runtime';
 
 export type AiErrorCode =
   | 'unavailable'
   | 'noModel'
+  | 'noRuntime'
   | 'busy'
   | 'cancelled'
   | 'invalid'
@@ -38,7 +41,8 @@ export interface AiErrorPayload {
 
 // ---- engine status, hardware, catalog ----
 
-export type EngineState = 'unavailable' | 'disabled' | 'noModel' | 'idle' | 'loading' | 'ready' | 'failed';
+export type EngineState =
+  'unavailable' | 'disabled' | 'noModel' | 'idle' | 'loading' | 'ready' | 'failed';
 export type WebProvider = 'none' | 'searxng' | 'brave' | 'manual';
 
 export interface AiStatus {
@@ -130,7 +134,13 @@ export interface SetupPlan {
 export type SetupEvent =
   | { stage: 'probing' }
   | { stage: 'recommending' }
-  | { stage: 'downloading'; bytes: number; total: number; bytesPerSec: number; etaSecs: number | null }
+  | {
+      stage: 'downloading';
+      bytes: number;
+      total: number;
+      bytesPerSec: number;
+      etaSecs: number | null;
+    }
   | { stage: 'verifying'; bytes: number; total: number }
   | { stage: 'validating' }
   | { stage: 'loading'; gpu: boolean }
@@ -165,6 +175,82 @@ export interface InstalledModel {
   license: string | null;
   toolCalling: boolean;
 }
+
+// ---- inference runtimes (prebuilt llama-server builds, ADR 0009; `imt_ai::runtimes::overview`) ----
+
+/** An accelerator a build reported (`llama-server --list-devices`). */
+export interface AiRuntimeDevice {
+  /** ggml's device name, e.g. `Vulkan0`, `CUDA0`, `MTL0`. */
+  name: string;
+  description: string;
+  totalMib: number;
+  freeMib: number;
+}
+
+/** One build the pinned catalog offers for this platform. */
+export interface AiRuntimeEntry {
+  /** `cpu`, `vulkan`, `cuda-13`, `metal`, ... */
+  id: string;
+  label: string;
+  downloadBytes: number;
+  installed: boolean;
+  installedBytes: number | null;
+  /** `null` when not installed or not checked yet. */
+  usable: boolean | null;
+  problem: string | null;
+  devices: AiRuntimeDevice[];
+  /** The build suggested for this machine. */
+  suggested: boolean;
+  /** The build that runs the model with the current settings. */
+  active: boolean;
+}
+
+/** A build on disk. */
+export interface AiInstalledRuntime {
+  id: string;
+  tag: string;
+  bytes: number;
+  /** Belongs to the release IMT pins (older ones can be deleted). */
+  current: boolean;
+}
+
+export interface AiRuntimeOverview {
+  release: string;
+  tag: string;
+  platform: string;
+  /** The `inference_build` setting: `auto` or a build id. */
+  choice: string;
+  suggested: string | null;
+  /** The build in use: the chosen one when it works, else the best working one. */
+  active: string | null;
+  /** Set when a custom llama-server replaces the downloaded builds. */
+  customPath: string | null;
+  builds: AiRuntimeEntry[];
+  /** Builds of older releases still on disk. */
+  outdated: AiInstalledRuntime[];
+  /** Nothing is installed (and no custom path is set): offer a download. */
+  needsDownload: boolean;
+  /** Why the builds could not be checked, if they could not. */
+  problem: string | null;
+}
+
+/** Progress of a runtime install (`imt://ai-runtime`); `ready`, `failed` and `cancelled` end it. */
+export type AiRuntimeEvent =
+  | { stage: 'downloading'; id: string; asset: string; index: number; count: number }
+  | {
+      stage: 'progress';
+      id: string;
+      bytes: number;
+      total: number;
+      bytesPerSec: number;
+      etaSecs: number | null;
+      verifying: boolean;
+    }
+  | { stage: 'unpacking'; id: string; asset: string }
+  | { stage: 'finishing'; id: string }
+  | { stage: 'ready'; id: string; runtime: AiInstalledRuntime }
+  | { stage: 'failed'; id: string; code: AiErrorCode; message: string }
+  | { stage: 'cancelled'; id: string };
 
 // ---- proposals and narratives ----
 
@@ -217,7 +303,12 @@ export interface ExtractorsProposal {
   kind: 'extractors';
   toml: string;
   profileToml: string;
-  extractors: { name: string; fields: string[]; matches: number; examples: Record<string, unknown>[] }[];
+  extractors: {
+    name: string;
+    fields: string[];
+    matches: number;
+    examples: Record<string, unknown>[];
+  }[];
   sampled: number;
   rationale: string;
 }
@@ -230,12 +321,21 @@ export interface QueryProposal {
   repaired: boolean;
 }
 
-export type Proposal = RegexProposal | ProfileProposal | PipelineProposal | MarkersProposal | ExtractorsProposal | QueryProposal;
+export type Proposal =
+  | RegexProposal
+  | ProfileProposal
+  | PipelineProposal
+  | MarkersProposal
+  | ExtractorsProposal
+  | QueryProposal;
 export type ProposalKind = Proposal['kind'];
 /** The proposals that change the active profile (applied through the profile's validated save). */
 export type ProfileChangeKind = 'pipeline' | 'markers' | 'extractors';
 
-export type Citation = { kind: 'record'; id: number; verified: boolean } | { kind: 'query'; ql: string } | { kind: 'web'; title: string; url: string };
+export type Citation =
+  | { kind: 'record'; id: number; verified: boolean }
+  | { kind: 'query'; ql: string }
+  | { kind: 'web'; title: string; url: string };
 
 export interface Evidence {
   recordIds: number[];
@@ -271,7 +371,15 @@ export type ChatEvent =
   | { type: 'toolStarted'; name: string; args: string }
   | { type: 'toolFinished'; name: string; summary: string; error: boolean; evidence: Evidence }
   | { type: 'proposal'; proposal: Proposal }
-  | { type: 'approvalRequired'; requestId: number; kind: 'search' | 'fetch'; text: string; domain: string | null; provider: string; editable: boolean }
+  | {
+      type: 'approvalRequired';
+      requestId: number;
+      kind: 'search' | 'fetch';
+      text: string;
+      domain: string | null;
+      provider: string;
+      editable: boolean;
+    }
   | { type: 'searchSuggestion'; query: string; openUrl: string }
   | { type: 'done'; text: string; citations: Citation[]; usage: Usage; notes: string[] }
   | { type: 'error'; message: string; cancelled: boolean };
@@ -316,7 +424,11 @@ export interface RestoreResult {
   warning: string | null;
 }
 
-export type ApprovalDecision = { kind: 'allow' } | { kind: 'allowEdited'; text: string } | { kind: 'allowSearchesInChat' } | { kind: 'deny' };
+export type ApprovalDecision =
+  | { kind: 'allow' }
+  | { kind: 'allowEdited'; text: string }
+  | { kind: 'allowSearchesInChat' }
+  | { kind: 'deny' };
 
 /** Where a proposal's sample comes from: text the user gave, or the lines around an event. */
 export interface SampleSource {

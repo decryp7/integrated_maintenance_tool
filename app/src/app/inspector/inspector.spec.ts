@@ -6,6 +6,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../t
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { Inspector } from './inspector';
+import { at } from '../../testing/must';
 
 @Component({ selector: 'imt-test-section', template: '<span class="plugin-section">id {{ record().id }}</span>' })
 class TestSection {
@@ -24,11 +25,11 @@ describe('Inspector plugin sections', () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
     const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 2, limit: 1, descending: false });
-    store.select(page.rows[0]);
+    store.select(at(page.rows, 0));
     await settle(fixture);
     expect(all(fixture, '.section-title.sub').map((t) => t.textContent?.trim())).toEqual(expect.arrayContaining(['First', 'Second']));
     expect(all(fixture, '.section-title.sub').map((t) => t.textContent?.trim())).not.toContain('Hidden');
-    expect(all(fixture, '.plugin-section').map((e) => e.textContent)).toEqual([`id ${page.rows[0].id}`, `id ${page.rows[0].id}`]);
+    expect(all(fixture, '.plugin-section').map((e) => e.textContent)).toEqual([`id ${at(page.rows, 0).id}`, `id ${at(page.rows, 0).id}`]);
   });
 });
 
@@ -39,7 +40,7 @@ describe('Inspector', () => {
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
     const page = await TestBed.inject(ImtBackend).queryPage({ query: { ...EMPTY_QUERY, groupBy: ['MachineName', 'ProcessId'] }, offset: id, limit: 1, descending: false });
-    store.select(page.rows[0]);
+    store.select(at(page.rows, 0));
     await settle(fixture);
     return { fixture, store };
   }
@@ -92,7 +93,7 @@ describe('Inspector', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     buttonByText(fixture, 'Copy JSON').click();
     await settle(fixture);
-    expect(JSON.parse(writeText.mock.calls[0][0]).id).toBe(1);
+    expect(JSON.parse(at(writeText.mock.calls, 0)[0]).id).toBe(1);
     expect(buttonByText(fixture, 'Copied')).toBeTruthy();
     writeText.mockRejectedValue(new Error('denied'));
     await new Promise((r) => setTimeout(r, 1600));

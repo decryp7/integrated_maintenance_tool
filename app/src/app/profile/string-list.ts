@@ -17,11 +17,11 @@ import { Icon } from '../shared/icon';
           [attr.list]="datalist() || null"
           (input)="set(i, $any($event.target).value)"
         />
-        <button class="icon-btn" [attr.aria-label]="'Move ' + label() + ' ' + (i + 1) + ' up'" [disabled]="i === 0" (click)="move(i, -1)" [attr.title]="'Move ' + label() + ' ' + (i + 1) + ' up'">↑</button>
-        <button class="icon-btn" [attr.aria-label]="'Remove ' + label() + ' ' + (i + 1)" (click)="remove(i)" [attr.title]="'Remove ' + label() + ' ' + (i + 1)"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn" [attr.aria-label]="moveUpLabel(i)" [disabled]="i === 0" (click)="move(i, -1)" [attr.title]="moveUpLabel(i)">↑</button>
+        <button class="icon-btn" [attr.aria-label]="removeLabel(i)" (click)="remove(i)" [attr.title]="removeLabel(i)"><imt-icon name="close" [size]="12" /></button>
       </div>
     }
-    <button class="btn dashed add" (click)="add()">+ Add {{ label() }}</button>
+    <button class="btn dashed add" (click)="add()" i18n="@@profile.stringList.add">+ Add {{ label() }}</button>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 4px; }
@@ -33,11 +33,19 @@ import { Icon } from '../shared/icon';
 })
 export class StringList {
   readonly values = input<string[]>([]);
-  readonly label = input('item');
+  readonly label = input($localize`:@@profile.stringList.item:item`);
   readonly mono = input(true);
   readonly datalist = input('');
   readonly changed = output<string[]>();
 
+  protected moveUpLabel(i: number): string {
+    const [label, n] = [this.label(), i + 1];
+    return $localize`:@@profile.stringList.moveUp:Move ${label}:label: ${n}:number: up`;
+  }
+  protected removeLabel(i: number): string {
+    const [label, n] = [this.label(), i + 1];
+    return $localize`:@@profile.stringList.remove:Remove ${label}:label: ${n}:number:`;
+  }
   protected set(i: number, v: string): void {
     const next = [...this.values()];
     next[i] = v;
@@ -51,8 +59,8 @@ export class StringList {
   }
   protected move(i: number, d: number): void {
     const next = [...this.values()];
-    const [x] = next.splice(i, 1);
-    next.splice(i + d, 0, x);
+    const moved = next.splice(i, 1);
+    next.splice(i + d, 0, ...moved);
     this.changed.emit(next);
   }
 }

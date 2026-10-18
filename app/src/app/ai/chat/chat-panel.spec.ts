@@ -12,6 +12,7 @@ import { AiStatusStore } from '../ai-status.store';
 import { AiChatPanel } from './chat-panel';
 import { ChatStore } from './chat.store';
 import { AiCitations } from './citation-actions';
+import { at } from '../../../testing/must';
 
 function setup(options: MockAiOptions = {}, path: string | null = '/tmp/chat.md') {
   const backend = new MockAiBackend({ stepMs: 0, ...options });
@@ -49,7 +50,7 @@ describe('AiChatPanel', () => {
     expect(el(f, '[data-testid=ai-engine-state]').textContent).toContain('Qwen3.5-4B-Q4_K_M · ready · Vulkan');
     const record = vi.spyOn(TestBed.inject(AiCitations), 'record').mockResolvedValue();
     const query = vi.spyOn(TestBed.inject(AiCitations), 'query').mockResolvedValueOnce(null).mockResolvedValueOnce('bad');
-    all<HTMLButtonElement>(f, '.starter')[0].click();
+    at(all<HTMLButtonElement>(f, '.starter'), 0).click();
     await until(f, () => !store.running() && !!root.querySelector('[data-testid=ai-tool-chip]'));
     expect(el(f, '[data-testid=ai-tool-chip]').textContent).toContain('Query: 1 events');
     expect(el(f, '.user').textContent).toContain('What happened around');
@@ -82,7 +83,7 @@ describe('AiChatPanel', () => {
     expect(ta.value === '' || store.activeTurns().length === 1).toBe(true);
     buttonByText(f, 'Stop').click();
     await until(f, () => !store.running());
-    expect(store.activeTurns()[0].cancelled).toBe(true);
+    expect(store.activeTurns()[0]?.cancelled).toBe(true);
     expect((f.nativeElement as HTMLElement).textContent).toContain('Stopped.');
   });
 
@@ -106,7 +107,7 @@ describe('AiChatPanel', () => {
     all<HTMLButtonElement>(f, '[data-testid=ai-approval] button').filter((b) => b.textContent?.trim() === 'Deny').at(-1)!.click();
     await until(f, () => !store.running());
     expect(backend.sent).toHaveLength(2);
-    expect(store.activeTurns()[1].text).toContain('declined');
+    expect(store.activeTurns()[1]?.text).toContain('declined');
   });
 
   it('renders proposals, neutral "not found" answers, notes, errors and suggested searches', async () => {
@@ -137,7 +138,7 @@ describe('AiChatPanel', () => {
     // The proposal card's Dismiss marks it.
     buttonByText(f, 'Dismiss').click();
     f.detectChanges();
-    expect(store.activeTurns()[0].proposals[0].state).toBe('dismissed');
+    expect(store.activeTurns()[0]?.proposals[0]?.state).toBe('dismissed');
   });
 
   it('shows what is sent as context and lets the user leave parts out', async () => {
@@ -150,7 +151,7 @@ describe('AiChatPanel', () => {
     f.detectChanges();
     const boxes = all<HTMLInputElement>(f, '#ai-chat-context input[type=checkbox]');
     expect(boxes).toHaveLength(5);
-    boxes[4].dispatchEvent(new Event('change'));
+    at(boxes, 4).dispatchEvent(new Event('change'));
     f.detectChanges();
     expect(store.toggles().view).toBe(false);
     expect(chip.textContent).toContain('nothing selected');
@@ -177,7 +178,7 @@ describe('AiChatPanel', () => {
     buttonByText(f, 'Export…').click();
     const dialogs = TestBed.inject(DialogService);
     await until(f, () => dialogs.stack().length === 1);
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     await settle();
     vi.spyOn(backend, 'chatExportMarkdown').mockRejectedValueOnce(new AiError('io', 'disk full'));
     buttonByText(f, 'Export…').click();
@@ -185,8 +186,8 @@ describe('AiChatPanel', () => {
     buttonByText(f, 'New chat').click();
     await until(f, () => store.sessions().length === 2);
     const select = el<HTMLSelectElement>(f, 'select');
-    typeInto(select, store.sessions()[0].id, 'change');
-    await until(f, () => store.activeId() === store.sessions()[0].id);
+    typeInto(select, at(store.sessions(), 0).id, 'change');
+    await until(f, () => store.activeId() === at(store.sessions(), 0).id);
     el<HTMLButtonElement>(f, 'button[aria-label="Delete this chat"]').click();
     await until(f, () => store.sessions().length === 1);
   });

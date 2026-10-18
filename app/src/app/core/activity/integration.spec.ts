@@ -13,6 +13,7 @@ import { ActivityObservers, queryChanges, QUERY_DEBOUNCE_MS, SELECTION_THROTTLE_
 import { activity } from './runtime';
 import { EMPTY_QUERY } from '../workspace.store';
 import { RecordView } from '../api.types';
+import { at } from '../../../testing/must';
 
 function entries(): { message: string; props: Record<string, string> }[] {
   return (TestBed.inject(Logger) as MemoryLogger).entries
@@ -74,8 +75,8 @@ describe('activity: trigger attribution of command entry paths', () => {
     stop();
     expect(ran).toHaveLength(6);
     expect(entries().map((e) => e.props['Trigger'])).toEqual(['menu', 'context-menu', 'button', 'palette', 'shortcut', 'native-menu']);
-    expect(entries()[0].props).toMatchObject({ Operation: 'a', Title: 'Do a', Category: 'File', Outcome: 'ok' });
-    expect(entries()[0].message).toBe('User a via menu');
+    expect(entries()[0]?.props).toMatchObject({ Operation: 'a', Title: 'Do a', Category: 'File', Outcome: 'ok' });
+    expect(entries()[0]?.message).toBe('User a via menu');
   });
 
   it('logs failed commands with the error outcome and the same operation id as the failure log', async () => {
@@ -143,20 +144,20 @@ describe('activity: backend calls', () => {
     await b.onEvent();
     expect(entries()).toHaveLength(0);
     await b.exportEvents({ format: 'csv', path: '/Users/alice/out.csv' });
-    expect(entries()[0].props).toMatchObject({ Operation: 'file.export', Format: 'csv', Method: 'exportEvents', Outcome: 'ok', Trigger: 'dialog' });
-    expect(entries()[0].props['Path']).toMatch(/^<dir#[0-9a-f]{8}>\/out\.csv$/);
+    expect(entries()[0]?.props).toMatchObject({ Operation: 'file.export', Format: 'csv', Method: 'exportEvents', Outcome: 'ok', Trigger: 'dialog' });
+    expect(entries()[0]?.props['Path']).toMatch(/^<dir#[0-9a-f]{8}>\/out\.csv$/);
     activity.triggers.note('button');
     await expect(b.saveProfile()).rejects.toThrow('compile');
-    expect(entries()[1].props).toMatchObject({ Operation: 'backend.saveProfile', Outcome: 'error' });
+    expect(entries()[1]?.props).toMatchObject({ Operation: 'backend.saveProfile', Outcome: 'error' });
     activity.triggers.note('dialog');
     await expect(b.importProfile()).rejects.toThrow('cancelled');
-    expect(entries()[2].props['Outcome']).toBe('cancelled');
+    expect(entries()[2]?.props['Outcome']).toBe('cancelled');
     activity.triggers.note('button');
     expect(b.setLive(true)).toBe(true);
-    expect(entries()[3].props['Operation']).toBe('live.on');
+    expect(entries()[3]?.props['Operation']).toBe('live.on');
     activity.triggers.note('button');
     expect(() => b.explode()).toThrow('sync failure');
-    expect(entries()[4].props).toMatchObject({ Operation: 'backend.explode', Outcome: 'error' });
+    expect(entries()[4]?.props).toMatchObject({ Operation: 'backend.explode', Outcome: 'error' });
   });
 
   it('attributes calls inside an operation to it, and logs failures with severity and the operation id', async () => {
@@ -180,6 +181,9 @@ describe('activity: backend calls', () => {
     expect(['queryPage', 'listErrorSnapshots', 'previewParse', 'workspaceSummary', 'profilingTree'].map(methodKind)).toEqual(['query', 'query', 'query', 'query', 'query']);
     expect(['openPaths', 'saveProfile', 'exportEvents', 'profilingOpen', 'previewRedaction', 'set'].map(methodKind)).toEqual(Array(6).fill('mutation'));
     expect(methodKind('saveSession')).toBe('quiet');
+    // Event Log follower reads are queries, not user operations; start/stop are.
+    for (const m of ['eventLogChannels', 'eventLogValidate', 'eventLogStatus']) expect(methodKind(m)).toBe('query');
+    expect(methodKind('eventLogStart')).toBe('mutation');
     expect(methodKind('onWorkspaceChanged')).toBe('event');
   });
 });
@@ -228,7 +232,7 @@ describe('activity: observers', () => {
     expect(entries()).toHaveLength(0);
     settle(QUERY_DEBOUNCE_MS);
     expect(entries()).toHaveLength(1);
-    const e = entries()[0].props;
+    const e = at(entries(), 0).props;
     expect(e).toMatchObject({ Operation: 'query.change', Trigger: 'keyboard', Count: '3', QueryLength: '11' });
     expect(JSON.stringify(entries())).not.toContain('level:error');
   });
@@ -246,8 +250,8 @@ describe('activity: observers', () => {
     settle(QUERY_DEBOUNCE_MS);
     const ops = entries().map((e) => e.props['Operation']);
     expect(ops).toEqual(['timeRange.change', 'search.change', 'filter.change']);
-    expect(entries()[0].props).toMatchObject({ RangeMs: '1999', Count: '2' });
-    expect(entries()[2].props['Levels']).toBe('Error');
+    expect(entries()[0]?.props).toMatchObject({ RangeMs: '1999', Count: '2' });
+    expect(entries()[2]?.props['Levels']).toBe('Error');
     expect(JSON.stringify(entries())).not.toContain('secret words');
   });
 
@@ -275,7 +279,7 @@ describe('activity: observers', () => {
     }
     settle(SELECTION_THROTTLE_MS);
     expect(entries()).toHaveLength(1);
-    expect(entries()[0].props).toMatchObject({ Operation: 'selection.change', RecordId: '3', Count: '3' });
+    expect(entries()[0]?.props).toMatchObject({ Operation: 'selection.change', RecordId: '3', Count: '3' });
     expect(JSON.stringify(entries())).not.toContain('secret message');
   });
 

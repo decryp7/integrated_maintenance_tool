@@ -24,19 +24,19 @@ export const DEFAULT_FIELDS: readonly string[] = ['@message', '@exception'];
 
 /** One line per detector for the settings dialog (mirrors `Detector::description`). */
 export const DETECTOR_DESCRIPTIONS: Record<RedactDetector, string> = {
-  'bearer-token': 'Authorization: Bearer tokens',
-  jwt: 'JSON Web Tokens (eyJ…)',
-  'api-key': 'api_key / token / secret = value',
-  'connection-string': 'AccountKey, SharedAccessKey and similar connection-string secrets',
-  password: 'password / pwd = value',
-  'user-path': 'user names in Windows and Unix home folders',
-  email: 'e-mail addresses',
-  'credit-card': 'card numbers (Luhn checked)',
-  ipv4: 'IPv4 addresses',
-  ipv6: 'IPv6 addresses',
-  guid: 'GUIDs / UUIDs',
-  phone: 'phone numbers (+country code, (area) or 555-123-4567)',
-  hostname: 'fully qualified lower-case host names (a.b.example)',
+  'bearer-token': $localize`:@@share.redactSection.detector.bearerToken:Authorization: Bearer tokens`,
+  jwt: $localize`:@@share.redactSection.detector.jwt:JSON Web Tokens (eyJ…)`,
+  'api-key': $localize`:@@share.redactSection.detector.apiKey:api_key / token / secret = value`,
+  'connection-string': $localize`:@@share.redactSection.detector.connectionString:AccountKey, SharedAccessKey and similar connection-string secrets`,
+  password: $localize`:@@share.redactSection.detector.password:password / pwd = value`,
+  'user-path': $localize`:@@share.redactSection.detector.userPath:user names in Windows and Unix home folders`,
+  email: $localize`:@@share.redactSection.detector.email:e-mail addresses`,
+  'credit-card': $localize`:@@share.redactSection.detector.creditCard:card numbers (Luhn checked)`,
+  ipv4: $localize`:@@share.redactSection.detector.ipv4:IPv4 addresses`,
+  ipv6: $localize`:@@share.redactSection.detector.ipv6:IPv6 addresses`,
+  guid: $localize`:@@share.redactSection.detector.guid:GUIDs / UUIDs`,
+  phone: $localize`:@@share.redactSection.detector.phone:phone numbers (+country code, (area) or 555-123-4567)`,
+  hostname: $localize`:@@share.redactSection.detector.hostname:fully qualified lower-case host names (a.b.example)`,
 };
 
 const strings = (v: unknown): string[] | null => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null);

@@ -311,3 +311,34 @@ fn stores_without_sharing_features_say_so() {
     assert!(store.estimate_bundle(&opts, "").is_err());
     assert!(store.write_bundle(&opts, "", std::path::Path::new("x.imtz")).is_err());
 }
+
+#[test]
+fn stores_without_cancellation_run_to_completion_but_report_a_cancel() {
+    use imt_core::ql::{QueryControl, RunError};
+    let d = folder();
+    let mut store: Box<dyn LogStore> = Box::new(Minimal(Workspace::new(Profile::default_profile()).unwrap()));
+    store.open(std::slice::from_ref(&d.0)).unwrap();
+    let req = QueryRequest {
+        query: imt_core::query::Query {
+            ql: "step".into(),
+            ..Default::default()
+        },
+    };
+    assert!(matches!(
+        store.run_query_with(&req, &QueryControl::new()),
+        Ok(QlResult::Events { .. })
+    ));
+    let cancelled = QueryControl::new();
+    cancelled.cancel();
+    assert_eq!(store.run_query_with(&req, &cancelled), Err(RunError::Cancelled));
+    let bad = QueryRequest {
+        query: imt_core::query::Query {
+            ql: "level >".into(),
+            ..Default::default()
+        },
+    };
+    assert!(matches!(
+        store.run_query_with(&bad, &QueryControl::new()),
+        Err(RunError::Invalid(_))
+    ));
+}

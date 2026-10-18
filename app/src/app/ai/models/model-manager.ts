@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { Platform } from '../../core/platform';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
@@ -6,26 +14,28 @@ import { AiBackend, toAiError } from '../ai-backend';
 import { fitLabel, formatBytes } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { InstalledModel, Recommendation, SetupEvent } from '../ai.types';
+import { AiRuntimePanel } from '../runtimes/runtime-panel';
 import { AiSetupWizard } from '../setup/setup-wizard';
 import { stageLabel, RunningStage } from '../setup/wizard';
 
 const ENGINE_STATE: Record<string, string> = {
-  unavailable: 'Unavailable',
-  disabled: 'Switched off after repeated failures',
-  noModel: 'No model set up',
-  idle: 'Ready (loads on first use)',
-  loading: 'Loading the model…',
-  ready: 'Running',
-  failed: 'The last load failed',
+  unavailable: $localize`:@@ai.models.state.unavailable:Unavailable`,
+  disabled: $localize`:@@ai.models.state.disabled:Switched off after repeated failures`,
+  noModel: $localize`:@@ai.models.state.noModel:No model set up`,
+  idle: $localize`:@@ai.models.state.idle:Ready (loads on first use)`,
+  loading: $localize`:@@ai.models.state.loading:Loading the model…`,
+  ready: $localize`:@@ai.models.state.ready:Running`,
+  failed: $localize`:@@ai.models.state.failed:The last load failed`,
 };
 
-/** Installed models, the engine status, adding a local GGUF file and downloading other models. */
+/** The engine status, the inference runtimes, installed models, adding a local GGUF file and downloading other models. */
 @Component({
   selector: 'imt-ai-model-manager',
+  imports: [AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="engine" aria-labelledby="ai-engine-title" data-testid="ai-engine-status">
-      <h3 id="ai-engine-title">Engine</h3>
+      <h3 id="ai-engine-title" i18n="@@ai.models.engine">Engine</h3>
       @if (status.status(); as s) {
         <p>
           {{ engineState() }}
@@ -33,24 +43,47 @@ const ENGINE_STATE: Record<string, string> = {
             · {{ s.backend }}
           }
           @if (s.rssBytes) {
-            · {{ size(s.rssBytes) }} in memory
+            <ng-container i18n="@@ai.models.inMemory">· {{ size(s.rssBytes) }} in memory</ng-container>
           }
         </p>
         @if (s.reason) {
           <p class="err" role="alert">{{ s.reason }}</p>
         }
         @if (s.state === 'disabled' || s.state === 'failed') {
-          <button type="button" class="btn" data-testid="ai-engine-reset" [disabled]="busy()" (click)="reset()">Reset engine</button>
+          <button
+            type="button"
+            class="btn"
+            data-testid="ai-engine-reset"
+            [disabled]="busy()"
+            (click)="reset()"
+            i18n="@@ai.models.resetEngine"
+          >
+            Reset engine
+          </button>
         }
       } @else {
-        <p class="muted">Engine status unknown.</p>
+        <p class="muted" i18n="@@ai.models.engineUnknown">Engine status unknown.</p>
       }
+    </section>
+
+    <section aria-labelledby="ai-runtime-title" data-testid="ai-runtime-section">
+      <h3 id="ai-runtime-title" i18n="@@ai.models.runtime">Inference runtime</h3>
+      <imt-ai-runtime-panel />
     </section>
 
     <section aria-labelledby="ai-installed-title">
       <div class="head">
-        <h3 id="ai-installed-title">Installed models</h3>
-        <button type="button" class="btn" data-testid="ai-add-local" [disabled]="busy()" (click)="addLocal()">Add local GGUF…</button>
+        <h3 id="ai-installed-title" i18n="@@ai.models.installed">Installed models</h3>
+        <button
+          type="button"
+          class="btn"
+          data-testid="ai-add-local"
+          [disabled]="busy()"
+          (click)="addLocal()"
+          i18n="@@ai.models.addLocal"
+        >
+          Add local GGUF…
+        </button>
       </div>
       <div class="sr-only" aria-live="polite">{{ progress() }}</div>
       @if (progress()) {
@@ -59,7 +92,7 @@ const ENGINE_STATE: Record<string, string> = {
       @if (error()) {
         <p class="err" role="alert" data-testid="ai-models-error">
           {{ error() }}
-          <button type="button" class="btn ghost" (click)="load()">Retry</button>
+          <button type="button" class="btn ghost" (click)="load()" i18n="@@ai.models.retry">Retry</button>
         </p>
       }
       @if (models().length) {
@@ -70,42 +103,83 @@ const ENGINE_STATE: Record<string, string> = {
                 <span class="name">
                   {{ m.name }}
                   @if (m.active) {
-                    <span class="badge active">Active</span>
+                    <span class="badge active" i18n="model in use|@@ai.models.badge.active">Active</span>
                   }
                   @if (m.assessment; as a) {
                     <span class="badge" [class]="'badge fit-' + a.fit">{{ fit(a.fit) }}</span>
                   }
                 </span>
-                <span class="facts mono">{{ m.fileName }} · {{ size(m.sizeBytes) }}@if (m.license) { · {{ m.license }}}@if (m.toolCalling) { · tool calling}</span>
+                <span class="facts mono"
+                  >{{ m.fileName }} · {{ size(m.sizeBytes) }}
+                  @if (m.license) {
+                    · {{ m.license }}
+                  }
+                  @if (m.toolCalling) {
+                    <ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>
+                  }
+                </span>
                 @if (m.problem) {
                   <span class="err">{{ m.problem }}</span>
                 }
               </div>
               <div class="actions">
                 @if (!m.active) {
-                  <button type="button" class="btn" [disabled]="busy() || !!m.problem" (click)="activate(m)" [attr.aria-label]="'Use ' + m.name">Use</button>
+                  <button
+                    type="button"
+                    class="btn"
+                    [disabled]="busy() || !!m.problem"
+                    (click)="activate(m)"
+                    [attr.aria-label]="useLabel(m)"
+                    i18n="verb, button that selects a model|@@ai.models.use"
+                  >
+                    Use
+                  </button>
                 }
-                <button type="button" class="btn ghost danger" [disabled]="busy()" (click)="remove(m)" [attr.aria-label]="'Delete ' + m.name">Delete</button>
+                <button
+                  type="button"
+                  class="btn ghost danger"
+                  [disabled]="busy()"
+                  (click)="remove(m)"
+                  [attr.aria-label]="deleteLabel(m)"
+                  i18n="@@ai.models.delete"
+                >
+                  Delete
+                </button>
               </div>
             </li>
           }
         </ul>
       } @else if (loaded()) {
-        <p class="muted" data-testid="ai-no-models">No model is installed yet.</p>
+        <p class="muted" data-testid="ai-no-models" i18n="@@ai.models.none">No model is installed yet.</p>
       }
     </section>
 
     <section aria-labelledby="ai-catalog-title">
-      <h3 id="ai-catalog-title">Download another model</h3>
+      <h3 id="ai-catalog-title" i18n="@@ai.models.catalog">Download another model</h3>
       <ul class="list">
         @for (r of others(); track r.model.id) {
           <li class="row">
             <div class="main">
-              <span class="name">{{ r.model.name }} <span class="badge" [class]="'badge fit-' + r.assessment.fit">{{ fit(r.assessment.fit) }}</span></span>
-              <span class="facts">{{ size(r.model.sizeBytes) }} · {{ r.model.license }}{{ r.model.toolCalling ? ' · tool calling' : '' }}</span>
+              <span class="name"
+                >{{ r.model.name }}
+                <span class="badge" [class]="'badge fit-' + r.assessment.fit">{{
+                  fit(r.assessment.fit)
+                }}</span></span
+              >
+              <span class="facts"
+                >{{ size(r.model.sizeBytes) }} · {{ r.model.license
+                }}@if (r.model.toolCalling) {<ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>}</span
+              >
             </div>
             <div class="actions">
-              <button type="button" class="btn" [disabled]="busy() || r.assessment.fit === 'tooLarge'" (click)="download(r)" [attr.aria-label]="'Download ' + r.model.name">
+              <button
+                type="button"
+                class="btn"
+                [disabled]="busy() || r.assessment.fit === 'tooLarge'"
+                (click)="download(r)"
+                [attr.aria-label]="downloadLabel(r)"
+                i18n="@@ai.models.download"
+              >
                 Download…
               </button>
             </div>
@@ -115,23 +189,92 @@ const ENGINE_STATE: Record<string, string> = {
     </section>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 14px; }
-    h3 { margin: 0 0 6px; font-size: 13px; }
-    p { margin: 0 0 4px; }
-    .head { display: flex; justify-content: space-between; align-items: center; }
-    .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
-    .row { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
-    .main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-    .name { font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    .facts { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
-    .actions { display: flex; gap: 6px; }
-    .badge.active { font-weight: 600; }
-    .fit-comfortable::before, .fit-tight::before, .fit-tooLarge::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-    .fit-comfortable::before { background: var(--ok); }
-    .fit-tight::before { background: var(--lvl-warn); }
-    .fit-tooLarge::before { background: var(--lvl-error); }
-    .danger { color: var(--danger-text, var(--lvl-error)); }
-    .err { color: var(--danger-text, var(--lvl-error)); }
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+    p {
+      margin: 0 0 4px;
+    }
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 260px;
+      overflow: auto;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+    .name {
+      font-weight: 600;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .facts {
+      font-size: 12px;
+      color: var(--text-2);
+      overflow-wrap: anywhere;
+    }
+    .actions {
+      display: flex;
+      gap: 6px;
+    }
+    .badge.active {
+      font-weight: 600;
+    }
+    .fit-comfortable::before,
+    .fit-tight::before,
+    .fit-tooLarge::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .fit-comfortable::before {
+      background: var(--ok);
+    }
+    .fit-tight::before {
+      background: var(--lvl-warn);
+    }
+    .fit-tooLarge::before {
+      background: var(--lvl-error);
+    }
+    .danger {
+      color: var(--danger-text, var(--lvl-error));
+    }
+    .err {
+      color: var(--danger-text, var(--lvl-error));
+    }
   `,
 })
 export class AiModelManager implements OnInit {
@@ -152,9 +295,23 @@ export class AiModelManager implements OnInit {
     const have = new Set(this.models().map((m) => m.fileName));
     return this.catalog().filter((r) => !have.has(r.model.file));
   });
-  protected readonly engineState = computed(() => ENGINE_STATE[this.status.status()?.state ?? ''] ?? '');
+  protected readonly engineState = computed(
+    () => ENGINE_STATE[this.status.status()?.state ?? ''] ?? '',
+  );
   protected readonly size = formatBytes;
   protected readonly fit = fitLabel;
+
+  protected useLabel(m: InstalledModel): string {
+    return $localize`:@@ai.models.use.label:Use ${m.name}:name:`;
+  }
+
+  protected deleteLabel(m: InstalledModel): string {
+    return $localize`:@@ai.models.delete.label:Delete ${m.name}:name:`;
+  }
+
+  protected downloadLabel(r: Recommendation): string {
+    return $localize`:@@ai.models.download.label:Download ${r.model.name}:name:`;
+  }
 
   ngOnInit(): void {
     let off: (() => void) | null = null;
@@ -188,7 +345,7 @@ export class AiModelManager implements OnInit {
     if (!this.busy()) return;
     if (e.stage === 'ready' || e.stage === 'failed' || e.stage === 'cancelled') {
       this.busy.set(false);
-      this.progress.set(e.stage === 'ready' ? `${e.model} is now active.` : '');
+      this.progress.set(e.stage === 'ready' ? $localize`:@@ai.models.nowActive:${e.model}:model: is now active.` : '');
       void this.status.refresh();
       void this.load().then(() => {
         if (e.stage === 'failed') this.error.set(e.message);
@@ -203,7 +360,7 @@ export class AiModelManager implements OnInit {
   async activate(m: InstalledModel): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
-    this.progress.set(`Loading ${m.name}…`);
+    this.progress.set($localize`:@@ai.models.loading:Loading ${m.name}:name:…`);
     try {
       await this.backend.activateModel(m.fileName);
     } catch (e) {
@@ -215,12 +372,14 @@ export class AiModelManager implements OnInit {
 
   async remove(m: InstalledModel): Promise<void> {
     const ref = this.dialogs.open<boolean>(ConfirmDialog, {
-      title: 'Delete model?',
+      title: $localize`:@@ai.models.confirm.title:Delete model?`,
       width: 460,
       inputs: {
-        message: `Delete ${m.name}? The file (${formatBytes(m.sizeBytes)}) is removed from this computer${m.active ? ' and the assistant has no model until you choose another' : ''}.`,
+        message: m.active
+          ? $localize`:@@ai.models.confirm.deleteActive:Delete ${m.name}:name:? The file (${formatBytes(m.sizeBytes)}:size:) is removed from this computer and the assistant has no model until you choose another.`
+          : $localize`:@@ai.models.confirm.delete:Delete ${m.name}:name:? The file (${formatBytes(m.sizeBytes)}:size:) is removed from this computer.`,
         detail: m.fileName,
-        confirmLabel: 'Delete',
+        confirmLabel: $localize`:@@ai.models.delete.confirm:Delete`,
         danger: true,
       },
     });
@@ -239,13 +398,15 @@ export class AiModelManager implements OnInit {
   }
 
   async addLocal(): Promise<void> {
-    const path = await this.platform.pickOpenPath('Add a GGUF model', [{ name: 'GGUF model', extensions: ['gguf'] }]);
+    const path = await this.platform.pickOpenPath($localize`:@@ai.models.addLocal.dialogTitle:Add a GGUF model`, [
+      { name: $localize`:@@ai.models.addLocal.filter:GGUF model`, extensions: ['gguf'] },
+    ]);
     if (!path) return;
     this.busy.set(true);
     this.error.set(null);
     try {
       const m = await this.backend.addLocalModel(path);
-      this.progress.set(`${m.name} was added. Choose Use to make it active.`);
+      this.progress.set($localize`:@@ai.models.added:${m.name}:name: was added. Choose Use to make it active.`);
       await this.load();
     } catch (e) {
       this.error.set(toAiError(e).message);
@@ -266,6 +427,11 @@ export class AiModelManager implements OnInit {
   }
 
   download(r: Recommendation): void {
-    this.dialogs.open(AiSetupWizard, { title: `Set up ${r.model.name}`, width: 760, inputs: { modelId: r.model.id } });
+    this.dialogs.open(AiSetupWizard, {
+      title: $localize`:@@ai.models.setupTitle:Set up ${r.model.name}:name:`,
+
+      width: 760,
+      inputs: { modelId: r.model.id },
+    });
   }
 }

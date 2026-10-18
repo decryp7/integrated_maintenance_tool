@@ -8,6 +8,7 @@ import { AnalysisTargets } from './analysis-targets';
 import { barGeometry, DEFAULT_ID_FIELD, TracesView, waterfallTotal } from './traces-view';
 import { FieldStatsView, HISTOGRAM_BUCKETS, histogramOption } from './field-stats-view';
 import { FakeContext, FIX, loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
+import { at } from '../../testing/must';
 
 // Through DI, not vi.mock('echarts/core'): with shared module graphs (isolate: false) a module mock only applies
 // when no earlier spec in the worker has loaded echarts, which made these tests flaky.
@@ -58,7 +59,7 @@ describe('FieldStatsView', () => {
     const { fixture, ctx, targets } = await mount(FieldStatsView);
     targets.setField('Status');
     await settle(fixture, 6);
-    all<HTMLButtonElement>(fixture, '.top')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.top'), 0).click();
     expect(ctx.last('addFilter')).toEqual([{ field: 'Status', op: 'eq', value: '42' }]);
     targets.setField(null);
     await settle(fixture, 4);
@@ -95,30 +96,32 @@ describe('TracesView', () => {
     const { fixture } = await mount(TracesView);
     const rows = all<HTMLButtonElement>(fixture, '.tlist .row');
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('aaaaaaaaaaaa…');
-    expect(rows[0].textContent).toContain('GET /orders');
-    expect(rows[0].textContent).toContain('1.5 s');
-    expect(rows[0].textContent).toContain('3 spans');
-    expect(rows[0].textContent).toContain('1 err');
-    expect(rows[1].textContent).not.toContain('err');
+    expect(rows[0]?.textContent).toContain('aaaaaaaaaaaa…');
+    expect(rows[0]?.textContent).toContain('GET /orders');
+    expect(rows[0]?.textContent).toContain('1.5 s');
+    expect(rows[0]?.textContent).toContain('3 spans');
+    expect(rows[0]?.textContent).toContain('1 err');
+    expect(rows[1]?.textContent).not.toContain('err');
+    expect(rows[1]?.textContent).toContain('1 span');
+    expect(rows[1]?.textContent).not.toContain('1 spans');
     expect(text(fixture)).toContain('Select a trace');
 
-    rows[0].click();
+    at(rows, 0).click();
     await settle(fixture, 6);
-    expect(rows[0].getAttribute('aria-pressed')).toBe('true');
+    expect(rows[0]?.getAttribute('aria-pressed')).toBe('true');
     const wf = all(fixture, '.wrow');
     expect(wf).toHaveLength(2);
-    expect(wf[1].querySelector('.wbar')?.classList.contains('bad')).toBe(true);
-    expect(wf[0].querySelector('.wbar')?.classList.contains('bad')).toBe(false);
-    expect(wf[1].querySelector('[role=img]')?.getAttribute('aria-label')).toBe('SELECT orders: starts at 100 ms, lasts 1.2 s, 2 errors');
-    expect(wf[0].querySelector('[role=img]')?.getAttribute('aria-label')).not.toContain('errors');
-    expect((wf[1].querySelector('.wname') as HTMLElement).style.paddingLeft).toBe('14px');
+    expect(wf[1]?.querySelector('.wbar')?.classList.contains('bad')).toBe(true);
+    expect(wf[0]?.querySelector('.wbar')?.classList.contains('bad')).toBe(false);
+    expect(wf[1]?.querySelector('[role=img]')?.getAttribute('aria-label')).toBe('SELECT orders: starts at 100 ms, lasts 1.2 s, 2 errors');
+    expect(wf[0]?.querySelector('[role=img]')?.getAttribute('aria-label')).not.toContain('errors');
+    expect((wf[1]?.querySelector('.wname') as HTMLElement).style.paddingLeft).toBe('14px');
     expect(text(fixture)).toContain('Total 1.5 s');
   });
 
   it('reports a trace without spans and failures', async () => {
     const { fixture } = await mount(TracesView, stubBackend({ queryTraces: async (_q: never, id: string) => (id ? { traces: [], waterfall: [] } : FIX.traces) }));
-    all<HTMLButtonElement>(fixture, '.tlist .row')[1].click();
+    at(all<HTMLButtonElement>(fixture, '.tlist .row'), 1).click();
     await settle(fixture, 6);
     expect(text(fixture)).toContain('This trace has no spans');
 
@@ -139,13 +142,13 @@ describe('TracesView', () => {
     expect(requests).toHaveBeenCalledWith(expect.anything(), DEFAULT_ID_FIELD);
     const rows = all<HTMLButtonElement>(fixture, '[aria-label=Requests] .row');
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('req-0001-abc…');
-    expect(rows[0].textContent).toContain('2.5 s');
-    expect(rows[0].textContent).toContain('12 events');
-    expect(rows[0].textContent).toContain('1 errors');
-    expect(rows[0].textContent).toContain('WEB01');
+    expect(rows[0]?.textContent).toContain('req-0001-abc…');
+    expect(rows[0]?.textContent).toContain('2.5 s');
+    expect(rows[0]?.textContent).toContain('12 events');
+    expect(rows[0]?.textContent).toContain('1 errors');
+    expect(rows[0]?.textContent).toContain('WEB01');
 
-    rows[0].click();
+    at(rows, 0).click();
     await settle(fixture, 6);
     expect(ctx.last('addFilter')).toEqual([{ field: 'RequestId', op: 'eq', value: 'req-0001-abcdefghijkl' }]);
 
@@ -171,7 +174,7 @@ describe('TracesView', () => {
     const { fixture, ctx } = await mount(TracesView, stubBackend({ queryRequests: async () => [{ ...FIX.requests[1], id: 'zzz' }] }));
     buttonByText(fixture, 'Requests').click();
     await settle(fixture, 6);
-    all<HTMLButtonElement>(fixture, '[aria-label=Requests] .row')[0].click();
+    at(all<HTMLButtonElement>(fixture, '[aria-label=Requests] .row'), 0).click();
     await settle(fixture, 6);
     expect(ctx.last('notifyError')).toEqual(['No events carry the id zzz.']);
     expect(ctx.calls.some((c) => c.fn === 'addFilter')).toBe(false);

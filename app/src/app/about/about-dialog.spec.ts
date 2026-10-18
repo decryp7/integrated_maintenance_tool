@@ -151,7 +151,7 @@ describe('AboutService and the bundled sources', () => {
     svc.open();
     svc.open();
     expect(dialogs.stack().filter((d) => d.component === AboutDialog)).toHaveLength(1);
-    expect(dialogs.stack()[0].options.title).toBe('About IMT');
+    expect(dialogs.stack()[0]?.options.title).toBe('About IMT');
   });
 
   it('loads the generated notices and both licences', async () => {

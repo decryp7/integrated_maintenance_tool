@@ -8,7 +8,7 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
   template: `
     @if (service.menu(); as m) {
       <div class="backdrop" (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
-      <div #box class="menu popover" role="menu" aria-label="Actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
+      <div #box class="menu popover" role="menu" aria-label="Actions" i18n-aria-label="@@ui.contextMenu.actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
         @for (item of m.items; track item.label) {
           <button type="button" role="menuitem" class="item" tabindex="-1" [disabled]="item.disabled" (click)="run(item)">{{ item.label }}</button>
         }
@@ -18,7 +18,7 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
   styles: `
     .backdrop { position: fixed; inset: 0; z-index: 220; }
     .menu { position: fixed; z-index: 221; min-width: 240px; padding: 4px; display: flex; flex-direction: column; }
-    .item { height: 28px; display: flex; align-items: center; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: left; white-space: nowrap; }
+    .item { height: 28px; display: flex; align-items: center; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: start; white-space: nowrap; }
     .item:hover:not(:disabled), .item:focus { background: var(--bg-hover); color: var(--text); outline: none; }
     .item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     .item:disabled { color: var(--faint); cursor: default; }

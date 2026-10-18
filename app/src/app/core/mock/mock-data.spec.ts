@@ -24,7 +24,7 @@ describe('mock data', () => {
     const { source, records } = generateExtraSource(7, 'C:\\logs\\notify.log', 3);
     expect(source).toMatchObject({ id: 7, name: 'notify.log', importer: 'text' });
     expect(records.every((r) => r.source === 7)).toBe(true);
-    expect(records[0].message).toContain('Application starting');
+    expect(records[0]?.message).toContain('Application starting');
     expect(generateExtraSource(8, '', 3).source.name).toBe('');
   });
 });

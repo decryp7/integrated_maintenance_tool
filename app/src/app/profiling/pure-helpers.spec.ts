@@ -6,6 +6,7 @@ import { flattenDominators } from './heap/heap-dominators';
 import { rowWindow } from './hotspots/hotspots-view';
 import { labelWidth, layoutSpans } from './integration/profile-span-track';
 import { brushToRange, EVENT_GLYPHS, lanePath } from './threads/thread-timeline-view';
+import { at } from '../../testing/must';
 
 describe('layoutSpans / labelWidth', () => {
   const span = (id: number, fromMs: number, toMs: number, patch: Partial<ProfileSpan> = {}): ProfileSpan => ({ id, name: `cap${id}`, capture: 'profile', kind: 'cpu', fromMs, toMs, ...patch });
@@ -17,7 +18,7 @@ describe('layoutSpans / labelWidth', () => {
   });
 
   it('places spans as percentages of the visible range, unclipped when fully inside', () => {
-    const [a] = layoutSpans([span(1, 250, 750)], { from: 0, to: 1000 });
+    const a = at(layoutSpans([span(1, 250, 750)], { from: 0, to: 1000 }), 0);
     expect(a).toMatchObject({ left: 25, width: 50, range: null, row: 0 });
   });
 
@@ -27,21 +28,21 @@ describe('layoutSpans / labelWidth', () => {
   });
 
   it('clips profile spans to the view and reports the visible part in ns since the capture start', () => {
-    const [v] = layoutSpans([span(1, 0, 1000)], { from: 200, to: 600 });
+    const v = at(layoutSpans([span(1, 0, 1000)], { from: 200, to: 600 }), 0);
     expect(v.left).toBe(0);
     expect(v.width).toBe(100);
     expect(v.range).toEqual({ fromNs: 200_000_000, toNs: 600_000_000 });
-    const [only] = layoutSpans([span(1, 0, 300)], { from: 200, to: 600 });
+    const only = at(layoutSpans([span(1, 0, 300)], { from: 200, to: 600 }), 0);
     expect(only.range).toEqual({ fromNs: 200_000_000, toNs: 300_000_000 });
-    const [tail] = layoutSpans([span(1, 500, 900)], { from: 200, to: 600 });
+    const tail = at(layoutSpans([span(1, 500, 900)], { from: 200, to: 600 }), 0);
     expect(tail.range).toEqual({ fromNs: 0, toNs: 100_000_000 });
   });
 
   it('never reports a range for heap snapshots, even when they touch the edge', () => {
-    const [h] = layoutSpans([span(1, 100, 100, { capture: 'heap', kind: null })], { from: 100, to: 200 });
+    const h = at(layoutSpans([span(1, 100, 100, { capture: 'heap', kind: null })], { from: 100, to: 200 }), 0);
     expect(h.range).toBeNull();
     expect(h.width).toBe(0);
-    const [h2] = layoutSpans([span(1, 0, 300, { capture: 'heap', kind: null })], { from: 100, to: 200 });
+    const h2 = at(layoutSpans([span(1, 0, 300, { capture: 'heap', kind: null })], { from: 100, to: 200 }), 0);
     expect(h2.range).toBeNull();
   });
 
@@ -59,7 +60,7 @@ describe('layoutSpans / labelWidth', () => {
 
   it('handles an empty or degenerate view without dividing by zero', () => {
     expect(layoutSpans([], { from: 0, to: 10 })).toEqual([]);
-    const [v] = layoutSpans([span(1, 5, 5)], { from: 5, to: 5 });
+    const v = at(layoutSpans([span(1, 5, 5)], { from: 5, to: 5 }), 0);
     expect(Number.isFinite(v.left) && Number.isFinite(v.width)).toBe(true);
   });
 

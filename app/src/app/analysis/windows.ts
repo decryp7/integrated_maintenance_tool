@@ -23,10 +23,10 @@ export function midpoint(r: TimeRange): number {
 }
 
 export const WIDTHS: { label: string; ms: number }[] = [
-  { label: '1 minute', ms: 60_000 },
-  { label: '5 minutes', ms: 5 * 60_000 },
-  { label: '15 minutes', ms: 15 * 60_000 },
-  { label: '1 hour', ms: 60 * 60_000 },
+  { label: $localize`:@@analysis.windows.minute1:1 minute`, ms: 60_000 },
+  { label: $localize`:@@analysis.windows.minutes5:5 minutes`, ms: 5 * 60_000 },
+  { label: $localize`:@@analysis.windows.minutes15:15 minutes`, ms: 15 * 60_000 },
+  { label: $localize`:@@analysis.windows.hour1:1 hour`, ms: 60 * 60_000 },
 ];
 
 /** The moment to analyse at `t`: the selected range when it contains `t`, else `width` centred on `t`. */

@@ -14,53 +14,53 @@ import { PROFILING_STYLES } from '../profiling-styles';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="section-title">Profiles</span>
+      <span class="section-title" i18n="@@profiling.captures.title">Profiles</span>
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="store.loading()" (click)="open()">Open profile…</button>
+      <button class="btn" type="button" [disabled]="store.loading()" (click)="open()" i18n="@@profiling.captures.open">Open profile…</button>
     </div>
     @if (store.error(); as e) {
       <div class="err" role="alert">
         <span class="msg">{{ e }}</span>
-        <button class="btn" type="button" (click)="store.retry()">Retry</button>
-        <button class="btn" type="button" (click)="store.dismiss()">Dismiss</button>
+        <button class="btn" type="button" (click)="store.retry()" i18n="@@profiling.captures.retry">Retry</button>
+        <button class="btn" type="button" (click)="store.dismiss()" i18n="@@profiling.captures.dismiss">Dismiss</button>
       </div>
     }
     @if (store.notice(); as n) { <div class="notice" role="status">{{ n }}</div> }
     <div class="body">
       @if (store.loading() && !store.captures().length) {
-        <div class="state" role="status">Loading…</div>
+        <div class="state" role="status" i18n="@@profiling.captures.loading">Loading…</div>
       } @else if (!store.captures().length) {
         <div class="state" role="status">
-          <span>No profiles or heap snapshots are open. Open a capture (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot), or drop one on the window.</span>
+          <span i18n="@@profiling.captures.empty">No profiles or heap snapshots are open. Open a capture (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot), or drop one on the window.</span>
         </div>
       } @else {
-        <ul class="list" aria-label="Open captures">
+        <ul class="list" aria-label="Open captures" i18n-aria-label="@@profiling.captures.listLabel">
           @for (c of store.captures(); track c.id) {
             <li class="cap" [class.active]="isActive(c)" [attr.aria-current]="isActive(c) ? 'true' : null">
               <div class="head">
                 <button class="link name ellipsis" type="button" [title]="c.path ?? c.name" (click)="activate(c)">{{ c.name }}</button>
                 <span class="tag">{{ kind(c) }}</span>
-                @if (isActive(c)) { <span class="tag">active</span> }
+                @if (isActive(c)) { <span class="tag" i18n="@@profiling.captures.active">active</span> }
                 <span class="spacer"></span>
-                <button class="mini" type="button" [attr.aria-label]="'Close ' + c.name" (click)="store.close(c.id)">Close</button>
+                <button class="mini" type="button" [attr.aria-label]="closeLabel(c)" (click)="store.close(c.id)" i18n="@@profiling.captures.close">Close</button>
               </div>
               <dl class="facts">
-                <dt>Source</dt><dd class="mono ellipsis" [title]="c.path ?? ''">{{ c.format }}{{ c.path ? ' · ' + c.path : '' }}</dd>
+                <dt i18n="@@profiling.captures.source">Source</dt><dd class="mono ellipsis" [title]="c.path ?? ''">{{ c.format }}{{ c.path ? ' · ' + c.path : '' }}</dd>
                 @if (profile(c); as p) {
-                  <dt>Duration</dt><dd>{{ ns(p.durationNs) }}{{ p.startedMs !== null ? ' from ' + time(p.startedMs) : ' (no wall-clock start)' }}</dd>
-                  <dt>Threads</dt><dd>{{ p.threads.length }}</dd>
-                  <dt>Samples</dt><dd>{{ count(p.sampleCount) }} · {{ count(p.frameCount) }} frames · {{ count(p.eventCount) }} events</dd>
-                  <dt>Metrics</dt><dd>{{ metrics(p) }}</dd>
+                  <dt i18n="@@profiling.captures.duration">Duration</dt><dd>{{ ns(p.durationNs) }}{{ p.startedMs !== null ? from(p.startedMs) : noStart }}</dd>
+                  <dt i18n="@@profiling.captures.threads">Threads</dt><dd>{{ p.threads.length }}</dd>
+                  <dt i18n="@@profiling.captures.samples">Samples</dt><dd i18n="@@profiling.captures.sampleCounts">{{ count(p.sampleCount) // i18n(ph: "samples") }} · {{ count(p.frameCount) // i18n(ph: "frames") }} frames · {{ count(p.eventCount) // i18n(ph: "events") }} events</dd>
+                  <dt i18n="@@profiling.captures.metrics">Metrics</dt><dd>{{ metrics(p) }}</dd>
                 }
                 @if (heap(c); as h) {
-                  <dt>Taken</dt><dd>{{ h.takenMs !== null ? time(h.takenMs) : 'unknown' }}</dd>
-                  <dt>Objects</dt><dd>{{ count(h.objectCount) }} · {{ count(h.typeCount) }} types · {{ bytes(h.totalBytes) }}</dd>
-                  <dt>Graph</dt><dd>{{ h.hasGraph ? 'yes: retained sizes, dominators and paths to roots' : 'no: types only' }}</dd>
+                  <dt i18n="@@profiling.captures.taken">Taken</dt><dd>{{ h.takenMs !== null ? time(h.takenMs) : unknown }}</dd>
+                  <dt i18n="@@profiling.captures.objects">Objects</dt><dd i18n="@@profiling.captures.objectCounts">{{ count(h.objectCount) // i18n(ph: "objects") }} · {{ count(h.typeCount) // i18n(ph: "types") }} types · {{ bytes(h.totalBytes) // i18n(ph: "bytes") }}</dd>
+                  <dt i18n="@@profiling.captures.graph">Graph</dt><dd>{{ h.hasGraph ? graphYes : graphNo }}</dd>
                 }
               </dl>
               @if (c.notes.length) {
-                <div class="notes" role="note" [attr.aria-label]="'Import notes for ' + c.name">
-                  <strong>Import notes</strong>
+                <div class="notes" role="note" [attr.aria-label]="notesLabel(c)">
+                  <strong i18n="@@profiling.captures.notes">Import notes</strong>
                   <ul>@for (n of c.notes; track $index) { <li>{{ n }}</li> }</ul>
                 </div>
               }
@@ -100,6 +100,24 @@ export class CapturesView {
   protected readonly kind = captureKindLabel;
   protected readonly profile = (c: CaptureSummary) => (isProfile(c) ? c : null);
   protected readonly heap = (c: CaptureSummary) => (isHeap(c) ? c : null);
+
+  protected readonly noStart = $localize`:@@profiling.captures.noStart: (no wall-clock start)`;
+  protected readonly unknown = $localize`:@@profiling.captures.unknown:unknown`;
+  protected readonly graphYes = $localize`:@@profiling.captures.graphYes:yes: retained sizes, dominators and paths to roots`;
+  protected readonly graphNo = $localize`:@@profiling.captures.graphNo:no: types only`;
+
+  protected from(ms: number): string {
+    const when = this.time(ms);
+    return $localize`:@@profiling.captures.from: from ${when}:time:`;
+  }
+
+  protected closeLabel(c: CaptureSummary): string {
+    return $localize`:@@profiling.captures.closeLabel:Close ${c.name}:name:`;
+  }
+
+  protected notesLabel(c: CaptureSummary): string {
+    return $localize`:@@profiling.captures.notesLabel:Import notes for ${c.name}:name:`;
+  }
 
   protected time(ms: number): string {
     return formatDateTime(ms, this.workspace.timezone(), true);

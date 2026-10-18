@@ -12,6 +12,7 @@ import { AiNarrativeDialog } from './narrative-dialog';
 import { AiProposeDialog } from './propose-dialog';
 import { AiQueryDialog } from './query-dialog';
 import { AiRegexDialog } from './regex-dialog';
+import { at } from '../../../testing/must';
 
 function open<T>(component: Type<T>, inputs: Record<string, unknown> = {}) {
   const backend = new MockAiBackend({ stepMs: 0 });
@@ -45,13 +46,13 @@ describe('AiNarrativeDialog', () => {
     const cites = TestBed.inject(AiCitations);
     const record = vi.spyOn(cites, 'record').mockResolvedValue();
     const query = vi.spyOn(cites, 'query').mockResolvedValueOnce('bad').mockResolvedValueOnce(null);
-    all<HTMLButtonElement>(f, 'button.cite.q')[0].click();
+    at(all<HTMLButtonElement>(f, 'button.cite.q'), 0).click();
     await until(f, () => !!root.querySelector('.note'));
     expect(el(f, '.note').textContent).toContain('Not applied: bad');
-    all<HTMLButtonElement>(f, 'button.cite.q')[0].click();
+    at(all<HTMLButtonElement>(f, 'button.cite.q'), 0).click();
     await settle(f);
     expect(ref.close).toHaveBeenCalledTimes(1);
-    all<HTMLButtonElement>(f, 'button.cite.rec')[0].click();
+    at(all<HTMLButtonElement>(f, 'button.cite.rec'), 0).click();
     await settle(f);
     expect(record).toHaveBeenCalledWith(42);
     expect(query).toHaveBeenCalledTimes(2);
@@ -87,10 +88,10 @@ describe('AiNarrativeDialog', () => {
     buttonByText(f, 'Retry').click();
     await until(f, () => !!root.querySelector('.answer.neutral'));
     vi.spyOn(TestBed.inject(AiCitations), 'web').mockResolvedValueOnce('refused').mockResolvedValueOnce(null);
-    all<HTMLButtonElement>(f, 'button.cite.web')[0].click();
+    at(all<HTMLButtonElement>(f, 'button.cite.web'), 0).click();
     await until(f, () => !!root.querySelector('.note'));
     expect(el(f, '.note').textContent).toBe('refused');
-    all<HTMLButtonElement>(f, 'button.cite.web')[0].click();
+    at(all<HTMLButtonElement>(f, 'button.cite.web'), 0).click();
     await settle(f);
   });
 

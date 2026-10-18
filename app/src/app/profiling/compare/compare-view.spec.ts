@@ -10,8 +10,6 @@ import { FlameChart } from '../flame/flame-chart';
 import { MockProfilingBackend } from '../../core/mock/mock-profiling';
 import { CompareView } from './compare-view';
 
-const REGRESSION = '/demo/profiles/orders-regression.speedscope.json';
-
 async function mount(opts: { open?: string[]; baseline?: boolean; target?: number } = {}) {
   const doubles = setupProfiling();
   const backend = doubles.backend as MockProfilingBackend;
@@ -107,7 +105,7 @@ describe('CompareView', () => {
     select.dispatchEvent(new Event('change'));
     await settle(fixture, 6);
     expect(functionDiff.mock.calls.at(-1)![0].sort).toBe('name');
-    const names = rowsText(fixture).map((r) => r.split(' ')[0]);
+    const names = rowsText(fixture).map((r) => r.split(' ')[0] ?? '');
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 

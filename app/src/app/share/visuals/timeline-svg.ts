@@ -1,5 +1,6 @@
 import { Timeline } from '../../core/api.types';
 import { timeTicks, TimeZoneMode } from '../../core/format';
+import { plural } from '../../i18n/locale';
 
 /**
  * A pure serializer of the timeline model (lanes with density buckets and marker clusters, annotations,
@@ -132,10 +133,13 @@ export function timelineToSvg(input: TimelineSvgInput): string {
     }
     out.push('</g>');
   });
-  if (!t.lanes.length) out.push(`<text x="${LABEL_W}" y="${lanesTop + 16}" font-size="11" fill="${p.muted}" ${font}>No events in this range.</text>`);
+  if (!t.lanes.length) out.push(`<text x="${LABEL_W}" y="${lanesTop + 16}" font-size="11" fill="${p.muted}" ${font}>${escapeXml($localize`:@@share.timelineSvg.noEvents:No events in this range.`)}</text>`);
   out.push('</g>');
   if (note) {
-    out.push(`<text x="10" y="${height - 10}" font-size="10" fill="${p.muted}" ${font}>${t.truncatedLanes} more instance${t.truncatedLanes === 1 ? '' : 's'} not shown</text>`);
+    out.push(`<text x="10" y="${height - 10}" font-size="10" fill="${p.muted}" ${font}>${escapeXml(plural(t.truncatedLanes, {
+        one: $localize`:@@share.timelineSvg.moreInstance:${t.truncatedLanes}:count: more instance not shown`,
+        other: $localize`:@@share.timelineSvg.moreInstances:${t.truncatedLanes}:count: more instances not shown`,
+      }))}</text>`);
   }
   out.push('</svg>');
   return out.join('');

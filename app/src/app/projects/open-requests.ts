@@ -49,7 +49,7 @@ export class OpenRequests {
     try {
       await this.handle(await this.backend.takePendingOpen());
     } catch (e) {
-      this.store.setError(`Could not open the requested files: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@projects.openRequests.failed:Could not open the requested files: ${errorMessage(e)}:error:`);
     }
   }
 

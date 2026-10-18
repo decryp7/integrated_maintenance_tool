@@ -46,18 +46,18 @@ export class WindowingService {
   }
 
   async newWindow(): Promise<void> {
-    await this.attempt('Could not open a new window', async () => {
+    await this.attempt((error) => $localize`:@@windowing.service.newFailed:Could not open a new window: ${error}:error:`, async () => {
       await this.backend.newWindow();
       await this.refreshWindows();
     });
   }
 
   async closeWindow(): Promise<void> {
-    await this.attempt('Could not close the window', () => this.backend.closeWindow());
+    await this.attempt((error) => $localize`:@@windowing.service.closeFailed:Could not close the window: ${error}:error:`, () => this.backend.closeWindow());
   }
 
   async focus(label: string): Promise<void> {
-    await this.attempt('Could not switch windows', () => this.backend.focusWindow(label));
+    await this.attempt((error) => $localize`:@@windowing.service.switchFailed:Could not switch windows: ${error}:error:`, () => this.backend.focusWindow(label));
   }
 
   /** Focuses the window after this one (wrapping around); nothing when this is the only window. */
@@ -65,11 +65,12 @@ export class WindowingService {
     const list = this.windows();
     if (list.length < 2) return;
     const i = list.findIndex((w) => w.label === this.label());
-    await this.focus(list[(i + 1) % list.length].label);
+    const next = list[(i + 1) % list.length];
+    if (next) await this.focus(next.label);
   }
 
   async stopTask(id: string): Promise<void> {
-    await this.attempt('Could not stop the background work', async () => {
+    await this.attempt((error) => $localize`:@@windowing.service.stopFailed:Could not stop the background work: ${error}:error:`, async () => {
       await this.backend.stopBackgroundTask(id);
       this.tasks.update((t) => t.filter((x) => x.id !== id));
     });
@@ -93,11 +94,11 @@ export class WindowingService {
     this.windows.set(await this.backend.listWindows());
   }
 
-  private async attempt(failure: string, op: () => Promise<void>): Promise<void> {
+  private async attempt(failure: (error: string) => string, op: () => Promise<void>): Promise<void> {
     try {
       await op();
     } catch (e) {
-      this.store.setError(`${failure}: ${errorMessage(e)}`);
+      this.store.setError(failure(errorMessage(e)));
     }
   }
 }

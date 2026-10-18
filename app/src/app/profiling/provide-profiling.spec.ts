@@ -12,6 +12,7 @@ import { MOCK_CAPTURE_PATHS } from '../core/mock/mock-profiling-data';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { PROFILING_STATE_KEY } from './profiling-persistence';
+import { at } from '../../testing/must';
 
 const ORDERS = '/demo/profiles/orders.speedscope.json';
 const HEAP1 = '/demo/profiles/heap-1.heapsnapshot';
@@ -135,11 +136,11 @@ describe('startProfiling and provideProfiling', () => {
     await settle();
     const captures = TestBed.inject(CapturesStore);
     expect(captures.profiles()).toHaveLength(1);
-    expect(TestBed.inject(ProfileViewState).profileId()).toBe(captures.profiles()[0].id);
+    expect(TestBed.inject(ProfileViewState).profileId()).toBe(captures.profiles()[0]?.id);
     expect(doubles.platform.dropped, 'profiling no longer listens to drops itself').toBeNull();
     const handlers = TestBed.inject(DROPPED_FILES_HANDLERS);
     expect(handlers).toHaveLength(1);
-    const drop = handlers[0];
+    const drop = at(handlers, 0);
 
     expect(await drop(['/demo/readme.txt'])).toEqual([]);
     expect(doubles.context.calls).toEqual([]);
@@ -157,7 +158,7 @@ describe('startProfiling and provideProfiling', () => {
   it('shows the real error of a dropped capture that fails to open, and still claims it (no log import)', async () => {
     const { providers, doubles } = provideProfilingTesting({ options: { fail: { open: 1 } } });
     TestBed.configureTestingModule({ providers: [provideProfiling(), ...providers] });
-    const [drop] = TestBed.inject(DROPPED_FILES_HANDLERS);
+    const drop = at(TestBed.inject(DROPPED_FILES_HANDLERS), 0);
     expect(await drop(['/x/orders.nettrace'])).toEqual(['/x/orders.nettrace']);
     const captures = TestBed.inject(CapturesStore);
     expect(captures.error()).toBe('mock: open failed (simulated)');
@@ -168,7 +169,7 @@ describe('startProfiling and provideProfiling', () => {
   it('claims nothing when sniffing fails, so the files still open as logs', async () => {
     const { providers } = provideProfilingTesting({ options: { fail: { sniff: 1 } } });
     TestBed.configureTestingModule({ providers: [provideProfiling(), ...providers] });
-    const [drop] = TestBed.inject(DROPPED_FILES_HANDLERS);
+    const drop = at(TestBed.inject(DROPPED_FILES_HANDLERS), 0);
     await expect(drop(['/x/orders.nettrace'])).rejects.toMatchObject({ code: 'io' });
     expect(TestBed.inject(CapturesStore).captures()).toEqual([]);
   });

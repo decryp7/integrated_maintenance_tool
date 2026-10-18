@@ -5,6 +5,7 @@ import { CollectorAction, CollectorStatus, CounterPreset, GeneratedCollector } f
 import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
+import { plural } from '../../i18n/locale';
 import { LiveTail } from '../../workspace/live-tail';
 import { TOOL_IDS } from '../../core/tools.types';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
@@ -23,7 +24,21 @@ interface PerfmonState {
   liveTail: boolean;
 }
 
-const XML_FORMATS = [{ name: 'Data Collector Set XML', extension: 'xml' }];
+/** The busy label of a collector-set action. */
+function controlBusy(action: CollectorAction): string {
+  switch (action) {
+    case 'query':
+      return $localize`:@@tools.perfmon.busy.query:Query…`;
+    case 'start':
+      return $localize`:@@tools.perfmon.busy.start:Start…`;
+    case 'stop':
+      return $localize`:@@tools.perfmon.busy.stop:Stop…`;
+    case 'delete':
+      return $localize`:@@tools.perfmon.busy.delete:Delete…`;
+  }
+}
+
+const XML_FORMATS = [{ name: $localize`:@@tools.perfmon.xmlFormat:Data Collector Set XML`, extension: 'xml' }];
 
 /** State and actions of the Performance Monitor wizard. The engine builds the XML and runs logman. */
 export const PerfmonStore = signalStore(
@@ -58,7 +73,7 @@ export const PerfmonStore = signalStore(
     return {
       async loadPresets(): Promise<void> {
         if (store.presets().length) return;
-        await run('Loading presets…', async () => {
+        await run($localize`:@@tools.perfmon.busy.loading:Loading presets…`, async () => {
           const presets = await backend.perfmonPresets();
           patchState(store, (s) => {
             // The first load selects the CPU and memory presets, like the engine's default template.
@@ -77,7 +92,7 @@ export const PerfmonStore = signalStore(
 
       /** Builds the XML and the logman commands. */
       generate: () =>
-        run('Generating…', async () => {
+        run($localize`:@@tools.perfmon.busy.generating:Generating…`, async () => {
           patchState(store, { generated: await backend.perfmonGenerate(template()) });
         }),
 
@@ -85,40 +100,51 @@ export const PerfmonStore = signalStore(
       async saveXml(): Promise<void> {
         const path = await platform.pickExportPath(`${store.draft().name.trim() || 'IMT'}.xml`, XML_FORMATS);
         if (!path) return;
-        await run('Saving…', async () => {
+        await run($localize`:@@tools.perfmon.busy.saving:Saving…`, async () => {
           const generated = await guard.write(path, (overwrite) => backend.perfmonGenerate(template(), path, overwrite));
-          if (generated) patchState(store, { generated, notice: `Saved ${path}` });
+          if (generated) patchState(store, { generated, notice: $localize`:@@tools.perfmon.notice.saved:Saved ${path}:path:` });
         });
       },
 
       /** Creates the collector set in Performance Monitor and starts it. */
       installAndStart: () =>
-        run('Installing…', async () => {
+        run($localize`:@@tools.perfmon.busy.installing:Installing…`, async () => {
           const installed = await backend.perfmonInstall(template());
           patchState(store, { status: installed });
           patchState(store, { status: await backend.perfmonControl(installed.name, 'start') });
         }),
 
       control: (action: CollectorAction) =>
-        run(`${action[0].toUpperCase()}${action.slice(1)}…`, async () => {
+        run(controlBusy(action), async () => {
           const name = store.status()?.name ?? store.draft().name.trim();
           const next = await backend.perfmonControl(name, action);
-          patchState(store, { status: next, notice: action === 'delete' ? `Deleted ${name}` : null });
+          patchState(store, { status: next, notice: action === 'delete' ? $localize`:@@tools.perfmon.notice.deleted:Deleted ${name}:name:` : null });
         }),
 
       /** Opens the collector's output files in the workspace, optionally following them live. */
       importResults: () =>
-        run('Importing results…', async () => {
+        run($localize`:@@tools.perfmon.busy.importing:Importing results…`, async () => {
           const name = store.status()?.name ?? store.draft().name.trim();
           const files = await backend.perfmonOutputs(name);
           if (!files.length) {
-            patchState(store, { notice: 'The collector has not written any files yet.' });
+            patchState(store, { notice: $localize`:@@tools.perfmon.notice.noFiles:The collector has not written any files yet.` });
             return;
           }
           await workspace.openPaths(files);
           if (workspace.error()) return;
           if (store.liveTail()) await live.start();
-          patchState(store, { notice: `Opened ${files.length} file${files.length === 1 ? '' : 's'}${store.liveTail() ? ' with live tail' : ''}` });
+          const n = files.length;
+          const withTail = store.liveTail();
+          const notice = withTail
+            ? plural(n, {
+                one: $localize`:@@tools.perfmon.notice.openedLive.one:Opened ${n}:count: file with live tail`,
+                other: $localize`:@@tools.perfmon.notice.openedLive.other:Opened ${n}:count: files with live tail`,
+              })
+            : plural(n, {
+                one: $localize`:@@tools.perfmon.notice.opened.one:Opened ${n}:count: file`,
+                other: $localize`:@@tools.perfmon.notice.opened.other:Opened ${n}:count: files`,
+              });
+          patchState(store, { notice });
         }),
     };
   }),

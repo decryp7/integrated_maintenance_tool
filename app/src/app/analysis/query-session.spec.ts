@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { WorkspaceStore } from '../core/workspace.store';
-import { CHECK_DELAY_MS, QuerySession } from './query-session';
+import { CHECK_DELAY_MS, newQueryId, QuerySession } from './query-session';
+import { QueryProgress, StreamedQueryOutcome } from '../core/api.types';
 import { FakeContext, loadWorkspace, provideAnalysisTesting } from './test-setup';
 import { QueryHistory } from './history-store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
@@ -90,6 +91,77 @@ describe('QuerySession', () => {
     expect(await session.run()).toBeNull();
     expect(session.runError()).toBe('IPC down');
     expect(session.running()).toBe(false);
+  });
+
+  it('shows progress while running and resolves a cancel as a cancelled run, not an error', async () => {
+    const backend = TestBed.inject(AnalysisBackend);
+    let progress: ((p: QueryProgress) => void) | undefined;
+    let finish: ((o: StreamedQueryOutcome) => void) | undefined;
+    const ids: string[] = [];
+    vi.spyOn(backend, 'runQueryStreaming').mockImplementation((_q, id, onProgress) => {
+      ids.push(id);
+      progress = onProgress;
+      return new Promise((r) => (finish = r));
+    });
+    const cancel = vi.spyOn(backend, 'cancelQuery').mockImplementation(async () => (finish?.({ cancelled: true }), true));
+    session.text.set('level >= warning');
+    const run = session.run();
+    expect(session.running()).toBe(true);
+    progress?.({ stage: 'matching', done: 10, total: 100 });
+    expect(session.progress()).toEqual({ stage: 'matching', done: 10, total: 100 });
+    await session.cancel();
+    expect(cancel).toHaveBeenCalledWith(ids[0]);
+    expect(await run).toBeNull();
+    expect(session.cancelled()).toBe(true);
+    expect(session.runError()).toBeNull();
+    expect(session.error()).toBeNull();
+    expect(session.running()).toBe(false);
+    expect(session.progress()).toBeNull();
+    expect(ids[0]).toMatch(/^[A-Za-z0-9-]{1,64}$/);
+    // Nothing to cancel when idle; the next run clears the note.
+    cancel.mockClear();
+    await session.cancel();
+    expect(cancel).not.toHaveBeenCalled();
+    vi.mocked(backend.runQueryStreaming).mockResolvedValueOnce({ result: { kind: 'events', ids: [1], fields: null } });
+    expect(await session.run()).toBe('events');
+    expect(session.cancelled()).toBe(false);
+  });
+
+  it('a new run replaces the one in flight, whose late outcome is ignored', async () => {
+    const backend = TestBed.inject(AnalysisBackend);
+    const pending: ((o: StreamedQueryOutcome) => void)[] = [];
+    const progress: ((p: QueryProgress) => void)[] = [];
+    vi.spyOn(backend, 'runQueryStreaming').mockImplementation((_q, _id, onProgress) => (progress.push(onProgress), new Promise((r) => pending.push(r))));
+    const cancel = vi.spyOn(backend, 'cancelQuery').mockRejectedValue('gone');
+    session.text.set('a');
+    const first = session.run();
+    session.text.set('b');
+    const second = session.run();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    progress[0]?.({ stage: 'matching', done: 1, total: 2 });
+    expect(session.progress()).toBeNull();
+    pending[0]?.({ result: { kind: 'events', ids: [9, 9, 9], fields: null } });
+    expect(await first).toBeNull();
+    expect(session.running()).toBe(true);
+    pending[1]?.({ result: { kind: 'events', ids: [1], fields: null } });
+    expect(await second).toBe('events');
+    expect(session.matched()).toBe(1);
+    // An empty run also drops the one in flight.
+    session.text.set('c');
+    const third = session.run();
+    session.text.set('');
+    expect(await session.run()).toBe('events');
+    expect(session.running()).toBe(false);
+    pending[2]?.({ cancelled: true });
+    expect(await third).toBeNull();
+    expect(session.cancelled()).toBe(false);
+  });
+
+  it('makes valid, distinct query ids', () => {
+    const a = newQueryId(0);
+    const b = newQueryId(0);
+    expect(a).not.toBe(b);
+    expect(newQueryId(Number.MAX_SAFE_INTEGER)).toMatch(/^[A-Za-z0-9-]{1,64}$/);
   });
 
   it('an empty query clears the applied ql', async () => {

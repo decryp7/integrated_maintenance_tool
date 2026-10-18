@@ -9,6 +9,7 @@ import { ConfigDiffView, valueText } from './config-diff-view';
 import { ConfigDiffStore, PAGE_SIZE, parsePatterns } from './config-diff.store';
 import { demoEntries, MOCK_DEFAULT_IGNORE, MockConfigDiffBackend, mockPage } from './mock/mock-config-diff-backend';
 import { CONFIG_DIFF_COMMANDS, CONFIG_DIFF_VIEWS, provideConfigDiff } from './provide-config-diff';
+import { at } from '../../testing/must';
 
 class FakePicker {
   file: Record<Side, string | null> = { left: '/l/a.json', right: '/r/a.json' };
@@ -231,7 +232,7 @@ describe('ConfigDiffStore', () => {
     picker.folder.right = '/snap/tue';
     await store.chooseFolder('right');
     expect(store.snapshot()?.files.length).toBe(6);
-    const changed = store.snapshot()!.files[0];
+    const changed = at(store.snapshot()!.files, 0);
     await store.openFile(changed);
     expect(store.mode()).toBe('files');
     expect(store.left()).toBe('/snap/mon/app/appsettings.json');
@@ -261,9 +262,9 @@ describe('ConfigDiffView', () => {
   it('compares chosen files and renders a virtual window of the tree', async () => {
     const { fixture, store } = await view();
     expect(text(fixture)).toContain('Choose two configuration files to compare');
-    all<HTMLButtonElement>(fixture, 'button').filter((b) => b.textContent?.trim() === 'Choose…')[0].click();
+    at(all<HTMLButtonElement>(fixture, 'button').filter((b) => b.textContent?.trim() === 'Choose…'), 0).click();
     await settle(fixture);
-    all<HTMLButtonElement>(fixture, 'button').filter((b) => b.textContent?.trim() === 'Choose…')[1].click();
+    at(all<HTMLButtonElement>(fixture, 'button').filter((b) => b.textContent?.trim() === 'Choose…'), 1).click();
     await settle(fixture);
     expect(store.total()).toBe(WITH_DEFAULTS);
     const rows = all(fixture, '[role=row][data-kind]');
@@ -309,7 +310,7 @@ describe('ConfigDiffView', () => {
     expect(el(fixture, '.tree').classList).toContain('unified');
     expect(all(fixture, '.one').length).toBeGreaterThan(0);
     // Select a row and copy.
-    all<HTMLElement>(fixture, '[role=row][data-kind]')[0].click();
+    at(all<HTMLElement>(fixture, '[role=row][data-kind]'), 0).click();
     await settle(fixture);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -389,14 +390,14 @@ describe('ConfigDiffView', () => {
     buttonByText(fixture, 'Two snapshot folders').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Choose two folders');
-    typeInto(all<HTMLInputElement>(fixture, '.pick input')[0], '/snap/a', 'change');
-    typeInto(all<HTMLInputElement>(fixture, '.pick input')[1], '/snap/b', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.pick input'), 0), '/snap/a', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.pick input'), 1), '/snap/b', 'change');
     await settle(fixture);
     buttonByText(fixture, 'Compare folders').click();
     await settle(fixture);
     expect(all(fixture, '.files tbody tr').length).toBe(6);
     expect(text(fixture)).toContain('EOF while parsing');
-    all<HTMLButtonElement>(fixture, '.files button')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.files button'), 0).click();
     await settle(fixture);
     expect(store.mode()).toBe('files');
     expect(store.left()).toBe('/snap/a/app/appsettings.json');
@@ -455,7 +456,7 @@ describe('provideConfigDiff', () => {
     const showView = vi.fn();
     await cmd.run({ showView } as never);
     expect(showView).toHaveBeenCalledWith('config-diff');
-    expect(await CONFIG_DIFF_VIEWS[0].component()).toBe(ConfigDiffView);
+    expect(await CONFIG_DIFF_VIEWS[0]?.component()).toBe(ConfigDiffView);
     expect(CONFIG_DIFF_COMMANDS.length).toBe(1);
     expect((await TestBed.inject(ConfigDiffBackend).formats()).formats.length).toBe(7);
     expect(provideConfigDiffBackend().length).toBe(1);

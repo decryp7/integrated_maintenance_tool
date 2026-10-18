@@ -19,9 +19,9 @@ import { Block, Inline, parseMarkdown } from './markdown';
           @case ('code') {<code class="mono">{{ i.text }}</code>}
           @case ('strong') {<strong>{{ i.text }}</strong>}
           @case ('em') {<em>{{ i.text }}</em>}
-          @case ('record') {<button type="button" class="cite rec" [class.unverified]="!rec(i).verified" [attr.title]="rec(i).verified ? 'Show event ' + rec(i).id + ' in the grid' : 'Event ' + rec(i).id + ' (not seen in a tool result: unverified)'" (click)="record.emit(rec(i).id)">{{ i.text }}</button>}
-          @case ('query') {<button type="button" class="cite q mono" [attr.title]="'Apply the query ' + q(i).ql" (click)="query.emit(q(i).ql)">{{ i.text }}</button>}
-          @case ('web') {<button type="button" class="cite web" [attr.title]="'Open ' + web(i).title + ' in the browser'" (click)="link.emit({ url: web(i).url, title: web(i).title })">{{ i.text }}</button>}
+          @case ('record') {<button type="button" class="cite rec" [class.unverified]="!rec(i).verified" [attr.title]="recTitle(i)" (click)="record.emit(rec(i).id)">{{ i.text }}</button>}
+          @case ('query') {<button type="button" class="cite q mono" [attr.title]="queryTitle(i)" (click)="query.emit(q(i).ql)">{{ i.text }}</button>}
+          @case ('web') {<button type="button" class="cite web" [attr.title]="webTitle(i)" (click)="link.emit({ url: web(i).url, title: web(i).title })">{{ i.text }}</button>}
         }
       }
     </ng-template>
@@ -81,6 +81,18 @@ export class AiRichText {
   }
   protected q(i: Inline): { ql: string } {
     return i.kind === 'query' ? i : { ql: '' };
+  }
+  protected recTitle(i: Inline): string {
+    const r = this.rec(i);
+    return r.verified
+      ? $localize`:@@ai.richText.record.show:Show event ${r.id}:id: in the grid`
+      : $localize`:@@ai.richText.record.unverified:Event ${r.id}:id: (not seen in a tool result: unverified)`;
+  }
+  protected queryTitle(i: Inline): string {
+    return $localize`:@@ai.richText.query.apply:Apply the query ${this.q(i).ql}:query:`;
+  }
+  protected webTitle(i: Inline): string {
+    return $localize`:@@ai.richText.web.open:Open ${this.web(i).title}:title: in the browser`;
   }
   protected web(i: Inline): { url: string; title: string } {
     return i.kind === 'web' ? i : { url: '', title: '' };

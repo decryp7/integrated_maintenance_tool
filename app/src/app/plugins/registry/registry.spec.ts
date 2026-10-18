@@ -7,9 +7,10 @@ import { MockDataset, registryRecords } from '../../core/mock/mock-data';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { loadRegistryRows } from './registry-loader';
 import { REGISTRY_PLUGIN } from './registry.plugin';
-import { buildRegistryTree, dataText, expandableIds, flattenTree, REGISTRY_ROW_CAP, RegistryNode } from './registry-tree';
+import { buildRegistryTree, dataText, expandableIds, flattenTree, REGISTRY_ROW_CAP } from './registry-tree';
 import { RegistryView } from './registry-view';
 import { tinyDataset } from '../../../testing/helpers';
+import { at } from '../../../testing/must';
 
 const row = (fields: Record<string, unknown>, id = 0): RecordView =>
   ({ id, ts: null, level: 'Information', message: '', template: null, exception: null, fields, source: 5, sourceName: 'r.reg', line: id, group: '', markers: [] }) as RecordView;
@@ -30,19 +31,19 @@ describe('registry tree', () => {
   it('builds hive -> key segments -> values, sorted keys first, ignoring rows without a hive and duplicate values', () => {
     const tree = buildRegistryTree(sample());
     expect(tree.map((n) => n.label)).toEqual(['HKCU', 'HKLM']);
-    const hklm = tree[1];
+    const hklm = at(tree, 1);
     expect(hklm.children.map((n) => `${n.kind}:${n.label}`)).toEqual(['key:SOFTWARE', 'value:AtRoot']);
-    const contoso = hklm.children[0].children[0];
+    const contoso = at(at(hklm.children, 0).children, 0);
     expect(contoso.path).toBe('HKLM\\SOFTWARE\\Contoso');
     expect(contoso.record?.id).toBe(1);
     expect(contoso.children.map((n) => `${n.kind}:${n.label}`)).toEqual(['key:Gone', 'key:Sub', 'value:Version']);
-    expect(contoso.children[0].deleted).toBe(true);
-    const version = contoso.children[2];
+    expect(at(contoso.children, 0).deleted).toBe(true);
+    const version = at(contoso.children, 2);
     expect(version).toMatchObject({ valueType: 'REG_SZ', data: '1.2', path: 'HKLM\\SOFTWARE\\Contoso\\Version' });
     expect(version.record?.id).toBe(2);
-    const sub = contoso.children[1];
+    const sub = at(contoso.children, 1);
     expect(sub.children.map((n) => n.data)).toEqual(['File | Console', '30']);
-    expect(hklm.children[1].data).toBe('');
+    expect(at(hklm.children, 1).data).toBe('');
   });
 
   it('renders data on one line', () => {
@@ -83,7 +84,7 @@ describe('loadRegistryRows', () => {
     const backend = {
       queryPage: async (req: { offset: number; limit: number; query: { filters: { value: string }[] } }) => {
         pages.push(req.offset);
-        const all = Array.from({ length: 5 }, (_, i) => ({ ...row({ Hive: 'H', Key: `K${i}` }, i), source: req.query.filters[0].value === 'a.reg' ? 1 : 2 }));
+        const all = Array.from({ length: 5 }, (_, i) => ({ ...row({ Hive: 'H', Key: `K${i}` }, i), source: at(req.query.filters, 0).value === 'a.reg' ? 1 : 2 }));
         return { total: 5, offset: req.offset, anchorIndex: null, rows: all.slice(req.offset, req.offset + 2) };
       },
     } as unknown as ImtBackend;
@@ -109,8 +110,8 @@ describe('loadRegistryRows', () => {
 
 describe('registry plugin definition', () => {
   it('offers the view and command only when a registry source exists', () => {
-    const view = REGISTRY_PLUGIN.views![0];
-    const cmd = REGISTRY_PLUGIN.commands![0];
+    const view = at(REGISTRY_PLUGIN.views!, 0);
+    const cmd = at(REGISTRY_PLUGIN.commands!, 0);
     const summary = (importer: string) => ({ sources: [{ importer }] }) as never;
     expect(view.when!(summary('registry'))).toBe(true);
     expect(view.when!(summary('json'))).toBe(false);
@@ -221,7 +222,7 @@ describe('RegistryView', () => {
       const d = tinyDataset();
       d.sources.push({ id: 5, path: '/x/big.reg', name: 'big.reg', importer: 'registry', skipped: 0 });
       d.records.push(
-        ...Array.from({ length: 450 }, (_, i) => ({ ...registryRecords(5)[0], fields: { Hive: 'HKLM', Key: `A\\K${i}`, ValueType: 'KEY' }, line: i + 1 })),
+        ...Array.from({ length: 450 }, (_, i) => ({ ...at(registryRecords(5), 0), fields: { Hive: 'HKLM', Key: `A\\K${i}`, ValueType: 'KEY' }, line: i + 1 })),
       );
       return d;
     };

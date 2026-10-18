@@ -15,6 +15,7 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         Arc::new(imt_plugin_syslog::SyslogPlugin),
         Arc::new(imt_plugin_windows::WindowsPlugin),
         Arc::new(imt_plugin_web::WebPlugin),
+        Arc::new(imt_plugin_formats::FormatsPlugin),
         Arc::new(imt_plugin_profiling::ProfilingPlugin),
     ]
 }
@@ -113,7 +114,8 @@ mod tests {
     #[test]
     fn builtins_are_listed_and_classified() {
         let ids: Vec<&str> = all().iter().map(|p| p.id()).collect();
-        assert_eq!(ids.len(), 6);
+        assert_eq!(ids.len(), 7);
+        assert!(ids.contains(&"net.decryptology.formats"));
         assert!(find("net.decryptology.web").is_some() && find("nope").is_none());
         assert_eq!(isolable(find("net.decryptology.web").unwrap().as_ref()), Isolable::Fully);
         assert_eq!(isolable(find("net.decryptology.profiling").unwrap().as_ref()), Isolable::No);

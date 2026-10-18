@@ -22,6 +22,7 @@ import { ReportCommands } from './report.commands';
 import { REPORT_VIEWS } from './report.views';
 import { ReportStore } from './report.store';
 import { ReportView } from './report-view';
+import { at } from '../../../testing/must';
 
 const def: ChartDef = { id: 'cpu', title: 'CPU %', y: 'avg(cpu)', bucket: '1m', splitBy: [], type: 'line', unit: '%' };
 const ctx = () => {
@@ -42,7 +43,7 @@ describe('ReportActions', () => {
     expect(actions.addSelectedEvent()).toBe(false);
     expect(actions.addBookmarks()).toBe(false);
     const page = await (TestBed.inject(ShareBackend) as MockShareBackend)['imt'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null });
-    store.select(page.rows[1]);
+    store.select(at(page.rows, 1));
     expect(actions.addSelectedEvent()).toBe(true);
     expect(store.notice()).toBe('Added the selected event to the report');
     const bookmarks = TestBed.inject(BookmarkStore);
@@ -71,8 +72,8 @@ describe('ReportActions', () => {
 
     const blocks = blocksOf(reports.active()!);
     expect(blocks.map((b) => b.type)).toEqual(['events', 'events', 'annotations', 'chart', 'chart', 'timeline', 'text', 'table', 'annotations']);
-    expect(blocks[0]).toMatchObject({ ids: [page.rows[1].id] });
-    expect(blocks[1]).toMatchObject({ caption: 'Bookmarked events', ids: [page.rows[1].id] });
+    expect(blocks[0]).toMatchObject({ ids: [at(page.rows, 1).id] });
+    expect(blocks[1]).toMatchObject({ caption: 'Bookmarked events', ids: [at(page.rows, 1).id] });
     expect(blocks[2]).toMatchObject({ items: [{ from: 1, to: 2, label: 'window', kind: 'bookmark' }] });
     expect(blocks[3]).toMatchObject({ title: 'CPU %', spec: def });
     expect((blocks[3] as { svg: string }).svg).toContain('<text>chart</text>');
@@ -113,8 +114,8 @@ describe('ReportActions', () => {
 describe('ReportCommands', () => {
   it('registers the view, enables commands by context and shows the report after adding', async () => {
     const { store, reports } = await setup();
-    expect(REPORT_VIEWS[0].id).toBe('report');
-    expect(await REPORT_VIEWS[0].component()).toBe(ReportView);
+    expect(REPORT_VIEWS[0]?.id).toBe('report');
+    expect(await REPORT_VIEWS[0]?.component()).toBe(ReportView);
     const commands = TestBed.inject(ReportCommands).commands;
     const byId = (id: string) => commands.find((c) => c.id === id)!;
     const { shown, c } = ctx();
@@ -139,7 +140,7 @@ describe('ReportCommands', () => {
     expect(byId('report.export').when!(c)).toBe(true);
     const dialogs = TestBed.inject(DialogService);
     const running = byId('report.export').run(c);
-    expect(dialogs.stack()[0].component).toBe(ReportExportDialog);
+    expect(dialogs.stack()[0]?.component).toBe(ReportExportDialog);
     dialogs.dismissTop();
     await running;
     expect(store.summary()).not.toBeNull();
@@ -175,22 +176,22 @@ describe('ReportView and ReportBlockView', () => {
     expect(el<HTMLImageElement>(f, 'imt-report-block img').src).toContain('data:image/svg+xml');
 
     // Keyboard move: Alt+ArrowUp on the focused second block, focus follows it.
-    const second = all<HTMLElement>(f, 'imt-report-block')[1];
+    const second = at(all<HTMLElement>(f, 'imt-report-block'), 1);
     second.focus();
     second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
     second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
     await settle(f);
     await new Promise((res) => setTimeout(res));
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['timeline', 'text']);
-    expect(document.activeElement?.getAttribute('data-block-id')).toBe(blocksOf(reports.active()!)[0].id);
+    expect(document.activeElement?.getAttribute('data-block-id')).toBe(at(blocksOf(reports.active()!), 0).id);
 
     // Buttons: move down, remove.
-    all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move down"]')[0].click();
+    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move down"]'), 0).click();
     await settle(f);
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['text', 'timeline']);
-    all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move up"]')[1].click();
+    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move up"]'), 1).click();
     await settle(f);
-    all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Remove"]')[0].click();
+    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Remove"]'), 0).click();
     await settle(f);
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['text']);
 
@@ -199,12 +200,12 @@ describe('ReportView and ReportBlockView', () => {
     await settle(f);
     expect(text(f)).toContain('Blocks are added to the last section');
     const titles = all<HTMLInputElement>(f, 'input.stitle');
-    typeInto(titles[1], 'Cause', 'change');
-    all<HTMLButtonElement>(f, 'button[aria-label^="Move section up"]')[1].click();
+    typeInto(at(titles, 1), 'Cause', 'change');
+    at(all<HTMLButtonElement>(f, 'button[aria-label^="Move section up"]'), 1).click();
     await settle(f);
     expect(reports.active()!.sections.map((s) => s.title)).toEqual(['Cause', 'Timeline']);
-    all<HTMLButtonElement>(f, 'button[aria-label^="Move section down"]')[0].click();
-    all<HTMLButtonElement>(f, 'button[aria-label^="Remove section"]')[0].click();
+    at(all<HTMLButtonElement>(f, 'button[aria-label^="Move section down"]'), 0).click();
+    at(all<HTMLButtonElement>(f, 'button[aria-label^="Remove section"]'), 0).click();
     await settle(f);
     expect(reports.active()!.sections).toHaveLength(1);
 
@@ -221,7 +222,7 @@ describe('ReportView and ReportBlockView', () => {
 
     // Export opens the dialog.
     buttonByText(f, 'Export…').click();
-    expect(TestBed.inject(DialogService).stack()[0].component).toBe(ReportExportDialog);
+    expect(TestBed.inject(DialogService).stack()[0]?.component).toBe(ReportExportDialog);
   });
 
   it('renders every block type as text, never as markup', async () => {
@@ -288,7 +289,7 @@ describe('ReportExportDialog', () => {
     buttonByText(f, 'Export…').click();
     await settle(f, 6);
     expect(picks).toEqual(['my-report.html']);
-    expect(spy.mock.calls[0][0]).toMatchObject({ format: 'html', path: '/out/my-report.html', redact: true, theme: 'dark' });
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({ format: 'html', path: '/out/my-report.html', redact: true, theme: 'dark' });
     expect(store.notice()).toMatch(/^Exported the report to my-report\.html \(\d+ values? redacted\)$/);
     expect(closed).toEqual(['closed']);
   });

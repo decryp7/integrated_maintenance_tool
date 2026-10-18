@@ -1,0 +1,933 @@
+2026-10-14T10:42:13.412000916Z stdout F {"level": "info", "ts": "2026-10-14T10:42:13.412000Z", "msg": "consumer started", "group": "order-events"}
+2026-10-14T10:42:13.424000216Z stderr F I1014 10:42:13.412000       1 leaderelection.go:250] attempting to acquire leader lease shop/order-events
+2026-10-14T10:42:14.885216768Z stdout F {"level": "info", "ts": "2026-10-14T10:42:14.885216Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T10:42:16.789110899Z stderr F W1014 10:42:16.789110       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:42:26.097013142Z stdout F {"level": "info", "ts": "2026-10-14T10:42:26.097013Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T10:42:27.592925281Z stderr F W1014 10:42:27.592925       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:42:27.772690297Z stdout F {"level": "info", "ts": "2026-10-14T10:42:27.772690Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T10:42:28.917785429Z stdout F {"level": "info", "ts": "2026-10-14T10:42:28.917785Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T10:42:31.358836724Z stdout F {"level": "info", "ts": "2026-10-14T10:42:31.358836Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T10:42:34.152264868Z stdout F {"level": "info", "ts": "2026-10-14T10:42:34.152264Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T10:42:34.963137766Z stdout F {"level": "info", "ts": "2026-10-14T10:42:34.963137Z", "msg": "consumed batch", "count": 4, "lagMs": 4020}
+2026-10-14T10:42:42.586351786Z stdout F {"level": "info", "ts": "2026-10-14T10:42:42.586351Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T10:42:51.091458123Z stdout F {"level": "info", "ts": "2026-10-14T10:42:51.091458Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:42:57.476222613Z stdout F {"level": "info", "ts": "2026-10-14T10:42:57.476222Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T10:42:58.587270867Z stdout F {"level": "info", "ts": "2026-10-14T10:42:58.587270Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T10:43:06.584943732Z stdout F {"level": "error", "ts": "2026-10-14T10:43:06.584943Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:43:09.159792344Z stdout F {"level": "info", "ts": "2026-10-14T10:43:09.159792Z", "msg": "consumed batch", "count": 21, "lagMs": 4020}
+2026-10-14T10:43:11.758194125Z stdout F {"level": "info", "ts": "2026-10-14T10:43:11.758194Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T10:43:12.770054131Z stdout F {"level": "info", "ts": "2026-10-14T10:43:12.770054Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T10:43:15.982873929Z stdout F {"level": "error", "ts": "2026-10-14T10:43:15.982873Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:43:20.581960869Z stdout F {"level": "error", "ts": "2026-10-14T10:43:20.581960Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:43:22.232079526Z stdout F {"level": "error", "ts": "2026-10-14T10:43:22.232079Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:43:31.297824633Z stdout F {"level": "info", "ts": "2026-10-14T10:43:31.297824Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:43:46.541981511Z stdout F {"level": "info", "ts": "2026-10-14T10:43:46.541981Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T10:43:48.658841749Z stdout F {"level": "error", "ts": "2026-10-14T10:43:48.658841Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:43:56.870016743Z stdout F {"level": "info", "ts": "2026-10-14T10:43:56.870016Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T10:43:59.032236116Z stdout F {"level": "info", "ts": "2026-10-14T10:43:59.032236Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T10:44:05.599178715Z stdout F {"level": "info", "ts": "2026-10-14T10:44:05.599178Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T10:44:10.699382593Z stdout F {"level": "info", "ts": "2026-10-14T10:44:10.699382Z", "msg": "consumed batch", "count": 21, "lagMs": 4020}
+2026-10-14T10:44:19.318891710Z stdout F {"level": "info", "ts": "2026-10-14T10:44:19.318891Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T10:44:22.775411913Z stdout F {"level": "error", "ts": "2026-10-14T10:44:22.775411Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:44:32.481488303Z stdout F {"level": "error", "ts": "2026-10-14T10:44:32.481488Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:44:32.611124926Z stdout F {"level": "info", "ts": "2026-10-14T10:44:32.611124Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T10:44:34.535840867Z stdout F {"level": "info", "ts": "2026-10-14T10:44:34.535840Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T10:45:08.123414188Z stdout F {"level": "info", "ts": "2026-10-14T10:45:08.123414Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T10:45:08.307443442Z stdout F {"level": "error", "ts": "2026-10-14T10:45:08.307443Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:45:19.068541479Z stderr F W1014 10:45:19.068541       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:45:24.068515886Z stdout F {"level": "info", "ts": "2026-10-14T10:45:24.068515Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T10:45:29.426346595Z stdout F {"level": "error", "ts": "2026-10-14T10:45:29.426346Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:45:35.001243402Z stdout F {"level": "error", "ts": "2026-10-14T10:45:35.001243Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:45:37.858652967Z stdout F {"level": "info", "ts": "2026-10-14T10:45:37.858652Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T10:45:39.736450534Z stdout F {"level": "info", "ts": "2026-10-14T10:45:39.736450Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:45:52.159347000Z stdout F {"level": "info", "ts": "2026-10-14T10:45:52.159347Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T10:45:57.147941115Z stderr F W1014 10:45:57.147941       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:46:00.120260823Z stdout F {"level": "error", "ts": "2026-10-14T10:46:00.120260Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:46:01.301370219Z stderr F W1014 10:46:01.301370       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:46:04.366971612Z stdout F {"level": "info", "ts": "2026-10-14T10:46:04.366971Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:46:06.065229684Z stdout F {"level": "info", "ts": "2026-10-14T10:46:06.065229Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T10:46:08.160173587Z stdout F {"level": "info", "ts": "2026-10-14T10:46:08.160173Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T10:46:13.657034717Z stdout F {"level": "info", "ts": "2026-10-14T10:46:13.657034Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T10:46:17.142122534Z stderr F W1014 10:46:17.142122       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:46:17.384896748Z stdout F {"level": "info", "ts": "2026-10-14T10:46:17.384896Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T10:46:33.514967422Z stdout F {"level": "error", "ts": "2026-10-14T10:46:33.514967Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:46:35.675965451Z stderr F W1014 10:46:35.675965       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:46:46.089427997Z stdout F {"level": "info", "ts": "2026-10-14T10:46:46.089427Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T10:46:51.790909221Z stderr F W1014 10:46:51.790909       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:46:52.788045394Z stdout F {"level": "info", "ts": "2026-10-14T10:46:52.788045Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:46:55.349707324Z stderr F W1014 10:46:55.349707       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:47:07.885867141Z stdout F {"level": "info", "ts": "2026-10-14T10:47:07.885867Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T10:47:10.766522823Z stdout F {"level": "error", "ts": "2026-10-14T10:47:10.766522Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:13.775654966Z stdout F {"level": "error", "ts": "2026-10-14T10:47:13.775654Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:17.624958950Z stdout F {"level": "error", "ts": "2026-10-14T10:47:17.624958Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:19.754276317Z stdout F {"level": "info", "ts": "2026-10-14T10:47:19.754276Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T10:47:24.332179936Z stdout F {"level": "info", "ts": "2026-10-14T10:47:24.332179Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T10:47:24.738895187Z stdout F {"level": "info", "ts": "2026-10-14T10:47:24.738895Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T10:47:25.368493328Z stderr F W1014 10:47:25.368493       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:47:29.912776580Z stdout F {"level": "error", "ts": "2026-10-14T10:47:29.912776Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:38.830428203Z stdout F {"level": "info", "ts": "2026-10-14T10:47:38.830428Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T10:47:46.872108447Z stdout F {"level": "error", "ts": "2026-10-14T10:47:46.872108Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:48.903219024Z stdout F {"level": "error", "ts": "2026-10-14T10:47:48.903219Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:47:59.318817877Z stdout F {"level": "info", "ts": "2026-10-14T10:47:59.318817Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T10:48:04.634712084Z stderr F W1014 10:48:04.634712       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:48:22.104281514Z stdout F {"level": "info", "ts": "2026-10-14T10:48:22.104281Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T10:48:24.449068415Z stdout F {"level": "error", "ts": "2026-10-14T10:48:24.449068Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:48:27.396009449Z stdout F {"level": "error", "ts": "2026-10-14T10:48:27.396009Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:48:29.934076350Z stdout F {"level": "error", "ts": "2026-10-14T10:48:29.934076Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:48:42.442286948Z stdout F {"level": "info", "ts": "2026-10-14T10:48:42.442286Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T10:48:50.504910489Z stderr F W1014 10:48:50.504910       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:48:50.951585008Z stderr F W1014 10:48:50.951585       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:48:53.174160251Z stdout F {"level": "error", "ts": "2026-10-14T10:48:53.174160Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:48:56.320668627Z stderr F W1014 10:48:56.320668       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:49:10.391549233Z stdout F {"level": "error", "ts": "2026-10-14T10:49:10.391549Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:14.272624382Z stdout F {"level": "info", "ts": "2026-10-14T10:49:14.272624Z", "msg": "consumed batch", "count": 4, "lagMs": 4020}
+2026-10-14T10:49:14.338317235Z stdout F {"level": "error", "ts": "2026-10-14T10:49:14.338317Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:16.756746934Z stdout F {"level": "info", "ts": "2026-10-14T10:49:16.756746Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T10:49:17.833799882Z stdout F {"level": "info", "ts": "2026-10-14T10:49:17.833799Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T10:49:20.656738147Z stderr F W1014 10:49:20.656738       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:49:22.342613024Z stderr F W1014 10:49:22.342613       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:49:34.105610076Z stdout F {"level": "error", "ts": "2026-10-14T10:49:34.105610Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:39.013792326Z stdout F {"level": "error", "ts": "2026-10-14T10:49:39.013792Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:43.623436400Z stdout F {"level": "error", "ts": "2026-10-14T10:49:43.623436Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:45.894988618Z stdout F {"level": "error", "ts": "2026-10-14T10:49:45.894988Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:55.233385698Z stdout F {"level": "error", "ts": "2026-10-14T10:49:55.233385Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:49:57.315148139Z stdout F {"level": "info", "ts": "2026-10-14T10:49:57.315148Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T10:49:59.934260760Z stdout F {"level": "info", "ts": "2026-10-14T10:49:59.934260Z", "msg": "consumed batch", "count": 21, "lagMs": 4020}
+2026-10-14T10:50:21.123980857Z stdout F {"level": "error", "ts": "2026-10-14T10:50:21.123980Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:50:30.413806800Z stdout F {"level": "info", "ts": "2026-10-14T10:50:30.413806Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T10:50:30.714936272Z stdout F {"level": "info", "ts": "2026-10-14T10:50:30.714936Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T10:50:34.511900901Z stdout F {"level": "error", "ts": "2026-10-14T10:50:34.511900Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:50:36.309078087Z stderr F W1014 10:50:36.309078       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:50:39.303036114Z stdout F {"level": "info", "ts": "2026-10-14T10:50:39.303036Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T10:50:41.777762113Z stdout F {"level": "info", "ts": "2026-10-14T10:50:41.777762Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T10:50:43.549635638Z stderr F W1014 10:50:43.549635       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:51:00.334911152Z stdout F {"level": "error", "ts": "2026-10-14T10:51:00.334911Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:51:05.992431392Z stdout F {"level": "error", "ts": "2026-10-14T10:51:05.992431Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:51:06.138714250Z stdout F {"level": "error", "ts": "2026-10-14T10:51:06.138714Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:51:06.897574428Z stdout F {"level": "info", "ts": "2026-10-14T10:51:06.897574Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T10:51:18.067244303Z stdout F {"level": "info", "ts": "2026-10-14T10:51:18.067244Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:51:18.273300151Z stderr F W1014 10:51:18.273300       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:51:20.269531632Z stdout F {"level": "error", "ts": "2026-10-14T10:51:20.269531Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:51:21.671450964Z stdout F {"level": "info", "ts": "2026-10-14T10:51:21.671450Z", "msg": "consumed batch", "count": 21, "lagMs": 4020}
+2026-10-14T10:51:36.831825109Z stdout F {"level": "info", "ts": "2026-10-14T10:51:36.831825Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T10:51:38.497102420Z stdout F {"level": "info", "ts": "2026-10-14T10:51:38.497102Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T10:51:44.380592244Z stdout F {"level": "error", "ts": "2026-10-14T10:51:44.380592Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:51:53.054014211Z stdout F {"level": "info", "ts": "2026-10-14T10:51:53.054014Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:51:56.203393541Z stdout F {"level": "error", "ts": "2026-10-14T10:51:56.203393Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:00.437910188Z stderr F W1014 10:52:00.437910       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:52:06.593521510Z stdout F {"level": "error", "ts": "2026-10-14T10:52:06.593521Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:08.910233226Z stdout F {"level": "info", "ts": "2026-10-14T10:52:08.910233Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T10:52:13.054714003Z stderr F W1014 10:52:13.054714       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:52:14.774086741Z stdout F {"level": "info", "ts": "2026-10-14T10:52:14.774086Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T10:52:17.744277904Z stdout F {"level": "info", "ts": "2026-10-14T10:52:17.744277Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:52:20.230385900Z stdout F {"level": "info", "ts": "2026-10-14T10:52:20.230385Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T10:52:26.024831374Z stdout F {"level": "error", "ts": "2026-10-14T10:52:26.024831Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:30.178729979Z stdout F {"level": "error", "ts": "2026-10-14T10:52:30.178729Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:36.442175977Z stdout F {"level": "error", "ts": "2026-10-14T10:52:36.442175Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:39.693733008Z stdout F {"level": "info", "ts": "2026-10-14T10:52:39.693733Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:52:43.967203388Z stdout F {"level": "info", "ts": "2026-10-14T10:52:43.967203Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T10:52:49.050991178Z stderr F W1014 10:52:49.050991       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:52:50.290366829Z stderr F W1014 10:52:50.290366       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:52:53.915588813Z stdout F {"level": "error", "ts": "2026-10-14T10:52:53.915588Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:52:57.022808369Z stdout F {"level": "info", "ts": "2026-10-14T10:52:57.022808Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:52:59.991439899Z stdout F {"level": "info", "ts": "2026-10-14T10:52:59.991439Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T10:53:02.102856918Z stdout F {"level": "info", "ts": "2026-10-14T10:53:02.102856Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T10:53:07.852134832Z stdout F {"level": "error", "ts": "2026-10-14T10:53:07.852134Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:53:25.509276814Z stdout F {"level": "error", "ts": "2026-10-14T10:53:25.509276Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:53:28.975906424Z stderr F W1014 10:53:28.975906       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:53:32.252451392Z stderr F W1014 10:53:32.252451       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:53:43.692133451Z stdout F {"level": "error", "ts": "2026-10-14T10:53:43.692133Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:53:47.894013790Z stdout F {"level": "error", "ts": "2026-10-14T10:53:47.894013Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:53:50.882939616Z stderr F W1014 10:53:50.882939       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:54:00.204689509Z stdout F {"level": "info", "ts": "2026-10-14T10:54:00.204689Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T10:54:00.332876108Z stdout F {"level": "info", "ts": "2026-10-14T10:54:00.332876Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T10:54:10.341581709Z stdout F {"level": "info", "ts": "2026-10-14T10:54:10.341581Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T10:54:18.522211236Z stderr F W1014 10:54:18.522211       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:54:24.093945971Z stdout F {"level": "info", "ts": "2026-10-14T10:54:24.093945Z", "msg": "consumed batch", "count": 4, "lagMs": 4020}
+2026-10-14T10:54:27.212250902Z stdout F {"level": "info", "ts": "2026-10-14T10:54:27.212250Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T10:54:29.624684175Z stdout F {"level": "info", "ts": "2026-10-14T10:54:29.624684Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T10:54:31.965264961Z stderr F W1014 10:54:31.965264       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:54:37.926186258Z stdout F {"level": "info", "ts": "2026-10-14T10:54:37.926186Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T10:54:45.296303987Z stderr F W1014 10:54:45.296303       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:54:46.615673363Z stdout F {"level": "info", "ts": "2026-10-14T10:54:46.615673Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:54:55.107954918Z stdout F {"level": "info", "ts": "2026-10-14T10:54:55.107954Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T10:55:00.397219141Z stdout F {"level": "error", "ts": "2026-10-14T10:55:00.397219Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:55:01.055759416Z stderr F W1014 10:55:01.055759       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:55:04.204053321Z stdout F {"level": "info", "ts": "2026-10-14T10:55:04.204053Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T10:55:05.859514723Z stdout F {"level": "error", "ts": "2026-10-14T10:55:05.859514Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:55:07.130901476Z stdout F {"level": "error", "ts": "2026-10-14T10:55:07.130901Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:55:08.212607017Z stdout F {"level": "error", "ts": "2026-10-14T10:55:08.212607Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:55:13.311014296Z stdout F {"level": "error", "ts": "2026-10-14T10:55:13.311014Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:55:55.352804258Z stderr F W1014 10:55:55.352804       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:55:59.354734986Z stdout F {"level": "info", "ts": "2026-10-14T10:55:59.354734Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T10:56:05.845876692Z stdout F {"level": "info", "ts": "2026-10-14T10:56:05.845876Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T10:56:06.004391594Z stdout F {"level": "info", "ts": "2026-10-14T10:56:06.004391Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T10:56:17.341092564Z stdout F {"level": "info", "ts": "2026-10-14T10:56:17.341092Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:56:20.967602086Z stderr F W1014 10:56:20.967602       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:56:21.550121031Z stdout F {"level": "info", "ts": "2026-10-14T10:56:21.550121Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T10:56:25.605614671Z stdout F {"level": "info", "ts": "2026-10-14T10:56:25.605614Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:56:31.745481017Z stdout F {"level": "info", "ts": "2026-10-14T10:56:31.745481Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T10:56:33.543503276Z stdout F {"level": "info", "ts": "2026-10-14T10:56:33.543503Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T10:56:34.316376195Z stdout F {"level": "info", "ts": "2026-10-14T10:56:34.316376Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T10:56:47.248239990Z stdout F {"level": "info", "ts": "2026-10-14T10:56:47.248239Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T10:56:51.674282771Z stdout F {"level": "info", "ts": "2026-10-14T10:56:51.674282Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T10:56:54.460228486Z stdout F {"level": "error", "ts": "2026-10-14T10:56:54.460228Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:56:56.571058803Z stderr F W1014 10:56:56.571058       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:56:57.724976445Z stderr F W1014 10:56:57.724976       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:57:06.889037889Z stdout F {"level": "info", "ts": "2026-10-14T10:57:06.889037Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T10:57:12.443477718Z stdout F {"level": "error", "ts": "2026-10-14T10:57:12.443477Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:57:18.356035231Z stdout F {"level": "error", "ts": "2026-10-14T10:57:18.356035Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:57:21.075125843Z stdout F {"level": "error", "ts": "2026-10-14T10:57:21.075125Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:57:26.925710422Z stdout F {"level": "info", "ts": "2026-10-14T10:57:26.925710Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T10:57:36.275517678Z stdout F {"level": "info", "ts": "2026-10-14T10:57:36.275517Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T10:57:37.147287238Z stderr F W1014 10:57:37.147287       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:57:45.385269043Z stdout F {"level": "info", "ts": "2026-10-14T10:57:45.385269Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T10:57:50.270307213Z stdout F {"level": "error", "ts": "2026-10-14T10:57:50.270307Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:58:17.697232370Z stdout F {"level": "error", "ts": "2026-10-14T10:58:17.697232Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:58:19.384756446Z stderr F W1014 10:58:19.384756       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:58:23.008546536Z stdout F {"level": "error", "ts": "2026-10-14T10:58:23.008546Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:58:40.637645000Z stdout F {"level": "info", "ts": "2026-10-14T10:58:40.637645Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T10:58:45.436872977Z stdout F {"level": "info", "ts": "2026-10-14T10:58:45.436872Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T10:58:49.086150484Z stdout F {"level": "info", "ts": "2026-10-14T10:58:49.086150Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T10:58:51.986031487Z stdout F {"level": "error", "ts": "2026-10-14T10:58:51.986031Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T10:58:52.815997905Z stdout F {"level": "info", "ts": "2026-10-14T10:58:52.815997Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T10:59:00.292870207Z stdout F {"level": "info", "ts": "2026-10-14T10:59:00.292870Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T10:59:25.748943187Z stdout F {"level": "info", "ts": "2026-10-14T10:59:25.748943Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T10:59:40.375545034Z stderr F W1014 10:59:40.375545       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:59:41.234292371Z stdout F {"level": "info", "ts": "2026-10-14T10:59:41.234292Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T10:59:43.941977084Z stderr F W1014 10:59:43.941977       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:59:47.006604420Z stderr F W1014 10:59:47.006604       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:59:48.562781626Z stdout F {"level": "info", "ts": "2026-10-14T10:59:48.562781Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:59:51.807077868Z stderr F W1014 10:59:51.807077       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T10:59:57.238240797Z stdout F {"level": "info", "ts": "2026-10-14T10:59:57.238240Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T10:59:57.395183516Z stdout F {"level": "info", "ts": "2026-10-14T10:59:57.395183Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T10:59:58.430673950Z stdout F {"level": "error", "ts": "2026-10-14T10:59:58.430673Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:00:02.487689371Z stdout F {"level": "error", "ts": "2026-10-14T11:00:02.487689Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:00:05.100704083Z stdout F {"level": "error", "ts": "2026-10-14T11:00:05.100704Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:00:07.654762980Z stderr F W1014 11:00:07.654762       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:00:13.375294122Z stdout F {"level": "info", "ts": "2026-10-14T11:00:13.375294Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:00:30.347450852Z stderr F W1014 11:00:30.347450       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:00:39.825174788Z stdout F {"level": "info", "ts": "2026-10-14T11:00:39.825174Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:00:53.242379525Z stdout F {"level": "error", "ts": "2026-10-14T11:00:53.242379Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:00:57.616780792Z stdout F {"level": "info", "ts": "2026-10-14T11:00:57.616780Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:00:58.173959637Z stdout F {"level": "info", "ts": "2026-10-14T11:00:58.173959Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:01:05.688722047Z stdout F {"level": "error", "ts": "2026-10-14T11:01:05.688722Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:07.444499920Z stdout F {"level": "error", "ts": "2026-10-14T11:01:07.444499Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:15.457162616Z stdout F {"level": "info", "ts": "2026-10-14T11:01:15.457162Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:01:15.817576832Z stdout F {"level": "error", "ts": "2026-10-14T11:01:15.817576Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:17.594255455Z stdout F {"level": "error", "ts": "2026-10-14T11:01:17.594255Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:18.136414013Z stdout F {"level": "info", "ts": "2026-10-14T11:01:18.136414Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:01:18.891457155Z stdout F {"level": "error", "ts": "2026-10-14T11:01:18.891457Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:25.404965259Z stdout F {"level": "info", "ts": "2026-10-14T11:01:25.404965Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:01:27.390968644Z stdout F {"level": "info", "ts": "2026-10-14T11:01:27.390968Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:01:38.872740355Z stdout F {"level": "info", "ts": "2026-10-14T11:01:38.872740Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:01:39.174891954Z stdout F {"level": "info", "ts": "2026-10-14T11:01:39.174891Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:01:39.392638703Z stdout F {"level": "error", "ts": "2026-10-14T11:01:39.392638Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:01:48.484597387Z stderr F W1014 11:01:48.484597       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:04.138011343Z stdout F {"level": "info", "ts": "2026-10-14T11:02:04.138011Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:02:10.613307059Z stdout F {"level": "error", "ts": "2026-10-14T11:02:10.613307Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:02:15.580065814Z stdout F {"level": "error", "ts": "2026-10-14T11:02:15.580065Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:02:17.118375908Z stdout F {"level": "error", "ts": "2026-10-14T11:02:17.118375Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:02:19.581371491Z stderr F W1014 11:02:19.581371       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:21.034434831Z stdout F {"level": "info", "ts": "2026-10-14T11:02:21.034434Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:02:21.559264788Z stdout F {"level": "info", "ts": "2026-10-14T11:02:21.559264Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:02:31.015094294Z stderr F W1014 11:02:31.015094       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:38.894017910Z stdout F {"level": "info", "ts": "2026-10-14T11:02:38.894017Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:02:44.462529525Z stdout F {"level": "error", "ts": "2026-10-14T11:02:44.462529Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:02:46.559836719Z stderr F W1014 11:02:46.559836       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:46.721555921Z stderr F W1014 11:02:46.721555       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:51.446439959Z stderr F W1014 11:02:51.446439       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:02:53.136470862Z stdout F {"level": "info", "ts": "2026-10-14T11:02:53.136470Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:02:59.273784448Z stderr F W1014 11:02:59.273784       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:03:01.378986681Z stdout F {"level": "error", "ts": "2026-10-14T11:03:01.378986Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:07.385055063Z stdout F {"level": "error", "ts": "2026-10-14T11:03:07.385055Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:09.840344097Z stdout F {"level": "info", "ts": "2026-10-14T11:03:09.840344Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:03:14.891431989Z stdout F {"level": "error", "ts": "2026-10-14T11:03:14.891431Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:24.745386844Z stdout F {"level": "info", "ts": "2026-10-14T11:03:24.745386Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:03:31.221838228Z stdout F {"level": "error", "ts": "2026-10-14T11:03:31.221838Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:34.981928916Z stderr F W1014 11:03:34.981928       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:03:35.325082341Z stdout F {"level": "info", "ts": "2026-10-14T11:03:35.325082Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:03:35.845062202Z stdout F {"level": "info", "ts": "2026-10-14T11:03:35.845062Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:03:35.975765574Z stdout F {"level": "error", "ts": "2026-10-14T11:03:35.975765Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:36.350500216Z stderr F W1014 11:03:36.350500       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:03:38.439701023Z stdout F {"level": "info", "ts": "2026-10-14T11:03:38.439701Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:03:38.844217973Z stdout F {"level": "info", "ts": "2026-10-14T11:03:38.844217Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:03:50.289976754Z stdout F {"level": "error", "ts": "2026-10-14T11:03:50.289976Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:03:54.701187649Z stderr F W1014 11:03:54.701187       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:03:57.359339590Z stdout F {"level": "info", "ts": "2026-10-14T11:03:57.359339Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:04:04.940958877Z stderr F W1014 11:04:04.940958       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:04:07.793259382Z stdout F {"level": "error", "ts": "2026-10-14T11:04:07.793259Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:04:09.967109970Z stdout F {"level": "error", "ts": "2026-10-14T11:04:09.967109Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:04:16.595105790Z stdout F {"level": "error", "ts": "2026-10-14T11:04:16.595105Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:04:38.583041491Z stdout F {"level": "info", "ts": "2026-10-14T11:04:38.583041Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:04:39.025878903Z stdout F {"level": "error", "ts": "2026-10-14T11:04:39.025878Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:04:40.710649658Z stdout F {"level": "error", "ts": "2026-10-14T11:04:40.710649Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:04:46.609964235Z stdout F {"level": "info", "ts": "2026-10-14T11:04:46.609964Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T11:04:47.112303290Z stdout F {"level": "info", "ts": "2026-10-14T11:04:47.112303Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:04:47.375406470Z stdout F {"level": "info", "ts": "2026-10-14T11:04:47.375406Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:04:56.299054939Z stdout F {"level": "info", "ts": "2026-10-14T11:04:56.299054Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:05:06.717365642Z stdout F {"level": "error", "ts": "2026-10-14T11:05:06.717365Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:18.856783805Z stderr F W1014 11:05:18.856783       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:05:20.062428757Z stdout F {"level": "error", "ts": "2026-10-14T11:05:20.062428Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:31.577785414Z stdout F {"level": "error", "ts": "2026-10-14T11:05:31.577785Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:31.910822227Z stdout F {"level": "error", "ts": "2026-10-14T11:05:31.910822Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:37.090399405Z stdout F {"level": "error", "ts": "2026-10-14T11:05:37.090399Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:41.427611386Z stdout F {"level": "error", "ts": "2026-10-14T11:05:41.427611Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:43.761562311Z stdout F {"level": "error", "ts": "2026-10-14T11:05:43.761562Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:46.656313592Z stdout F {"level": "error", "ts": "2026-10-14T11:05:46.656313Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:05:52.351001131Z stderr F W1014 11:05:52.351001       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:05:57.632875043Z stdout F {"level": "error", "ts": "2026-10-14T11:05:57.632875Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:03.578978956Z stdout F {"level": "info", "ts": "2026-10-14T11:06:03.578978Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:06:04.930471546Z stdout F {"level": "error", "ts": "2026-10-14T11:06:04.930471Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:06.994958157Z stdout F {"level": "info", "ts": "2026-10-14T11:06:06.994958Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T11:06:08.243853248Z stderr F W1014 11:06:08.243853       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:06:09.643769510Z stderr F W1014 11:06:09.643769       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:06:12.577153758Z stdout F {"level": "info", "ts": "2026-10-14T11:06:12.577153Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:06:13.877445977Z stdout F {"level": "error", "ts": "2026-10-14T11:06:13.877445Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:16.934332986Z stdout F {"level": "info", "ts": "2026-10-14T11:06:16.934332Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:06:17.577955691Z stdout F {"level": "info", "ts": "2026-10-14T11:06:17.577955Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:06:17.633306451Z stdout F {"level": "info", "ts": "2026-10-14T11:06:17.633306Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:06:18.637746247Z stdout F {"level": "error", "ts": "2026-10-14T11:06:18.637746Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:27.394241487Z stdout F {"level": "error", "ts": "2026-10-14T11:06:27.394241Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:32.356264670Z stdout F {"level": "info", "ts": "2026-10-14T11:06:32.356264Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:06:33.058897409Z stdout F {"level": "error", "ts": "2026-10-14T11:06:33.058897Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:38.549733840Z stderr F W1014 11:06:38.549733       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:06:39.381930413Z stdout F {"level": "info", "ts": "2026-10-14T11:06:39.381930Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:06:41.899961804Z stdout F {"level": "error", "ts": "2026-10-14T11:06:41.899961Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:06:42.661262947Z stderr F W1014 11:06:42.661262       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:06:47.917386316Z stdout F {"level": "info", "ts": "2026-10-14T11:06:47.917386Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:06:55.501050743Z stdout F {"level": "error", "ts": "2026-10-14T11:06:55.501050Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:07:03.643037978Z stdout F {"level": "info", "ts": "2026-10-14T11:07:03.643037Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T11:07:05.324347565Z stdout F {"level": "info", "ts": "2026-10-14T11:07:05.324347Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:07:09.279946278Z stderr F W1014 11:07:09.279946       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:07:10.712397719Z stderr F W1014 11:07:10.712397       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:07:11.342686846Z stdout F {"level": "error", "ts": "2026-10-14T11:07:11.342686Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:07:20.320606183Z stdout F {"level": "info", "ts": "2026-10-14T11:07:20.320606Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:07:21.796779843Z stdout F {"level": "error", "ts": "2026-10-14T11:07:21.796779Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:07:21.871743241Z stderr F W1014 11:07:21.871743       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:07:38.163535215Z stdout F {"level": "error", "ts": "2026-10-14T11:07:38.163535Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:07:39.688485167Z stdout F {"level": "error", "ts": "2026-10-14T11:07:39.688485Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:07:45.714495304Z stderr F W1014 11:07:45.714495       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:07:48.121236747Z stderr F W1014 11:07:48.121236       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:07:49.997050646Z stdout F {"level": "error", "ts": "2026-10-14T11:07:49.997050Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:08:03.960489291Z stdout F {"level": "info", "ts": "2026-10-14T11:08:03.960489Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:08:05.724706447Z stdout F {"level": "error", "ts": "2026-10-14T11:08:05.724706Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:08:07.379228529Z stdout F {"level": "info", "ts": "2026-10-14T11:08:07.379228Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:08:13.571171968Z stdout F {"level": "info", "ts": "2026-10-14T11:08:13.571171Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:08:19.697805269Z stdout F {"level": "info", "ts": "2026-10-14T11:08:19.697805Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:08:20.398936708Z stdout F {"level": "error", "ts": "2026-10-14T11:08:20.398936Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:08:21.353745920Z stdout F {"level": "info", "ts": "2026-10-14T11:08:21.353745Z", "msg": "consumed batch", "count": 4, "lagMs": 4020}
+2026-10-14T11:08:37.805438413Z stdout F {"level": "error", "ts": "2026-10-14T11:08:37.805438Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:08:48.671549748Z stderr F W1014 11:08:48.671549       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:08:59.091781343Z stdout F {"level": "info", "ts": "2026-10-14T11:08:59.091781Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:08:59.461300961Z stdout F {"level": "error", "ts": "2026-10-14T11:08:59.461300Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:03.367647035Z stderr F W1014 11:09:03.367647       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:04.827619807Z stdout F {"level": "info", "ts": "2026-10-14T11:09:04.827619Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:09:06.999415140Z stderr F W1014 11:09:06.999415       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:09.211306273Z stdout F {"level": "error", "ts": "2026-10-14T11:09:09.211306Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:13.583823322Z stdout F {"level": "error", "ts": "2026-10-14T11:09:13.583823Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:14.423530322Z stdout F {"level": "info", "ts": "2026-10-14T11:09:14.423530Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:09:18.345393311Z stderr F W1014 11:09:18.345393       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:25.876687085Z stdout F {"level": "error", "ts": "2026-10-14T11:09:25.876687Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:35.745237904Z stdout F {"level": "error", "ts": "2026-10-14T11:09:35.745237Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:41.844495070Z stderr F W1014 11:09:41.844495       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:51.145907298Z stdout F {"level": "error", "ts": "2026-10-14T11:09:51.145907Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:53.323262929Z stderr F W1014 11:09:53.323262       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:53.639344113Z stdout F {"level": "error", "ts": "2026-10-14T11:09:53.639344Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:56.500848819Z stderr F W1014 11:09:56.500848       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:09:56.825678104Z stdout F {"level": "error", "ts": "2026-10-14T11:09:56.825678Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:09:57.521653200Z stdout F {"level": "info", "ts": "2026-10-14T11:09:57.521653Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T11:10:03.926083429Z stdout F {"level": "info", "ts": "2026-10-14T11:10:03.926083Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:10:10.953251682Z stdout F {"level": "error", "ts": "2026-10-14T11:10:10.953251Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:10:11.338033275Z stdout F {"level": "info", "ts": "2026-10-14T11:10:11.338033Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:10:12.835372974Z stdout F {"level": "error", "ts": "2026-10-14T11:10:12.835372Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:10:15.366602630Z stdout F {"level": "error", "ts": "2026-10-14T11:10:15.366602Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:10:19.022011473Z stdout F {"level": "info", "ts": "2026-10-14T11:10:19.022011Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:10:24.909833475Z stderr F W1014 11:10:24.909833       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:10:30.726921518Z stdout F {"level": "error", "ts": "2026-10-14T11:10:30.726921Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:10:33.437362444Z stdout F {"level": "info", "ts": "2026-10-14T11:10:33.437362Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:10:33.782412478Z stdout F {"level": "error", "ts": "2026-10-14T11:10:33.782412Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:10:43.616630507Z stdout F {"level": "info", "ts": "2026-10-14T11:10:43.616630Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:10:44.033031123Z stderr F W1014 11:10:44.033031       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:10:45.614882050Z stdout F {"level": "info", "ts": "2026-10-14T11:10:45.614882Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:10:54.514404707Z stdout F {"level": "info", "ts": "2026-10-14T11:10:54.514404Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:10:58.053809666Z stdout F {"level": "info", "ts": "2026-10-14T11:10:58.053809Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:11:01.792896588Z stdout F {"level": "info", "ts": "2026-10-14T11:11:01.792896Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T11:11:07.009109207Z stdout F {"level": "info", "ts": "2026-10-14T11:11:07.009109Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:11:10.880333924Z stdout F {"level": "info", "ts": "2026-10-14T11:11:10.880333Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:11:24.420094637Z stdout F {"level": "info", "ts": "2026-10-14T11:11:24.420094Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:11:27.012172944Z stdout F {"level": "info", "ts": "2026-10-14T11:11:27.012172Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T11:11:27.527867796Z stdout F {"level": "info", "ts": "2026-10-14T11:11:27.527867Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:11:31.081238925Z stderr F W1014 11:11:31.081238       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:11:33.239698816Z stdout F {"level": "info", "ts": "2026-10-14T11:11:33.239698Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:11:34.687279545Z stdout F {"level": "error", "ts": "2026-10-14T11:11:34.687279Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:11:36.392926541Z stdout F {"level": "error", "ts": "2026-10-14T11:11:36.392926Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:11:42.036167014Z stdout F {"level": "info", "ts": "2026-10-14T11:11:42.036167Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:11:49.958646391Z stdout F {"level": "info", "ts": "2026-10-14T11:11:49.958646Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:11:51.723061149Z stdout F {"level": "error", "ts": "2026-10-14T11:11:51.723061Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:11:53.018645529Z stdout F {"level": "info", "ts": "2026-10-14T11:11:53.018645Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:12:01.891889247Z stdout F {"level": "error", "ts": "2026-10-14T11:12:01.891889Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:12:05.461121743Z stdout F {"level": "info", "ts": "2026-10-14T11:12:05.461121Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:12:05.879308707Z stdout F {"level": "error", "ts": "2026-10-14T11:12:05.879308Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:12:17.499811540Z stdout F {"level": "error", "ts": "2026-10-14T11:12:17.499811Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:12:17.782937884Z stderr F W1014 11:12:17.782937       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:12:18.936382580Z stderr F W1014 11:12:18.936382       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:12:22.039192255Z stdout F {"level": "info", "ts": "2026-10-14T11:12:22.039192Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:12:34.566618545Z stdout F {"level": "info", "ts": "2026-10-14T11:12:34.566618Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T11:12:37.738944424Z stdout F {"level": "info", "ts": "2026-10-14T11:12:37.738944Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:12:37.782637996Z stdout F {"level": "info", "ts": "2026-10-14T11:12:37.782637Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:12:45.765515386Z stdout F {"level": "error", "ts": "2026-10-14T11:12:45.765515Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:12:51.596404512Z stdout F {"level": "info", "ts": "2026-10-14T11:12:51.596404Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:12:55.516175847Z stdout F {"level": "info", "ts": "2026-10-14T11:12:55.516175Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:12:57.541747061Z stdout F {"level": "info", "ts": "2026-10-14T11:12:57.541747Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:12:58.535055151Z stdout F {"level": "info", "ts": "2026-10-14T11:12:58.535055Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:13:05.266958075Z stdout F {"level": "error", "ts": "2026-10-14T11:13:05.266958Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:13:07.462502611Z stdout F {"level": "error", "ts": "2026-10-14T11:13:07.462502Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:13:09.674752886Z stdout F {"level": "info", "ts": "2026-10-14T11:13:09.674752Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:13:11.364700035Z stdout F {"level": "error", "ts": "2026-10-14T11:13:11.364700Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:13:40.021474690Z stdout F {"level": "info", "ts": "2026-10-14T11:13:40.021474Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:13:42.610694444Z stderr F W1014 11:13:42.610694       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:13:44.917653538Z stderr F W1014 11:13:44.917653       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:13:47.315771659Z stdout F {"level": "error", "ts": "2026-10-14T11:13:47.315771Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:13:50.742000282Z stdout F {"level": "error", "ts": "2026-10-14T11:13:50.742000Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:13:56.020466644Z stdout F {"level": "info", "ts": "2026-10-14T11:13:56.020466Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:13:59.819406690Z stderr F W1014 11:13:59.819406       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:14:00.911682542Z stdout F {"level": "error", "ts": "2026-10-14T11:14:00.911682Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:14:05.986243249Z stdout F {"level": "info", "ts": "2026-10-14T11:14:05.986243Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:14:07.708027319Z stdout F {"level": "error", "ts": "2026-10-14T11:14:07.708027Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:14:09.991468122Z stdout F {"level": "info", "ts": "2026-10-14T11:14:09.991468Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:14:12.849298130Z stdout F {"level": "error", "ts": "2026-10-14T11:14:12.849298Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:14:27.772139166Z stdout F {"level": "error", "ts": "2026-10-14T11:14:27.772139Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:14:28.046458327Z stdout F {"level": "error", "ts": "2026-10-14T11:14:28.046458Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:14:46.920840786Z stdout F {"level": "info", "ts": "2026-10-14T11:14:46.920840Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T11:14:47.951882315Z stdout F {"level": "info", "ts": "2026-10-14T11:14:47.951882Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:14:48.394586512Z stdout F {"level": "info", "ts": "2026-10-14T11:14:48.394586Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:14:50.155024932Z stderr F W1014 11:14:50.155024       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:14:51.791611559Z stdout F {"level": "info", "ts": "2026-10-14T11:14:51.791611Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:14:53.553483666Z stdout F {"level": "info", "ts": "2026-10-14T11:14:53.553483Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:15:06.178422247Z stdout F {"level": "info", "ts": "2026-10-14T11:15:06.178422Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:15:07.453880051Z stdout F {"level": "info", "ts": "2026-10-14T11:15:07.453880Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:15:14.290686986Z stdout F {"level": "info", "ts": "2026-10-14T11:15:14.290686Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:15:15.207726626Z stdout F {"level": "error", "ts": "2026-10-14T11:15:15.207726Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:15:19.834549368Z stderr F W1014 11:15:19.834549       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:15:24.990252203Z stdout F {"level": "info", "ts": "2026-10-14T11:15:24.990252Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:15:28.296056838Z stdout F {"level": "error", "ts": "2026-10-14T11:15:28.296056Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:15:33.661244374Z stdout F {"level": "info", "ts": "2026-10-14T11:15:33.661244Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:15:38.533561205Z stdout F {"level": "error", "ts": "2026-10-14T11:15:38.533561Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:15:47.101344176Z stdout F {"level": "info", "ts": "2026-10-14T11:15:47.101344Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:15:48.047573077Z stdout F {"level": "info", "ts": "2026-10-14T11:15:48.047573Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:15:51.913990273Z stdout F {"level": "info", "ts": "2026-10-14T11:15:51.913990Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:15:54.212916096Z stdout F {"level": "info", "ts": "2026-10-14T11:15:54.212916Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:15:56.815118235Z stdout F {"level": "info", "ts": "2026-10-14T11:15:56.815118Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:16:15.604596251Z stdout F {"level": "error", "ts": "2026-10-14T11:16:15.604596Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:18.944370879Z stdout F {"level": "info", "ts": "2026-10-14T11:16:18.944370Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:16:19.290943989Z stdout F {"level": "info", "ts": "2026-10-14T11:16:19.290943Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:16:21.276649664Z stdout F {"level": "error", "ts": "2026-10-14T11:16:21.276649Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:30.711299647Z stdout F {"level": "error", "ts": "2026-10-14T11:16:30.711299Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:40.024328534Z stdout F {"level": "error", "ts": "2026-10-14T11:16:40.024328Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:40.610168235Z stdout F {"level": "info", "ts": "2026-10-14T11:16:40.610168Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T11:16:45.891731712Z stdout F {"level": "error", "ts": "2026-10-14T11:16:45.891731Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:50.534504056Z stdout F {"level": "error", "ts": "2026-10-14T11:16:50.534504Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:16:52.275122534Z stdout F {"level": "info", "ts": "2026-10-14T11:16:52.275122Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:17:00.883920552Z stdout F {"level": "info", "ts": "2026-10-14T11:17:00.883920Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:17:03.487384461Z stdout F {"level": "error", "ts": "2026-10-14T11:17:03.487384Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:05.396509639Z stdout F {"level": "info", "ts": "2026-10-14T11:17:05.396509Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:17:05.811603219Z stdout F {"level": "error", "ts": "2026-10-14T11:17:05.811603Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:06.489528081Z stderr F W1014 11:17:06.489528       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:17:07.159622661Z stdout F {"level": "info", "ts": "2026-10-14T11:17:07.159622Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:17:08.982793514Z stdout F {"level": "error", "ts": "2026-10-14T11:17:08.982793Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:10.133433127Z stdout F {"level": "info", "ts": "2026-10-14T11:17:10.133433Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:17:14.761622206Z stdout F {"level": "error", "ts": "2026-10-14T11:17:14.761622Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:18.057962686Z stderr F W1014 11:17:18.057962       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:17:18.176806830Z stdout F {"level": "info", "ts": "2026-10-14T11:17:18.176806Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:17:18.921413482Z stdout F {"level": "error", "ts": "2026-10-14T11:17:18.921413Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:21.069489275Z stdout F {"level": "info", "ts": "2026-10-14T11:17:21.069489Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:17:26.801704693Z stdout F {"level": "info", "ts": "2026-10-14T11:17:26.801704Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:17:42.629431810Z stdout F {"level": "error", "ts": "2026-10-14T11:17:42.629431Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:17:53.316132077Z stdout F {"level": "error", "ts": "2026-10-14T11:17:53.316132Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:18:00.258314630Z stderr F W1014 11:18:00.258314       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:18:11.131463285Z stdout F {"level": "info", "ts": "2026-10-14T11:18:11.131463Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:18:11.582503292Z stdout F {"level": "info", "ts": "2026-10-14T11:18:11.582503Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T11:18:21.326920116Z stdout F {"level": "error", "ts": "2026-10-14T11:18:21.326920Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:18:23.377235378Z stderr F W1014 11:18:23.377235       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:18:27.523126012Z stdout F {"level": "info", "ts": "2026-10-14T11:18:27.523126Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:18:34.643978336Z stdout F {"level": "info", "ts": "2026-10-14T11:18:34.643978Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:18:36.962638618Z stdout F {"level": "info", "ts": "2026-10-14T11:18:36.962638Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:18:43.374231142Z stderr F W1014 11:18:43.374231       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:18:50.716010577Z stdout F {"level": "error", "ts": "2026-10-14T11:18:50.716010Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:18:52.949577709Z stderr F W1014 11:18:52.949577       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:18:55.493122600Z stderr F W1014 11:18:55.493122       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:19:05.167325672Z stdout F {"level": "info", "ts": "2026-10-14T11:19:05.167325Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:19:15.167267870Z stderr F W1014 11:19:15.167267       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:19:32.417968696Z stdout F {"level": "info", "ts": "2026-10-14T11:19:32.417968Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:19:32.623416740Z stdout F {"level": "info", "ts": "2026-10-14T11:19:32.623416Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:19:37.193040347Z stdout F {"level": "info", "ts": "2026-10-14T11:19:37.193040Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:19:46.730605509Z stdout F {"level": "info", "ts": "2026-10-14T11:19:46.730605Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:19:57.225785332Z stdout F {"level": "info", "ts": "2026-10-14T11:19:57.225785Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:20:00.597341620Z stdout F {"level": "error", "ts": "2026-10-14T11:20:00.597341Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:01.852531267Z stdout F {"level": "info", "ts": "2026-10-14T11:20:01.852531Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:20:04.946087265Z stdout F {"level": "info", "ts": "2026-10-14T11:20:04.946087Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:20:05.769614627Z stdout F {"level": "info", "ts": "2026-10-14T11:20:05.769614Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:20:12.063495888Z stderr F W1014 11:20:12.063495       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:20:15.110984866Z stdout F {"level": "error", "ts": "2026-10-14T11:20:15.110984Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:17.318106368Z stdout F {"level": "error", "ts": "2026-10-14T11:20:17.318106Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:18.773294325Z stdout F {"level": "info", "ts": "2026-10-14T11:20:18.773294Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:20:19.728825735Z stdout F {"level": "error", "ts": "2026-10-14T11:20:19.728825Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:27.413152519Z stderr F W1014 11:20:27.413152       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:20:28.252338317Z stdout F {"level": "info", "ts": "2026-10-14T11:20:28.252338Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:20:31.051708019Z stdout F {"level": "info", "ts": "2026-10-14T11:20:31.051708Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:20:32.345094152Z stdout F {"level": "info", "ts": "2026-10-14T11:20:32.345094Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:20:37.342935533Z stdout F {"level": "error", "ts": "2026-10-14T11:20:37.342935Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:47.031513394Z stdout F {"level": "error", "ts": "2026-10-14T11:20:47.031513Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:20:55.517756210Z stdout F {"level": "info", "ts": "2026-10-14T11:20:55.517756Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:20:58.876591945Z stdout F {"level": "error", "ts": "2026-10-14T11:20:58.876591Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:21:07.781026144Z stdout F {"level": "info", "ts": "2026-10-14T11:21:07.781026Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:21:11.435643758Z stdout F {"level": "error", "ts": "2026-10-14T11:21:11.435643Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:21:16.634747986Z stdout F {"level": "info", "ts": "2026-10-14T11:21:16.634747Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:21:17.155673977Z stdout F {"level": "error", "ts": "2026-10-14T11:21:17.155673Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:21:32.151643432Z stdout F {"level": "error", "ts": "2026-10-14T11:21:32.151643Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:21:37.243694396Z stderr F W1014 11:21:37.243694       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:21:38.157611190Z stdout F {"level": "error", "ts": "2026-10-14T11:21:38.157611Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:21:45.335742139Z stdout F {"level": "info", "ts": "2026-10-14T11:21:45.335742Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:21:52.812325052Z stdout F {"level": "info", "ts": "2026-10-14T11:21:52.812325Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:22:09.980716532Z stdout F {"level": "error", "ts": "2026-10-14T11:22:09.980716Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:22:11.253151465Z stdout F {"level": "info", "ts": "2026-10-14T11:22:11.253151Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:22:13.141840165Z stdout F {"level": "info", "ts": "2026-10-14T11:22:13.141840Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:22:14.310311222Z stdout F {"level": "info", "ts": "2026-10-14T11:22:14.310311Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:22:15.362041299Z stderr F W1014 11:22:15.362041       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:22:17.731174822Z stdout F {"level": "info", "ts": "2026-10-14T11:22:17.731174Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:22:19.917131300Z stdout F {"level": "info", "ts": "2026-10-14T11:22:19.917131Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:22:27.222032958Z stdout F {"level": "error", "ts": "2026-10-14T11:22:27.222032Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:22:31.419577523Z stdout F {"level": "info", "ts": "2026-10-14T11:22:31.419577Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:22:31.627119940Z stderr F W1014 11:22:31.627119       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:22:32.755525226Z stdout F {"level": "info", "ts": "2026-10-14T11:22:32.755525Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:22:45.190928283Z stdout F {"level": "info", "ts": "2026-10-14T11:22:45.190928Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:22:53.456143443Z stdout F {"level": "info", "ts": "2026-10-14T11:22:53.456143Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:22:54.617763451Z stdout F {"level": "info", "ts": "2026-10-14T11:22:54.617763Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:23:12.310953674Z stdout F {"level": "error", "ts": "2026-10-14T11:23:12.310953Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:23:18.128911675Z stdout F {"level": "error", "ts": "2026-10-14T11:23:18.128911Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:23:22.759774352Z stdout F {"level": "info", "ts": "2026-10-14T11:23:22.759774Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:23:24.578011963Z stderr F W1014 11:23:24.578011       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:23:32.313084813Z stdout F {"level": "error", "ts": "2026-10-14T11:23:32.313084Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:23:33.444704631Z stderr F W1014 11:23:33.444704       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:23:39.149392266Z stdout F {"level": "info", "ts": "2026-10-14T11:23:39.149392Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:23:46.993978006Z stdout F {"level": "info", "ts": "2026-10-14T11:23:46.993978Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:23:47.951428207Z stdout F {"level": "error", "ts": "2026-10-14T11:23:47.951428Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:23:54.363158300Z stderr F W1014 11:23:54.363158       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:24:00.717405754Z stdout F {"level": "info", "ts": "2026-10-14T11:24:00.717405Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:24:18.301029925Z stdout F {"level": "info", "ts": "2026-10-14T11:24:18.301029Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:24:18.976953112Z stdout F {"level": "info", "ts": "2026-10-14T11:24:18.976953Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T11:24:24.554773780Z stderr F W1014 11:24:24.554773       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:25:04.182509336Z stdout F {"level": "error", "ts": "2026-10-14T11:25:04.182509Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:25:14.693803148Z stdout F {"level": "info", "ts": "2026-10-14T11:25:14.693803Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T11:25:18.021336005Z stdout F {"level": "error", "ts": "2026-10-14T11:25:18.021336Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:25:18.262317555Z stdout F {"level": "error", "ts": "2026-10-14T11:25:18.262317Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:25:20.529062546Z stderr F W1014 11:25:20.529062       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:25:24.145688195Z stdout F {"level": "info", "ts": "2026-10-14T11:25:24.145688Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:25:27.439829531Z stdout F {"level": "info", "ts": "2026-10-14T11:25:27.439829Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:25:42.034864825Z stdout F {"level": "error", "ts": "2026-10-14T11:25:42.034864Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:25:46.933890006Z stdout F {"level": "info", "ts": "2026-10-14T11:25:46.933890Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:25:48.269617646Z stdout F {"level": "info", "ts": "2026-10-14T11:25:48.269617Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:25:53.114131853Z stderr F W1014 11:25:53.114131       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:26:01.094910015Z stdout F {"level": "error", "ts": "2026-10-14T11:26:01.094910Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:26:01.400764594Z stderr F W1014 11:26:01.400764       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:26:03.816358242Z stdout F {"level": "error", "ts": "2026-10-14T11:26:03.816358Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:26:04.206495556Z stderr F W1014 11:26:04.206495       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:26:09.879066051Z stdout F {"level": "info", "ts": "2026-10-14T11:26:09.879066Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:26:09.993900707Z stderr F W1014 11:26:09.993900       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:26:11.821148853Z stdout F {"level": "error", "ts": "2026-10-14T11:26:11.821148Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:26:18.336596621Z stdout F {"level": "error", "ts": "2026-10-14T11:26:18.336596Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:26:31.957001508Z stdout F {"level": "info", "ts": "2026-10-14T11:26:31.957001Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:26:35.668442417Z stdout F {"level": "info", "ts": "2026-10-14T11:26:35.668442Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:26:41.846583672Z stdout F {"level": "info", "ts": "2026-10-14T11:26:41.846583Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:26:45.510015890Z stdout F {"level": "info", "ts": "2026-10-14T11:26:45.510015Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:26:49.916700797Z stdout F {"level": "info", "ts": "2026-10-14T11:26:49.916700Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T11:26:51.459133837Z stdout F {"level": "error", "ts": "2026-10-14T11:26:51.459133Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:27:17.815010701Z stdout F {"level": "info", "ts": "2026-10-14T11:27:17.815010Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:27:29.445736530Z stderr F W1014 11:27:29.445736       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:27:35.281144545Z stderr F W1014 11:27:35.281144       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:27:45.295919729Z stdout F {"level": "error", "ts": "2026-10-14T11:27:45.295919Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:27:45.424159333Z stderr F W1014 11:27:45.424159       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:27:46.831127161Z stdout F {"level": "info", "ts": "2026-10-14T11:27:46.831127Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:27:54.203255770Z stdout F {"level": "error", "ts": "2026-10-14T11:27:54.203255Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:27:54.750783119Z stdout F {"level": "info", "ts": "2026-10-14T11:27:54.750783Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:27:59.140973465Z stdout F {"level": "info", "ts": "2026-10-14T11:27:59.140973Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T11:28:10.107371364Z stdout F {"level": "info", "ts": "2026-10-14T11:28:10.107371Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:28:10.305364894Z stdout F {"level": "info", "ts": "2026-10-14T11:28:10.305364Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:28:11.348323963Z stdout F {"level": "error", "ts": "2026-10-14T11:28:11.348323Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:28:12.508197621Z stderr F W1014 11:28:12.508197       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:28:20.947034299Z stdout F {"level": "info", "ts": "2026-10-14T11:28:20.947034Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T11:28:21.600414488Z stdout F {"level": "error", "ts": "2026-10-14T11:28:21.600414Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:28:26.500171955Z stdout F {"level": "error", "ts": "2026-10-14T11:28:26.500171Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:28:30.061318783Z stdout F {"level": "info", "ts": "2026-10-14T11:28:30.061318Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:28:33.248385561Z stdout F {"level": "info", "ts": "2026-10-14T11:28:33.248385Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:28:37.316130749Z stdout F {"level": "info", "ts": "2026-10-14T11:28:37.316130Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:28:37.783476605Z stdout F {"level": "info", "ts": "2026-10-14T11:28:37.783476Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:28:45.442672654Z stdout F {"level": "info", "ts": "2026-10-14T11:28:45.442672Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:28:51.555225322Z stdout F {"level": "error", "ts": "2026-10-14T11:28:51.555225Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:05.185547555Z stdout F {"level": "error", "ts": "2026-10-14T11:29:05.185547Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:07.653206084Z stdout F {"level": "info", "ts": "2026-10-14T11:29:07.653206Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:29:09.541525973Z stdout F {"level": "info", "ts": "2026-10-14T11:29:09.541525Z", "msg": "consumed batch", "count": 24, "lagMs": 4020}
+2026-10-14T11:29:12.017957549Z stdout F {"level": "info", "ts": "2026-10-14T11:29:12.017957Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:29:14.289589934Z stdout F {"level": "error", "ts": "2026-10-14T11:29:14.289589Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:17.633125391Z stdout F {"level": "info", "ts": "2026-10-14T11:29:17.633125Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:29:21.968620705Z stderr F W1014 11:29:21.968620       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:29:27.734106879Z stderr F W1014 11:29:27.734106       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:29:36.496767484Z stdout F {"level": "error", "ts": "2026-10-14T11:29:36.496767Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:48.831637566Z stdout F {"level": "info", "ts": "2026-10-14T11:29:48.831637Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:29:49.886214868Z stdout F {"level": "error", "ts": "2026-10-14T11:29:49.886214Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:52.633681960Z stdout F {"level": "error", "ts": "2026-10-14T11:29:52.633681Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:29:56.171298287Z stdout F {"level": "info", "ts": "2026-10-14T11:29:56.171298Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:30:05.897052326Z stdout F {"level": "error", "ts": "2026-10-14T11:30:05.897052Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:10.768262831Z stderr F W1014 11:30:10.768262       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:30:16.008519178Z stdout F {"level": "info", "ts": "2026-10-14T11:30:16.008519Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:30:18.046048022Z stdout F {"level": "info", "ts": "2026-10-14T11:30:18.046048Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:30:20.863141076Z stdout F {"level": "info", "ts": "2026-10-14T11:30:20.863141Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T11:30:29.554205369Z stdout F {"level": "info", "ts": "2026-10-14T11:30:29.554205Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:30:33.192391520Z stdout F {"level": "error", "ts": "2026-10-14T11:30:33.192391Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:35.734053644Z stdout F {"level": "info", "ts": "2026-10-14T11:30:35.734053Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:30:39.072403931Z stdout F {"level": "info", "ts": "2026-10-14T11:30:39.072403Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:30:39.447901888Z stdout F {"level": "info", "ts": "2026-10-14T11:30:39.447901Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:30:41.104784520Z stdout F {"level": "error", "ts": "2026-10-14T11:30:41.104784Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:45.648323707Z stdout F {"level": "error", "ts": "2026-10-14T11:30:45.648323Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:50.294924106Z stdout F {"level": "info", "ts": "2026-10-14T11:30:50.294924Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:30:51.938588274Z stderr F W1014 11:30:51.938588       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:30:54.415211171Z stdout F {"level": "error", "ts": "2026-10-14T11:30:54.415211Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:58.625559527Z stdout F {"level": "error", "ts": "2026-10-14T11:30:58.625559Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:30:59.525028871Z stdout F {"level": "info", "ts": "2026-10-14T11:30:59.525028Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:31:00.958097591Z stderr F W1014 11:31:00.958097       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:31:04.019903540Z stdout F {"level": "info", "ts": "2026-10-14T11:31:04.019903Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:31:13.202506729Z stdout F {"level": "error", "ts": "2026-10-14T11:31:13.202506Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:31:27.892802891Z stdout F {"level": "info", "ts": "2026-10-14T11:31:27.892802Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:31:41.919310544Z stdout F {"level": "error", "ts": "2026-10-14T11:31:41.919310Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:31:42.042252397Z stdout F {"level": "info", "ts": "2026-10-14T11:31:42.042252Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:31:45.483102353Z stdout F {"level": "error", "ts": "2026-10-14T11:31:45.483102Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:31:55.021511398Z stdout F {"level": "info", "ts": "2026-10-14T11:31:55.021511Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:31:56.417898818Z stdout F {"level": "info", "ts": "2026-10-14T11:31:56.417898Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:32:11.652194532Z stderr F W1014 11:32:11.652194       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:32:12.927570201Z stdout F {"level": "error", "ts": "2026-10-14T11:32:12.927570Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:14.110849869Z stdout F {"level": "error", "ts": "2026-10-14T11:32:14.110849Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:17.963286270Z stdout F {"level": "error", "ts": "2026-10-14T11:32:17.963286Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:24.254564641Z stdout F {"level": "info", "ts": "2026-10-14T11:32:24.254564Z", "msg": "consumed batch", "count": 47, "lagMs": 4020}
+2026-10-14T11:32:25.812868790Z stdout F {"level": "info", "ts": "2026-10-14T11:32:25.812868Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:32:30.178132689Z stdout F {"level": "error", "ts": "2026-10-14T11:32:30.178132Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:33.142985320Z stdout F {"level": "error", "ts": "2026-10-14T11:32:33.142985Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:41.036533468Z stdout F {"level": "error", "ts": "2026-10-14T11:32:41.036533Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:32:45.557797704Z stdout F {"level": "info", "ts": "2026-10-14T11:32:45.557797Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:32:54.033293494Z stdout F {"level": "info", "ts": "2026-10-14T11:32:54.033293Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:32:55.205554104Z stdout F {"level": "error", "ts": "2026-10-14T11:32:55.205554Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:33:01.754255393Z stdout F {"level": "info", "ts": "2026-10-14T11:33:01.754255Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:33:14.177719303Z stdout F {"level": "info", "ts": "2026-10-14T11:33:14.177719Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:33:17.658792409Z stderr F W1014 11:33:17.658792       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:33:20.079023063Z stdout F {"level": "info", "ts": "2026-10-14T11:33:20.079023Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:33:21.274923149Z stdout F {"level": "info", "ts": "2026-10-14T11:33:21.274923Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:33:21.747078214Z stdout F {"level": "info", "ts": "2026-10-14T11:33:21.747078Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T11:33:22.506234746Z stderr F W1014 11:33:22.506234       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:33:22.533710260Z stdout F {"level": "info", "ts": "2026-10-14T11:33:22.533710Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:33:23.998799706Z stdout F {"level": "info", "ts": "2026-10-14T11:33:23.998799Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:33:30.731685587Z stdout F {"level": "info", "ts": "2026-10-14T11:33:30.731685Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:33:38.514562627Z stdout F {"level": "info", "ts": "2026-10-14T11:33:38.514562Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:33:39.380761088Z stdout F {"level": "error", "ts": "2026-10-14T11:33:39.380761Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:33:42.119166420Z stdout F {"level": "error", "ts": "2026-10-14T11:33:42.119166Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:33:43.916336916Z stdout F {"level": "info", "ts": "2026-10-14T11:33:43.916336Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T11:33:44.979243890Z stdout F {"level": "error", "ts": "2026-10-14T11:33:44.979243Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:33:45.311006009Z stdout F {"level": "info", "ts": "2026-10-14T11:33:45.311006Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:33:45.948497798Z stdout F {"level": "error", "ts": "2026-10-14T11:33:45.948497Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:33:55.087247381Z stdout F {"level": "info", "ts": "2026-10-14T11:33:55.087247Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:34:07.493304612Z stderr F W1014 11:34:07.493304       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:34:11.890510271Z stdout F {"level": "info", "ts": "2026-10-14T11:34:11.890510Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:34:16.310815089Z stdout F {"level": "info", "ts": "2026-10-14T11:34:16.310815Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:34:19.401691088Z stdout F {"level": "error", "ts": "2026-10-14T11:34:19.401691Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:34:20.495810284Z stdout F {"level": "info", "ts": "2026-10-14T11:34:20.495810Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:34:25.996210259Z stderr F W1014 11:34:25.996210       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:34:28.469783601Z stderr F W1014 11:34:28.469783       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:34:32.607842461Z stdout F {"level": "info", "ts": "2026-10-14T11:34:32.607842Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:34:46.135050471Z stdout F {"level": "info", "ts": "2026-10-14T11:34:46.135050Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:34:51.357692325Z stdout F {"level": "info", "ts": "2026-10-14T11:34:51.357692Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:35:02.173436421Z stdout F {"level": "error", "ts": "2026-10-14T11:35:02.173436Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:35:08.075670143Z stdout F {"level": "info", "ts": "2026-10-14T11:35:08.075670Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:35:12.009289059Z stderr F W1014 11:35:12.009289       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:35:25.641672012Z stdout F {"level": "info", "ts": "2026-10-14T11:35:25.641672Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:35:29.615824261Z stderr F W1014 11:35:29.615824       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:35:38.560901514Z stdout F {"level": "error", "ts": "2026-10-14T11:35:38.560901Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:35:38.645526084Z stdout F {"level": "info", "ts": "2026-10-14T11:35:38.645526Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T11:35:44.565089037Z stdout F {"level": "error", "ts": "2026-10-14T11:35:44.565089Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:35:47.065556429Z stderr F W1014 11:35:47.065556       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:35:49.085406405Z stdout F {"level": "info", "ts": "2026-10-14T11:35:49.085406Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:35:53.809804608Z stdout F {"level": "info", "ts": "2026-10-14T11:35:53.809804Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:36:01.158950321Z stdout F {"level": "error", "ts": "2026-10-14T11:36:01.158950Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:36:02.146921864Z stdout F {"level": "info", "ts": "2026-10-14T11:36:02.146921Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:36:02.719187944Z stderr F W1014 11:36:02.719187       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:36:07.303144352Z stdout F {"level": "info", "ts": "2026-10-14T11:36:07.303144Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:36:09.739418561Z stdout F {"level": "info", "ts": "2026-10-14T11:36:09.739418Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:36:10.155113920Z stderr F W1014 11:36:10.155113       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:36:16.058783530Z stdout F {"level": "info", "ts": "2026-10-14T11:36:16.058783Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:36:16.954463006Z stdout F {"level": "info", "ts": "2026-10-14T11:36:16.954463Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:36:17.287190112Z stdout F {"level": "info", "ts": "2026-10-14T11:36:17.287190Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:36:18.991772279Z stdout F {"level": "error", "ts": "2026-10-14T11:36:18.991772Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:36:22.574215433Z stdout F {"level": "info", "ts": "2026-10-14T11:36:22.574215Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:36:28.404377414Z stdout F {"level": "info", "ts": "2026-10-14T11:36:28.404377Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:36:30.469020916Z stdout F {"level": "info", "ts": "2026-10-14T11:36:30.469020Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:36:47.618433497Z stdout F {"level": "info", "ts": "2026-10-14T11:36:47.618433Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:37:15.507444291Z stdout F {"level": "info", "ts": "2026-10-14T11:37:15.507444Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:37:21.182610913Z stdout F {"level": "info", "ts": "2026-10-14T11:37:21.182610Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T11:37:22.383340398Z stdout F {"level": "info", "ts": "2026-10-14T11:37:22.383340Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:37:23.531734662Z stdout F {"level": "error", "ts": "2026-10-14T11:37:23.531734Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:37:34.412973100Z stdout F {"level": "info", "ts": "2026-10-14T11:37:34.412973Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:37:35.848475784Z stdout F {"level": "info", "ts": "2026-10-14T11:37:35.848475Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:37:36.293281329Z stdout F {"level": "info", "ts": "2026-10-14T11:37:36.293281Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:37:42.294720868Z stdout F {"level": "info", "ts": "2026-10-14T11:37:42.294720Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:37:43.726992328Z stdout F {"level": "error", "ts": "2026-10-14T11:37:43.726992Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:37:45.098450837Z stdout F {"level": "error", "ts": "2026-10-14T11:37:45.098450Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:37:48.992430062Z stdout F {"level": "info", "ts": "2026-10-14T11:37:48.992430Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:37:56.673215152Z stdout F {"level": "error", "ts": "2026-10-14T11:37:56.673215Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:38:02.173783087Z stdout F {"level": "error", "ts": "2026-10-14T11:38:02.173783Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:38:03.951561517Z stdout F {"level": "info", "ts": "2026-10-14T11:38:03.951561Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:38:06.383534134Z stdout F {"level": "error", "ts": "2026-10-14T11:38:06.383534Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:38:17.219973976Z stdout F {"level": "info", "ts": "2026-10-14T11:38:17.219973Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:38:32.852510625Z stdout F {"level": "info", "ts": "2026-10-14T11:38:32.852510Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T11:38:33.920498165Z stdout F {"level": "info", "ts": "2026-10-14T11:38:33.920498Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:38:45.700739654Z stdout F {"level": "info", "ts": "2026-10-14T11:38:45.700739Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:38:53.293112696Z stdout F {"level": "error", "ts": "2026-10-14T11:38:53.293112Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:38:54.014469109Z stdout F {"level": "error", "ts": "2026-10-14T11:38:54.014469Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:39:03.459955226Z stdout F {"level": "info", "ts": "2026-10-14T11:39:03.459955Z", "msg": "consumed batch", "count": 21, "lagMs": 4020}
+2026-10-14T11:39:19.915056046Z stdout F {"level": "error", "ts": "2026-10-14T11:39:19.915056Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:39:37.760830473Z stdout F {"level": "info", "ts": "2026-10-14T11:39:37.760830Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:39:38.067671701Z stdout F {"level": "error", "ts": "2026-10-14T11:39:38.067671Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:39:49.710312193Z stderr F W1014 11:39:49.710312       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:39:50.317418328Z stdout F {"level": "info", "ts": "2026-10-14T11:39:50.317418Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:40:09.589662094Z stdout F {"level": "error", "ts": "2026-10-14T11:40:09.589662Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:15.449553149Z stdout F {"level": "error", "ts": "2026-10-14T11:40:15.449553Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:18.321489085Z stdout F {"level": "error", "ts": "2026-10-14T11:40:18.321489Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:20.504225431Z stdout F {"level": "info", "ts": "2026-10-14T11:40:20.504225Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:40:38.408910516Z stdout F {"level": "info", "ts": "2026-10-14T11:40:38.408910Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:40:38.506401685Z stderr F W1014 11:40:38.506401       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:40:39.142763968Z stdout F {"level": "error", "ts": "2026-10-14T11:40:39.142763Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:46.898560039Z stderr F W1014 11:40:46.898560       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:40:49.594906942Z stdout F {"level": "error", "ts": "2026-10-14T11:40:49.594906Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:50.958614295Z stdout F {"level": "error", "ts": "2026-10-14T11:40:50.958614Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:40:51.734601364Z stderr F W1014 11:40:51.734601       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:40:53.552611355Z stdout F {"level": "info", "ts": "2026-10-14T11:40:53.552611Z", "msg": "consumed batch", "count": 48, "lagMs": 4020}
+2026-10-14T11:41:09.763456728Z stdout F {"level": "info", "ts": "2026-10-14T11:41:09.763456Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:41:12.329276198Z stdout F {"level": "error", "ts": "2026-10-14T11:41:12.329276Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:41:13.810756028Z stdout F {"level": "info", "ts": "2026-10-14T11:41:13.810756Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T11:41:18.471868911Z stdout F {"level": "info", "ts": "2026-10-14T11:41:18.471868Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:41:35.630299680Z stdout F {"level": "info", "ts": "2026-10-14T11:41:35.630299Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:41:41.804500018Z stderr F W1014 11:41:41.804500       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:41:44.304246008Z stdout F {"level": "error", "ts": "2026-10-14T11:41:44.304246Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:41:44.474561956Z stdout F {"level": "error", "ts": "2026-10-14T11:41:44.474561Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:41:46.957069425Z stdout F {"level": "info", "ts": "2026-10-14T11:41:46.957069Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T11:41:47.864790933Z stdout F {"level": "info", "ts": "2026-10-14T11:41:47.864790Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:41:51.065321493Z stdout F {"level": "info", "ts": "2026-10-14T11:41:51.065321Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:41:51.358572501Z stderr F W1014 11:41:51.358572       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:41:52.772365619Z stdout F {"level": "info", "ts": "2026-10-14T11:41:52.772365Z", "msg": "consumed batch", "count": 26, "lagMs": 4020}
+2026-10-14T11:41:56.497995582Z stdout F {"level": "info", "ts": "2026-10-14T11:41:56.497995Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:42:14.558942574Z stdout F {"level": "info", "ts": "2026-10-14T11:42:14.558942Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:42:30.393293370Z stdout F {"level": "info", "ts": "2026-10-14T11:42:30.393293Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:42:30.858650418Z stdout F {"level": "info", "ts": "2026-10-14T11:42:30.858650Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T11:42:31.201465955Z stdout F {"level": "info", "ts": "2026-10-14T11:42:31.201465Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:42:43.983289129Z stderr F W1014 11:42:43.983289       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:42:46.244218185Z stdout F {"level": "info", "ts": "2026-10-14T11:42:46.244218Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:42:48.973406251Z stdout F {"level": "info", "ts": "2026-10-14T11:42:48.973406Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:42:50.689148704Z stdout F {"level": "error", "ts": "2026-10-14T11:42:50.689148Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:42:59.794964924Z stdout F {"level": "error", "ts": "2026-10-14T11:42:59.794964Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:43:02.050236765Z stdout F {"level": "info", "ts": "2026-10-14T11:43:02.050236Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:43:07.599840934Z stdout F {"level": "error", "ts": "2026-10-14T11:43:07.599840Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:43:08.409903200Z stdout F {"level": "info", "ts": "2026-10-14T11:43:08.409903Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:43:08.427455790Z stdout F {"level": "info", "ts": "2026-10-14T11:43:08.427455Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:43:32.427183348Z stdout F {"level": "info", "ts": "2026-10-14T11:43:32.427183Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:43:41.606209297Z stdout F {"level": "error", "ts": "2026-10-14T11:43:41.606209Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:43:41.696029721Z stdout F {"level": "info", "ts": "2026-10-14T11:43:41.696029Z", "msg": "consumed batch", "count": 29, "lagMs": 4020}
+2026-10-14T11:43:47.156825997Z stdout F {"level": "info", "ts": "2026-10-14T11:43:47.156825Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:43:47.383901111Z stdout F {"level": "info", "ts": "2026-10-14T11:43:47.383901Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:43:49.582187915Z stdout F {"level": "info", "ts": "2026-10-14T11:43:49.582187Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:43:54.480921626Z stdout F {"level": "info", "ts": "2026-10-14T11:43:54.480921Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:43:56.101696777Z stdout F {"level": "info", "ts": "2026-10-14T11:43:56.101696Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:43:59.584074809Z stderr F W1014 11:43:59.584074       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:44:00.590385589Z stdout F {"level": "error", "ts": "2026-10-14T11:44:00.590385Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:01.077149650Z stdout F {"level": "info", "ts": "2026-10-14T11:44:01.077149Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:44:04.947556572Z stdout F {"level": "info", "ts": "2026-10-14T11:44:04.947556Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:44:09.626963489Z stdout F {"level": "error", "ts": "2026-10-14T11:44:09.626963Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:10.704255864Z stdout F {"level": "error", "ts": "2026-10-14T11:44:10.704255Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:11.416448412Z stdout F {"level": "info", "ts": "2026-10-14T11:44:11.416448Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:44:13.202080929Z stdout F {"level": "info", "ts": "2026-10-14T11:44:13.202080Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:44:14.093601443Z stdout F {"level": "info", "ts": "2026-10-14T11:44:14.093601Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:44:15.586845652Z stdout F {"level": "info", "ts": "2026-10-14T11:44:15.586845Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:44:18.491903538Z stdout F {"level": "info", "ts": "2026-10-14T11:44:18.491903Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:44:22.339297792Z stdout F {"level": "info", "ts": "2026-10-14T11:44:22.339297Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:44:25.054108172Z stdout F {"level": "error", "ts": "2026-10-14T11:44:25.054108Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:25.385999705Z stdout F {"level": "error", "ts": "2026-10-14T11:44:25.385999Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:32.693662722Z stdout F {"level": "error", "ts": "2026-10-14T11:44:32.693662Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:33.088210286Z stdout F {"level": "info", "ts": "2026-10-14T11:44:33.088210Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:44:33.249357471Z stdout F {"level": "error", "ts": "2026-10-14T11:44:33.249357Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:44:38.090379505Z stdout F {"level": "info", "ts": "2026-10-14T11:44:38.090379Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:44:43.738749109Z stdout F {"level": "info", "ts": "2026-10-14T11:44:43.738749Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:44:45.848371472Z stdout F {"level": "info", "ts": "2026-10-14T11:44:45.848371Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:44:45.895121047Z stdout F {"level": "info", "ts": "2026-10-14T11:44:45.895121Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:44:51.103529044Z stdout F {"level": "info", "ts": "2026-10-14T11:44:51.103529Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:45:00.133608860Z stdout F {"level": "info", "ts": "2026-10-14T11:45:00.133608Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:45:01.632129401Z stdout F {"level": "info", "ts": "2026-10-14T11:45:01.632129Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:45:06.514608743Z stdout F {"level": "info", "ts": "2026-10-14T11:45:06.514608Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:45:06.980252405Z stdout F {"level": "error", "ts": "2026-10-14T11:45:06.980252Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:45:18.636299888Z stderr F W1014 11:45:18.636299       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:45:23.409341969Z stdout F {"level": "info", "ts": "2026-10-14T11:45:23.409341Z", "msg": "consumed batch", "count": 20, "lagMs": 4020}
+2026-10-14T11:45:25.625380425Z stdout F {"level": "info", "ts": "2026-10-14T11:45:25.625380Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:45:33.605653182Z stdout F {"level": "info", "ts": "2026-10-14T11:45:33.605653Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:45:33.936828535Z stdout F {"level": "info", "ts": "2026-10-14T11:45:33.936828Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:45:38.145463759Z stdout F {"level": "info", "ts": "2026-10-14T11:45:38.145463Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:45:47.977169857Z stdout F {"level": "info", "ts": "2026-10-14T11:45:47.977169Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:45:58.950778801Z stderr F W1014 11:45:58.950778       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:46:02.128246894Z stdout F {"level": "error", "ts": "2026-10-14T11:46:02.128246Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:46:02.696155580Z stdout F {"level": "error", "ts": "2026-10-14T11:46:02.696155Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:46:08.640606456Z stdout F {"level": "info", "ts": "2026-10-14T11:46:08.640606Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T11:46:16.021335721Z stdout F {"level": "error", "ts": "2026-10-14T11:46:16.021335Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:46:19.313200981Z stdout F {"level": "info", "ts": "2026-10-14T11:46:19.313200Z", "msg": "consumed batch", "count": 28, "lagMs": 4020}
+2026-10-14T11:46:22.975395095Z stdout F {"level": "info", "ts": "2026-10-14T11:46:22.975395Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:46:30.094089514Z stdout F {"level": "info", "ts": "2026-10-14T11:46:30.094089Z", "msg": "consumed batch", "count": 1, "lagMs": 4020}
+2026-10-14T11:46:31.644793630Z stdout F {"level": "info", "ts": "2026-10-14T11:46:31.644793Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:46:45.227527027Z stdout F {"level": "error", "ts": "2026-10-14T11:46:45.227527Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:46:52.672957382Z stdout F {"level": "error", "ts": "2026-10-14T11:46:52.672957Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:46:58.791251963Z stdout F {"level": "info", "ts": "2026-10-14T11:46:58.791251Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:47:04.682749400Z stdout F {"level": "error", "ts": "2026-10-14T11:47:04.682749Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:47:10.119872699Z stdout F {"level": "info", "ts": "2026-10-14T11:47:10.119872Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:47:20.607521115Z stdout F {"level": "info", "ts": "2026-10-14T11:47:20.607521Z", "msg": "consumed batch", "count": 32, "lagMs": 4020}
+2026-10-14T11:47:26.375351411Z stdout F {"level": "info", "ts": "2026-10-14T11:47:26.375351Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:47:28.251759514Z stdout F {"level": "error", "ts": "2026-10-14T11:47:28.251759Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:47:29.530880823Z stderr F W1014 11:47:29.530880       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:47:33.054890779Z stdout F {"level": "info", "ts": "2026-10-14T11:47:33.054890Z", "msg": "consumed batch", "count": 41, "lagMs": 4020}
+2026-10-14T11:47:34.107047354Z stderr F W1014 11:47:34.107047       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:47:37.649305316Z stderr F W1014 11:47:37.649305       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:47:39.595984921Z stderr F W1014 11:47:39.595984       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:47:48.945204282Z stdout F {"level": "error", "ts": "2026-10-14T11:47:48.945204Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:47:50.467612351Z stdout F {"level": "error", "ts": "2026-10-14T11:47:50.467612Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:47:51.302373933Z stdout F {"level": "error", "ts": "2026-10-14T11:47:51.302373Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:47:53.361083488Z stderr F W1014 11:47:53.361083       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:48:02.846230609Z stderr F W1014 11:48:02.846230       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:48:06.886555680Z stdout F {"level": "error", "ts": "2026-10-14T11:48:06.886555Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:48:10.100990598Z stdout F {"level": "info", "ts": "2026-10-14T11:48:10.100990Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:48:13.628599831Z stdout F {"level": "info", "ts": "2026-10-14T11:48:13.628599Z", "msg": "consumed batch", "count": 22, "lagMs": 4020}
+2026-10-14T11:48:14.289215310Z stdout F {"level": "info", "ts": "2026-10-14T11:48:14.289215Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:48:40.991310093Z stdout F {"level": "info", "ts": "2026-10-14T11:48:40.991310Z", "msg": "consumed batch", "count": 11, "lagMs": 4020}
+2026-10-14T11:48:43.153362355Z stderr F W1014 11:48:43.153362       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:48:50.633282992Z stdout F {"level": "error", "ts": "2026-10-14T11:48:50.633282Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:48:54.439301579Z stdout F {"level": "info", "ts": "2026-10-14T11:48:54.439301Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:49:24.868532309Z stdout F {"level": "info", "ts": "2026-10-14T11:49:24.868532Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T11:49:25.126542557Z stdout F {"level": "info", "ts": "2026-10-14T11:49:25.126542Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:49:25.367352775Z stdout F {"level": "info", "ts": "2026-10-14T11:49:25.367352Z", "msg": "consumed batch", "count": 25, "lagMs": 4020}
+2026-10-14T11:49:33.707837104Z stdout F {"level": "info", "ts": "2026-10-14T11:49:33.707837Z", "msg": "consumed batch", "count": 23, "lagMs": 4020}
+2026-10-14T11:49:38.549847877Z stdout F {"level": "info", "ts": "2026-10-14T11:49:38.549847Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:49:43.373188169Z stdout F {"level": "info", "ts": "2026-10-14T11:49:43.373188Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:49:54.418182167Z stdout F {"level": "info", "ts": "2026-10-14T11:49:54.418182Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:49:57.378216998Z stderr F W1014 11:49:57.378216       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:49:59.563280888Z stdout F {"level": "info", "ts": "2026-10-14T11:49:59.563280Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:50:03.452552152Z stdout F {"level": "info", "ts": "2026-10-14T11:50:03.452552Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:50:15.603495899Z stdout F {"level": "error", "ts": "2026-10-14T11:50:15.603495Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:50:15.873912922Z stdout F {"level": "info", "ts": "2026-10-14T11:50:15.873912Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:50:18.953688885Z stdout F {"level": "error", "ts": "2026-10-14T11:50:18.953688Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:50:19.740494936Z stdout F {"level": "info", "ts": "2026-10-14T11:50:19.740494Z", "msg": "consumed batch", "count": 27, "lagMs": 4020}
+2026-10-14T11:50:21.122131722Z stderr F W1014 11:50:21.122131       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:50:25.048628249Z stdout F {"level": "info", "ts": "2026-10-14T11:50:25.048628Z", "msg": "consumed batch", "count": 50, "lagMs": 4020}
+2026-10-14T11:50:27.966737917Z stdout F {"level": "info", "ts": "2026-10-14T11:50:27.966737Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:50:28.729495612Z stdout F {"level": "info", "ts": "2026-10-14T11:50:28.729495Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:50:42.245634272Z stderr F W1014 11:50:42.245634       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:50:48.608456662Z stdout F {"level": "info", "ts": "2026-10-14T11:50:48.608456Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:50:50.682327588Z stdout F {"level": "info", "ts": "2026-10-14T11:50:50.682327Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:50:54.377724325Z stderr F W1014 11:50:54.377724       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:50:57.230517247Z stdout F {"level": "info", "ts": "2026-10-14T11:50:57.230517Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:50:57.790929672Z stdout F {"level": "info", "ts": "2026-10-14T11:50:57.790929Z", "msg": "consumed batch", "count": 14, "lagMs": 4020}
+2026-10-14T11:50:57.953902664Z stdout F {"level": "info", "ts": "2026-10-14T11:50:57.953902Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:51:06.194168465Z stdout F {"level": "info", "ts": "2026-10-14T11:51:06.194168Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:51:06.213057077Z stdout F {"level": "info", "ts": "2026-10-14T11:51:06.213057Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:51:13.830838813Z stdout F {"level": "info", "ts": "2026-10-14T11:51:13.830838Z", "msg": "consumed batch", "count": 9, "lagMs": 4020}
+2026-10-14T11:51:18.755433598Z stdout F {"level": "info", "ts": "2026-10-14T11:51:18.755433Z", "msg": "consumed batch", "count": 10, "lagMs": 4020}
+2026-10-14T11:51:21.927962278Z stderr F W1014 11:51:21.927962       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:51:28.550713520Z stdout F {"level": "info", "ts": "2026-10-14T11:51:28.550713Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:51:29.469336437Z stdout F {"level": "error", "ts": "2026-10-14T11:51:29.469336Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:51:30.832887219Z stdout F {"level": "error", "ts": "2026-10-14T11:51:30.832887Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:51:35.515604653Z stdout F {"level": "info", "ts": "2026-10-14T11:51:35.515604Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:51:35.744963632Z stdout F {"level": "info", "ts": "2026-10-14T11:51:35.744963Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:51:36.559270304Z stdout F {"level": "error", "ts": "2026-10-14T11:51:36.559270Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:51:53.687022121Z stdout F {"level": "info", "ts": "2026-10-14T11:51:53.687022Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:52:00.125480693Z stdout F {"level": "info", "ts": "2026-10-14T11:52:00.125480Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:52:02.925475875Z stdout F {"level": "info", "ts": "2026-10-14T11:52:02.925475Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:52:04.190165341Z stdout F {"level": "info", "ts": "2026-10-14T11:52:04.190165Z", "msg": "consumed batch", "count": 36, "lagMs": 4020}
+2026-10-14T11:52:07.279537981Z stdout F {"level": "info", "ts": "2026-10-14T11:52:07.279537Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:52:11.781735297Z stdout F {"level": "info", "ts": "2026-10-14T11:52:11.781735Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:52:13.039178048Z stdout F {"level": "error", "ts": "2026-10-14T11:52:13.039178Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:52:18.856573637Z stdout F {"level": "info", "ts": "2026-10-14T11:52:18.856573Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:52:55.536529437Z stdout F {"level": "info", "ts": "2026-10-14T11:52:55.536529Z", "msg": "consumed batch", "count": 16, "lagMs": 4020}
+2026-10-14T11:53:02.763014248Z stdout F {"level": "info", "ts": "2026-10-14T11:53:02.763014Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:53:04.440744226Z stdout F {"level": "info", "ts": "2026-10-14T11:53:04.440744Z", "msg": "consumed batch", "count": 38, "lagMs": 4020}
+2026-10-14T11:53:05.880192473Z stderr F W1014 11:53:05.880192       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:53:06.357853794Z stdout F {"level": "error", "ts": "2026-10-14T11:53:06.357853Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:53:07.729934168Z stdout F {"level": "error", "ts": "2026-10-14T11:53:07.729934Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:53:08.566625694Z stdout F {"level": "info", "ts": "2026-10-14T11:53:08.566625Z", "msg": "consumed batch", "count": 2, "lagMs": 4020}
+2026-10-14T11:53:13.104365722Z stdout F {"level": "info", "ts": "2026-10-14T11:53:13.104365Z", "msg": "consumed batch", "count": 39, "lagMs": 4020}
+2026-10-14T11:53:14.553081689Z stdout F {"level": "info", "ts": "2026-10-14T11:53:14.553081Z", "msg": "consumed batch", "count": 33, "lagMs": 4020}
+2026-10-14T11:53:16.175626755Z stdout F {"level": "info", "ts": "2026-10-14T11:53:16.175626Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:53:22.105450462Z stdout F {"level": "info", "ts": "2026-10-14T11:53:22.105450Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T11:53:37.292983498Z stdout F {"level": "info", "ts": "2026-10-14T11:53:37.292983Z", "msg": "consumed batch", "count": 3, "lagMs": 4020}
+2026-10-14T11:53:38.046702763Z stderr F W1014 11:53:38.046702       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:53:46.752926936Z stdout F {"level": "error", "ts": "2026-10-14T11:53:46.752926Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:53:50.929514181Z stdout F {"level": "info", "ts": "2026-10-14T11:53:50.929514Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:53:58.197835543Z stdout F {"level": "error", "ts": "2026-10-14T11:53:58.197835Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:54:03.710792592Z stderr F W1014 11:54:03.710792       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:54:24.843430843Z stdout F {"level": "info", "ts": "2026-10-14T11:54:24.843430Z", "msg": "consumed batch", "count": 17, "lagMs": 4020}
+2026-10-14T11:54:31.538078603Z stdout F {"level": "info", "ts": "2026-10-14T11:54:31.538078Z", "msg": "consumed batch", "count": 45, "lagMs": 4020}
+2026-10-14T11:54:31.698778803Z stderr F W1014 11:54:31.698778       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:54:43.548666474Z stdout F {"level": "error", "ts": "2026-10-14T11:54:43.548666Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:54:58.689345860Z stdout F {"level": "error", "ts": "2026-10-14T11:54:58.689345Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:11.511817656Z stderr F W1014 11:55:11.511817       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:55:18.092496474Z stdout F {"level": "error", "ts": "2026-10-14T11:55:18.092496Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:22.619679408Z stdout F {"level": "error", "ts": "2026-10-14T11:55:22.619679Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:24.141995376Z stdout F {"level": "error", "ts": "2026-10-14T11:55:24.141995Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:26.803574463Z stdout F {"level": "info", "ts": "2026-10-14T11:55:26.803574Z", "msg": "consumed batch", "count": 43, "lagMs": 4020}
+2026-10-14T11:55:33.556115767Z stdout F {"level": "error", "ts": "2026-10-14T11:55:33.556115Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:36.046767550Z stdout F {"level": "error", "ts": "2026-10-14T11:55:36.046767Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:45.250289378Z stdout F {"level": "error", "ts": "2026-10-14T11:55:45.250289Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:55:48.952892800Z stdout F {"level": "info", "ts": "2026-10-14T11:55:48.952892Z", "msg": "consumed batch", "count": 49, "lagMs": 4020}
+2026-10-14T11:55:52.063730002Z stdout F {"level": "info", "ts": "2026-10-14T11:55:52.063730Z", "msg": "consumed batch", "count": 34, "lagMs": 4020}
+2026-10-14T11:56:02.112099887Z stdout F {"level": "error", "ts": "2026-10-14T11:56:02.112099Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:56:03.399219005Z stdout F {"level": "info", "ts": "2026-10-14T11:56:03.399219Z", "msg": "consumed batch", "count": 35, "lagMs": 4020}
+2026-10-14T11:56:04.502925578Z stdout F {"level": "info", "ts": "2026-10-14T11:56:04.502925Z", "msg": "consumed batch", "count": 30, "lagMs": 4020}
+2026-10-14T11:56:09.181338615Z stdout F {"level": "error", "ts": "2026-10-14T11:56:09.181338Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:56:15.454777576Z stdout F {"level": "info", "ts": "2026-10-14T11:56:15.454777Z", "msg": "consumed batch", "count": 42, "lagMs": 4020}
+2026-10-14T11:56:18.851437062Z stdout F {"level": "error", "ts": "2026-10-14T11:56:18.851437Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:56:21.537467932Z stdout F {"level": "error", "ts": "2026-10-14T11:56:21.537467Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:56:32.933644992Z stdout F {"level": "info", "ts": "2026-10-14T11:56:32.933644Z", "msg": "consumed batch", "count": 37, "lagMs": 4020}
+2026-10-14T11:56:46.901312276Z stdout F {"level": "info", "ts": "2026-10-14T11:56:46.901312Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:57:04.653179177Z stdout F {"level": "error", "ts": "2026-10-14T11:57:04.653179Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:57:05.611150191Z stderr F W1014 11:57:05.611150       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:57:06.687618604Z stdout F {"level": "info", "ts": "2026-10-14T11:57:06.687618Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:57:07.969573963Z stderr F W1014 11:57:07.969573       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:57:08.716538609Z stdout F {"level": "error", "ts": "2026-10-14T11:57:08.716538Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:57:09.577212501Z stdout F {"level": "info", "ts": "2026-10-14T11:57:09.577212Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:57:10.750768772Z stdout F {"level": "info", "ts": "2026-10-14T11:57:10.750768Z", "msg": "consumed batch", "count": 44, "lagMs": 4020}
+2026-10-14T11:57:11.034893293Z stdout F {"level": "info", "ts": "2026-10-14T11:57:11.034893Z", "msg": "consumed batch", "count": 6, "lagMs": 4020}
+2026-10-14T11:57:23.741481862Z stdout F {"level": "info", "ts": "2026-10-14T11:57:23.741481Z", "msg": "consumed batch", "count": 18, "lagMs": 4020}
+2026-10-14T11:57:26.075269351Z stdout F {"level": "info", "ts": "2026-10-14T11:57:26.075269Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:57:32.554703281Z stdout F {"level": "info", "ts": "2026-10-14T11:57:32.554703Z", "msg": "consumed batch", "count": 5, "lagMs": 4020}
+2026-10-14T11:57:34.811769391Z stdout F {"level": "info", "ts": "2026-10-14T11:57:34.811769Z", "msg": "consumed batch", "count": 13, "lagMs": 4020}
+2026-10-14T11:57:41.215559837Z stdout F {"level": "error", "ts": "2026-10-14T11:57:41.215559Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:57:41.506897782Z stdout F {"level": "error", "ts": "2026-10-14T11:57:41.506897Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:57:52.649693945Z stderr F W1014 11:57:52.649693       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:58:01.896009183Z stdout F {"level": "info", "ts": "2026-10-14T11:58:01.896009Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:58:02.103222246Z stdout F {"level": "error", "ts": "2026-10-14T11:58:02.103222Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:58:12.892523489Z stdout F {"level": "info", "ts": "2026-10-14T11:58:12.892523Z", "msg": "consumed batch", "count": 19, "lagMs": 4020}
+2026-10-14T11:58:17.050326211Z stdout F {"level": "info", "ts": "2026-10-14T11:58:17.050326Z", "msg": "consumed batch", "count": 31, "lagMs": 4020}
+2026-10-14T11:58:32.279411621Z stdout F {"level": "error", "ts": "2026-10-14T11:58:32.279411Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:58:37.056837865Z stdout F {"level": "info", "ts": "2026-10-14T11:58:37.056837Z", "msg": "consumed batch", "count": 7, "lagMs": 4020}
+2026-10-14T11:58:37.265279223Z stdout F {"level": "error", "ts": "2026-10-14T11:58:37.265279Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:58:41.303779951Z stdout F {"level": "info", "ts": "2026-10-14T11:58:41.303779Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:58:41.752073448Z stdout F {"level": "error", "ts": "2026-10-14T11:58:41.752073Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:58:57.738636631Z stderr F W1014 11:58:57.738636       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:59:08.087627474Z stdout F {"level": "info", "ts": "2026-10-14T11:59:08.087627Z", "msg": "consumed batch", "count": 46, "lagMs": 4020}
+2026-10-14T11:59:08.503778134Z stdout F {"level": "info", "ts": "2026-10-14T11:59:08.503778Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:59:08.631209417Z stdout F {"level": "info", "ts": "2026-10-14T11:59:08.631209Z", "msg": "consumed batch", "count": 4, "lagMs": 4020}
+2026-10-14T11:59:18.389899690Z stdout F {"level": "info", "ts": "2026-10-14T11:59:18.389899Z", "msg": "consumed batch", "count": 12, "lagMs": 4020}
+2026-10-14T11:59:26.212099280Z stdout F {"level": "error", "ts": "2026-10-14T11:59:26.212099Z", "msg": "handler failed", "topic": "orders.captured", "error": "upstream timeout"}
+2026-10-14T11:59:30.590876909Z stdout F {"level": "info", "ts": "2026-10-14T11:59:30.590876Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}
+2026-10-14T11:59:31.254499660Z stdout F {"level": "info", "ts": "2026-10-14T11:59:31.254499Z", "msg": "consumed batch", "count": 8, "lagMs": 4020}
+2026-10-14T11:59:35.380327359Z stdout F {"level": "info", "ts": "2026-10-14T11:59:35.380327Z", "msg": "consumed batch", "count": 40, "lagMs": 4020}
+2026-10-14T11:59:42.593005412Z stderr F W1014 11:59:42.593005       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version
+2026-10-14T11:59:53.308480330Z stdout F {"level": "info", "ts": "2026-10-14T11:59:53.308480Z", "msg": "consumed batch", "count": 15, "lagMs": 4020}

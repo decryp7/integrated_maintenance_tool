@@ -49,7 +49,7 @@ describe('FindingsView', () => {
     expect(items.some((i) => i.querySelector('imt-severity-badge')!.textContent?.includes('Info'))).toBe(true);
     expect(items.some((i) => i.querySelector('imt-severity-badge')!.textContent?.includes('Warning'))).toBe(true);
     // Sorted critical first.
-    expect(items[0].querySelector('imt-severity-badge')!.textContent).toContain('Critical');
+    expect(items[0]?.querySelector('imt-severity-badge')!.textContent).toContain('Critical');
     expect(text(fixture)).not.toContain('including regressions');
   });
 

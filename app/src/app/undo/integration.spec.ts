@@ -15,6 +15,7 @@ import { SavedQueryStore } from '../projects/bookmarks/saved-query.store';
 import { DashboardStore } from '../share/dashboard/dashboard.store';
 import { ReportStore } from '../share/report/report.store';
 import { UndoStack } from './undo-stack';
+import { at } from '../../testing/must';
 
 const record = (id = 7): RecordView => ({
   id, ts: 1_700_000_000_000, level: 'Error', message: 'Failed', template: null, exception: null, fields: {}, source: 0, sourceName: 'a', line: 1, group: 'g', markers: [],
@@ -39,7 +40,7 @@ describe('undoable UI-state edits', () => {
     b.addSelected();
     store.setRange(1, 2);
     b.addRange('r');
-    const id = b.items()[0].id;
+    const id = at(b.items(), 0).id;
     b.setNote(id, 'a');
     b.setNote(id, 'ab');
     b.remove(id);
@@ -48,7 +49,7 @@ describe('undoable UI-state edits', () => {
     expect(b.items().length).toBe(2);
     expect(undo.undoLabel()).toBe('bookmark note edit');
     await undo.undo();
-    expect(b.items()[0].note).toBe('');
+    expect(b.items()[0]?.note).toBe('');
     await undo.undo();
     await undo.undo();
     expect(b.items()).toEqual([]);
@@ -61,26 +62,26 @@ describe('undoable UI-state edits', () => {
     const { undo, store } = await setup();
     const h = TestBed.inject(HighlightRules);
     h.add({ field: '@level', op: 'eq', value: 'Error', color: '#f00' });
-    const id = h.items()[0].id;
+    const id = at(h.items(), 0).id;
     h.update(id, { value: 'Warning' });
     h.remove(id);
     expect(undo.undoLabel()).toBe('highlight rule removal');
     await undo.undo();
     await undo.undo();
-    expect(h.items()[0].value).toBe('Error');
+    expect(h.items()[0]?.value).toBe('Error');
     await undo.undo();
     expect(h.items()).toEqual([]);
 
     const q = TestBed.inject(SavedQueryStore);
     store.setTextInput('timeout');
     q.saveCurrent('');
-    const qid = q.items()[0].id;
+    const qid = at(q.items(), 0).id;
     q.rename(qid, 'Timeouts');
     q.remove(qid);
     await undo.undo();
-    expect(q.items()[0].name).toBe('Timeouts');
+    expect(q.items()[0]?.name).toBe('Timeouts');
     await undo.undo();
-    expect(q.items()[0].name).toBe('Query 1');
+    expect(q.items()[0]?.name).toBe('Query 1');
     await undo.undo();
     expect(q.items()).toEqual([]);
   });

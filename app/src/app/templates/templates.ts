@@ -29,5 +29,7 @@ export function bestTemplate(ratios: ReadonlyMap<string, number>): string | null
 
 /** "reads 95%" badge text. */
 export function ratioLabel(r: number): string {
-  return r <= 0 ? 'reads nothing' : `reads ${Math.round(r * 100)}%`;
+  if (r <= 0) return $localize`:@@templates.ratio.nothing:reads nothing`;
+  const pct = Math.round(r * 100);
+  return $localize`:@@templates.ratio.pct:reads ${pct}:pct:%`;
 }

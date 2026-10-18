@@ -4,6 +4,7 @@ import { EMPTY_QUERY } from '../workspace.store';
 import { MockBackend } from './mock-backend';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveSim, mockFamily, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { mockDurationMs, validateLiveSection } from './mock-live-profile';
+import { at } from '../../../testing/must';
 
 describe('mock live tail helpers', () => {
   it('derives log families like the engine', () => {
@@ -20,7 +21,7 @@ describe('mock live tail helpers', () => {
       ['20261017.log', '20261017.log'],
       ['x.zip', 'x'],
       ['.gz', '.gz'],
-    ]) {
+    ] as [string, string][]) {
       expect(mockFamily(name)).toBe(fam);
     }
     expect(mockGroupOf('/logs/app.log.1')).toBe('/logs/app.log');
@@ -79,11 +80,11 @@ describe('MockLiveSim', () => {
     expect(b1.alerts).toEqual([]);
     const b2 = sim.tick(list, 1_250, last, 200);
     expect(b2.rotations.length).toBe(1);
-    const rot = b2.rotations[0];
+    const rot = at(b2.rotations, 0);
     expect(rot.to).toBe(`${rot.from}.1`);
     expect(rot.replacement).toMatchObject({ id: 50, path: rot.from });
     expect(b2.alerts.length).toBe(1);
-    expect(b2.alerts[0].evidenceQuery.levels).toEqual(['Error', 'Fatal']);
+    expect(b2.alerts[0]?.evidenceQuery.levels).toEqual(['Error', 'Fatal']);
     list.push(rot.replacement);
     const b3 = sim.tick(list, 1_500, last, 300);
     expect(b3.records.some((r) => r.source === 50)).toBe(true);
@@ -113,9 +114,9 @@ describe('MockLiveSim', () => {
     expect(b.records[0]).toMatchObject({ source: 1, message: 'Live event 1', fields: { Live: true } });
     const realistic = new MockLiveSim({ tickMs: 1000, ratePerSec: 1, rotateEveryMs: 0, alertEveryMs: 0 }, () => 99);
     const r = realistic.tick(list, 5, () => prev, 0);
-    expect(r.records[0].fields).toMatchObject({ MachineName: 'WEB01', ProcessId: 100, Live: true });
+    expect(r.records[0]?.fields).toMatchObject({ MachineName: 'WEB01', ProcessId: 100, Live: true });
     expect(r.records.at(-1)!.message).toMatch(/^Process stats CPU/);
-    expect(realistic.tick([list[2]], 5, () => undefined, 0).records).toEqual([]);
+    expect(realistic.tick([at(list, 2)], 5, () => undefined, 0).records).toEqual([]);
     expect(emptyReport().idsChangedFrom).toBeNull();
   });
 });
@@ -143,7 +144,7 @@ describe('MockBackend live tail', () => {
     // Rotations report the per-file state changes: the old file rotated, the new one tailing.
     const rotation = reports.find((x) => x!.rotated.length > 0)!;
     expect(rotation.fileStates).toEqual([
-      { sourceId: rotation.rotated[0].sourceId, state: { kind: 'rotated' } },
+      { sourceId: at(rotation.rotated, 0).sourceId, state: { kind: 'rotated' } },
       { sourceId: rotation.added[0], state: { kind: 'tailing' } },
     ]);
     // Alerts carry distinct stable ids.
@@ -159,7 +160,7 @@ describe('MockBackend live tail', () => {
     expect(status.files.some((f) => f.state.kind === 'rotated')).toBe(true);
     expect(status.files.every((f) => f.mode === 'off')).toBe(true);
     await b.setLive(true, { watch: 'polling' });
-    expect((await b.tailStatus()).files[0].mode).toBe('polling');
+    expect((await b.tailStatus()).files[0]?.mode).toBe('polling');
     await b.setLive(false);
   });
 
@@ -220,7 +221,7 @@ describe('MockBackend live tail', () => {
     await b.setLive(false);
     expect(reports[0]).toMatchObject({ appended: 1, alertsRaised: 0 });
     const page = await b.queryPage({ query: { ...EMPTY_QUERY, text: 'Live event' }, offset: 0, limit: 5, descending: false });
-    expect(page.rows[0].message).toBe('Live event 1');
+    expect(page.rows[0]?.message).toBe('Live event 1');
     const synthetic = new MockBackend({ latency: false, syntheticTotal: 100, liveMs: 10 });
     const s: (TailReport | null)[] = [];
     await synthetic.onWorkspaceChanged((r) => s.push(r));

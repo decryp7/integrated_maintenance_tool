@@ -15,21 +15,21 @@ import { FacetPopover } from './facet-popover';
   imports: [Icon, FacetPopover],
   template: `
     <div class="head">
-      <span class="section-title">Fields</span>
-      <span class="faint small">coverage · distinct</span>
+      <span class="section-title" i18n="@@workspace.fields.title">Fields</span>
+      <span class="faint small" i18n="@@workspace.fields.legend">coverage · distinct</span>
     </div>
-    <input class="input filter" placeholder="Filter fields" aria-label="Filter fields" [value]="fieldFilter()" (input)="fieldFilter.set($any($event.target).value)" />
+    <input class="input filter" placeholder="Filter fields" i18n-placeholder="@@workspace.fields.filterPlaceholder" aria-label="Filter fields" i18n-aria-label="@@workspace.fields.filter" [value]="fieldFilter()" (input)="fieldFilter.set($any($event.target).value)" />
     <div class="fields">
       @for (f of fields(); track f.name) {
         <div class="field-wrap">
           <button class="field" [class.grouped]="isGrouped(f.name)" (click)="openFacet(f, $event)" [attr.aria-expanded]="facetField() === f.name">
             <span class="gmark" aria-hidden="true">{{ isGrouped(f.name) ? '⊞' : '' }}</span>
             <span class="mono fname ellipsis">{{ f.name }}</span>
-            @if (f.derived) { <span class="badge" title="Extracted by the profile">fx</span> }
-            <span class="cov" [title]="coverage(f) + '% of events'"><span [style.width.%]="coverage(f)"></span></span>
+            @if (f.derived) { <span class="badge" title="Extracted by the profile" i18n-title="@@workspace.fields.derived">fx</span> }
+            <span class="cov" [title]="coverageTitle(f)"><span [style.width.%]="coverage(f)"></span></span>
             <span class="mono faint distinct">{{ f.distinct >= 10000 ? '10k+' : compact(f.distinct) }}</span>
           </button>
-          <button class="icon-btn stats" type="button" [attr.aria-label]="'Statistics for ' + f.name" [title]="'Statistics…'" (click)="showStats(f.name)">
+          <button class="icon-btn stats" type="button" [attr.aria-label]="statsLabel(f.name)" title="Statistics…" i18n-title="@@workspace.fields.stats" (click)="showStats(f.name)">
             <imt-icon name="chart" [size]="12" />
           </button>
         </div>
@@ -87,6 +87,14 @@ export class FieldsPanel {
 
   protected isGrouped(name: string): boolean {
     return this.store.effectiveGroupBy().includes(name);
+  }
+
+  protected coverageTitle(f: FieldInfo): string {
+    return $localize`:@@workspace.fields.coverage:${this.coverage(f)}:percent:% of events`;
+  }
+
+  protected statsLabel(name: string): string {
+    return $localize`:@@workspace.fields.statsAria:Statistics for ${name}:name:`;
   }
 
   protected coverage(f: FieldInfo): number {

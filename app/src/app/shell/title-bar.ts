@@ -7,6 +7,7 @@ import { TitleExtras } from '../lifecycle/title-extras';
 import { MenuBar } from './menu/menu-bar';
 import { MENU_MODE } from './menu/app-menu.service';
 import { NativeMenuBridge } from './menu/native-menu';
+import { localizeDecimal } from '../i18n/locale';
 
 @Component({
   selector: 'imt-title-bar',
@@ -23,9 +24,9 @@ import { NativeMenuBridge } from './menu/native-menu';
       <imt-menu-bar class="menus" />
     }
     <div class="palette-wrap">
-      <button class="palette" (click)="openPalette()" title="Command palette (Ctrl/⌘+K)">
+      <button class="palette" (click)="openPalette()" title="Command palette (Ctrl/⌘+K)" i18n-title="@@shell.titleBar.paletteTitle">
         <imt-icon name="search" [size]="13" />
-        <span class="ellipsis">{{ store.summary()?.profileName ?? 'IMT' }} — type a command or press Ctrl/⌘+K</span>
+        <span class="ellipsis" i18n="@@shell.titleBar.palettePrompt">{{ store.summary()?.profileName ?? 'IMT' }} — type a command or press Ctrl/⌘+K</span>
         <span class="mono faint kbd">⌘K</span>
       </button>
     </div>
@@ -34,7 +35,7 @@ import { NativeMenuBridge } from './menu/native-menu';
         <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
       } @else if (store.summary(); as s) {
         <span class="dot" style="background: var(--mk-start)"></span>
-        <span>Indexed · {{ (s.loadMs / 1000).toFixed(1) }} s</span>
+        <span i18n="@@shell.titleBar.indexed">Indexed · {{ seconds(s.loadMs) }} s</span>
       }
     </div>
     <imt-title-extras />
@@ -47,7 +48,7 @@ import { NativeMenuBridge } from './menu/native-menu';
     .name { font-weight: 600; letter-spacing: 0.04em; }
     .palette-wrap { flex: 1; display: flex; justify-content: center; min-width: 0; }
     .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: 12px; cursor: text; }
-    .palette span:nth-child(2) { flex: 1; text-align: left; }
+    .palette span:nth-child(2) { flex: 1; text-align: start; }
     .kbd { font-size: 11px; }
     .state { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 12px; white-space: nowrap; }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
@@ -55,6 +56,11 @@ import { NativeMenuBridge } from './menu/native-menu';
   `,
 })
 export class TitleBar {
+  /** Load time in seconds, one decimal, with the locale's separator. */
+  protected seconds(ms: number): string {
+    return localizeDecimal((ms / 1000).toFixed(1));
+  }
+
   protected readonly store = inject(WorkspaceStore);
   private readonly registry = inject(CommandRegistry);
   private readonly palette = inject(PaletteService);

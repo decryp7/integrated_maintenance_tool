@@ -14,9 +14,9 @@ import { BundleService } from './bundle.service';
     @if (bundles.opened(); as b) {
       <div class="banner info" role="status" data-testid="bundle-banner">
         <imt-icon name="folder" [size]="14" />
-        <span class="msg">Opened from <strong>{{ b.name }}</strong> (read-only){{ details() }}</span>
-        <button type="button" class="btn" (click)="bundles.saveAsProject()">Save as project…</button>
-        <button type="button" class="btn ghost" (click)="bundles.close()">Close</button>
+        <span class="msg" i18n="@@share.bundleBanner.opened">Opened from <strong>{{ b.name }}</strong> (read-only){{ details() }}</span>
+        <button type="button" class="btn" (click)="bundles.saveAsProject()" i18n="@@share.bundleBanner.saveAsProject">Save as project…</button>
+        <button type="button" class="btn ghost" (click)="bundles.close()" i18n="@@share.bundleBanner.close">Close</button>
       </div>
     }
   `,
@@ -32,7 +32,7 @@ export class BundleBanner {
   protected readonly details = computed(() => {
     const m = this.bundles.opened()?.manifest;
     if (!m) return '';
-    const parts = [m.redacted ? 'redacted' : '', m.createdAt ? `created ${formatDateTime(m.createdAt, this.store.timezone())}` : '', m.imtVersion ? `IMT ${m.imtVersion}` : ''].filter((x) => !!x);
+    const parts = [m.redacted ? $localize`:@@share.bundleBanner.redacted:redacted` : '', m.createdAt ? $localize`:@@share.bundleBanner.created:created ${formatDateTime(m.createdAt, this.store.timezone())}:when:` : '', m.imtVersion ? `IMT ${m.imtVersion}` : ''].filter((x) => !!x);
     return parts.length ? ` · ${parts.join(' · ')}` : '';
   });
 }

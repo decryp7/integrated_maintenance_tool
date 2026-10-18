@@ -23,19 +23,19 @@ export function buildFlameModel(g: FlameGraph): FlameModel {
   const rects = g.rects;
   const byDepth: number[][] = [];
   rects.forEach((r, i) => (byDepth[r.depth] ??= []).push(i));
-  for (let d = 0; d < byDepth.length; d++) byDepth[d] = (byDepth[d] ?? []).sort((a, b) => rects[a].x - rects[b].x);
+  for (let d = 0; d < byDepth.length; d++) byDepth[d] = (byDepth[d] ?? []).sort((a, b) => (rects[a]?.x ?? 0) - (rects[b]?.x ?? 0));
   const valid = (p: number | null | undefined): p is number => typeof p === 'number' && p >= 0 && p < rects.length;
   const parent = rects.map((r) => (valid(r.parent) ? r.parent : -1));
   const children: number[][] = rects.map(() => []);
-  parent.forEach((p, i) => p >= 0 && children[p].push(i));
-  for (const c of children) c.sort((a, b) => rects[b].value - rects[a].value);
+  parent.forEach((p, i) => p >= 0 && children[p]?.push(i));
+  for (const c of children) c.sort((a, b) => (rects[b]?.value ?? 0) - (rects[a]?.value ?? 0));
   return { rects, frames: new Map(g.frames.map((f) => [f.id, f])), parent, children, byDepth, maxDepth: Math.max(0, byDepth.length - 1) };
 }
 
 /** Indices from depth 0 down to `index`. */
 export function chainTo(model: FlameModel, index: number): number[] {
   const chain: number[] = [];
-  for (let i = index; i >= 0; i = model.parent[i]) chain.unshift(i);
+  for (let i = index; i >= 0; i = model.parent[i] ?? -1) chain.unshift(i);
   return chain;
 }
 
@@ -52,7 +52,7 @@ export function extendFocus(focus: readonly number[], chain: readonly number[]):
 export function hitTest(model: FlameModel, xFrac: number, depth: number): number | null {
   for (const i of model.byDepth[depth] ?? []) {
     const r = model.rects[i];
-    if (xFrac >= r.x && xFrac < r.x + r.w) return i;
+    if (r && xFrac >= r.x && xFrac < r.x + r.w) return i;
   }
   return null;
 }
@@ -73,21 +73,25 @@ export function flameKey(model: FlameModel, current: number | null, key: string,
   }
   const deeper = orientation === 'flame' ? 'ArrowUp' : 'ArrowDown';
   const shallower = orientation === 'flame' ? 'ArrowDown' : 'ArrowUp';
-  const row = model.byDepth[model.rects[current].depth];
+  const currentRect = model.rects[current];
+  const row = currentRect ? model.byDepth[currentRect.depth] : undefined;
+  if (!row) return null;
   const at = row.indexOf(current);
+  const previous = at > 0 ? row[at - 1] : undefined;
+  const next = at < row.length - 1 ? row[at + 1] : undefined;
   switch (key) {
     case deeper: {
-      const child = model.children[current][0];
+      const child = model.children[current]?.[0];
       return child === undefined ? null : { type: 'move', index: child };
     }
     case shallower: {
       const p = model.parent[current];
-      return p < 0 ? null : { type: 'move', index: p };
+      return p === undefined || p < 0 ? null : { type: 'move', index: p };
     }
     case 'ArrowLeft':
-      return at > 0 ? { type: 'move', index: row[at - 1] } : null;
+      return previous === undefined ? null : { type: 'move', index: previous };
     case 'ArrowRight':
-      return at < row.length - 1 ? { type: 'move', index: row[at + 1] } : null;
+      return next === undefined ? null : { type: 'move', index: next };
     case 'Home':
       return { type: 'move', index: first };
     case 'Enter':
@@ -102,7 +106,7 @@ export function flameKey(model: FlameModel, current: number | null, key: string,
 export function topRects(model: FlameModel, limit: number): number[] {
   return model.rects
     .map((_, i) => i)
-    .sort((a, b) => model.rects[b].value - model.rects[a].value || model.rects[a].depth - model.rects[b].depth)
+    .sort((a, b) => (model.rects[b]?.value ?? 0) - (model.rects[a]?.value ?? 0) || (model.rects[a]?.depth ?? 0) - (model.rects[b]?.depth ?? 0))
     .slice(0, limit);
 }
 
@@ -113,10 +117,10 @@ export function topRects(model: FlameModel, limit: number): number[] {
 export function frameNamer(g: Pick<FlameGraph, 'frames' | 'focusFrames'> | null): (id: number) => string {
   const names = new Map<number, string>();
   for (const f of [...(g?.frames ?? []), ...(g?.focusFrames ?? [])]) names.set(f.id, f.name);
-  return (id) => names.get(id) ?? `frame #${id}`;
+  return (id) => names.get(id) ?? $localize`:@@profiling.flame.frameNumber:frame #${id}:id:`;
 }
 
 /** Zoom breadcrumbs: the focus path as named steps (the first is "All"). */
 export function breadcrumbs(focus: readonly number[], name: (id: number) => string): { label: string; path: number[] }[] {
-  return [{ label: 'All', path: [] }, ...focus.map((id, i) => ({ label: name(id), path: focus.slice(0, i + 1) }))];
+  return [{ label: $localize`:@@profiling.flame.crumbAll:All`, path: [] }, ...focus.map((id, i) => ({ label: name(id), path: focus.slice(0, i + 1) }))];
 }

@@ -8,20 +8,21 @@ import { LifecycleService } from './lifecycle.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { style: 'display: contents' },
   template: `
-    <span class="project" data-testid="project-title" [title]="projects.path() ?? 'Not saved yet'">
-      {{ projects.name() }}@if (projects.dirty()) {<span class="unsaved" role="img" aria-label="Unsaved changes" title="Unsaved changes">●</span>}
+    <span class="project" data-testid="project-title" [title]="projects.path() ?? notSaved">
+      {{ projects.name() }}@if (projects.dirty()) {<span class="unsaved" role="img" aria-label="Unsaved changes" title="Unsaved changes" i18n-aria-label="@@lifecycle.titleExtras.unsaved" i18n-title="@@lifecycle.titleExtras.unsavedTitle">●</span>}
     </span>
     @if (life.elevated()) {
-      <span class="admin" data-testid="admin-badge" title="IMT is running with administrator rights">Administrator</span>
+      <span class="admin" data-testid="admin-badge" title="IMT is running with administrator rights" i18n-title="@@lifecycle.titleExtras.adminTitle" i18n="@@lifecycle.titleExtras.admin">Administrator</span>
     }
   `,
   styles: `
     .project { font-size: 12px; color: var(--text-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-    .unsaved { margin-left: 6px; color: var(--warn-text); }
+    .unsaved { margin-inline-start: 6px; color: var(--warn-text); }
     .admin { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; background: var(--chip-bg); border: 1px solid var(--lvl-warn); color: var(--warn-text); white-space: nowrap; }
   `,
 })
 export class TitleExtras {
   protected readonly life = inject(LifecycleService);
   protected readonly projects = inject(ProjectService);
+  protected readonly notSaved = $localize`:@@lifecycle.titleExtras.notSaved:Not saved yet`;
 }

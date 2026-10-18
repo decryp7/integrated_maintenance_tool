@@ -1,5 +1,6 @@
 import { RecordView } from '../api.types';
 import { checkMockQl, fieldValue, lex, MockQlError, mockCompletions, mockQlFilter, runMockQl } from './mock-ql';
+import { at } from '../../../testing/must';
 
 const rec = (id: number, level: RecordView['level'], message: string, fields: Record<string, unknown> = {}): RecordView => ({
   id, ts: id * 1000, level, message, template: id === 1 ? 'T {x}' : null, exception: id === 2 ? 'Boom: x' : null, fields, source: 0, sourceName: 'a.log', line: id, group: 'g', markers: [],
@@ -54,9 +55,9 @@ describe('mock ql', () => {
     expect(ids('@template = "T {x}"')).toEqual([1]);
     expect(ids('Host ~ "["')).toEqual([]);
     expect(ids('exception = Boom')).toEqual([]);
-    expect(fieldValue(data[1], '@exception')).toBe('Boom: x');
-    expect(fieldValue(data[0], '@source')).toBe('a.log');
-    expect(fieldValue(data[0], 'message')).toBe('started ok');
+    expect(fieldValue(at(data, 1), '@exception')).toBe('Boom: x');
+    expect(fieldValue(at(data, 0), '@source')).toBe('a.log');
+    expect(fieldValue(at(data, 0), 'message')).toBe('started ok');
   });
 
   it('sorts, limits and selects fields', () => {

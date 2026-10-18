@@ -14,6 +14,7 @@ import { HighlightEditor } from './highlight-editor';
 import { newId } from './ids';
 import { SavedQueries } from './saved-queries';
 import { parseSavedQueries, SavedQueryStore } from './saved-query.store';
+import { at } from '../../../testing/must';
 
 const record = (over: Partial<RecordView> = {}): RecordView => ({
   id: 7, ts: 1_700_000_000_000, level: 'Error', message: 'Failed to capture payment', template: null, exception: 'TimeoutException', fields: { ElapsedMs: 5000, Machine: 'WEB01', Empty: '' },
@@ -44,12 +45,14 @@ describe('BookmarkStore', () => {
     store.setRange(10, 20);
     expect(bookmarks.addSelected('look here')).toBe(true);
     expect(bookmarks.addRange()).toBe(true);
-    const [a, b] = bookmarks.items();
+    const items = bookmarks.items();
+    const a = at(items, 0);
+    const b = at(items, 1);
     expect(a).toMatchObject({ kind: 'record', recordId: 7, note: 'look here', level: 'Error' });
     expect(a.label).toHaveLength(81);
     expect(b).toMatchObject({ kind: 'range', from: 10, to: 20 });
     bookmarks.setNote(b.id, 'window');
-    expect(bookmarks.items()[1].note).toBe('window');
+    expect(bookmarks.items()[1]?.note).toBe('window');
     bookmarks.remove(a.id);
     expect(bookmarks.items()).toHaveLength(1);
   });
@@ -61,9 +64,9 @@ describe('BookmarkStore', () => {
     bookmarks.addSelected();
     bookmarks.addRange();
     store.resetRange();
-    bookmarks.jump(bookmarks.items()[0]);
+    bookmarks.jump(at(bookmarks.items(), 0));
     expect(store.anchor()?.id).toBe(7);
-    bookmarks.jump(bookmarks.items()[1]);
+    bookmarks.jump(at(bookmarks.items(), 1));
     expect(store.query()).toMatchObject({ from: 5, to: 9 });
     bookmarks.jump({ id: 'x', kind: 'record', note: '', label: '', createdAt: 0 });
     bookmarks.jump({ id: 'y', kind: 'range', note: '', label: '', createdAt: 0 });
@@ -97,14 +100,14 @@ describe('SavedQueryStore', () => {
     queries.saveCurrent('');
     expect(queries.items().map((q) => q.name)).toEqual(['Timeouts', 'Query 2']);
     store.clearQuery();
-    queries.apply(queries.items()[0].id);
+    queries.apply(at(queries.items(), 0).id);
     expect(store.query()).toMatchObject({ text: 'timeout', levels: ['Error'] });
     expect(store.textInput()).toBe('timeout');
     queries.apply('missing');
-    queries.rename(queries.items()[1].id, ' Renamed ');
-    queries.rename(queries.items()[1].id, '  ');
-    expect(queries.items()[1].name).toBe('Renamed');
-    queries.remove(queries.items()[0].id);
+    queries.rename(at(queries.items(), 1).id, ' Renamed ');
+    queries.rename(at(queries.items(), 1).id, '  ');
+    expect(queries.items()[1]?.name).toBe('Renamed');
+    queries.remove(at(queries.items(), 0).id);
     expect(queries.items()).toHaveLength(1);
   });
 
@@ -112,14 +115,14 @@ describe('SavedQueryStore', () => {
     const { store, queries } = await setup();
     store.setTextInput('typed just now');
     queries.saveCurrent('Fast');
-    expect(queries.items()[0].query).toMatchObject({ text: 'typed just now' });
+    expect(queries.items()[0]?.query).toMatchObject({ text: 'typed just now' });
   });
 
   it('parses saved queries defensively', () => {
     expect(parseSavedQueries(null)).toEqual([]);
     const parsed = parseSavedQueries([{ id: 'a', name: 'n', query: { text: 't', junk: 1 } }, { id: 'b' }, null, { id: 'c', name: 'x', query: 'str' }]);
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].query).toMatchObject({ text: 't' });
+    expect(parsed[0]?.query).toMatchObject({ text: 't' });
   });
 });
 
@@ -164,11 +167,11 @@ describe('highlight rules', () => {
     highlights.add({ field: 'Machine', op: 'eq', value: 'WEB01', color: '#c' });
     expect(highlights.rules()).toHaveLength(3);
     expect(highlights.colorFor(record())).toBe('#b');
-    highlights.update(highlights.items()[1].id, { enabled: false });
+    highlights.update(at(highlights.items(), 1).id, { enabled: false });
     expect(highlights.rules()).toHaveLength(2);
     expect(highlights.colorFor(record())).toBe('#c');
     expect(highlights.colorFor(record({ fields: {} }))).toBeNull();
-    highlights.remove(highlights.items()[2].id);
+    highlights.remove(at(highlights.items(), 2).id);
     expect(highlights.colorFor(record())).toBeNull();
   });
 
@@ -221,7 +224,7 @@ describe('bookmark views', () => {
     expect(all(f, '.item')).toHaveLength(2);
     expect(text(f)).toContain('→');
     typeInto(el(f, 'input[aria-label="Note for Failed to capture payment"]'), 'root cause', 'change');
-    expect(bookmarks.items()[0].note).toBe('root cause');
+    expect(bookmarks.items()[0]?.note).toBe('root cause');
     el<HTMLButtonElement>(f, 'button[aria-label="Jump to bookmark Failed to capture payment"]').click();
     expect(store.anchor()?.id).toBe(7);
     el<HTMLButtonElement>(f, 'button[aria-label="Delete bookmark Failed to capture payment"]').click();
@@ -239,7 +242,7 @@ describe('bookmark views', () => {
     await settle(f);
     buttonByText(f, 'Save current query').click();
     await settle(f);
-    expect(queries.items()[0].name).toBe('My query');
+    expect(queries.items()[0]?.name).toBe('My query');
     expect(el<HTMLInputElement>(f, 'input').value).toBe('');
     typeInto(el(f, 'input[aria-label="Saved query name"]'), 'Second');
     await settle(f);
@@ -278,7 +281,7 @@ describe('bookmark views', () => {
     expect(text(f)).toContain('does not equal'.slice(0, 0) + 'equals');
     expect(all(f, 'datalist option').length).toBeGreaterThan(4);
     el<HTMLInputElement>(f, 'input[aria-label="Enable rule @level"]').click();
-    expect(highlights.items()[0].enabled).toBe(false);
+    expect(highlights.items()[0]?.enabled).toBe(false);
     el<HTMLButtonElement>(f, 'button[aria-label="Delete rule @level"]').click();
     await settle(f);
     expect(highlights.items()).toHaveLength(1);

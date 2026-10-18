@@ -1,33 +1,87 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  input,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
-import { fitLabel, formatBytes, formatEta, formatRate, hardwareLines, percent, speedLabel } from '../ai-format';
+import {
+  fitLabel,
+  formatBytes,
+  formatEta,
+  formatRate,
+  hardwareLines,
+  percent,
+  speedLabel,
+} from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { Recommendation, SetupEvent } from '../ai.types';
-import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, WizardEvent, WizardState } from './wizard';
+import { AiRuntimeStore } from '../runtimes/ai-runtime.store';
+import { AiRuntimePanel } from '../runtimes/runtime-panel';
+import {
+  canStart,
+  choices,
+  INITIAL,
+  next,
+  selected,
+  stageLabel,
+  stageStep,
+  WizardEvent,
+  WizardState,
+} from './wizard';
 
 /**
- * "Set up AI assistant": shows this computer's hardware and the models that fit it, downloads and
- * verifies the chosen one, loads it (GPU first, CPU fallback) and warms it up. Opened in a dialog.
+ * "Set up AI assistant": downloads an inference runtime when none is installed, shows this computer's
+ * hardware and the models that fit it, downloads and verifies the chosen one, loads it (GPU first, CPU fallback) and warms it up. Opened in a dialog.
  */
 @Component({
   selector: 'imt-ai-setup-wizard',
+  imports: [AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p class="local" data-testid="ai-local-note">
-      The assistant runs <strong>fully on this computer</strong>. Nothing about your logs leaves it: only the model file is downloaded,
-      once, from Hugging Face.
+    <p class="local" data-testid="ai-local-note" i18n="@@ai.setup.localNote">
+      The assistant runs <strong>fully on this computer</strong>. Nothing about your logs leaves it:
+      only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the
+      inference runtime from llama.cpp's GitHub releases).
     </p>
     <div class="sr-only" aria-live="polite" data-testid="ai-setup-live">{{ liveText() }}</div>
     @switch (state().kind) {
       @case ('loading') {
-        <p class="muted" role="status">Checking this computer…</p>
+        <p class="muted" role="status" i18n="@@ai.setup.checking">Checking this computer…</p>
+      }
+      @case ('runtime') {
+        <section aria-labelledby="ai-runtime-title" data-testid="ai-setup-runtime">
+          <h3 id="ai-runtime-title" i18n="@@ai.models.runtime">Inference runtime</h3>
+          <p class="muted" i18n="@@ai.setup.runtime.intro">
+            First, download the engine that runs the model on this computer. The suggested build
+            suits its hardware; you can switch later in the model manager.
+          </p>
+          <imt-ai-runtime-panel />
+        </section>
+        <div class="foot">
+          <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.notNow">Not now</button>
+          <button
+            type="button"
+            class="btn primary"
+            data-testid="ai-runtime-continue"
+            [disabled]="runtimes.needsDownload() || runtimes.installing()"
+            (click)="dispatch({ type: 'runtimeReady' })"
+            i18n="@@ai.setup.continue"
+          >
+            Continue
+          </button>
+        </div>
       }
       @case ('plan') {
         @if (plan(); as p) {
           <section aria-labelledby="ai-hw-title">
-            <h3 id="ai-hw-title">This computer</h3>
+            <h3 id="ai-hw-title" i18n="@@ai.setup.thisComputer">This computer</h3>
             <ul class="hw" data-testid="ai-hardware">
               @for (line of hwLines(); track $index) {
                 <li>{{ line }}</li>
@@ -36,29 +90,40 @@ import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, Wiza
             <p class="muted">{{ p.recommendations.message }}</p>
           </section>
           <section aria-labelledby="ai-models-title">
-            <h3 id="ai-models-title">Choose a model</h3>
+            <h3 id="ai-models-title" i18n="@@ai.setup.chooseModel">Choose a model</h3>
             <div class="models" role="radiogroup" aria-labelledby="ai-models-title">
               @for (r of ranked(); track r.model.id) {
-                <label class="model" [class.picked]="r.model.id === selectedId()" [class.too-large]="r.assessment.fit === 'tooLarge'" [attr.data-testid]="'ai-model-' + r.model.id">
-                  <input type="radio" name="ai-model" [value]="r.model.id" [checked]="r.model.id === selectedId()" (change)="dispatch({ type: 'select', modelId: r.model.id })" />
+                <label
+                  class="model"
+                  [class.picked]="r.model.id === selectedId()"
+                  [class.too-large]="r.assessment.fit === 'tooLarge'"
+                  [attr.data-testid]="'ai-model-' + r.model.id"
+                >
+                  <input
+                    type="radio"
+                    name="ai-model"
+                    [value]="r.model.id"
+                    [checked]="r.model.id === selectedId()"
+                    (change)="dispatch({ type: 'select', modelId: r.model.id })"
+                  />
                   <span class="name">
                     {{ r.model.name }}
                     @if (r.model.id === p.recommendations.best?.model?.id) {
-                      <span class="badge best">Best</span>
+                      <span class="badge best" i18n="@@ai.setup.badge.best">Best</span>
                     }
                     @if (r.model.id === p.recommendations.fastest?.model?.id) {
-                      <span class="badge fastest">Fastest</span>
+                      <span class="badge fastest" i18n="@@ai.setup.badge.fastest">Fastest</span>
                     }
                     @if (r.installed) {
-                      <span class="badge">Installed</span>
+                      <span class="badge" i18n="@@ai.setup.badge.installed">Installed</span>
                     }
                   </span>
                   <span class="facts">
                     <span class="fit" [class]="'fit fit-' + r.assessment.fit">{{ fit(r) }}</span>
                     <span>{{ speed(r) }}</span>
                     <span>{{ size(r.model.sizeBytes) }}</span>
-                    <span>Licence: {{ r.model.license }}</span>
-                    <span>{{ r.model.toolCalling ? 'Tool calling' : 'No tool calling' }}</span>
+                    <span i18n="@@ai.setup.licence">Licence: {{ r.model.license }}</span>
+                    <span>{{ toolCalling(r) }}</span>
                   </span>
                   @if (r.model.notes) {
                     <span class="notes muted">{{ r.model.notes }}</span>
@@ -70,9 +135,9 @@ import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, Wiza
           @if (picked(); as r) {
             <p class="summary" data-testid="ai-plan-summary">
               @if (r.installed) {
-                {{ r.model.name }} is already downloaded; it will be loaded and checked.
+                <ng-container i18n="@@ai.setup.summary.installed">{{ r.model.name }} is already downloaded; it will be loaded and checked.</ng-container>
               } @else {
-                {{ r.model.name }}: {{ size(r.model.sizeBytes) }} will be downloaded from huggingface.co/{{ r.model.hfRepo }} (licence {{ r.model.license }}).
+                <ng-container i18n="@@ai.setup.summary.download">{{ r.model.name }}: {{ size(r.model.sizeBytes) }} will be downloaded from huggingface.co/{{ r.model.hfRepo }} (licence {{ r.model.license }}).</ng-container>
               }
             </p>
           }
@@ -80,21 +145,27 @@ import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, Wiza
             <p class="note" role="note">{{ p.note }}</p>
           }
           <div class="foot">
-            <button type="button" class="btn ghost" (click)="close()">Not now</button>
-            <button type="button" class="btn primary" data-testid="ai-setup-start" [disabled]="!startable()" (click)="start()">
-              {{ picked()?.installed ? 'Set up' : 'Download and set up' }}
+            <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.notNow">Not now</button>
+            <button
+              type="button"
+              class="btn primary"
+              data-testid="ai-setup-start"
+              [disabled]="!startable()"
+              (click)="start()"
+            >
+              {{ startLabel() }}
             </button>
           </div>
         }
       }
       @case ('running') {
         @if (running(); as r) {
-          <p class="step" data-testid="ai-setup-stage">Step {{ step() }} of 5 · {{ label() }}</p>
+          <p class="step" data-testid="ai-setup-stage" i18n="@@ai.setup.step">Step {{ step() }} of 5 · {{ label() }}</p>
           @if (r.stage.stage === 'downloading' || r.stage.stage === 'verifying') {
             <div
               class="bar"
               role="progressbar"
-              [attr.aria-label]="r.stage.stage === 'downloading' ? 'Download progress' : 'Verification progress'"
+              [attr.aria-label]="progressAria()"
               aria-valuemin="0"
               aria-valuemax="100"
               [attr.aria-valuenow]="pct()"
@@ -107,73 +178,193 @@ import { canStart, choices, INITIAL, next, selected, stageLabel, stageStep, Wiza
             <p class="note" role="note" data-testid="ai-setup-fallback">{{ r.note }}</p>
           }
           <div class="foot">
-            <button type="button" class="btn" data-testid="ai-setup-cancel" [disabled]="r.cancelling" (click)="cancel()">
-              {{ r.cancelling ? 'Cancelling…' : 'Cancel' }}
+            <button
+              type="button"
+              class="btn"
+              data-testid="ai-setup-cancel"
+              [disabled]="r.cancelling"
+              (click)="cancel()"
+            >
+              {{ cancelLabel(r.cancelling) }}
             </button>
           </div>
         }
       }
       @case ('ready') {
         @if (ready(); as r) {
-          <p class="ok" role="status" data-testid="ai-setup-ready">Ready: {{ r.model }} runs on {{ r.backend }}.</p>
+          <p class="ok" role="status" data-testid="ai-setup-ready">
+            <ng-container i18n="@@ai.setup.ready">Ready: {{ r.model }} runs on {{ r.backend }}.</ng-container>
+          </p>
           @if (r.note) {
             <p class="note" role="note">{{ r.note }}</p>
           }
           <div class="foot">
-            <button type="button" class="btn ghost" (click)="close()">Close</button>
-            <button type="button" class="btn primary" data-testid="ai-open-chat" (click)="openChat()">Open the assistant</button>
+            <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
+            <button
+              type="button"
+              class="btn primary"
+              data-testid="ai-open-chat"
+              (click)="openChat()"
+              i18n="@@ai.setup.openChat"
+            >
+              Open the assistant
+            </button>
           </div>
         }
       }
       @case ('failed') {
         @if (failed(); as f) {
           <p class="err" role="alert" data-testid="ai-setup-error">{{ f.message }}</p>
+          @if (f.code === 'noRuntime') {
+            <section aria-labelledby="ai-runtime-fix-title" data-testid="ai-setup-runtime">
+              <h3 id="ai-runtime-fix-title" i18n="@@ai.models.runtime">Inference runtime</h3>
+              <imt-ai-runtime-panel />
+            </section>
+          }
           <div class="foot">
-            <button type="button" class="btn ghost" (click)="close()">Close</button>
-            <button type="button" class="btn primary" (click)="retry()">Retry</button>
+            <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
+            <button type="button" class="btn primary" (click)="retry()" i18n="@@ai.setup.retry">Retry</button>
           </div>
         }
       }
       @case ('cancelled') {
-        <p role="status" data-testid="ai-setup-cancelled">The set-up was cancelled. Nothing was changed.</p>
+        <p role="status" data-testid="ai-setup-cancelled" i18n="@@ai.setup.cancelled">
+          The set-up was cancelled. Nothing was changed.
+        </p>
         <div class="foot">
-          <button type="button" class="btn ghost" (click)="close()">Close</button>
-          <button type="button" class="btn primary" (click)="retry()">Start again</button>
+          <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.close">Close</button>
+          <button type="button" class="btn primary" (click)="retry()" i18n="@@ai.setup.startAgain">Start again</button>
         </div>
       }
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 12px; }
-    h3 { margin: 0 0 6px; font-size: 13px; }
-    p { margin: 0; }
-    .local { color: var(--text-2); padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); }
-    .hw { margin: 0 0 4px; padding-left: 18px; color: var(--text-2); }
-    .models { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow: auto; }
-    .model { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
-    .model input { grid-row: span 3; margin-top: 3px; }
-    .model.picked { border-color: var(--accent); }
-    .model.too-large { border-style: dashed; }
-    .name { font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    .facts { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-2); font-size: 12px; }
-    .notes { font-size: 12px; }
-    .fit-comfortable::before, .fit-tight::before, .fit-tooLarge::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-    .fit-comfortable::before { background: var(--ok); }
-    .fit-tight::before { background: var(--lvl-warn); }
-    .fit-tooLarge::before { background: var(--lvl-error); }
-    .badge.best, .badge.fastest { font-weight: 600; }
-    .summary { color: var(--text-2); }
-    .note { color: var(--muted); font-size: 12px; }
-    .bar { height: 8px; border-radius: 4px; background: var(--bg-2); overflow: hidden; }
-    .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
-    .ok { color: var(--ok); }
-    .err { color: var(--danger-text, var(--lvl-error)); }
-    .foot { display: flex; justify-content: flex-end; gap: 8px; }
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+    p {
+      margin: 0;
+    }
+    .local {
+      color: var(--text-2);
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-1);
+    }
+    .hw {
+      margin: 0 0 4px;
+      padding-left: 18px;
+      color: var(--text-2);
+    }
+    .models {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .model {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 2px 8px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .model input {
+      grid-row: span 3;
+      margin-top: 3px;
+    }
+    .model.picked {
+      border-color: var(--accent);
+    }
+    .model.too-large {
+      border-style: dashed;
+    }
+    .name {
+      font-weight: 600;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+    .notes {
+      font-size: 12px;
+    }
+    .fit-comfortable::before,
+    .fit-tight::before,
+    .fit-tooLarge::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .fit-comfortable::before {
+      background: var(--ok);
+    }
+    .fit-tight::before {
+      background: var(--lvl-warn);
+    }
+    .fit-tooLarge::before {
+      background: var(--lvl-error);
+    }
+    .badge.best,
+    .badge.fastest {
+      font-weight: 600;
+    }
+    .summary {
+      color: var(--text-2);
+    }
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .bar {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--bg-2);
+      overflow: hidden;
+    }
+    .fill {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.2s;
+    }
+    .ok {
+      color: var(--ok);
+    }
+    .err {
+      color: var(--danger-text, var(--lvl-error));
+    }
+    .foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
   `,
 })
 export class AiSetupWizard implements OnInit {
   private readonly backend = inject(AiBackend);
   private readonly status = inject(AiStatusStore);
+  protected readonly runtimes = inject(AiRuntimeStore);
   private readonly ctx = inject(COMMAND_CONTEXT);
   private readonly ref = inject(DIALOG_REF, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
@@ -181,7 +372,11 @@ export class AiSetupWizard implements OnInit {
   readonly modelId = input<string | null>(null);
 
   readonly state = signal<WizardState>(INITIAL);
-  protected readonly plan = computed(() => (this.state().kind === 'plan' ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan : null));
+  protected readonly plan = computed(() =>
+    this.state().kind === 'plan'
+      ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan
+      : null,
+  );
   protected readonly ranked = computed(() => {
     const p = this.plan();
     return p ? choices(p) : [];
@@ -218,14 +413,22 @@ export class AiSetupWizard implements OnInit {
   });
   protected readonly pct = computed(() => {
     const st = this.running()?.stage;
-    return st && (st.stage === 'downloading' || st.stage === 'verifying') ? percent(st.bytes, st.total) : 0;
+    return st && (st.stage === 'downloading' || st.stage === 'verifying')
+      ? percent(st.bytes, st.total)
+      : 0;
   });
   protected readonly progressText = computed(() => {
     const st = this.running()?.stage;
     if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
-    const base = `${formatBytes(st.bytes)} of ${formatBytes(st.total)}`;
+    const base = $localize`:@@ai.runtime.progress.of:${formatBytes(st.bytes)}:done: of ${formatBytes(st.total)}:total:`;
     if (st.stage === 'verifying') return base;
-    return [base, formatRate(st.bytesPerSec), formatEta(st.etaSecs) && `${formatEta(st.etaSecs)} left`].filter(Boolean).join(' · ');
+    return [
+      base,
+      formatRate(st.bytesPerSec),
+      formatEta(st.etaSecs) && $localize`:@@ai.runtime.progress.left:${formatEta(st.etaSecs)}:eta: left`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
   });
   /** Announced to screen readers when the stage changes. */
   protected readonly liveText = computed(() => {
@@ -234,11 +437,11 @@ export class AiSetupWizard implements OnInit {
       case 'running':
         return stageLabel(s.stage);
       case 'ready':
-        return 'The AI assistant is ready.';
+        return $localize`:@@ai.setup.live.ready:The AI assistant is ready.`;
       case 'failed':
-        return `The set-up failed: ${s.message}`;
+        return $localize`:@@ai.setup.live.failed:The set-up failed: ${s.message}:message:`;
       case 'cancelled':
-        return 'The set-up was cancelled.';
+        return $localize`:@@ai.setup.live.cancelled:The set-up was cancelled.`;
       default:
         return '';
     }
@@ -247,6 +450,22 @@ export class AiSetupWizard implements OnInit {
   protected readonly fit = (r: Recommendation) => fitLabel(r.assessment.fit);
   protected readonly speed = (r: Recommendation) => speedLabel(r.assessment.speed);
   protected readonly size = formatBytes;
+  protected readonly startLabel = computed(() =>
+    this.picked()?.installed ? $localize`:@@ai.setup.start.installed:Set up` : $localize`:@@ai.setup.start.download:Download and set up`,
+  );
+  protected readonly progressAria = computed(() =>
+    this.running()?.stage.stage === 'downloading'
+      ? $localize`:@@ai.setup.progress.download:Download progress`
+      : $localize`:@@ai.setup.progress.verify:Verification progress`,
+  );
+
+  protected toolCalling(r: Recommendation): string {
+    return r.model.toolCalling ? $localize`:@@ai.setup.toolCalling:Tool calling` : $localize`:@@ai.setup.noToolCalling:No tool calling`;
+  }
+
+  protected cancelLabel(cancelling: boolean): string {
+    return cancelling ? $localize`:@@ai.runtime.cancelling:Cancelling…` : $localize`:@@ai.setup.cancel:Cancel`;
+  }
 
   ngOnInit(): void {
     let off: (() => void) | null = null;
@@ -273,8 +492,16 @@ export class AiSetupWizard implements OnInit {
 
   async load(): Promise<void> {
     try {
-      const plan = await this.backend.setupPlan(this.modelId());
-      this.dispatch({ type: 'planLoaded', plan, preferred: this.modelId() });
+      const [plan, runtimes] = await Promise.all([
+        this.backend.setupPlan(this.modelId()),
+        this.runtimes.load(),
+      ]);
+      this.dispatch({
+        type: 'planLoaded',
+        plan,
+        preferred: this.modelId(),
+        needsRuntime: !!runtimes?.needsDownload,
+      });
     } catch (e) {
       const err = toAiError(e);
       this.dispatch({ type: 'failed', code: err.code, message: err.message });

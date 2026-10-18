@@ -10,16 +10,22 @@ use crate::counters::{CounterPath, CounterSource, CounterValue};
 use anyhow::{bail, Result};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::System::Performance::{
-    PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhGetFormattedCounterValue, PdhOpenQueryW,
-    PDH_FMT_COUNTERVALUE, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA,
+    PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhGetFormattedCounterValue,
+    PdhGetRawCounterArrayW, PdhOpenQueryW, PDH_FMT_COUNTERVALUE, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY,
+    PDH_MORE_DATA, PDH_RAW_COUNTER_ITEM_W,
 };
+
+/// `PDH_CSTATUS_VALID_DATA` and `PDH_CSTATUS_NEW_DATA`: the value can be used.
+pub(crate) fn usable(cstatus: u32) -> bool {
+    cstatus <= 1
+}
 
 pub struct Pdh {
     query: PDH_HQUERY,
     counters: Vec<(PDH_HCOUNTER, CounterPath)>,
 }
 
-fn check(status: u32, what: &str, path: &str) -> Result<()> {
+pub(crate) fn check(status: u32, what: &str, path: &str) -> Result<()> {
     if status != 0 {
         bail!("{what} failed for {path} (PDH status 0x{status:08X})");
     }
@@ -75,11 +81,11 @@ unsafe fn single(counter: PDH_HCOUNTER) -> Option<f64> {
     let mut value = PDH_FMT_COUNTERVALUE::default();
     let status = PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, None, &mut value);
     // Every bit pattern is a valid f64, so reading the union field eagerly is sound.
-    (status == 0 && value.CStatus == 0).then_some(value.Anonymous.doubleValue)
+    (status == 0 && usable(value.CStatus)).then_some(value.Anonymous.doubleValue)
 }
 
 /// SAFETY: `counter` must belong to an open, collected query.
-unsafe fn array(counter: PDH_HCOUNTER) -> Vec<(String, f64)> {
+pub(crate) unsafe fn array(counter: PDH_HCOUNTER) -> Vec<(String, f64)> {
     let (mut size, mut count) = (0u32, 0u32);
     if PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE, &mut size, &mut count, None) != PDH_MORE_DATA || size == 0 {
         return Vec::new();
@@ -93,7 +99,28 @@ unsafe fn array(counter: PDH_HCOUNTER) -> Vec<(String, f64)> {
     (0..count as usize)
         .filter_map(|i| {
             let item = &*items.add(i);
-            (item.FmtValue.CStatus == 0).then(|| Some((item.szName.to_string().ok()?, item.FmtValue.Anonymous.doubleValue)))?
+            usable(item.FmtValue.CStatus).then(|| Some((item.szName.to_string().ok()?, item.FmtValue.Anonymous.doubleValue)))?
+        })
+        .collect()
+}
+
+/// Raw values (`FirstValue`, e.g. the cumulative count behind a `/ sec` counter) of every
+/// instance of a wildcard counter.
+/// SAFETY: `counter` must belong to an open, collected query.
+pub(crate) unsafe fn raw_array(counter: PDH_HCOUNTER) -> Vec<(String, i64)> {
+    let (mut size, mut count) = (0u32, 0u32);
+    if PdhGetRawCounterArrayW(counter, &mut size, &mut count, None) != PDH_MORE_DATA || size == 0 {
+        return Vec::new();
+    }
+    let mut buf = vec![0u64; (size as usize).div_ceil(8)];
+    let items = buf.as_mut_ptr() as *mut PDH_RAW_COUNTER_ITEM_W;
+    if PdhGetRawCounterArrayW(counter, &mut size, &mut count, Some(items)) != 0 {
+        return Vec::new();
+    }
+    (0..count as usize)
+        .filter_map(|i| {
+            let item = &*items.add(i);
+            usable(item.RawValue.CStatus).then(|| Some((item.szName.to_string().ok()?, item.RawValue.FirstValue)))?
         })
         .collect()
 }

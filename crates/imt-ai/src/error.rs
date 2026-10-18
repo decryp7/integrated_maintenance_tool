@@ -11,6 +11,9 @@ pub enum AiError {
     Invalid(String),
     #[error("no AI model is set up yet: choose \"Set up AI assistant\" first")]
     NoModel,
+    /// No llama-server build is installed (and no custom path is set): the worker cannot run a model.
+    #[error("no inference runtime is installed: download one in the AI set-up")]
+    NoRuntime,
     #[error("the model engine failed: {0}")]
     Engine(String),
     #[error("the conversation does not fit the model's context window ({prompt} of {limit} tokens)")]

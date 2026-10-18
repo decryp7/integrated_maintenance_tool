@@ -16,14 +16,19 @@ import { measuredWidth } from '../flame/measured-width';
 const DIFF_PAGE = 200;
 
 const SORTS: { id: DiffSort; label: string }[] = [
-  { id: 'absDeltaSelf', label: 'Largest self change' },
-  { id: 'absDeltaTotal', label: 'Largest total change' },
-  { id: 'deltaSelf', label: 'Self growth' },
-  { id: 'deltaTotal', label: 'Total growth' },
-  { id: 'name', label: 'Name' },
+  { id: 'absDeltaSelf', label: $localize`:@@profiling.compare.sort.absDeltaSelf:Largest self change` },
+  { id: 'absDeltaTotal', label: $localize`:@@profiling.compare.sort.absDeltaTotal:Largest total change` },
+  { id: 'deltaSelf', label: $localize`:@@profiling.compare.sort.deltaSelf:Self growth` },
+  { id: 'deltaTotal', label: $localize`:@@profiling.compare.sort.deltaTotal:Total growth` },
+  { id: 'name', label: $localize`:@@profiling.compare.sort.name:Name` },
 ];
 
-const STATUS_LABEL = { new: 'new', removed: 'removed', changed: 'changed', same: 'same' } as const;
+const STATUS_LABEL = {
+  new: $localize`:@@profiling.compare.status.new:new`,
+  removed: $localize`:@@profiling.compare.status.removed:removed`,
+  changed: $localize`:@@profiling.compare.status.changed:changed`,
+  same: $localize`:@@profiling.compare.status.same:same`,
+} as const;
 
 /**
  * Baseline vs target (the active profile): differential flame graph (red = larger share than the
@@ -37,48 +42,48 @@ const STATUS_LABEL = { new: 'new', removed: 'removed', changed: 'changed', same:
     @if (active.profile(); as p) {
       <imt-profile-bar />
       <div class="bar">
-        <span class="section-title">Compare</span>
-        <label class="inline">Baseline
-          <select aria-label="Baseline profile" (change)="pickBaseline($event)">
-            <option value="" [selected]="state.baselineId() === null">Choose a baseline…</option>
+        <span class="section-title" i18n="@@profiling.compare.title">Compare</span>
+        <label class="inline"><ng-container i18n="@@profiling.compare.baseline">Baseline</ng-container>&ngsp;
+          <select aria-label="Baseline profile" i18n-aria-label="@@profiling.compare.baselineLabel" (change)="pickBaseline($event)">
+            <option value="" [selected]="state.baselineId() === null" i18n="@@profiling.compare.chooseBaseline">Choose a baseline…</option>
             @for (c of baselines(); track c.id) { <option [value]="c.id" [selected]="c.id === state.baselineId()">{{ c.name }}</option> }
           </select>
         </label>
-        <span class="muted">→ target <strong>{{ p.name }}</strong></span>
+        <span class="muted" i18n="@@profiling.compare.target">→ target <strong>{{ p.name }}</strong></span>
       </div>
       @if (state.baselineId() === null) {
-        <div class="state" role="status">{{ baselines().length ? 'Choose a baseline profile to compare with.' : 'Open a second profile to use as the baseline.' }}</div>
+        <div class="state" role="status">{{ baselineHint() }}</div>
       } @else {
         <div class="split">
-          <section class="pane flame" aria-label="Differential flame graph">
-            <nav class="crumbs" aria-label="Zoom path">
+          <section class="pane flame" aria-label="Differential flame graph" i18n-aria-label="@@profiling.compare.flameSection">
+            <nav class="crumbs" aria-label="Zoom path" i18n-aria-label="@@profiling.compare.zoomPath">
               @for (c of crumbs(); track $index; let last = $last) {
                 @if (last) { <span class="current" aria-current="location">{{ c.label }}</span> }
                 @else { <button class="link" type="button" (click)="focus.set(c.path)">{{ c.label }}</button><span aria-hidden="true" class="sep">›</span> }
               }
             </nav>
             <imt-analysis-state [loading]="flame.loading()" [error]="flame.error()" [hasData]="!!flame.data()" (retry)="flame.retry()">
-              <imt-flame-chart [graph]="flame.data()" [diff]="true" [metrics]="p.metrics" [label]="'Differential flame graph of ' + p.name" (zoom)="focus.set(extend($event))" (zoomOut)="focus.set(focus().slice(0, -1))" (selected)="state.selectFrame($event)" />
+              <imt-flame-chart [graph]="flame.data()" [diff]="true" [metrics]="p.metrics" [label]="flameLabel(p.name)" (zoom)="focus.set(extend($event))" (zoomOut)="focus.set(focus().slice(0, -1))" (selected)="state.selectFrame($event)" />
             </imt-analysis-state>
           </section>
-          <section class="pane table" aria-label="Function changes">
+          <section class="pane table" aria-label="Function changes" i18n-aria-label="@@profiling.compare.tableSection">
             <div class="bar">
-              <span class="section-title">Function changes</span>
-              <label class="inline">Sort
-                <select aria-label="Sort changes" (change)="sort.set($any($event.target).value)">
+              <span class="section-title" i18n="@@profiling.compare.changes">Function changes</span>
+              <label class="inline"><ng-container i18n="@@profiling.compare.sort">Sort</ng-container>&ngsp;
+                <select aria-label="Sort changes" i18n-aria-label="@@profiling.compare.sortLabel" (change)="sort.set($any($event.target).value)">
                   @for (s of sorts; track s.id) { <option [value]="s.id" [selected]="s.id === sort()">{{ s.label }}</option> }
                 </select>
               </label>
-              <input type="search" placeholder="Search…" aria-label="Search changes" (input)="onSearch($event)" />
-              @if (diff.data(); as d) { <span class="muted">{{ d.totalRows }} functions · baseline {{ value(d.baselineTotal) }} · target {{ value(d.targetTotal) }}</span> }
+              <input type="search" placeholder="Search…" i18n-placeholder="@@profiling.compare.searchPlaceholder" aria-label="Search changes" i18n-aria-label="@@profiling.compare.searchLabel" (input)="onSearch($event)" />
+              @if (diff.data(); as d) { <span class="muted" i18n="@@profiling.compare.summary">{{ d.totalRows // i18n(ph: "count") }} functions · baseline {{ value(d.baselineTotal) // i18n(ph: "baseline") }} · target {{ value(d.targetTotal) // i18n(ph: "target") }}</span> }
             </div>
-            <imt-analysis-state [loading]="diff.loading()" [error]="diff.error()" [hasData]="!!diff.data()" [empty]="diff.data()?.totalRows === 0" emptyText="No functions match." (retry)="diff.retry()">
-              <div class="body tight" tabindex="0" role="region" aria-label="Function change rows">
-                <table class="grid" aria-label="Function changes, sorted by change">
+            <imt-analysis-state [loading]="diff.loading()" [error]="diff.error()" [hasData]="!!diff.data()" [empty]="diff.data()?.totalRows === 0" emptyText="No functions match." i18n-emptyText="@@profiling.compare.noMatch" (retry)="diff.retry()">
+              <div class="body tight" tabindex="0" role="region" aria-label="Function change rows" i18n-aria-label="@@profiling.compare.rowsRegion">
+                <table class="grid" aria-label="Function changes, sorted by change" i18n-aria-label="@@profiling.compare.tableLabel">
                   <thead>
                     <tr>
-                      <th scope="col">Function</th><th scope="col">Status</th>
-                      <th scope="col" class="num">Baseline self %</th><th scope="col" class="num">Target self %</th><th scope="col" class="num">Δ self</th><th scope="col" class="num">Δ total</th>
+                      <th scope="col" i18n="@@profiling.compare.col.function">Function</th><th scope="col" i18n="@@profiling.compare.col.status">Status</th>
+                      <th scope="col" class="num" i18n="@@profiling.compare.col.baselineSelf">Baseline self %</th><th scope="col" class="num" i18n="@@profiling.compare.col.targetSelf">Target self %</th><th scope="col" class="num" i18n="@@profiling.compare.col.deltaSelf">Δ self</th><th scope="col" class="num" i18n="@@profiling.compare.col.deltaTotal">Δ total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -94,14 +99,14 @@ const STATUS_LABEL = { new: 'new', removed: 'removed', changed: 'changed', same:
                     }
                   </tbody>
                 </table>
-                @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()">Load {{ more() }} more</button> }
+                @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()" i18n="@@profiling.compare.loadMore">Load {{ more() // i18n(ph: "count") }} more</button> }
               </div>
             </imt-analysis-state>
           </section>
         </div>
       }
     } @else {
-      <imt-no-capture text="Open two profiles to compare them." />
+      <imt-no-capture text="Open two profiles to compare them." i18n-text="@@profiling.compare.noCapture" />
     }
   `,
   styles: [
@@ -139,6 +144,11 @@ export class CompareView {
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly baselines = computed(() => this.captures.profiles().filter((c) => c.id !== this.active.profile()?.id));
+  protected readonly baselineHint = computed(() =>
+    this.baselines().length
+      ? $localize`:@@profiling.compare.chooseHint:Choose a baseline profile to compare with.`
+      : $localize`:@@profiling.compare.openSecondHint:Open a second profile to use as the baseline.`,
+  );
   protected readonly rows = computed(() => [...(this.diff.data()?.rows ?? []), ...this.extra()]);
   protected readonly more = computed(() => Math.max(0, (this.diff.data()?.totalRows ?? 0) - this.rows().length));
   /** Zoom breadcrumbs, named from the engine's answer (its focus frames). */
@@ -156,8 +166,7 @@ export class CompareView {
   constructor() {
     // A different pair starts unzoomed.
     effect(() => {
-      this.common()?.baselineId;
-      this.common()?.targetId;
+      this.common();
       untracked(() => this.focus.set([]));
     });
     effect(() => {
@@ -207,6 +216,10 @@ export class CompareView {
   protected value(v: number): string {
     const m = this.active.metric();
     return m ? formatMetric(v, m, this.active.profile()?.metrics) : '—';
+  }
+
+  protected flameLabel(name: string): string {
+    return $localize`:@@profiling.compare.flameLabel:Differential flame graph of ${name}:name:`;
   }
 
   protected status(r: FunctionDiffRow): string {

@@ -18,9 +18,25 @@
 //!   (see [`perfmon`]). Creating and controlling Data Collector Sets is a tool of the
 //!   tools plugin (`imt-plugin-tools`), which can be disabled on its own.
 //!
+//! * **Process Monitor** (Sysinternals ProcMon "Save as CSV"): [`ProcmonCsvImporter`]
+//!   produces one record per operation with `ProcessName`, `ProcessId`, `Operation`,
+//!   `Path`, `Result`, `Detail` and every optional column; the level follows `Result`
+//!   (see [`procmon`]).
+//!
+//! * **Minidumps** (`.dmp`, `MDMP` signature): [`MinidumpImporter`] summarises a crash
+//!   dump as a few records stamped with the dump time: system, process, the exception (an
+//!   Error record with a readable code name and `module+offset`), the crashing thread's
+//!   frames (instruction pointer plus a symbol-less stack scan) and the loaded modules
+//!   (see [`minidump_import`]).
+//!
+//! * **Live event logs** ([`eventlog`]): follows channels (backfill with `EvtQuery`, then
+//!   `EvtSubscribe` after a persisted bookmark) and maps each rendered event to the same
+//!   record as the `.evtx` importer, with the `EvtFormatMessage` text as the message. The
+//!   "Event Log follower" tool of the tools plugin drives it and writes rolling CLEF files.
+//!
 //! * **Markers and annotators**: [`markers::kinds`] marks crashes, hangs,
 //!   unexpected shutdowns, boots, disk errors, updates and logon failures in
-//!   event logs; [`annotators::RebootAnnotator`] and
+//!   event logs, and denied operations in ProcMon exports; [`annotators::RebootAnnotator`] and
 //!   [`annotators::ServiceAnnotator`] add downtime and service uptime spans.
 //!
 //! CBS/DISM text logs (`2026-10-14 10:00:00, Info   CBS   message`) need no
@@ -34,16 +50,21 @@
 pub mod annotators;
 mod blg;
 pub mod command;
+pub mod eventlog;
 mod evtx_import;
 pub mod markers;
+pub mod minidump_import;
 mod nfo;
 pub mod perfmon;
+pub mod procmon;
 pub mod settings;
 
 pub use blg::BlgImporter;
 pub use evtx_import::{is_evtx, read_evtx, EvtxImporter};
+pub use minidump_import::{is_minidump, read_minidump, MinidumpImporter};
 pub use nfo::{NfoConfigParser, NfoImporter};
 pub use perfmon::PerfmonCsvImporter;
+pub use procmon::ProcmonCsvImporter;
 
 use anyhow::Result;
 use imt_core::plugin::Manifest;
@@ -78,6 +99,8 @@ impl Plugin for WindowsPlugin {
         registry.contribute::<dyn imt_core::config::ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(NfoConfigParser));
         registry.add_importer(Box::new(PerfmonCsvImporter));
         registry.add_binary_importer(Box::<BlgImporter>::default());
+        registry.add_importer(Box::new(ProcmonCsvImporter));
+        registry.add_binary_importer(Box::new(MinidumpImporter));
         registry.add_marker_kinds(markers::kinds())?;
         registry.add_annotator(Arc::new(annotators::RebootAnnotator))?;
         registry.add_annotator(Arc::new(annotators::ServiceAnnotator))?;
@@ -101,7 +124,7 @@ mod tests {
         registry.install(&WindowsPlugin).unwrap();
         let info = &registry.plugins()[0];
         assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 4 + 1 + markers::kinds().len() + 2 + 1);
+        assert_eq!(info.contributes.len(), 6 + 1 + markers::kinds().len() + 2 + 1);
         assert!(info.contributes.contains(&"contribution:config.parsers".to_string()));
         assert_eq!(info.contributes.last().unwrap(), "settings");
         assert!(info.contributes.contains(&"marker:app-crash".to_string()));
@@ -122,8 +145,12 @@ mod tests {
         let s = ws.summary();
         let mut ids: Vec<&str> = s.sources.iter().map(|x| x.importer.as_str()).collect();
         ids.sort();
-        assert_eq!(ids, vec!["evtx", "msinfo", "perfmon-csv"]);
+        assert_eq!(ids, vec!["evtx", "minidump", "msinfo", "perfmon-csv", "procmon-csv"]);
         assert!(ws.records().iter().any(|r| r.fields.contains_key("EventId")));
         assert!(ws.records().iter().any(|r| r.fields.contains_key("Item")));
+        assert!(ws
+            .records()
+            .iter()
+            .any(|r| r.fields.get("Operation").is_some_and(|o| o == "CreateFile")));
     }
 }

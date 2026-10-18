@@ -1,7 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { RecordView } from '../core/api.types';
 
-const sameRecords = (a: readonly RecordView[], b: readonly RecordView[]) => a.length === b.length && a.every((r, i) => r.id === b[i].id);
+const sameRecords = (a: readonly RecordView[], b: readonly RecordView[]) => a.length === b.length && a.every((r, i) => r.id === b[i]?.id);
 
 /**
  * The events grid's multi-selection, for features outside the grid (palette commands, panels) that act on

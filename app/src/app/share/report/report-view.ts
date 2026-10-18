@@ -20,64 +20,64 @@ import { ReportStore } from './report.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkdownView, ReportBlockView],
   template: `
-    <div class="scroll" role="region" aria-label="Report builder">
+    <div class="scroll" role="region" aria-label="Report builder" i18n-aria-label="@@share.reportView.regionAria">
       <div class="bar">
         @if (reports.reports().length > 1) {
-          <label class="pick">Report
+          <label class="pick"><ng-container i18n="@@share.reportView.pick">Report</ng-container>
             <select class="select" [value]="activeId()" (change)="reports.setActive($any($event.target).value)">
-              @for (r of reports.reports(); track r.id) { <option [value]="r.id">{{ r.title || 'Untitled report' }}</option> }
+              @for (r of reports.reports(); track r.id) { <option [value]="r.id">{{ r.title || untitled }}</option> }
             </select>
           </label>
         }
-        <button type="button" class="btn" (click)="reports.create()"><imt-icon name="plus" [size]="13" /> New report</button>
+        <button type="button" class="btn" (click)="reports.create()" i18n="@@share.reportView.new"><imt-icon name="plus" [size]="13" /> New report</button>
         @if (reports.active(); as r) {
-          <button type="button" class="btn" (click)="reports.remove(r.id)">Delete report</button>
+          <button type="button" class="btn" (click)="reports.remove(r.id)" i18n="@@share.reportView.delete">Delete report</button>
           <span class="spacer"></span>
-          <button type="button" class="btn primary" (click)="exportReport()">Export…</button>
+          <button type="button" class="btn primary" (click)="exportReport()" i18n="@@share.reportView.export">Export…</button>
         }
       </div>
 
       @if (reports.active(); as r) {
-        <label class="field">Report title
+        <label class="field"><ng-container i18n="@@share.reportView.title">Report title</ng-container>
           <input class="input title" [value]="r.title" (change)="reports.update(r.id, { title: val($event) })" />
         </label>
-        <label class="field">Summary (Markdown)
-          <textarea class="input summary" rows="3" [value]="r.summary" (change)="reports.update(r.id, { summary: val($event) })" placeholder="What happened, impact, cause…"></textarea>
+        <label class="field"><ng-container i18n="@@share.reportView.summary">Summary (Markdown)</ng-container>
+          <textarea class="input summary" rows="3" [value]="r.summary" (change)="reports.update(r.id, { summary: val($event) })" placeholder="What happened, impact, cause…" i18n-placeholder="@@share.reportView.summaryPlaceholder"></textarea>
         </label>
         @if (r.summary) { <imt-markdown-view class="md" [text]="r.summary" /> }
 
-        <div class="add" role="toolbar" aria-label="Add to report">
-          <span class="faint">Add:</span>
-          <button type="button" class="btn" (click)="actions.addText()">Text</button>
-          <button type="button" class="btn" [disabled]="!ws.selected()" (click)="actions.addSelectedEvent()">Selected event</button>
-          <button type="button" class="btn" [disabled]="!bookmarks.items().length" (click)="actions.addBookmarks()">Bookmarks</button>
-          <button type="button" class="btn" [disabled]="!ws.timeline()" (click)="actions.addTimeline()">Timeline</button>
-          <button type="button" class="btn" [disabled]="!ws.summary()?.total" (click)="actions.addAnomalies()">Anomalies as findings</button>
-          <button type="button" class="btn" [disabled]="!session.table()" (click)="actions.addQueryTable()">Query result</button>
-          <button type="button" class="btn" [disabled]="!annotations.items().length" (click)="actions.addAnnotations()">Annotations</button>
+        <div class="add" role="toolbar" aria-label="Add to report" i18n-aria-label="@@share.reportView.addAria">
+          <span class="faint" i18n="@@share.reportView.addLabel">Add:</span>
+          <button type="button" class="btn" (click)="actions.addText()" i18n="@@share.reportView.addText">Text</button>
+          <button type="button" class="btn" [disabled]="!ws.selected()" (click)="actions.addSelectedEvent()" i18n="@@share.reportView.addSelected">Selected event</button>
+          <button type="button" class="btn" [disabled]="!bookmarks.items().length" (click)="actions.addBookmarks()" i18n="@@share.reportView.addBookmarks">Bookmarks</button>
+          <button type="button" class="btn" [disabled]="!ws.timeline()" (click)="actions.addTimeline()" i18n="@@share.reportView.addTimeline">Timeline</button>
+          <button type="button" class="btn" [disabled]="!ws.summary()?.total" (click)="actions.addAnomalies()" i18n="@@share.reportView.addAnomalies">Anomalies as findings</button>
+          <button type="button" class="btn" [disabled]="!session.table()" (click)="actions.addQueryTable()" i18n="@@share.reportView.addQuery">Query result</button>
+          <button type="button" class="btn" [disabled]="!annotations.items().length" (click)="actions.addAnnotations()" i18n="@@share.reportView.addAnnotations">Annotations</button>
         </div>
-        <p class="faint hint">Charts: use “Add to report” on a chart in the Metrics view.</p>
+        <p class="faint hint" i18n="@@share.reportView.chartsHint">Charts: use “Add to report” on a chart in the Metrics view.</p>
 
         @for (s of r.sections; track s.id; let si = $index) {
-          <section class="section" [attr.aria-label]="'Section ' + (s.title || si + 1)">
+          <section class="section" [attr.aria-label]="sectionLabel(s.title, si)">
             <div class="section-head">
-              <input class="input stitle" [attr.aria-label]="'Section title ' + (si + 1)" [value]="s.title" (change)="reports.renameSection(s.id, val($event))" />
-              <button type="button" class="icon-btn" [attr.aria-label]="'Move section up: ' + s.title" [disabled]="si === 0" (click)="reports.moveSection(s.id, -1)"><span aria-hidden="true">↑</span></button>
-              <button type="button" class="icon-btn" [attr.aria-label]="'Move section down: ' + s.title" [disabled]="si === r.sections.length - 1" (click)="reports.moveSection(s.id, 1)"><span aria-hidden="true">↓</span></button>
-              <button type="button" class="icon-btn" [attr.aria-label]="'Remove section ' + s.title" (click)="reports.removeSection(s.id)"><imt-icon name="trash" [size]="13" /></button>
+              <input class="input stitle" [attr.aria-label]="sectionTitleLabel(si)" [value]="s.title" (change)="reports.renameSection(s.id, val($event))" />
+              <button type="button" class="icon-btn" [attr.aria-label]="sectionUpLabel(s.title)" [disabled]="si === 0" (click)="reports.moveSection(s.id, -1)"><span aria-hidden="true">↑</span></button>
+              <button type="button" class="icon-btn" [attr.aria-label]="sectionDownLabel(s.title)" [disabled]="si === r.sections.length - 1" (click)="reports.moveSection(s.id, 1)"><span aria-hidden="true">↓</span></button>
+              <button type="button" class="icon-btn" [attr.aria-label]="sectionRemoveLabel(s.title)" (click)="reports.removeSection(s.id)"><imt-icon name="trash" [size]="13" /></button>
             </div>
             @for (b of s.blocks; track b.id; let bi = $index) {
               <imt-report-block [block]="b" [first]="si === 0 && bi === 0" [last]="si === r.sections.length - 1 && bi === s.blocks.length - 1" (moved)="refocus($event)" />
             } @empty {
-              <p class="faint">Empty section. Blocks are added to the last section.</p>
+              <p class="faint" i18n="@@share.reportView.emptySection">Empty section. Blocks are added to the last section.</p>
             }
           </section>
         }
-        <button type="button" class="btn add-section" (click)="reports.addSection()"><imt-icon name="plus" [size]="13" /> Add section</button>
+        <button type="button" class="btn add-section" (click)="reports.addSection()" i18n="@@share.reportView.addSection"><imt-icon name="plus" [size]="13" /> Add section</button>
       } @else {
         <div class="empty-next">
-          <p class="faint">No report yet. Create one, or use “Add to report” on an event, a bookmark, a chart or the timeline.</p>
-          <button type="button" class="btn primary" (click)="reports.create()"><imt-icon name="plus" [size]="13" /> Create a report</button>
+          <p class="faint" i18n="@@share.reportView.none">No report yet. Create one, or use “Add to report” on an event, a bookmark, a chart or the timeline.</p>
+          <button type="button" class="btn primary" (click)="reports.create()" i18n="@@share.reportView.create"><imt-icon name="plus" [size]="13" /> Create a report</button>
         </div>
       }
     </div>
@@ -110,6 +110,28 @@ export class ReportView {
   protected readonly annotations = inject(TimelineAnnotations);
   private readonly dialogs = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  protected readonly untitled = $localize`:@@share.reportView.untitled:Untitled report`;
+
+  protected sectionLabel(title: string, i: number): string {
+    return $localize`:@@share.reportView.sectionAria:Section ${title || i + 1}:title:`;
+  }
+
+  protected sectionTitleLabel(i: number): string {
+    return $localize`:@@share.reportView.sectionTitleAria:Section title ${i + 1}:number:`;
+  }
+
+  protected sectionUpLabel(title: string): string {
+    return $localize`:@@share.reportView.sectionUpAria:Move section up: ${title}:title:`;
+  }
+
+  protected sectionDownLabel(title: string): string {
+    return $localize`:@@share.reportView.sectionDownAria:Move section down: ${title}:title:`;
+  }
+
+  protected sectionRemoveLabel(title: string): string {
+    return $localize`:@@share.reportView.sectionRemoveAria:Remove section ${title}:title:`;
+  }
 
   protected exportReport(): void {
     void openReportExport(this.dialogs);

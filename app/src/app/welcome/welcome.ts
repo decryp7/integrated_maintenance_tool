@@ -36,19 +36,19 @@ export function shortPath(path: string): string {
   imports: [Icon, HelpHint],
   template: `
     <section class="welcome" aria-labelledby="welcome-title">
-      <h1 id="welcome-title">Welcome to IMT</h1>
-      <p class="lead">Open log files or a whole folder and explore what happened, instance by instance.</p>
+      <h1 id="welcome-title" i18n="@@welcome.title">Welcome to IMT</h1>
+      <p class="lead" i18n="@@welcome.lead">Open log files or a whole folder and explore what happened, instance by instance.</p>
       <div class="actions">
-        <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="15" /> Open folder…</button>
-        <button class="btn big" type="button" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="15" /> Open files…</button>
-        <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><imt-icon name="timeline" [size]="15" /> {{ demo.loading() ? 'Opening the demo…' : 'Try a demo' }}</button>
+        <button class="btn primary big" type="button" (click)="store.pickAndOpen(true)" i18n="@@welcome.openFolder"><imt-icon name="folder" [size]="15" /> Open folder…</button>
+        <button class="btn big" type="button" (click)="store.pickAndOpen(false)" i18n="@@welcome.openFiles"><imt-icon name="file" [size]="15" /> Open files…</button>
+        <button class="btn big" type="button" data-testid="try-demo" [disabled]="demo.loading()" (click)="demo.start()"><imt-icon name="timeline" [size]="15" /> {{ demoLabel() }}</button>
       </div>
-      <p class="safe" data-testid="read-only-promise"><imt-icon name="check" [size]="14" /> {{ promise }} <imt-help label="Your files are safe" [text]="detail" /></p>
-      <p class="faint hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
+      <p class="safe" data-testid="read-only-promise"><imt-icon name="check" [size]="14" /> {{ promise }} <imt-help label="Your files are safe" i18n-label="@@welcome.safe.helpLabel" [text]="detail" /></p>
+      <p class="faint hint" i18n="@@welcome.hint">Or drag and drop files or folders anywhere in the window. The format is detected from the content, not the extension.</p>
 
       @if (recent().length) {
         <div class="recent">
-          <h2 class="section-title">Recent</h2>
+          <h2 class="section-title" i18n="@@welcome.recent">Recent</h2>
           <ul>
             @for (p of recent(); track p) {
               <li><button class="link mono" type="button" [title]="p" (click)="open(p)">{{ short(p) }}</button></li>
@@ -57,15 +57,15 @@ export function shortPath(path: string): string {
         </div>
       }
 
-      <h2 class="section-title how">How IMT works</h2>
-      <ol class="steps" aria-label="How IMT works">
-        <li><strong>1 · Open</strong><span>Add log files or a folder.</span></li>
-        <li><strong>2 · Filter</strong><span>Search, pick levels, add field filters.</span></li>
-        <li><strong>3 · Timeline</strong><span>See instances over time; drag to zoom.</span></li>
-        <li><strong>4 · Inspect</strong><span>Click an event to see every property.</span></li>
+      <h2 class="section-title how" i18n="@@welcome.how.title">How IMT works</h2>
+      <ol class="steps" aria-label="How IMT works" i18n-aria-label="@@welcome.how.label">
+        <li><strong i18n="@@welcome.how.open.title">1 · Open</strong><span i18n="@@welcome.how.open.text">Add log files or a folder.</span></li>
+        <li><strong i18n="@@welcome.how.filter.title">2 · Filter</strong><span i18n="@@welcome.how.filter.text">Search, pick levels, add field filters.</span></li>
+        <li><strong i18n="@@welcome.how.timeline.title">3 · Timeline</strong><span i18n="@@welcome.how.timeline.text">See instances over time; drag to zoom.</span></li>
+        <li><strong i18n="@@welcome.how.inspect.title">4 · Inspect</strong><span i18n="@@welcome.how.inspect.text">Click an event to see every property.</span></li>
       </ol>
       @if (workspaceHasSources()) {
-        <button class="btn" type="button" (click)="welcome.hide()">Back to workspace</button>
+        <button class="btn" type="button" (click)="welcome.hide()" i18n="@@welcome.back">Back to workspace</button>
       }
     </section>
   `,
@@ -96,6 +96,8 @@ export class Welcome {
   protected readonly promise = READ_ONLY_PROMISE;
   protected readonly detail = READ_ONLY_DETAIL;
   protected readonly short = shortPath;
+  protected readonly demoLabel = computed(() => (this.demo.loading() ? $localize`:@@welcome.demo.opening:Opening the demo…` : $localize`:@@welcome.demo:Try a demo`));
+
   protected readonly workspaceHasSources = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
   protected readonly recent = computed(() => {
     this.store.dataVersion();

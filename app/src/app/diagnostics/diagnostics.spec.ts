@@ -9,13 +9,14 @@ import { DEFAULT_CLASSIFIER, isUnexpectedBackendError } from './error-classify';
 import { ErrorSnapshotService, SNAPSHOT_CLOCK } from './error-snapshot.service';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { createSnapshotBackend, provideDiagnostics } from './provide-diagnostics';
-import { encodeWithin, MAX_BYTES, ScreenCapture, scaleFor } from './screen-capture';
+import { capturedStyleProperties, encodeWithin, MAX_BYTES, ScreenCapture, scaleFor } from './screen-capture';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotGate } from './snapshot-gate';
 import { CapturedImage } from './snapshot.types';
 import { SnapshotContext } from '../core/api.types';
 import { FailureReporter } from '../core/failure-reporter';
+import { at } from '../../testing/must';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
@@ -112,8 +113,8 @@ describe('DomScreenCapture', () => {
     const { DomScreenCapture } = await import('./screen-capture');
     const image = await new DomScreenCapture().capture();
     expect(image).toEqual({ mime: 'image/png', base64: 'QUJD', bytes: 3 });
-    const options = toCanvas.mock.calls[0][1];
-    expect(toCanvas.mock.calls[0][0]).toBe(document.body);
+    const options = at(toCanvas.mock.calls, 0)[1];
+    expect(at(toCanvas.mock.calls, 0)[0]).toBe(document.body);
     expect(options.skipFonts).toBe(true);
     const toast = document.createElement('div');
     toast.setAttribute('data-snapshot-ignore', '');
@@ -121,6 +122,28 @@ describe('DomScreenCapture', () => {
     expect(options.filter(document.createElement('div'))).toBe(true);
     expect(options.filter(document.createTextNode('x'))).toBe(true);
     vi.doUnmock('html-to-image');
+  });
+
+  // Regression: Angular Material's theme puts ~165 --mat-sys-* tokens on :root. html-to-image copies every
+  // property of the root's computed style onto every cloned node, which made a capture ~80% slower (several
+  // seconds), so the toast came too late. Computed values already resolve var(), so the clone does not need them.
+  it('copies standard and IMT properties but not Angular Material theme tokens', async () => {
+    const toCanvas = vi.fn(async (_n: unknown, _o: { includeStyleProperties?: string[] }) => ({ toDataURL: () => 'data:image/png;base64,QUJD' }));
+    vi.doMock('html-to-image', () => ({ toCanvas }));
+    vi.resetModules();
+    document.documentElement.style.setProperty('--mat-sys-primary', 'red');
+    document.documentElement.style.setProperty('--accent', 'blue');
+    const { DomScreenCapture } = await import('./screen-capture');
+    await new DomScreenCapture().capture();
+    const props = at(toCanvas.mock.calls, 0)[1].includeStyleProperties ?? [];
+    expect(props.some((p) => p.startsWith('--mat-'))).toBe(false);
+    document.documentElement.style.removeProperty('--mat-sys-primary');
+    document.documentElement.style.removeProperty('--accent');
+    vi.doUnmock('html-to-image');
+  });
+
+  it('keeps every computed property except Material tokens', () => {
+    expect(capturedStyleProperties(['color', '--accent', '--mat-sys-primary', 'stroke', '--mat-slide-toggle-x'])).toEqual(['color', '--accent', 'stroke']);
   });
 });
 
@@ -153,7 +176,7 @@ describe('ErrorSnapshotService', () => {
     const id = await service.capture('unhandled-error', { error: new Error('Failed at /Users/me/secret/file.log') });
     expect(id).toMatch(/^2026/);
     expect(frames).toBe(1);
-    const [saved] = await backend.list();
+    const saved = at(await backend.list(), 0);
     expect(saved.reason).toBe('unhandled-error');
     expect(saved.message).toBe('Failed at <path>');
     expect(saved.stack).toContain('<path>');
@@ -171,7 +194,7 @@ describe('ErrorSnapshotService', () => {
     const list = await backend.list();
     expect(list.find((i) => i.manual)?.message).toBe('manual');
     expect(list.find((i) => !i.manual)?.message).toBe('plain text');
-    expect(list[0].view).toBe('Timeline');
+    expect(at(list, 0).view).toBe('Timeline');
     document.querySelector('.dv-active-tab')?.remove();
   });
 
@@ -248,11 +271,11 @@ describe('ErrorSnapshotService', () => {
     expect(list[1]).toMatchObject({ reason: 'panel-failed', message: 'Panel "Timeline" failed: render broke' });
     now += 20_000;
     backend.emit({ kind: 'import-crash', message: 'bad file', plugin: null });
-    await vi.waitFor(async () => expect((await backend.list())[0].message).toBe('import-crash: bad file'));
+    await vi.waitFor(async () => expect(at((await backend.list()), 0).message).toBe('import-crash: bad file'));
     service.stop();
     now += 20_000;
     backend.emit({ kind: 'import-crash', message: 'ignored', plugin: null });
-    expect((await backend.list())[0].message).toBe('import-crash: bad file');
+    expect(at((await backend.list()), 0).message).toBe('import-crash: bad file');
   });
 
   it('does nothing automatic while the setting is off, but the manual command works', async () => {
@@ -328,8 +351,8 @@ describe('commands and views', () => {
     expect(manual).toHaveBeenCalled();
     commands.find((c) => c.id === 'diagnostics.snapshots.show')!.run({ showView } as unknown as CommandContext);
     expect(showView).toHaveBeenCalledWith('error-snapshots');
-    expect(DIAGNOSTICS_VIEWS[0].id).toBe('error-snapshots');
-    expect((await DIAGNOSTICS_VIEWS[0].component()).name).toContain('ErrorSnapshotsView');
+    expect(at(DIAGNOSTICS_VIEWS, 0).id).toBe('error-snapshots');
+    expect((await at(DIAGNOSTICS_VIEWS, 0).component()).name).toContain('ErrorSnapshotsView');
   });
 });
 
@@ -360,7 +383,7 @@ describe('backends', () => {
     ]);
     const seen: unknown[] = [];
     await b.onEngineError((e) => seen.push(e));
-    expect(listen.mock.calls[0][0]).toBe('imt://error');
+    expect(at(listen.mock.calls, 0)[0]).toBe('imt://error');
     expect(seen).toEqual([{ kind: 'import-crash', message: 'm', plugin: null }]);
   });
 

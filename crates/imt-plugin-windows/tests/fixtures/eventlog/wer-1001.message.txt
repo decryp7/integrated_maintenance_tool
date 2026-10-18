@@ -1,0 +1,29 @@
+Fault bucket , type 0
+Event Name: crashpad_log
+Response: Not available
+Cab Id: 0
+
+Problem signature:
+P1: setup.exe
+P2: 155.0.4283.45
+P3: EdgeInstallerError|msedge
+P4: 0x21f
+P5: 
+P6: 
+P7: 
+P8: 
+P9: 
+P10: 
+
+Attached files:
+\\?\C:\Windows\SystemTemp\msedge_installer.log
+
+These files may be available here:
+NULL
+
+Analysis symbol: 
+Rechecking for solution: 0
+Report Id: 884492d2-8c61-4d34-98c5-d8efbff3c345
+Report Status: 268697600
+Hashed bucket: 
+Cab Guid: 0

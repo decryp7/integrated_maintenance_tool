@@ -3,6 +3,7 @@ import { AnnotationDto } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { provideTinyBackend, settle, tinyBackend } from '../../testing/helpers';
 import { TimelineAnnotations } from './annotations.store';
+import { at } from '../../testing/must';
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
@@ -27,10 +28,10 @@ describe('TimelineAnnotations', () => {
     store.setBuckets(100);
     await settle(undefined, 8);
     expect(calls.length).toBeGreaterThan(0);
-    const first = calls[calls.length - 1];
+    const first = at(calls, calls.length - 1);
     await store.refreshSummary(); // new data version: a new request supersedes the first
     await settle(undefined, 8);
-    const second = calls[calls.length - 1];
+    const second = at(calls, calls.length - 1);
     expect(second).not.toBe(first);
     second.resolve([]);
     first.resolve([{ kind: 'stale' } as AnnotationDto]);
@@ -41,10 +42,10 @@ describe('TimelineAnnotations', () => {
     // A later failure of a superseded request is ignored too.
     await store.refreshSummary();
     await settle(undefined, 8);
-    const third = calls[calls.length - 1];
+    const third = at(calls, calls.length - 1);
     await store.refreshSummary();
     await settle(undefined, 8);
-    calls[calls.length - 1].resolve(null as unknown as AnnotationDto[]);
+    at(calls, calls.length - 1).resolve(null as unknown as AnnotationDto[]);
     third.reject('late failure');
     await settle(undefined, 4);
     expect(ann.error()).toBeNull();

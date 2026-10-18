@@ -42,7 +42,7 @@ const UNITS: Record<string, number> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000,
 export function parseShift(by: string): number | null {
   const m = /^([+-]?)(\d+(?:\.\d+)?)(ms|s|m|h|d)$/.exec(by.trim());
   if (!m) return null;
-  const ms = Number(m[2]) * UNITS[m[3]];
+  const ms = Number(m[2]) * (UNITS[m[3] ?? ''] ?? 0);
   return m[1] === '-' ? -ms : ms;
 }
 
@@ -60,14 +60,18 @@ export function jsonFields(text: string): Record<string, unknown> | null {
 /** key=value and key="quoted value" pairs in text. */
 export function kvFields(text: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const m of text.matchAll(/([\w.-]+)=(?:"([^"]*)"|(\S+))/g)) out[m[1]] = m[2] ?? m[3];
+  for (const m of text.matchAll(/([\w.-]+)=(?:"([^"]*)"|(\S+))/g)) {
+    const key = m[1];
+    if (key !== undefined) out[key] = m[2] ?? m[3] ?? '';
+  }
   return out;
 }
 
 /**
  * Mock of the engine's ordered `[[pipeline]]`: drop, keep, mask, set, set_level, remove_fields,
  * rename, truncate, parse_json, parse_kv, lookup (inline table), shift_time. Steps with
- * `disabled = true` are skipped. `dedupe` and `plugin` need the real engine and pass events through.
+ * `disabled = true` are skipped. `dedupe`, `calc` (expressions are evaluated only by the engine), `script`
+ * (scripts are compiled and run only by the engine) and `plugin` need the real engine and pass events through.
  * Input records are not mutated.
  */
 export function applyPipeline(input: MockRecord[], steps: PipelineStep[], sourceName: (id: number) => string): PipelineResult {

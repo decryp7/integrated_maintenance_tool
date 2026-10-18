@@ -11,6 +11,7 @@ import {
   mockXml,
   optionsFromSearch,
 } from './mock-tools-backend';
+import { at } from '../../../testing/must';
 
 const template: CollectorTemplate = {
   name: 'IMT',
@@ -60,6 +61,7 @@ describe('MockToolsBackend tools', () => {
       'process-monitor',
       'diagnostics',
       'elevation',
+      'event-log-follower',
     ]);
     expect(
       win.every(
@@ -67,17 +69,17 @@ describe('MockToolsBackend tools', () => {
       ),
     ).toBe(true);
     const mac = await make({ platform: 'macos' }).toolsList();
-    expect(mac[1].availability).toEqual({
+    expect(mac[1]?.availability).toEqual({
       state: 'unsupported',
       reason: 'Performance Monitor collector sets is only available on Windows (this is macOS)',
     });
-    expect(mac[0].availability.state).toBe('available');
+    expect(mac[0]?.availability.state).toBe('available');
     const quarantined = await make({ toolsPlugin: 'quarantined' }).toolsList();
-    expect(quarantined[0].availability).toEqual({
+    expect(quarantined[0]?.availability).toEqual({
       state: 'pluginUnavailable',
       reason: expect.stringContaining('repeated crashes'),
     });
-    expect((await make({ toolsPlugin: 'inactive' }).toolsList())[2].availability).toEqual({
+    expect((await make({ toolsPlugin: 'inactive' }).toolsList())[2]?.availability).toEqual({
       state: 'pluginUnavailable',
       reason: expect.stringContaining('inactive'),
     });
@@ -192,7 +194,9 @@ describe('MockToolsBackend', () => {
       counters: [],
       includeChildren: false,
     };
+    expect(b.monitorConfig).toBeNull();
     expect(await b.monitorStart(cfg)).toBe('/demo/monitor/run-1');
+    expect(b.monitorConfig).toEqual(cfg);
     await expect(b.monitorStart(cfg)).rejects.toThrow('already running');
     expect(await b.monitorStatus()).toEqual({ running: true, dir: '/demo/monitor/run-1' });
     expect(await b.monitorStop()).toBe('/demo/monitor/run-1');
@@ -209,10 +213,10 @@ describe('MockToolsBackend', () => {
       '/out',
     );
     expect(r.bundle).toBe('/out/imt-diagnostics.imtz');
-    expect(r.manifest.items[0].origin).toBe('C:\\L');
+    expect(r.manifest.items[0]?.origin).toBe('C:\\L');
     expect(r.manifest.skipped).toEqual([]);
     expect(mockManifest(DEFAULT_PLAN).skipped).toHaveLength(1);
-    expect(mockManifest(DEFAULT_PLAN).items[0].origin).toBe('C:\\logs');
+    expect(mockManifest(DEFAULT_PLAN).items[0]?.origin).toBe('C:\\logs');
     // The same bundle again: refused unless confirmed.
     await expect(b.collectDiagnostics(JSON.stringify(plan), '/out')).rejects.toThrow(
       `/out/imt-diagnostics.imtz${FILE_EXISTS_SUFFIX}`,
@@ -285,7 +289,9 @@ describe('MockToolsBackend', () => {
       () => imt.workspaceSummary(),
       (source, offsetMs) => imt.setSourceOffset({ kind: 'manual', source, offsetMs }),
     );
-    const [first, second] = (await imt.workspaceSummary()).sources;
+    const sources = (await imt.workspaceSummary()).sources;
+    const first = at(sources, 0);
+    const second = at(sources, 1);
     await imt.setSourceOffset({ kind: 'manual', source: first.id, offsetMs: 2350 });
     await b.saveProject('/p/skew.imtproj', 'Skew', {});
     await b.saveSession({});

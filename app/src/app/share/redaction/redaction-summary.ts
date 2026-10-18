@@ -9,7 +9,7 @@ import { formatCount } from '../../core/format';
   template: `
     @if (summary(); as s) {
       <p class="line" role="status">
-        <strong>{{ fmt(s.changed) }}</strong> of {{ fmt(s.scanned) }}{{ s.truncated ? '+' : '' }} events change
+        <ng-container i18n="@@share.redactionSummary.changed"><strong>{{ fmt(s.changed) }}</strong> of {{ fmt(s.scanned) }}{{ s.truncated ? '+' : '' }} events change</ng-container>
         @if (hits().length) {
           ·
           @for (h of hits(); track h.rule; let last = $last) {
@@ -19,12 +19,12 @@ import { formatCount } from '../../core/format';
       </p>
       @for (x of s.samples; track x.recordId) {
         <div class="sample">
-          <div class="mono before" title="Before">{{ x.before }}</div>
-          <div class="mono after" title="After">{{ x.after }}</div>
+          <div class="mono before" title="Before" i18n-title="@@share.redactionSummary.before">{{ x.before }}</div>
+          <div class="mono after" title="After" i18n-title="@@share.redactionSummary.after">{{ x.after }}</div>
         </div>
       }
     } @else {
-      <p class="line">Checking what will be redacted…</p>
+      <p class="line" i18n="@@share.redactionSummary.checking">Checking what will be redacted…</p>
     }
   `,
   styles: `

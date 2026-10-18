@@ -11,7 +11,7 @@ export function mockDurationMs(text: string): number | null {
   const m = /^\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]*)\s*$/.exec(text);
   if (!m) return null;
   const factor: Record<string, number> = { '': 1, ms: 1, s: 1e3, sec: 1e3, secs: 1e3, m: 6e4, min: 6e4, mins: 6e4, h: 3.6e6, hr: 3.6e6, hours: 3.6e6, d: 8.64e7, days: 8.64e7 };
-  const f = factor[m[2].toLowerCase()];
+  const f = factor[(m[2] ?? '').toLowerCase()];
   if (f === undefined) return null;
   const ms = Number(m[1]) * f;
   return ms >= 1 ? ms : null;

@@ -12,9 +12,9 @@ import { RedactionService } from './redaction.service';
     @if (redaction.on()) {
       <div class="banner info" role="status" data-testid="redacted-banner">
         <imt-icon name="check" [size]="14" />
-        <span class="msg">Redacted view: secrets and personal data are masked in the grid, facets and context.</span>
-        <button type="button" class="btn" (click)="redaction.openSettings()">Settings…</button>
-        <button type="button" class="btn ghost" [disabled]="redaction.busy()" (click)="redaction.set(false)">Turn off</button>
+        <span class="msg" i18n="@@share.redactionBanner.message">Redacted view: secrets and personal data are masked in the grid, facets and context.</span>
+        <button type="button" class="btn" (click)="redaction.openSettings()" i18n="@@share.redactionBanner.settings">Settings…</button>
+        <button type="button" class="btn ghost" [disabled]="redaction.busy()" (click)="redaction.set(false)" i18n="@@share.redactionBanner.turnOff">Turn off</button>
       </div>
     }
   `,

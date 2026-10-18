@@ -22,6 +22,7 @@ import { AiStatusStore } from './ai-status.store';
 import { AiStatus, ChatHistoryRecord } from './ai.types';
 import { Injector } from '@angular/core';
 import { aiCommands, aiRecordMenu, aiViews, offerSetupOnFirstRun, provideAi, rangeToSummarize } from './provide-ai';
+import { at } from '../../testing/must';
 
 function setup(options: MockAiOptions = {}, extra: unknown[] = []) {
   const backend = new MockAiBackend({ stepMs: 0, ...options });
@@ -113,13 +114,13 @@ describe('AiLauncher', () => {
     const { l, open, dialogs } = await launcher();
     const p = l.suggestRegex(['a', 'b'], { intent: 'ids' });
     await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
-    expect(open.mock.calls[0][1].inputs).toEqual({ lines: ['a', 'b'], intent: 'ids', highlight: false });
-    dialogs.stack()[0].ref.close('x+');
+    expect(at(open.mock.calls, 0)[1]?.inputs).toEqual({ lines: ['a', 'b'], intent: 'ids', highlight: false });
+    at(dialogs.stack(), 0).ref.close('x+');
     expect(await p).toBe('x+');
     const q = l.suggestRegex(['a'], { highlight: true });
     await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
-    expect(open.mock.calls[1][1].inputs).toMatchObject({ intent: '', highlight: true });
-    dialogs.stack()[0].ref.close();
+    expect(at(open.mock.calls, 1)[1]?.inputs).toMatchObject({ intent: '', highlight: true });
+    at(dialogs.stack(), 0).ref.close();
     expect(await q).toBeNull();
   });
 
@@ -329,13 +330,13 @@ describe('provide-ai', () => {
     await settle();
     const items = menu(record(1, 'one'), {});
     expect(items.map((i) => i.label)).toEqual(['Explain this event (AI)…', 'Suggest a regex for these lines (AI)…']);
-    items[0].run();
-    items[1].run();
+    at(items, 0).run();
+    at(items, 1).run();
     expect(explain).toHaveBeenCalledWith(1);
     expect(regex).toHaveBeenCalledWith(['one'], { highlight: true });
-    menu(record(1), { records: [record(2, 'two'), record(3, 'three')] })[1].run();
+    at(menu(record(1), { records: [record(2, 'two'), record(3, 'three')] }), 1).run();
     expect(regex).toHaveBeenLastCalledWith(['two', 'three'], { highlight: true });
-    expect(aiViews(status)[0].enabled!()).toBe(true);
+    expect(aiViews(status)[0]?.enabled!()).toBe(true);
   });
 });
 

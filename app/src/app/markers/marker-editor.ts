@@ -28,58 +28,58 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
   imports: [ConditionsEditor, GlyphPicker, MarkerGlyph, RegexAssist],
   template: `
     <div class="top">
-      <imt-marker-glyph [glyph]="style()" [size]="32" [label]="'Marker preview'" />
+      <imt-marker-glyph [glyph]="style()" [size]="32" [label]="previewLabel" />
       <div class="grow">
         <div class="row">
-          <label class="lbl">Label<input class="input" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
-          <label class="lbl">Kind (id)<input class="input mono" [value]="kind()" (input)="kindEdited.set($any($event.target).value)" /></label>
+          <label class="lbl"><ng-container i18n="@@markers.editor.label">Label</ng-container><input class="input" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
+          <label class="lbl"><ng-container i18n="@@markers.editor.kind">Kind (id)</ng-container><input class="input mono" [value]="kind()" (input)="kindEdited.set($any($event.target).value)" /></label>
         </div>
-        <label class="lbl">Description (shown in the legend and tooltips)<input class="input" [value]="description()" placeholder="What does this marker mean?" (input)="description.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@markers.editor.description">Description (shown in the legend and tooltips)</ng-container><input class="input" [value]="description()" placeholder="What does this marker mean?" i18n-placeholder="@@markers.editor.descriptionPlaceholder" (input)="description.set($any($event.target).value)" /></label>
       </div>
     </div>
 
     <imt-glyph-picker [(mode)]="mode" [(badge)]="badge" [(shape)]="shape" [(icon)]="icon" [(pending)]="pending" [color]="color()" [suggestion]="suggestion()" [takenNames]="takenIcons()" />
 
     <div class="row">
-      <label class="lbl">Colour<input class="input color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" /></label>
-      <div class="presets" role="group" aria-label="Colour presets">
+      <label class="lbl"><ng-container i18n="@@markers.editor.colour">Colour</ng-container><input class="input color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" /></label>
+      <div class="presets" role="group" aria-label="Colour presets" i18n-aria-label="@@markers.editor.colourPresets">
         @for (p of presets; track p) {
-          <button type="button" class="swatch" [style.background]="p" [attr.aria-label]="'Colour ' + p" [attr.aria-pressed]="color() === p" (click)="color.set(p)"></button>
+          <button type="button" class="swatch" [style.background]="p" [attr.aria-label]="colourLabel(p)" [attr.aria-pressed]="color() === p" (click)="color.set(p)"></button>
         }
       </div>
     </div>
-    <label class="check"><input type="checkbox" [checked]="lifecycle()" (change)="lifecycle.set($any($event.target).checked)" /> Lifecycle marker (start/stop: stays visible even when filters hide it)</label>
+    <label class="check" i18n="@@markers.editor.lifecycle"><input type="checkbox" [checked]="lifecycle()" (change)="lifecycle.set($any($event.target).checked)" /> Lifecycle marker (start/stop: stays visible even when filters hide it)</label>
 
     @if (advanced()) {
-      <label class="lbl">Query language (preview; saved as conditions when simple)
+      <label class="lbl"><ng-container i18n="@@markers.editor.queryLanguage">Query language (preview; saved as conditions when simple)</ng-container>
         <textarea class="input mono" rows="2" [value]="ql()" (input)="ql.set($any($event.target).value)"></textarea>
       </label>
       <div class="row">
-        <button type="button" class="btn" [disabled]="!converted()" (click)="convert()">Convert to conditions</button>
-        <button type="button" class="btn ghost" (click)="advanced.set(false)">Back to the condition builder</button>
-        @if (!converted()) { <span class="faint">This query is too complex for conditions, so it can only be previewed.</span> }
+        <button type="button" class="btn" [disabled]="!converted()" (click)="convert()" i18n="@@markers.editor.convert">Convert to conditions</button>
+        <button type="button" class="btn ghost" (click)="advanced.set(false)" i18n="@@markers.editor.backToBuilder">Back to the condition builder</button>
+        @if (!converted()) { <span class="faint" i18n="@@markers.editor.tooComplex">This query is too complex for conditions, so it can only be previewed.</span> }
       </div>
     } @else {
-      <imt-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a marker without any would mark every event." (changed)="conditions.set($event)" />
+      <imt-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a marker without any would mark every event." i18n-emptyText="@@markers.editor.emptyConditions" (changed)="conditions.set($event)" />
       @for (c of regexConditions(); track $index) {
         <div class="assist"><span class="faint mono ellipsis">{{ c.value }}</span><imt-regex-assist [pattern]="c.value ?? ''" /></div>
       }
-      <button type="button" class="btn ghost link" (click)="advanced.set(true)">Advanced: query language</button>
+      <button type="button" class="btn ghost link" (click)="advanced.set(true)" i18n="@@markers.editor.advanced">Advanced: query language</button>
     }
 
-    <section class="preview" aria-label="Preview">
+    <section class="preview" aria-label="Preview" i18n-aria-label="@@markers.editor.preview">
       <div class="status" role="status">
-        @if (preview().error; as e) { Could not count: {{ e }} }
-        @else if (preview().result; as r) { This marks <strong>{{ fmt(r.count) }}</strong> events right now. @if (r.ignored) { <span class="faint">({{ r.ignored }} "in" condition ignored in the preview)</span> } }
-        @else { Counting… }
+        @if (preview().error; as e) { <ng-container i18n="@@markers.editor.couldNotCount">Could not count: {{ e }}</ng-container> }
+        @else if (preview().result; as r) { <ng-container i18n="@@markers.editor.marksNow">This marks <strong>{{ fmt(r.count) }}</strong> events right now.</ng-container>&ngsp;@if (r.ignored) { <span class="faint" i18n="@@markers.editor.ignoredIn">({{ r.ignored }} "in" condition ignored in the preview)</span> } }
+        @else { <ng-container i18n="@@markers.editor.counting">Counting…</ng-container> }
       </div>
       @if (preview().result; as r) {
-        <svg class="strip" viewBox="0 0 48 12" preserveAspectRatio="none" role="img" aria-label="Where the matches are in time">
+        <svg class="strip" viewBox="0 0 48 12" preserveAspectRatio="none" role="img" aria-label="Where the matches are in time" i18n-aria-label="@@markers.editor.strip">
           @for (v of r.strip; track $index) {
             @if (v) { <rect [attr.x]="$index" [attr.y]="12 - h(v, r.strip)" width="0.8" [attr.height]="h(v, r.strip)" /> }
           }
         </svg>
-        <ol class="samples" aria-label="First matching lines">
+        <ol class="samples" aria-label="First matching lines" i18n-aria-label="@@markers.editor.samples">
           @for (s of r.samples; track s.id) {
             <li><span class="faint mono">{{ s.level }}</span> {{ s.message }}</li>
           }
@@ -88,12 +88,12 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
     </section>
 
     @if (failure(); as f) {
-      <div class="err" role="alert">{{ f.message }}@if (f.line) { <span> (profile line {{ f.line }}@if (f.excerpt) { : <code>{{ f.excerpt }}</code> })</span> }</div>
+      <div class="err" role="alert">{{ f.message }}@if (f.line) { <span> (<ng-container i18n="@@markers.editor.profileLine">profile line {{ f.line }}</ng-container>@if (f.excerpt) { : <code>{{ f.excerpt }}</code> })</span> }</div>
     }
     @if (problems().length && attempted()) { <div class="err" role="alert">{{ problems().join(' ') }}</div> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="cancelled.emit()">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="saving() || !hasConditions()" (click)="save()">{{ saving() ? 'Applying…' : submitLabel() }}</button>
+      <button type="button" class="btn ghost" (click)="cancelled.emit()" i18n="@@markers.editor.cancel">Cancel</button>
+      <button type="button" class="btn primary" [disabled]="saving() || !hasConditions()" (click)="save()">{{ saveLabel() }}</button>
     </div>
   `,
   styles: [
@@ -124,15 +124,17 @@ export class MarkerEditor {
 
   /** Conditions to start from (new rule). */
   readonly initial = input<Condition[]>([]);
-  readonly suggestedLabel = input('Highlighted lines');
+  readonly suggestedLabel = input($localize`:@@markers.editor.defaultLabel:Highlighted lines`);
   readonly suggestedDescription = input('');
   /** The rule being edited; null creates a new one. */
   readonly rule = input<MarkerRuleX | null>(null);
-  readonly submitLabel = input('Add marker');
+  readonly submitLabel = input($localize`:@@markers.editor.add:Add marker`);
   readonly saved = output<void>();
   readonly cancelled = output<void>();
 
+  protected readonly previewLabel = $localize`:@@markers.editor.previewLabel:Marker preview`;
   protected readonly presets = COLOR_PRESETS;
+  protected readonly saveLabel = computed(() => (this.saving() ? $localize`:@@markers.editor.applying:Applying…` : this.submitLabel()));
   protected readonly fmt = formatCount;
   protected readonly rows = signal<RuleRow[]>([]);
 
@@ -179,6 +181,10 @@ export class MarkerEditor {
     void this.profile.load().then(({ rows }) => this.rows.set(rows));
   }
 
+  protected colourLabel(colour: string): string {
+    return $localize`:@@markers.editor.colourAria:Colour ${colour}:colour:`;
+  }
+
   protected h(v: number, strip: number[]): number {
     return Math.max(1, (v / Math.max(...strip, 1)) * 11);
   }
@@ -223,7 +229,8 @@ export class MarkerEditor {
       const i = original === undefined ? -1 : rows.findIndex((r) => r.rule.kind === original);
       const kind = i >= 0 ? rule.kind : uniqueKind(rows, rule.kind);
       const next = { ...rule, kind };
-      if (i >= 0) rows[i] = { ...rows[i], rule: next };
+      const row = i >= 0 ? rows[i] : undefined;
+      if (row) rows[i] = { ...row, rule: next };
       else rows.unshift({ rule: next, enabled: true }); // user highlights win over the defaults
       if (pending) upsertIcon(model, pending);
       writeRows(model, rows);
@@ -234,7 +241,12 @@ export class MarkerEditor {
       this.failure.set(result.failure);
       return;
     }
-    this.store.setNotice(`${original === undefined ? 'Added' : 'Updated'} the "${rule.label || rule.kind}" marker; files were re-imported.`);
+    const name = rule.label || rule.kind;
+    this.store.setNotice(
+      original === undefined
+        ? $localize`:@@markers.editor.added:Added the "${name}:name:" marker; files were re-imported.`
+        : $localize`:@@markers.editor.updated:Updated the "${name}:name:" marker; files were re-imported.`,
+    );
     this.saved.emit();
   }
 }

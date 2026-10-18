@@ -4,12 +4,14 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
-import { Lane, LEVELS, MarkerKind } from '../core/api.types';
+import { AnnotationDto, Lane, LEVELS, MarkerKind } from '../core/api.types';
+import { plural } from '../i18n/locale';
 import { clamp, formatCount, formatDateTime, formatDuration, formatTime, timeTicks } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { HIST_VARS } from '../shared/colors';
@@ -17,24 +19,42 @@ import { Icon } from '../shared/icon';
 import { MarkerGlyph } from '../markers/marker-glyph';
 import { styleOf } from '../markers/marker-styles';
 import { MarkerStyles } from '../markers/marker-styles';
-import { LaidMarker, layoutLane, MarkerVm } from './marker-layout';
-import { pan as panRange, Range, TimelineZoom, wheelFactor, xToTs } from './zoom';
+import { LaidMarker, layoutLane, MarkerTarget, MarkerVm } from './marker-layout';
+import { pan as panRange, Range, RangeZoom, wheelFactor, xToTs } from './zoom';
 import { AnalysisTargets } from '../analysis/analysis-targets';
-import { TimeCursor, TimeCursorSource, timeToFrac } from '../analysis/time-cursor';
+import { TimeCursor, timeToFrac, xToTime } from '../analysis/time-cursor';
 import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { ContextMenuService } from '../ui/context-menu.service';
+import { ContextMenuService, MenuEntry } from '../ui/context-menu.service';
 import { LiveWindowControls } from '../live/live-window-controls';
 import { SeverityBadge } from '../live/severity-badge';
-import { layoutAnnotations } from './annotation-layout';
+import { AnnotationVm, layoutAnnotations } from './annotation-layout';
 import { AnnotationHover, AnnotationTrack } from './annotation-track';
 import { TimelineAnnotations } from './annotations.store';
 import { ProfileSpanTrack } from '../profiling/integration/profile-span-track';
+import { DOCK_PANEL_ID } from '../dock/angular-panel';
+import { DockService } from '../dock/dock.service';
+import { Switch } from '../shared/switch';
+import { AutoFocus } from '../shared/auto-focus';
+import { isTimelineInstance, LANE_MODES, LaneMode, TimelineScope } from './timeline-config';
+import { TimelineInstanceStore } from './timeline-instance.store';
+import { MainTimelineSource, TIMELINE_SOURCE, TimelineSource } from './timeline-source';
+import { TimelineViews } from './timeline-views';
 
 const LABEL_W = 250;
+/** At most this many annotations are listed in the Evidence menu (the rest: zoom in). */
+const MAX_ANN_MENU = 50;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
 const COMPACT_KINDS: ReadonlySet<string> = new Set(['warning']);
 const HIST_H = 30;
+
+/** "12 of 30" when a filter hides some of the lane's events, else just the count. */
+function laneCount(lane: Lane): string {
+  const matched = formatCount(lane.matched);
+  if (lane.matched === lane.total) return matched;
+  const total = formatCount(lane.total);
+  return $localize`:@@timeline.lane.matchedOfTotal:${matched}:matched: of ${total}:total:`;
+}
 
 interface LaneVm {
   lane: Lane;
@@ -42,6 +62,7 @@ interface LaneVm {
   width: number;
   densityPath: string;
   markers: LaidMarker[];
+  targets: MarkerTarget[];
   ticksPath: string;
   tickCount: number;
   filtered: boolean;
@@ -62,6 +83,11 @@ export function stableLaneOrder(lanes: Lane[], order: Map<string, number>, reset
   return [...lanes].sort((a, b) => rank(a) - rank(b) || a.first - b.first);
 }
 
+/** The panel's source: its own state for an additional timeline (`timeline#n`), the workspace's for the main one. */
+function timelineSource(): TimelineSource {
+  return isTimelineInstance(inject(DOCK_PANEL_ID, { optional: true })) ? inject(TimelineInstanceStore) : inject(MainTimelineSource);
+}
+
 interface Hover {
   x: number;
   y: number;
@@ -72,30 +98,76 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, TimeCursorSource, LiveWindowControls, AnnotationTrack, SeverityBadge, ProfileSpanTrack],
-  host: { '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
+  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus],
+  // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
+  providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
+  host: { '[class.instance]': '!src.main', '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
   template: `
     <div class="head">
-      <span class="section-title">Timeline</span>
+      @if (renaming()) {
+        <input class="input title-input" imtAutoFocus aria-label="Timeline title" i18n-aria-label="@@timeline.panel.titleAria" maxlength="80" [value]="src.title()" (keydown)="renameKey($event)" (blur)="commitRename($event)" />
+      } @else {
+        <span class="section-title" [attr.data-testid]="src.main ? null : 'timeline-title'" (dblclick)="startRename()">{{ src.title() }}</span>
+      }
+      @if (inst && !inst.synced()) { <span class="unlinked" title="Zoom, pan and the time cursor are not linked to the main timeline" i18n-title="@@timeline.panel.unlinked.title" i18n="@@timeline.panel.unlinked">Unlinked</span> }
       <span class="faint hint">
         @if (tl(); as t) {
-          {{ t.lanes.length }} instance{{ t.lanes.length === 1 ? '' : 's' }} · bucket {{ bucketLabel() }} · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan
+          {{ hint(t.lanes.length) }}
         }
       </span>
-      @if (store.timelineLoading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
+      @if (src.loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@timeline.panel.loading"></span> }
       <span class="spacer"></span>
-      <imt-live-window-controls />
-      <div class="zoom" role="group" aria-label="Zoom">
-        <button class="icon-btn" title="Previous range (Alt+←)" aria-label="Previous range" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
-        <button class="icon-btn" title="Next range (Alt+→)" aria-label="Next range" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
-        <button class="icon-btn" title="Zoom in" aria-label="Zoom in" (click)="zoom.zoomIn()"><imt-icon name="plus" [size]="13" /></button>
-        <button class="icon-btn" title="Zoom out" aria-label="Zoom out" (click)="zoom.zoomOut()"><imt-icon name="minus" [size]="13" /></button>
-        <button class="btn" title="Fit all (double-click)" [disabled]="!zoom.isZoomed()" (click)="zoom.fit()"><imt-icon name="zoomOut" [size]="13" /> Fit</button>
+      @if (src.main) { <imt-live-window-controls /> }
+      <div class="zoom" role="group" aria-label="Zoom" i18n-aria-label="@@timeline.panel.zoom">
+        <button class="icon-btn" title="Previous range (Alt+←)" i18n-title="@@timeline.panel.back.title" aria-label="Previous range" i18n-aria-label="@@timeline.panel.back.aria" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
+        <button class="icon-btn" title="Next range (Alt+→)" i18n-title="@@timeline.panel.forward.title" aria-label="Next range" i18n-aria-label="@@timeline.panel.forward.aria" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
+        <button class="icon-btn" title="Zoom in" i18n-title="@@timeline.panel.zoomIn.title" aria-label="Zoom in" i18n-aria-label="@@timeline.panel.zoomIn.aria" (click)="zoom.zoomIn()"><imt-icon name="plus" [size]="13" /></button>
+        <button class="icon-btn" title="Zoom out" i18n-title="@@timeline.panel.zoomOut.title" aria-label="Zoom out" i18n-aria-label="@@timeline.panel.zoomOut.aria" (click)="zoom.zoomOut()"><imt-icon name="minus" [size]="13" /></button>
+        <button class="btn" title="Fit all (double-click)" i18n-title="@@timeline.panel.fit.title" [disabled]="!zoom.isZoomed()" (click)="zoom.fit()" i18n="@@timeline.panel.fit"><imt-icon name="zoomOut" [size]="13" /> Fit</button>
       </div>
+      <button class="icon-btn" type="button" title="Timeline menu" i18n-title="@@timeline.panel.menu.title" aria-label="Timeline menu" i18n-aria-label="@@timeline.panel.menu.aria" aria-haspopup="menu" (click)="openMenu($event)"><imt-icon name="chevronDown" [size]="13" /></button>
     </div>
+    @if (inst; as s) {
+      <div class="config" role="group" aria-label="Timeline settings" i18n-aria-label="@@timeline.config.aria">
+        <label class="field">
+          <span class="faint" i18n="@@timeline.config.events">Events</span>
+          <select class="select" aria-label="Events shown" i18n-aria-label="@@timeline.config.eventsShown" [value]="s.config().scope" (change)="s.setScope(asScope($event))">
+            <option value="global" i18n="@@timeline.config.scope.global">Workspace filter</option>
+            <option value="own" i18n="@@timeline.config.scope.own">Own query</option>
+          </select>
+        </label>
+        @if (s.config().scope === 'own') {
+          <input
+            class="input mono ql"
+            aria-label="Timeline query"
+            i18n-aria-label="@@timeline.config.queryAria"
+            placeholder="e.g. level >= error and MachineName = WEB01"
+            i18n-placeholder="@@timeline.config.queryPlaceholder"
+            maxlength="4000"
+            [value]="s.config().ql"
+            (keydown.enter)="s.setQl(valueOf($event))"
+            (change)="s.setQl(valueOf($event))"
+          />
+        }
+        <label class="field">
+          <span class="faint" i18n="@@timeline.config.lanes">Lanes</span>
+          <select class="select" aria-label="Lanes" i18n-aria-label="@@timeline.config.lanesAria" (change)="s.setLanes(asLanes($event))">
+            @for (m of laneModes; track m.mode) { <option [value]="m.mode" [selected]="m.mode === s.config().lanes">{{ m.label }}</option> }
+          </select>
+        </label>
+        @if (s.config().lanes === 'field') {
+          <select class="select" aria-label="Lane field" i18n-aria-label="@@timeline.config.laneField" (change)="s.setLanes('field', valueOf($event))">
+            <option value="" [selected]="!s.config().laneField" i18n="@@timeline.config.chooseField">Choose a field…</option>
+            @for (f of store.fieldNames(); track f) { <option [value]="f" [selected]="f === s.config().laneField">{{ f }}</option> }
+          </select>
+        }
+        <span class="spacer"></span>
+        <imt-switch size="small" [checked]="s.synced()" (checkedChange)="s.setSync($event)" i18n="@@timeline.config.syncTime">Sync time</imt-switch>
+      </div>
+    }
     @if ((store.summary()?.markerKinds?.length ?? 0) > 0 || ann.kinds().length || ann.error()) {
       <div class="legend-row">
-        <div class="legend" role="group" aria-label="Markers" [class.filtering]="store.query().markers.length > 0">
+        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0">
           @for (k of store.summary()?.markerKinds ?? []; track k.kind) {
             <button
               type="button"
@@ -104,26 +176,37 @@ interface Hover {
               [attr.aria-describedby]="legendDesc(k)"
               [title]="legendTitle(k)"
               (click)="toggleKind(k.kind)"
-            ><imt-marker-glyph [kind]="k.kind" [size]="16" />{{ k.label }}</button>
+            ><span class="pill"><imt-marker-glyph [kind]="k.kind" [size]="16" />{{ k.label }}</span></button>
             @if (legendDesc(k); as id) { <span class="sr" [id]="id">{{ legendTitle(k) }}</span> }
           }
         </div>
         @if (ann.kinds().length || ann.error()) {
-          <div class="ann-legend" role="group" aria-label="Annotations">
-            <span class="lg-title">Annotations</span>
+          <div class="ann-legend" role="group" aria-label="Annotations" i18n-aria-label="@@timeline.legend.annotationsAria">
+            <span class="lg-title" i18n="@@timeline.legend.annotations">Annotations</span>
             @for (k of ann.kinds(); track k.kind) {
               <button
                 type="button"
                 class="lg"
                 [attr.aria-pressed]="ann.isShown(k.kind)"
                 [attr.data-kind]="k.kind"
-                [title]="(ann.isShown(k.kind) ? 'Hide ' : 'Show ') + k.label + ' (' + k.owner + ', ' + k.count + ')'"
+                [title]="annKindTitle(k)"
                 (click)="ann.toggle(k.kind)"
-              ><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</button>
+              ><span class="pill"><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</span></button>
+            }
+            @if (annInView().length) {
+              <!-- The keyboard path to every annotation, and the equivalent control (WCAG 2.5.8) for bands under markers. -->
+              <button
+                type="button"
+                class="lg ann-list"
+                aria-haspopup="menu"
+                title="Show the evidence of an annotation in view"
+                i18n-title="@@timeline.legend.evidenceTitle"
+                (click)="annMenu($event)"
+              ><span class="pill" i18n="@@timeline.legend.evidence">Evidence…</span></button>
             }
             @if (ann.error(); as e) {
-              <span class="ann-err" role="alert" [title]="e">Annotations unavailable</span>
-              <button type="button" class="btn" (click)="ann.retry()">Retry</button>
+              <span class="ann-err" role="alert" [title]="e" i18n="@@timeline.legend.unavailable">Annotations unavailable</span>
+              <button type="button" class="btn" (click)="ann.retry()" i18n="@@timeline.legend.retry">Retry</button>
             }
           </div>
         }
@@ -136,9 +219,8 @@ interface Hover {
       [attr.data-from]="tl()?.from"
       [attr.data-to]="tl()?.to"
       [class.panning]="panning()"
-      [imtTimeCursor]="range()"
-      [imtTimeCursorLeft]="plotLeft()"
-      [imtTimeCursorWidth]="plotWidth()"
+      (pointermove)="publishHover($event)"
+      (pointerleave)="cursor.hover(null)"
       (pointerdown)="pointerDown($event)"
       (dblclick)="zoom.fit()"
       (wheel)="onWheel($event)"
@@ -146,7 +228,7 @@ interface Hover {
       <div class="scroller">
         <div class="sticky">
           <div class="row hist-row">
-            <div class="label faint small">events / bucket</div>
+            <div class="label faint small" i18n="@@timeline.panel.eventsPerBucket">events / bucket</div>
             <div class="plot">
               <svg class="hist" [attr.viewBox]="histViewBox()" preserveAspectRatio="none" aria-hidden="true">
                 @for (p of histPaths(); track p.level) {
@@ -157,7 +239,7 @@ interface Hover {
           </div>
           <div class="row axis-row">
             <div class="label"></div>
-            <div class="plot axis" #axis (contextmenu)="axisMenu($event)" title="Right-click to analyse a moment">
+            <div class="plot axis" #axis (contextmenu)="axisMenu($event)" title="Right-click to analyse a moment" i18n-title="@@timeline.panel.axisTitle">
               @for (t of ticks(); track t.ts) {
                 <span class="tick mono" [style.left.%]="t.frac * 100">{{ t.label }}</span>
               }
@@ -167,7 +249,7 @@ interface Hover {
 
         @for (l of lanes(); track l.lane.key) {
           <div class="row lane">
-            <button class="label lane-label" [class.filtered]="l.filtered" (click)="store.toggleGroup(l.lane.key)" [title]="l.lane.key + ' — click to ' + (l.filtered ? 'remove the instance filter' : 'show only this instance')">
+            <button class="label lane-label" [class.filtered]="l.filtered" (click)="src.toggleGroup(l.lane.key)" [title]="laneTitle(l)">
               <span class="mono key ellipsis">{{ l.lane.key }}</span>
               <span class="faint meta ellipsis">{{ l.meta }}</span>
             </button>
@@ -179,23 +261,36 @@ interface Hover {
               }
               <svg class="density" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="l.densityPath" /></svg>
               @if (l.tickCount) {
-                <svg class="ticks" viewBox="0 0 1000 6" preserveAspectRatio="none" role="img" [attr.aria-label]="l.tickCount + ' warnings (zoom in for detail)'">
-                  <title>{{ l.tickCount }} warnings — zoom in for detail</title>
+                <svg class="ticks" viewBox="0 0 1000 6" preserveAspectRatio="none" role="img" [attr.aria-label]="tickAria(l.tickCount)">
+                  <title>{{ tickTitle(l.tickCount) }}</title>
                   <path [attr.d]="l.ticksPath" />
                 </svg>
               }
-              @for (m of l.markers; track m.cluster.kind + m.cluster.bucket) {
+              @for (t of l.targets; track t.primary.cluster.kind + t.primary.cluster.bucket) {
+                <!-- A 24px hit area (WCAG 2.5.8) around 16px glyphs; close markers share one (see layoutTargets). -->
                 <button
+                  type="button"
                   class="marker"
-                  [style.left.%]="m.left"
-                  [attr.aria-label]="m.label + ' at ' + time(m.cluster.ts) + (m.cluster.count > 1 ? ', ' + m.cluster.count + ' events' : '')"
+                  [style.left.%]="(t.left / plotWidth()) * 100"
+                  [style.width.px]="t.width"
+                  [attr.aria-label]="targetAria(t)"
                   (pointerdown)="$event.stopPropagation()"
-                  (click)="store.jumpTo(m.cluster.id)"
-                  (pointerenter)="hover.set({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: m })"
+                  (click)="activate($event, t)"
+                  (pointerenter)="hover.set({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: t.primary })"
                   (pointerleave)="hover.set(null)"
                 >
-                  <imt-marker-glyph [kind]="m.cluster.kind" [size]="16" />
-                  @if (m.showCount) { <span class="count mono">{{ m.cluster.count }}</span> }
+                  @for (g of t.members; track g.marker.cluster.kind + g.marker.cluster.bucket) {
+                    <span
+                      class="glyph"
+                      [class.primary]="g.marker === t.primary"
+                      [style.left.px]="g.offset"
+                      [attr.data-member]="$index"
+                      (pointerenter)="hover.set({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: g.marker })"
+                    >
+                      <imt-marker-glyph [kind]="g.marker.cluster.kind" [size]="16" />
+                      @if (g.marker.showCount) { <span class="count mono">{{ g.marker.cluster.count }}</span> }
+                    </span>
+                  }
                 </button>
               }
             </div>
@@ -204,15 +299,23 @@ interface Hover {
           <div class="empty-state">
             @if (!store.summary()?.sources?.length) {
               <imt-icon name="files" [size]="28" />
-              <div>Open log files or a folder to build the timeline.</div>
-              <button class="btn primary" (click)="store.pickAndOpen(true)">Open folder…</button>
+              <div i18n="@@timeline.empty.open">Open log files or a folder to build the timeline.</div>
+              <button class="btn primary" (click)="store.pickAndOpen(true)" i18n="@@timeline.empty.openFolder">Open folder…</button>
             } @else if (tl()) {
-              <div>No timestamped events match the current filters.</div>
+              @if (src.main) {
+                <div i18n="@@timeline.empty.noMatchMain">No timestamped events match the current filters.</div>
+              } @else {
+                <div i18n="@@timeline.empty.noMatchOwn">No timestamped events match the query of this timeline.</div>
+              }
             }
           </div>
         }
         @if ((tl()?.truncatedLanes ?? 0) > 0) {
-          <div class="truncated faint">{{ tl()!.truncatedLanes }} more instances not shown — narrow the filter or change the group-by.</div>
+          @if (src.main) {
+            <div class="truncated faint" i18n="@@timeline.truncated.main">{{ tl()!.truncatedLanes //i18n(ph="count") }} more instances not shown — narrow the filter or change the group-by.</div>
+          } @else {
+            <div class="truncated faint" i18n="@@timeline.truncated.own">{{ tl()!.truncatedLanes //i18n(ph="count") }} more lanes not shown — narrow the filter or change the lanes.</div>
+          }
         }
       </div>
 
@@ -235,11 +338,11 @@ interface Hover {
       </div>
     </div>
 
-    @if (store.timelineError(); as err) {
+    @if (src.error(); as err) {
       <div class="err-card" role="alert">
-        <strong>Could not load the timeline</strong>
+        <strong i18n="@@timeline.error.title">Could not load the timeline</strong>
         <span class="mono">{{ err }}</span>
-        <button class="btn" type="button" (click)="store.retryTimeline()">Retry</button>
+        <button class="btn" type="button" (click)="src.retry()" i18n="@@timeline.error.retry">Retry</button>
       </div>
     }
 
@@ -248,14 +351,18 @@ interface Hover {
         <div class="tip-head">
           <imt-marker-glyph [kind]="h.marker.cluster.kind" [size]="18" />
           <strong>{{ h.marker.label }}</strong>
-          <span class="faint">{{ h.marker.cluster.count === 1 ? '1 event' : h.marker.cluster.count + ' events in this interval' }}</span>
+          <span class="faint" i18n="@@timeline.tip.count">{h.marker.cluster.count, plural, =1 {1 event} other {{{ h.marker.cluster.count }} events in this interval}}</span>
           <span class="spacer"></span>
           <span class="mono faint">{{ time(h.marker.cluster.ts) }}</span>
         </div>
         @if (describe(h.marker.cluster.kind); as d) { <div class="tip-desc">{{ d }}</div> }
         <div class="mono small">{{ h.lane }}</div>
         <div class="tip-msg">{{ h.marker.cluster.message }}</div>
-        <div class="faint small">Click to jump to {{ h.marker.cluster.count > 1 ? 'the first event' : 'the event' }}</div>
+        @if (h.marker.cluster.count > 1) {
+          <div class="faint small" i18n="@@timeline.tip.jumpFirst">Click to jump to the first event</div>
+        } @else {
+          <div class="faint small" i18n="@@timeline.tip.jumpOne">Click to jump to the event</div>
+        }
       </div>
     }
 
@@ -266,10 +373,10 @@ interface Hover {
           <strong>{{ h.vm.ann.label }}</strong>
         </div>
         <div class="mono small">{{ annTime(h.vm.ann.from, h.vm.ann.to) }}</div>
-        <div class="faint small">{{ annKindLabel(h.vm.ann.kind) }} · from {{ h.vm.ann.owner }}</div>
+        <div class="faint small" i18n="@@timeline.annTip.from">{{ annKindLabel(h.vm.ann.kind) //i18n(ph="kind") }} · from {{ h.vm.ann.owner //i18n(ph="owner") }}</div>
         @if (h.vm.ann.instance; as inst) { <div class="mono small">{{ inst }}</div> }
         @else if (h.vm.ann.on; as on) { <div class="mono small">{{ on.field }} = {{ on.value }}</div> }
-        <div class="faint small">Click to show the evidence</div>
+        <div class="faint small" i18n="@@timeline.annTip.evidence">Click to show the evidence</div>
       </div>
     }
   `,
@@ -278,16 +385,27 @@ interface Hover {
     .err-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
     .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .section-title { white-space: nowrap; }
+    .title-input { width: 200px; height: 24px; padding: 0 6px; }
+    .unlinked { flex: none; font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px dashed var(--border-3); color: var(--text-2); }
+    .config { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 0 14px 6px; font-size: 12px; }
+    .config .field { display: inline-flex; align-items: center; gap: 6px; }
+    .config .select { height: 24px; }
+    .config .ql { flex: 1 1 260px; min-width: 160px; height: 24px; padding: 0 6px; }
     .spacer { flex: 1; }
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
-    .legend, .ann-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
-    .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; padding: 1px 6px; border-radius: 10px; cursor: pointer; }
-    .lg:hover { background: var(--bg-hover); }
-    .lg[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+    .legend, .ann-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+    /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
+    .lg { display: inline-flex; align-items: center; min-height: 24px; margin: -2px 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+    .lg:focus-visible { outline: none; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; padding: 1px 6px; border-radius: 10px; }
+    .lg:focus-visible .pill { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .lg:hover .pill { background: var(--bg-hover); }
+    .lg[aria-pressed='true'] .pill { border-color: var(--accent); background: var(--accent-soft); }
     .tip-desc { color: var(--text); }
     .lg-title { font-weight: 600; color: var(--text-2); white-space: nowrap; }
     .legend.filtering .lg[aria-pressed='false'], .ann-legend .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
-    .ann-legend .lg[aria-pressed='true'] { border-color: transparent; background: transparent; }
+    .ann-legend .lg[aria-pressed='true'] .pill { border-color: transparent; background: transparent; }
     .ann-err { color: var(--danger-text); white-space: nowrap; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
@@ -319,8 +437,12 @@ interface Hover {
     .density path { fill: var(--density); }
     .ticks { position: absolute; left: 0; bottom: 1px; width: 100%; height: 6px; }
     .ticks path { stroke: var(--mk-warning); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .marker { position: absolute; top: 0; height: 32px; width: 16px; margin-left: -8px; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1; }
-    .marker:hover imt-marker-glyph { transform: scale(1.35); }
+    .marker { position: absolute; top: 0; height: 32px; min-width: 24px; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1; }
+    /* The focus ring goes on the visible glyph, not the transparent hit area. */
+    .marker:focus-visible { outline: none; }
+    .glyph { position: absolute; top: 0; height: 32px; width: 16px; margin-left: -8px; display: flex; align-items: center; justify-content: center; }
+    .marker:hover .glyph.primary imt-marker-glyph, .glyph:hover imt-marker-glyph { transform: scale(1.35); }
+    .marker:focus-visible .glyph.primary { outline: 2px solid var(--accent); outline-offset: 1px; }
     .count { position: absolute; left: 17px; top: 2px; font-size: 9px; padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
     .overlay { position: absolute; top: 0; bottom: 0; pointer-events: none; }
     .brush { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); }
@@ -335,8 +457,26 @@ interface Hover {
 })
 export class TimelinePanel {
   protected readonly store = inject(WorkspaceStore);
-  protected readonly zoom = inject(TimelineZoom);
+  /** What this panel shows: the workspace's timeline, or an additional timeline's own state. */
+  protected readonly src = inject(TIMELINE_SOURCE);
+  /** The additional timeline's store (settings bar, rename, sync); null for the main timeline. */
+  protected readonly inst = this.src.main ? null : inject(TimelineInstanceStore);
+  private readonly views = inject(TimelineViews);
+  private readonly dock = inject(DockService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  protected readonly laneModes = LANE_MODES;
+  protected readonly renaming = signal(false);
   protected readonly panning = signal(false);
+
+  /** The zoom controller in effect (the workspace's while linked). */
+  protected get zoom(): RangeZoom {
+    return this.src.zoom();
+  }
+
+  /** The time cursor in effect (shared with every time-based view while linked). */
+  protected get cursor(): TimeCursor {
+    return this.src.cursor();
+  }
   /** Lane order from the unzoomed view, so zooming never reshuffles lanes. */
   private readonly laneOrder = new Map<string, number>();
   private spaceDown = false;
@@ -347,12 +487,11 @@ export class TimelinePanel {
   protected readonly plotWidth = signal(800);
   protected readonly brush = signal<{ x0: number; x1: number } | null>(null);
   protected readonly hover = signal<Hover | null>(null);
-  protected readonly cursor = inject(TimeCursor);
   private readonly targets = inject(AnalysisTargets);
   private readonly commands = inject(COMMAND_CONTEXT);
   private readonly menu = inject(ContextMenuService);
 
-  protected readonly tl = this.store.timeline;
+  protected readonly tl = this.src.timeline;
   protected readonly ann = inject(TimelineAnnotations);
   protected readonly annHover = signal<AnnotationHover | null>(null);
 
@@ -360,18 +499,85 @@ export class TimelinePanel {
   protected readonly annLayout = computed(() => {
     const view = this.range();
     if (!view) return { lanes: new Map(), global: [] };
-    const q = this.store.query();
     return layoutAnnotations(this.ann.items(), {
       laneKeys: this.lanes().map((l) => l.lane.key),
       view,
-      groupBy: q.groupBy.length ? q.groupBy : (this.store.summary()?.defaultGroupBy ?? []),
+      groupBy: [...this.src.groupBy()],
       hidden: this.ann.hidden(),
     });
   });
 
+  /** The annotations in view, once each (one may be drawn on several lanes), in time order. */
+  protected readonly annInView = computed(() => {
+    const { lanes, global } = this.annLayout();
+    const seen = new Set<AnnotationDto>();
+    for (const v of [...global, ...[...lanes.values()].flat()] as AnnotationVm[]) seen.add(v.ann);
+    return [...seen].sort((a, b) => a.from - b.from || a.label.localeCompare(b.label));
+  });
+
+  /** Lists the annotations in view; choosing one shows its evidence like clicking its band or glyph. */
+  protected annMenu(e: MouseEvent): void {
+    const anns = this.annInView();
+    const at = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const items: MenuEntry[] = anns.slice(0, MAX_ANN_MENU).map((a) => ({ label: `${a.label} · ${this.time(a.from)}`, run: () => this.ann.showEvidence(a) }));
+    const more = anns.length - items.length;
+    if (more > 0) items.push({ label: $localize`:@@timeline.legend.evidenceMore:${more}:count: more — zoom in to list them`, run: () => undefined, disabled: true });
+    this.menu.open(at.left, at.bottom, items, e.currentTarget as HTMLElement);
+  }
+
   protected annTime(from: number, to: number): string {
     const tz = this.store.timezone();
     return from === to ? formatDateTime(from, tz, true) : `${formatDateTime(from, tz, true)} → ${formatDateTime(to, tz, true)} (${formatDuration(to - from)})`;
+  }
+
+  protected hint(n: number): string {
+    const bucket = this.bucketLabel();
+    return this.src.main
+      ? plural(n, {
+          one: $localize`:@@timeline.hint.instances.one:${n}:count: instance · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+          other: $localize`:@@timeline.hint.instances.other:${n}:count: instances · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+        })
+      : plural(n, {
+          one: $localize`:@@timeline.hint.lanes.one:${n}:count: lane · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+          other: $localize`:@@timeline.hint.lanes.other:${n}:count: lanes · bucket ${bucket}:bucket: · drag to zoom · ⌘/Ctrl+wheel zoom · Shift+wheel or Space+drag pan`,
+        });
+  }
+
+  protected annKindTitle(k: { kind: string; label: string; owner: string; count: number }): string {
+    const { label, owner, count } = k;
+    return this.ann.isShown(k.kind)
+      ? $localize`:@@timeline.legend.hideAnnotation:Hide ${label}:label: (${owner}:owner:, ${count}:count:)`
+      : $localize`:@@timeline.legend.showAnnotation:Show ${label}:label: (${owner}:owner:, ${count}:count:)`;
+  }
+
+  protected tickAria(n: number): string {
+    return $localize`:@@timeline.ticks.aria:${n}:count: warnings (zoom in for detail)`;
+  }
+
+  protected tickTitle(n: number): string {
+    return $localize`:@@timeline.ticks.title:${n}:count: warnings — zoom in for detail`;
+  }
+
+  /** Names a hit area by its markers, the one it activates first. */
+  protected targetAria(t: MarkerTarget): string {
+    const rest = t.members.filter((g) => g.marker !== t.primary).map((g) => this.markerAria(g.marker));
+    return [this.markerAria(t.primary), ...rest].join('; ');
+  }
+
+  /** Jumps to the clicked glyph's event, or to the target's primary from the keyboard or the space around glyphs. */
+  protected activate(event: Event, t: MarkerTarget): void {
+    const member = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-member]')?.dataset['member'] : undefined;
+    const picked = member === undefined ? undefined : t.members[Number(member)]?.marker;
+    this.store.jumpTo((picked ?? t.primary).cluster.id);
+  }
+
+  protected markerAria(m: LaidMarker): string {
+    const label = m.label;
+    const at = this.time(m.cluster.ts);
+    const count = m.cluster.count;
+    return count > 1
+      ? $localize`:@@timeline.marker.ariaMany:${label}:label: at ${at}:time:, ${count}:count: events`
+      : $localize`:@@timeline.marker.ariaOne:${label}:label: at ${at}:time:`;
   }
 
   protected annKindLabel(kind: string): string {
@@ -394,13 +600,13 @@ export class TimelinePanel {
 
   /** True when the query is restricted to exactly this marker kind. */
   protected legendActive(kind: string): boolean {
-    const m = this.store.query().markers;
+    const m = this.src.markers();
     return m.length === 1 && m[0] === kind;
   }
 
   /** Clicking a legend item shows only that marker's events; clicking again clears it. */
   protected toggleKind(kind: string): void {
-    this.store.patchQuery({ markers: this.legendActive(kind) ? [] : [kind] });
+    this.src.showOnlyMarker(this.legendActive(kind) ? null : kind);
   }
 
   /** The visible time range (null before the first timeline arrives). */
@@ -411,7 +617,7 @@ export class TimelinePanel {
 
   /** X (px in the plot) of the shared time cursor, from any time-based view; null when outside. */
   protected readonly hoverX = computed(() => {
-    const frac = timeToFrac(this.cursor.hovered(), this.range());
+    const frac = timeToFrac(this.src.cursor().hovered(), this.range());
     return frac === null ? null : frac * this.plotWidth();
   });
 
@@ -443,10 +649,10 @@ export class TimelinePanel {
         if (!count) return;
         const h = (count / max) * (HIST_H - 2);
         y -= h;
-        paths[li].push(`M${x + 0.1} ${y.toFixed(2)}h0.8v${h.toFixed(2)}h-0.8z`);
+        paths[li]?.push(`M${x + 0.1} ${y.toFixed(2)}h0.8v${h.toFixed(2)}h-0.8z`);
       });
     });
-    return LEVELS.map((level, i) => ({ level, d: paths[i].join(''), color: HIST_VARS[level] })).filter((p) => p.d);
+    return LEVELS.map((level, i) => ({ level, d: paths[i]?.join('') ?? '', color: HIST_VARS[level] })).filter((p) => p.d);
   });
 
   protected readonly lanes = computed<LaneVm[]>(() => {
@@ -454,10 +660,10 @@ export class TimelinePanel {
     if (!t) return [];
     const span = this.span();
     const kinds = this.store.markerKindMap();
-    const groups = new Set(this.store.query().groups);
+    const groups = new Set(this.src.groups());
     const tz = this.store.timezone();
     const priority = [...kinds.keys()];
-    const ordered = stableLaneOrder(t.lanes, this.laneOrder, !this.store.hasRange());
+    const ordered = stableLaneOrder(t.lanes, this.laneOrder, !this.src.hasRange());
     return ordered.map((lane) => {
       const max = Math.max(1, ...lane.density);
       let d = '';
@@ -484,10 +690,11 @@ export class TimelinePanel {
         width: Math.max(0.2, ((lane.last - lane.first) / span) * 100),
         densityPath: d,
         markers: layout.shapes,
+        targets: layout.targets,
         ticksPath: layout.ticks.map((x) => `M${(x * 10).toFixed(1)} 0v6`).join(''),
         tickCount: layout.tickCount,
         filtered: groups.has(lane.key),
-        meta: `${formatCount(lane.matched)}${lane.matched !== lane.total ? ' of ' + formatCount(lane.total) : ''} · ${formatTime(lane.first, tz).slice(0, 8)} → ${formatTime(lane.last, tz).slice(0, 8)}`,
+        meta: `${laneCount(lane)} · ${formatTime(lane.first, tz).slice(0, 8)} → ${formatTime(lane.last, tz).slice(0, 8)}`,
       };
     });
   });
@@ -497,7 +704,7 @@ export class TimelinePanel {
   );
 
   protected readonly hoverTime = computed(() => {
-    const ts = this.cursor.hovered();
+    const ts = this.src.cursor().hovered();
     return ts === null || this.hoverX() === null ? '' : formatDateTime(ts, this.store.timezone(), true);
   });
 
@@ -510,6 +717,77 @@ export class TimelinePanel {
       destroyRef.onDestroy(() => ro.disconnect());
       this.measure();
     });
+    // An additional timeline's tab shows its title (restored layouts and renames included).
+    const inst = this.inst;
+    if (inst) effect(() => this.dock.setTitle(inst.id, inst.title()));
+  }
+
+  protected laneTitle(l: LaneVm): string {
+    const key = l.lane.key;
+    if (this.src.main) {
+      return l.filtered
+        ? $localize`:@@timeline.laneTitle.removeInstance:${key}:key: — click to remove the instance filter`
+        : $localize`:@@timeline.laneTitle.onlyInstance:${key}:key: — click to show only this instance`;
+    }
+    return l.filtered
+      ? $localize`:@@timeline.laneTitle.removeLane:${key}:key: — click to remove the lane filter`
+      : $localize`:@@timeline.laneTitle.onlyLane:${key}:key: — click to show only this lane`;
+  }
+
+  protected valueOf(e: Event): string {
+    return (e.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  protected asScope(e: Event): TimelineScope {
+    return this.valueOf(e) === 'own' ? 'own' : 'global';
+  }
+
+  protected asLanes(e: Event): LaneMode {
+    const v = this.valueOf(e);
+    return LANE_MODES.find((m) => m.mode === v)?.mode ?? 'instance';
+  }
+
+  protected startRename(): void {
+    if (this.inst) this.renaming.set(true);
+  }
+
+  protected renameKey(e: KeyboardEvent): void {
+    if (e.key === 'Enter') this.commitRename(e);
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      this.renaming.set(false);
+    }
+  }
+
+  protected commitRename(e: Event): void {
+    if (!this.renaming()) return;
+    this.renaming.set(false);
+    this.inst?.rename(this.valueOf(e));
+  }
+
+  /** The panel's own menu: open another timeline; for an additional one also rename, link or unlink, close. */
+  protected openMenu(e: MouseEvent): void {
+    const anchor = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const inst = this.inst;
+    this.menu.open(anchor.left, anchor.bottom, [
+      { label: $localize`:@@timeline.menu.new:New timeline`, run: () => void this.views.open() },
+      ...(inst
+        ? [
+            { label: $localize`:@@timeline.menu.rename:Rename…`, run: () => this.renaming.set(true) },
+            { label: inst.synced() ? $localize`:@@timeline.menu.unlink:Unlink time from the main timeline` : $localize`:@@timeline.menu.sync:Sync time with the main timeline`, run: () => inst.setSync(!inst.synced()) },
+            { label: $localize`:menu item, closes the timeline panel@@timeline.menu.close:Close`, run: () => this.dock.close(inst.id) },
+          ]
+        : []),
+    ]);
+  }
+
+  /** Publishes the time under the pointer to the cursor in effect (null outside the plot). */
+  protected publishHover(e: PointerEvent): void {
+    const view = this.range();
+    if (!view) return;
+    const x = this.localX(e);
+    const w = this.plotWidth();
+    this.cursor.hover(x < 0 || x > w ? null : xToTime(x, w, view));
   }
 
   private measure(): void {
@@ -518,7 +796,7 @@ export class TimelinePanel {
     if (axis.width <= 0) return;
     this.plotLeft.set(axis.left - wrap.left);
     this.plotWidth.set(axis.width);
-    this.store.setBuckets(Math.floor(axis.width / 2));
+    this.src.setBuckets(Math.floor(axis.width / 2));
   }
 
   protected time(ts: number): string {
@@ -542,9 +820,9 @@ export class TimelinePanel {
     const ts = xToTs(clamp(this.localX(e), 0, this.plotWidth()), this.plotWidth(), view);
     this.menu.open(e.clientX, e.clientY, [
       {
-        label: 'Analyse this moment',
+        label: $localize`:@@timeline.menu.analyseMoment:Analyse this moment`,
         run: () => {
-          this.targets.setMoment(momentAt(ts, this.cursor.selection(), WIDTHS[1].ms));
+          this.targets.setMoment(momentAt(ts, this.cursor.selection(), WIDTHS[1]?.ms ?? 300_000));
           this.commands.showView('moment');
         },
       },
@@ -573,6 +851,9 @@ export class TimelinePanel {
     if (e.type === 'keyup' && e.code === 'Space') this.spaceDown = false;
     if (e.type !== 'keydown' || typing) return;
     if (e.code === 'Space') this.spaceDown = true;
+    // History keys act once: in an additional timeline while focus is inside it, else in the main timeline.
+    const inInstance = !!target?.closest?.('imt-timeline-panel.instance');
+    if (this.src.main ? inInstance : !(target && this.host.nativeElement.contains(target))) return;
     if (e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault();
       this.zoom.back();

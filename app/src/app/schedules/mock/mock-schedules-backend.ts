@@ -40,7 +40,7 @@ export function mockAgentSchema(): AgentSchema {
     log: [
       f('level', 'Log level', 'select', {
         default: 'information',
-        options: ['debug', 'information', 'warning', 'error'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) })),
+        options: ['debug', 'information', 'warning', 'error'].map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) })),
       }),
       f('maxFileMb', 'Roll at (MB)', 'number', { default: 10, min: 1, max: 1024 }),
       f('keepFiles', 'Files kept', 'number', { default: 5, min: 1, max: 100 }),
@@ -101,6 +101,7 @@ export function mockAgentSchema(): AgentSchema {
           f('duration', 'Duration', 'duration', { required: true, default: '5m' }),
           f('intervalMs', 'Interval (ms)', 'number', { default: 1000, min: 250 }),
           f('includeChildren', 'Include child processes', 'boolean', { default: false }),
+          f('dotnet', '.NET runtime counters', 'boolean', { default: false }),
         ],
       },
       {

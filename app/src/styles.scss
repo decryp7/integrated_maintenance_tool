@@ -6,6 +6,7 @@
 @use '@fontsource/ibm-plex-sans/latin-600' as ibm-plex-sans-600;
 @use '@fontsource/jetbrains-mono/latin-400' as jetbrains-mono-400;
 @use '@fontsource/jetbrains-mono/latin-500' as jetbrains-mono-500;
+@use '@angular/material' as mat;
 
 :root {
   color-scheme: dark;
@@ -67,11 +68,13 @@
   --ann-info: rgba(76, 141, 255, 0.12);
   --ann-info-border: rgba(76, 141, 255, 0.5);
 
-  /* Validated categorical series (dark surface). */
-  --s1: #3987e5;
-  --s2: #d95926;
-  --s3: #199e70;
-  --s4: #9085e9;
+  /* Categorical series (dark surfaces --bg-1..--bg-3): every pair separates under protan/deutan/tritan
+     simulation (OKLab ΔE ≥ 8) and normal vision (≥ 15), each ≥ 3:1 against the surfaces. Checked by
+     app/src/app/tools/monitor/palette.spec.ts; change them only with that spec green. */
+  --s1: #1795fa;
+  --s2: #db551d;
+  --s3: #0a9068;
+  --s4: #b16ec0;
   --s-other: #5b6478;
 
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -135,10 +138,11 @@
   --ann-info: rgba(47, 111, 224, 0.1);
   --ann-info-border: rgba(47, 111, 224, 0.5);
 
-  --s1: #2a78d6;
-  --s2: #eb6834;
-  --s3: #1baf7a;
-  --s4: #6250d6;
+  /* Categorical series (light surfaces), validated like the dark ones. */
+  --s1: #3869bb;
+  --s2: #e65f2a;
+  --s3: #29a077;
+  --s4: #a664fe;
   --s-other: #9aa1b0;
 }
 
@@ -150,6 +154,87 @@
 
 :root[data-theme='light'] {
   @include light-tokens;
+}
+
+/* Angular Material theme: Material 3 system tokens (--mat-sys-*) resolve to IMT's tokens, so any
+   Material component follows IMT's look in both themes. The mapping is declared once; it follows
+   the theme because the IMT tokens it reads are redefined on :root by `light-tokens`. */
+:root {
+  /* Typography, shape and state layers from Material, in IMT's font. No colour palette is
+     generated: every colour role is mapped below. */
+  @include mat.theme(
+    (
+      typography: (
+        plain-family: var(--font-sans),
+        brand-family: var(--font-sans),
+      ),
+      density: 0,
+    )
+  );
+
+  --mat-sys-primary: var(--accent);
+  --mat-sys-on-primary: var(--accent-ink);
+  --mat-sys-primary-container: var(--chip-bg);
+  --mat-sys-on-primary-container: var(--chip-text);
+  --mat-sys-inverse-primary: var(--accent);
+  --mat-sys-primary-fixed: var(--chip-bg);
+  --mat-sys-primary-fixed-dim: var(--chip-border);
+  --mat-sys-on-primary-fixed: var(--chip-text);
+  --mat-sys-on-primary-fixed-variant: var(--chip-text);
+  --mat-sys-surface-tint: var(--accent);
+
+  --mat-sys-secondary: var(--text-2);
+  --mat-sys-on-secondary: var(--bg-1);
+  --mat-sys-secondary-container: var(--bg-active);
+  --mat-sys-on-secondary-container: var(--text);
+  --mat-sys-secondary-fixed: var(--bg-active);
+  --mat-sys-secondary-fixed-dim: var(--bg-sel);
+  --mat-sys-on-secondary-fixed: var(--text);
+  --mat-sys-on-secondary-fixed-variant: var(--text-2);
+
+  --mat-sys-tertiary: var(--accent);
+  --mat-sys-on-tertiary: var(--accent-ink);
+  --mat-sys-tertiary-container: var(--accent-soft);
+  --mat-sys-on-tertiary-container: var(--chip-text);
+  --mat-sys-tertiary-fixed: var(--chip-bg);
+  --mat-sys-tertiary-fixed-dim: var(--chip-border);
+  --mat-sys-on-tertiary-fixed: var(--chip-text);
+  --mat-sys-on-tertiary-fixed-variant: var(--chip-text);
+
+  --mat-sys-error: var(--danger-text);
+  --mat-sys-on-error: var(--bg-1);
+  --mat-sys-error-container: var(--ann-critical);
+  --mat-sys-on-error-container: var(--danger-text);
+
+  --mat-sys-background: var(--bg-1);
+  --mat-sys-on-background: var(--text);
+  --mat-sys-surface: var(--bg-1);
+  --mat-sys-on-surface: var(--text);
+  --mat-sys-surface-variant: var(--bg-2);
+  --mat-sys-on-surface-variant: var(--muted);
+  --mat-sys-surface-dim: var(--bg-0);
+  --mat-sys-surface-bright: var(--bg-3);
+  --mat-sys-surface-container-lowest: var(--bg-0);
+  --mat-sys-surface-container-low: var(--bg-1);
+  --mat-sys-surface-container: var(--bg-2);
+  --mat-sys-surface-container-high: var(--bg-3);
+  --mat-sys-surface-container-highest: var(--tooltip-bg);
+  --mat-sys-inverse-surface: var(--text);
+  --mat-sys-inverse-on-surface: var(--bg-1);
+  --mat-sys-neutral10: var(--text);
+  --mat-sys-neutral-variant20: var(--text-2);
+
+  --mat-sys-outline: var(--border-3);
+  --mat-sys-outline-variant: var(--border-2);
+  --mat-sys-shadow: rgba(0, 0, 0, 0.45);
+  --mat-sys-scrim: rgba(0, 0, 0, 0.5);
+
+  --mat-sys-level0: none;
+  --mat-sys-level1: var(--shadow);
+  --mat-sys-level2: var(--shadow);
+  --mat-sys-level3: var(--shadow);
+  --mat-sys-level4: var(--shadow);
+  --mat-sys-level5: var(--shadow);
 }
 
 * {

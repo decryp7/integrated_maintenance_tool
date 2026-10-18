@@ -426,10 +426,12 @@ mod tests {
     fn recents_are_validated_and_actions_run() {
         let app = test_app(None);
         let h = app.handle().clone();
+        // An absolute folder on every platform (`/p` has no drive on Windows).
+        let root = if cfg!(windows) { "C:/p" } else { "/p" };
         let main = window(&app, "main");
         let mut list: Vec<RecentProject> = (0..20)
             .map(|i| RecentProject {
-                path: format!("/p/{i}.imtproj"),
+                path: format!("{root}/{i}.imtproj"),
                 name: if i == 0 { " ".into() } else { format!("P{i}") },
             })
             .collect();
@@ -440,14 +442,14 @@ mod tests {
         list.insert(
             1,
             RecentProject {
-                path: "/p/not-a-project.txt".into(),
+                path: format!("{root}/not-a-project.txt"),
                 name: "x".into(),
             },
         );
         set_recent_projects(h.clone(), list).unwrap();
         let recents = app.state::<TrayState>().recents.lock().unwrap().clone();
         assert_eq!(recents.len(), MAX_RECENTS);
-        assert_eq!(recents[0].name, "/p/0.imtproj", "an empty name shows the path");
+        assert_eq!(recents[0].name, format!("{root}/0.imtproj"), "an empty name shows the path");
         assert_eq!(recents[1].name, "P1");
 
         let captured = std::sync::Arc::new(std::sync::Mutex::new(0));

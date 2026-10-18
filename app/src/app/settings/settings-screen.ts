@@ -5,6 +5,8 @@ import { EngineSettingsStore } from './engine-settings.store';
 import { GeneralSettings } from './general-settings';
 import { SettingFieldControl } from './setting-field';
 import { SettingsFiles } from './settings-files';
+import { StorageSettings } from './storage/storage-settings';
+import { STORAGE_ID } from './storage/storage.types';
 import { fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
 import { SettingField, SettingsSection } from './settings.types';
 
@@ -16,37 +18,38 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, SettingFieldControl, AiSettingsExtras],
+  imports: [GeneralSettings, SettingFieldControl, AiSettingsExtras, StorageSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
-      <input class="input search" type="search" placeholder="Search settings" aria-label="Search settings" [value]="store.query()" (input)="store.setQuery($any($event.target).value)" />
-      <label class="adv"><input type="checkbox" [checked]="store.showAdvanced()" (change)="store.setShowAdvanced($any($event.target).checked)" /> Show advanced</label>
+      <input class="input search" type="search" placeholder="Search settings" aria-label="Search settings" i18n-placeholder="@@settings.screen.search.placeholder" i18n-aria-label="@@settings.screen.search.label" [value]="store.query()" (input)="store.setQuery($any($event.target).value)" />
+      <label class="adv" i18n="@@settings.screen.showAdvancedToggle"><input type="checkbox" [checked]="store.showAdvanced()" (change)="store.setShowAdvanced($any($event.target).checked)" /> Show advanced</label>
     </div>
 
     @if (store.restartPending()) {
       <div class="banner restart" role="status">
-        <span>Some changes take effect after IMT restarts.</span>
-        <button class="btn primary" type="button" (click)="store.restart()">Restart</button>
+        <span i18n="@@settings.screen.restartBanner">Some changes take effect after IMT restarts.</span>
+        <button class="btn primary" type="button" (click)="store.restart()" i18n="@@settings.screen.restart">Restart</button>
       </div>
     }
     @if (store.confirmDiscard()) {
-      <div class="banner warn" role="alertdialog" aria-label="Unapplied changes" aria-describedby="imt-settings-discard-text">
-        <span id="imt-settings-discard-text">You have changes that were not applied.</span>
-        <button class="btn" type="button" (click)="discardAndClose()">Discard changes</button>
-        <button class="btn primary" type="button" (click)="store.keepEditing()">Keep editing</button>
+      <div class="banner warn" role="alertdialog" aria-label="Unapplied changes" i18n-aria-label="@@settings.screen.discard.label" aria-describedby="imt-settings-discard-text">
+        <span id="imt-settings-discard-text" i18n="@@settings.screen.discard.text">You have changes that were not applied.</span>
+        <button class="btn" type="button" (click)="discardAndClose()" i18n="@@settings.screen.discard.discard">Discard changes</button>
+        <button class="btn primary" type="button" (click)="store.keepEditing()" i18n="@@settings.screen.discard.keepEditing">Keep editing</button>
       </div>
     }
     @if (store.notice(); as n) {
-      <div class="banner ok" role="status"><span>{{ n }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()">Dismiss</button></div>
+      <div class="banner ok" role="status"><span>{{ n }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()" i18n="@@settings.screen.dismiss">Dismiss</button></div>
     }
     @if (store.actionError(); as e) {
-      <div class="banner err" role="alert"><span>{{ e }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()">Dismiss</button></div>
+      <div class="banner err" role="alert"><span>{{ e }}</span><button class="btn ghost" type="button" (click)="store.dismissNotice()" i18n="@@settings.screen.dismiss">Dismiss</button></div>
     }
 
     <div class="main">
-      <nav aria-label="Settings sections">
-        <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)">General</button>
+      <nav aria-label="Settings sections" i18n-aria-label="@@settings.screen.nav.label">
+        <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)" i18n="Settings section|Name of the first settings section@@settings.screen.general">General</button>
+        <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Storage</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>
           @for (s of g.sections; track s.id) {
@@ -56,21 +59,21 @@ import { SettingField, SettingsSection } from './settings.types';
                 <span class="badge">{{ st }}</span>
               }
               @if (isDirty(s.id)) {
-                <span class="dot" role="img" aria-label="unapplied changes" title="Unapplied changes"></span>
+                <span class="dot" role="img" aria-label="unapplied changes" title="Unapplied changes" i18n-aria-label="@@settings.screen.dirtyDot.label" i18n-title="@@settings.screen.dirtyDot.title"></span>
               }
             </button>
           }
         }
       </nav>
 
-      <section class="content" aria-label="Settings">
+      <section class="content" aria-label="Settings" i18n-aria-label="@@settings.screen.content.label">
         @if (store.loadError(); as e) {
           <div class="banner err" role="alert">
-            <span>Could not load the settings: {{ e }}</span>
-            <button class="btn" type="button" (click)="store.load()">Retry</button>
+            <span i18n="@@settings.screen.loadError">Could not load the settings: {{ e }}</span>
+            <button class="btn" type="button" (click)="store.load()" i18n="@@settings.screen.retry">Retry</button>
           </div>
         } @else if (!store.overview()) {
-          <p class="muted">Loading settings…</p>
+          <p class="muted" i18n="@@settings.screen.loading">Loading settings…</p>
         }
         @if (store.query().trim()) {
           @for (r of results(); track r.section.id) {
@@ -86,12 +89,14 @@ import { SettingField, SettingsSection } from './settings.types';
               />
             }
           } @empty {
-            <p class="muted">No settings match “{{ store.query() }}”.</p>
+            <p class="muted" i18n="@@settings.screen.noMatch">No settings match “{{ store.query() }}”.</p>
           }
         } @else if (isSelected(general)) {
-          <h3>General</h3>
-          <p class="desc">Appearance and display preferences of this window. They apply immediately.</p>
+          <h3 i18n="Settings section|Name of the first settings section@@settings.screen.general">General</h3>
+          <p class="desc" i18n="@@settings.screen.general.desc">Appearance and display preferences of this window. They apply immediately.</p>
           <imt-general-settings (layoutReset)="close()" />
+        } @else if (isSelected(storage)) {
+          <imt-storage-settings />
         } @else if (store.current(); as s) {
           <div class="section-head">
             <h3>{{ s.title }}</h3>
@@ -100,7 +105,7 @@ import { SettingField, SettingsSection } from './settings.types';
             }
             <span class="spacer"></span>
             @if (s.fields.length) {
-              <button class="btn" type="button" [disabled]="s.readOnly || store.busy()" (click)="store.resetSection(s.id)">Reset section</button>
+              <button class="btn" type="button" [disabled]="s.readOnly || store.busy()" (click)="store.resetSection(s.id)" i18n="@@settings.screen.resetSection">Reset section</button>
             }
           </div>
           @if (s.description) {
@@ -128,24 +133,24 @@ import { SettingField, SettingsSection } from './settings.types';
             />
           }
           @if (hiddenAdvanced(s); as n) {
-            <p class="muted">{{ n }} advanced setting{{ n === 1 ? '' : 's' }} hidden. <button class="link" type="button" (click)="store.setShowAdvanced(true)">Show advanced</button></p>
+            <p class="muted" i18n="@@settings.screen.hiddenAdvanced">{n, plural, =1 {{{ n }} advanced setting hidden.} other {{{ n }} advanced settings hidden.}} <button class="link" type="button" (click)="store.setShowAdvanced(true)">Show advanced</button></p>
           }
           @if (!s.fields.length && s.status !== 'notInstalled') {
-            <p class="muted">This section has no settings.</p>
+            <p class="muted" i18n="@@settings.screen.emptySection">This section has no settings.</p>
           }
         }
       </section>
     </div>
 
     <div class="footer">
-      <button class="btn" type="button" [disabled]="store.busy()" (click)="exportSettings()">Export…</button>
-      <button class="btn" type="button" [disabled]="store.busy()" (click)="importSettings()">Import…</button>
+      <button class="btn" type="button" [disabled]="store.busy()" (click)="exportSettings()" i18n="@@settings.screen.export">Export…</button>
+      <button class="btn" type="button" [disabled]="store.busy()" (click)="importSettings()" i18n="@@settings.screen.import">Import…</button>
       <span class="spacer"></span>
       @if (store.dirty()) {
-        <span class="muted" role="status">Unapplied changes in {{ store.dirtySections().length }} section{{ store.dirtySections().length === 1 ? '' : 's' }}</span>
+        <span class="muted" role="status" i18n="@@settings.screen.unappliedIn">{store.dirtySections().length, plural, =1 {Unapplied changes in {{ store.dirtySections().length }} section} other {Unapplied changes in {{ store.dirtySections().length }} sections}}</span>
       }
-      <button class="btn" type="button" (click)="cancel()">{{ store.dirty() ? 'Cancel' : 'Close' }}</button>
-      <button class="btn primary" type="button" [disabled]="!store.dirty() || store.busy()" (click)="store.apply()">Apply</button>
+      <button class="btn" type="button" (click)="cancel()">{{ store.dirty() ? cancelLabel : closeLabel }}</button>
+      <button class="btn primary" type="button" [disabled]="!store.dirty() || store.busy()" (click)="store.apply()" i18n="@@settings.screen.apply">Apply</button>
     </div>
   `,
   styles: `
@@ -160,21 +165,21 @@ import { SettingField, SettingsSection } from './settings.types';
     .banner.err { border-color: var(--danger-text); color: var(--danger-text); }
     .banner.ok { border-color: var(--ok); }
     .main { flex: 1; min-height: 0; display: flex; gap: 16px; }
-    nav { flex: none; width: 200px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); padding-right: 8px; }
-    .nav { display: flex; align-items: center; gap: 6px; text-align: left; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; }
-    .nav.sub { padding-left: 16px; }
+    nav { flex: none; width: 200px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border-inline-end: 1px solid var(--border); padding-inline-end: 8px; }
+    .nav { display: flex; align-items: center; gap: 6px; text-align: start; padding: 6px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; }
+    .nav.sub { padding-inline-start: 16px; }
     .nav:hover { background: var(--bg-hover); }
     .nav[aria-current='page'] { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .nav .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .group { margin-top: 10px; padding: 0 8px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
-    .content { flex: 1; min-width: 0; overflow: auto; padding-right: 4px; }
+    .content { flex: 1; min-width: 0; overflow: auto; padding-inline-end: 4px; }
     h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
     .content > h3:not(:first-child) { margin-top: 16px; }
     .section-head { display: flex; align-items: center; gap: 8px; }
     .spacer { flex: 1; }
     .desc { margin: 4px 0 8px; color: var(--muted); line-height: 1.45; }
-    .note { margin: 4px 0 8px; padding: 6px 8px; border-left: 2px solid var(--warn-text); color: var(--text-2); }
+    .note { margin: 4px 0 8px; padding: 6px 8px; border-inline-start: 2px solid var(--warn-text); color: var(--text-2); }
     .error { margin: 4px 0; color: var(--danger-text); }
     .link { border: 0; background: none; padding: 0; color: var(--text); cursor: pointer; text-decoration: underline; }
     .footer { display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
@@ -185,6 +190,9 @@ export class SettingsScreen {
   private readonly files = inject(SettingsFiles);
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
+  protected readonly storage = STORAGE_ID;
+  protected readonly cancelLabel = $localize`:@@settings.screen.cancel:Cancel`;
+  protected readonly closeLabel = $localize`:Button that closes the settings dialog@@settings.screen.close:Close`;
 
   protected readonly navGroups = computed(() =>
     GROUPS.map((g) => ({ ...g, sections: this.store.sections().filter((s) => s.group === g.id) })).filter((g) => g.sections.length > 0),

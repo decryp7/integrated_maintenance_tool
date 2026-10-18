@@ -2,6 +2,7 @@ import { query, tinyBackend, tinyDataset } from '../../../testing/helpers';
 import { MockBackend } from './mock-backend';
 import { MOCK_PROFILE_TOML } from './mock-profile';
 
+import { at } from '../../../testing/must';
 describe('MockBackend', () => {
   let backend: MockBackend;
   beforeEach(() => (backend = tinyBackend()));
@@ -13,7 +14,7 @@ describe('MockBackend', () => {
       ['app.clef', 7],
       ['app.log', 4],
     ]);
-    expect(s.sources[1].skipped).toBe(1);
+    expect(s.sources[1]?.skipped).toBe(1);
     expect(s.levels).toMatchObject({ Information: 7, Warning: 1, Error: 1, Fatal: 1, Debug: 1, Verbose: 0 });
     expect(s.unrecognized).toHaveLength(1);
     expect(s.defaultGroupBy).toEqual(['MachineName', 'ProcessId']);
@@ -24,7 +25,7 @@ describe('MockBackend', () => {
   it('opens, removes, clears and reloads sources', async () => {
     let s = await backend.openPaths(['/x/extra.log', '/x/extra.log']);
     expect(s.sources).toHaveLength(3);
-    const extra = s.sources[2];
+    const extra = at(s.sources, 2);
     expect(extra.name).toBe('extra.log');
     expect(extra.records).toBeGreaterThan(10);
     s = await backend.openPaths(['/x/extra.log']);
@@ -121,8 +122,8 @@ describe('MockBackend', () => {
       const b = new MockBackend({ latency: false, dataset: tinyDataset, syntheticTotal: 50_000_000 });
       const summary = await b.workspaceSummary();
       expect(summary.total).toBe(50_000_000);
-      expect(summary.sources[0].records).toBe(50_000_000);
-      expect(summary.sources[1].records).toBe(4);
+      expect(summary.sources[0]?.records).toBe(50_000_000);
+      expect(summary.sources[1]?.records).toBe(4);
       const page = await b.queryPage({ query: query(), offset: 49_999_998, limit: 500, descending: false });
       expect(page.rows.map((r) => r.id)).toEqual([49_999_998, 49_999_999]);
     });
@@ -137,13 +138,13 @@ describe('MockBackend', () => {
       await expect(b.queryTimeline({ query: query(), buckets: 10, alwaysShowLifecycle: true })).rejects.toMatch(/Simulated/);
       expect((await b.workspaceSummary()).total).toBe(11);
       const page = await b.queryPage({ query: query(), offset: 0, limit: 2, descending: false });
-      expect(page.rows[0].markers).toBeUndefined();
+      expect(page.rows[0]?.markers).toBeUndefined();
     });
 
     it('returns the lines around an event', async () => {
       const b = tinyBackend();
       const page = await b.queryPage({ query: query(), offset: 3, limit: 1, descending: false });
-      const rec = page.rows[0];
+      const rec = at(page.rows, 0);
       const ctx = await b.sourceContext({ recordId: rec.id, before: 2, after: 1 });
       expect(ctx.sourceName).toBe(rec.sourceName);
       expect(ctx.line).toBe(rec.line);
@@ -152,9 +153,9 @@ describe('MockBackend', () => {
       expect((await b.sourceContext({ recordId: 0, before: 99999, after: 0 })).lines).toHaveLength(1);
       expect((await b.sourceContext({ recordId: 0, before: 0, after: 999 })).lines).toHaveLength(501);
       await expect(b.sourceContext({ recordId: 9999, before: 1, after: 1 })).rejects.toMatch(/no longer/);
-      const undated = (await b.queryPage({ query: query(), offset: 10, limit: 1, descending: false })).rows[0];
+      const undated = at((await b.queryPage({ query: query(), offset: 10, limit: 1, descending: false })).rows, 0);
       expect(undated.ts).toBeNull();
-      expect((await b.sourceContext({ recordId: undated.id, before: 0, after: 0 })).lines[0].text).toMatch(/^ \[/);
+      expect((await b.sourceContext({ recordId: undated.id, before: 0, after: 0 })).lines[0]?.text).toMatch(/^ \[/);
     });
 
     it('reads the head of workspace files only', async () => {
@@ -175,7 +176,7 @@ describe('MockBackend', () => {
       await vi.waitFor(() => expect(changed.mock.calls.length).toBeGreaterThanOrEqual(2));
       const summary = await b.workspaceSummary();
       expect(summary.total).toBeGreaterThan(11);
-      expect((await b.queryPage({ query: query({ text: 'Live event' }), offset: 0, limit: 1, descending: true })).rows[0].message).toMatch(/Live event/);
+      expect((await b.queryPage({ query: query({ text: 'Live event' }), offset: 0, limit: 1, descending: true })).rows[0]?.message).toMatch(/Live event/);
       expect(await b.setLive(false)).toBe(0);
       const n = changed.mock.calls.length;
       await new Promise((r) => setTimeout(r, 50));

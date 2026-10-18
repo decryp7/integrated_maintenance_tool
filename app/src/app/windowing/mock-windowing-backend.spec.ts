@@ -1,4 +1,5 @@
 import { MOCK_ON_CLOSE_KEY, MockWindowHost, MockWindowingBackend, seededOpenAsk, seededTasks } from './mock-windowing-backend';
+import { at } from '../../testing/must';
 
 class FakeStorage {
   readonly map = new Map<string, string>();
@@ -42,7 +43,7 @@ describe('MockWindowingBackend', () => {
     const second = await b.newWindow();
     expect(first.label).toBe('w-2');
     expect(second.label).toBe('w-3');
-    const url = new URL(h.popups[0].url);
+    const url = new URL(at(h.popups, 0).url);
     expect(url.searchParams.get('mockTotal')).toBe('5');
     expect(url.searchParams.get('window')).toBe('w-2');
     expect(changed).toHaveBeenCalledTimes(2);
@@ -52,11 +53,11 @@ describe('MockWindowingBackend', () => {
       ['w-2', 'IMT — w-2'],
       ['w-3', 'IMT — w-3'],
     ]);
-    h.popups[0].win.closed = true;
+    at(h.popups, 0).win.closed = true;
     expect((await b.listWindows()).map((w) => w.label)).toEqual(['main', 'w-3']);
     await b.focusWindow('w-3');
     await b.focusWindow('gone');
-    expect(h.popups[1].win.focus).toHaveBeenCalled();
+    expect(h.popups[1]?.win.focus).toHaveBeenCalled();
   });
 
   it('works without storage', async () => {
@@ -64,7 +65,7 @@ describe('MockWindowingBackend', () => {
     h.titleText = '';
     const b = new MockWindowingBackend(h);
     expect((await b.newWindow()).label).toBe('w-2');
-    expect((await b.listWindows())[0].title).toBe('IMT');
+    expect((await b.listWindows())[0]?.title).toBe('IMT');
     await b.resolveClose('tray', true);
     const handler = vi.fn();
     await b.onCloseRequested(handler);

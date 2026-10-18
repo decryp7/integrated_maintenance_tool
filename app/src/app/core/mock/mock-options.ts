@@ -52,7 +52,7 @@ export function mockOptionsFromSearch(search: string): MockBackendOptions {
   for (const part of (p.get('mockFail') ?? '').split(',')) {
     const [name, count] = part.split(':');
     const n = positiveInt(count ?? '1') ?? 1;
-    if ((FAILABLE as readonly string[]).includes(name)) fail[name as Failable] = n;
+    if (name !== undefined && (FAILABLE as readonly string[]).includes(name)) fail[name as Failable] = n;
   }
   if (Object.keys(fail).length) options.fail = fail;
   return options;

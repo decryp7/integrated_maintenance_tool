@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle, SEC, T0, testLogger, tinyBackend } from '../../testing/helpers';
 import { ImtBackend } from './backend';
-import { MockBackend } from './mock/mock-backend';
 import { Platform } from './platform';
 import { DROPPED_FILES_HANDLERS } from './dropped-files';
 import { EMPTY_QUERY, loadPrefs, savePrefs, WorkspaceStore } from './workspace.store';
+import { at } from '../../testing/must';
 
 const fakePlatform = {
   failDialog: false,
@@ -121,7 +121,7 @@ describe('WorkspaceStore', () => {
     store.toggleLevel('Error');
     await settle();
     expect(spy.mock.calls.length).toBeGreaterThan(before);
-    expect(store.timeline()?.lanes[0].matched).toBe(2);
+    expect(at(store.timeline()?.lanes ?? [], 0).matched).toBe(2);
   });
 
   it('refreshSummary reloads the summary and timeline but keeps the selection, the query and filters', async () => {
@@ -185,7 +185,7 @@ describe('WorkspaceStore', () => {
     expect(store.dataVersion()).toBe(2);
     await store.pickAndOpen(false);
     expect(store.summary()?.sources).toHaveLength(4);
-    await store.removeSource(store.summary()!.sources[3].id);
+    await store.removeSource(at(store.summary()!.sources, 3).id);
     expect(store.summary()?.sources).toHaveLength(3);
     await store.clearWorkspace();
     expect(store.summary()?.total).toBe(0);
@@ -262,7 +262,7 @@ describe('WorkspaceStore', () => {
     const store = setup();
     await settle();
     const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 1, descending: false });
-    store.select(page.rows[0]);
+    store.select(at(page.rows, 0));
     expect(store.selected()?.id).toBe(0);
     store.jumpTo(4);
     const first = store.anchor()!;
@@ -270,7 +270,7 @@ describe('WorkspaceStore', () => {
     expect(store.anchor()!.nonce).toBe(first.nonce + 1);
     store.anchorResolved(null);
     expect(store.anchorMissed()).toBe(true);
-    store.anchorResolved(page.rows[0]);
+    store.anchorResolved(at(page.rows, 0));
     expect(store.anchorMissed()).toBe(false);
     store.setMatchTotal(5);
     expect(store.matchTotal()).toBe(5);

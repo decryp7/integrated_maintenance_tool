@@ -9,6 +9,7 @@ import { SettingsStore } from '../settings/settings.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { ProfileUndo } from '../undo/profile-undo';
 import { bestTemplate, groupTemplates, ratioLabel, readRatio } from './templates';
+import { groupedNumber } from '../i18n/locale';
 
 /** How much of the user's file the engine previews. */
 export const TEMPLATE_HEAD_BYTES = 32 * 1024;
@@ -24,17 +25,22 @@ export const TEMPLATE_PREVIEW_ROWS = 20;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="intro">
-      Pick the format your logs are written in. @if (name()) { The preview shows how each template reads <span class="mono">{{ name() }}</span>. } @else { The preview uses a short sample of each format. }
+      <ng-container i18n="@@templates.gallery.pick">Pick the format your logs are written in.</ng-container>&ngsp;
+      @if (name()) {
+        <ng-container i18n="@@templates.gallery.previewReads">The preview shows how each template reads <span class="mono">{{ name() }}</span>.</ng-container>
+      } @else {
+        <ng-container i18n="@@templates.gallery.previewSample">The preview uses a short sample of each format.</ng-container>
+      }
     </p>
     @if (loadError(); as e) {
-      <div class="err" role="alert">Could not load the templates: {{ e }} <button type="button" class="btn" (click)="load()">Retry</button></div>
+      <div class="err" role="alert"><ng-container i18n="@@templates.gallery.loadError">Could not load the templates: {{ e }}</ng-container>&ngsp;<button type="button" class="btn" (click)="load()" i18n="@@templates.gallery.retry">Retry</button></div>
     } @else if (!templates()) {
-      <div class="muted" role="status">Loading templates…</div>
+      <div class="muted" role="status" i18n="@@templates.gallery.loading">Loading templates…</div>
     } @else if (!templates()!.length) {
-      <div class="muted">No templates are installed with this version of IMT.</div>
+      <div class="muted" i18n="@@templates.gallery.none">No templates are installed with this version of IMT.</div>
     } @else {
       <div class="cols">
-        <nav class="list" aria-label="Templates">
+        <nav class="list" aria-label="Templates" i18n-aria-label="@@templates.gallery.listLabel">
           @for (g of groups(); track g.category) {
             <h3>{{ g.category }}</h3>
             <ul>
@@ -52,31 +58,31 @@ export const TEMPLATE_PREVIEW_ROWS = 20;
           }
         </nav>
         @if (selected(); as t) {
-          <section class="detail" aria-label="Template preview">
+          <section class="detail" aria-label="Template preview" i18n-aria-label="@@templates.gallery.previewLabel">
             <h3 class="title">{{ t.name }}</h3>
             <p class="desc">{{ t.description }}</p>
             @if (headError(); as e) {
-              <div class="err" role="alert">Could not read {{ name() }}: {{ e }}. Showing the template's own sample. <button type="button" class="btn" (click)="loadHead()">Retry</button></div>
+              <div class="err" role="alert"><ng-container i18n="@@templates.gallery.readError">Could not read {{ name() }}: {{ e }}. Showing the template's own sample.</ng-container>&ngsp;<button type="button" class="btn" (click)="loadHead()" i18n="@@templates.gallery.retryHead">Retry</button></div>
             }
             <div class="status" role="status" data-testid="template-preview-status">
               @if (previewing()) {
-                Previewing…
+                <ng-container i18n="@@templates.gallery.previewing">Previewing…</ng-container>
               } @else if (previewError(); as e) {
-                <span class="err">Preview failed: {{ e }}</span>
+                <span class="err" i18n="@@templates.gallery.previewFailed">Preview failed: {{ e }}</span>
               } @else if (preview(); as p) {
                 @if (p.error) {
                   <span class="err">{{ p.error }}</span>
                 } @else if (!p.total) {
-                  <span class="err">This template reads no events from {{ sampleLabel() }}{{ p.skipped ? ' (' + p.skipped + ' lines not understood)' : '' }}. Try another one.</span>
+                  <span class="err">{{ noEventsText(p.skipped) }}</span>
                 } @else {
-                  Reads <strong>{{ p.total }}</strong> event{{ p.total === 1 ? '' : 's' }} from {{ sampleLabel() }}@if (p.skipped) {; {{ p.skipped }} line{{ p.skipped === 1 ? '' : 's' }} not understood}.
+                  <ng-container i18n="@@templates.gallery.reads">Reads <strong>{{ p.total }}</strong> {p.total, plural, =1 {event} other {events}} from {{ sampleLabel() }}</ng-container>@if (p.skipped) {<ng-container i18n="@@templates.gallery.skipped">; {p.skipped, plural, =1 {{{ p.skipped }} line} other {{{ p.skipped }} lines}} not understood</ng-container>}.
                 }
               }
             </div>
             @if (preview()?.records?.length) {
               <div class="table-wrap">
-                <table aria-label="Preview of the parsed events">
-                  <thead><tr><th scope="col">Time</th><th scope="col">Level</th><th scope="col">Message</th></tr></thead>
+                <table aria-label="Preview of the parsed events" i18n-aria-label="@@templates.gallery.tableLabel">
+                  <thead><tr><th scope="col" i18n="@@templates.gallery.col.time">Time</th><th scope="col" i18n="@@templates.gallery.col.level">Level</th><th scope="col" i18n="@@templates.gallery.col.message">Message</th></tr></thead>
                   <tbody>
                     @for (r of preview()!.records; track $index) {
                       <tr><td class="mono">{{ time(r.ts) }}</td><td>{{ r.level }}</td><td class="msg">{{ r.message }}</td></tr>
@@ -86,12 +92,12 @@ export const TEMPLATE_PREVIEW_ROWS = 20;
               </div>
             }
             @if (applyError(); as e) {
-              <div class="err" role="alert">The profile was not applied: {{ e }}</div>
+              <div class="err" role="alert" i18n="@@templates.gallery.applyError">The profile was not applied: {{ e }}</div>
             }
-            <p class="note muted">Using a template replaces the active profile. You can undo it (Edit › Undo) or restore the previous one from the profile's History.</p>
+            <p class="note muted" i18n="@@templates.gallery.note">Using a template replaces the active profile. You can undo it (Edit › Undo) or restore the previous one from the profile's History.</p>
             <div class="foot">
-              <button type="button" class="btn ghost" (click)="ref.close(false)">Cancel</button>
-              <button type="button" class="btn primary" [disabled]="applying()" (click)="use(t)">{{ applying() ? 'Applying…' : 'Use this' }}</button>
+              <button type="button" class="btn ghost" (click)="ref.close(false)" i18n="@@templates.gallery.cancel">Cancel</button>
+              <button type="button" class="btn primary" [disabled]="applying()" (click)="use(t)">{{ useLabel() }}</button>
             </div>
           </section>
         }
@@ -154,7 +160,12 @@ export class TemplatesGallery implements OnInit {
 
   protected readonly groups = computed(() => groupTemplates(this.templates() ?? []));
   protected readonly selected = computed(() => this.templates()?.find((t) => t.id === this.selectedId()) ?? null);
-  protected readonly sampleLabel = computed(() => (this.head() !== null ? `the start of ${this.name() ?? 'the file'}` : 'its sample'));
+  protected readonly sampleLabel = computed(() => {
+    if (this.head() === null) return $localize`:@@templates.gallery.itsSample:its sample`;
+    const name = this.name() ?? $localize`:@@templates.gallery.theFile:the file`;
+    return $localize`:@@templates.gallery.startOf:the start of ${name}:name:`;
+  });
+  protected readonly useLabel = computed(() => (this.applying() ? $localize`:@@templates.gallery.applying:Applying…` : $localize`:@@templates.gallery.use:Use this`));
 
   constructor() {
     effect(() => {
@@ -211,6 +222,12 @@ export class TemplatesGallery implements OnInit {
     this.applyError.set(null);
   }
 
+  protected noEventsText(skipped: number): string {
+    const sample = this.sampleLabel();
+    const note = skipped ? $localize`:@@templates.gallery.notUnderstood: (${skipped}:count: lines not understood)` : '';
+    return $localize`:@@templates.gallery.noEvents:This template reads no events from ${sample}:sample:${note}:note:. Try another one.`;
+  }
+
   protected ratioText(id: string): string {
     return ratioLabel(this.ratios().get(id) ?? 0);
   }
@@ -229,7 +246,9 @@ export class TemplatesGallery implements OnInit {
         // Binary formats (Windows .evtx) have no text sample: only a file of the user's can be previewed.
         if (mine === this.previewSeq) {
           this.preview.set(null);
-          this.previewError.set(`${t.name} reads a binary format, so there is no text sample to preview. Open one of your ${t.sampleName.split('.').pop()} files, then choose “Start from a template” on it to preview.`);
+          const name = t.name;
+          const ext = t.sampleName.split('.').pop();
+          this.previewError.set($localize`:@@templates.gallery.binary:${name}:name: reads a binary format, so there is no text sample to preview. Open one of your ${ext}:ext: files, then choose “Start from a template” on it to preview.`);
         }
         return;
       }
@@ -253,11 +272,14 @@ export class TemplatesGallery implements OnInit {
     try {
       const v = await this.backend.validateProfile(t.toml);
       if (!v.ok) {
-        this.applyError.set(`${v.line ? `line ${v.line}: ` : ''}${v.error ?? 'the profile is not valid'}`);
+        const prefix = v.line ? $localize`:@@templates.gallery.line:line ${v.line}:line:: ` : '';
+        this.applyError.set(`${prefix}${v.error ?? $localize`:@@templates.gallery.invalid:the profile is not valid`}`);
         return;
       }
-      const summary = await this.undo.save('profile template', t.toml);
-      this.store.setNotice(`Applied the ${t.name} template: ${summary.total.toLocaleString('en-US')} events`);
+      const summary = await this.undo.save($localize`:@@templates.gallery.undoLabel:profile template`, t.toml);
+      const name = t.name;
+      const total = groupedNumber(summary.total);
+      this.store.setNotice($localize`:@@templates.gallery.applied:Applied the ${name}:name: template: ${total}:total: events`);
       this.ref.close(true);
     } catch (e) {
       this.applyError.set(describeError(e));

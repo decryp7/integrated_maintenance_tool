@@ -33,7 +33,7 @@ export function lex(text: string): Tok[] {
   const out: Tok[] = [];
   let i = 0;
   while (i < text.length) {
-    const c = text[i];
+    const c = text[i] ?? '';
     if (/\s/.test(c)) {
       i++;
       continue;
@@ -43,7 +43,7 @@ export function lex(text: string): Tok[] {
       let value = '';
       let j = i + 1;
       for (; j < text.length && text[j] !== c; j++) {
-        if (text[j] === '\\' && ['"', "'", '\\'].includes(text[j + 1])) j++;
+        if (text[j] === '\\' && ['"', "'", '\\'].includes(text[j + 1] ?? '')) j++;
         value += text[j];
       }
       if (j >= text.length) throw new MockQlError('unterminated string', i, text.length - i);
@@ -65,13 +65,14 @@ export function lex(text: string): Tok[] {
       continue;
     }
     const single: Record<string, Tok['kind']> = { '|': 'pipe', ',': 'comma', '(': 'lp', ')': 'rp' };
-    if (single[c]) {
-      out.push({ kind: single[c], text: c, offset: i, len: 1 });
+    const singleKind = single[c];
+    if (singleKind) {
+      out.push({ kind: singleKind, text: c, offset: i, len: 1 });
       i++;
       continue;
     }
     let j = i;
-    while (j < text.length && !/[\s|,()"'`=<>!~]/.test(text[j])) j++;
+    while (j < text.length && !/[\s|,()"'`=<>!~]/.test(text[j] ?? '')) j++;
     if (j === i) throw new MockQlError(`unexpected character '${c}'`, i, 1);
     out.push({ kind: 'word', text: text.slice(i, j), offset: i, len: j - i });
     i = j;
@@ -131,7 +132,7 @@ function compare(l: unknown, op: string, rhs: string, field: string): boolean {
       return numeric && n <= m;
     case '~':
     case '!~': {
-      let hit = false;
+      let hit: boolean;
       try {
         hit = new RegExp(rhs, 'i').test(s);
       } catch {
@@ -146,14 +147,16 @@ function compare(l: unknown, op: string, rhs: string, field: string): boolean {
 
 function parseExpr(toks: Tok[], from: number, to: number, end: number): Pred {
   if (from >= to) throw new MockQlError('expected a filter expression', end, 0);
-  const orParts: Tok[][] = [[]];
+  let currentOr: Tok[] = [];
+  const orParts: Tok[][] = [currentOr];
   let depth = 0;
   for (let i = from; i < to; i++) {
     const t = toks[i];
+    if (!t) continue;
     if (t.kind === 'lp') depth++;
     if (t.kind === 'rp') depth--;
-    if (depth === 0 && t.kind === 'word' && t.text.toLowerCase() === 'or') orParts.push([]);
-    else orParts[orParts.length - 1].push(t);
+    if (depth === 0 && t.kind === 'word' && t.text.toLowerCase() === 'or') orParts.push((currentOr = []));
+    else currentOr.push(t);
   }
   const ors = orParts.map((part) => parseAnd(part, end));
   return (r) => ors.some((p) => p(r));
@@ -165,7 +168,7 @@ function parseAnd(toks: Tok[], end: number): Pred {
   let i = 0;
   while (i < toks.length) {
     let negate = false;
-    while (toks[i]?.kind === 'word' && toks[i].text.toLowerCase() === 'not') {
+    for (let w = toks[i]; w?.kind === 'word' && w.text.toLowerCase() === 'not'; w = toks[i]) {
       negate = !negate;
       i++;
     }
@@ -176,11 +179,12 @@ function parseAnd(toks: Tok[], end: number): Pred {
       let d = 0;
       let j = i;
       for (; j < toks.length; j++) {
-        if (toks[j].kind === 'lp') d++;
-        if (toks[j].kind === 'rp' && --d === 0) break;
+        const tj = toks[j];
+        if (tj?.kind === 'lp') d++;
+        if (tj?.kind === 'rp' && --d === 0) break;
       }
       if (j >= toks.length) throw new MockQlError('missing )', t.offset, t.len);
-      pred = parseExpr(toks, i + 1, j, toks[j].offset);
+      pred = parseExpr(toks, i + 1, j, toks[j]?.offset ?? t.offset);
       i = j + 1;
     } else if (t.kind === 'str') {
       const needle = t.text.toLowerCase();
@@ -231,7 +235,7 @@ function compareCells(x: unknown, y: unknown, desc: boolean): number {
 
 function percentile(sorted: number[], p: number): number {
   if (!sorted.length) return 0;
-  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))] ?? 0;
 }
 
 function runStats(records: RecordView[], stage: Tok[], end: number): QlResult {
@@ -242,6 +246,7 @@ function runStats(records: RecordView[], stage: Tok[], end: number): QlResult {
   const aggs: Agg[] = [];
   for (let i = 0; i < aggToks.length; ) {
     const t = aggToks[i];
+    if (!t) break;
     if (t.kind === 'comma') {
       i++;
       continue;
@@ -251,11 +256,16 @@ function runStats(records: RecordView[], stage: Tok[], end: number): QlResult {
     if (!['count', 'count_distinct', 'avg', 'min', 'max', 'sum', 'p50', 'p95', 'p99'].includes(fn)) throw new MockQlError(`unknown function '${t.text}'`, t.offset, t.len);
     let j = i + 2;
     let field: string | null = null;
-    if (aggToks[j]?.kind === 'word') field = aggToks[j++].text;
+    const fieldTok = aggToks[j];
+    if (fieldTok?.kind === 'word') {
+      field = fieldTok.text;
+      j++;
+    }
     if (aggToks[j]?.kind !== 'rp') throw new MockQlError('missing )', t.offset, t.len);
     j++;
     let name = field ? `${fn}(${field})` : `${fn}()`;
-    if (aggToks[j]?.kind === 'word' && aggToks[j].text.toLowerCase() === 'as') {
+    const asTok = aggToks[j];
+    if (asTok?.kind === 'word' && asTok.text.toLowerCase() === 'as') {
       const n = aggToks[j + 1];
       if (!n) throw new MockQlError('expected a name after as', end, 0);
       name = n.text;
@@ -291,10 +301,11 @@ function runStats(records: RecordView[], stage: Tok[], end: number): QlResult {
 }
 
 function splitStages(text: string): Tok[][] {
-  const stages: Tok[][] = [[]];
+  let currentStage: Tok[] = [];
+  const stages: Tok[][] = [currentStage];
   for (const t of lex(text)) {
-    if (t.kind === 'pipe') stages.push([]);
-    else stages[stages.length - 1].push(t);
+    if (t.kind === 'pipe') stages.push((currentStage = []));
+    else currentStage.push(t);
   }
   return stages;
 }
@@ -308,7 +319,7 @@ export function mockQlFilter(text: string): Pred | null {
   if (!text.trim()) return null;
   runMockQl(text, []);
   const end = text.length;
-  const [first, ...rest] = splitStages(text);
+  const [first = [], ...rest] = splitStages(text);
   const preds: Pred[] = first.length ? [parseExpr(first, 0, first.length, end)] : [];
   for (const st of rest) {
     if (st[0]?.text.toLowerCase() !== 'where') break;
@@ -337,7 +348,8 @@ export function runMockQl(text: string, records: RecordView[]): QlResult {
     if (!head) throw new MockQlError('expected a stage after |', end, 0);
     const name = head.text.toLowerCase();
     const rest = st.slice(1);
-    const restEnd = rest.length ? rest[rest.length - 1].offset + rest[rest.length - 1].len : head.offset + head.len;
+    const lastTok = rest[rest.length - 1];
+    const restEnd = lastTok ? lastTok.offset + lastTok.len : head.offset + head.len;
     if (table && name !== 'head' && name !== 'limit' && name !== 'sort') throw new MockQlError(`'${name}' cannot follow stats`, head.offset, head.len);
     switch (name) {
       case 'where': {
@@ -361,10 +373,10 @@ export function runMockQl(text: string, records: RecordView[]): QlResult {
         const dirAt = rest.findIndex((t) => t.kind === 'word' && ['asc', 'desc'].includes(t.text.toLowerCase()));
         const keyToks = dirAt < 0 ? rest : rest.slice(0, dirAt);
         const key = keyToks.map((t) => t.text).join('');
-        const desc = dirAt >= 0 && rest[dirAt].text.toLowerCase() === 'desc';
+        const desc = (dirAt >= 0 ? rest[dirAt] : undefined)?.text.toLowerCase() === 'desc';
         if (table && table.kind === 'table') {
           const col = table.columns.indexOf(key);
-          if (col < 0) throw new MockQlError(`unknown column '${key}'`, rest[0].offset, rest[0].len);
+          if (col < 0) throw new MockQlError(`unknown column '${key}'`, rest[0]?.offset ?? restEnd, rest[0]?.len ?? 0);
           const rows = [...table.rows].sort((a, b) => compareCells(a[col], b[col], desc));
           table = { ...table, rows };
         } else {

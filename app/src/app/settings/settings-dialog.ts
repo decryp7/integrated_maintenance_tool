@@ -19,6 +19,6 @@ export class SettingsDialogService {
   open(section?: string): void {
     if (section) this.store.select(section);
     if (this.dialogs.stack().some((d) => d.component === SettingsScreen)) return;
-    this.dialogs.open(SettingsScreen, { title: 'Settings', width: 960, canClose: () => this.store.canClose() });
+    this.dialogs.open(SettingsScreen, { title: $localize`:Dialog title@@settings.dialog.title:Settings`, width: 960, canClose: () => this.store.canClose() });
   }
 }

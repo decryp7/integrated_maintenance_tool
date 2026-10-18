@@ -21,6 +21,7 @@ import { WindowingService } from '../windowing/windowing.service';
 import { MENU_MODE } from './menu/app-menu.service';
 import { NATIVE_MENU_PORT, NativeMenuPort } from './menu/native-menu';
 import { NativeMenuModel } from './menu/native-menu.types';
+import { at } from '../../testing/must';
 
 const DROP_DEBUG_PROFILE = `name = "p"\n[[pipeline]]\nstep = "drop"\nwhen = [{ field = "@level", op = "eq", value = "Debug" }]\n`;
 
@@ -144,8 +145,8 @@ describe('TitleBar', () => {
     await choose(fixture, 'Window');
     const items = [...document.querySelectorAll<HTMLElement>('[role=menuitemcheckbox]')];
     expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
-    expect(items[1].textContent).toContain('IMT — w-2');
-    items[1].click();
+    expect(items[1]?.textContent).toContain('IMT — w-2');
+    at(items, 1).click();
     await settle(fixture);
     expect(windowing.calls).toEqual(['newWindow', 'focusWindow:w-2']);
   });
@@ -167,10 +168,10 @@ describe('TitleBar', () => {
     expect(fixture.nativeElement.querySelector('[role=menubar]')).toBeNull();
     expect(fixture.nativeElement.querySelector('.palette')).not.toBeNull();
     expect(sent.length).toBe(1);
-    expect(sent[0].menus.map((m) => m.id)).toEqual(['app', 'file', 'view', 'analyze', 'help']);
-    expect(JSON.stringify(sent[0].menus[0])).toContain('settings.open');
+    expect(sent[0]?.menus.map((m) => m.id)).toEqual(['app', 'file', 'view', 'analyze', 'help']);
+    expect(JSON.stringify(sent[0]?.menus[0])).toContain('settings.open');
     // About and Settings are in the app menu only.
-    expect(JSON.stringify(sent[0].menus.find((m) => m.id === 'help'))).not.toContain('help.about');
+    expect(JSON.stringify(at(sent, 0).menus.find((m) => m.id === 'help'))).not.toContain('help.about');
     chosen('view:metrics');
     expect(dock.calls).toContain('toggle:metrics');
     // Unchanged menus are not sent again; a change is.
@@ -327,10 +328,10 @@ describe('Sidebar', () => {
   it('mentions pipeline-dropped events in the source tooltip', async () => {
     const { fixture, store, backend } = setup(Sidebar);
     await settle(fixture);
-    expect(all(fixture, '.src')[1].getAttribute('title')).not.toContain('dropped');
+    expect(at(all(fixture, '.src'), 1).getAttribute('title')).not.toContain('dropped');
     store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
-    expect(all(fixture, '.src')[1].getAttribute('title')).toContain('1 dropped by pipeline');
+    expect(all(fixture, '.src')[1]?.getAttribute('title')).toContain('1 dropped by pipeline');
   });
 
   it('shows an empty state with open buttons', async () => {
@@ -354,7 +355,7 @@ describe('Sidebar', () => {
     const original = backend.workspaceSummary.bind(backend);
     vi.spyOn(backend, 'workspaceSummary').mockImplementation(async () => {
       const s = await original();
-      s.sources[0].error = 'Permission denied';
+      at(s.sources, 0).error = 'Permission denied';
       return s;
     });
     const { fixture } = setup(Sidebar, backend);
@@ -369,8 +370,8 @@ describe('Sidebar', () => {
     await settle(fixture);
     const fields = all<HTMLButtonElement>(fixture, '.field');
     expect(fields).toHaveLength(1);
-    expect(fields[0].classList.contains('grouped')).toBe(true);
-    fields[0].click();
+    expect(fields[0]?.classList.contains('grouped')).toBe(true);
+    at(fields, 0).click();
     await settle(fixture);
     expect(text(fixture)).toContain('2 values in current results');
     expect(all(fixture, '.value')).toHaveLength(2);
@@ -379,24 +380,24 @@ describe('Sidebar', () => {
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.facet')).toBeNull();
 
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '[aria-label="Filter MachineName not equal WEB01"]').click();
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     buttonByText(fixture, 'Group by').click();
     expect(store.effectiveGroupBy()).toEqual(['MachineName']);
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     buttonByText(fixture, 'Add to group').click();
     expect(store.effectiveGroupBy()).toEqual(['MachineName']);
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     buttonByText(fixture, 'Add column').click();
     expect(store.extraColumns()).toContain('MachineName');
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.facet')).toBeNull();
   });

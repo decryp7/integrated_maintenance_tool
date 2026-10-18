@@ -360,6 +360,14 @@ pub fn schema() -> AgentSchema {
                     field("includeChildren", "Include child processes", Boolean, "")
                         .default(json!(false))
                         .done(),
+                    field(
+                        "dotnet",
+                        ".NET runtime counters",
+                        Boolean,
+                        "GC, heap, exceptions/s and contention of .NET Framework processes",
+                    )
+                    .default(json!(false))
+                    .done(),
                 ],
             ),
             variant(

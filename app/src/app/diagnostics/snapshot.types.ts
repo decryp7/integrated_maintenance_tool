@@ -12,7 +12,7 @@ export interface CapturedImage {
 }
 
 /** The first-save notice. */
-export const SNAPSHOT_NOTICE = 'IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.';
+export const SNAPSHOT_NOTICE = $localize`:@@diagnostics.snapshot.notice:IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.`;
 
 /** Help ▸ Report a problem… */
 export const REPORT_PROBLEM_COMMAND = 'help.reportProblem';

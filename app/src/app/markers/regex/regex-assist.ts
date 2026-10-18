@@ -23,20 +23,20 @@ export function splitByBytes(pattern: string, start: number, end: number): [stri
   selector: 'imt-regex-assist',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" class="btn ghost small" [attr.aria-expanded]="open()" (click)="toggle()">Explain</button>
+    <button type="button" class="btn ghost small" [attr.aria-expanded]="open()" (click)="toggle()" i18n="@@markers.regexAssist.explain">Explain</button>
     @if (open()) {
-      <div class="panel" role="region" aria-label="Regex explanation">
+      <div class="panel" role="region" aria-label="Regex explanation" i18n-aria-label="@@markers.regexAssist.region">
         @if (error(); as e) {
           <div class="err" role="alert">{{ e }}</div>
         } @else if (loading()) {
-          <span class="faint">Explaining…</span>
+          <span class="faint" i18n="@@markers.regexAssist.explaining">Explaining…</span>
         } @else {
           <div class="pat mono" data-testid="regex-pattern">{{ parts()[0] }}<mark>{{ parts()[1] }}</mark>{{ parts()[2] }}</div>
           <ul class="outline">
             @for (n of nodes(); track $index) {
               <li tabindex="0" [style.padding-left.px]="n.depth * 14" (mouseenter)="active.set(n)" (focus)="active.set(n)" (mouseleave)="active.set(null)" (blur)="active.set(null)">{{ n.text }}</li>
             } @empty {
-              <li class="faint">Nothing to explain.</li>
+              <li class="faint" i18n="@@markers.regexAssist.nothing">Nothing to explain.</li>
             }
           </ul>
         }

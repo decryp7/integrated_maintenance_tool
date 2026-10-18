@@ -14,7 +14,7 @@ export type MethodKind = 'query' | 'mutation' | 'quiet' | 'event';
 
 /** Read-only method names, by prefix. */
 const QUERY_PREFIX =
-  /^(get|list|query|preview|read|validate|check|complete|explain|infer|suggest|estimate|status|describe|find|search|load|fetch|count|summary|summar(y|ize)|catalog|recommend|hardware|history|version|templates|formats|is|has|can|sections|elevation|appStatus|lastSession|tail|liveState|workspaceSummary|annotations|pluginEvents|overview|fieldStats|correlate|compare|diff|sniff|automaticEnabled|models|chatSessions|chatGet|chatHistory|suggestedPrompts|braveKeySet|perfmonPresets|perfmonOutputs|monitorStatus|collectDefaultPlan|toolsList|current|pageOf|windows|popouts|label|demoPaths|workAreas|windowBounds|contentOrigin|hostGone|profiling(?!Open|Close))/;
+  /^(get|list|query|preview|read|validate|check|complete|explain|infer|suggest|estimate|status|describe|find|search|load|fetch|count|summary|summar(y|ize)|catalog|recommend|hardware|history|version|templates|formats|is|has|can|sections|elevation|appStatus|lastSession|tail|liveState|workspaceSummary|annotations|pluginEvents|overview|fieldStats|correlate|compare|diff|sniff|automaticEnabled|models|chatSessions|chatGet|chatHistory|suggestedPrompts|braveKeySet|perfmonPresets|perfmonOutputs|monitorStatus|eventLog(Channels|Validate|Status)|collectDefaultPlan|toolsList|current|pageOf|windows|popouts|label|demoPaths|workAreas|windowBounds|contentOrigin|hostGone|profiling(?!Open|Close))/;
 
 /** Bookkeeping the UI does on its own (autosave, polling): never an operation. */
 const QUIET = new Set(['saveSession', 'takePendingOpen', 'importProgress', 'chatEventsSince', 'setWindowTitle', 'setRecentProjects', 'cancel', 'syncPort', 'setAppMenu']);
@@ -34,7 +34,8 @@ const detail = () => activity.detail;
 const paths = (args: unknown[]) => (Array.isArray(args[0]) ? (args[0] as unknown[]).filter((p): p is string => typeof p === 'string') : []);
 const firstPath = (args: unknown[]): ActivityParams => {
   const p = paths(args);
-  return p.length ? { Files: p.length, Path: safePath(p[0], detail()) } : {};
+  const [first] = p;
+  return first !== undefined ? { Files: p.length, Path: safePath(first, detail()) } : {};
 };
 const stringArg = (i: number, key: string) => (args: unknown[]) => (typeof args[i] === 'string' ? { [key]: safePath(args[i] as string, detail()) } : {});
 

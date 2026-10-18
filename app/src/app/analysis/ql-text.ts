@@ -60,6 +60,7 @@ export function highlight(text: string, error: QlError | null = null): Seg[] {
     for (let i = 0; i + 1 < sorted.length; i++) {
       const a = sorted[i];
       const b = sorted[i + 1];
+      if (a === undefined || b === undefined) continue;
       out.push({ text: text.slice(a, b), cls, err: !!span && span.end > span.start && a >= span.start && b <= span.end });
     }
   };

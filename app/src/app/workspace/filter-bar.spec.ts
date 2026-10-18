@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, SEC, T0, text, typeInto } from '../../testing/helpers';
+import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { FilterBar } from './filter-bar';
 
@@ -19,7 +20,9 @@ describe('FilterBar', () => {
     expect(store.textInput()).toBe('timeout');
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(store.textInput()).toBe('');
-    const [regex, cs] = all<HTMLButtonElement>(fixture, '.toggle');
+    const toggles = all<HTMLButtonElement>(fixture, '.toggle');
+    const regex = at(toggles, 0);
+    const cs = at(toggles, 1);
     regex.click();
     cs.click();
     expect(store.query()).toMatchObject({ regex: true, caseSensitive: true });

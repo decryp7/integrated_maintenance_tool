@@ -6,6 +6,7 @@ import { ThreadTimeline, ThreadTimelineRequest } from '../../core/api.types';
 import { ProfileViewState } from '../profile-view-state';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { brushToRange, lanePath, ThreadTimelineView } from './thread-timeline-view';
+import { at } from '../../../testing/must';
 
 interface Setup {
   options?: MockProfilingOptions;
@@ -129,7 +130,7 @@ describe('ThreadTimelineView', () => {
     expect(all(fixture, '.ev:not(.dim)').length).toBeGreaterThan(0);
     kindButtons(fixture).find((b) => b.textContent!.includes('JIT'))!.click(); // another kind: keeps the emphasis
     expect(state.eventKind()).toBe('gc');
-    hl[0].click();
+    at(hl, 0).click();
     expect(state.eventKind()).toBeNull();
     await settle(fixture, 3);
     expect(all(fixture, '.ev.dim')).toHaveLength(0);
@@ -137,7 +138,7 @@ describe('ThreadTimelineView', () => {
 
   it('toggles the thread filter from the lane label', async () => {
     const { fixture, state } = await mount();
-    const label = lanes(fixture)[1].querySelector<HTMLButtonElement>('.label')!;
+    const label = at(lanes(fixture), 1).querySelector<HTMLButtonElement>('.label')!;
     expect(label.getAttribute('aria-pressed')).toBe('false');
     label.click();
     await settle(fixture, 6);
@@ -145,7 +146,7 @@ describe('ThreadTimelineView', () => {
     expect(state.threads()).toHaveLength(1);
     expect(lanes(fixture).map((l) => l.querySelector('.label')!.getAttribute('aria-pressed'))).toContain('true');
     expect(threadId).toBeGreaterThanOrEqual(0);
-    lanes(fixture)[0].querySelector<HTMLButtonElement>('.label')!.click();
+    at(lanes(fixture), 0).querySelector<HTMLButtonElement>('.label')!.click();
     await settle(fixture, 6);
     expect(state.threads()).toBeNull();
   });
@@ -256,7 +257,7 @@ describe('ThreadTimelineView', () => {
     it('does not start a brush from a lane label press', async () => {
       const { fixture } = await mount();
       stubLanes(fixture);
-      lanes(fixture)[0].querySelector('.label')!.dispatchEvent(new MouseEvent('pointerdown', { clientX: 400, bubbles: true }));
+      at(lanes(fixture), 0).querySelector('.label')!.dispatchEvent(new MouseEvent('pointerdown', { clientX: 400, bubbles: true }));
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('.brush')).toBeNull();
     });
@@ -268,10 +269,10 @@ describe('ThreadTimelineView', () => {
     expect(el(fixture, '.events summary').textContent).toBe(`Events in view (${data.events.length})`);
     const rows = all(fixture, '.events tbody tr');
     expect(rows).toHaveLength(data.events.length);
-    const cells = rows[0].querySelectorAll('td');
-    expect(cells[0].textContent).toMatch(/GC|JIT|Exception|Lock wait|Marker/);
-    expect(cells[1].textContent).not.toBe('');
-    expect(cells[4].textContent).toBe(data.events[0].label);
+    const cells = at(rows, 0).querySelectorAll('td');
+    expect(cells[0]?.textContent).toMatch(/GC|JIT|Exception|Lock wait|Marker/);
+    expect(cells[1]?.textContent).not.toBe('');
+    expect(cells[4]?.textContent).toBe(data.events[0]?.label);
   });
 
   it('names process-wide and unknown threads in the events table', async () => {
@@ -285,10 +286,10 @@ describe('ThreadTimelineView', () => {
       }),
     });
     const rows = all(fixture, '.events tbody tr').map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent));
-    expect(rows[0][1]).toBe('process');
-    expect(rows[0][3]).toBe('—');
-    expect(rows[1][1]).toBe('thread 9999');
-    expect(rows[1][3]).not.toBe('—');
+    expect(rows[0]?.[1]).toBe('process');
+    expect(rows[0]?.[3]).toBe('—');
+    expect(rows[1]?.[1]).toBe('thread 9999');
+    expect(rows[1]?.[3]).not.toBe('—');
   });
 
   it('tells when events were truncated', async () => {

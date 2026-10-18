@@ -61,13 +61,13 @@ describe('effectiveMarkers', () => {
       ['mine', 'profile'],
       ['net.decryptology.windows/app-crash', 'net.decryptology.windows'],
     ]);
-    expect(m[1].info).toMatchObject({ color: '#00F', badge: 'X', shape: 'square', label: 'Crash!', description: 'restyled', icon: 'bug', role: 'crash', lifecycle: true });
-    expect(m[1].info.when).toEqual([{ field: '@level', op: 'eq', value: 'Fatal' }]);
-    expect(m[0].info.when).toEqual([]);
+    expect(m[1]?.info).toMatchObject({ color: '#00F', badge: 'X', shape: 'square', label: 'Crash!', description: 'restyled', icon: 'bug', role: 'crash', lifecycle: true });
+    expect(m[1]?.info.when).toEqual([{ field: '@level', op: 'eq', value: 'Fatal' }]);
+    expect(m[0]?.info.when).toEqual([]);
     expect(effectiveMarkers({}, []).length).toBe(0);
     expect(effectiveMarkers({}).length).toBe(MOCK_PLUGIN_KINDS.length);
     // A restyle without values keeps the plugin's style.
-    expect(effectiveMarkers({ marker_override: [{ kind: 'net.decryptology.windows/app-crash' }] })[0].info.color).toBe('#E5484D');
+    expect(effectiveMarkers({ marker_override: [{ kind: 'net.decryptology.windows/app-crash' }] })[0]?.info.color).toBe('#E5484D');
   });
 
   it('marks records with plugin kinds in the mock backend', async () => {
@@ -75,6 +75,6 @@ describe('effectiveMarkers', () => {
     const s = await b.workspaceSummary();
     expect(s.markerKinds.filter((k) => k.owner !== 'profile').map((k) => k.role)).toEqual(['crash', 'stop']);
     const page = await b.queryPage({ query: { levels: ['Fatal'], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] }, offset: 0, limit: 5, descending: false });
-    expect(page.rows[0].markers).toContain('net.decryptology.windows/app-crash');
+    expect(page.rows[0]?.markers).toContain('net.decryptology.windows/app-crash');
   });
 });

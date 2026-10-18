@@ -5,6 +5,7 @@ import { MockWindowingBackend } from './mock-windowing-backend';
 import { provideWindowingBackend, TauriWindowingBackend, WindowingBackend } from './windowing-backend';
 import { parseOpenAsk, parseTasks, parseWindows } from './windowing-payloads';
 import { BackgroundTask } from './windowing.types';
+import { at } from '../../testing/must';
 
 const task: BackgroundTask = { id: 't', label: 'Live tail', kind: 'liveTail', window: 'main', progress: 0.5, stoppable: true, startedAt: 1 };
 
@@ -39,8 +40,8 @@ describe('TauriWindowingBackend', () => {
       invoke.mockClear();
       await call();
       expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke.mock.calls[0][0]).toBe(name);
-      if (args) expect(invoke.mock.calls[0][1]).toEqual(args);
+      expect(invoke.mock.calls[0]?.[0]).toBe(name);
+      if (args) expect(at(invoke.mock.calls, 0)[1]).toEqual(args);
     }
     expect(await b.label()).toBe('w-2');
   });
@@ -91,7 +92,7 @@ describe('windowing payloads', () => {
       { id: 'a', label: 'A', kind: 'other', window: null, progress: 1, stoppable: false, startedAt: 0 },
       { id: 'b', label: 'B', kind: 'download', window: 'w', progress: 0, stoppable: true, startedAt: 5 },
     ]);
-    expect(parseTasks([{ id: 'n', label: 'N', progress: Number.NaN }])[0].progress).toBeNull();
+    expect(parseTasks([{ id: 'n', label: 'N', progress: Number.NaN }])[0]?.progress).toBeNull();
   });
 
   it('reads open requests, counting names when the count is missing', () => {

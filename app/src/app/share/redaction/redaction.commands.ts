@@ -14,12 +14,12 @@ export class RedactionCommands {
   readonly commands: ImtCommand[] = [
     {
       id: 'share.redactedView.toggle',
-      title: 'Toggle redacted view',
-      category: 'View',
+      title: $localize`:@@share.redactionCommands.toggle:Toggle redacted view`,
+      category: $localize`:@@share.commands.categoryView:View`,
       // Ctrl/Cmd+Shift+X: free in the app, and not a browser or WebView shortcut on Windows, macOS or Linux.
       keybinding: REDACTED_VIEW_KEY,
       run: async () => void (await this.redaction().toggle()),
     },
-    { id: 'share.redaction.settings', title: 'Redaction settings…', category: 'View', run: () => this.redaction().openSettings() },
+    { id: 'share.redaction.settings', title: $localize`:@@share.redactionCommands.settings:Redaction settings…`, category: $localize`:@@share.commands.categoryView:View`, run: () => this.redaction().openSettings() },
   ];
 }

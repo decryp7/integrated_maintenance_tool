@@ -1,0 +1,40 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: sqlserver/sqlrpt01/errorlog
+importer: text
+records: 7
+skipped: 0
+levels:
+  2-Information: 7
+with_timestamp: 7
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T10:37:24.050Z"
+fields: []
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: "Server      Microsoft SQL Server 2022 (RTM-CU14) (KB5038325) - 16.0.4135.4 (X64) \n\tJul 10 2024 14:09:09 \n\tCopyright (C) 2022 Microsoft Corporation\n\tDeveloper Edition (64-bit) on Linux (Ubuntu 22.04.4 LTS) <X64>"
+    fields: {}
+  - line: 5
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: "Server      UTC adjustment: 0:00"
+    fields: {}
+  - line: 6
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: Server      Server process ID is 412.
+    fields: {}
+  - line: 7
+    timestamp: "2026-10-14T09:00:01.000Z"
+    level: Information
+    message: "spid9s      Starting up database 'Reporting'."
+    fields: {}
+  - line: 8
+    timestamp: "2026-10-14T10:36:24.050Z"
+    level: Information
+    message: "spid71      Error: 823, Severity: 24, State: 2."
+    fields: {}

@@ -92,17 +92,24 @@ pub(crate) fn incoming(name: &str) -> io::Result<ReceiverStream<io::Result<PipeI
     Ok(ReceiverStream::new(rx))
 }
 
-/// Opens the pipe, waiting briefly while the server is busy or not yet created.
+/// Opens the pipe, waiting briefly (at most [`BUSY_WAIT`]) while every server instance is busy.
+///
+/// A pipe that does not exist yet is `NotFound` at once, as a Unix socket that is not bound yet:
+/// callers that wait for a starting child (`connect_with_retry`) own that wait and its window.
 pub(crate) async fn connect(name: &str) -> io::Result<NamedPipeClient> {
     use tokio::net::windows::named_pipe::ClientOptions;
     const ERROR_PIPE_BUSY: i32 = 231;
+    let started = std::time::Instant::now();
     loop {
         match ClientOptions::new().open(name) {
             Ok(c) => return Ok(c),
-            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) || e.kind() == io::ErrorKind::NotFound => {
+            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) && started.elapsed() < BUSY_WAIT => {
                 tokio::time::sleep(std::time::Duration::from_millis(20)).await
             }
             Err(e) => return Err(e),
         }
     }
 }
+
+/// How long [`connect`] waits for a busy pipe before giving up.
+const BUSY_WAIT: std::time::Duration = std::time::Duration::from_secs(2);

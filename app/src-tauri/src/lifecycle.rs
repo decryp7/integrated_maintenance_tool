@@ -792,19 +792,21 @@ mod tests {
         ipc(
             "plugin_set_enabled",
             serde_json::json!({"id": "net.decryptology.web", "enabled": false}),
-            "op-disable",
+            "op-plugin-disable",
         )
         .unwrap();
         ipc(
             "plugin_set_enabled",
             serde_json::json!({"id": "net.decryptology.web", "enabled": true}),
-            "op-enable",
+            "op-plugin-enable",
         )
         .unwrap();
-        ipc("plugin_reset", serde_json::json!({"id": "net.decryptology.web"}), "op-reset").unwrap();
+        ipc("plugin_reset", serde_json::json!({"id": "net.decryptology.web"}), "op-plugin-reset").unwrap();
         let events: Vec<(String, String, String)> = crate::activity::captured()
             .into_iter()
+            // The logger is process-wide: keep only this test's operations, not those of tests running alongside.
             .filter(|c| c.props.get("Kind").is_some_and(|k| k == "domain"))
+            .filter(|c| c.props.get("OperationId").is_some_and(|op| op.starts_with("op-plugin-")))
             .map(|c| {
                 (
                     c.props["Operation"].clone(),
@@ -817,9 +819,9 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                want("plugin.disabled", "op-disable"),
-                want("plugin.enabled", "op-enable"),
-                want("plugin.reset", "op-reset")
+                want("plugin.disabled", "op-plugin-disable"),
+                want("plugin.enabled", "op-plugin-enable"),
+                want("plugin.reset", "op-plugin-reset")
             ]
         );
         let _ = std::fs::remove_dir_all(&dir.0);

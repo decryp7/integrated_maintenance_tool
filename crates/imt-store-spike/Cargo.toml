@@ -1,0 +1,40 @@
+[package]
+name = "imt-store-spike"
+license = "MIT OR Apache-2.0"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Spike, not shipped: DuckDB and DataFusion + Parquet persistent stores with Tantivy full-text search, benchmarked against the in-memory Workspace (docs/store-spike.md)"
+
+# Neither the app nor any shipped crate depends on this one. Each engine is a feature so the
+# heavy builds can be compiled and measured separately (`--no-default-features --features duck`).
+[features]
+default = ["duck", "fusion"]
+# DuckDB through duckdb-rs, linked against the official prebuilt libduckdb (never `bundled`):
+# run scripts/fetch-libduckdb.sh first and export what it prints.
+duck = ["dep:duckdb"]
+# DataFusion over Parquet files, pure Rust.
+fusion = ["dep:datafusion", "dep:parquet", "dep:tokio"]
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+chrono = "0.4.45"
+# Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0).
+memory-stats = "1.2"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# Full-text index shared by both persistent adapters (MIT).
+tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4-compression"] }
+# DuckDB 1.5.6 (MIT); pinned to match the prebuilt library the fetch script verifies.
+duckdb = { version = "=1.10506.1", optional = true }
+# Apache-2.0. Only Parquet and the SQL frontend (for the console experiment); no compression
+# codecs for CSV/JSON, no crypto/encoding functions.
+datafusion = { version = "55.2", optional = true, default-features = false, features = [
+  "parquet",
+  "sql",
+  "string_expressions",
+  "unicode_expressions",
+] }
+# Same version as DataFusion's; only turns on the zstd codec for the files we write.
+parquet = { version = "59.3", optional = true, default-features = false, features = ["arrow", "zstd"] }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread"] }

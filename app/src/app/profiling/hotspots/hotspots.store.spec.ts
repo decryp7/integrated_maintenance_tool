@@ -5,6 +5,7 @@ import { FrameNames } from '../captures.store';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { HOTSPOT_PAGE, HotspotsQuery, HotspotsStore } from './hotspots.store';
+import { at } from '../../../testing/must';
 
 const frame = (id: number): FrameDto => ({ id, name: `F${id}`, module: null, file: null, line: null, kind: 'managed', isFramework: false });
 const row = (i: number): HotspotRow => ({
@@ -112,7 +113,7 @@ describe('HotspotsStore', () => {
     const b = store.ensure(200, 250);
     expect(store.loading()).toBe(true);
     expect(f.calls.filter((c) => c.offset === 200)).toHaveLength(1);
-    f.hold[0].resolve();
+    at(f.hold, 0).resolve();
     await Promise.all([a, b]);
     expect(store.loading()).toBe(false);
     expect(store.row(200)?.name).toBe('F200');
@@ -125,23 +126,23 @@ describe('HotspotsStore', () => {
     const first = store.setQuery(query());
     const second = store.setQuery(query({ search: 'new' }));
     expect(f.hold).toHaveLength(2);
-    f.hold[1].resolve();
+    at(f.hold, 1).resolve();
     await second;
-    f.hold[0].reject('old failure');
+    at(f.hold, 0).reject('old failure');
     await first;
     expect(store.error()).toBeNull();
     expect(store.row(0)?.name).toBe('F0');
     expect(store.loading()).toBe(false);
 
     const third = store.setQuery(query({ search: 'third' }));
-    f.hold[2].resolve();
+    at(f.hold, 2).resolve();
     await third;
     // A stale success arriving late must not overwrite the page.
     const stale = store.ensure(200, 200);
     const fresh = store.setQuery(query({ search: 'fourth' }));
-    f.hold[4].resolve();
+    at(f.hold, 4).resolve();
     await fresh;
-    f.hold[3].resolve();
+    at(f.hold, 3).resolve();
     await stale;
     expect(store.row(200)).toBeNull();
   });

@@ -105,7 +105,7 @@ const FULL_METRICS: MetricDto[] = [
   metric('waitNs', 'exact', 'nanoseconds', 'Wait time'),
 ];
 
-const CPU_METRICS: MetricDto[] = [FULL_METRICS[0], FULL_METRICS[1]];
+const CPU_METRICS: MetricDto[] = FULL_METRICS.slice(0, 2);
 
 /** Spreads `count` samples over the templates by weight, deterministically, across `durationNs`. */
 function samplesFor(count: number, durationNs: number, regression: boolean, full: boolean): MockSample[] {
@@ -114,7 +114,8 @@ function samplesFor(count: number, durationNs: number, regression: boolean, full
   for (let i = 0; i < count; i++) {
     // Stride 37 interleaves the templates over time instead of running them in blocks.
     const t = weighted[(i * 37) % weighted.length];
-    const thread = t.threads[i % t.threads.length];
+    if (!t) break;
+    const thread = t.threads[i % t.threads.length] ?? 0;
     const time = Math.floor(((i + 0.5) * durationNs) / count);
     // Request stacks slow down in the middle second (the "incident"), which the timeline shows.
     const ns = (thread === 1 || thread === 2) && time > durationNs * 0.45 && time < durationNs * 0.6 ? 2 * MS_NS : MS_NS;
@@ -214,7 +215,7 @@ export function heapSnapshot(n: number): MockHeapData {
   const customers: number[] = [];
   for (let i = 0; i < 30; i++) customers.push(add('Shop.Orders.Customer', 72, [{ id: sessions, edge: `[${i}]` }]));
   for (let i = 0; i < 50 * n; i++) {
-    const order = add('Shop.Orders.Order', 120, [{ id: dict, edge: `[${i}]` }, { id: customers[i % customers.length], edge: 'LastOrder' }]);
+    const order = add('Shop.Orders.Order', 120, [{ id: dict, edge: `[${i}]` }, { id: customers[i % customers.length] ?? root, edge: 'LastOrder' }]);
     for (let l = 0; l < 2; l++) add('Shop.Orders.OrderLine', 64, [{ id: order, edge: `Lines[${l}]` }]);
     add('System.String', 40 + (i % 5) * 8, [{ id: order, edge: 'Reference' }]);
   }
@@ -226,7 +227,7 @@ export function heapSnapshot(n: number): MockHeapData {
     for (let i = 0; i < 10 * (n - 1); i++) add('Shop.Orders.AuditEntry', 88, [{ id: audit, edge: `_entries[${i}]` }]);
   }
   for (let i = 0; i < (n === 2 ? 3 : 5); i++) add('System.Byte[]', 4096, [{ id: root, edge: `handle #${i}` }]);
-  return { name: `heap-${n}.heapsnapshot`, takenMs: HEAP_TAKEN_MS[n - 1], objects, notes: n === 3 ? ['Weak and shortcut edges were skipped.'] : [] };
+  return { name: `heap-${n}.heapsnapshot`, takenMs: HEAP_TAKEN_MS[n - 1] ?? 0, objects, notes: n === 3 ? ['Weak and shortcut edges were skipped.'] : [] };
 }
 
 /** Paths the browser demo's "Open profile…" dialog returns. */

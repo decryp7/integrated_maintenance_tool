@@ -12,6 +12,7 @@ import { SnapshotBackend } from './snapshot-backend';
 import { SnapshotsStore } from './snapshots.store';
 import { SnapshotToast } from './snapshot-toast';
 import { CapturedImage, SNAPSHOT_NOTICE } from './snapshot.types';
+import { at } from '../../testing/must';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
@@ -94,10 +95,10 @@ describe('ErrorSnapshotsView', () => {
     exportButton().click();
     await flush(f);
     const dialogs = TestBed.inject(DialogService);
-    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
-    dialogs.stack()[0].ref.close(true);
+    expect(at(dialogs.stack(), 0).options.title).toBe('Replace file?');
+    at(dialogs.stack(), 0).ref.close(true);
     await flush(f);
-    expect(backend.exports[1].ids).toEqual([a.id]);
+    expect(at(backend.exports, 1).ids).toEqual([a.id]);
 
     // A cancelled dialog exports nothing.
     target.path = null;
@@ -134,7 +135,7 @@ describe('ErrorSnapshotsView', () => {
     store.toggleAll();
     expect(store.selected()).toEqual([]);
 
-    store.show(store.items()[0].id);
+    store.show(at(store.items(), 0).id);
     await flush(f);
     (el.querySelector('.dhead .btn:not(.ghost)') as HTMLButtonElement).click();
     await flush(f);

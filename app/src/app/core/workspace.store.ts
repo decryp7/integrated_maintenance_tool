@@ -7,6 +7,30 @@ import { TimeZoneMode } from './format';
 import { Logger } from './logger';
 import { Platform } from './platform';
 import { RECENT_STORE } from '../welcome/recent-store';
+import { plural } from '../i18n/locale';
+
+/** Busy labels of work that imports files, in the running language (see `isImportBusyLabel`). */
+const importLabels = new Set<string>();
+
+function importLabel(label: string): string {
+  importLabels.add(label);
+  return label;
+}
+
+/** True for the busy labels this store shows while it opens or re-imports files (whatever the language). */
+export function isImportBusyLabel(busy: string): boolean {
+  return importLabels.has(busy);
+}
+
+/** The busy text while `n` paths are being opened. */
+function openingLabel(n: number): string {
+  return importLabel(
+    plural(n, {
+      one: $localize`:@@core.workspace.busy.openingOne:Opening ${n}:count: item…`,
+      other: $localize`:@@core.workspace.busy.openingMany:Opening ${n}:count: items…`,
+    }),
+  );
+}
 
 export type ThemeMode = 'system' | 'dark' | 'light';
 
@@ -170,7 +194,7 @@ export const WorkspaceStore = signalStore(
       },
       patchQuery: (patch: Partial<Query>) => setQuery(patch),
       async init() {
-        await run('Loading workspace…', () => backend.workspaceSummary(), 'loaded');
+        await run($localize`:@@core.workspace.busy.loading:Loading workspace…`, () => backend.workspaceSummary(), 'loaded');
       },
       /**
        * Fetches the summary again after the engine changed the data underneath (live tail). Unlike
@@ -182,7 +206,7 @@ export const WorkspaceStore = signalStore(
         patchState(store, (s) => ({ summary, dataVersion: s.dataVersion + 1 }));
       },
       openPaths: async (paths: string[]): Promise<void> => {
-        await run(`Opening ${paths.length} item${paths.length === 1 ? '' : 's'}…`, () => backend.openPaths(paths), 'opened');
+        await run(openingLabel(paths.length), () => backend.openPaths(paths), 'opened');
         if (!store.error()) {
           recent.add(paths);
           patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
@@ -192,7 +216,7 @@ export const WorkspaceStore = signalStore(
         try {
           const paths = await platform.pickPaths(directory);
           if (paths.length) {
-            await run(`Opening ${paths.length} item${paths.length === 1 ? '' : 's'}…`, () => backend.openPaths(paths), 'opened');
+            await run(openingLabel(paths.length), () => backend.openPaths(paths), 'opened');
             if (!store.error()) {
               recent.add(paths);
               patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
@@ -202,9 +226,9 @@ export const WorkspaceStore = signalStore(
           patchState(store, { error: errorText(e) });
         }
       },
-      removeSource: (id: number) => run('Removing source…', () => backend.removeSource(id), 'source removed'),
-      clearWorkspace: () => run('Clearing workspace…', () => backend.clearWorkspace(), 'cleared'),
-      reload: () => run('Re-importing…', () => backend.reloadWorkspace(), 'reloaded'),
+      removeSource: (id: number) => run($localize`:@@core.workspace.busy.removing:Removing source…`, () => backend.removeSource(id), 'source removed'),
+      clearWorkspace: () => run($localize`:@@core.workspace.busy.clearing:Clearing workspace…`, () => backend.clearWorkspace(), 'cleared'),
+      reload: () => run(importLabel($localize`:@@core.workspace.busy.reimporting:Re-importing…`), () => backend.reloadWorkspace(), 'reloaded'),
       dismissError: () => patchState(store, { error: null }),
       setError: (error: string | null) => patchState(store, { error }),
       setNotice: (notice: string | null) => patchState(store, { notice }),

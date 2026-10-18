@@ -312,6 +312,7 @@ fn add_stats(total: &mut Vec<StepStats>, add: &[StepStats], sign: i64) {
         let f = |x: usize, y: usize| if sign >= 0 { x + y } else { x.saturating_sub(y) };
         t.input = f(t.input, a.input);
         t.output = f(t.output, a.output);
+        t.errors = f(t.errors, a.errors);
     }
 }
 

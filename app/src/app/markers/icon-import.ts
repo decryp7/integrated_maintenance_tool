@@ -16,24 +16,24 @@ function toBase64(bytes: Uint8Array): string {
 
 /** Reads a chosen SVG or PNG file into a pending icon; the engine still validates and sanitises on save. */
 export async function readIconFile(file: File, takenNames: ReadonlySet<string>): Promise<IconImport> {
-  if (file.size > MAX_ICON_BYTES) return { ok: false, error: `Icons are limited to ${MAX_ICON_BYTES / 1024} KB; this file is ${Math.ceil(file.size / 1024)} KB.` };
+  if (file.size > MAX_ICON_BYTES) return { ok: false, error: $localize`:@@markers.iconImport.tooBig:Icons are limited to ${MAX_ICON_BYTES / 1024}:limit: KB; this file is ${Math.ceil(file.size / 1024)}:size: KB.` };
   const name = iconNameFromFile(file.name, takenNames);
   try {
     if (/\.png$/i.test(file.name) || file.type === 'image/png') {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      if (!PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return { ok: false, error: 'That file is not a PNG image.' };
+      if (!PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return { ok: false, error: $localize`:@@markers.iconImport.notPng:That file is not a PNG image.` };
       const png = toBase64(bytes);
       return { ok: true, icon: { name, png, pngDataUrl: `data:image/png;base64,${png}` } };
     }
     if (/\.svg$/i.test(file.name) || file.type === 'image/svg+xml') {
       const svg = await file.text();
-      if (!/<svg[\s>]/i.test(svg)) return { ok: false, error: 'That file is not an SVG image.' };
+      if (!/<svg[\s>]/i.test(svg)) return { ok: false, error: $localize`:@@markers.iconImport.notSvg:That file is not an SVG image.` };
       return { ok: true, icon: { name, svg } };
     }
   } catch {
-    return { ok: false, error: 'The file could not be read.' };
+    return { ok: false, error: $localize`:@@markers.iconImport.unreadable:The file could not be read.` };
   }
-  return { ok: false, error: 'Choose an .svg or .png file.' };
+  return { ok: false, error: $localize`:@@markers.iconImport.wrongType:Choose an .svg or .png file.` };
 }
 
 /**

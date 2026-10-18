@@ -6,6 +6,7 @@ import { FailureReporter } from './failure-reporter';
 import { Logger } from './logger';
 import { MockBackend } from './mock/mock-backend';
 import { MemoryLogger } from '../../testing/helpers';
+import { at } from '../../testing/must';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
 
@@ -51,8 +52,8 @@ describe('TauriBackend', () => {
       invoke.mockClear();
       await call();
       expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke.mock.calls[0][0]).toBe(name);
-      if (args) expect(invoke.mock.calls[0][1]).toEqual(args);
+      expect(at(at(invoke.mock.calls, 0), 0)).toBe(name);
+      if (args) expect(at(at(invoke.mock.calls, 0), 1)).toEqual(args);
     }
   });
 });
@@ -64,9 +65,9 @@ describe('TauriBackend events', () => {
     const b = new TauriBackend(invoke as never, subscribe);
     const handler = vi.fn();
     expect(await b.onWorkspaceChanged(handler)).toBe(off);
-    expect(subscribe.mock.calls[0][0]).toBe(WORKSPACE_CHANGED_EVENT);
+    expect(at(subscribe.mock.calls, 0)[0]).toBe(WORKSPACE_CHANGED_EVENT);
     expect(WORKSPACE_CHANGED_EVENT).toBe('imt://workspace-changed');
-    const forward = subscribe.mock.calls[0][1];
+    const forward = at(subscribe.mock.calls, 0)[1];
     forward(undefined);
     expect(handler).toHaveBeenLastCalledWith(null);
     forward({ appended: 3, sourcesChanged: [1, 'x'], newestTs: 9, rotated: [{ sourceId: 1, from: 'a', to: 'b' }], instancesChanged: ['k', 2] });
@@ -83,8 +84,8 @@ describe('TauriBackend events', () => {
     const b = new TauriBackend(invoke as never, subscribe);
     const handler = vi.fn();
     await b.onLiveAlert(handler);
-    expect(subscribe.mock.calls[0][0]).toBe(LIVE_ALERT_EVENT);
-    const forward = subscribe.mock.calls[0][1];
+    expect(at(subscribe.mock.calls, 0)[0]).toBe(LIVE_ALERT_EVENT);
+    const forward = at(subscribe.mock.calls, 0)[1];
     forward({ kind: 'rule' });
     forward(null);
     expect(handler).not.toHaveBeenCalled();

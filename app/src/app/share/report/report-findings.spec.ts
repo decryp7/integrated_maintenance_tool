@@ -11,6 +11,7 @@ import { reportMenuItems } from './report-menu';
 import { blocksOf } from './report-model';
 import { ReportCommands } from './report.commands';
 import { ReportStore } from './report.store';
+import { at } from '../../../testing/must';
 
 async function setup() {
   setupVisuals(undefined, [{ provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: reportMenuItems }]);
@@ -44,17 +45,17 @@ describe('health-check findings and events in reports', () => {
     expect(found.length).toBeGreaterThan(0);
     const rank = { critical: 0, warning: 1, info: 2 };
     expect(found.map((f) => rank[f.severity])).toEqual([...found.map((f) => rank[f.severity])].sort());
-    expect(found[0].action?.kind).toBe('zoom');
+    expect(found[0]?.action?.kind).toBe('zoom');
   });
 
   it('adds events from the record context menu (one, or the multi-selection)', async () => {
     const { store, reports } = await setup();
     const rows = (await (TestBed.inject(ShareBackend) as MockShareBackend)['imt'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null })).rows;
-    const items = TestBed.inject(RecordActions).itemsFor(rows[0]);
+    const items = TestBed.inject(RecordActions).itemsFor(at(rows, 0));
     const add = items.find((i) => i.label === 'Add to report')!;
     add.run();
-    expect(blocksOf(reports.active()!)[0]).toMatchObject({ type: 'events', ids: [rows[0].id] });
-    const multi = TestBed.inject(RecordActions).itemsFor(rows[0], { records: rows });
+    expect(blocksOf(reports.active()!)[0]).toMatchObject({ type: 'events', ids: [at(rows, 0).id] });
+    const multi = TestBed.inject(RecordActions).itemsFor(at(rows, 0), { records: rows });
     multi.find((i) => i.label === 'Add 3 events to report')!.run();
     expect(blocksOf(reports.active()!)[1]).toMatchObject({ type: 'events', ids: rows.map((r) => r.id) });
     expect(TestBed.inject(ReportActions).addEvents([])).toBe(false);

@@ -27,7 +27,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
   host: { '(document:selectionchange)': 'onSelectionChange()' },
   template: `
     <div class="head">
-      <span class="section-title">Event</span>
+      <span class="section-title" i18n="@@inspector.title">Event</span>
       @if (rec(); as r) { <span class="faint">#{{ r.id }}</span> }
       <span class="spacer"></span>
     </div>
@@ -43,7 +43,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
           </div>
           <div class="mono ts">{{ fullTime() }}</div>
           @if (r.skewMs && r.ts !== null) {
-            <div class="mono skew" data-testid="skew-note">Shifted by {{ skewText(r.skewMs) }} · original {{ originalTime(r.ts, r.skewMs) }}</div>
+            <div class="mono skew" data-testid="skew-note" i18n="@@inspector.skewNote">Shifted by {{ skewText(r.skewMs) //i18n(ph="offset") }} · original {{ originalTime(r.ts, r.skewMs) //i18n(ph="original") }}</div>
           }
           <div class="mono inst">{{ r.group }}</div>
           <div class="message">{{ r.message }}</div>
@@ -56,32 +56,32 @@ const CONTEXT_MS = 2 * 60 * 1000;
           }
           <div class="actions">
             @if (r.ts !== null) {
-              <button class="btn" (click)="showContext()">Show ±2 min</button>
+              <button class="btn" (click)="showContext()" i18n="@@inspector.showContext">Show ±2 min</button>
             }
             @if (correlation(); as c) {
-              <button class="btn" (click)="sameAs(c.field, c.value)">Same {{ c.field }}</button>
+              <button class="btn" (click)="sameAs(c.field, c.value)" i18n="@@inspector.sameAs">Same {{ c.field //i18n(ph="field") }}</button>
             }
-            <button class="btn" (click)="copyJson()">{{ copied() ? 'Copied' : 'Copy JSON' }}</button>
-            <button class="btn" [disabled]="!selection()" title="Select text in the message first" (click)="mask()">Mask…</button>
-            <button class="btn" [disabled]="!selection()" title="Select a value in the message first" (click)="extract()">Extract value…</button>
-            <button class="btn" aria-haspopup="menu" title="Drop, mark or filter events like this" (click)="openActions($event)">More actions…</button>
+            <button class="btn" (click)="copyJson()">{{ copyJsonLabel() }}</button>
+            <button class="btn" [disabled]="!selection()" title="Select text in the message first" i18n-title="@@inspector.mask.title" (click)="mask()" i18n="@@inspector.mask">Mask…</button>
+            <button class="btn" [disabled]="!selection()" title="Select a value in the message first" i18n-title="@@inspector.extract.title" (click)="extract()" i18n="@@inspector.extract">Extract value…</button>
+            <button class="btn" aria-haspopup="menu" title="Drop, mark or filter events like this" i18n-title="@@inspector.moreActions.title" (click)="openActions($event)" i18n="@@inspector.moreActions">More actions…</button>
           </div>
         </div>
 
-        <div class="section-title sub">Properties</div>
+        <div class="section-title sub" i18n="@@inspector.properties">Properties</div>
         <div class="props">
           @for (p of props(); track p.key) {
             <div class="prop" (contextmenu)="openPropMenu($event, p.key, p.value)" (keydown)="onPropKey($event, p.key, p.value)">
               <span class="mono k ellipsis" [title]="p.key">{{ p.key }}</span>
               <span class="mono v" [title]="p.display">{{ p.display }}</span>
               <span class="pa">
-                <button class="icon-btn" [attr.aria-label]="'Filter ' + p.key + ' equals ' + p.value" title="Only this value" (click)="filter(p.key, 'eq', p.value)"><imt-icon name="plus" [size]="12" /></button>
-                <button class="icon-btn" [attr.aria-label]="'Filter ' + p.key + ' not equal ' + p.value" title="Exclude this value" (click)="filter(p.key, 'ne', p.value)"><imt-icon name="minus" [size]="12" /></button>
-                <button class="icon-btn" aria-haspopup="menu" [attr.aria-label]="'More actions for ' + p.key" title="More actions" (click)="openPropMenu($event, p.key, p.value)"><imt-icon name="drag" [size]="12" /></button>
+                <button class="icon-btn" [attr.aria-label]="filterEqLabel(p.key, p.value)" title="Only this value" i18n-title="@@inspector.prop.only" (click)="filter(p.key, 'eq', p.value)"><imt-icon name="plus" [size]="12" /></button>
+                <button class="icon-btn" [attr.aria-label]="filterNeLabel(p.key, p.value)" title="Exclude this value" i18n-title="@@inspector.prop.exclude" (click)="filter(p.key, 'ne', p.value)"><imt-icon name="minus" [size]="12" /></button>
+                <button class="icon-btn" aria-haspopup="menu" [attr.aria-label]="moreActionsLabel(p.key)" title="More actions" i18n-title="@@inspector.prop.moreActions" (click)="openPropMenu($event, p.key, p.value)"><imt-icon name="drag" [size]="12" /></button>
               </span>
             </div>
           } @empty {
-            <div class="faint pad">No properties.</div>
+            <div class="faint pad" i18n="@@inspector.noProperties">No properties.</div>
           }
         </div>
 
@@ -93,19 +93,19 @@ const CONTEXT_MS = 2 * 60 * 1000;
         }
 
         @if (r.exception) {
-          <div class="section-title sub">Exception</div>
+          <div class="section-title sub" i18n="@@inspector.exception">Exception</div>
           <pre class="mono exc">{{ r.exception }}</pre>
         }
 
-        <div class="src faint">Source <span class="mono">{{ r.sourceName }}:{{ r.line }}</span></div>
+        <div class="src faint" i18n="@@inspector.source">Source <span class="mono">{{ r.sourceName }}:{{ r.line }}</span></div>
       </div>
     } @else {
       <div class="empty-state">
         @if (store.summary()?.sources?.length) {
-          <div>Select an event in the grid or click a marker on the timeline.</div>
-          <div class="faint">↑ / ↓ move through events.</div>
+          <div i18n="@@inspector.empty.select">Select an event in the grid or click a marker on the timeline.</div>
+          <div class="faint" i18n="@@inspector.empty.keys">↑ / ↓ move through events.</div>
         } @else {
-          <div>Every property of an event shows here once you select it.</div>
+          <div i18n="@@inspector.empty.noFiles">Every property of an event shows here once you select it.</div>
           <imt-next-steps />
         }
       </div>
@@ -188,6 +188,16 @@ export class Inspector {
   private readonly zoom = inject(TimelineZoom);
   protected readonly rec = this.store.selected;
   protected readonly copied = signal(false);
+  protected readonly copyJsonLabel = computed(() => (this.copied() ? $localize`:@@inspector.copied:Copied` : $localize`:@@inspector.copyJson:Copy JSON`));
+  protected filterEqLabel(key: string, value: string): string {
+    return $localize`:@@inspector.prop.filterEq:Filter ${key}:key: equals ${value}:value:`;
+  }
+  protected filterNeLabel(key: string, value: string): string {
+    return $localize`:@@inspector.prop.filterNe:Filter ${key}:key: not equal ${value}:value:`;
+  }
+  protected moreActionsLabel(key: string): string {
+    return $localize`:@@inspector.prop.moreActionsFor:More actions for ${key}:key:`;
+  }
 
   protected readonly levelVar = computed(() => {
     const r = this.rec();
@@ -266,7 +276,7 @@ export class Inspector {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1500);
     } catch {
-      this.store.setError('Clipboard is not available.');
+      this.store.setError($localize`:@@inspector.clipboardUnavailable:Clipboard is not available.`);
     }
   }
 }

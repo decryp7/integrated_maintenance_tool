@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyDataset, typeInto } from '../../testing/helpers';
 import { MAX_DETECT_EVERY_MS, TailFileState, TailStatus } from '../core/api.types';
 import { MockBackend } from '../core/mock/mock-backend';
+import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from '../workspace/live-tail';
 import { formatAgo, formatBytes, parseLimit, STATUS_POLL_MS, TailStatusView } from './tail-status-view';
@@ -118,8 +119,14 @@ describe('tail status', () => {
     await settle(fixture);
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
 
-    const [watch, deleted] = all<HTMLSelectElement>(fixture, 'select');
-    const [poll, maxRecords, maxAge, carry] = all<HTMLInputElement>(fixture, 'input');
+    const selects = all<HTMLSelectElement>(fixture, 'select');
+    const watch = at(selects, 0);
+    const deleted = at(selects, 1);
+    const inputs = all<HTMLInputElement>(fixture, 'input');
+    const poll = at(inputs, 0);
+    const maxRecords = at(inputs, 1);
+    const maxAge = at(inputs, 2);
+    const carry = at(inputs, 3);
     typeInto(watch, 'polling', 'change');
     await settle(fixture);
     expect(setLive).toHaveBeenLastCalledWith(true, expect.objectContaining({ watch: 'polling' }));
@@ -165,10 +172,10 @@ describe('tail status', () => {
     await settle(fixture);
     expect(setLive.mock.calls.length).toBe(before);
     expect(detect.value).toBe(String(MAX_DETECT_EVERY_MS));
-    expect(all<HTMLInputElement>(fixture, 'input')[0].disabled).toBe(false);
+    expect(at(all<HTMLInputElement>(fixture, 'input'), 0).disabled).toBe(false);
     typeInto(watch, 'events', 'change');
     await settle(fixture);
-    expect(all<HTMLInputElement>(fixture, 'input')[0].disabled).toBe(true);
+    expect(at(all<HTMLInputElement>(fixture, 'input'), 0).disabled).toBe(true);
     await live.set(false);
   });
 
@@ -180,7 +187,7 @@ describe('tail status', () => {
     await live.set(true);
     await settle(fixture);
     const detect = el<HTMLInputElement>(fixture, '[data-testid=detect-every]');
-    const [poll] = all<HTMLInputElement>(fixture, 'input');
+    const poll = at(all<HTMLInputElement>(fixture, 'input'), 0);
     for (const [input, first, next, key, expected] of [
       [detect, '250', '99999999', 'detectEveryMs', MAX_DETECT_EVERY_MS],
       [poll, '500', '700', 'pollIntervalMs', 700],

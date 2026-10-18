@@ -17,26 +17,26 @@ let nextId = 0;
   template: `
     @if (palette.isOpen()) {
       <div class="backdrop" (mousedown)="close()"></div>
-      <div class="box" role="dialog" aria-modal="true" [attr.aria-label]="views() ? 'Other windows' : 'Command palette'">
+      <div class="box" role="dialog" aria-modal="true" [attr.aria-label]="dialogLabel()">
         <input
           #input
           class="input"
           role="combobox"
-          [attr.aria-label]="views() ? 'Type a window name' : 'Type a command'"
+          [attr.aria-label]="inputLabel()"
           aria-autocomplete="list"
           aria-expanded="true"
           [attr.aria-controls]="listId"
           [attr.aria-activedescendant]="activeId()"
-          [placeholder]="views() ? 'Type a window name…' : 'Type a command…'"
+          [placeholder]="placeholder()"
           autocomplete="off"
           spellcheck="false"
           [value]="query()"
           (input)="onInput($any($event.target).value)"
           (keydown)="onKey($event)"
         />
-        <ul class="list" role="listbox" [attr.aria-label]="views() ? 'Windows' : suggesting() ? 'Suggested commands' : 'Commands'" [id]="listId">
+        <ul class="list" role="listbox" [attr.aria-label]="listLabel()" [id]="listId">
           @if (suggesting()) {
-            <li class="none" role="presentation" data-testid="palette-did-you-mean">No commands match “{{ query() }}”. Did you mean:</li>
+            <li class="none" role="presentation" data-testid="palette-did-you-mean" i18n="@@palette.didYouMean">No commands match “{{ query() //i18n(ph="query") }}”. Did you mean:</li>
           }
           @for (c of options(); track c.id; let i = $index) {
             <li
@@ -53,7 +53,7 @@ let nextId = 0;
               @if (c.keybinding) { <kbd class="kbd">{{ hint(c) }}</kbd> }
             </li>
           } @empty {
-            <li class="none" role="presentation">{{ views() ? 'No matching windows' : 'No matching commands' }}</li>
+            <li class="none" role="presentation">{{ emptyLabel() }}</li>
           }
         </ul>
       </div>
@@ -85,7 +85,7 @@ export class CommandPalette {
   /** Listing only the views (View ▸ Other windows…), each shown as an entry that opens it. */
   protected readonly views = computed(() => this.palette.mode() === 'views');
   private readonly viewEntries = computed<ImtCommand[]>(() =>
-    this.viewRegistry.available().map((v) => ({ id: `view:${v.id}`, title: v.title, category: v.category === 'core' ? 'View' : (v.category ?? 'Plugins'), run: () => this.injector.get(DockService).show(v.id) })),
+    this.viewRegistry.available().map((v) => ({ id: `view:${v.id}`, title: v.title, category: v.category === 'core' ? $localize`:@@palette.category.view:View` : (v.category ?? $localize`:@@palette.category.plugins:Plugins`), run: () => this.injector.get(DockService).show(v.id) })),
   );
   protected readonly results = computed(() =>
     this.views() ? fuzzyFilter(this.viewEntries(), this.query(), (c) => `${c.category}: ${c.title}`) : this.registry.search(this.query()),
@@ -95,6 +95,23 @@ export class CommandPalette {
     this.results().length || this.views() || !this.query().trim() ? [] : didYouMean(this.registry.available(), this.query(), (c) => (c.category ? `${c.category} ${c.title}` : c.title)),
   );
   protected readonly suggesting = computed(() => this.suggestions().length > 0);
+  protected readonly dialogLabel = computed(() => (this.views() ? $localize`:@@palette.dialog.windows:Other windows` : $localize`:@@palette.dialog.commands:Command palette`));
+  protected readonly inputLabel = computed(() =>
+    this.views() ? $localize`:@@palette.input.windowsLabel:Type a window name` : $localize`:@@palette.input.commandsLabel:Type a command`,
+  );
+  protected readonly placeholder = computed(() =>
+    this.views() ? $localize`:@@palette.input.windowsPlaceholder:Type a window name…` : $localize`:@@palette.input.commandsPlaceholder:Type a command…`,
+  );
+  protected readonly listLabel = computed(() =>
+    this.views()
+      ? $localize`:@@palette.list.windows:Windows`
+      : this.suggesting()
+        ? $localize`:@@palette.list.suggested:Suggested commands`
+        : $localize`:@@palette.list.commands:Commands`,
+  );
+  protected readonly emptyLabel = computed(() =>
+    this.views() ? $localize`:@@palette.empty.windows:No matching windows` : $localize`:@@palette.empty.commands:No matching commands`,
+  );
   /** What the list shows and the keyboard moves through: the matches, else the suggestions. */
   protected readonly options = computed(() => (this.results().length ? this.results() : this.suggestions()));
   protected readonly activeId = computed(() => (this.options().length ? this.optionId(this.index()) : null));

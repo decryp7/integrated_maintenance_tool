@@ -1,8 +1,9 @@
 import { tinyDataset } from '../../../testing/helpers';
 import { PipelineStep } from '../profile.model';
 import { applyPipeline, jsonFields, kvFields, parseShift } from './mock-pipeline';
+import { at } from '../../../testing/must';
 
-const names = (id: number) => ['app.clef', 'app.log'][id];
+const names = (id: number) => ['app.clef', 'app.log'][id] ?? '';
 const run = (steps: PipelineStep[]) => applyPipeline(tinyDataset().records, steps, names);
 const total = tinyDataset().records.length;
 
@@ -11,7 +12,7 @@ describe('applyPipeline', () => {
     const input = tinyDataset().records;
     const out = applyPipeline(input, [{ step: 'set', field: 'X', value: '1' }], names);
     expect(out.records).toHaveLength(total);
-    expect(input[0].fields['X']).toBeUndefined();
+    expect(at(input, 0).fields['X']).toBeUndefined();
     expect(run([]).stats).toEqual([]);
   });
 
@@ -38,11 +39,11 @@ describe('applyPipeline', () => {
     const masked = run([{ step: 'mask', regex: 'Cache', replace: 'C' }]).records.find((r) => r.message.startsWith('C hit'));
     expect(masked).toBeTruthy();
     expect(run([{ step: 'mask', regex: '(', replace: '' }]).records.map((r) => r.message)).toEqual(tinyDataset().records.map((r) => r.message));
-    const onField = run([{ step: 'mask', field: 'MachineName', regex: 'WEB', replace: 'W' }]).records[0];
+    const onField = at(run([{ step: 'mask', field: 'MachineName', regex: 'WEB', replace: 'W' }]).records, 0);
     expect(onField.fields['MachineName']).toBe('W01');
     const exc = run([{ step: 'mask', field: '@exception', regex: 'System\\.', replace: '' }]).records.find((r) => r.exception);
     expect(exc!.exception).toContain('TimeoutException');
-    const tpl = run([{ step: 'mask', field: '@template', regex: 'Application', replace: 'App' }]).records[0];
+    const tpl = at(run([{ step: 'mask', field: '@template', regex: 'Application', replace: 'App' }]).records, 0);
     expect(tpl.template).toContain('App starting');
     const lvl = run([{ step: 'mask', field: '@level', regex: 'x', replace: '' }]);
     expect(lvl.records).toHaveLength(total);
@@ -52,24 +53,24 @@ describe('applyPipeline', () => {
     expect(run([{ step: 'set_level', level: 'Warning', when: [{ field: '@level', op: 'eq', value: 'Debug' }] }]).records.filter((r) => r.level === 'Warning')).toHaveLength(2);
     expect(run([{ step: 'set_level', level: 'Bogus' }]).records.map((r) => r.level)).toEqual(tinyDataset().records.map((r) => r.level));
     expect(run([{ step: 'remove_fields', fields: ['Application'] }]).records.every((r) => !('Application' in r.fields))).toBe(true);
-    const renamed = run([{ step: 'rename', from: 'MachineName', to: 'Host' }, { step: 'rename', from: 'Nope', to: 'X' }, { step: 'rename' }]).records[0];
+    const renamed = at(run([{ step: 'rename', from: 'MachineName', to: 'Host' }, { step: 'rename', from: 'Nope', to: 'X' }, { step: 'rename' }]).records, 0);
     expect(renamed.fields['Host']).toBe('WEB01');
     expect(renamed.fields['MachineName']).toBeUndefined();
-    const set = run([{ step: 'set', field: '@message', value: 'm' }, { step: 'set', field: '@template', value: 't' }, { step: 'set', field: '@exception', value: 'e' }, { step: 'set', field: 'Env', value: 'prod' }, { step: 'set', field: '@level', value: 'x' }, { step: 'set' }]).records[0];
+    const set = at(run([{ step: 'set', field: '@message', value: 'm' }, { step: 'set', field: '@template', value: 't' }, { step: 'set', field: '@exception', value: 'e' }, { step: 'set', field: 'Env', value: 'prod' }, { step: 'set', field: '@level', value: 'x' }, { step: 'set' }]).records, 0);
     expect([set.message, set.template, set.exception, set.fields['Env'], set.level]).toEqual(['m', 't', 'e', 'prod', 'Information']);
-    const cut = run([{ step: 'truncate', max: 5 }, { step: 'truncate', field: 'Nope', max: 1 }, { step: 'truncate' }]).records[0];
+    const cut = at(run([{ step: 'truncate', max: 5 }, { step: 'truncate', field: 'Nope', max: 1 }, { step: 'truncate' }]).records, 0);
     expect(cut.message).toBe('Appli');
   });
 
   it('parses JSON and key=value text into fields', () => {
     const base = tinyDataset().records;
-    base[0].message = '{"a":1,"b":{"c":2},"d":null}';
-    base[1].message = 'user=bob action="log in" n=3';
-    base[2].message = '[1]';
+    at(base, 0).message = '{"a":1,"b":{"c":2},"d":null}';
+    at(base, 1).message = 'user=bob action="log in" n=3';
+    at(base, 2).message = '[1]';
     const out = applyPipeline(base, [{ step: 'parse_json', prefix: 'j.' }, { step: 'parse_kv', prefix: 'kv.' }], names).records;
-    expect(out[0].fields).toMatchObject({ 'j.a': 1, 'j.b': '{"c":2}', 'j.d': null });
-    expect(out[1].fields).toMatchObject({ 'kv.user': 'bob', 'kv.action': 'log in', 'kv.n': '3' });
-    expect(out[2].fields['j.0']).toBeUndefined();
+    expect(at(out, 0).fields).toMatchObject({ 'j.a': 1, 'j.b': '{"c":2}', 'j.d': null });
+    expect(at(out, 1).fields).toMatchObject({ 'kv.user': 'bob', 'kv.action': 'log in', 'kv.n': '3' });
+    expect(at(out, 2).fields['j.0']).toBeUndefined();
     expect(jsonFields('nope')).toBeNull();
     expect(jsonFields('[1]')).toBeNull();
     expect(kvFields('no pairs')).toEqual({});
@@ -84,7 +85,7 @@ describe('applyPipeline', () => {
   it('shifts timestamps and leaves untimed events alone', () => {
     const before = tinyDataset().records;
     const out = run([{ step: 'shift_time', by: '-2s' }, { step: 'shift_time', by: 'junk' }, { step: 'shift_time' }]).records;
-    expect(out[0].ts).toBe(before[0].ts! - 2000);
+    expect(at(out, 0).ts).toBe(at(before, 0).ts! - 2000);
     expect(out.find((r) => r.ts === null)).toBeTruthy();
   });
 
@@ -92,6 +93,13 @@ describe('applyPipeline', () => {
     const out = run([{ step: 'dedupe', fields: ['@message'] }, { step: 'plugin', id: 'x' }]);
     expect(out.records).toHaveLength(total);
     expect(out.stats.map((s) => s.output)).toEqual([total, total]);
+  });
+
+  it('passes script steps through unchanged (scripts run only in the engine)', () => {
+    const input = tinyDataset().records;
+    const out = run([{ step: 'script', script: 'drop(); message = "changed";' }]);
+    expect(out.records).toEqual(input);
+    expect(out.stats).toEqual([{ index: 0, step: 'script', input: total, output: total }]);
   });
 });
 

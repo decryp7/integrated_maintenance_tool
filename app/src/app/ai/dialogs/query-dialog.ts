@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
 import { QueryProposal } from '../ai.types';
@@ -11,14 +11,14 @@ import { AiProposalCard } from '../proposals/proposal-card';
   imports: [AiProposalCard],
   template: `
     <form (submit)="$event.preventDefault(); ask()">
-      <label for="ai-query-question">What do you want to find?</label>
+      <label for="ai-query-question" i18n="@@ai.query.label">What do you want to find?</label>
       <div class="row">
-        <input id="ai-query-question" class="input" maxlength="2000" placeholder="e.g. errors on WEB02 in the last hour" [value]="question()" (input)="question.set(asValue($event))" />
-        <button type="submit" class="btn primary" [disabled]="!question().trim() || busy()">{{ busy() ? 'Writing…' : 'Write query' }}</button>
+        <input id="ai-query-question" class="input" maxlength="2000" placeholder="e.g. errors on WEB02 in the last hour" i18n-placeholder="@@ai.query.placeholder" [value]="question()" (input)="question.set(asValue($event))" />
+        <button type="submit" class="btn primary" [disabled]="!question().trim() || busy()">{{ writeLabel() }}</button>
       </div>
     </form>
     @if (busy()) {
-      <p class="muted" role="status">The local model is writing the query; the engine checks it…</p>
+      <p class="muted" role="status" i18n="@@ai.query.busy">The local model is writing the query; the engine checks it…</p>
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
@@ -26,7 +26,7 @@ import { AiProposalCard } from '../proposals/proposal-card';
     @if (proposal(); as p) {
       <imt-ai-proposal-card [proposal]="p" (applied)="ref.close(true)" (dismissed)="proposal.set(null)" />
     }
-    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()">Close</button></div>
+    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.query.close">Close</button></div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; }
@@ -45,6 +45,7 @@ export class AiQueryDialog implements OnInit {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly proposal = signal<QueryProposal | null>(null);
+  protected readonly writeLabel = computed(() => (this.busy() ? $localize`:@@ai.query.writing:Writing…` : $localize`:@@ai.query.write:Write query`));
 
   ngOnInit(): void {
     this.question.set(this.initial());

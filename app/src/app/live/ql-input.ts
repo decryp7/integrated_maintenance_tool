@@ -40,7 +40,7 @@ let nextId = 1;
         (blur)="onBlur()"
       />
       @if (open()) {
-        <ul class="popup" [id]="listId" role="listbox" [attr.aria-label]="label() + ' completions'">
+        <ul class="popup" [id]="listId" role="listbox" [attr.aria-label]="completionsLabel()">
           @for (c of completions(); track c.label + $index; let i = $index) {
             <li [id]="listId + '-' + i" role="option" [attr.aria-selected]="i === active()" [class.active]="i === active()" (mousedown)="$event.preventDefault()" (click)="accept(c)">
               <span class="kind">{{ c.kind }}</span><span class="mono">{{ c.label }}</span>
@@ -64,7 +64,7 @@ let nextId = 1;
 })
 export class QlInput {
   readonly value = input('');
-  readonly label = input('Condition');
+  readonly label = input($localize`:@@live.qlInput.label:Condition`);
   readonly valueChange = output<string>();
 
   private readonly backend = inject(AnalysisBackend);
@@ -74,6 +74,7 @@ export class QlInput {
   protected readonly active = signal(0);
   private readonly dismissed = signal(true);
   protected readonly open = computed(() => !this.dismissed() && this.completions().length > 0);
+  protected readonly completionsLabel = computed(() => $localize`:@@live.qlInput.completions:${this.label()}:label: completions`);
   protected readonly listId = `ql-input-${nextId++}`;
   protected readonly errorId = `${this.listId}-err`;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -109,7 +110,8 @@ export class QlInput {
       this.active.set((this.active() - 1 + list.length) % list.length);
     } else if (open && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
-      this.accept(list[Math.min(this.active(), list.length - 1)]);
+      const chosen = list[Math.min(this.active(), list.length - 1)];
+      if (chosen) this.accept(chosen);
     } else if (open && e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();

@@ -19,40 +19,40 @@ const PREVIEW_DELAY_MS = 300;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConditionsEditor, HelpHint],
   template: `
-    <p>Make the selected value a field you can filter, group by and chart. This adds an <span class="mono">[[extract]]</span> rule to the profile. <imt-help label="Extract" text="The regex is built from the text around your selection; the highlighted part becomes the named group. Edit it if it matches too little or too much." /></p>
-    <div class="status">Message</div>
+    <p><ng-container i18n="@@context.extractDialog.intro">Make the selected value a field you can filter, group by and chart. This adds an <span class="mono">[[extract]]</span> rule to the profile.</ng-container>&ngsp;<imt-help label="Extract" i18n-label="@@context.extractDialog.helpLabel" i18n-text="@@context.extractDialog.helpText" text="The regex is built from the text around your selection; the highlighted part becomes the named group. Edit it if it matches too little or too much." /></p>
+    <div class="status" i18n="@@context.extractDialog.message">Message</div>
     <div class="box" data-testid="extract-message">{{ record().message }}</div>
-    <label class="lbl">Regex (the named group is the value)<input class="input mono" [value]="regex()" (input)="regex.set($any($event.target).value)" /></label>
+    <label class="lbl"><ng-container i18n="@@context.extractDialog.regex">Regex (the named group is the value)</ng-container><input class="input mono" [value]="regex()" (input)="regex.set($any($event.target).value)" /></label>
     <div class="row">
-      <label class="lbl">Field name<input class="input mono" [value]="name()" (input)="name.set($any($event.target).value)" /></label>
-      <label class="lbl">Type
+      <label class="lbl"><ng-container i18n="@@context.extractDialog.fieldName">Field name</ng-container><input class="input mono" [value]="name()" (input)="name.set($any($event.target).value)" /></label>
+      <label class="lbl"><ng-container i18n="@@context.extractDialog.type">Type</ng-container>
         <select class="select" [value]="type()" (change)="type.set($any($event.target).value)">
           @for (t of types; track t) { <option [value]="t" [selected]="t === type()">{{ t }}</option> }
         </select>
       </label>
       @if (type() === 'bytes' || type() === 'duration') {
-        <label class="lbl">Written in<input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" /></label>
-        <label class="lbl">Store as<input class="input" [value]="to()" (input)="to.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@context.extractDialog.writtenIn">Written in</ng-container><input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@context.extractDialog.storeAs">Store as</ng-container><input class="input" [value]="to()" (input)="to.set($any($event.target).value)" /></label>
       } @else if (type() === 'number') {
-        <label class="lbl">Unit<input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@context.extractDialog.unit">Unit</ng-container><input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" /></label>
       }
     </div>
-    <div class="status">Only for events where</div>
-    <imt-conditions-editor [conditions]="when()" emptyText="Applies to every event." (changed)="when.set($event)" />
+    <div class="status" i18n="@@context.extractDialog.onlyWhere">Only for events where</div>
+    <imt-conditions-editor [conditions]="when()" emptyText="Applies to every event." i18n-emptyText="@@context.extractDialog.appliesToAll" (changed)="when.set($event)" />
     <div class="status" role="status" aria-live="polite" data-testid="extract-preview">
       @if (preview(); as p) {
         @if (p.error) { <span class="err">{{ p.error }}</span> }
         @else {
-          <strong>{{ p.matches }}</strong> of {{ p.candidates }} candidate events match.
+          <ng-container i18n="@@context.extractDialog.matches"><strong>{{ p.matches }}</strong> of {{ p.candidates }} candidate events match.</ng-container>
           @for (s of p.samples; track s.recordId) { <div class="mono">{{ valuesText(s.values) }}</div> }
         }
-      } @else { Checking… }
+      } @else { <ng-container i18n="@@context.extractDialog.checking">Checking…</ng-container> }
     </div>
-    <label class="check"><input type="checkbox" [checked]="chart()" (change)="chart.set($any($event.target).checked)" /> Chart this field (average over time, one line per instance)</label>
+    <label class="check" i18n="@@context.extractDialog.chart"><input type="checkbox" [checked]="chart()" (change)="chart.set($any($event.target).checked)" /> Chart this field (average over time, one line per instance)</label>
     @if (error(); as e) { <div class="err" role="alert">{{ e }}</div> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="!valid() || saving()" (click)="save()">{{ saving() ? 'Applying…' : 'Add extractor' }}</button>
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@context.cancel">Cancel</button>
+      <button type="button" class="btn primary" [disabled]="!valid() || saving()" (click)="save()">{{ saving() ? applying : addExtractor }}</button>
     </div>
   `,
   styles: DIALOG_FORM_STYLES,
@@ -69,6 +69,8 @@ export class ExtractDialog {
   readonly end = input.required<number>();
 
   protected readonly types: ExtractFieldType[] = EXTRACT_FIELD_TYPES;
+  protected readonly applying = $localize`:@@context.applying:Applying…`;
+  protected readonly addExtractor = $localize`:@@context.extractDialog.addExtractor:Add extractor`;
   private readonly proposal = computed(() => proposeExtraction(this.record().message, this.start(), this.end()));
   protected readonly regex = linkedSignal(() => this.proposal().regex);
   protected readonly name = linkedSignal(() => this.proposal().name);
@@ -105,7 +107,7 @@ export class ExtractDialog {
       const timer = setTimeout(async () => {
         try {
           const { toml, rule } = this.apply(draft);
-          const result = await this.backend.previewExtractor({ toml, extractor: rule.name, query: EMPTY_QUERY, limit: 3 });
+          const result = await this.backend.previewExtractor({ toml, extractor: rule?.name ?? draft.name, query: EMPTY_QUERY, limit: 3 });
           if (mine === this.seq) this.preview.set(result);
         } catch (e) {
           if (mine === this.seq) this.preview.set({ candidates: 0, matches: 0, failed: 0, samples: [], error: String(e) });
@@ -142,7 +144,7 @@ export class ExtractDialog {
         addExtractRule(m, extractRule(draft));
         if (this.chart()) addChartRule(m, chartForField(draft.field, this.store.effectiveGroupBy()));
       });
-      this.store.setNotice(`Added the "${draft.field}" field; files were re-imported.`);
+      this.store.setNotice($localize`:@@context.extractDialog.added:Added the "${draft.field}:field:" field; files were re-imported.`);
       this.ref.close(true);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));

@@ -16,8 +16,24 @@ import {
 } from '../core/config-diff.types';
 import { copyText } from '../tools/clipboard';
 import { errorMessage } from '../tools/tool-errors';
+import { plural } from '../i18n/locale';
 import { ConfigDiffBackend } from './config-diff-backend';
 import { ConfigDiffPicker, Side } from './config-diff-picker';
+
+/** "Copied path" / "Copied old value" / ...: one full message per label the view uses. */
+function copiedMessage(label: string): string {
+  if (label === 'path') return $localize`:@@configDiff.store.copied.path:Copied path`;
+  if (label === 'old value') return $localize`:@@configDiff.store.copied.oldValue:Copied old value`;
+  if (label === 'new value') return $localize`:@@configDiff.store.copied.newValue:Copied new value`;
+  return $localize`:@@configDiff.store.copied.other:Copied ${label}:label:`;
+}
+
+function exportedMessage(rows: number, path: string): string {
+  return plural(rows, {
+    one: $localize`:@@configDiff.store.exported.one:Exported ${rows}:count: row to ${path}:path:`,
+    other: $localize`:@@configDiff.store.exported.other:Exported ${rows}:count: rows to ${path}:path:`,
+  });
+}
 
 /** Rows fetched per request. */
 export const PAGE_SIZE = 200;
@@ -234,7 +250,7 @@ export const ConfigDiffStore = signalStore(
       /** Copies text and says so (or why not). */
       async copy(label: string, text: string): Promise<void> {
         const ok = await copyText(text);
-        patchState(store, { notice: ok ? `Copied ${label}` : 'The clipboard is not available' });
+        patchState(store, { notice: ok ? copiedMessage(label) : $localize`:@@configDiff.store.clipboardUnavailable:The clipboard is not available` });
       },
       dismiss: () => patchState(store, { error: null, notice: null }),
       /** Exports the diff (current kinds and search; all sections expanded). */
@@ -244,9 +260,9 @@ export const ConfigDiffStore = signalStore(
         try {
           const done = await overwrite.write(path, (replace) => backend.exportDiff(store.left().trim(), store.right().trim(), { ...options(0), view: { ...options(0).view, limit: 1 } }, format, path, replace));
           if (done === null) return;
-          patchState(store, { notice: `Exported ${done.rows} row${done.rows === 1 ? '' : 's'} to ${done.path}`, error: null });
+          patchState(store, { notice: exportedMessage(done.rows, done.path), error: null });
         } catch (e) {
-          patchState(store, { error: `Could not export the diff: ${errorMessage(e)}` });
+          patchState(store, { error: $localize`:@@configDiff.store.exportFailed:Could not export the diff: ${errorMessage(e)}:error:` });
         }
       },
       /** Asks for a snapshot folder; compares when both are chosen. */

@@ -301,6 +301,9 @@ pub enum ActionFile {
         interval_ms: u64,
         #[serde(default)]
         include_children: bool,
+        /// .NET Framework runtime counters (GC, heap, exceptions/s, contention) on the process stats.
+        #[serde(default)]
+        dotnet: bool,
     },
     /// Copies log files (newest first, within limits).
     CopyLogs {
@@ -763,12 +766,14 @@ impl Validator<'_> {
                 duration,
                 interval_ms,
                 include_children,
+                dotnet,
             } => {
                 let duration = self.capture(&format!("{key}.duration"), duration);
                 let settings = serde_json::json!({
                     "targets": targets.iter().map(|t| monitor_target(t)).collect::<Vec<_>>(),
                     "intervalMs": interval_ms,
                     "includeChildren": include_children,
+                    "dotnet": dotnet,
                 });
                 if let Err(e) = imt_monitor::config::Config::from_json(&settings) {
                     self.bad(format!("{key}.targets"), format!("{e:#}"));

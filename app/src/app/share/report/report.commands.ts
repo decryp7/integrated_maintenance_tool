@@ -26,23 +26,23 @@ export class ReportCommands {
   }
 
   readonly commands: ImtCommand[] = [
-    { id: 'report.show', title: 'Show report builder', category: 'Analyze', run: (ctx) => ctx.showView('report') },
+    { id: 'report.show', title: $localize`:@@share.reportCommands.show:Show report builder`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, run: (ctx) => ctx.showView('report') },
     {
       id: 'report.new',
-      title: 'New incident report',
-      category: 'Analyze',
+      title: $localize`:@@share.reportCommands.new:New incident report`,
+      category: $localize`:@@share.commands.categoryAnalyze:Analyze`,
       run: (ctx) => {
         this.reports.create();
         ctx.showView('report');
       },
     },
-    { id: 'report.addSelected', title: 'Add selected event to report', category: 'Analyze', when: () => !!this.ws.selected(), run: (ctx) => this.add(ctx, this.actions.addSelectedEvent()) },
-    { id: 'report.addBookmarks', title: 'Add bookmarks to report', category: 'Analyze', when: () => this.bookmarks.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addBookmarks()) },
-    { id: 'report.addTimeline', title: 'Add timeline to report', category: 'Analyze', when: () => !!this.ws.timeline(), run: (ctx) => this.add(ctx, this.actions.addTimeline()) },
-    { id: 'report.addFindings', title: 'Add health-check findings to report', category: 'Analyze', when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addFindings()) },
-    { id: 'report.addAnomalies', title: 'Add anomalies to report as findings', category: 'Analyze', when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addAnomalies()) },
-    { id: 'report.addQueryTable', title: 'Add query result to report', category: 'Analyze', when: () => !!this.session.table(), run: (ctx) => this.add(ctx, this.actions.addQueryTable()) },
-    { id: 'report.addAnnotations', title: 'Add annotations to report', category: 'Analyze', when: () => this.annotations.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addAnnotations()) },
-    { id: 'report.export', title: 'Export report…', category: 'File', when: () => !!this.reports.active(), run: async () => void (await openReportExport(this.dialogs)) },
+    { id: 'report.addSelected', title: $localize`:@@share.reportCommands.addSelected:Add selected event to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.selected(), run: (ctx) => this.add(ctx, this.actions.addSelectedEvent()) },
+    { id: 'report.addBookmarks', title: $localize`:@@share.reportCommands.addBookmarks:Add bookmarks to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => this.bookmarks.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addBookmarks()) },
+    { id: 'report.addTimeline', title: $localize`:@@share.reportCommands.addTimeline:Add timeline to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.timeline(), run: (ctx) => this.add(ctx, this.actions.addTimeline()) },
+    { id: 'report.addFindings', title: $localize`:@@share.reportCommands.addFindings:Add health-check findings to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addFindings()) },
+    { id: 'report.addAnomalies', title: $localize`:@@share.reportCommands.addAnomalies:Add anomalies to report as findings`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.ws.summary()?.total, run: async (ctx) => this.add(ctx, await this.actions.addAnomalies()) },
+    { id: 'report.addQueryTable', title: $localize`:@@share.reportCommands.addQueryTable:Add query result to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => !!this.session.table(), run: (ctx) => this.add(ctx, this.actions.addQueryTable()) },
+    { id: 'report.addAnnotations', title: $localize`:@@share.reportCommands.addAnnotations:Add annotations to report`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, when: () => this.annotations.items().length > 0, run: (ctx) => this.add(ctx, this.actions.addAnnotations()) },
+    { id: 'report.export', title: $localize`:@@share.reportCommands.export:Export report…`, category: $localize`:@@share.commands.categoryFile:File`, when: () => !!this.reports.active(), run: async () => void (await openReportExport(this.dialogs)) },
   ];
 }

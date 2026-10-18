@@ -1,6 +1,7 @@
 import { mockSections } from './mock-settings-backend';
 import { displayValue, editUnit, fieldMatches, formatBytes, formatMs, parseList, parseNumber, precheck, rangeHint, sameValue, statusLabel } from './settings-model';
 import { FieldKind, SettingField, SettingsSection } from './settings.types';
+import { at } from '../../testing/must';
 
 const field = (kind: FieldKind, def: SettingField['default'] = 0, extra: Partial<SettingField> = {}): SettingField => ({
   key: 'k',
@@ -96,7 +97,8 @@ describe('settings model', () => {
   });
 
   it('labels section statuses', () => {
-    const [first] = mockSections();
+    const sections = mockSections();
+    const first = at(sections, 0);
     const as = (status: SettingsSection['status']) => statusLabel({ ...first, status });
     expect([as('active'), as('disabled'), as('quarantined'), as('notInstalled'), as('safeMode')]).toEqual([null, 'disabled', 'stopped', 'not installed', 'safe mode']);
   });

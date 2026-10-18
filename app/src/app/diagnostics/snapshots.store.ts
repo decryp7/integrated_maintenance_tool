@@ -2,6 +2,7 @@ import { OverwriteGuard } from '../ui/overwrite-guard';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { describeError } from '../core/logger';
+import { plural } from '../i18n/locale';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { ExportTarget } from './export-target';
 import { SnapshotBackend } from './snapshot-backend';
@@ -81,7 +82,7 @@ export const SnapshotsStore = signalStore(
       },
       async openFolder() {
         try {
-          patchState(store, { info: `Folder: ${await backend.openFolder()}`, error: null });
+          patchState(store, { info: $localize`:@@diagnostics.snapshots.folder:Folder: ${await backend.openFolder()}:path:`, error: null });
         } catch (e) {
           fail(e);
         }
@@ -95,7 +96,15 @@ export const SnapshotsStore = signalStore(
           const path = await target.pickZip('imt-diagnostics.zip');
           if (path) {
             const files = await overwrite.write(path, (replace) => backend.exportDiagnostics(path, ids, replace));
-            if (files !== null) patchState(store, { info: `Exported ${ids.length} snapshot${ids.length === 1 ? '' : 's'} (${files} files) to ${path}` });
+            if (files !== null) {
+              const n = ids.length;
+              patchState(store, {
+                info: plural(n, {
+                  one: $localize`:@@diagnostics.snapshots.exported.one:Exported ${n}:count: snapshot (${files}:files: files) to ${path}:path:`,
+                  other: $localize`:@@diagnostics.snapshots.exported.other:Exported ${n}:count: snapshots (${files}:files: files) to ${path}:path:`,
+                }),
+              });
+            }
           }
         } catch (e) {
           fail(e);

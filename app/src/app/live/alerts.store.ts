@@ -44,27 +44,29 @@ export function muteTarget(key: string): AlertTarget {
 }
 
 const KIND_LABELS: Record<string, string> = {
-  errorSpike: 'Error spike',
-  silence: 'Silence',
-  crash: 'Crash',
-  slowOutlier: 'Slow outlier',
-  rateChange: 'Rate change',
-  memoryGrowth: 'Memory growth',
+  errorSpike: $localize`:@@live.alerts.kind.errorSpike:Error spike`,
+  silence: $localize`:@@live.alerts.kind.silence:Silence`,
+  crash: $localize`:@@live.alerts.kind.crash:Crash`,
+  slowOutlier: $localize`:@@live.alerts.kind.slowOutlier:Slow outlier`,
+  rateChange: $localize`:@@live.alerts.kind.rateChange:Rate change`,
+  memoryGrowth: $localize`:@@live.alerts.kind.memoryGrowth:Memory growth`,
 };
+
+const ruleKind = (name: string): string => $localize`:@@live.alerts.ruleKind:Rule: ${name}:name:`;
 
 /** Display name of an alert's kind ("Rule: payment errors" for rules). */
 export function kindLabel(alert: Pick<LiveAlert, 'kind' | 'rule'>): string {
-  if (alert.kind === 'rule') return `Rule: ${alert.rule ?? 'unnamed'}`;
+  if (alert.kind === 'rule') return ruleKind(alert.rule ?? $localize`:@@live.alerts.unnamedRule:unnamed`);
   return KIND_LABELS[alert.kind] ?? alert.kind;
 }
 
 /** Display name of a mute key. */
 export function muteLabel(key: string): string {
-  return key.startsWith('rule:') ? `Rule: ${key.slice(5) || 'unnamed'}` : (KIND_LABELS[key] ?? key);
+  return key.startsWith('rule:') ? ruleKind(key.slice(5) || $localize`:@@live.alerts.unnamedRule:unnamed`) : (KIND_LABELS[key] ?? key);
 }
 
 export function severityLabel(s: Severity): string {
-  return s === 'critical' ? 'Critical' : s === 'warning' ? 'Warning' : 'Info';
+  return s === 'critical' ? $localize`:@@live.alerts.severity.critical:Critical` : s === 'warning' ? $localize`:@@live.alerts.severity.warning:Warning` : $localize`:@@live.alerts.severity.info:Info`;
 }
 
 /**

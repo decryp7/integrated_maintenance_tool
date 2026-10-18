@@ -16,7 +16,7 @@ import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
 
 @Component({
-  selector: 'app-root',
+  selector: 'imt-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay],
   template: `
@@ -49,18 +49,18 @@ import { TourOverlay } from './onboarding/tour-overlay';
       <div class="toast" role="alert">
         <imt-icon name="alert" [size]="15" />
         <span class="ellipsis">{{ error }}</span>
-        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissError" i18n-title="@@app.toast.dismissErrorTitle" (click)="store.dismissError()"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
     @if (store.notice(); as notice) {
       <div class="toast info" role="status">
         <imt-icon name="check" [size]="15" />
         <span class="ellipsis">{{ notice }}</span>
-        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissNotice" i18n-title="@@app.toast.dismissNoticeTitle" (click)="store.setNotice(null)"><imt-icon name="close" [size]="14" /></button>
       </div>
     }
     @if (store.dropHover()) {
-      <div class="drop">Drop files or folders to add them to the workspace</div>
+      <div class="drop" i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
     }
   `,
   styles: `

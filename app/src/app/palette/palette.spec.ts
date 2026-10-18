@@ -6,6 +6,7 @@ import { COMMAND_CONTEXT } from '../extensions';
 import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
 import { CommandPalette } from './command-palette';
 import { PaletteService } from './palette.service';
+import { at } from '../../testing/must';
 
 describe('CommandPalette', () => {
   let ran: string[];
@@ -146,10 +147,10 @@ describe('CommandPalette', () => {
     palette.open();
     await settle(fixture);
     const opts = all(fixture, '[role=option]');
-    opts[2].dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+    at(opts, 2).dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
     await settle(fixture);
-    expect(opts[2].classList.contains('active')).toBe(true);
-    opts[1].click();
+    expect(at(opts, 2).classList.contains('active')).toBe(true);
+    at(opts, 1).click();
     await settle(fixture);
     expect(ran).toEqual(['t.beta']);
     expect(palette.isOpen()).toBe(false);

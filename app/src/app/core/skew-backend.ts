@@ -38,7 +38,7 @@ export function hasSkew(backend: unknown): backend is SkewBackend {
 /** A backend that refuses, for a workspace backend without clock correction. */
 export class UnsupportedSkewBackend extends SkewBackend {
   setSourceOffset(): Promise<OffsetChange> {
-    return Promise.reject('this backend cannot correct clock skew');
+    return Promise.reject($localize`:@@core.skew.unsupported:this backend cannot correct clock skew`);
   }
   suggestOffsets(): Promise<SuggestResult> {
     return Promise.resolve({ reference: null, fields: [], suggestions: [], insufficient: [] });

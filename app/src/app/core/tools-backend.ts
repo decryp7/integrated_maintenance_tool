@@ -15,11 +15,18 @@ import {
   CollectResult,
   CounterPreset,
   ElevationInfo,
+  EventLogChannel,
+  EventLogQuery,
+  EventLogStartArgs,
+  EventLogStarted,
+  EventLogStatus,
+  EventLogValidation,
   GeneratedCollector,
   MonitorConfig,
   MonitorStatus,
   ProjectOpened,
   ProjectSaved,
+  TOOL_IDS,
   ToolEntry,
 } from './tools.types';
 import { hasSkew } from './skew-backend';
@@ -66,6 +73,20 @@ export abstract class CollectBackend {
   ): Promise<CollectResult>;
 }
 
+/** The Windows Event Log follower (tool `event-log-follower`, reached through `tool_invoke`). */
+export abstract class EventLogBackend {
+  /** The channels worth following, standard ones first. */
+  abstract eventLogChannels(): Promise<EventLogChannel[]>;
+  /** Composes the queries and checks each channel against them, without starting anything. */
+  abstract eventLogValidate(query: EventLogQuery): Promise<EventLogValidation>;
+  abstract eventLogStart(args: EventLogStartArgs): Promise<EventLogStarted>;
+  /** Stops the run; its folder, or null when nothing ran. */
+  abstract eventLogStop(): Promise<string | null>;
+  abstract eventLogPause(): Promise<EventLogStatus>;
+  abstract eventLogResume(): Promise<EventLogStatus>;
+  abstract eventLogStatus(): Promise<EventLogStatus>;
+}
+
 /** App lifetime: elevation, safe mode, plugin settings and session recovery. */
 export abstract class LifecycleBackend {
   abstract elevation(): Promise<ElevationInfo>;
@@ -100,7 +121,7 @@ export abstract class ProjectBackend {
  * narrow part they use (`PerfmonBackend`, ...); `ToolsBackend` is the full class registered for DI.
  */
 export abstract class ToolsBackend
-  implements ToolCatalogBackend, PerfmonBackend, CollectBackend, LifecycleBackend, ProjectBackend
+  implements ToolCatalogBackend, PerfmonBackend, CollectBackend, EventLogBackend, LifecycleBackend, ProjectBackend
 {
   abstract toolsList(): Promise<ToolEntry[]>;
   abstract toolInvoke<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
@@ -124,6 +145,13 @@ export abstract class ToolsBackend
     outDir: string,
     overwrite?: boolean,
   ): Promise<CollectResult>;
+  abstract eventLogChannels(): Promise<EventLogChannel[]>;
+  abstract eventLogValidate(query: EventLogQuery): Promise<EventLogValidation>;
+  abstract eventLogStart(args: EventLogStartArgs): Promise<EventLogStarted>;
+  abstract eventLogStop(): Promise<string | null>;
+  abstract eventLogPause(): Promise<EventLogStatus>;
+  abstract eventLogResume(): Promise<EventLogStatus>;
+  abstract eventLogStatus(): Promise<EventLogStatus>;
   abstract elevation(): Promise<ElevationInfo>;
   abstract restartElevated(reopen: string[]): Promise<void>;
   abstract appStatus(): Promise<AppStatus>;
@@ -209,6 +237,28 @@ export class TauriToolsBackend extends ToolsBackend {
       ...(overwrite ? { overwrite } : {}),
     });
   }
+  // The Event Log follower has no dedicated command: every operation is `tool_invoke`.
+  eventLogChannels() {
+    return this.toolInvoke<EventLogChannel[]>(TOOL_IDS.eventLog, 'channels');
+  }
+  eventLogValidate(query: EventLogQuery) {
+    return this.toolInvoke<EventLogValidation>(TOOL_IDS.eventLog, 'validate', query);
+  }
+  eventLogStart(args: EventLogStartArgs) {
+    return this.toolInvoke<EventLogStarted>(TOOL_IDS.eventLog, 'start', args);
+  }
+  eventLogStop() {
+    return this.toolInvoke<string | null>(TOOL_IDS.eventLog, 'stop');
+  }
+  eventLogPause() {
+    return this.toolInvoke<EventLogStatus>(TOOL_IDS.eventLog, 'pause');
+  }
+  eventLogResume() {
+    return this.toolInvoke<EventLogStatus>(TOOL_IDS.eventLog, 'resume');
+  }
+  eventLogStatus() {
+    return this.toolInvoke<EventLogStatus>(TOOL_IDS.eventLog, 'status');
+  }
   elevation() {
     return this.call<ElevationInfo>('elevation');
   }
@@ -275,6 +325,7 @@ export function provideToolsBackend(): Provider[] {
     { provide: ToolCatalogBackend, useExisting: ToolsBackend },
     { provide: PerfmonBackend, useExisting: ToolsBackend },
     { provide: CollectBackend, useExisting: ToolsBackend },
+    { provide: EventLogBackend, useExisting: ToolsBackend },
     { provide: LifecycleBackend, useExisting: ToolsBackend },
     { provide: ProjectBackend, useExisting: ToolsBackend },
   ];

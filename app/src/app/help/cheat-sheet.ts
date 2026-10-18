@@ -16,10 +16,10 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
   encapsulation: ViewEncapsulation.None,
   template: `
     <div class="cs-bar">
-      <input class="input cs-search" type="search" aria-label="Search shortcuts" placeholder="Search shortcuts…" [value]="query()" (input)="query.set($any($event.target).value)" />
-      <button type="button" class="btn" (click)="print()">Print…</button>
+      <input class="input cs-search" type="search" aria-label="Search shortcuts" i18n-aria-label="@@help.cheatSheet.search.label" placeholder="Search shortcuts…" i18n-placeholder="@@help.cheatSheet.search.placeholder" [value]="query()" (input)="query.set($any($event.target).value)" />
+      <button type="button" class="btn" (click)="print()" i18n="@@help.cheatSheet.print">Print…</button>
     </div>
-    <p class="cs-count" role="status">{{ count() }} shortcut{{ count() === 1 ? '' : 's' }}</p>
+    <p class="cs-count" role="status" i18n="@@help.cheatSheet.count">{count(), plural, =1 {{{ count() }} shortcut} other {{{ count() }} shortcuts}}</p>
     @for (g of groups(); track g.title) {
       <section class="cs-group" [attr.aria-label]="g.title">
         <h3>{{ g.title }}</h3>
@@ -30,7 +30,7 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
         </dl>
       </section>
     } @empty {
-      <p class="cs-none">No shortcut matches “{{ query() }}”. <button type="button" class="btn ghost" (click)="query.set('')">Clear search</button></p>
+      <p class="cs-none" i18n="@@help.cheatSheet.none">No shortcut matches “{{ query() }}”. <button type="button" class="btn ghost" (click)="query.set('')">Clear search</button></p>
     }
   `,
   styles: `

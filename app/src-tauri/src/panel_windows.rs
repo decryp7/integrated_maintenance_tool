@@ -307,7 +307,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
         .resizable(true)
         .always_on_top(request.always_on_top)
         .focused(true);
-    let built = frameless(builder).build();
+    let built = crate::dev_overrides::apply(frameless(builder)).build();
     if let Err(e) = built {
         popouts.remove(&label);
         anyhow::bail!("could not open a window for the panel: {e}");
@@ -683,7 +683,7 @@ mod tests {
                     cmd: cmd.into(),
                     callback: tauri::ipc::CallbackFn(0),
                     error: tauri::ipc::CallbackFn(1),
-                    url: "tauri://localhost".parse().unwrap(),
+                    url: crate::test_support::ipc_url(),
                     body: tauri::ipc::InvokeBody::Json(body),
                     headers: Default::default(),
                     invoke_key: INVOKE_KEY.to_string(),

@@ -343,7 +343,22 @@ export class DockService {
       return;
     }
     if (!this.views.available().includes(view)) return;
-    this.addView(api, view, options.inactive ?? false);
+    this.addView(api, view, options.inactive ?? false, id);
+  }
+
+  /**
+   * Opens a panel next to another docked one (a new timeline below the main timeline, so their time axes line up).
+   * Behaves like `show` when the panel is already open or the reference is not docked.
+   */
+  showBeside(id: string, referencePanel: string, direction: 'below' | 'right'): void {
+    const api = this.api;
+    const view = this.views.find(id);
+    if (this.remote || !api || !view || api.getPanel(id) || !api.getPanel(referencePanel) || !this.views.available().includes(view)) {
+      this.show(id);
+      return;
+    }
+    if (api.hasMaximizedGroup()) api.exitMaximizedGroup();
+    api.addPanel({ id, component: view.id, title: view.title, position: { referencePanel, direction } });
   }
 
   close(id: string): void {
@@ -391,9 +406,10 @@ export class DockService {
     if (!api || !panel) return null;
     const group = panel.group;
     const siblings = group.panels.filter((p) => p.id !== id);
-    if (siblings.length) {
-      const index = group.panels.findIndex((p) => p.id === id);
-      return { referencePanel: (siblings[Math.max(0, index - 1)] ?? siblings[0]).id, direction: 'within', index };
+    const index = group.panels.findIndex((p) => p.id === id);
+    const reference = siblings[Math.max(0, index - 1)] ?? siblings[0];
+    if (reference) {
+      return { referencePanel: reference.id, direction: 'within', index };
     }
     const rect = rectOf(group.element);
     const others = api.groups
@@ -412,12 +428,12 @@ export class DockService {
     if (!api || !view || api.getPanel(id)) return;
     const ref = slot?.referencePanel ? api.getPanel(slot.referencePanel) : undefined;
     if (!slot || !ref) {
-      this.addView(api, view, options.inactive ?? false);
+      this.addView(api, view, options.inactive ?? false, id);
       return;
     }
     const panel = api.addPanel({
       id,
-      component: id,
+      component: view.id,
       title: view.title,
       inactive: options.inactive ?? false,
       position: { referencePanel: ref.id, direction: slot.direction, ...(slot.direction === 'within' && slot.index !== undefined ? { index: slot.index } : {}) },
@@ -480,7 +496,7 @@ export class DockService {
     const direction = ({ center: 'within', left: 'left', right: 'right', top: 'above', bottom: 'below' } as const)[target.position];
     const group = target.kind === 'group' ? api.getGroup(target.groupId) : undefined;
     if (target.kind === 'group' && !group) return false;
-    const panel = api.addPanel({ id, component: id, title: view.title, position: group ? { referenceGroup: group.id, direction } : { direction: direction === 'within' ? 'right' : direction } });
+    const panel = api.addPanel({ id, component: view.id, title: view.title, position: group ? { referenceGroup: group.id, direction } : { direction: direction === 'within' ? 'right' : direction } });
     panel.api.setActive();
     return true;
   }
@@ -822,30 +838,31 @@ export class DockService {
     this.schedulePersist();
   }
 
-  private addView(api: DockviewApi, view: ImtView, inactive: boolean): IDockviewPanel {
+  /** Adds a panel for the view; `id` differs from the view id for one more panel of a view that allows several. */
+  private addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel {
     const pin = PINNED[view.id];
     if (pin && api.getPanel(pin.referencePanel)) {
       // dockview's default minimum group height (100px) is taller than a query bar; the panel's own
       // minimum (saved with the layout) lets its group be that short.
       const size = pin.height ? { initialHeight: pin.height, minimumHeight: pin.height } : {};
-      const panel = api.addPanel({ id: view.id, component: view.id, title: view.title, inactive, ...size, position: { referencePanel: pin.referencePanel, direction: pin.direction } });
+      const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, ...size, position: { referencePanel: pin.referencePanel, direction: pin.direction } });
       if (pin.height) panel.group.api.setSize({ height: pin.height });
       return panel;
     }
     // A tool window without a place opens in a tool group at its window edge (VS: right, or bottom).
     if (viewKind(view) === 'tool') {
       const sameKind = this.toolGroupFor(api, view.defaultPosition ?? 'right');
-      if (sameKind) return api.addPanel({ id: view.id, component: view.id, title: view.title, inactive, position: { referencePanel: sameKind, direction: 'within' } });
+      if (sameKind) return api.addPanel({ id, component: view.id, title: view.title, inactive, position: { referencePanel: sameKind, direction: 'within' } });
       if (view.defaultPosition === 'bottom' || !api.getPanel(PANEL.inspector)) {
         const bottom = view.defaultPosition === 'bottom';
-        const panel = api.addPanel({ id: view.id, component: view.id, title: view.title, inactive, position: { direction: bottom ? 'below' : 'right' } });
+        const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, position: { direction: bottom ? 'below' : 'right' } });
         panel.group.api.setSize(bottom ? { height: TOOL_SIZE.bottom } : { width: TOOL_SIZE.side });
         return panel;
       }
     }
     const ref = this.anchorFor(api, view.defaultPosition ?? 'center');
     return api.addPanel({
-      id: view.id,
+      id,
       component: view.id,
       title: view.title,
       inactive,

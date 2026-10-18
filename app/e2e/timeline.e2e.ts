@@ -103,7 +103,7 @@ test.describe('timeline and analysis', () => {
     const card = page.locator('imt-timeline-panel .err-card');
     await expect(card).toContainText('Could not load the timeline');
     await expect(card).toContainText('Simulated queryTimeline failure');
-    await expect(page.locator('app-root > .toast[role=alert]')).toHaveCount(0);
+    await expect(page.locator('imt-root > .toast[role=alert]')).toHaveCount(0);
     await expect(async () => {
       if (await card.count()) await card.getByRole('button', { name: 'Retry' }).click();
       await expect(card).toHaveCount(0, { timeout: 1500 });

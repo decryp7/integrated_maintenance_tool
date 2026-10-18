@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { el, settle } from '../../testing/helpers';
+import { AutoFocus } from './auto-focus';
 import { ClickOutside } from './click-outside';
 import { Icon } from './icon';
 import { MarkerIcon } from './marker-icon';
@@ -21,6 +22,21 @@ class Host {
 }
 
 describe('shared components', () => {
+  it('focuses an imtAutoFocus host once it is rendered', async () => {
+    @Component({ imports: [AutoFocus], template: `<button id="other">x</button>@if (on()) { <input id="auto" imtAutoFocus /> }` })
+    class FocusHost {
+      readonly on = signal(false);
+    }
+    const f = TestBed.createComponent(FocusHost);
+    document.body.appendChild(f.nativeElement as HTMLElement);
+    await settle(f);
+    expect(document.activeElement?.id).not.toBe('auto');
+    f.componentInstance.on.set(true);
+    await settle(f);
+    expect(document.activeElement).toBe(el(f, '#auto'));
+    (f.nativeElement as HTMLElement).remove();
+  });
+
   it('renders built-in and custom marker shapes', async () => {
     const f = TestBed.createComponent(Host);
     await settle(f);
@@ -41,11 +57,12 @@ describe('shared components', () => {
   it('renders icons and tolerates unknown names', async () => {
     const f = TestBed.createComponent(Host);
     await settle(f);
-    expect(el(f, '#i svg').getAttribute('width')).toBe('20');
+    expect(el(f, '#i mat-icon').style.width).toBe('20px');
     expect(el(f, '#i path').getAttribute('d')).toContain('M10.5');
     f.componentInstance.icon.set('nope');
     await settle(f);
-    expect(el(f, '#i path').getAttribute('d')).toBe('');
+    expect(el(f, '#i svg')).toBeTruthy();
+    expect(f.nativeElement.querySelector('#i path')).toBeNull();
   });
 
   it('detects clicks outside and Escape', async () => {

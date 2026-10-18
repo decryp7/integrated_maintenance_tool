@@ -30,7 +30,7 @@ export class RedactionService {
       this.store.applySummary(await this.share.setRedactedView(enabled));
       return true;
     } catch (e) {
-      this.store.setError(`Could not switch the redacted view: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@share.redactionService.switchFailed:Could not switch the redacted view: ${errorMessage(e)}:error:`);
       return false;
     } finally {
       this.busy.set(false);
@@ -51,6 +51,6 @@ export class RedactionService {
   }
 
   async openSettings(): Promise<void> {
-    await this.dialogs.open(RedactionDialog, { title: 'Redaction settings', width: 640 }).closed;
+    await this.dialogs.open(RedactionDialog, { title: $localize`:@@share.redactionService.dialogTitle:Redaction settings`, width: 640 }).closed;
   }
 }

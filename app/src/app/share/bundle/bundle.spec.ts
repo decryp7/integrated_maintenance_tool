@@ -16,6 +16,7 @@ import { BundleBanner } from './bundle-banner';
 import { BundleCommands } from './bundle.commands';
 import { BundleDialog, bundleFileName, formatBytes } from './bundle-dialog';
 import { BundleService, isBundlePath } from './bundle.service';
+import { at } from '../../../testing/must';
 
 const closed = vi.fn();
 const pickSavePath = vi.fn<(title: string, name: string, filters: unknown) => Promise<string | null>>();
@@ -69,7 +70,9 @@ describe('BundleDialog', () => {
     await settle(fixture);
     expect(text(fixture)).toMatch(/· 5 files · 11 events/);
     el<HTMLInputElement>(fixture, 'input[value=raw]').click();
-    const [redact, reports] = [...fixture.nativeElement.querySelectorAll('input[type=checkbox]')] as HTMLInputElement[];
+    const boxes = [...fixture.nativeElement.querySelectorAll('input[type=checkbox]')] as HTMLInputElement[];
+    const redact = at(boxes, 0);
+    const reports = at(boxes, 1);
     redact.click();
     reports.click();
     await wait(250);
@@ -97,8 +100,8 @@ describe('BundleDialog', () => {
     pickSavePath.mockResolvedValueOnce('/out/case.imtz');
     buttonByText(fixture, 'Save bundle…').click();
     await settle(fixture);
-    expect(spy.mock.calls[0][0]).toMatchObject({ name: 'Case 42', content: 'raw', redact: true, reports: [expect.objectContaining({ title: 'Outage' })] });
-    expect(spy.mock.calls[0][0].ui).toEqual(TestBed.inject(UiStateRegistry).serialize());
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({ name: 'Case 42', content: 'raw', redact: true, reports: [expect.objectContaining({ title: 'Outage' })] });
+    expect(spy.mock.calls[0]?.[0].ui).toEqual(TestBed.inject(UiStateRegistry).serialize());
     expect(store.notice()).toBe('Bundle written to case.imtz, redacted (5 values)');
     expect(closed).toHaveBeenCalled();
   });
@@ -179,7 +182,9 @@ describe('BundleService', () => {
 
   it('opens from the dialog and the commands', async () => {
     const { service } = await setup();
-    const [create, open] = TestBed.inject(BundleCommands).commands;
+    const commands = TestBed.inject(BundleCommands).commands;
+    const create = at(commands, 0);
+    const open = at(commands, 1);
     pickOpenPath.mockResolvedValueOnce(null);
     await open.run({} as never);
     expect(service.opened()).toBeNull();
@@ -191,7 +196,7 @@ describe('BundleService', () => {
     expect(create.when!({ summary: null } as never)).toBe(false);
     void create.run({} as never);
     await settle();
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Share as bundle');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Share as bundle');
   });
 
   it('is what OpenRequests uses for .imtz files', async () => {

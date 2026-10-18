@@ -1,7 +1,10 @@
-import { AfterRenderRef, afterEveryRender, ApplicationRef, ComponentRef, createComponent, EnvironmentInjector, ErrorHandler, Injector, Type } from '@angular/core';
+import { AfterRenderRef, afterEveryRender, ApplicationRef, ComponentRef, createComponent, EnvironmentInjector, ErrorHandler, InjectionToken, Injector, Type } from '@angular/core';
 import type { GroupPanelPartInitParameters, IContentRenderer } from 'dockview';
 import { reportFailure } from '../core/failure-reporter';
 import { describeError, Logger, redactPaths } from '../core/logger';
+
+/** Id of the dock panel a view is rendered in; differs from the view id for a view opened several times (`timeline#2`). */
+export const DOCK_PANEL_ID = new InjectionToken<string>('DOCK_PANEL_ID');
 
 /**
  * Adapter that renders an Angular standalone component inside a dockview panel, behind an error boundary.
@@ -36,6 +39,8 @@ export class AngularContentRenderer implements IContentRenderer {
     _appRef: ApplicationRef,
     private readonly injector: EnvironmentInjector,
     private readonly label = 'view',
+    /** The panel id; taken from dockview's init parameters when not given (a pop-out window passes it). */
+    private panelId: string | null = null,
   ) {
     this.element.className = 'imt-panel';
     this.logger = injector.get(Logger, null);
@@ -44,6 +49,7 @@ export class AngularContentRenderer implements IContentRenderer {
   /** The component is created when the panel is first visible, so hidden tabs cost nothing until opened. */
   init(params: GroupPanelPartInitParameters): void {
     const api = params.api;
+    this.panelId ??= api?.id ?? null;
     if (!api || api.isVisible) {
       void this.mount();
       return;
@@ -57,15 +63,17 @@ export class AngularContentRenderer implements IContentRenderer {
     if (this.mounted || this.disposed) return;
     this.mounted = true;
     this.visibility?.dispose();
-    let ref: ComponentRef<unknown> | null = null;
     try {
       const type = await this.load();
       if (this.disposed) return;
       const elementInjector = Injector.create({
-        providers: [{ provide: ErrorHandler, useValue: { handleError: (e: unknown) => this.fail(e) } satisfies ErrorHandler }],
+        providers: [
+          { provide: ErrorHandler, useValue: { handleError: (e: unknown) => this.fail(e) } satisfies ErrorHandler },
+          ...(this.panelId ? [{ provide: DOCK_PANEL_ID, useValue: this.panelId }] : []),
+        ],
         parent: this.injector,
       });
-      ref = createComponent(type, { environmentInjector: this.injector, elementInjector });
+      const ref: ComponentRef<unknown> = createComponent(type, { environmentInjector: this.injector, elementInjector });
       this.ref = ref;
       this.element.appendChild(ref.location.nativeElement as Node);
       // The first render, so a template that throws is caught here rather than on some later tick.
@@ -118,14 +126,14 @@ export class AngularContentRenderer implements IContentRenderer {
     card.setAttribute('role', 'alert');
     card.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:8px;color:var(--text-2);';
     const title = document.createElement('strong');
-    title.textContent = `This panel failed: ${message}`;
+    title.textContent = $localize`:@@dock.panel.failed:This panel failed: ${message}:message:`;
     const hint = document.createElement('span');
-    hint.textContent = `The ${this.label} panel stopped, the rest of the app is unaffected.`;
+    hint.textContent = $localize`:@@dock.panel.stopped:The ${this.label}:label: panel stopped, the rest of the app is unaffected.`;
     const actions = document.createElement('div');
     actions.className = 'imt-panel-actions';
     actions.style.cssText = 'display:flex;gap:8px;';
-    const reload = this.button('Reload panel', () => this.reload());
-    const copy = this.button('Copy details', () => void this.copyDetails(copy));
+    const reload = this.button($localize`:@@dock.panel.reload:Reload panel`, () => this.reload());
+    const copy = this.button($localize`:@@dock.panel.copyDetails:Copy details`, () => void this.copyDetails(copy));
     actions.append(reload, copy);
     card.append(title, hint, actions);
     this.element.appendChild(card);
@@ -154,11 +162,11 @@ export class AngularContentRenderer implements IContentRenderer {
   private async copyDetails(button: HTMLButtonElement): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.lastDetails);
-      button.textContent = 'Copied';
+      button.textContent = $localize`:@@dock.panel.copied:Copied`;
     } catch {
-      button.textContent = 'Copy failed';
+      button.textContent = $localize`:@@dock.panel.copyFailed:Copy failed`;
     }
-    setTimeout(() => (button.textContent = 'Copy details'), 1500);
+    setTimeout(() => (button.textContent = $localize`:@@dock.panel.copyDetails:Copy details`), 1500);
   }
 
   private destroyComponent(): void {
@@ -188,7 +196,7 @@ export class MissingViewRenderer implements IContentRenderer {
   readonly element = document.createElement('div');
   constructor(id: string) {
     this.element.className = 'imt-panel imt-panel-error';
-    this.element.textContent = `The view "${id}" is not available. Close this tab or reset the layout.`;
+    this.element.textContent = $localize`:@@dock.panel.missingView:The view "${id}:id:" is not available. Close this tab or reset the layout.`;
   }
   init(): void {}
 }

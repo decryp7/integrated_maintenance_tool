@@ -9,9 +9,9 @@ import { AiRichText } from '../chat/rich-text';
 export type NarrativeKind = 'explain' | 'summarize' | 'rootCauses';
 
 const WORKING: Record<NarrativeKind, string> = {
-  explain: 'Reading the event and the lines around it…',
-  summarize: 'Reading what happened in this range…',
-  rootCauses: 'Reading the health check and the exceptions…',
+  explain: $localize`:@@ai.narrative.working.explain:Reading the event and the lines around it…`,
+  summarize: $localize`:@@ai.narrative.working.summarize:Reading what happened in this range…`,
+  rootCauses: $localize`:@@ai.narrative.working.rootCauses:Reading the health check and the exceptions…`,
 };
 
 /** "Explain this event", "Summarize this range" and "Root causes": a cited answer from the local model. */
@@ -22,12 +22,12 @@ const WORKING: Record<NarrativeKind, string> = {
   template: `
     @if (busy()) {
       <p class="muted" role="status" aria-live="polite">{{ working() }}</p>
-      <div class="foot"><button type="button" class="btn" (click)="cancel()">Cancel</button></div>
+      <div class="foot"><button type="button" class="btn" (click)="cancel()" i18n="@@ai.narrative.cancel">Cancel</button></div>
     } @else if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
       <div class="foot">
-        <button type="button" class="btn ghost" (click)="ref.close()">Close</button>
-        <button type="button" class="btn primary" (click)="run()">Retry</button>
+        <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.narrative.close">Close</button>
+        <button type="button" class="btn primary" (click)="run()" i18n="@@ai.narrative.retry">Retry</button>
       </div>
     } @else if (result(); as r) {
       <div class="answer" [class.neutral]="notFound()" data-testid="ai-narrative">
@@ -36,8 +36,8 @@ const WORKING: Record<NarrativeKind, string> = {
       @if (note(); as n) {
         <p class="note" role="status">{{ n }}</p>
       }
-      <p class="muted small">Written by the local model from the engine's results; links open the evidence.</p>
-      <div class="foot"><button type="button" class="btn primary" (click)="ref.close()">Close</button></div>
+      <p class="muted small" i18n="@@ai.narrative.footnote">Written by the local model from the engine's results; links open the evidence.</p>
+      <div class="foot"><button type="button" class="btn primary" (click)="ref.close()" i18n="@@ai.narrative.close">Close</button></div>
     }
   `,
   styles: `
@@ -87,7 +87,7 @@ export class AiNarrativeDialog implements OnInit {
       this.result.set(await this.request());
     } catch (e) {
       const err = toAiError(e);
-      this.error.set(err.code === 'cancelled' ? 'Stopped.' : err.message);
+      this.error.set(err.code === 'cancelled' ? $localize`:@@ai.narrative.stopped:Stopped.` : err.message);
     } finally {
       this.busy.set(false);
     }
@@ -104,7 +104,7 @@ export class AiNarrativeDialog implements OnInit {
 
   protected async applyQuery(ql: string): Promise<void> {
     const err = await this.citations.query(ql);
-    if (err) this.note.set(`Not applied: ${err}`);
+    if (err) this.note.set($localize`:@@ai.narrative.notApplied:Not applied: ${err}:error:`);
     else this.ref.close();
   }
 

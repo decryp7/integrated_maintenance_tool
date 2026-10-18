@@ -8,8 +8,8 @@ export function onboardingCommands(): ImtCommand[] {
   const demo = inject(DemoService);
   const tour = inject(TourService);
   return [
-    { id: 'help.demo', title: 'Try the demo', category: 'Help', run: async () => void (await demo.start()) },
-    { id: 'help.tour', title: 'Take the tour', category: 'Help', when: (ctx) => !!ctx.summary?.sources.length, run: () => tour.start() },
+    { id: 'help.demo', title: $localize`:@@onboarding.command.demo:Try the demo`, category: $localize`:@@onboarding.command.category:Help`, run: async () => void (await demo.start()) },
+    { id: 'help.tour', title: $localize`:@@onboarding.command.tour:Take the tour`, category: $localize`:@@onboarding.command.category:Help`, when: (ctx) => !!ctx.summary?.sources.length, run: () => tour.start() },
   ];
 }
 

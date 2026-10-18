@@ -7,6 +7,6 @@ export function reportMenuItems(): RecordMenuContribution {
   const actions = inject(ReportActions);
   return (record, target) => {
     const ids = target.records?.length ? target.records.map((r) => r.id) : [record.id];
-    return [{ label: ids.length > 1 ? `Add ${ids.length} events to report` : 'Add to report', run: () => void actions.addEvents(ids) }];
+    return [{ label: ids.length > 1 ? $localize`:@@share.reportMenu.addMany:Add ${ids.length}:count: events to report` : $localize`:@@share.reportMenu.add:Add to report`, run: () => void actions.addEvents(ids) }];
   };
 }

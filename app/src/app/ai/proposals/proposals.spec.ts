@@ -13,6 +13,7 @@ import { AiBackend } from '../ai-backend';
 import { Proposal, QueryProposal } from '../ai.types';
 import { ProposalApply } from './proposal-apply';
 import { AiProposalCard } from './proposal-card';
+import { at } from '../../../testing/must';
 
 const query: QueryProposal = { kind: 'query', ql: 'level >= error', explanation: 'Errors.', estimatedMatches: 1, repaired: true };
 
@@ -36,11 +37,11 @@ describe('ProposalApply', () => {
     const apply = TestBed.inject(ProposalApply);
     const p = mockRegexProposal(['a']);
     expect(await apply.apply(p)).toEqual({ kind: 'applied', message: 'Highlight rule added.' });
-    expect(open.mock.calls[0][0]).toBe(MarkDialog);
-    expect(open.mock.calls[0][1].inputs).toMatchObject({ initial: [{ field: '@message', op: 'matches', value: p.pattern }], submitLabel: 'Add highlight' });
-    expect((open.mock.calls[0][1].inputs as { suggestedLabel: string }).suggestedLabel.endsWith('…')).toBe(true);
+    expect(at(at(open.mock.calls, 0), 0)).toBe(MarkDialog);
+    expect(at(open.mock.calls, 0)[1]?.inputs).toMatchObject({ initial: [{ field: '@message', op: 'matches', value: p.pattern }], submitLabel: 'Add highlight' });
+    expect((at(open.mock.calls, 0)[1]?.inputs as { suggestedLabel: string }).suggestedLabel.endsWith('…')).toBe(true);
     expect(await apply.apply({ ...p, rationale: ' ' })).toEqual({ kind: 'cancelled' });
-    expect(open.mock.calls[1][1].inputs).toMatchObject({ suggestedLabel: 'AI pattern' });
+    expect(at(open.mock.calls, 1)[1]?.inputs).toMatchObject({ suggestedLabel: 'AI pattern' });
   });
 
   it('applies a query through the query bar', async () => {

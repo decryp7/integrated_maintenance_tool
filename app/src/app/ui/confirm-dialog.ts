@@ -31,8 +31,8 @@ export class ConfirmDialog {
   readonly message = input.required<string>();
   /** A second, smaller line (e.g. the full path). */
   readonly detail = input<string>('');
-  readonly confirmLabel = input('OK');
-  readonly cancelLabel = input('Cancel');
+  readonly confirmLabel = input($localize`:@@ui.confirmDialog.ok:OK`);
+  readonly cancelLabel = input($localize`:@@ui.confirmDialog.cancel:Cancel`);
   /** The confirming action destroys something (e.g. replaces a file). */
   readonly danger = input(false);
 }

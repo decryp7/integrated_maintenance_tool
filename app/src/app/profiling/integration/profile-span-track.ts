@@ -63,7 +63,7 @@ export function layoutSpans(spans: readonly ProfileSpan[], view: { from: number;
         [style.left.%]="s.left"
         [style.top.px]="52 + s.row * 16"
         [title]="title(s)"
-        [attr.aria-label]="(s.span.capture === 'heap' ? 'Open heap snapshot ' : 'Open profile ') + s.span.name + (s.range ? ' on the visible range' : '')"
+        [attr.aria-label]="openLabel(s)"
         (pointerdown)="$event.stopPropagation()"
         (click)="open(s)"
       >{{ s.span.capture === 'heap' ? '◆ ' : '▶ ' }}{{ s.span.name }}</button>
@@ -114,7 +114,20 @@ export class ProfileSpanTrack {
   protected title(s: SpanVm): string {
     const tz = this.workspace.timezone();
     const when = s.span.fromMs === s.span.toMs ? formatDateTime(s.span.fromMs, tz, true) : `${formatDateTime(s.span.fromMs, tz, true)} (${formatDuration(s.span.toMs - s.span.fromMs)})`;
-    return `${s.span.name} — ${when}. Click to open.`;
+    const name = s.span.name;
+    return $localize`:@@profiling.spanTrack.title:${name}:name: — ${when}:when:. Click to open.`;
+  }
+
+  protected openLabel(s: SpanVm): string {
+    const name = s.span.name;
+    if (s.span.capture === 'heap') {
+      return s.range
+        ? $localize`:@@profiling.spanTrack.openHeapRange:Open heap snapshot ${name}:name: on the visible range`
+        : $localize`:@@profiling.spanTrack.openHeap:Open heap snapshot ${name}:name:`;
+    }
+    return s.range
+      ? $localize`:@@profiling.spanTrack.openProfileRange:Open profile ${name}:name: on the visible range`
+      : $localize`:@@profiling.spanTrack.openProfile:Open profile ${name}:name:`;
   }
 
   protected open(s: SpanVm): void {

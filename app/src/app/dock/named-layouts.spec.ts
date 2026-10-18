@@ -14,6 +14,7 @@ import {
   serializeNamedLayouts,
   upsertLayout,
 } from './named-layouts';
+import { at } from '../../testing/must';
 
 const grid = { grid: { root: { type: 'leaf', data: { views: [], id: '1' } }, height: 1, width: 1, orientation: 'HORIZONTAL' }, panels: {} } as never;
 const saved = (): SavedLayout => ({ layout: grid, extras: { ...EMPTY_EXTRAS } });
@@ -56,8 +57,8 @@ describe('upsertLayout', () => {
     const full = Array.from({ length: MAX_NAMED_LAYOUTS }, (_, i) => nl(`l${i}`));
     const next = upsertLayout(full, nl('new'));
     expect(next).toHaveLength(MAX_NAMED_LAYOUTS);
-    expect(next[0].name).toBe('l1');
-    expect(next[next.length - 1].name).toBe('new');
+    expect(at(next, 0).name).toBe('l1');
+    expect(at(next, next.length - 1).name).toBe('new');
     expect(upsertLayout(full, nl('L0'))).toHaveLength(MAX_NAMED_LAYOUTS);
   });
 
@@ -136,13 +137,13 @@ describe('parseNamedLayouts', () => {
   });
 
   it('cleans names and defaults a missing savedAt to 0', () => {
-    const [l] = parseNamedLayouts(wrap([entry(' a\nb ', { savedAt: 'yesterday' })]));
+    const l = at(parseNamedLayouts(wrap([entry(' a\nb ', { savedAt: 'yesterday' })])), 0);
     expect(l.name).toBe('a b');
     expect(l.savedAt).toBe(0);
   });
 
   it('migrates v1 layout envelopes', () => {
-    const [l] = parseNamedLayouts(wrap([entry('old', { envelope: { version: 1, layout: grid } })]));
+    const l = at(parseNamedLayouts(wrap([entry('old', { envelope: { version: 1, layout: grid } })])), 0);
     expect(l.saved).toEqual({ layout: grid, extras: EMPTY_EXTRAS });
   });
 
@@ -212,7 +213,7 @@ describe('NamedLayouts', () => {
     const layouts = new NamedLayouts(store);
     expect(layouts.save('  Debug\n', saved(), 42)).toBe('Debug');
     expect(layouts.list()[0]).toMatchObject({ name: 'Debug', savedAt: 42 });
-    expect(names(store.saves[0])).toEqual(['Debug']);
+    expect(names(at(store.saves, 0))).toEqual(['Debug']);
   });
 
   it('refuses an empty name without touching the store', () => {
@@ -256,6 +257,6 @@ describe('NamedLayouts', () => {
     expect(layouts.find('zzz')).toBeUndefined();
     layouts.remove('a');
     expect(names(layouts.list())).toEqual(['c', 'b']);
-    expect(names(store.saves[store.saves.length - 1])).toEqual(['c', 'b']);
+    expect(names(at(store.saves, store.saves.length - 1))).toEqual(['c', 'b']);
   });
 });

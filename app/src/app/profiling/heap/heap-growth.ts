@@ -17,29 +17,29 @@ import { HeapSelection, sparkline } from './heap-selection';
   template: `
     <div class="bar">
       <fieldset class="snaps">
-        <legend class="muted">Snapshots (oldest first, at least 3)</legend>
+        <legend class="muted" i18n="@@profiling.heapGrowth.snapshots">Snapshots (oldest first, at least 3)</legend>
         @for (h of heaps(); track h.id) {
           <label class="inline"><input type="checkbox" [checked]="chosen().includes(h.id)" (change)="toggle(h.id)" /> {{ h.name }}</label>
         }
       </fieldset>
-      <label class="inline"><input type="checkbox" [checked]="steadyOnly()" (change)="steadyOnly.set($any($event.target).checked)" /> Steady growth only</label>
-      @if (res.data(); as d) { <span class="muted" role="status">{{ d.steadyCount }} type{{ d.steadyCount === 1 ? '' : 's' }} grew in every snapshot</span> }
+      <label class="inline" i18n="@@profiling.heapGrowth.steadyOnly"><input type="checkbox" [checked]="steadyOnly()" (change)="steadyOnly.set($any($event.target).checked)" /> Steady growth only</label>
+      @if (res.data(); as d) { <span class="muted" role="status" i18n="@@profiling.heapGrowth.steadyCount">{d.steadyCount, plural, =1 {{{ d.steadyCount }} type grew in every snapshot} other {{{ d.steadyCount }} types grew in every snapshot}}</span> }
     </div>
     @if (chosen().length < 3) {
-      <div class="state" role="status">Growth needs at least three heap snapshots{{ heaps().length < 3 ? ': open ' + (3 - heaps().length) + ' more' : '' }}.</div>
+      <div class="state" role="status">{{ needMore() }}</div>
     } @else {
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types grew." (retry)="res.retry()">
-        <div class="body tight" tabindex="0" role="region" aria-label="Growth rows">
-          <table class="grid" aria-label="Growth across snapshots">
-            <thead><tr><th scope="col">Type</th><th scope="col">Trend</th><th scope="col">Bytes per snapshot</th><th scope="col" class="num">Growth</th><th scope="col">Flag</th></tr></thead>
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types grew." i18n-emptyText="@@profiling.heapGrowth.empty" (retry)="res.retry()">
+        <div class="body tight" tabindex="0" role="region" aria-label="Growth rows" i18n-aria-label="@@profiling.heapGrowth.rowsRegion">
+          <table class="grid" aria-label="Growth across snapshots" i18n-aria-label="@@profiling.heapGrowth.tableLabel">
+            <thead><tr><th scope="col" i18n="@@profiling.heapGrowth.col.type">Type</th><th scope="col" i18n="@@profiling.heapGrowth.col.trend">Trend</th><th scope="col" i18n="@@profiling.heapGrowth.col.bytes">Bytes per snapshot</th><th scope="col" class="num" i18n="@@profiling.heapGrowth.col.growth">Growth</th><th scope="col" i18n="@@profiling.heapGrowth.col.flag">Flag</th></tr></thead>
             <tbody>
               @for (r of res.data()?.rows ?? []; track r.name) {
                 <tr>
                   <td class="ellipsis fn"><button class="link" type="button" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
-                  <td><svg width="80" height="20" viewBox="0 0 80 20" role="img" [attr.aria-label]="'Trend of ' + r.name + ': ' + seriesText(r.bytes)"><polyline [attr.points]="spark(r.bytes)" fill="none" stroke-width="2" [class.steady]="r.steady" /></svg></td>
+                  <td><svg width="80" height="20" viewBox="0 0 80 20" role="img" [attr.aria-label]="trendLabel(r.name, r.bytes)"><polyline [attr.points]="spark(r.bytes)" fill="none" stroke-width="2" [class.steady]="r.steady" /></svg></td>
                   <td class="mono">{{ seriesText(r.bytes) }}</td>
                   <td class="num" [class.up]="r.growthBytes > 0" [class.down]="r.growthBytes < 0">{{ delta(r.growthBytes, 'bytes') }}</td>
-                  <td>@if (r.steady) { <span class="tag steady" title="Never shrank and grew overall: a leak candidate">⚠ steady growth</span> }</td>
+                  <td>@if (r.steady) { <span class="tag steady" title="Never shrank and grew overall: a leak candidate" i18n-title="@@profiling.heapGrowth.steadyTitle" i18n="@@profiling.heapGrowth.steadyTag">⚠ steady growth</span> }</td>
                 </tr>
               }
             </tbody>
@@ -86,6 +86,18 @@ export class HeapGrowth {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     this.excluded.set(next);
+  }
+
+  protected readonly needMore = computed(() => {
+    const missing = 3 - this.heaps().length;
+    return missing > 0
+      ? $localize`:@@profiling.heapGrowth.needMore:Growth needs at least three heap snapshots: open ${missing}:count: more.`
+      : $localize`:@@profiling.heapGrowth.need:Growth needs at least three heap snapshots.`;
+  });
+
+  protected trendLabel(name: string, bytes: number[]): string {
+    const series = this.seriesText(bytes);
+    return $localize`:@@profiling.heapGrowth.trendLabel:Trend of ${name}:name:: ${series}:series:`;
   }
 
   protected seriesText(values: number[]): string {

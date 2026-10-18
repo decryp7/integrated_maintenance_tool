@@ -7,6 +7,7 @@ import { MockSettingsBackend } from './mock-settings-backend';
 import { SettingsBackend } from './settings-backend';
 import { SettingsFiles } from './settings-files';
 import { SettingsScreen } from './settings-screen';
+import { at } from '../../testing/must';
 
 async function setup(backend = new MockSettingsBackend(), withRef = true) {
   const closed = vi.fn();
@@ -41,7 +42,7 @@ describe('SettingsScreen', () => {
     const groups = all(fixture, 'nav .group').map((g) => g.textContent?.trim());
     expect(groups).toEqual(['Application', 'Diagnostics', 'Plugins', 'AI', 'Advanced']);
     const items = all(fixture, 'nav .nav').map((b) => [...b.querySelectorAll('.name, .badge')].map((x) => x.textContent?.trim()).join(' ') || b.textContent?.trim());
-    expect(items).toEqual(['General', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
+    expect(items).toEqual(['General', 'Storage', 'Window & tray', 'Diagnostics', 'Plugins', 'Windows diagnostics', 'Example plugin disabled', 'AI assistant not installed', 'Workspace']);
     expect(el(fixture, 'nav [aria-current=page]').textContent).toContain('General');
     expect(text(fixture)).toContain('Theme');
   });
@@ -126,7 +127,7 @@ describe('SettingsScreen', () => {
     const { fixture, restart } = await setup();
     nav(fixture, 'Diagnostics').click();
     await settle(fixture);
-    const size = all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]')[0];
+    const size = at(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]'), 0);
     typeInto(size, '20');
     await settle(fixture);
     buttonByText(fixture, 'Apply').click();
@@ -139,7 +140,7 @@ describe('SettingsScreen', () => {
     buttonByText(fixture, 'Reset section').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Diagnostics reset to defaults.');
-    expect(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]')[0].value).toBe('10');
+    expect(all<HTMLInputElement>(fixture, 'imt-setting-field input[type=number]')[0]?.value).toBe('10');
   });
 
   it('shows read-only and not-installed sections with their note', async () => {

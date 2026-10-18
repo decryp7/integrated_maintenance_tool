@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { CAPTURE_TIMEOUT, openApp } from './app';
 
 // Report a problem (mock backend): an error raises the toast, "Report a problem…" opens the dialog that lists
 // what the zip will contain and the steps to reproduce, and Save writes it (the mock records the save).
@@ -18,7 +18,7 @@ test('an error leads to a problem report the user reviews and saves', async ({ p
 
   await page.evaluate(() => void setTimeout(() => { throw new Error('e2e report boom'); }, 0));
   const toast = page.locator('[data-testid=snapshot-toast]');
-  await expect(toast).toContainText('Error captured');
+  await expect(toast).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   await toast.getByRole('button', { name: 'Report a problem…' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Report a problem' });

@@ -12,15 +12,15 @@ import { isAccessDenied } from './tool-errors';
         <span class="text">{{ text }}</span>
         @if (denied()) {
           @if (life.canRestartElevated()) {
-            <button type="button" class="btn" (click)="life.restartElevated()">Restart as administrator</button>
+            <button type="button" class="btn" (click)="life.restartElevated()" i18n="@@tools.elevation.restart">Restart as administrator</button>
           } @else if (!life.elevated()) {
-            <span class="faint">Run IMT as administrator and try again.</span>
+            <span class="faint" i18n="@@tools.elevation.runAsAdmin">Run IMT as administrator and try again.</span>
           }
         }
         @if (retry()) {
-          <button type="button" class="btn" (click)="retried.emit()">Retry</button>
+          <button type="button" class="btn" (click)="retried.emit()" i18n="@@tools.elevation.retry">Retry</button>
         }
-        <button type="button" class="btn ghost" (click)="dismissed.emit()">Dismiss</button>
+        <button type="button" class="btn ghost" (click)="dismissed.emit()" i18n="@@tools.elevation.dismiss">Dismiss</button>
       </div>
     }
   `,

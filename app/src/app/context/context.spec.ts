@@ -16,6 +16,7 @@ import { MatchCounter } from './match-count';
 import { RecordActions } from './record-actions';
 import { GridSelection } from '../grid/grid-selection';
 import { selectionWithin } from './selection';
+import { at } from '../../testing/must';
 
 const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
 
@@ -210,7 +211,7 @@ describe('ExtractDialog', () => {
     expect(text(fixture)).toContain('Store as');
     typeInto(select, 'string', 'change');
     await settle(fixture);
-    const name = all<HTMLInputElement>(fixture, 'input.mono')[1];
+    const name = at(all<HTMLInputElement>(fixture, 'input.mono'), 1);
     typeInto(name, '1bad');
     await settle(fixture);
     expect(buttonByText(fixture, 'Add extractor').disabled).toBe(true);
@@ -267,11 +268,11 @@ describe('RecordActions and the context menu', () => {
     const { rec, actions, dialogs } = await setup();
     const labels = actions.itemsFor(rec).map((i) => i.label);
     expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…']);
-    actions.itemsFor(rec)[0].run();
-    expect(dialogs.stack()[0].component).toBe(DropDialog);
-    expect(dialogs.stack()[0].options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
-    actions.itemsFor(rec)[1].run();
-    expect(dialogs.stack()[1].component).toBe(MarkDialog);
+    at(actions.itemsFor(rec), 0).run();
+    expect(dialogs.stack()[0]?.component).toBe(DropDialog);
+    expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
+    at(actions.itemsFor(rec), 1).run();
+    expect(dialogs.stack()[1]?.component).toBe(MarkDialog);
   });
 
   it('offers field and selection actions', async () => {
@@ -287,19 +288,19 @@ describe('RecordActions and the context menu', () => {
       'Mask in message…',
       'Extract value…',
     ]);
-    items[0].run();
-    items[1].run();
+    at(items, 0).run();
+    at(items, 1).run();
     expect(store.query().filters.map((f) => f.op)).toEqual(['eq', 'ne']);
-    items[2].run();
-    expect(dialogs.stack()[0].options.inputs?.['initial']).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
-    items[3].run();
-    expect(dialogs.stack()[1].options.inputs?.['suggestedLabel']).toBe('MachineName WEB01');
-    items[4].run();
-    items[5].run();
-    items[6].run();
-    items[7].run();
+    at(items, 2).run();
+    expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
+    at(items, 3).run();
+    expect(dialogs.stack()[1]?.options.inputs?.['suggestedLabel']).toBe('MachineName WEB01');
+    at(items, 4).run();
+    at(items, 5).run();
+    at(items, 6).run();
+    at(items, 7).run();
     expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
-    expect(dialogs.stack()[2].options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
+    expect(dialogs.stack()[2]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
     expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(4);
   });
 
@@ -308,11 +309,11 @@ describe('RecordActions and the context menu', () => {
     const other = { ...rec, id: rec.id + 1, message: 'Slow request 2' };
     const infer = (target: Parameters<RecordActions['itemsFor']>[1]) => actions.itemsFor(rec, target).find((i) => i.label === 'Infer pattern from lines…')!.run();
     infer({ records: [rec, other] });
-    expect(dialogs.stack()[0].options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
+    expect(dialogs.stack()[0]?.options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
     infer({ records: [] });
-    expect(dialogs.stack()[1].options.inputs?.['lines']).toEqual([rec.message]);
+    expect(dialogs.stack()[1]?.options.inputs?.['lines']).toEqual([rec.message]);
     infer({});
-    expect(dialogs.stack()[2].options.inputs?.['lines']).toEqual([rec.message]);
+    expect(dialogs.stack()[2]?.options.inputs?.['lines']).toEqual([rec.message]);
   });
 
   it('infers from the grid multi-selection for the palette command, else from the selected record', async () => {
@@ -324,19 +325,19 @@ describe('RecordActions and the context menu', () => {
     expect(dialogs.stack()).toHaveLength(0);
     store.select(rec);
     expect(actions.inferSelected()).toBe(true);
-    expect(dialogs.stack()[0].options.inputs?.['lines']).toEqual([rec.message]);
+    expect(dialogs.stack()[0]?.options.inputs?.['lines']).toEqual([rec.message]);
     grid.publish([rec, other]);
     expect(actions.inferSelected()).toBe(true);
-    expect(dialogs.stack()[1].options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
+    expect(dialogs.stack()[1]?.options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
   });
 
   it('offers a logger filter on rows that have one and truncates long labels', async () => {
     const { rec, actions, dialogs } = await setup();
     const withContext = { ...rec, fields: { ...rec.fields, SourceContext: 'Web.Requests' }, template: 'x'.repeat(80) };
     const items = actions.itemsFor(withContext);
-    expect(items[0].label).toBe('Filter: only this SourceContext');
+    expect(items[0]?.label).toBe('Filter: only this SourceContext');
     actions.mark(withContext);
-    expect(String(dialogs.stack()[0].options.inputs?.['suggestedLabel'])).toHaveLength(41);
+    expect(String(dialogs.stack()[0]?.options.inputs?.['suggestedLabel'])).toHaveLength(41);
   });
 
   it('opens at the pointer or below the focused element, with keyboard navigation', async () => {
@@ -381,7 +382,7 @@ describe('RecordActions and the context menu', () => {
 
     actions.openFor({ type: 'keydown', currentTarget: button, target: button } as unknown as KeyboardEvent, rec);
     await settle(fixture);
-    all<HTMLButtonElement>(fixture, '[role=menuitem]')[0].click();
+    at(all<HTMLButtonElement>(fixture, '[role=menuitem]'), 0).click();
     await settle(fixture);
     expect(menu.menu()).toBeNull();
     actions.openAtElement(null, rec);

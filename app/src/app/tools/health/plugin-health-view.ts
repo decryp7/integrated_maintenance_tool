@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { PluginStatus } from '../../core/api.types';
 import { ToolError } from '../elevation-hint';
 import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
 
@@ -8,53 +9,53 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
-    <div class="scroll" role="region" aria-label="Plugin health" tabindex="0">
-      <p class="intro">A plugin that keeps failing is quarantined so it cannot disturb your work. Reset it to try again, or disable it from the next start.</p>
+    <div class="scroll" role="region" aria-label="Plugin health" i18n-aria-label="@@tools.health.region" tabindex="0">
+      <p class="intro" i18n="@@tools.health.intro">A plugin that keeps failing is quarantined so it cannot disturb your work. Reset it to try again, or disable it from the next start.</p>
       <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.needsRestart()) {
         <div class="restart" role="status">
-          <span>Plugin changes apply after a restart.</span>
-          <button type="button" class="btn primary" (click)="store.restart()">Restart to apply</button>
+          <span i18n="@@tools.health.restartNote">Plugin changes apply after a restart.</span>
+          <button type="button" class="btn primary" (click)="store.restart()" i18n="@@tools.health.restartApply">Restart to apply</button>
         </div>
       }
       @if (store.plugins().length) {
-        <ul class="list" aria-label="Plugin health">
+        <ul class="list" aria-label="Plugin health" i18n-aria-label="@@tools.health.list">
           @for (p of store.plugins(); track p.id) {
             <li class="plugin" [attr.data-status]="p.status">
               <div class="top">
                 <strong>{{ p.name }}</strong> <span class="mono faint">v{{ p.version }}</span>
-                <span class="badge" [class]="'st ' + p.status" data-testid="plugin-status">{{ p.status }}</span>
-                @if (p.hung) { <span class="badge st hung" data-testid="plugin-hung" title="A call is running past its time budget right now">not responding</span> }
-                @if (p.pendingEnabled !== null) { <span class="badge">{{ p.pendingEnabled ? 'will be enabled' : 'will be disabled' }}</span> }
+                <span class="badge" [class]="'st ' + p.status" data-testid="plugin-status">{{ statusLabel(p.status) }}</span>
+                @if (p.hung) { <span class="badge st hung" data-testid="plugin-hung" title="A call is running past its time budget right now" i18n-title="@@tools.health.hung.title" i18n="@@tools.health.hung">not responding</span> }
+                @if (p.pendingEnabled !== null) { <span class="badge">{{ p.pendingEnabled ? willEnable : willDisable }}</span> }
                 <span class="mono faint id">{{ p.id }}</span>
               </div>
-              @if (p.failures > 0) { <div class="fail">{{ p.failures }} failure{{ p.failures === 1 ? '' : 's' }}</div> }
+              @if (p.failures > 0) { <div class="fail" i18n="@@tools.health.failures">{p.failures, plural, =1 {{{ p.failures }} failure} other {{{ p.failures }} failures}}</div> }
               @if (p.lastError) { <div class="err mono" [title]="p.lastError">{{ p.lastError }}</div> }
-              @if (p.inactiveReason) { <div class="reason" data-testid="inactive-reason">Not running: {{ p.inactiveReason }}</div> }
+              @if (p.inactiveReason) { <div class="reason" data-testid="inactive-reason" i18n="@@tools.health.notRunning">Not running: {{ p.inactiveReason }}</div> }
               @if (p.requires.length || p.provides.length || p.dependents.length) {
                 <dl class="deps">
                   @if (p.requires.length) {
-                    <dt>Requires</dt>
-                    <dd>@for (d of p.requires; track d.id) { <span class="badge mono" [title]="d.optional ? 'Optional dependency' : 'Required dependency'">{{ d.id }} {{ d.req }}{{ d.optional ? ' (optional)' : '' }}</span> }</dd>
+                    <dt i18n="@@tools.health.requires">Requires</dt>
+                    <dd>@for (d of p.requires; track d.id) { <span class="badge mono" [title]="d.optional ? optionalDep : requiredDep">{{ d.id }} {{ d.req }}{{ d.optional ? ' ' + optionalSuffix : '' }}</span> }</dd>
                   }
                   @if (p.provides.length) {
-                    <dt>Provides</dt>
+                    <dt i18n="@@tools.health.provides">Provides</dt>
                     <dd>@for (sv of p.provides; track sv.id) { <span class="badge mono">{{ sv.id }} {{ sv.version }}</span> }</dd>
                   }
                   @if (p.dependents.length) {
-                    <dt>Needed by</dt>
-                    <dd>@for (d of p.dependents; track d) { <span class="badge mono">{{ d }}</span> } <span class="faint">(they stop when this plugin stops)</span></dd>
+                    <dt i18n="@@tools.health.neededBy">Needed by</dt>
+                    <dd>@for (d of p.dependents; track d) { <span class="badge mono">{{ d }}</span> } <span class="faint" i18n="@@tools.health.dependentsStop">(they stop when this plugin stops)</span></dd>
                   }
                 </dl>
               }
               @if (p.warnings.length) {
-                <ul class="warnings" aria-label="Warnings">
+                <ul class="warnings" aria-label="Warnings" i18n-aria-label="@@tools.health.warnings">
                   @for (w of p.warnings; track $index) { <li>{{ w }}</li> }
                 </ul>
               }
               @if (store.eventsByPlugin().get(p.id); as subs) {
-                <table class="events" [attr.aria-label]="'Events delivered to ' + p.name">
-                  <thead><tr><th scope="col">Event</th><th scope="col" class="num">Delivered</th><th scope="col" class="num">Dropped</th><th scope="col" class="num">Failures</th><th scope="col" class="num">Queued</th></tr></thead>
+                <table class="events" [attr.aria-label]="eventsLabel(p.name)">
+                  <thead><tr><th scope="col" i18n="@@tools.health.col.event">Event</th><th scope="col" class="num" i18n="@@tools.health.col.delivered">Delivered</th><th scope="col" class="num" i18n="@@tools.health.col.dropped">Dropped</th><th scope="col" class="num" i18n="@@tools.health.col.failures">Failures</th><th scope="col" class="num" i18n="@@tools.health.col.queued">Queued</th></tr></thead>
                   <tbody>
                     @for (m of subs; track m.id) {
                       <tr [class.bad]="m.dropped > 0 || m.failures > 0">
@@ -70,23 +71,23 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
               }
               <div class="actions">
                 @if (p.status === 'quarantined') {
-                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.reset(p.id)">Reset</button>
+                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.reset(p.id)" i18n="reset a quarantined plugin|@@tools.health.reset">Reset</button>
                 }
                 @if (isOn(p)) {
-                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, false)">Disable</button>
+                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, false)" i18n="@@tools.health.disable">Disable</button>
                 } @else {
-                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, true)">Enable</button>
+                  <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, true)" i18n="@@tools.health.enable">Enable</button>
                 }
               </div>
             </li>
           }
         </ul>
       } @else {
-        <p class="faint">No plugins are loaded.</p>
+        <p class="faint" i18n="@@tools.health.none">No plugins are loaded.</p>
       }
       <div class="events-bar">
-        @if (store.eventsError(); as e) { <span class="err" role="alert">Event counters unavailable: {{ e }}</span> }
-        <button type="button" class="btn" (click)="store.loadEvents()">Refresh event counters</button>
+        @if (store.eventsError(); as e) { <span class="err" role="alert" i18n="@@tools.health.eventsUnavailable">Event counters unavailable: {{ e }}</span> }
+        <button type="button" class="btn" (click)="store.loadEvents()" i18n="@@tools.health.refreshEvents">Refresh event counters</button>
       </div>
     </div>
   `,
@@ -125,6 +126,25 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
 export class PluginHealthView {
   protected readonly store = inject(PluginHealthStore);
   protected readonly event = eventName;
+  protected readonly willEnable = $localize`:@@tools.health.willEnable:will be enabled`;
+  protected readonly willDisable = $localize`:@@tools.health.willDisable:will be disabled`;
+  protected readonly optionalDep = $localize`:@@tools.health.optionalDep:Optional dependency`;
+  protected readonly requiredDep = $localize`:@@tools.health.requiredDep:Required dependency`;
+  protected readonly optionalSuffix = $localize`:@@tools.health.optionalSuffix:(optional)`;
+  private readonly statusLabels: Record<PluginStatus, string> = {
+    active: $localize`:@@tools.health.status.active:active`,
+    disabled: $localize`:@@tools.health.status.disabled:disabled`,
+    quarantined: $localize`:@@tools.health.status.quarantined:quarantined`,
+    inactive: $localize`:@@tools.health.status.inactive:inactive`,
+  };
+
+  protected statusLabel(status: PluginStatus): string {
+    return this.statusLabels[status] ?? status;
+  }
+
+  protected eventsLabel(name: string): string {
+    return $localize`:@@tools.health.eventsFor:Events delivered to ${name}:plugin:`;
+  }
 
   constructor() {
     void this.store.loadEvents();

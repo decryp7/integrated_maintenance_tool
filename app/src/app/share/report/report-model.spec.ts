@@ -4,6 +4,7 @@ import { parseInline, parseMarkdown } from './markdown';
 import { addBlock, blocksOf, locate, moveBlock, moveSection, newReport, newSection, parseReports, removeBlock, updateBlock, withId } from './report-model';
 import { reportEventIds, reportText } from './report-text';
 import { ReportStore } from './report.store';
+import { at } from '../../../testing/must';
 
 const text = (markdown: string): ReportBlock => withId({ type: 'text', markdown });
 
@@ -12,7 +13,7 @@ function sample(): Report {
   const a = text('a');
   const b = text('b');
   const c = text('c');
-  return { ...r, sections: [{ ...r.sections[0], blocks: [a, b] }, { id: 's2', title: 'Two', blocks: [c] }] };
+  return { ...r, sections: [{ ...at(r.sections, 0), blocks: [a, b] }, { id: 's2', title: 'Two', blocks: [c] }] };
 }
 
 const order = (r: Report) => blocksOf(r).map((b) => (b as { markdown: string }).markdown);
@@ -21,14 +22,14 @@ describe('report model', () => {
   it('creates reports, sections and blocks with ids', () => {
     const r = newReport(undefined, 5);
     expect(r).toMatchObject({ version: 1, title: 'Incident report', createdAt: 5, updatedAt: 5, summary: '' });
-    expect(r.sections[0].title).toBe('Timeline');
+    expect(r.sections[0]?.title).toBe('Timeline');
     expect(newSection().title).toBe('Section');
     expect(withId({ type: 'text', markdown: 'x' }).id).toMatch(/^blk/);
   });
 
   it('adds to a section, the last one by default, or a new one', () => {
     const r = sample();
-    expect(order(addBlock(r, text('d'), r.sections[0].id, 9))).toEqual(['a', 'b', 'd', 'c']);
+    expect(order(addBlock(r, text('d'), r.sections[0]?.id, 9))).toEqual(['a', 'b', 'd', 'c']);
     expect(order(addBlock(r, text('d'), 'nope'))).toEqual(['a', 'b', 'c', 'd']);
     const empty = { ...r, sections: [] };
     const added = addBlock(empty, text('x'), null, 7);
@@ -38,24 +39,26 @@ describe('report model', () => {
 
   it('updates and removes blocks but never their id or type', () => {
     const r = sample();
-    const id = r.sections[0].blocks[0].id;
+    const id = at(at(r.sections, 0).blocks, 0).id;
     const u = updateBlock(r, id, { markdown: 'A', id: 'other', type: 'events' } as never);
-    expect(u.sections[0].blocks[0]).toEqual({ id, type: 'text', markdown: 'A' });
+    expect(u.sections[0]?.blocks[0]).toEqual({ id, type: 'text', markdown: 'A' });
     expect(order(removeBlock(r, id))).toEqual(['b', 'c']);
     expect(locate(r, 'missing')).toBeNull();
-    expect(locate(r, r.sections[1].blocks[0].id)).toEqual({ section: 1, index: 0 });
+    expect(locate(r, at(at(r.sections, 1).blocks, 0).id)).toEqual({ section: 1, index: 0 });
   });
 
   it('moves blocks within and across sections, and stops at the ends', () => {
     const r = sample();
-    const [a, b] = r.sections[0].blocks;
-    const c = r.sections[1].blocks[0];
+    const blocks = at(r.sections, 0).blocks;
+    const a = at(blocks, 0);
+    const b = at(blocks, 1);
+    const c = at(at(r.sections, 1).blocks, 0);
     expect(order(moveBlock(r, a.id, 1))).toEqual(['b', 'a', 'c']);
     expect(order(moveBlock(r, b.id, -1))).toEqual(['b', 'a', 'c']);
     const down = moveBlock(r, b.id, 1);
-    expect(down.sections[1].blocks.map((x) => x.id)).toEqual([b.id, c.id]);
+    expect(down.sections[1]?.blocks.map((x) => x.id)).toEqual([b.id, c.id]);
     const up = moveBlock(r, c.id, -1);
-    expect(up.sections[0].blocks.map((x) => x.id)).toEqual([a.id, b.id, c.id]);
+    expect(up.sections[0]?.blocks.map((x) => x.id)).toEqual([a.id, b.id, c.id]);
     expect(moveBlock(r, a.id, -1)).toBe(r);
     expect(moveBlock(r, c.id, 1)).toBe(r);
     expect(moveBlock(r, 'missing', 1)).toBe(r);
@@ -63,7 +66,7 @@ describe('report model', () => {
 
   it('moves sections', () => {
     const r = sample();
-    expect(moveSection(r, 's2', -1).sections.map((s) => s.id)).toEqual(['s2', r.sections[0].id]);
+    expect(moveSection(r, 's2', -1).sections.map((s) => s.id)).toEqual(['s2', at(r.sections, 0).id]);
     expect(moveSection(r, 's2', 1)).toBe(r);
     expect(moveSection(r, 'x', 1)).toBe(r);
   });
@@ -73,15 +76,15 @@ describe('report model', () => {
     const parsed = parseReports([null, { id: '' }, { id: 'r', sections: [null, { id: 's', blocks: [{ id: 'b', type: 'text', markdown: 'x' }, { id: 1 }, null] }, { title: 'no id' }] }, { id: 'q', version: 2, title: 'T', summary: 'S', createdAt: 1, updatedAt: 2, sections: 'nope' }]);
     expect(parsed).toHaveLength(2);
     expect(parsed[0]).toMatchObject({ version: 1, title: '', summary: '', createdAt: 0, updatedAt: 0 });
-    expect(parsed[0].sections).toEqual([{ id: 's', title: '', blocks: [{ id: 'b', type: 'text', markdown: 'x' }] }]);
+    expect(parsed[0]?.sections).toEqual([{ id: 's', title: '', blocks: [{ id: 'b', type: 'text', markdown: 'x' }] }]);
     expect(parsed[1]).toMatchObject({ version: 2, title: 'T', summary: 'S', sections: [] });
-    expect(parseReports([{ id: 'x', sections: [{ id: 's', title: 'T', blocks: 'x' }] }])[0].sections[0].blocks).toEqual([]);
+    expect(at(parseReports([{ id: 'x', sections: [{ id: 's', title: 'T', blocks: 'x' }] }]), 0).sections[0]?.blocks).toEqual([]);
   });
 
   it('collects the free text and event ids of a report', () => {
     const r = newReport('Title', 1);
     r.summary = 'Summary';
-    r.sections[0].blocks = [
+    at(r.sections, 0).blocks = [
       withId({ type: 'text', markdown: 'md' }),
       withId({ type: 'events', caption: 'cap', ids: [3, 1, 3] }),
       withId({ type: 'chart', title: 'chart t', caption: '' }),

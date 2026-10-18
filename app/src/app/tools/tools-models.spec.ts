@@ -4,6 +4,7 @@ import { DEFAULT_PLAN, formatBytes, joinLines, newLogSpec, optionalNumber, parse
 import { DEFAULT_MONITOR_DRAFT, invalidRows, rowToTarget, toMonitorConfig, validateMonitor } from './monitor/monitor-model';
 import { addProcess, DEFAULT_DRAFT, fullPresets, normaliseProcess, presetState, toggleCounter, togglePreset, toTemplate, validateDraft } from './perfmon/perfmon-model';
 import { baseName, errorMessage, isAccessDenied } from './tool-errors';
+import { at } from '../../testing/must';
 
 const presets: CounterPreset[] = [
   { id: 'cpu', name: 'CPU', description: '', counters: [{ path: 'a', guidance: null }, { path: 'b', guidance: 'g' }] },
@@ -44,7 +45,7 @@ describe('plan model', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.plan.name).toBe('x');
-      expect(r.plan.logs[0].include).toEqual(newLogSpec().include);
+      expect(r.plan.logs[0]?.include).toEqual(newLogSpec().include);
       expect(r.plan.redact).toEqual({ builtIn: false, ipAddresses: true, patterns: [] });
       expect(r.plan.eventLogDays).toBe(7);
       expect((r.plan as unknown as Record<string, unknown>)['bogus']).toBe(1);
@@ -104,11 +105,11 @@ describe('perfmon model', () => {
   });
 
   it('tracks preset selection state and toggles', () => {
-    expect(presetState(presets[0], [])).toBe('none');
-    expect(presetState(presets[0], ['a'])).toBe('some');
-    expect(presetState(presets[0], ['a', 'b'])).toBe('all');
-    expect(togglePreset(presets[0], ['a'])).toEqual(['a', 'b']);
-    expect(togglePreset(presets[0], ['a', 'b', 'c'])).toEqual(['c']);
+    expect(presetState(at(presets, 0), [])).toBe('none');
+    expect(presetState(at(presets, 0), ['a'])).toBe('some');
+    expect(presetState(at(presets, 0), ['a', 'b'])).toBe('all');
+    expect(togglePreset(at(presets, 0), ['a'])).toEqual(['a', 'b']);
+    expect(togglePreset(at(presets, 0), ['a', 'b', 'c'])).toEqual(['c']);
     expect(toggleCounter(['a'], 'b')).toEqual(['a', 'b']);
     expect(toggleCounter(['a', 'b'], 'a')).toEqual(['b']);
     expect(fullPresets(presets, ['a', 'b', 'c'])).toEqual(['cpu', 'mem']);
@@ -147,8 +148,9 @@ describe('monitor model', () => {
     const d = { ...DEFAULT_MONITOR_DRAFT, targets: [{ kind: 'pid' as const, value: 'x' }, { kind: 'name' as const, value: 'a' }], intervalMs: 100 };
     expect(invalidRows(d)).toEqual(['"x" is not a valid process id.']);
     expect(validateMonitor(d)).toHaveLength(2);
-    expect(toMonitorConfig({ ...d, intervalMs: 500, counters: ' \\a \n\n\\b ', cpu: 'core', includeChildren: true })).toEqual({
-      targets: [{ name: 'a' }], intervalMs: 500, cpu: 'core', counters: ['\\a', '\\b'], includeChildren: true,
+    expect(toMonitorConfig({ ...d, intervalMs: 500, counters: ' \\a \n\n\\b ', cpu: 'core', includeChildren: true, dotnet: true })).toEqual({
+      targets: [{ name: 'a' }], intervalMs: 500, cpu: 'core', counters: ['\\a', '\\b'], includeChildren: true, dotnet: true,
     });
+    expect(toMonitorConfig({ ...d, dotnet: false })).not.toHaveProperty('dotnet');
   });
 });

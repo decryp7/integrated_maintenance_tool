@@ -3,6 +3,7 @@ import { FlameGraph, HeapSummary, ProfileSummary, ProfileView } from '../api.typ
 import { MockProfilingBackend, PROFILING_FAILABLE } from './mock-profiling';
 import { HEAP_TAKEN_MS, heapSnapshot, MOCK_CAPTURE_PATHS, ORDERS_STARTED_MS, ordersProfile, REGRESSION_STARTED_MS, regressionProfile } from './mock-profiling-data';
 import { transformStack, viewSamples } from './mock-profiling-engine';
+import { at } from '../../../testing/must';
 
 async function demo(options = {}) {
   const b = new MockProfilingBackend(options);
@@ -177,7 +178,7 @@ describe('MockProfilingBackend: options', () => {
   });
 
   it('opens the preopen paths before the first call (once, ignoring bad ones throws)', async () => {
-    const b = new MockProfilingBackend({ preopen: [MOCK_CAPTURE_PATHS[0], MOCK_CAPTURE_PATHS[2]] });
+    const b = new MockProfilingBackend({ preopen: [at(MOCK_CAPTURE_PATHS, 0), at(MOCK_CAPTURE_PATHS, 2)] });
     expect((await b.list()).map((c) => c.name)).toEqual(['orders.speedscope.json', 'heap-1.heapsnapshot']);
     expect(await b.list()).toHaveLength(2);
     const bad = new MockProfilingBackend({ preopen: ['/x/readme.txt'] });
@@ -205,9 +206,9 @@ describe('MockProfilingBackend: hotspots', () => {
     const { b } = await demo();
     const r = await b.framePaths({ profileId: 1, frame: 4 });
     expect(r.totalPaths).toBeGreaterThan(0);
-    expect(r.paths[0].path.at(-1)).toBe(4);
-    expect(r.paths[0].frames.map((f) => f.id)).toEqual(r.paths[0].path);
-    expect(r.paths[0].path.filter((id) => id === 4)).toHaveLength(1);
+    expect(at(r.paths, 0).path.at(-1)).toBe(4);
+    expect(at(r.paths, 0).frames.map((f) => f.id)).toEqual(at(r.paths, 0).path);
+    expect(at(r.paths, 0).path.filter((id) => id === 4)).toHaveLength(1);
     const values = r.paths.map((x) => x.value);
     expect(values).toEqual([...values].sort((x, y) => y - x));
     expect((await b.framePaths({ profileId: 1, frame: 4, view: { threads: [3] } })).totalPaths, 'not in this view').toBe(0);
@@ -225,8 +226,8 @@ describe('MockProfilingBackend: hotspots', () => {
     expect(page.totalRows).toBe(page.rows.length);
     const selfs = page.rows.map((r) => r.self.timeNs ?? 0);
     expect(selfs).toEqual([...selfs].sort((a, b2) => b2 - a));
-    expect(page.rows[0].frame).not.toBeNull();
-    expect(page.rows[0].avgPerCallNs).toBeGreaterThan(0);
+    expect(at(page.rows, 0).frame).not.toBeNull();
+    expect(at(page.rows, 0).avgPerCallNs).toBeGreaterThan(0);
     const sumSelfPct = page.rows.reduce((a, r) => a + r.selfPct, 0);
     expect(sumSelfPct).toBeCloseTo(100, 5);
   });
@@ -391,7 +392,7 @@ describe('just my code and recursion folding', () => {
   });
 
   it('viewSamples keeps samples inclusive of both range ends', () => {
-    const s = viewSamples(p, { range: { fromNs: p.samples[0].t, toNs: p.samples[0].t } });
+    const s = viewSamples(p, { range: { fromNs: at(p.samples, 0).t, toNs: at(p.samples, 0).t } });
     expect(s).toHaveLength(1);
   });
 });
@@ -403,9 +404,9 @@ describe('MockProfilingBackend: call tree', () => {
     expect(root.measurement).toBe('sampled');
     expect(root.metric).toBe('timeNs');
     expect(root.totalChildren).toBe(root.nodes.length);
-    expect(root.nodes[0].frame.name).toBe('Shop.Orders.Program.Main');
-    expect(root.nodes[0].totalPct).toBeCloseTo(100, 5);
-    expect(root.nodes[0].hasChildren).toBe(true);
+    expect(at(root.nodes, 0).frame.name).toBe('Shop.Orders.Program.Main');
+    expect(at(root.nodes, 0).totalPct).toBeCloseTo(100, 5);
+    expect(at(root.nodes, 0).hasChildren).toBe(true);
     const kids = await b.tree({ profileId: 1, path: [0] });
     const totals = kids.nodes.map((n) => n.total.timeNs ?? 0);
     expect(totals).toEqual(totals.slice().sort((x, y) => y - x));
@@ -459,9 +460,9 @@ describe('MockProfilingBackend: butterfly', () => {
     const bf = await b.butterfly({ profileId: 1, frame: 3 });
     expect(bf.function.name).toBe('Shop.Orders.OrderService.Place');
     expect(bf.callers.map((r) => r.frame?.id)).toEqual([2]);
-    expect(bf.callers[0].pct).toBeCloseTo(100, 5);
+    expect(at(bf.callers, 0).pct).toBeCloseTo(100, 5);
     expect(bf.callees.map((r) => r.frame?.id)).toContain(8);
-    expect(bf.callees.every((r, i, a) => i === 0 || (a[i - 1].values.timeNs ?? 0) >= (r.values.timeNs ?? 0))).toBe(true);
+    expect(bf.callees.every((r, i, a) => i === 0 || (at(a, i - 1).values.timeNs ?? 0) >= (r.values.timeNs ?? 0))).toBe(true);
     expect(bf.metric).toBe('timeNs');
   });
 
@@ -494,7 +495,7 @@ describe('MockProfilingBackend: flame graph', () => {
     g.rects.forEach((r, i) => {
       if (r.depth === 0) expect(r.parent).toBeNull();
       else {
-        const p = g.rects[r.parent!];
+        const p = at(g.rects, r.parent!);
         expect(r.parent!).toBeLessThan(i);
         expect(p.depth + 1).toBe(r.depth);
         expect(r.x).toBeGreaterThanOrEqual(p.x - 1e-9);
@@ -514,8 +515,8 @@ describe('MockProfilingBackend: flame graph', () => {
     expect(g.maxDepth).toBe(Math.max(...g.rects.map((r) => r.depth)));
     expect(sumWidth(g, 0)).toBeCloseTo(1, 6);
     const depth0 = g.rects.filter((r) => r.depth === 0);
-    expect(depth0[0].frame).toBe(0);
-    expect(depth0[0].x).toBe(0);
+    expect(at(depth0, 0).frame).toBe(0);
+    expect(at(depth0, 0).x).toBe(0);
     const usedFrames = new Set(g.rects.map((r) => r.frame));
     expect(g.frames.map((f) => f.id).sort((x, y) => x - y)).toEqual([...usedFrames].sort((x, y) => x - y));
     const level1 = g.rects.filter((r) => r.depth === 1).map((r) => g.frames.find((f) => f.id === r.frame)!.name);
@@ -544,7 +545,7 @@ describe('MockProfilingBackend: flame graph', () => {
     const top = g.rects.filter((r) => r.depth === 0);
     expect(top).toHaveLength(1);
     expect(top[0]).toMatchObject({ frame: 3, x: 0, w: 1 });
-    expect(g.focusValue).toBe(top[0].value);
+    expect(g.focusValue).toBe(at(top, 0).value);
     expect(g.grandTotal).toBeGreaterThan(g.focusValue);
     expect(await rejection(b.flame({ ...req, focus: [9, 9] }))).toContain('no call-tree node at path');
   });
@@ -554,8 +555,8 @@ describe('MockProfilingBackend: flame graph', () => {
     const g = await b.flame({ ...req, search: 'orderrepository' });
     const matched = g.rects.filter((r) => r.matched);
     expect(matched.map((r) => g.frames.find((f) => f.id === r.frame)?.name)).toEqual(['Shop.Orders.Data.OrderRepository.Save']);
-    expect(g.matchedValue).toBe(matched[0].value);
-    expect(g.matchedPct).toBeCloseTo((matched[0].value / g.focusValue) * 100, 6);
+    expect(g.matchedValue).toBe(at(matched, 0).value);
+    expect(g.matchedPct).toBeCloseTo((at(matched, 0).value / g.focusValue) * 100, 6);
     // a plain search treats regex characters literally
     expect((await b.flame({ ...req, search: 'Order.*' })).matchedValue).toBe(0);
     expect((await b.flame(req)).matchedPct).toBe(0);
@@ -676,7 +677,7 @@ describe('MockProfilingBackend: function diff', () => {
     const { b } = await demo();
     const get = async (sort: 'absDeltaSelf' | 'absDeltaTotal' | 'deltaSelf' | 'deltaTotal' | 'name' | undefined) =>
       (await b.functionDiff({ baselineId: 1, targetId: 2, sort, limit: 100 })).rows;
-    const isSorted = <T>(xs: T[], key: (x: T) => number, dir: 1 | -1) => xs.every((x, i) => i === 0 || (key(xs[i - 1]) - key(x)) * dir >= 0);
+    const isSorted = <T>(xs: T[], key: (x: T) => number, dir: 1 | -1) => xs.every((x, i) => i === 0 || (key(at(xs, i - 1)) - key(x)) * dir >= 0);
     expect(isSorted(await get('absDeltaSelf'), (r) => Math.abs(r.deltaSelfPct), 1)).toBe(true);
     expect(isSorted(await get(undefined), (r) => Math.abs(r.deltaSelfPct), 1)).toBe(true);
     expect(isSorted(await get('absDeltaTotal'), (r) => Math.abs(r.deltaTotalPct), 1)).toBe(true);
@@ -720,7 +721,7 @@ describe('MockProfilingBackend: threads', () => {
   it('defaults to 400 buckets and uses the range for the axis', async () => {
     const { b } = await demo();
     const t = await b.threads({ profileId: 1, view: { range: { fromNs: 1_000_000_000, toNs: 2_000_000_000 } } });
-    expect(t.threads[0].buckets).toHaveLength(400);
+    expect(at(t.threads, 0).buckets).toHaveLength(400);
     expect([t.fromNs, t.toNs]).toEqual([1_000_000_000, 2_000_000_000]);
     expect(t.bucketNs).toBe(2_500_000);
     expect(t.events.every((e) => e.startNs + e.durNs >= 1_000_000_000 && e.startNs <= 2_000_000_000)).toBe(true);
@@ -730,8 +731,8 @@ describe('MockProfilingBackend: threads', () => {
     const { b } = await demo();
     expect(await rejection(b.threads({ profileId: 1, buckets: 0 }))).toBe('buckets must be 1..4000');
     expect(await rejection(b.threads({ profileId: 1, buckets: 4001 }))).toBe('buckets must be 1..4000');
-    expect((await b.threads({ profileId: 1, buckets: 4000 })).threads[0].buckets).toHaveLength(4000);
-    expect((await b.threads({ profileId: 1, buckets: 1 })).threads[0].buckets).toHaveLength(1);
+    expect(at((await b.threads({ profileId: 1, buckets: 4000 })).threads, 0).buckets).toHaveLength(4000);
+    expect(at((await b.threads({ profileId: 1, buckets: 1 })).threads, 0).buckets).toHaveLength(1);
   });
 
   it('filters events by kind and thread, truncates at maxEvents, and honours the metric', async () => {
@@ -773,7 +774,7 @@ describe('MockProfilingBackend: findings', () => {
     expect(f.find((x) => x.kind === 'gcPressure')!.evidence).toMatchObject({ view: 'timeline', frame: null, path: [], eventKind: 'gc' });
     const tops = f.filter((x) => x.kind === 'topSelf');
     expect(tops.map((t) => t.evidence.view)).toEqual(['hotspots', 'flame'].slice(0, tops.length));
-    expect(tops[0].valuePct).toBeGreaterThanOrEqual(tops[1]?.valuePct ?? 0);
+    expect(at(tops, 0).valuePct).toBeGreaterThanOrEqual(tops[1]?.valuePct ?? 0);
   });
 
   it('adds regressions against a baseline with the baseline id in the evidence', async () => {
@@ -783,7 +784,7 @@ describe('MockProfilingBackend: findings', () => {
     expect(regressions.length).toBeGreaterThan(0);
     expect(regressions.every((r) => r.severity === 'critical' && r.evidence.view === 'diff' && r.evidence.baselineId === 1 && (r.valuePct ?? 0) > 5)).toBe(true);
     expect(regressions.map((r) => r.title)).toContain('Regression: System.Text.Json.Utf8JsonWriter.WriteString');
-    expect(f[0].severity).toBe('critical');
+    expect(at(f, 0).severity).toBe('critical');
     // CPU-only profile has no exceptions metric: no exception finding
     expect(f.map((x) => x.kind)).not.toContain('exceptionHotPath');
   });
@@ -812,20 +813,20 @@ describe('MockProfilingBackend: moment', () => {
     const m = await b.moment({ fromMs: ORDERS_STARTED_MS + 1000, toMs: ORDERS_STARTED_MS + 5000 });
     expect(m).toHaveLength(1);
     expect(m[0]).toMatchObject({ profileId: 1, name: 'orders.speedscope.json', metric: 'timeNs', measurement: 'sampled' });
-    expect(m[0].range).toEqual({ fromNs: 1_000_000_000, toNs: 5_000_000_000 });
-    expect(m[0].top).toHaveLength(5);
-    expect(m[0].samples).toBeGreaterThan(0);
-    expect(m[0].value).toBeGreaterThan(0);
+    expect(at(m, 0).range).toEqual({ fromNs: 1_000_000_000, toNs: 5_000_000_000 });
+    expect(at(m, 0).top).toHaveLength(5);
+    expect(at(m, 0).samples).toBeGreaterThan(0);
+    expect(at(m, 0).value).toBeGreaterThan(0);
   });
 
   it('clamps partially overlapping windows to the capture and honours top (max 50)', async () => {
     const { b } = await demo();
     const m = await b.moment({ fromMs: ORDERS_STARTED_MS - 10_000, toMs: ORDERS_STARTED_MS + 100_000, top: 2 });
-    expect(m[0].range).toEqual({ fromNs: 0, toNs: 20_000_000_000 });
-    expect(m[0].top).toHaveLength(2);
+    expect(at(m, 0).range).toEqual({ fromNs: 0, toNs: 20_000_000_000 });
+    expect(at(m, 0).top).toHaveLength(2);
     const many = await b.moment({ fromMs: ORDERS_STARTED_MS, toMs: ORDERS_STARTED_MS + 20_000, top: 500 });
-    expect(many[0].top.length).toBeLessThanOrEqual(50);
-    expect(many[0].top.length).toBeGreaterThan(5);
+    expect(at(many, 0).top.length).toBeLessThanOrEqual(50);
+    expect(at(many, 0).top.length).toBeGreaterThan(5);
   });
 
   it('returns several profiles when windows overlap them and none outside any capture', async () => {
@@ -907,7 +908,7 @@ describe('MockProfilingBackend: heap', () => {
     expect(order.growthBytes).toBe(100 * 120);
     expect(order.slopeBytes).toBe(50 * 120);
     expect(g.steadyCount).toBeGreaterThan(0);
-    expect(g.rows[0].steady).toBe(true);
+    expect(at(g.rows, 0).steady).toBe(true);
     const flat = g.rows.find((r) => r.name === 'Shop.Orders.Customer')!;
     expect(flat.steady).toBe(false);
     expect(flat.growthBytes).toBe(0);
@@ -961,13 +962,13 @@ describe('MockProfilingBackend: heap', () => {
     const direct = await b.heapPaths({ snapshotId: 3, object: cacheId });
     expect(direct).toEqual({ paths: [[{ object: cacheId, typeName: 'Shop.Orders.OrderCache (static OrderCache.Instance)', edge: null }]], unreachable: false, truncated: false });
     // two referrers: the dictionary chain and the customer chain, shortest first
-    const order = (await b.heapInstances({ snapshotId: 3, typeName: 'Shop.Orders.Order' })).rows[0].object;
+    const order = at((await b.heapInstances({ snapshotId: 3, typeName: 'Shop.Orders.Order' })).rows, 0).object;
     const paths = await b.heapPaths({ snapshotId: 3, object: order });
     expect(paths.paths).toHaveLength(2);
-    expect(paths.paths[0].length).toBeLessThanOrEqual(paths.paths[1].length);
+    expect(at(paths.paths, 0).length).toBeLessThanOrEqual(at(paths.paths, 1).length);
     for (const p of paths.paths) {
-      expect(p[0].edge).toBeNull();
-      expect(p[0].typeName).toMatch(/\(static /);
+      expect(at(p, 0).edge).toBeNull();
+      expect(at(p, 0).typeName).toMatch(/\(static /);
       expect(p.at(-1)).toMatchObject({ object: order, typeName: 'Shop.Orders.Order' });
       expect(p.at(-1)!.edge).not.toBeNull();
     }

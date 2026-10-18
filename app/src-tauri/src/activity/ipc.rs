@@ -50,6 +50,7 @@ const QUERIES: &[&str] = &[
     "tail_status",
     "live_state",
     "run_query",
+    "run_query_stream",
     "check_query",
     "complete_query",
     "query_patterns",
@@ -97,6 +98,7 @@ const QUERIES: &[&str] = &[
     "list_error_snapshots",
     "read_error_snapshot",
     "diagnostics_settings",
+    "storage_usage",
     "elevation",
     "read_file_head",
     "tools_list",
@@ -114,6 +116,8 @@ const QUERIES: &[&str] = &[
     "plugin_isolation_status",
     "last_session",
     "settings_sections",
+    "updates_status",
+    "updates_check",
     "list_windows",
     "list_popouts",
     "background_tasks",
@@ -128,6 +132,7 @@ const QUERIES: &[&str] = &[
     "ai_chat_history",
     "ai_suggested_prompts",
     "ai_brave_key_set",
+    "ai_runtimes",
     "preview_redaction",
     "redaction_summary",
     "dashboard_tile",
@@ -155,6 +160,7 @@ const MUTATIONS: &[&str] = &[
     "export_events",
     "set_live",
     "cancel_import",
+    "cancel_query",
     "save_project",
     "open_project",
     "mute_alerts",
@@ -170,6 +176,8 @@ const MUTATIONS: &[&str] = &[
     "save_error_snapshot",
     "delete_error_snapshot",
     "open_snapshots_folder",
+    "storage_clear",
+    "storage_reveal",
     "export_diagnostics",
     "set_diagnostics_settings",
     "restart_elevated",
@@ -182,6 +190,11 @@ const MUTATIONS: &[&str] = &[
     "agent_config_save",
     "agent_open_run",
     "restart_app",
+    "updates_download",
+    "updates_cancel",
+    "updates_install_on_quit",
+    "updates_restart",
+    "updates_open_releases",
     "plugin_reset",
     "plugin_set_enabled",
     "restore_windows",
@@ -225,6 +238,10 @@ const MUTATIONS: &[&str] = &[
     "ai_open_link",
     "ai_set_brave_key",
     "ai_clear_brave_key",
+    "ai_runtime_install",
+    "ai_runtime_cancel",
+    "ai_runtime_delete",
+    "ai_runtime_choose",
     "set_redacted_view",
     "export_report",
     "save_visual",
@@ -428,6 +445,15 @@ pub fn logged<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'sta
     let limiter = Mutex::new(RateLimiter::new(30, Duration::from_secs(1)));
     move |invoke| {
         let call = IpcCall::of(&invoke);
+        // Structured context for everything logged while the command is dispatched (the CLEF layer turns the
+        // span's fields into properties). Async commands continue on other threads, outside this span.
+        let span = tracing::info_span!(
+            "ipc",
+            Command = call.command.as_str(),
+            Window = call.window.as_str(),
+            OperationId = call.op.as_deref().unwrap_or("")
+        );
+        let _entered = span.enter();
         log_call(&call, &limiter, Instant::now());
         CURRENT.with(|c| *c.borrow_mut() = Some((call.op.clone(), call.window.clone())));
         let _reset = CurrentGuard;
@@ -470,7 +496,8 @@ mod tests {
     #[test]
     fn every_registered_command_is_classified() {
         // The coverage guard: parse the `commands!` list of lib.rs; a new command must be classified here.
-        let lib = include_str!("../lib.rs");
+        // Checkouts may use CRLF (Windows, `text=auto`).
+        let lib = include_str!("../lib.rs").replace("\r\n", "\n");
         let start = lib.find("macro_rules! commands").expect("commands! macro");
         let end = start + lib[start..].find("\n}\n").expect("end of commands!");
         let names: Vec<&str> = lib[start..end]
@@ -530,7 +557,7 @@ mod tests {
                 cmd: cmd.into(),
                 callback: CallbackFn(0),
                 error: CallbackFn(1),
-                url: "tauri://localhost".parse().unwrap(),
+                url: crate::test_support::ipc_url(),
                 body: InvokeBody::Json(serde_json::json!({})),
                 headers,
                 invoke_key: INVOKE_KEY.to_string(),

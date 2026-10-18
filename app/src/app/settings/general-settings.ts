@@ -2,26 +2,42 @@ import { ChangeDetectionStrategy, Component, inject, output } from '@angular/cor
 import { DateFormat, TimeZoneMode } from '../core/format';
 import { ThemeMode, WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
+import { LanguageService } from '../i18n/language.service';
+import { LanguageChoice } from '../i18n/locale';
 import { OverviewPrefs } from '../overview/overview-prefs';
 import { HelpHint } from '../ui/help-hint';
 import { GridDensity, SettingsStore } from './settings.store';
 
-/** UI-only preferences (kept in the browser, applied immediately): theme, time zone, date format, density, overview. */
+/**
+ * UI-only preferences (kept in the browser): language (applied after a restart), theme, time zone, date format,
+ * density, overview. Everything but the language applies immediately.
+ */
 @Component({
   selector: 'imt-general-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint],
   template: `
+    <fieldset data-testid="language-setting">
+      <legend i18n="Setting for the UI language@@settings.general.language">Language <imt-help label="Language" text="The language of menus, dialogs and messages. Log text and file contents are never translated. The new language is used after IMT restarts." i18n-label="@@settings.general.language.helpLabel" i18n-text="@@settings.general.language.help" /></legend>
+      <select class="select lang" data-testid="language-select" aria-label="Language" i18n-aria-label="@@settings.general.language.selectLabel" (change)="language.choose($any($event.target).value)">
+        @for (l of languages; track l.id) {
+          <option [value]="l.id" [selected]="language.choice() === l.id" [attr.lang]="l.lang">{{ l.label }}</option>
+        }
+      </select>
+      @if (language.reloadPending()) {
+        <p class="pending" role="status" i18n="@@settings.general.language.pending">The new language is used after IMT restarts. <button class="link" type="button" (click)="language.reload()">Restart now</button></p>
+      }
+    </fieldset>
     <fieldset>
-      <legend>Theme</legend>
+      <legend i18n="@@settings.general.theme">Theme</legend>
       <div class="seg">
         @for (t of themes; track t) {
-          <button class="btn" type="button" [class.active]="store.theme() === t" [attr.aria-pressed]="store.theme() === t" (click)="store.setTheme(t)">{{ t }}</button>
+          <button class="btn" type="button" [class.active]="store.theme() === t" [attr.aria-pressed]="store.theme() === t" (click)="store.setTheme(t)">{{ themeLabels[t] }}</button>
         }
       </div>
     </fieldset>
     <fieldset>
-      <legend>Time zone</legend>
+      <legend i18n="@@settings.general.timeZone">Time zone</legend>
       <div class="seg">
         @for (z of zones; track z.id) {
           <button class="btn" type="button" [class.active]="store.timezone() === z.id" [attr.aria-pressed]="store.timezone() === z.id" (click)="store.setTimezone(z.id)">{{ z.label }}</button>
@@ -29,7 +45,7 @@ import { GridDensity, SettingsStore } from './settings.store';
       </div>
     </fieldset>
     <fieldset>
-      <legend>Date format <imt-help label="Date format" text="How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22." /></legend>
+      <legend i18n="@@settings.general.dateFormat">Date format <imt-help label="Date format" text="How times appear in the grid and the inspector. Readable: 14 Oct 10:41:22. ISO: 2026-10-14 10:41:22." i18n-label="@@settings.general.dateFormat.helpLabel" i18n-text="@@settings.general.dateFormat.help" /></legend>
       <div class="seg">
         @for (f of dateFormats; track f.id) {
           <button class="btn" type="button" [class.active]="settings.dateFormat() === f.id" [attr.aria-pressed]="settings.dateFormat() === f.id" (click)="settings.setDateFormat(f.id)">{{ f.label }}</button>
@@ -37,25 +53,25 @@ import { GridDensity, SettingsStore } from './settings.store';
       </div>
     </fieldset>
     <fieldset>
-      <legend>Grid density</legend>
+      <legend i18n="@@settings.general.density">Grid density</legend>
       <div class="seg">
         @for (d of densities; track d) {
-          <button class="btn" type="button" [class.active]="settings.density() === d" [attr.aria-pressed]="settings.density() === d" (click)="settings.setDensity(d)">{{ d }}</button>
+          <button class="btn" type="button" [class.active]="settings.density() === d" [attr.aria-pressed]="settings.density() === d" (click)="settings.setDensity(d)">{{ densityLabels[d] }}</button>
         }
       </div>
     </fieldset>
-    <label class="row">
+    <label class="row" i18n="@@settings.general.alwaysShowLifecycle">
       <input type="checkbox" [checked]="store.alwaysShowLifecycle()" (change)="store.setAlwaysShowLifecycle($any($event.target).checked)" />
       Always show start/stop markers
-      <imt-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." />
+      <imt-help label="Start/stop markers" text="Keep process start and stop markers on the timeline even when level or text filters would hide them." i18n-label="@@settings.general.alwaysShowLifecycle.helpLabel" i18n-text="@@settings.general.alwaysShowLifecycle.help" />
     </label>
-    <label class="row">
+    <label class="row" i18n="@@settings.general.overviewAutoOpen">
       <input type="checkbox" data-testid="overview-auto-open" [checked]="overview.autoOpen()" (change)="overview.setAutoOpen($any($event.target).checked)" />
       Overview: show after every import
-      <imt-help label="Overview after import" text="Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel." />
+      <imt-help label="Overview after import" text="Open the Overview panel by itself each time files are opened. The same choice is in the Overview panel." i18n-label="@@settings.general.overviewAutoOpen.helpLabel" i18n-text="@@settings.general.overviewAutoOpen.help" />
     </label>
     <div>
-      <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()">Reset layout</button>
+      <button class="btn" type="button" (click)="dock.reset(); layoutReset.emit()" i18n="@@settings.general.resetLayout">Reset layout</button>
     </div>
   `,
   styles: `
@@ -65,6 +81,9 @@ import { GridDensity, SettingsStore } from './settings.store';
     .seg { display: flex; gap: 4px; flex-wrap: wrap; }
     .seg .btn { text-transform: capitalize; }
     .row { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+    .lang { align-self: flex-start; min-width: 200px; }
+    .pending { margin: 0; color: var(--text-2); font-size: 12px; }
+    .link { border: 0; background: none; padding: 0; color: var(--text); cursor: pointer; text-decoration: underline; }
   `,
 })
 export class GeneralSettings {
@@ -72,16 +91,32 @@ export class GeneralSettings {
   protected readonly settings = inject(SettingsStore);
   protected readonly dock = inject(DockService);
   protected readonly overview = inject(OverviewPrefs);
+  protected readonly language = inject(LanguageService);
   /** The layout was reset (the screen closes so the user sees it). */
   readonly layoutReset = output<void>();
+  /** Language names are written in their own language (an endonym is never translated). */
+  protected readonly languages: { id: LanguageChoice; label: string; lang: string | null }[] = [
+    { id: 'system', label: $localize`:Language option, follow the operating system@@settings.general.language.system:System default`, lang: null },
+    { id: 'en', label: 'English', lang: 'en' },
+    { id: 'pseudo', label: $localize`:Language option, a generated test language with accented, longer text@@settings.general.language.pseudo:Pseudo`, lang: null },
+  ];
   protected readonly themes: ThemeMode[] = ['system', 'dark', 'light'];
+  protected readonly themeLabels: Record<ThemeMode, string> = {
+    system: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.system:system`,
+    dark: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.dark:dark`,
+    light: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.light:light`,
+  };
   protected readonly zones: { id: TimeZoneMode; label: string }[] = [
     { id: 'utc', label: 'UTC' },
-    { id: 'local', label: 'Local' },
+    { id: 'local', label: $localize`:Time zone option, the computer's time zone@@settings.general.timeZone.local:Local` },
   ];
   protected readonly dateFormats: { id: DateFormat; label: string }[] = [
-    { id: 'readable', label: 'Readable' },
+    { id: 'readable', label: $localize`:Date format option@@settings.general.dateFormat.readable:Readable` },
     { id: 'iso', label: 'ISO' },
   ];
   protected readonly densities: GridDensity[] = ['comfortable', 'compact'];
+  protected readonly densityLabels: Record<GridDensity, string> = {
+    comfortable: $localize`:Grid density option (capitalised by CSS)@@settings.general.density.comfortable:comfortable`,
+    compact: $localize`:Grid density option (capitalised by CSS)@@settings.general.density.compact:compact`,
+  };
 }

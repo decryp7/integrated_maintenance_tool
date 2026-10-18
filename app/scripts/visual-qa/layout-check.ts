@@ -98,7 +98,10 @@ export function layoutProblems(page: Page): Promise<LayoutProblem[]> {
     const seen = new Set<string>();
     const push = (p: { kind: 'overlap' | 'clipped'; a: string; b?: string }) => {
       const key = `${p.kind}|${p.a}|${p.b ?? ''}`;
-      if (!seen.has(key) && problems.length < 60) (seen.add(key), problems.push(p));
+      if (!seen.has(key) && problems.length < 60) {
+        seen.add(key);
+        problems.push(p);
+      }
     };
     for (let i = 0; i < boxes.length; i++) {
       const { el: a, r: ra, cut, layer: la } = boxes[i];

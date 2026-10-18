@@ -610,7 +610,7 @@ export class MockBackend implements ImtBackend {
     const wanted = this.dataset.sources.length;
     for (let i = this.dataset.records.length - 1; i >= 0 && last.size < wanted; i--) {
       const r = this.dataset.records[i];
-      if (!last.has(r.source)) last.set(r.source, r);
+      if (r && !last.has(r.source)) last.set(r.source, r);
     }
     return last;
   }
@@ -771,7 +771,7 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
     model = parse(toml) as ProfileModel;
   } catch (e) {
     const err = e as TomlError;
-    return { validation: { ok: false, error: err.message.split('\n')[0], line: err.line ?? null }, model: null };
+    return { validation: { ok: false, error: err.message.split('\n')[0] ?? '', line: err.line ?? null }, model: null };
   }
   const lines = toml.split('\n');
   const lineOf = (needle: string) => {

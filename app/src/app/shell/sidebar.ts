@@ -27,23 +27,23 @@ function shortPath(path: string): string {
   imports: [Icon, FieldsPanel, NgTemplateOutlet],
   template: `
     <div class="head">
-      <span class="section-title">Explorer</span>
+      <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
       <span class="tools">
-        <button class="icon-btn" aria-label="Open files" title="Open files" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open folder" title="Open folder" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" (click)="openLive()"><imt-icon name="timeline" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" (click)="store.reload()"><imt-icon name="refresh" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><imt-icon name="timeline" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><imt-icon name="refresh" [size]="14" /></button>
       </span>
     </div>
 
-    <div class="sources" role="region" aria-label="Opened files" [title]="readOnly" aria-describedby="imt-sources-read-only">
+    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="imt-sources-read-only">
       <span id="imt-sources-read-only" class="sr">{{ readOnly }}</span>
       @for (item of items(); track item.kind === 'file' ? 'f' + item.source.id : 'g' + item.group.key) {
         @if (item.kind === 'file') {
           <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false }" />
         } @else {
           @let g = item.group;
-          <div class="src group" [title]="g.key + '\n' + g.sources.length + ' files · newest: ' + g.newest.name">
+          <div class="src group" [title]="groupTitle(g.key, g.sources.length, g.newest.name)">
             <button
               type="button"
               class="expander"
@@ -54,15 +54,15 @@ function shortPath(path: string): string {
               <imt-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
               <imt-icon name="files" [size]="13" class="faint" />
               <span class="ellipsis name">{{ g.label }}</span>
-              <span class="badge">{{ g.sources.length }} files</span>
-              <span class="sr">, newest {{ g.newest.name }}</span>
+              <span class="badge" i18n="@@shell.sidebar.groupFiles">{{ g.sources.length }} files</span>
+              <span class="sr" i18n="@@shell.sidebar.groupNewestSr">, newest {{ g.newest.name }}</span>
             </button>
             <span class="mono count">{{ compact(g.records) }}</span>
           </div>
           @if (!isOpen(g.key)) {
-            <div class="newest faint ellipsis">newest: {{ g.newest.name }}</div>
+            <div class="newest faint ellipsis" i18n="@@shell.sidebar.groupNewest">newest: {{ g.newest.name }}</div>
           } @else {
-            <div role="group" [attr.aria-label]="'Files of ' + g.label">
+            <div role="group" [attr.aria-label]="filesOf(g.label)">
               @for (s of g.sources; track s.id) {
                 <ng-container *ngTemplateOutlet="file; context: { $implicit: s, member: true }" />
               }
@@ -71,12 +71,12 @@ function shortPath(path: string): string {
         }
       } @empty {
         <div class="empty">
-          <p>No files open.</p>
+          <p i18n="@@shell.sidebar.empty.none">No files open.</p>
           <div class="open-row">
-            <button class="btn primary" (click)="store.pickAndOpen(true)">Open folder…</button>
-            <button class="btn" (click)="store.pickAndOpen(false)">Open files…</button>
+            <button class="btn primary" (click)="store.pickAndOpen(true)" i18n="@@shell.sidebar.empty.openFolder">Open folder…</button>
+            <button class="btn" (click)="store.pickAndOpen(false)" i18n="@@shell.sidebar.empty.openFiles">Open files…</button>
           </div>
-          <p class="faint small">Or drop log files anywhere in the window. Any extension works: the format is detected from the content.</p>
+          <p class="faint small" i18n="@@shell.sidebar.empty.drop">Or drop log files anywhere in the window. Any extension works: the format is detected from the content.</p>
         </div>
       }
       @for (u of unrecognized(); track u.path) {
@@ -84,7 +84,7 @@ function shortPath(path: string): string {
           <imt-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           <span class="badge">—</span>
-          <button class="btn ghost setup" [attr.aria-label]="'Set up format for ' + u.name" title="Teach IMT how to read this file" (click)="setUpFormat(u)">Set up format…</button>
+          <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
         </div>
       }
     </div>
@@ -101,12 +101,12 @@ function shortPath(path: string): string {
           <span class="state" [class]="'state ' + st.kind" [title]="hint(st)" [attr.aria-label]="label(st) + ': ' + hint(st)" role="img">{{ label(st) }}</span>
         }
         @if (s.offsetMs) {
-          <span class="skew mono" data-testid="skew-badge" [title]="'Clock shifted by ' + offset(s.offsetMs)" [attr.aria-label]="'Clock shifted by ' + offset(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
+          <span class="skew mono" data-testid="skew-badge" [title]="skewLabel(s.offsetMs)" [attr.aria-label]="skewLabel(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
         }
         <span class="badge">{{ s.importer }}</span>
         <span class="mono count">{{ compact(s.records) }}</span>
-        <button class="icon-btn rm" [attr.aria-label]="'Adjust clock of ' + s.name" [attr.title]="'Adjust clock of ' + s.name + '…'" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
-        <button class="icon-btn rm" [attr.aria-label]="'Remove ' + s.name" (click)="store.removeSource(s.id)" [attr.title]="'Remove ' + s.name"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><imt-icon name="close" [size]="12" /></button>
       </div>
       @if (s.error) {
         <div class="src-error">{{ s.error }}</div>
@@ -114,7 +114,7 @@ function shortPath(path: string): string {
     </ng-template>
   `,
   styles: `
-    :host { width: 272px; flex: none; display: flex; flex-direction: column; background: var(--bg-2); border-right: 1px solid var(--border); min-height: 0; }
+    :host { width: 272px; flex: none; display: flex; flex-direction: column; background: var(--bg-2); border-inline-end: 1px solid var(--border); min-height: 0; }
     .head { height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; }
     .tools { display: flex; gap: 2px; }
     .small { font-size: 11px; }
@@ -122,7 +122,7 @@ function shortPath(path: string): string {
     .src { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
     .src .name { flex: 1; min-width: 0; }
-    .src .count { font-size: 11px; color: var(--faint); width: 38px; text-align: right; }
+    .src .count { font-size: 11px; color: var(--faint); width: 38px; text-align: end; }
     .src .rm { width: 20px; height: 20px; visibility: hidden; }
     .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
     .src.dim { color: var(--faint); font-style: italic; }
@@ -133,9 +133,9 @@ function shortPath(path: string): string {
     .empty p { margin: 4px 0 10px; }
     .open-row { display: flex; gap: 6px; margin-bottom: 8px; }
     .divider { height: 1px; background: var(--border); margin: 6px 0; flex: none; }
-    .src.member { padding-left: 24px; }
+    .src.member { padding-inline-start: 24px; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .group .expander { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+    .group .expander { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: start; }
     .group .expander:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
     .newest { margin: -4px 6px 2px 46px; font-size: 11px; }
     .state { flex: none; font-size: 10px; padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-2); color: var(--text-2); }
@@ -166,8 +166,45 @@ export class Sidebar {
 
   protected sourceTitle(s: SourceInfo): string {
     const tz = this.store.timezone();
-    const dropped = s.dropped > 0 ? `\n${formatCount(s.dropped)} dropped by pipeline` : '';
-    return `${s.path}\n${formatCount(s.records)} events · ${s.skipped} skipped${dropped}\n${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}`;
+    const count = formatCount(s.records);
+    const skipped = s.skipped;
+    const range = `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}`;
+    const lines = [s.path, $localize`:@@shell.sidebar.sourceTitle.counts:${count}:count: events · ${skipped}:skipped: skipped`];
+    if (s.dropped > 0) {
+      const dropped = formatCount(s.dropped);
+      lines.push($localize`:@@shell.sidebar.sourceTitle.dropped:${dropped}:dropped: dropped by pipeline`);
+    }
+    lines.push(range);
+    return lines.join('\n');
+  }
+
+  protected groupTitle(key: string, files: number, newest: string): string {
+    return `${key}\n${$localize`:@@shell.sidebar.groupTitle:${files}:files: files · newest: ${newest}:newest:`}`;
+  }
+
+  protected filesOf(label: string): string {
+    return $localize`:@@shell.sidebar.filesOf:Files of ${label}:label:`;
+  }
+
+  protected setUpFormatLabel(name: string): string {
+    return $localize`:@@shell.sidebar.setUpFormatLabel:Set up format for ${name}:name:`;
+  }
+
+  protected skewLabel(offsetMs: number): string {
+    const offset = this.offset(offsetMs);
+    return $localize`:@@shell.sidebar.skew:Clock shifted by ${offset}:offset:`;
+  }
+
+  protected adjustClockLabel(name: string): string {
+    return $localize`:@@shell.sidebar.adjustClockLabel:Adjust clock of ${name}:name:`;
+  }
+
+  protected adjustClockTitle(name: string): string {
+    return $localize`:@@shell.sidebar.adjustClockTitle:Adjust clock of ${name}:name:…`;
+  }
+
+  protected removeLabel(name: string): string {
+    return $localize`:@@shell.sidebar.removeLabel:Remove ${name}:name:`;
   }
 
   protected isOpen(key: string): boolean {
@@ -206,8 +243,8 @@ export class Sidebar {
       event.clientX,
       event.clientY,
       [
-        { label: 'Adjust clock…', run: () => this.adjustClock(s) },
-        { label: 'Remove', run: () => void this.store.removeSource(s.id) },
+        { label: $localize`:@@shell.sidebar.menu.adjustClock:Adjust clock…`, run: () => this.adjustClock(s) },
+        { label: $localize`:Context menu item@@shell.sidebar.menu.remove:Remove`, run: () => void this.store.removeSource(s.id) },
       ],
       event.currentTarget as HTMLElement | null,
     );
@@ -215,10 +252,10 @@ export class Sidebar {
 
   protected async openLive(): Promise<void> {
     const { OpenLiveDialog } = await import('../live/open-live-dialog');
-    this.dialogs.open(OpenLiveDialog, { title: 'Open for live tail', width: 480 });
+    this.dialogs.open(OpenLiveDialog, { title: $localize`:@@shell.sidebar.dialog.openLive:Open for live tail`, width: 480 });
   }
 
   protected setUpFormat(file: UnrecognizedFile): void {
-    this.dialogs.open(FormatWizard, { title: 'Set up format', inputs: { path: file.path, name: file.name }, width: 760 });
+    this.dialogs.open(FormatWizard, { title: $localize`:@@shell.sidebar.dialog.setUpFormat:Set up format`, inputs: { path: file.path, name: file.name }, width: 760 });
   }
 }

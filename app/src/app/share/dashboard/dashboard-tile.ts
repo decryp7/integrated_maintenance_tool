@@ -38,7 +38,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
     @if (error(); as e) {
       <div class="msg err" role="alert">
         <span>{{ e }}</span>
-        <button type="button" class="btn" (click)="retry()">Retry</button>
+        <button type="button" class="btn" (click)="retry()" i18n="@@share.dashboardTile.retry">Retry</button>
       </div>
     } @else if (data(); as d) {
       @switch (d.kind) {
@@ -55,7 +55,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
           @if (d.data.series.length) {
             <imt-echart class="chart" [options]="chartOption()!" />
           } @else {
-            <div class="msg faint">No data in this range.</div>
+            <div class="msg faint" i18n="@@share.dashboardTile.noData">No data in this range.</div>
           }
         }
         @case ('table') {
@@ -68,8 +68,8 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
                 }
               </tbody>
             </table>
-            @if (!d.rows.length) {<div class="msg faint">No rows.</div>}
-            @if (d.truncated) {<div class="faint more">More rows not shown.</div>}
+            @if (!d.rows.length) {<div class="msg faint" i18n="@@share.dashboardTile.noRows">No rows.</div>}
+            @if (d.truncated) {<div class="faint more" i18n="@@share.dashboardTile.moreRows">More rows not shown.</div>}
           </div>
         }
         @case ('top') {
@@ -81,16 +81,16 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
                 <span class="count mono">{{ count(v.count) }}</span>
               </li>
             } @empty {
-              <li class="faint">No values.</li>
+              <li class="faint" i18n="@@share.dashboardTile.noValues">No values.</li>
             }
           </ul>
         }
         @case ('alerts') {
           <ul class="list" tabindex="0" [attr.aria-label]="name()">
             @for (a of d.items; track $index) {
-              <li><span class="kind">{{ a.kind }}</span> <span class="faint mono">{{ time(a.from) }}</span>@if (a.instance) {<span class="faint"> · {{ a.instance }}</span>}<div class="detail">{{ a.message }}</div></li>
+              <li><div class="meta"><span class="kind">{{ a.kind }}</span><span class="faint mono">{{ time(a.from) }}</span>@if (a.instance) {<span class="faint">· {{ a.instance }}</span>}</div><div class="detail">{{ a.message }}</div></li>
             } @empty {
-              <li class="faint">No alerts.</li>
+              <li class="faint" i18n="@@share.dashboardTile.noAlerts">No alerts.</li>
             }
           </ul>
         }
@@ -99,13 +99,13 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
             @for (a of d.items; track $index) {
               <li><span class="kind">{{ a.label }}</span> <span class="faint mono">{{ time(a.from) }}@if (a.to !== a.from) { – {{ time(a.to) }}}</span></li>
             } @empty {
-              <li class="faint">No annotations.</li>
+              <li class="faint" i18n="@@share.dashboardTile.noAnnotations">No annotations.</li>
             }
           </ul>
         }
       }
     } @else {
-      <div class="msg faint" role="status">Loading…</div>
+      <div class="msg faint" role="status" i18n="@@share.dashboardTile.loading">Loading…</div>
     }
   `,
   styles: `
@@ -130,6 +130,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
     .top .name, .top .count { position: relative; }
     .top .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .kind { font-weight: 600; }
+    .meta { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
     .detail { color: var(--text-2); }
   `,
 })

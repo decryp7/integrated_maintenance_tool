@@ -6,6 +6,7 @@ import { parseProfile } from '../profile/toml';
 import { DialogService } from '../ui/dialog.service';
 import { MarkersManager } from './markers-manager';
 import { MarkerRuleX } from './markers.types';
+import { at } from '../../testing/must';
 
 async function mount(backend: MockBackend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
@@ -43,7 +44,7 @@ describe('MarkersManager', () => {
     await drop;
     await settle(fixture, 6);
     expect(kinds(fixture)[0]).toBe('warning');
-    expect(((await model(backend)).marker as MarkerRuleX[])[0].kind).toBe('warning');
+    expect(at((await model(backend)).marker as MarkerRuleX[], 0).kind).toBe('warning');
   });
 
   it('disables a rule into imt_disabled_markers and re-enables it at the same place', async () => {
@@ -92,7 +93,9 @@ describe('MarkersManager', () => {
     const dialogs = TestBed.inject(DialogService);
     btn(fixture, 'Edit Error').click();
     buttonByText(fixture, /New marker/).click();
-    const [edit, add] = dialogs.stack();
+    const stack = dialogs.stack();
+    const edit = at(stack, 0);
+    const add = at(stack, 1);
     expect(edit.component).toBe(MarkDialog);
     expect(edit.options.title).toBe('Edit marker "Error"');
     expect(edit.options.inputs?.['rule']).toMatchObject({ kind: 'error' });

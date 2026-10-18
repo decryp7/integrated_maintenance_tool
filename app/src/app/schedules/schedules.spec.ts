@@ -29,6 +29,7 @@ import { SchedulesStore } from './schedules.store';
 import { SchedulesView } from './schedules-view';
 import { SchemaField } from './schema-field';
 import { provideSchedules, SCHEDULES_COMMANDS, SCHEDULES_VIEWS } from './provide-schedules';
+import { at } from '../../testing/must';
 
 const NOW = Date.UTC(2026, 9, 17, 12, 0, 0);
 
@@ -41,7 +42,7 @@ describe('schedule model', () => {
   const schema = mockAgentSchema();
 
   it('builds defaults, triggers, actions and schedules from the schema', () => {
-    expect(defaultsOf(schema.actions.find((a) => a.kind === 'monitor')!.fields)).toEqual({ targets: [], duration: '5m', intervalMs: 1000, includeChildren: false });
+    expect(defaultsOf(schema.actions.find((a) => a.kind === 'monitor')!.fields)).toEqual({ targets: [], duration: '5m', intervalMs: 1000, includeChildren: false, dotnet: false });
     expect(defaultsOf([{ key: 'n', label: '', kind: 'number', required: true, help: '', default: null }])).toEqual({ n: 0 });
     expect(newTrigger('process', schema)).toEqual({ kind: 'process', process: '', metric: 'privateBytes', above: 0, forSecs: 0, cooldownSecs: 900 });
     expect(newTrigger('log', schema)).toEqual({ kind: 'log', path: '', ql: '' });
@@ -133,12 +134,12 @@ describe('mock schedules backend', () => {
     expect((await m.schema()).version).toBe(1);
     const listing = await m.runs();
     expect(listing.runs.map((r) => r.status)).toEqual(['ok', 'partial', 'failed']);
-    const ok = await m.manifest(listing.runs[0].id);
-    expect(ok.actions[1].status).toBe('ok');
-    const partial = await m.manifest(listing.runs[1].id);
+    const ok = await m.manifest(at(listing.runs, 0).id);
+    expect(ok.actions[1]?.status).toBe('ok');
+    const partial = await m.manifest(at(listing.runs, 1).id);
     expect(partial.reason.kind).toBe('trigger');
     await expect(m.manifest('nope')).rejects.toContain('no longer exists');
-    expect(await m.openRun(listing.runs[0].id)).toBe('window-2');
+    expect(await m.openRun(at(listing.runs, 0).id)).toBe('window-2');
     await expect(m.openRun('nope')).rejects.toContain('no longer exists');
     const fresh = new MockSchedulesBackend({ saved: false });
     expect((await fresh.load()).exists).toBe(false);
@@ -192,7 +193,7 @@ describe('SchedulesStore', () => {
   it('loads, edits, validates and saves', async () => {
     const { store, mock } = setup();
     await store.load();
-    expect(store.config()?.schedules[0].name).toBe('nightly');
+    expect(store.config()?.schedules[0]?.name).toBe('nightly');
     expect(store.path()).toBe(MOCK_AGENT_PATH);
     expect(store.exists()).toBe(true);
     store.addSchedule();
@@ -217,7 +218,7 @@ describe('SchedulesStore', () => {
       name: 'spike',
       enabled: true,
       trigger: { kind: 'log', path: '/var/log/app.log', ql: 'level >= Error' },
-      actions: [{ kind: 'perfmon', collector: 'IMT', duration: '5m' }, { kind: 'monitor', targets: ['svc*'], duration: '5m', intervalMs: 1000, includeChildren: false }],
+      actions: [{ kind: 'perfmon', collector: 'IMT', duration: '5m' }, { kind: 'monitor', targets: ['svc*'], duration: '5m', intervalMs: 1000, includeChildren: false, dotnet: false }],
     });
     expect(c.agent.tickSecs).toBe(30);
     expect(c.agent.log.level).toBe('debug');
@@ -249,14 +250,14 @@ describe('SchedulesStore', () => {
     await mock.save(mockStarter());
     let saving = store.save();
     await vi.waitFor(() => expect(dialogs.stack()[0]?.options.title).toBe('Replace file?'));
-    expect(dialogs.stack()[0].options.inputs?.['detail']).toBe(MOCK_AGENT_PATH);
-    dialogs.stack()[0].ref.close(false);
+    expect(dialogs.stack()[0]?.options.inputs?.['detail']).toBe(MOCK_AGENT_PATH);
+    at(dialogs.stack(), 0).ref.close(false);
     await saving;
     expect(store.notice()).toBe('Not saved: the existing file was kept.');
     expect(store.error()).toBeNull();
     saving = store.save();
     await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     await saving;
     expect(store.notice()).toBe(`Saved ${MOCK_AGENT_PATH}`);
     // Now it is the editor's own file: saved again without asking.
@@ -268,7 +269,7 @@ describe('SchedulesStore', () => {
     store.setPath('/etc/other.toml');
     saving = store.save();
     await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     await saving;
     expect(mock.calls.slice(-2)).toEqual(['save:/etc/other.toml', 'save:/etc/other.toml:overwrite']);
   });
@@ -335,7 +336,7 @@ describe('RunsStore', () => {
     await runs.refresh();
     expect(runs.outputDir()).toBe('/demo/agent/runs');
     expect(runs.runs()).toHaveLength(3);
-    const id = runs.runs()[0].id;
+    const id = at(runs.runs(), 0).id;
     await runs.toggle(id);
     expect(runs.manifest()?.id).toBe(id);
     await runs.toggle(id);
@@ -469,7 +470,7 @@ describe('SchedulesView', () => {
     typeInto(timing, 'trigger', 'change');
     await settle(fixture);
     expect(text(fixture)).toContain('Process name');
-    const triggerSel = all<HTMLSelectElement>(fixture, '[data-testid=schedule-1] select')[1];
+    const triggerSel = at(all<HTMLSelectElement>(fixture, '[data-testid=schedule-1] select'), 1);
     typeInto(triggerSel, 'log', 'change');
     await settle(fixture);
     expect(text(fixture)).toContain('Log file or folder');
@@ -477,22 +478,22 @@ describe('SchedulesView', () => {
     const actionSel = el<HTMLSelectElement>(fixture, '[data-testid=action-1-0] select');
     typeInto(actionSel, 'copyLogs', 'change');
     await settle(fixture);
-    expect(store.config()!.schedules[1].actions[0].kind).toBe('copyLogs');
+    expect(at(store.config()!.schedules, 1).actions[0]?.kind).toBe('copyLogs');
     all<HTMLButtonElement>(fixture, '[data-testid=schedule-1] button').find((b) => b.textContent?.includes('Add action'))!.click();
     await settle(fixture);
-    expect(store.config()!.schedules[1].actions).toHaveLength(2);
+    expect(store.config()!.schedules[1]?.actions).toHaveLength(2);
     el<HTMLButtonElement>(fixture, '[aria-label="Remove action 2 of schedule-2"]').click();
     await settle(fixture);
-    expect(store.config()!.schedules[1].actions).toHaveLength(1);
+    expect(store.config()!.schedules[1]?.actions).toHaveLength(1);
     // Edit a field through the generic renderer.
     const name = el<HTMLInputElement>(fixture, '[data-testid=schedule-1] imt-schema-field input');
     typeInto(name, 'spike');
-    expect(store.config()!.schedules[1].name).toBe('spike');
+    expect(store.config()!.schedules[1]?.name).toBe('spike');
     // Agent, log and retention fields.
-    const tick = all<HTMLInputElement>(fixture, 'section imt-schema-field input[type=number]')[1];
+    const tick = at(all<HTMLInputElement>(fixture, 'section imt-schema-field input[type=number]'), 1);
     typeInto(tick, '20');
     expect(store.config()!.agent.tickSecs).toBe(20);
-    const logLevel = all<HTMLSelectElement>(fixture, 'section imt-schema-field select')[1];
+    const logLevel = at(all<HTMLSelectElement>(fixture, 'section imt-schema-field select'), 1);
     typeInto(logLevel, 'warning', 'change');
     expect(store.config()!.agent.log.level).toBe('warning');
     const keepRuns = el<HTMLInputElement>(fixture, '[aria-labelledby=sch-retention] input, section:nth-of-type(2) input');
@@ -589,7 +590,7 @@ describe('RunsView', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('4 older runs are not listed');
     vi.spyOn(mock, 'manifest').mockReturnValueOnce(new Promise(() => undefined));
-    void store.toggle(store.runs()[0].id);
+    void store.toggle(at(store.runs(), 0).id);
     await settle(fixture);
     expect(text(fixture)).toContain('Loading…');
     vi.spyOn(mock, 'runs').mockRejectedValueOnce('boom');
@@ -612,7 +613,7 @@ describe('provideSchedules', () => {
   });
 
   it('loads the view components lazily', async () => {
-    expect(await SCHEDULES_VIEWS[0].component()).toBe(SchedulesView);
-    expect(await SCHEDULES_VIEWS[1].component()).toBe(RunsView);
+    expect(await SCHEDULES_VIEWS[0]?.component()).toBe(SchedulesView);
+    expect(await SCHEDULES_VIEWS[1]?.component()).toBe(RunsView);
   });
 });

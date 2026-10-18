@@ -23,14 +23,15 @@ function view(svc: ImportProgressService) {
           class="bar"
           role="progressbar"
           aria-label="Import progress"
+          i18n-aria-label="@@import.ui.progress"
           aria-valuemin="0"
           aria-valuemax="100"
           [attr.aria-valuenow]="v.counted ? v.percent : null"
           [attr.aria-valuetext]="v.line"
         ><span class="fill" [style.width.%]="v.percent"></span></span>
-        <span>Importing {{ v.line }}</span>
+        <span i18n="@@import.ui.importing">Importing {{ v.line }}</span>
         @if (v.file) { <span class="file" [title]="v.path">{{ v.file }}</span> }
-        <button type="button" class="cancel" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? 'Cancelling…' : 'Cancel' }}</button>
+        <button type="button" class="cancel" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? cancellingLabel : cancelLabel }}</button>
       </span>
     }
   `,
@@ -48,6 +49,8 @@ function view(svc: ImportProgressService) {
 export class ImportStatus {
   protected readonly svc = inject(ImportProgressService);
   protected readonly vm = view(this.svc);
+  protected readonly cancellingLabel = $localize`:@@import.ui.cancelling:Cancelling…`;
+  protected readonly cancelLabel = $localize`:Cancel the import|Button@@import.ui.cancel:Cancel`;
 }
 
 /** A non-blocking toast for long imports, with the same progress and Cancel. */
@@ -58,17 +61,17 @@ export class ImportStatus {
   template: `
     @if (svc.long()) {
       @if (vm(); as v) {
-        <div class="toast" role="status" aria-label="Import in progress" data-testid="import-toast">
+        <div class="toast" role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
           <div class="head">
             <imt-icon name="refresh" [size]="14" />
-            <strong>Importing…</strong>
+            <strong i18n="@@import.ui.heading">Importing…</strong>
             <span class="spacer"></span>
-            <button type="button" class="btn" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? 'Cancelling…' : 'Cancel import' }}</button>
+            <button type="button" class="btn" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? cancellingLabel : cancelImportLabel }}</button>
           </div>
           <div class="bar" aria-hidden="true"><span class="fill" [style.width.%]="v.percent"></span></div>
           <div class="line">{{ v.line }}</div>
-          @if (v.file) { <div class="file" [title]="v.path">Reading {{ v.file }}</div> }
-          <div class="faint small">You can keep working; files already read stay open if you cancel.</div>
+          @if (v.file) { <div class="file" [title]="v.path" i18n="@@import.ui.reading">Reading {{ v.file }}</div> }
+          <div class="faint small" i18n="@@import.ui.keepWorking">You can keep working; files already read stay open if you cancel.</div>
         </div>
       }
     }
@@ -89,6 +92,8 @@ export class ImportStatus {
 export class ImportToast {
   protected readonly svc = inject(ImportProgressService);
   protected readonly vm = view(this.svc);
+  protected readonly cancellingLabel = $localize`:@@import.ui.cancelling:Cancelling…`;
+  protected readonly cancelImportLabel = $localize`:@@import.ui.cancelImport:Cancel import`;
 }
 
 /** Shown after a cancelled import: what was read, and how to read the rest. */
@@ -101,9 +106,9 @@ export class ImportToast {
     @if (svc.partial(); as p) {
       <div class="banner" role="status" data-testid="partial-import-banner">
         <imt-icon name="alert" [size]="14" />
-        <span class="msg"><strong>Partially imported:</strong> {{ p.done }} of {{ p.total }} files were read before you cancelled. The rest are listed as not imported in the Explorer.</span>
-        <button type="button" class="btn primary" (click)="svc.reimportAll()">Re-import all</button>
-        <button type="button" class="btn ghost" (click)="svc.dismissPartial()">Dismiss</button>
+        <span class="msg" i18n="@@import.ui.partial"><strong>Partially imported:</strong> {{ p.done }} of {{ p.total }} files were read before you cancelled. The rest are listed as not imported in the Explorer.</span>
+        <button type="button" class="btn primary" (click)="svc.reimportAll()" i18n="@@import.ui.reimportAll">Re-import all</button>
+        <button type="button" class="btn ghost" (click)="svc.dismissPartial()" i18n="@@import.ui.dismiss">Dismiss</button>
       </div>
     }
   `,

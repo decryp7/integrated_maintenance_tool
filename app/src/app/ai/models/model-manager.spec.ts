@@ -10,6 +10,7 @@ import { AiStatusStore } from '../ai-status.store';
 import { AiSetupWizard } from '../setup/setup-wizard';
 import { AiModelManager } from './model-manager';
 
+import { at } from '../../../testing/must';
 function setup(options: MockAiOptions = {}, pick: string | null = '/models/My Model.gguf') {
   const backend = new MockAiBackend({ stepMs: 0, ...options });
   const platform = { pickOpenPath: vi.fn(async () => pick) };
@@ -25,11 +26,18 @@ function setup(options: MockAiOptions = {}, pick: string | null = '/models/My Mo
   fixture.detectChanges();
   const el = fixture.nativeElement as HTMLElement;
   const q = (id: string) => el.querySelector<HTMLElement>(`[data-testid="${id}"]`);
-  const button = (label: string) => [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.getAttribute('aria-label') === label || b.textContent!.trim() === label);
+  const button = (label: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.getAttribute('aria-label') === label || b.textContent!.trim() === label,
+    );
   return { backend, dialogs, platform, fixture, el, q, button };
 }
 
-async function until(fixture: { detectChanges(): void }, cond: () => boolean, rounds = 200): Promise<void> {
+async function until(
+  fixture: { detectChanges(): void },
+  cond: () => boolean,
+  rounds = 200,
+): Promise<void> {
   for (let i = 0; i < rounds && !cond(); i++) {
     await settle();
     fixture.detectChanges();
@@ -66,7 +74,9 @@ describe('AiModelManager', () => {
     await until(fixture, () => !!button('Delete Qwen3.5 4B'));
     button('Delete Qwen3.5 4B')!.click();
     await settle();
-    expect(dialogs.stack().at(-1)!.options.inputs!['message']).toContain('no model until you choose another');
+    expect(dialogs.stack().at(-1)!.options.inputs!['message']).toContain(
+      'no model until you choose another',
+    );
     answer(dialogs, undefined);
     await settle();
     expect((await backend.models()).length).toBe(1);
@@ -82,11 +92,16 @@ describe('AiModelManager', () => {
     await until(fixture, () => !!q('ai-installed-Qwen3.5-4B-Q4_K_M.gguf'));
     q('ai-add-local')!.click();
     await until(fixture, () => !!q('ai-installed-My_Model.gguf'));
-    expect(platform.pickOpenPath).toHaveBeenCalledWith('Add a GGUF model', [{ name: 'GGUF model', extensions: ['gguf'] }]);
+    expect(platform.pickOpenPath).toHaveBeenCalledWith('Add a GGUF model', [
+      { name: 'GGUF model', extensions: ['gguf'] },
+    ]);
     expect(q('ai-model-progress')!.textContent).toContain('was added');
     button('Use My_Model')!.click();
     fixture.detectChanges();
-    await until(fixture, () => q('ai-model-progress')?.textContent?.includes('is now active') ?? false);
+    await until(
+      fixture,
+      () => q('ai-model-progress')?.textContent?.includes('is now active') ?? false,
+    );
     await until(fixture, () => q('ai-installed-My_Model.gguf')!.textContent!.includes('Active'));
   });
 
@@ -118,7 +133,10 @@ describe('AiModelManager', () => {
     s.fixture.detectChanges();
     vi.spyOn(s.backend, 'activateModel').mockRejectedValue(new AiError('busy', 'busy now'));
     s.button('Use My_Model')!.click();
-    await until(s.fixture, () => s.q('ai-models-error')?.textContent?.includes('busy now') ?? false);
+    await until(
+      s.fixture,
+      () => s.q('ai-models-error')?.textContent?.includes('busy now') ?? false,
+    );
     vi.spyOn(s.backend, 'deleteModel').mockRejectedValue(new AiError('io', 'locked'));
     s.button('Delete My_Model')!.click();
     await settle();
@@ -149,7 +167,11 @@ describe('AiModelManager', () => {
     const { fixture, q, backend, dialogs, button } = setup();
     await until(fixture, () => !!button('Download Qwen3.5 9B'));
     const status = TestBed.inject(AiStatusStore);
-    status.setStatus({ ...(await backend.status()), state: 'disabled', reason: 'The AI engine failed 3 times' });
+    status.setStatus({
+      ...(await backend.status()),
+      state: 'disabled',
+      reason: 'The AI engine failed 3 times',
+    });
     fixture.detectChanges();
     expect(q('ai-engine-status')!.textContent).toContain('Switched off');
     q('ai-engine-reset')!.click();
@@ -168,17 +190,33 @@ describe('AiModelManager', () => {
     expect(q('ai-engine-status')!.textContent).toContain('unknown');
   });
 
+  it('shows the inference runtimes between the engine and the models', async () => {
+    const { fixture, q } = setup();
+    await until(fixture, () => !!q('ai-runtime-vulkan'));
+    expect(q('ai-runtime-section')!.textContent).toContain('Inference runtime');
+    expect(q('ai-runtime-vulkan')!.textContent).toContain('Active');
+  });
+
   it('shows why a model file cannot be used, even without setup events', async () => {
     const backend = new MockAiBackend({ stepMs: 0 });
-    const [m] = await backend.models();
-    vi.spyOn(backend, 'models').mockResolvedValue([{ ...m, active: false, problem: 'not a usable model file: truncated' }]);
+    const m = at(await backend.models(), 0);
+    vi.spyOn(backend, 'models').mockResolvedValue([
+      { ...m, active: false, problem: 'not a usable model file: truncated' },
+    ]);
     vi.spyOn(backend, 'onSetup').mockRejectedValue(new Error('no events'));
-    TestBed.configureTestingModule({ providers: [{ provide: AiBackend, useValue: backend }, { provide: Logger, useClass: MemoryLogger }] });
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AiBackend, useValue: backend },
+        { provide: Logger, useClass: MemoryLogger },
+      ],
+    });
     const fixture = TestBed.createComponent(AiModelManager);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     await until(fixture, () => el.textContent!.includes('truncated'));
-    const use = [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Use')!;
+    const use = [...el.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent!.trim() === 'Use',
+    )!;
     expect(use.disabled).toBe(true);
   });
 });

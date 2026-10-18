@@ -15,6 +15,7 @@ import { actionButtons, groupBySeverity, overviewStats, panelTarget, pluginProbl
 import { OVERVIEW_AUTO_OPEN_KEY, OverviewPrefs } from './overview-prefs';
 import { OverviewView } from './overview-view';
 import { OverviewAutoOpen, provideOverview } from './overview.plugin';
+import { at } from '../../testing/must';
 
 const crash: Finding = { kind: 'crash', severity: 'critical', title: 'Crash', detail: 'WEB01 stopped', action: { kind: 'zoom', from: 1000, to: 2000, recordId: 7 } };
 const exc: Finding = { kind: 'exception', severity: 'warning', title: 'TimeoutException ×9', detail: 'on 2 instances', action: { kind: 'exception', fingerprint: 'fp1', recordId: null } };
@@ -180,8 +181,8 @@ describe('OverviewActions', () => {
     const { ctx, actions } = setup();
     await actions.run(file, 'setupFormat');
     const stack = TestBed.inject(DialogService).stack();
-    expect(stack[0].component).toBe(FormatWizard);
-    expect(stack[0].options.inputs).toEqual({ path: '/logs/x.reg', name: 'x.reg' });
+    expect(at(stack, 0).component).toBe(FormatWizard);
+    expect(at(stack, 0).options.inputs).toEqual({ path: '/logs/x.reg', name: 'x.reg' });
     await actions.run(panel, 'openPanel');
     expect(ctx.calls).toEqual(['show:profile']);
     const other = { ...bare, action: { kind: 'openPanel', panel: 'x' } } as Finding;

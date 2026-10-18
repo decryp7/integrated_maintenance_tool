@@ -22,7 +22,7 @@ export class AiCitations {
   async query(ql: string): Promise<string | null> {
     this.session.load(ql);
     const result = await this.session.run();
-    if (result === null) return this.session.runError() ?? 'The query could not be run.';
+    if (result === null) return this.session.runError() ?? $localize`:@@ai.citations.queryFailed:The query could not be run.`;
     this.ctx.showView(result === 'table' ? 'query-results' : 'query');
     return null;
   }
@@ -30,9 +30,13 @@ export class AiCitations {
   /** Opens a cited web page in the system browser after the user confirms. */
   async web(url: string, title: string): Promise<string | null> {
     const ref = this.dialogs.open<boolean>(ConfirmDialog, {
-      title: 'Open web page?',
+      title: $localize`:@@ai.citations.openWeb.title:Open web page?`,
       width: 480,
-      inputs: { message: `Open "${title}" in your web browser?`, detail: url, confirmLabel: 'Open in browser' },
+      inputs: {
+        message: $localize`:@@ai.citations.openWeb.message:Open "${title}:title:" in your web browser?`,
+        detail: url,
+        confirmLabel: $localize`:@@ai.citations.openWeb.confirm:Open in browser`,
+      },
     });
     if ((await ref.closed) !== true) return null;
     try {

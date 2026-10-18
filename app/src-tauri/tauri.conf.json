@@ -13,7 +13,8 @@
     "windows": [
       {
         "label": "main",
-        "title": "IMT \u2014 Integrated Maintenance Tool",
+        "create": false,
+        "title": "IMT — Integrated Maintenance Tool",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,
@@ -68,5 +69,17 @@
       }
     ]
   },
-  "mainBinaryName": "imt-app"
+  "mainBinaryName": "imt-app",
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://dev.decryptology.net/decryp7/integrated_maintenance_tool/releases/download/latest/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

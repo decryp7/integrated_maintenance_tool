@@ -51,7 +51,7 @@ function kindOf(v: string): GroupKind {
 /** Generalises the number runs of the first line into named groups and tests every line against the result. */
 export function mockInferRegex(lines: string[]): InferredRegex {
   if (lines.length === 0) throw new Error('Add at least one example line.');
-  const first = lines[0];
+  const first = lines[0] ?? '';
   const groups: InferredGroup[] = [];
   let pattern = '';
   let last = 0;
@@ -65,6 +65,9 @@ export function mockInferRegex(lines: string[]): InferredRegex {
   pattern += escape(first.slice(last));
   const re = toJsRegex(pattern);
   const found = lines.map((l) => re.exec(l));
-  for (const g of groups) g.examples = found.flatMap((m) => (m?.groups?.[g.name] ? [m.groups[g.name]] : [])).slice(0, 3);
+  for (const g of groups) g.examples = found.flatMap((m) => {
+      const example = m?.groups?.[g.name];
+      return example ? [example] : [];
+    }).slice(0, 3);
   return { pattern, groups, matches: found.map((m) => m !== null), explanation: mockExplainRegex(pattern) };
 }

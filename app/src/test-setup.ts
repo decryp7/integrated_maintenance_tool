@@ -1,4 +1,5 @@
 /** jsdom gaps the app relies on. Loaded before every spec (angular.json test.setupFiles). */
+import '@angular/localize/init';
 
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}

@@ -17,11 +17,11 @@ const MAX_EVENTS = 500;
 
 /** A distinct glyph per event kind (shape + label, never colour alone). */
 export const EVENT_GLYPHS: Record<ProfileEventKind, { label: string; path: string; color: string }> = {
-  gc: { label: 'GC', path: 'M6 1L11 6L6 11L1 6Z', color: 'var(--s2)' },
-  jit: { label: 'JIT', path: 'M6 1L11 11H1Z', color: 'var(--s3)' },
-  exception: { label: 'Exception', path: 'M2 2L10 10M10 2L2 10', color: 'var(--lvl-error)' },
-  lockWait: { label: 'Lock wait', path: 'M2 2H10V10H2Z', color: 'var(--s4)' },
-  marker: { label: 'Marker', path: 'M6 0V12M3 3H9', color: 'var(--text-2)' },
+  gc: { label: $localize`:@@profiling.threads.event.gc:GC`, path: 'M6 1L11 6L6 11L1 6Z', color: 'var(--s2)' },
+  jit: { label: $localize`:@@profiling.threads.event.jit:JIT`, path: 'M6 1L11 11H1Z', color: 'var(--s3)' },
+  exception: { label: $localize`:@@profiling.threads.event.exception:Exception`, path: 'M2 2L10 10M10 2L2 10', color: 'var(--lvl-error)' },
+  lockWait: { label: $localize`:@@profiling.threads.event.lockWait:Lock wait`, path: 'M2 2H10V10H2Z', color: 'var(--s4)' },
+  marker: { label: $localize`:@@profiling.threads.event.marker:Marker`, path: 'M6 0V12M3 3H9', color: 'var(--text-2)' },
 };
 
 /** Bars of one lane as an SVG path in a 1000 × 100 box. */
@@ -63,8 +63,8 @@ interface EventVm {
     @if (active.profile(); as p) {
       <imt-profile-bar [showMetric]="false" />
       <div class="bar">
-        <span class="section-title">Thread timeline</span>
-        <div class="kinds" role="group" aria-label="Event kinds">
+        <span class="section-title" i18n="@@profiling.threads.title">Thread timeline</span>
+        <div class="kinds" role="group" aria-label="Event kinds" i18n-aria-label="@@profiling.threads.kinds">
           @for (k of p.eventKinds; track k) {
             <button type="button" class="lg" [attr.aria-pressed]="!hidden().has(k)" [class.hl]="state.eventKind() === k" (click)="toggleKind(k)">
               <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path [attr.d]="glyph(k).path" [style.fill]="k === 'exception' || k === 'marker' ? 'none' : glyph(k).color" [style.stroke]="glyph(k).color" stroke-width="1.6" /></svg>
@@ -73,17 +73,17 @@ interface EventVm {
           }
         </div>
         <span class="spacer"></span>
-        <form class="range" (submit)="applyTyped($event, from.value, to.value)" aria-label="Time range in milliseconds since the capture start">
-          <label class="inline">From <input #from type="number" min="0" step="any" aria-label="Range start (ms)" [value]="msOf(state.range()?.fromNs)" /></label>
-          <label class="inline">To <input #to type="number" min="0" step="any" aria-label="Range end (ms)" [value]="msOf(state.range()?.toNs)" /></label>
-          <button class="btn" type="submit">Apply range</button>
-          <button class="btn" type="button" [disabled]="!state.range()" (click)="state.setRange(null)">Clear range</button>
+        <form class="range" (submit)="applyTyped($event, from.value, to.value)" aria-label="Time range in milliseconds since the capture start" i18n-aria-label="@@profiling.threads.rangeForm">
+          <label class="inline"><ng-container i18n="@@profiling.threads.from">From</ng-container>&ngsp;<input #from type="number" min="0" step="any" aria-label="Range start (ms)" i18n-aria-label="@@profiling.threads.rangeStart" [value]="msOf(state.range()?.fromNs)" /></label>
+          <label class="inline"><ng-container i18n="@@profiling.threads.to">To</ng-container>&ngsp;<input #to type="number" min="0" step="any" aria-label="Range end (ms)" i18n-aria-label="@@profiling.threads.rangeEnd" [value]="msOf(state.range()?.toNs)" /></label>
+          <button class="btn" type="submit" i18n="@@profiling.threads.apply">Apply range</button>
+          <button class="btn" type="button" [disabled]="!state.range()" (click)="state.setRange(null)" i18n="@@profiling.threads.clear">Clear range</button>
         </form>
       </div>
       @if (!p.hasTime) {
-        <div class="state" role="status">This capture has no timestamps (e.g. folded stacks), so there is no timeline.</div>
+        <div class="state" role="status" i18n="@@profiling.threads.noTimestamps">This capture has no timestamps (e.g. folded stacks), so there is no timeline.</div>
       } @else {
-        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." (retry)="res.retry()">
+        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
           @if (res.data(); as t) {
             <div class="axis mono" aria-hidden="true">
               <span [style.left.px]="labelW">{{ axisLabel(t, t.fromNs) }}</span>
@@ -92,14 +92,14 @@ interface EventVm {
             <div class="lanes" #lanes (pointerdown)="down($event)" (pointermove)="move($event)" (pointerup)="up($event)" (pointercancel)="brush.set(null)">
               @for (l of t.threads; track l.thread.id; let i = $index) {
                 <div class="lane">
-                  <button class="label" type="button" [class.on]="isFiltered(l)" [attr.aria-pressed]="isFiltered(l)" [title]="'Show only ' + l.thread.name + ' (click again to show all)'" (pointerdown)="$event.stopPropagation()" (click)="state.toggleThread(l.thread.id)">
+                  <button class="label" type="button" [class.on]="isFiltered(l)" [attr.aria-pressed]="isFiltered(l)" [title]="onlyTitle(l.thread.name)" (pointerdown)="$event.stopPropagation()" (click)="state.toggleThread(l.thread.id)">
                     <span class="ellipsis">{{ l.thread.name }}</span>
                     <span class="faint mono">{{ l.thread.osId ?? '' }}</span>
                   </button>
                   <div class="plot">
-                    <svg viewBox="0 0 1000 100" preserveAspectRatio="none" role="img" [attr.aria-label]="l.thread.name + ': ' + l.total + ' samples'"><path [attr.d]="path(l)" /></svg>
+                    <svg viewBox="0 0 1000 100" preserveAspectRatio="none" role="img" [attr.aria-label]="laneLabel(l.thread.name, l.total)"><path [attr.d]="path(l)" /></svg>
                     @for (ev of laneEvents().get(i) ?? []; track $index) {
-                      <span class="ev" [class.dim]="state.eventKind() !== null && state.eventKind() !== ev.e.kind" [style.left.%]="ev.left" [title]="glyph(ev.e.kind).label + ': ' + ev.e.label + ' at ' + ns(ev.e.startNs) + (ev.e.durNs ? ' for ' + ns(ev.e.durNs) : '')">
+                      <span class="ev" [class.dim]="state.eventKind() !== null && state.eventKind() !== ev.e.kind" [style.left.%]="ev.left" [title]="eventTitle(ev.e)">
                         @if (ev.width > 0.3) { <span class="dur" [style.width.%]="(ev.width / (100 - ev.left)) * 100" [style.background]="glyph(ev.e.kind).color"></span> }
                         <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path [attr.d]="glyph(ev.e.kind).path" [style.fill]="ev.e.kind === 'exception' || ev.e.kind === 'marker' ? 'none' : glyph(ev.e.kind).color" [style.stroke]="glyph(ev.e.kind).color" stroke-width="1.6" /></svg>
                       </span>
@@ -109,11 +109,11 @@ interface EventVm {
               }
               @if (brush(); as b) { <div class="brush" [style.left.px]="b.min" [style.width.px]="b.max - b.min"></div> }
             </div>
-            @if (t.eventsTruncated) { <div class="notice" role="status">Only the first {{ maxEvents }} events are shown; narrow the range for the rest.</div> }
+            @if (t.eventsTruncated) { <div class="notice" role="status" i18n="@@profiling.threads.truncated">Only the first {{ maxEvents }} events are shown; narrow the range for the rest.</div> }
             <details class="events">
-              <summary>Events in view ({{ t.events.length }})</summary>
+              <summary i18n="@@profiling.threads.eventsInView">Events in view ({{ t.events.length }})</summary>
               <table class="grid">
-                <thead><tr><th scope="col">Kind</th><th scope="col">Thread</th><th scope="col" class="num">Start</th><th scope="col" class="num">Duration</th><th scope="col">Label</th></tr></thead>
+                <thead><tr><th scope="col" i18n="@@profiling.threads.col.kind">Kind</th><th scope="col" i18n="@@profiling.threads.col.thread">Thread</th><th scope="col" class="num" i18n="@@profiling.threads.col.start">Start</th><th scope="col" class="num" i18n="@@profiling.threads.col.duration">Duration</th><th scope="col" i18n="@@profiling.threads.col.label">Label</th></tr></thead>
                 <tbody>
                   @for (e of t.events; track $index) {
                     <tr><td>{{ glyph(e.kind).label }}</td><td>{{ threadName(t, e.thread) }}</td><td class="num">{{ ns(e.startNs) }}</td><td class="num">{{ e.durNs ? ns(e.durNs) : '—' }}</td><td>{{ e.label }}</td></tr>
@@ -125,7 +125,7 @@ interface EventVm {
         </imt-analysis-state>
       }
     } @else {
-      <imt-no-capture text="Open a profile with timestamps to see its threads over time." />
+      <imt-no-capture text="Open a profile with timestamps to see its threads over time." i18n-text="@@profiling.threads.noCapture" />
     }
   `,
   styles: [
@@ -235,7 +235,25 @@ export class ThreadTimelineView {
   }
 
   protected threadName(t: ThreadTimeline, id: number | null): string {
-    return id === null ? 'process' : (t.threads.find((l) => l.thread.id === id)?.thread.name ?? `thread ${id}`);
+    if (id === null) return $localize`:@@profiling.threads.process:process`;
+    return t.threads.find((l) => l.thread.id === id)?.thread.name ?? $localize`:@@profiling.threads.threadId:thread ${id}:id:`;
+  }
+
+  protected onlyTitle(name: string): string {
+    return $localize`:@@profiling.threads.onlyTitle:Show only ${name}:name: (click again to show all)`;
+  }
+
+  protected laneLabel(name: string, total: number): string {
+    return $localize`:@@profiling.threads.laneLabel:${name}:name:: ${total}:count: samples`;
+  }
+
+  protected eventTitle(e: ThreadTimeline['events'][number]): string {
+    const kind = this.glyph(e.kind).label;
+    const label = e.label;
+    const at = this.ns(e.startNs);
+    if (!e.durNs) return $localize`:@@profiling.threads.eventTitle:${kind}:kind:: ${label}:label: at ${at}:start:`;
+    const dur = this.ns(e.durNs);
+    return $localize`:@@profiling.threads.eventTitleDur:${kind}:kind:: ${label}:label: at ${at}:start: for ${dur}:duration:`;
   }
 
   protected axisLabel(t: ThreadTimeline, ns: number): string {

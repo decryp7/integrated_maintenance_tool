@@ -16,24 +16,24 @@ import { HeapSelection } from './heap-selection';
   template: `
     <div class="bar">
       <form class="inline" (submit)="pickType($event, type.value)">
-        <label class="inline">Type <input #type type="text" aria-label="Type name" [value]="sel.typeName() ?? ''" placeholder="e.g. Shop.Orders.Order" /></label>
-        <button class="btn" type="submit">Show instances</button>
+        <label class="inline"><ng-container i18n="@@profiling.heapInstances.type">Type</ng-container>&ngsp;<input #type type="text" aria-label="Type name" i18n-aria-label="@@profiling.heapInstances.typeLabel" [value]="sel.typeName() ?? ''" placeholder="e.g. Shop.Orders.Order" i18n-placeholder="@@profiling.heapInstances.typePlaceholder" /></label>
+        <button class="btn" type="submit" i18n="@@profiling.heapInstances.show">Show instances</button>
       </form>
-      @if (list.data(); as d) { <span class="muted">{{ count(d.totalRows) }} instances · {{ bytes(d.totalBytes) }}</span> }
+      @if (list.data(); as d) { <span class="muted" i18n="@@profiling.heapInstances.summary">{{ count(d.totalRows) // i18n(ph: "count") }} instances · {{ bytes(d.totalBytes) // i18n(ph: "bytes") }}</span> }
     </div>
     <div class="cols">
-      <section class="pane" aria-label="Instances">
+      <section class="pane" aria-label="Instances" i18n-aria-label="@@profiling.heapInstances.section">
         @if (!sel.typeName()) {
-          <div class="state" role="status">Pick a type (in the Types tab, or type its name) to list its instances.</div>
+          <div class="state" role="status" i18n="@@profiling.heapInstances.pick">Pick a type (in the Types tab, or type its name) to list its instances.</div>
         } @else {
-          <imt-analysis-state [loading]="list.loading()" [error]="list.error()" [hasData]="!!list.data()" [empty]="list.data()?.totalRows === 0" emptyText="No instances of this type." (retry)="list.retry()">
-            <div class="body tight" tabindex="0" role="region" aria-label="Instance rows">
-              <table class="grid" aria-label="Instances by retained size">
-                <thead><tr><th scope="col">Object</th><th scope="col" class="num">Retained</th><th scope="col" class="num">Shallow</th></tr></thead>
+          <imt-analysis-state [loading]="list.loading()" [error]="list.error()" [hasData]="!!list.data()" [empty]="list.data()?.totalRows === 0" emptyText="No instances of this type." i18n-emptyText="@@profiling.heapInstances.empty" (retry)="list.retry()">
+            <div class="body tight" tabindex="0" role="region" aria-label="Instance rows" i18n-aria-label="@@profiling.heapInstances.rowsRegion">
+              <table class="grid" aria-label="Instances by retained size" i18n-aria-label="@@profiling.heapInstances.tableLabel">
+                <thead><tr><th scope="col" i18n="@@profiling.heapInstances.col.object">Object</th><th scope="col" class="num" i18n="@@profiling.heapInstances.col.retained">Retained</th><th scope="col" class="num" i18n="@@profiling.heapInstances.col.shallow">Shallow</th></tr></thead>
                 <tbody>
                   @for (r of list.data()?.rows ?? []; track r.object) {
                     <tr [class.sel]="sel.object() === r.object">
-                      <td><button class="link" type="button" [attr.aria-label]="'Why is ' + r.typeName + ' @' + r.object + ' alive?'" (click)="sel.showPaths(r.object)">&#64;{{ r.object }}</button></td>
+                      <td><button class="link" type="button" [attr.aria-label]="whyLabel(r.typeName, r.object)" (click)="sel.showPaths(r.object)">&#64;{{ r.object }}</button></td>
                       <td class="num">{{ bytes(r.retained) }}</td>
                       <td class="num">{{ bytes(r.shallow) }}</td>
                     </tr>
@@ -44,21 +44,21 @@ import { HeapSelection } from './heap-selection';
           </imt-analysis-state>
         }
       </section>
-      <section class="pane paths" tabindex="0" aria-label="Paths to GC roots">
-        <h3 class="sec">Why is this alive?</h3>
+      <section class="pane paths" tabindex="0" aria-label="Paths to GC roots" i18n-aria-label="@@profiling.heapInstances.pathsSection">
+        <h3 class="sec" i18n="@@profiling.heapInstances.why">Why is this alive?</h3>
         @if (sel.object() === null) {
-          <div class="state" role="status">Choose an object to see the references that keep it alive.</div>
+          <div class="state" role="status" i18n="@@profiling.heapInstances.choose">Choose an object to see the references that keep it alive.</div>
         } @else {
           <imt-analysis-state [loading]="paths.loading()" [error]="paths.error()" [hasData]="!!paths.data()" (retry)="paths.retry()">
             @if (paths.data(); as p) {
-              @if (p.unreachable) { <p class="muted" role="status">Unreachable: nothing on a path from a GC root keeps it alive (it is garbage).</p> }
-              @if (p.truncated) { <p class="muted" role="status">More paths exist; the shortest are shown.</p> }
+              @if (p.unreachable) { <p class="muted" role="status" i18n="@@profiling.heapInstances.unreachable">Unreachable: nothing on a path from a GC root keeps it alive (it is garbage).</p> }
+              @if (p.truncated) { <p class="muted" role="status" i18n="@@profiling.heapInstances.truncated">More paths exist; the shortest are shown.</p> }
               @for (path of p.paths; track $index; let n = $index) {
-                <ol class="chain" [attr.aria-label]="'Path ' + (n + 1) + ' from a GC root, ' + path.length + ' steps'" data-testid="root-path">
+                <ol class="chain" [attr.aria-label]="pathLabel(n + 1, path.length)" data-testid="root-path">
                   @for (s of path; track $index; let first = $first; let last = $last) {
                     <li [class.root]="first" [class.target]="last">
                       @if (s.edge) { <span class="edge mono">.{{ s.edge }} →</span> }
-                      @if (first) { <span class="tag">GC root</span> }
+                      @if (first) { <span class="tag" i18n="@@profiling.heapInstances.gcRoot">GC root</span> }
                       <span class="node">{{ s.typeName }} <span class="faint mono">&#64;{{ s.object }}</span></span>
                     </li>
                   }
@@ -109,6 +109,14 @@ export class HeapInstances {
       const object = this.sel.object();
       untracked(() => (object !== null ? void this.paths.load(() => this.backend.heapPaths({ snapshotId, object, maxPaths: 5 })) : this.paths.reset()));
     });
+  }
+
+  protected whyLabel(typeName: string, object: number): string {
+    return $localize`:@@profiling.heapInstances.whyLabel:Why is ${typeName}:type: @${object}:object: alive?`;
+  }
+
+  protected pathLabel(n: number, steps: number): string {
+    return $localize`:@@profiling.heapInstances.pathLabel:Path ${n}:n: from a GC root, ${steps}:steps: steps`;
   }
 
   protected pickType(e: Event, name: string): void {

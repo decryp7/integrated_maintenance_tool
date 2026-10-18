@@ -42,38 +42,44 @@ export class ProposalApply {
   private async applyNow(p: Proposal): Promise<ApplyOutcome> {
     switch (p.kind) {
       case 'regex': {
-        const label = p.rationale.trim() || 'AI pattern';
+        const label = p.rationale.trim() || $localize`:@@ai.proposalApply.defaultLabel:AI pattern`;
         const ref = this.dialogs.open<boolean>(MarkDialog, {
-          title: 'Highlight lines',
+          title: $localize`:@@ai.proposalApply.highlight.title:Highlight lines`,
           width: 760,
           inputs: {
             initial: [{ field: '@message', op: 'matches', value: p.pattern }],
             suggestedLabel: label.length > LABEL_MAX ? `${label.slice(0, LABEL_MAX).trim()}…` : label,
-            submitLabel: 'Add highlight',
-            hint: 'The suggested regex as a highlight rule. Review it; the preview shows what it highlights.',
+            submitLabel: $localize`:@@ai.proposalApply.highlight.submit:Add highlight`,
+            hint: $localize`:@@ai.proposalApply.highlight.hint:The suggested regex as a highlight rule. Review it; the preview shows what it highlights.`,
           },
         });
-        return (await ref.closed) ? { kind: 'applied', message: 'Highlight rule added.' } : { kind: 'cancelled' };
+        return (await ref.closed) ? { kind: 'applied', message: $localize`:@@ai.proposalApply.highlight.done:Highlight rule added.` } : { kind: 'cancelled' };
       }
       case 'query': {
         this.query.load(p.ql);
         const result = await this.query.run();
-        if (result === null) throw new Error(this.query.runError() ?? 'The query could not be run.');
+        if (result === null) throw new Error(this.query.runError() ?? $localize`:@@ai.proposalApply.queryFailed:The query could not be run.`);
         this.ctx.showView(result === 'table' ? 'query-results' : 'query');
-        return { kind: 'applied', message: result === 'table' ? 'Query run; see Query results.' : 'Query applied as the filter.' };
+        return {
+          kind: 'applied',
+          message:
+            result === 'table'
+              ? $localize`:@@ai.proposalApply.query.table:Query run; see Query results.`
+              : $localize`:@@ai.proposalApply.query.filter:Query applied as the filter.`,
+        };
       }
       case 'profile':
-        await this.profiles.save(`AI: parsing profile "${p.name}"`, p.toml);
-        return { kind: 'applied', message: 'Profile saved; the files were read again.' };
+        await this.profiles.save($localize`:@@ai.proposalApply.profile.undo:AI: parsing profile "${p.name}:name:"`, p.toml);
+        return { kind: 'applied', message: $localize`:@@ai.proposalApply.profile.done:Profile saved; the files were read again.` };
       case 'pipeline':
-        await this.profiles.save('AI: pipeline steps', p.profileToml);
-        return { kind: 'applied', message: 'Pipeline steps added to the profile (Undo reverts them).' };
+        await this.profiles.save($localize`:@@ai.proposalApply.pipeline.undo:AI: pipeline steps`, p.profileToml);
+        return { kind: 'applied', message: $localize`:@@ai.proposalApply.pipeline.done:Pipeline steps added to the profile (Undo reverts them).` };
       case 'markers':
-        await this.profiles.save('AI: markers', p.profileToml);
-        return { kind: 'applied', message: 'Markers added to the profile (Undo reverts them).' };
+        await this.profiles.save($localize`:@@ai.proposalApply.markers.undo:AI: markers`, p.profileToml);
+        return { kind: 'applied', message: $localize`:@@ai.proposalApply.markers.done:Markers added to the profile (Undo reverts them).` };
       case 'extractors':
-        await this.profiles.save('AI: extractors', p.profileToml);
-        return { kind: 'applied', message: 'Extractors added to the profile (Undo reverts them).' };
+        await this.profiles.save($localize`:@@ai.proposalApply.extractors.undo:AI: extractors`, p.profileToml);
+        return { kind: 'applied', message: $localize`:@@ai.proposalApply.extractors.done:Extractors added to the profile (Undo reverts them).` };
     }
   }
 }

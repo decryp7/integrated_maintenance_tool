@@ -6,6 +6,7 @@ import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { ROOT_KEY } from './tree-model';
 import { TREE_PAGE, TreeQuery, TreeStore } from './tree.store';
+import { at } from '../../../testing/must';
 
 const frame = (id: number): FrameDto => ({ id, name: `F${id}`, module: null, file: null, line: null, kind: 'managed', isFramework: false });
 const node = (id: number, hasChildren: boolean): TreeNode => ({ frame: frame(id), self: { timeNs: 1 }, total: { timeNs: 2 }, selfPct: 1, totalPct: 2, hasChildren });
@@ -138,7 +139,7 @@ describe('TreeStore', () => {
     const a = store.loadMore(ROOT_KEY);
     expect(store.root().loading).toBe(true);
     expect(await store.loadMore(ROOT_KEY)).toBe(false);
-    f.holds[0]();
+    at(f.holds, 0)();
     expect(await a).toBe(true);
     // The fake serves offset 5 as an empty page: nothing is duplicated.
     expect(store.root().children).toEqual(['0', '1', '2', '3', '4']);
@@ -148,11 +149,11 @@ describe('TreeStore', () => {
     const { store } = setup({ '': 450, '199': 2 }, 1);
     await store.setQuery(query());
     await store.expand('199');
-    expect(store.entries()['199'].children).toEqual(['199/0', '199/1']);
+    expect(store.entries()['199']?.children).toEqual(['199/0', '199/1']);
     await store.loadMore(ROOT_KEY);
     expect(store.root().children).toHaveLength(399);
     expect(new Set(store.root().children).size).toBe(399);
-    expect(store.entries()['199'].children).toEqual(['199/0', '199/1']);
+    expect(store.entries()['199']?.children).toEqual(['199/0', '199/1']);
   });
 
   it('does nothing without a query', async () => {
@@ -192,9 +193,9 @@ describe('TreeStore', () => {
     f.holdBack();
     const first = store.setQuery(query());
     const second = store.setQuery(query({ profileId: 2 }));
-    f.holds[1]();
+    at(f.holds, 1)();
     await second;
-    f.holds[0]();
+    at(f.holds, 0)();
     await first;
     expect(store.root().children).toEqual(['0', '1', '2']);
     expect(store.root().loading).toBe(false);
@@ -224,7 +225,7 @@ describe('TreeStore', () => {
     expect(f.treeCalls.map((c) => c.direction)).toEqual(['bottomUp', 'bottomUp']);
     f.setHot({ path: [0, 1], nodes: [node(0, true), node(1, true)] });
     await store.expandHotPath();
-    expect(f.hotCalls[0].direction).toBe('bottomUp');
+    expect(f.hotCalls[0]?.direction).toBe('bottomUp');
   });
 
   describe('reveal', () => {
@@ -305,12 +306,12 @@ describe('TreeStore', () => {
       await store.expand('0');
       f.setHot({ path: [0], nodes: [node(0, true)] });
       await store.expandHotPath('0');
-      expect(f.hotCalls[0].path).toEqual([0]);
+      expect(f.hotCalls[0]?.path).toEqual([0]);
       expect(store.notice()).toBe('Nothing below this node is hot enough to expand.');
       expect(store.busy()).toBe(false);
       f.setHot({ path: [], nodes: [] });
       await store.expandHotPath('unknown-key');
-      expect(f.hotCalls[1].path).toEqual([]);
+      expect(f.hotCalls[1]?.path).toEqual([]);
     });
 
     it('turns a backend error into a notice', async () => {
@@ -329,9 +330,9 @@ describe('TreeStore', () => {
       f.holdBack();
       const hot = store.expandHotPath();
       const next = store.setQuery(query({ profileId: 2 }));
-      f.holds[1]();
+      at(f.holds, 1)();
       await next;
-      f.holds[0]();
+      at(f.holds, 0)();
       await hot;
       expect(store.expanded()).toEqual([]);
       expect(store.selected()).toBeNull();
@@ -345,9 +346,9 @@ describe('TreeStore', () => {
       f.holdBack();
       const hot = store.expandHotPath();
       const next = store.setQuery(query({ profileId: 2 }));
-      f.holds[1]();
+      at(f.holds, 1)();
       await next;
-      f.holds[0]();
+      at(f.holds, 0)();
       await hot;
       expect(store.notice()).toBeNull();
     });

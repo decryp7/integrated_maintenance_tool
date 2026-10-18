@@ -14,6 +14,7 @@ import { RedactionService } from './redaction.service';
 import { RedactionSummaryView } from './redaction-summary';
 import { provideMockShare } from './share-testing';
 import { ShareBackend } from '../share-backend';
+import { at } from '../../../testing/must';
 
 const closed = vi.fn();
 
@@ -78,13 +79,15 @@ describe('RedactionService and commands', () => {
 
   it('runs the toggle and settings commands', async () => {
     const { service } = await setup();
-    const [toggle, settings] = TestBed.inject(RedactionCommands).commands;
+    const commands = TestBed.inject(RedactionCommands).commands;
+    const toggle = at(commands, 0);
+    const settings = at(commands, 1);
     expect(toggle.keybinding).toBe(REDACTED_VIEW_KEY);
     await toggle.run({} as never);
     expect(service.on()).toBe(true);
     void settings.run({} as never);
     await settle();
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Redaction settings');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Redaction settings');
   });
 });
 
@@ -128,10 +131,10 @@ describe('RedactionDialog', () => {
     buttonByText(fixture, 'Add rule').click();
     await settle(fixture);
     const inputs = all<HTMLInputElement>(fixture, '.rule input');
-    typeInto(inputs[0], 'ticket');
-    typeInto(inputs[1], 'TCK-(?P<value>\\d+)');
-    typeInto(inputs[2], 'TCK-#');
-    all<HTMLButtonElement>(fixture, '.rule button')[1].click();
+    typeInto(at(inputs, 0), 'ticket');
+    typeInto(at(inputs, 1), 'TCK-(?P<value>\\d+)');
+    typeInto(at(inputs, 2), 'TCK-#');
+    at(all<HTMLButtonElement>(fixture, '.rule button'), 1).click();
     await wait(300);
     await settle(fixture);
     buttonByText(fixture, 'Save').click();
@@ -159,12 +162,12 @@ describe('RedactionDialog', () => {
     const { fixture } = await dialog();
     buttonByText(fixture, 'Add rule').click();
     await settle(fixture);
-    typeInto(all<HTMLInputElement>(fixture, '.rule input')[1], '(');
+    typeInto(at(all<HTMLInputElement>(fixture, '.rule input'), 1), '(');
     await wait(300);
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('invalid regex');
     expect(buttonByText(fixture, 'Save').disabled).toBe(true);
-    all<HTMLButtonElement>(fixture, '.rule button')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.rule button'), 0).click();
     await wait(300);
     await settle(fixture);
     vi.spyOn(TestBed.inject(ProfileEdits), 'apply').mockRejectedValueOnce(new Error('locked'));

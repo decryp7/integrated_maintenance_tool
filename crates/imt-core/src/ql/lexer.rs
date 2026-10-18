@@ -1,6 +1,19 @@
 //! Splits query text into tokens with byte spans. Never fails except on unterminated quotes.
+//!
+//! [`lex`] is the query-language mode; [`lex_calc`] additionally splits on the arithmetic
+//! operators `+ - * / %` for calculated-field expressions (see [`super::calc`]).
 
 use super::error::QlError;
+
+/// Arithmetic operators; only produced by [`lex_calc`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArithOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CmpOp {
@@ -28,6 +41,8 @@ pub enum Tok {
     RParen,
     Pipe,
     Comma,
+    /// `+ - * / %` (calc mode only).
+    Arith(ArithOp),
 }
 
 #[derive(Debug, Clone)]
@@ -37,15 +52,34 @@ pub struct Token {
     pub end: usize,
 }
 
-fn is_delim(b: u8) -> bool {
+fn is_delim(b: u8, arith: bool) -> bool {
     b.is_ascii_whitespace()
         || matches!(
             b,
             b'(' | b')' | b'|' | b',' | b'=' | b'!' | b'<' | b'>' | b'~' | b'"' | b'\'' | b'`'
         )
+        || (arith && matches!(b, b'+' | b'-' | b'*' | b'/' | b'%'))
 }
 
+/// In calc mode the sign of an exponent (`1e-3`, `2.5E+4`) belongs to the number.
+fn exponent_sign(b: &[u8], word_start: usize, j: usize) -> bool {
+    matches!(b[j], b'+' | b'-')
+        && b[word_start].is_ascii_digit()
+        && matches!(b[j - 1], b'e' | b'E')
+        && b.get(j + 1).is_some_and(u8::is_ascii_digit)
+}
+
+/// Query-language tokens: `+ - * / %` are part of words (`-150ms`, `/api/x`).
 pub fn lex(text: &str) -> Result<Vec<Token>, QlError> {
+    lex_with(text, false)
+}
+
+/// Calculated-field tokens: like [`lex`], but `+ - * / %` are [`Tok::Arith`] operators.
+pub fn lex_calc(text: &str) -> Result<Vec<Token>, QlError> {
+    lex_with(text, true)
+}
+
+fn lex_with(text: &str, arith: bool) -> Result<Vec<Token>, QlError> {
     let b = text.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
@@ -57,6 +91,11 @@ pub fn lex(text: &str) -> Result<Vec<Token>, QlError> {
         }
         let next = b.get(i + 1).copied();
         let (tok, len) = match c {
+            b'+' if arith => (Tok::Arith(ArithOp::Add), 1),
+            b'-' if arith => (Tok::Arith(ArithOp::Sub), 1),
+            b'*' if arith => (Tok::Arith(ArithOp::Mul), 1),
+            b'/' if arith => (Tok::Arith(ArithOp::Div), 1),
+            b'%' if arith => (Tok::Arith(ArithOp::Rem), 1),
             b'(' => (Tok::LParen, 1),
             b')' => (Tok::RParen, 1),
             b'|' => (Tok::Pipe, 1),
@@ -80,7 +119,7 @@ pub fn lex(text: &str) -> Result<Vec<Token>, QlError> {
             },
             _ => {
                 let mut j = i;
-                while j < b.len() && !is_delim(b[j]) {
+                while j < b.len() && (!is_delim(b[j], arith) || (arith && exponent_sign(b, i, j))) {
                     j += 1;
                 }
                 (Tok::Word(text[i..j].to_string()), j - i)
@@ -180,6 +219,35 @@ mod tests {
             ]
         );
         assert_eq!(toks("`odd name` é"), vec![Tok::Tick("odd name".into()), Tok::Word("é".into())]);
+    }
+
+    #[test]
+    fn calc_mode_splits_arithmetic() {
+        let calc = |s: &str| lex_calc(s).unwrap().into_iter().map(|t| t.tok).collect::<Vec<_>>();
+        let w = |s: &str| Tok::Word(s.into());
+        assert_eq!(
+            calc("a+b-c*d/e%f"),
+            vec![
+                w("a"),
+                Tok::Arith(ArithOp::Add),
+                w("b"),
+                Tok::Arith(ArithOp::Sub),
+                w("c"),
+                Tok::Arith(ArithOp::Mul),
+                w("d"),
+                Tok::Arith(ArithOp::Div),
+                w("e"),
+                Tok::Arith(ArithOp::Rem),
+                w("f"),
+            ]
+        );
+        // Exponent signs stay in numbers; `e-` after a name or without digits does not.
+        assert_eq!(calc("1e-3 2E+4"), vec![w("1e-3"), w("2E+4")]);
+        assert_eq!(calc("be-3"), vec![w("be"), Tok::Arith(ArithOp::Sub), w("3")]);
+        assert_eq!(calc("1e-x"), vec![w("1e"), Tok::Arith(ArithOp::Sub), w("x")]);
+        assert_eq!(calc("1e-"), vec![w("1e"), Tok::Arith(ArithOp::Sub)]);
+        // The query language keeps them in words.
+        assert_eq!(toks("-150ms /api/x"), vec![w("-150ms"), w("/api/x")]);
     }
 
     #[test]

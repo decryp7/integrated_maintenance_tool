@@ -30,11 +30,11 @@ export class PanelTab implements ITabRenderer {
     this.menu.className = 'imt-tab-menu';
     this.menu.setAttribute('aria-hidden', 'true');
     this.menu.textContent = '▾';
-    this.menu.title = 'Panel menu (Shift+F10)';
+    this.menu.title = $localize`:@@dock.panelTab.menu:Panel menu (Shift+F10)`;
     this.close.className = 'imt-tab-close';
     this.close.setAttribute('aria-hidden', 'true');
     this.close.textContent = '×';
-    this.close.title = 'Close (Delete)';
+    this.close.title = $localize`:@@dock.panelTab.close:Close (Delete)`;
     this.element.append(this.pin, this.label, ...(openMenu ? [this.menu] : []), this.close);
   }
 

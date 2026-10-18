@@ -9,7 +9,7 @@ import { UnsavedChangesGuard } from './unsaved-changes';
 export class RecentProjectsDialogService {
   private readonly dialogs = inject(DialogService);
   open(): void {
-    this.dialogs.open(RecentProjectsDialog, { title: 'Recent projects', width: 520 });
+    this.dialogs.open(RecentProjectsDialog, { title: $localize`:@@projects.recent.title:Recent projects`, width: 520 });
   }
 }
 
@@ -18,7 +18,7 @@ export class RecentProjectsDialogService {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (projects.recent().length) {
-      <ul class="list" aria-label="Recent projects">
+      <ul class="list" aria-label="Recent projects" i18n-aria-label="@@projects.recent.list">
         @for (p of projects.recent(); track p.path) {
           <li>
             <button type="button" class="item" (click)="open(p.path)">
@@ -29,17 +29,17 @@ export class RecentProjectsDialogService {
         }
       </ul>
     } @else {
-      <p class="faint">No recent projects. Save a project to see it here.</p>
+      <p class="faint" i18n="@@projects.recent.empty">No recent projects. Save a project to see it here.</p>
     }
     <div class="foot">
-      <button type="button" class="btn" [disabled]="!projects.recent().length" (click)="projects.clearRecent()">Clear list</button>
-      <button type="button" class="btn" (click)="ref.close()">Close</button>
+      <button type="button" class="btn" [disabled]="!projects.recent().length" (click)="projects.clearRecent()" i18n="@@projects.recent.clear">Clear list</button>
+      <button type="button" class="btn" (click)="ref.close()" i18n="@@projects.recent.close">Close</button>
     </div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-    .item { width: 100%; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 6px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); color: var(--text); cursor: pointer; text-align: left; min-width: 0; }
+    .item { width: 100%; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 6px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); color: var(--text); cursor: pointer; text-align: start; min-width: 0; }
     .item:hover { background: var(--bg-hover); }
     .item .ellipsis { max-width: 100%; font-size: 11px; }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
@@ -57,6 +57,6 @@ export class RecentProjectsDialog {
 
   protected async open(path: string): Promise<void> {
     this.ref.close();
-    if (await this.guard.confirm('open another project')) await this.projects.open(path);
+    if (await this.guard.confirm($localize`:Completes "Save the changes before you ..."|@@projects.cmd.actionOpen:open another project`)) await this.projects.open(path);
   }
 }

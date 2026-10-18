@@ -26,7 +26,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
       >
         <div class="head">
           <h2 [id]="'imt-dialog-title-' + d.id">{{ d.options.title }}</h2>
-          <button class="icon-btn" type="button" aria-label="Close dialog" title="Close" (click)="d.ref.close()"><imt-icon name="close" [size]="14" /></button>
+          <button class="icon-btn" type="button" aria-label="Close dialog" i18n-aria-label="@@ui.dialog.closeAria" title="Close" i18n-title="@@ui.dialog.close" (click)="d.ref.close()"><imt-icon name="close" [size]="14" /></button>
         </div>
         <div class="body">
           <ng-container *ngComponentOutlet="d.component; inputs: d.options.inputs ?? {}; injector: injectorFor(d)" />
@@ -36,7 +36,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   `,
   styles: `
     .backdrop { position: fixed; inset: 0; z-index: 210; background: rgba(0, 0, 0, 0.4); }
-    .dialog { position: fixed; z-index: 211; top: 56px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
+    .dialog { position: fixed; z-index: 211; top: 56px; inset-inline-start: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
     .head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); }
     h2 { margin: 0; font-size: 14px; font-weight: 600; }
     .body { min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -97,9 +97,9 @@ export class DialogHost {
     }
     if (e.key !== 'Tab') return;
     const items = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)];
-    if (!items.length) return;
     const first = items[0];
     const last = items[items.length - 1];
+    if (!first || !last) return;
     if (e.shiftKey && document.activeElement === first) {
       e.preventDefault();
       last.focus();

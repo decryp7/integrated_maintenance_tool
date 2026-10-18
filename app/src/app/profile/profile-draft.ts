@@ -43,7 +43,7 @@ export class ProfileDraft {
     const p = this.parseError();
     if (p) return p;
     const v = this.validation();
-    return v && !v.ok ? { message: v.error ?? 'Invalid profile', line: v.line } : null;
+    return v && !v.ok ? { message: v.error ?? $localize`:@@profile.draft.invalid:Invalid profile`, line: v.line } : null;
   });
 
   private validateTimer: ReturnType<typeof setTimeout> | undefined;
@@ -70,7 +70,7 @@ export class ProfileDraft {
       if (doc.toml === this.doc()?.toml) return;
       if (this.dirty()) {
         this.stale.set(true);
-        this.store.setNotice('The active profile changed: your unsaved profile edits are based on the previous version.');
+        this.store.setNotice($localize`:@@profile.draft.changed:The active profile changed: your unsaved profile edits are based on the previous version.`);
         return;
       }
       this.doc.set(doc);
@@ -100,7 +100,7 @@ export class ProfileDraft {
       this.parseError.set(null);
     } catch (e) {
       const err = e as TomlError;
-      this.parseError.set({ message: (err.message ?? String(e)).split('\n')[0], line: err.line ?? null });
+      this.parseError.set({ message: (err.message ?? String(e)).split('\n')[0] ?? '', line: err.line ?? null });
     }
     this.scheduleValidation();
   }
@@ -147,14 +147,14 @@ export class ProfileDraft {
     this.saving.set(true);
     try {
       const text = this.text();
-      const summary = await this.undo.save('profile edit', text);
+      const summary = await this.undo.save($localize`:Undo history entry|@@profile.draft.undoLabel:profile edit`, text);
       this.seenProfileVersion = this.store.profileVersion();
       this.logger.info('ui.profile', 'Profile saved', { Markers: summary.markerKinds.length, Charts: summary.charts.length, Events: summary.total });
       this.doc.update((d) => ({ name: summary.profileName, path: d?.path ?? null, toml: text }));
       this.importedFrom.set(null);
       this.stale.set(false);
     } catch (e) {
-      this.store.setError(`Profile not saved: ${String(e)}`);
+      this.store.setError($localize`:@@profile.draft.saveFailed:Profile not saved: ${String(e)}:error:`);
     } finally {
       this.saving.set(false);
     }
@@ -168,7 +168,7 @@ export class ProfileDraft {
       this.importedFrom.set(path);
       this.setText(doc.toml);
     } catch (e) {
-      this.store.setError(`Import failed: ${String(e)}`);
+      this.store.setError($localize`:@@profile.draft.importFailed:Import failed: ${String(e)}:error:`);
     }
   }
 
@@ -180,7 +180,7 @@ export class ProfileDraft {
       const text = this.text();
       await this.overwrite.write(path, (overwrite) => this.backend.exportProfile(path, text, overwrite));
     } catch (e) {
-      this.store.setError(`Export failed: ${String(e)}`);
+      this.store.setError($localize`:@@profile.draft.exportFailed:Export failed: ${String(e)}:error:`);
     }
   }
 }

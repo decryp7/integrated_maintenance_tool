@@ -19,26 +19,26 @@ const AUTO_EXPAND_LIMIT = 400;
   imports: [Icon, NextSteps],
   template: `
     <div class="bar">
-      <span class="section-title">Registry</span>
-      <input class="input filter" type="search" placeholder="Filter keys, values, data" aria-label="Filter registry" [value]="filter()" (input)="filter.set($any($event.target).value)" />
+      <span class="section-title" i18n="@@plugins.registry.title">Registry</span>
+      <input class="input filter" type="search" placeholder="Filter keys, values, data" i18n-placeholder="@@plugins.registry.filter.placeholder" aria-label="Filter registry" i18n-aria-label="@@plugins.registry.filter.aria" [value]="filter()" (input)="filter.set($any($event.target).value)" />
       <span class="spacer"></span>
-      <button class="btn ghost" [disabled]="!selectedNode()" (click)="copyPath()" title="Copy the path of the selected key or value">
-        <imt-icon name="copy" [size]="14" /> {{ copied() ? 'Copied' : 'Copy path' }}
+      <button class="btn ghost" [disabled]="!selectedNode()" (click)="copyPath()" title="Copy the path of the selected key or value" i18n-title="@@plugins.registry.copyPath.title">
+        <imt-icon name="copy" [size]="14" /> {{ copyLabel() }}
       </button>
     </div>
     @if (truncated()) {
-      <div class="notice" role="status">Showing the first {{ cap }} rows only; narrow the registry export to see the rest.</div>
+      <div class="notice" role="status" i18n="@@plugins.registry.truncated">Showing the first {{ cap }} rows only; narrow the registry export to see the rest.</div>
     }
     @if (loading()) {
-      <div class="empty-state">Loading registry…</div>
+      <div class="empty-state" i18n="@@plugins.registry.loading">Loading registry…</div>
     } @else if (!rows().length) {
       <div class="empty-state">
-        <div>No registry data in the workspace.</div>
-        <div class="faint">Open a Windows registry export (.reg) to browse its keys and values here.</div>
+        <div i18n="@@plugins.registry.empty.title">No registry data in the workspace.</div>
+        <div class="faint" i18n="@@plugins.registry.empty.hint">Open a Windows registry export (.reg) to browse its keys and values here.</div>
         <imt-next-steps />
       </div>
     } @else {
-      <div class="tree" role="tree" aria-label="Registry" (keydown)="onKey($event)">
+      <div class="tree" role="tree" aria-label="Registry" i18n-aria-label="@@plugins.registry.tree" (keydown)="onKey($event)">
         @for (item of flat(); track item.node.id) {
           <div
             #row
@@ -61,7 +61,7 @@ const AUTO_EXPAND_LIMIT = 400;
             <imt-icon class="kind" [name]="item.node.kind === 'value' ? 'file' : 'folder'" [size]="13" />
             <span class="label mono ellipsis">{{ item.node.label }}</span>
             @if (item.node.deleted) {
-              <span class="badge">DELETED KEY</span>
+              <span class="badge" i18n="@@plugins.registry.deletedKey">DELETED KEY</span>
             }
             @if (item.node.valueType) {
               <span class="badge">{{ item.node.valueType }}</span>
@@ -71,7 +71,7 @@ const AUTO_EXPAND_LIMIT = 400;
             }
           </div>
         } @empty {
-          <div class="faint pad">Nothing matches "{{ filter() }}".</div>
+          <div class="faint pad" i18n="@@plugins.registry.noMatch">Nothing matches "{{ filter() }}".</div>
         }
       </div>
     }
@@ -109,6 +109,7 @@ export class RegistryView {
   protected readonly selected = signal<string | null>(null);
   protected readonly focusId = signal<string | null>(null);
   protected readonly copied = signal(false);
+  protected readonly copyLabel = computed(() => (this.copied() ? $localize`:@@plugins.registry.copied:Copied` : $localize`:@@plugins.registry.copyPath:Copy path`));
 
   protected readonly tree = computed(() => buildRegistryTree(this.rows()));
   protected readonly flat = computed(() => flattenTree(this.tree(), this.expanded(), this.filter()));
@@ -126,8 +127,9 @@ export class RegistryView {
     effect(() => {
       const rows = this.flat();
       const focus = this.focusId();
-      if (!rows.length) return;
-      if (!focus || !rows.some((r) => r.node.id === focus)) untracked(() => this.focusId.set(rows[0].node.id));
+      const firstRow = rows[0];
+      if (!firstRow) return;
+      if (!focus || !rows.some((r) => r.node.id === focus)) untracked(() => this.focusId.set(firstRow.node.id));
     });
   }
 
@@ -142,7 +144,7 @@ export class RegistryView {
       const ids = expandableIds(buildRegistryTree(result.rows));
       this.expanded.set(new Set(result.rows.length <= AUTO_EXPAND_LIMIT ? ids : ids.filter((id) => !id.includes('\\'))));
     } catch (e) {
-      if (seq === this.loadSeq) this.ctx.notifyError(`Registry could not be read: ${e instanceof Error ? e.message : String(e)}`);
+      if (seq === this.loadSeq) this.ctx.notifyError($localize`:@@plugins.registry.error.read:Registry could not be read: ${e instanceof Error ? e.message : String(e)}:detail:`);
     } finally {
       if (seq === this.loadSeq) this.loading.set(false);
     }
@@ -170,6 +172,7 @@ export class RegistryView {
     if (!current) return;
     const move = (i: number) => {
       const target = list[Math.max(0, Math.min(list.length - 1, i))];
+      if (!target) return;
       this.focusId.set(target.node.id);
       queueMicrotask(() => this.rowEls().find((el) => el.nativeElement.dataset['id'] === target.node.id)?.nativeElement.focus());
     };
@@ -208,7 +211,9 @@ export class RegistryView {
   }
 
   private parentIndex(list: FlatNode[], index: number): number {
-    for (let i = index - 1; i >= 0; i--) if (list[i].level < list[index].level) return i;
+    const level = list[index]?.level;
+    if (level === undefined) return -1;
+    for (let i = index - 1; i >= 0; i--) if ((list[i]?.level ?? level) < level) return i;
     return -1;
   }
 
@@ -220,7 +225,7 @@ export class RegistryView {
       this.copied.set(true);
       setTimeout(() => this.copied.set(false), 1500);
     } catch {
-      this.ctx.notifyError('Clipboard is not available.');
+      this.ctx.notifyError($localize`:@@plugins.registry.error.clipboard:Clipboard is not available.`);
     }
   }
 }

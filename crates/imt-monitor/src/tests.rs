@@ -322,7 +322,16 @@ fn run_loop_samples_until_stopped_and_flushes_exits() {
         script: vec![vec![sample(1, "svc", 100), sample(2, "svc2", 5)], vec![sample(2, "svc2", 7)]],
         calls: 0,
     };
-    run_loop(&base_cfg(), &mut src, None, Duration::from_millis(5), &sink, &stop, &clock()).unwrap();
+    run_loop(
+        &base_cfg(),
+        &mut src,
+        Probes::default(),
+        Duration::from_millis(5),
+        &sink,
+        &stop,
+        &clock(),
+    )
+    .unwrap();
     let recs = sink.records.lock().unwrap();
     let m = msgs(&recs);
     assert!(m[0].starts_with("Now monitoring") && m[1].starts_with("Process stats"));
@@ -345,7 +354,16 @@ fn run_loop_does_not_sample_when_already_stopped() {
         stop: &stop,
     };
     let mut src = FakeSource { script: vec![], calls: 0 };
-    run_loop(&base_cfg(), &mut src, None, Duration::from_millis(5), &sink, &stop, &clock()).unwrap();
+    run_loop(
+        &base_cfg(),
+        &mut src,
+        Probes::default(),
+        Duration::from_millis(5),
+        &sink,
+        &stop,
+        &clock(),
+    )
+    .unwrap();
     assert_eq!(src.calls, 0);
     assert!(sink.records.lock().unwrap().is_empty());
 }
@@ -364,7 +382,16 @@ fn run_loop_stops_during_sleep() {
         calls: 0,
     };
     let t = Instant::now();
-    run_loop(&base_cfg(), &mut src, None, Duration::from_secs(30), &sink, &stop, &clock()).unwrap();
+    run_loop(
+        &base_cfg(),
+        &mut src,
+        Probes::default(),
+        Duration::from_secs(30),
+        &sink,
+        &stop,
+        &clock(),
+    )
+    .unwrap();
     assert!(t.elapsed() < Duration::from_secs(5));
 }
 
@@ -382,14 +409,26 @@ fn run_loop_propagates_sink_errors() {
         script: vec![vec![sample(1, "svc", 1)]],
         calls: 0,
     };
-    let e = run_loop(&base_cfg(), &mut src, None, Duration::from_millis(5), &FailingSink, &stop, &clock()).unwrap_err();
+    let e = run_loop(
+        &base_cfg(),
+        &mut src,
+        Probes::default(),
+        Duration::from_millis(5),
+        &FailingSink,
+        &stop,
+        &clock(),
+    )
+    .unwrap_err();
     assert!(e.to_string().contains("disk full"));
     // Also when the failure is the counter warning.
     let mut src = FakeSource { script: vec![], calls: 0 };
     assert!(run_loop(
         &base_cfg(),
         &mut src,
-        Some(Err(anyhow::anyhow!("x"))),
+        Probes {
+            counters: Some(Err(anyhow::anyhow!("x"))),
+            ..Default::default()
+        },
         Duration::from_millis(5),
         &FailingSink,
         &stop,
@@ -446,7 +485,19 @@ fn run_loop_emits_counters_for_tracked_processes_and_survives_failure() {
         calls: 0,
     };
     let counters: Box<dyn CounterSource> = Box::new(FakeCounters { fail_after: 1, calls: 0 });
-    run_loop(&c, &mut src, Some(Ok(counters)), Duration::from_millis(5), &sink, &stop, &clock()).unwrap();
+    run_loop(
+        &c,
+        &mut src,
+        Probes {
+            counters: Some(Ok(counters)),
+            ..Default::default()
+        },
+        Duration::from_millis(5),
+        &sink,
+        &stop,
+        &clock(),
+    )
+    .unwrap();
     let recs = sink.records.lock().unwrap();
     let m = msgs(&recs);
     assert_eq!(
@@ -475,7 +526,10 @@ fn run_loop_warns_once_when_counters_cannot_open() {
     run_loop(
         &base_cfg(),
         &mut src,
-        Some(Err(anyhow::anyhow!("not here"))),
+        Probes {
+            counters: Some(Err(anyhow::anyhow!("not here"))),
+            ..Default::default()
+        },
         Duration::from_millis(5),
         &sink,
         &stop,
@@ -634,4 +688,165 @@ fn clef_files_open_in_imt_with_lanes_and_lifecycle_markers() {
     );
     let s = ws.summary();
     assert!(s.total > 10);
+}
+
+// ------------------------------------------------------------ .NET runtime counters
+
+#[test]
+fn config_dotnet_flag() {
+    assert!(!cfg(json!({"targets": [{"pid": 1}]})).unwrap().dotnet);
+    assert!(cfg(json!({"targets": [{"pid": 1}], "dotnet": true})).unwrap().dotnet);
+    assert!(err(json!({"targets": [{"pid": 1}], "dotnet": "yes"})).contains("invalid monitor config"));
+}
+
+/// Pid 1 is a .NET Framework process (instance `svc`), pid 2 runs .NET Core.
+struct FakeDotnet {
+    fail_after: usize,
+    calls: usize,
+}
+impl DotnetSource for FakeDotnet {
+    fn collect(&mut self) -> Result<Vec<dotnet::ClrValue>> {
+        use dotnet::{ClrCounter, ClrValue};
+        self.calls += 1;
+        if self.calls > self.fail_after {
+            anyhow::bail!("clr broke");
+        }
+        let v = |counter, value| ClrValue {
+            counter,
+            instance: "svc".into(),
+            value,
+        };
+        Ok(vec![
+            v(ClrCounter::ProcessId, 1.0),
+            v(ClrCounter::HeapBytes, 2048.0),
+            v(ClrCounter::Exceptions, 10.0 * self.calls as f64),
+        ])
+    }
+    fn runtime(&mut self, pid: u32) -> Option<dotnet::Runtime> {
+        (pid == 2).then_some(dotnet::Runtime::Core)
+    }
+}
+
+fn dotnet_probes(source: FakeDotnet, problems: Vec<String>) -> Probes {
+    Probes {
+        dotnet: Some(Ok(dotnet::Opened {
+            source: Box::new(source),
+            problems,
+        })),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn run_loop_adds_dotnet_fields_to_stats_and_survives_failure() {
+    let stop = AtomicBool::new(false);
+    let sink = StopSink {
+        records: Mutex::new(vec![]),
+        writes: AtomicUsize::new(0),
+        limit: 4,
+        stop: &stop,
+    };
+    let tick = vec![sample(1, "svc", 100), sample(2, "svc-core", 100), sample(3, "svc-native", 100)];
+    let mut src = FakeSource {
+        script: vec![tick.clone(), tick.clone(), tick],
+        calls: 0,
+    };
+    let probes = dotnet_probes(FakeDotnet { fail_after: 2, calls: 0 }, vec!["skipped: x".into()]);
+    run_loop(&base_cfg(), &mut src, probes, Duration::from_millis(5), &sink, &stop, &clock()).unwrap();
+    let recs = sink.records.lock().unwrap();
+    assert_eq!(recs[0].message, "skipped: x");
+    assert_eq!(recs[0].level, Level::Warning);
+    let stats = |pid: u32| -> Vec<&Record> {
+        recs.iter()
+            .filter(|r| r.message.starts_with("Process stats") && r.fields["ProcessId"] == pid)
+            .collect()
+    };
+    let fw = stats(1);
+    assert_eq!(fw.len(), 3);
+    assert_eq!(fw[0].fields["DotnetRuntime"], "framework");
+    assert_eq!(fw[0].fields["DotnetHeapBytes"], 2048);
+    assert!(fw[0].fields.get("DotnetExceptionsPerSec").is_none());
+    assert_eq!(fw[1].fields["DotnetExceptionsPerSec"], 5.0, "10 exceptions in 2 s");
+    assert!(fw[2].fields.get("DotnetRuntime").is_none(), "collection stopped after the failure");
+    assert_eq!(stats(2)[0].fields["DotnetRuntime"], "core");
+    assert!(stats(3).iter().all(|r| r.fields.get("DotnetRuntime").is_none()));
+    assert_eq!(recs.iter().filter(|r| r.message.contains("EventPipe")).count(), 1);
+    let failed: Vec<_> = recs
+        .iter()
+        .filter(|r| r.message.starts_with(".NET runtime counter collection failed"))
+        .collect();
+    assert_eq!(failed.len(), 1);
+    assert!(failed[0].message.contains("clr broke"));
+}
+
+#[test]
+fn run_loop_warns_once_when_dotnet_cannot_open() {
+    let stop = AtomicBool::new(false);
+    let sink = StopSink {
+        records: Mutex::new(vec![]),
+        writes: AtomicUsize::new(0),
+        limit: 2,
+        stop: &stop,
+    };
+    let mut src = FakeSource {
+        script: vec![vec![sample(1, "svc", 1)]],
+        calls: 0,
+    };
+    let probes = Probes {
+        dotnet: Some(Err(anyhow::anyhow!("no pdh"))),
+        ..Default::default()
+    };
+    run_loop(&base_cfg(), &mut src, probes, Duration::from_millis(5), &sink, &stop, &clock()).unwrap();
+    let recs = sink.records.lock().unwrap();
+    assert_eq!(recs[0].message, ".NET runtime counters unavailable: no pdh");
+    assert_eq!(recs.iter().filter(|r| r.message.contains("unavailable")).count(), 1);
+    // Sink failures while reporting open problems propagate.
+    let mut src = FakeSource { script: vec![], calls: 0 };
+    let probes = dotnet_probes(FakeDotnet { fail_after: 9, calls: 0 }, vec!["p".into()]);
+    assert!(run_loop(
+        &base_cfg(),
+        &mut src,
+        probes,
+        Duration::from_millis(5),
+        &FailingSink,
+        &stop,
+        &clock()
+    )
+    .is_err());
+    let probes = Probes {
+        dotnet: Some(Err(anyhow::anyhow!("x"))),
+        ..Default::default()
+    };
+    assert!(run_loop(
+        &base_cfg(),
+        &mut src,
+        probes,
+        Duration::from_millis(5),
+        &FailingSink,
+        &stop,
+        &clock()
+    )
+    .is_err());
+}
+
+#[test]
+fn collector_opens_the_platform_dotnet_source() {
+    // The real source opens (Windows) or reports the platform limit once (elsewhere).
+    let me = std::process::id();
+    let stop = AtomicBool::new(false);
+    let sink = StopSink {
+        records: Mutex::new(vec![]),
+        writes: AtomicUsize::new(0),
+        limit: 3,
+        stop: &stop,
+    };
+    ProcessMonitor
+        .run(&json!({"targets": [{"pid": me}], "intervalMs": 250, "dotnet": true}), &sink, &stop)
+        .unwrap();
+    let recs = sink.records.lock().unwrap();
+    // This test binary is native: it never gets .NET fields.
+    assert!(recs.iter().all(|r| r.fields.get("DotnetRuntime").is_none()));
+    if cfg!(not(windows)) {
+        assert!(recs[0].message.contains("only available on Windows"));
+    }
 }

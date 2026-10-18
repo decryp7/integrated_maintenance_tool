@@ -5,6 +5,7 @@ import { ParsePreviewRequest } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { FormatWizard } from './format-wizard';
+import { at } from '../../testing/must';
 
 /** Selects `needle` inside the element's text, like a user dragging over it. */
 function selectText(root: HTMLElement, needle: string): void {
@@ -79,8 +80,8 @@ describe('FormatWizard', () => {
     await preview(fixture);
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ fileName: 'export.reg', limit: 50 });
-    expect(requests[0].toml).toMatch(/regexes = \[\s*"\^\(\?P<timestamp>/);
-    expect(requests[0].sample).toContain('Payment capture failed');
+    expect(at(requests, 0).toml).toMatch(/regexes = \[\s*"\^\(\?P<timestamp>/);
+    expect(at(requests, 0).sample).toContain('Payment capture failed');
     expect(el(fixture, '[data-testid=format-summary]').textContent).toContain('4 events parsed');
     expect(all(fixture, '[role=row]')).toHaveLength(5);
     expect(text(fixture)).toContain('Payment capture failed');
@@ -186,7 +187,7 @@ describe('FormatWizard', () => {
     await settle(fixture);
     typeTemplate(fixture, TEMPLATE);
     await preview(fixture);
-    expect(all(fixture, '[role=row]')[1].textContent).toContain('–');
+    expect(at(all(fixture, '[role=row]'), 1).textContent).toContain('–');
   });
 
   it('ignores a mark without a selection and replaces overlapping marks', async () => {

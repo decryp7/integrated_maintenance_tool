@@ -13,9 +13,9 @@ const OP_LABELS: Record<FilterOp, string> = {
   ne: '≠',
   contains: '~',
   notContains: '!~',
-  matches: 'matches',
-  exists: 'exists',
-  missing: 'missing',
+  matches: $localize`:Filter operator|@@workspace.filterBar.op.matches:matches`,
+  exists: $localize`:Filter operator|@@workspace.filterBar.op.exists:exists`,
+  missing: $localize`:Filter operator|@@workspace.filterBar.op.missing:missing`,
   gt: '>',
   lt: '<',
 };
@@ -32,16 +32,17 @@ const OP_LABELS: Record<FilterOp, string> = {
           #search
           class="mono"
           aria-label="Search messages and exceptions"
-          [placeholder]="q().regex ? 'Regular expression' : 'Search messages, exceptions, templates'"
+          i18n-aria-label="@@workspace.filterBar.search"
+          [placeholder]="searchPlaceholder()"
           [value]="store.textInput()"
           (input)="store.setTextInput($any($event.target).value)"
           (keydown.escape)="store.setTextInput('')"
         />
-        <button class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" [attr.aria-pressed]="q().regex">.*</button>
-        <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" [attr.aria-pressed]="q().caseSensitive">Aa</button>
+        <button class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
+        <button class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
       </label>
 
-      <div class="levels" role="group" aria-label="Levels">
+      <div class="levels" role="group" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels">
         @for (l of levels; track l) {
           <button class="lvl" [class.on]="levelOn(l)" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="l">
             <span class="dot" [style.background]="levelVar(l)"></span>
@@ -54,17 +55,17 @@ const OP_LABELS: Record<FilterOp, string> = {
       <div class="anchor" (imtClickOutside)="groupOpen.set(false)">
         <button class="btn tall" (click)="groupOpen.set(!groupOpen())" [attr.aria-expanded]="groupOpen()">
           <imt-icon name="group" [size]="14" />
-          <span class="muted">Group by</span>
+          <span class="muted" i18n="@@workspace.filterBar.groupBy">Group by</span>
           <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span>
           <imt-icon name="chevronDown" [size]="12" />
         </button>
         @if (groupOpen()) {
           <div class="popover group-pop">
-            <div class="faint small">Instance key — events with equal values form one timeline lane.</div>
+            <div class="faint small" i18n="@@workspace.filterBar.groupHelp">Instance key — events with equal values form one timeline lane.</div>
             <div class="chosen">
               @for (g of store.effectiveGroupBy(); track g; let i = $index) {
                 <span class="chip"><span class="mono">{{ i + 1 }}. {{ g }}</span>
-                  <button class="x" [attr.aria-label]="'Remove ' + g" (click)="removeGroupField(g)" [attr.title]="'Remove ' + g">×</button></span>
+                  <button class="x" [attr.aria-label]="removeLabel(g)" (click)="removeGroupField(g)" [attr.title]="removeLabel(g)">×</button></span>
               }
             </div>
             <div class="opts">
@@ -73,20 +74,20 @@ const OP_LABELS: Record<FilterOp, string> = {
               }
             </div>
             <div class="pop-actions">
-              <button class="btn ghost" (click)="store.setGroupBy([]); groupOpen.set(false)">Use profile default</button>
+              <button class="btn ghost" (click)="store.setGroupBy([]); groupOpen.set(false)" i18n="@@workspace.filterBar.profileDefault">Use profile default</button>
             </div>
           </div>
         }
       </div>
 
-      <button class="btn tall" (click)="store.hasRange() && zoom.fit()" [title]="store.hasRange() ? 'Reset to the full range' : 'Drag on the timeline to zoom'">
+      <button class="btn tall" (click)="store.hasRange() && zoom.fit()" [title]="rangeTitle()">
         <span class="mono">{{ rangeLabel() }}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
           <imt-icon name="zoomOut" [size]="13" />
         }
       </button>
-      <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time">{{ tz() }}</button>
+      <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
     </div>
 
     <div class="row">
@@ -95,51 +96,51 @@ const OP_LABELS: Record<FilterOp, string> = {
           <span class="mono field">{{ f.field }}</span>
           <span class="muted">{{ opLabel(f.op) }}</span>
           @if (f.op !== 'exists' && f.op !== 'missing') { <span class="mono">{{ f.value }}</span> }
-          <button class="x" [attr.aria-label]="'Remove filter ' + f.field" (click)="store.removeFilter(i)" [attr.title]="'Remove filter ' + f.field">×</button>
+          <button class="x" [attr.aria-label]="removeFilterLabel(f.field)" (click)="store.removeFilter(i)" [attr.title]="removeFilterLabel(f.field)">×</button>
         </span>
       }
       @for (g of q().groups; track g) {
         <span class="chip">
-          <span class="muted">instance</span>
+          <span class="muted" i18n="@@workspace.filterBar.instance">instance</span>
           <span class="mono">{{ g }}</span>
-          <button class="x" [attr.aria-label]="'Remove instance filter ' + g" (click)="store.toggleGroup(g)" [attr.title]="'Remove instance filter ' + g">×</button>
+          <button class="x" [attr.aria-label]="removeInstanceLabel(g)" (click)="store.toggleGroup(g)" [attr.title]="removeInstanceLabel(g)">×</button>
         </span>
       }
 
       <div class="anchor" (imtClickOutside)="addOpen.set(false)">
-        <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()">+ Add filter</button>
+        <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
           <form class="popover add-pop" (submit)="$event.preventDefault(); addFilter()">
-            <label class="lbl">Field
+            <label class="lbl"><ng-container i18n="@@workspace.filterBar.field">Field</ng-container>
               <input class="input mono" list="imt-field-names" [value]="newField()" (input)="newField.set($any($event.target).value)" placeholder="SourceContext" required />
             </label>
             <datalist id="imt-field-names">
               @for (f of allFields(); track f) { <option [value]="f"></option> }
             </datalist>
-            <label class="lbl">Operator
+            <label class="lbl"><ng-container i18n="@@workspace.filterBar.operator">Operator</ng-container>
               <select class="select" [value]="newOp()" (change)="newOp.set($any($event.target).value)">
                 @for (op of ops; track op) { <option [value]="op" [selected]="op === newOp()">{{ opLabel(op) }} ({{ op }})</option> }
               </select>
             </label>
             @if (newOp() !== 'exists' && newOp() !== 'missing') {
-              <label class="lbl">Value
+              <label class="lbl"><ng-container i18n="@@workspace.filterBar.value">Value</ng-container>
                 <input class="input mono" [value]="newValue()" (input)="newValue.set($any($event.target).value)" />
               </label>
             }
             <div class="pop-actions">
-              <button type="button" class="btn ghost" (click)="addOpen.set(false)">Cancel</button>
-              <button type="submit" class="btn primary" [disabled]="!newField()">Add</button>
+              <button type="button" class="btn ghost" (click)="addOpen.set(false)" i18n="@@workspace.filterBar.cancel">Cancel</button>
+              <button type="submit" class="btn primary" [disabled]="!newField()" i18n="@@workspace.filterBar.add">Add</button>
             </div>
           </form>
         }
       </div>
 
       @if (hasAnyFilter()) {
-        <button class="btn ghost pill" (click)="store.clearQuery()">Clear all</button>
+        <button class="btn ghost pill" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
       <span class="spacer"></span>
-      <imt-switch class="opt" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)">Marked only</imt-switch>
-      <imt-switch class="opt" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)">Always show start / stop</imt-switch>
+      <imt-switch class="opt" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</imt-switch>
+      <imt-switch class="opt" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</imt-switch>
     </div>
   `,
   styles: `
@@ -189,6 +190,16 @@ export class FilterBar {
   private readonly search = viewChild<ElementRef<HTMLInputElement>>('search');
 
   protected readonly q = this.store.query;
+  protected readonly searchPlaceholder = computed(() =>
+    this.q().regex
+      ? $localize`:@@workspace.filterBar.regexPlaceholder:Regular expression`
+      : $localize`:@@workspace.filterBar.searchPlaceholder:Search messages, exceptions, templates`,
+  );
+  protected readonly rangeTitle = computed(() =>
+    this.store.hasRange()
+      ? $localize`:@@workspace.filterBar.resetRange:Reset to the full range`
+      : $localize`:@@workspace.filterBar.dragToZoom:Drag on the timeline to zoom`,
+  );
   protected readonly tz = computed(() => tzLabel(this.store.timezone()));
   protected readonly allFields = computed(() => ['@level', '@message', '@exception', '@template', '@source', ...this.store.fieldNames()]);
   protected readonly groupCandidates = computed(() => {
@@ -214,7 +225,7 @@ export class FilterBar {
     const q = this.q();
     const s = this.store.summary();
     if (q.from == null && q.to == null) {
-      return s?.from != null ? `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}` : 'All time';
+      return s?.from != null ? `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}` : $localize`:@@workspace.filterBar.allTime:All time`;
     }
     return `${formatDateTime(q.from ?? s?.from ?? null, tz)} → ${formatDateTime(q.to ?? s?.to ?? null, tz)}`;
   });
@@ -244,6 +255,16 @@ export class FilterBar {
   }
   protected opLabel(op: FilterOp): string {
     return OP_LABELS[op];
+  }
+
+  protected removeLabel(name: string): string {
+    return $localize`:@@workspace.filterBar.removeAria:Remove ${name}:name:`;
+  }
+  protected removeFilterLabel(field: string): string {
+    return $localize`:@@workspace.filterBar.removeFilterAria:Remove filter ${field}:field:`;
+  }
+  protected removeInstanceLabel(group: string): string {
+    return $localize`:@@workspace.filterBar.removeInstanceAria:Remove instance filter ${group}:group:`;
   }
 
   protected addGroupField(f: string): void {

@@ -9,10 +9,10 @@ import { SavedQueries } from './saved-queries';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BookmarkList, SavedQueries, HighlightEditor],
   template: `
-    <div class="scroll" role="region" aria-label="Bookmarks" tabindex="0">
-      <section aria-labelledby="bm-h"><h2 id="bm-h" class="section-title">Bookmarks and notes</h2><imt-bookmark-list /></section>
-      <section aria-labelledby="sq-h"><h2 id="sq-h" class="section-title">Saved queries</h2><imt-saved-queries /></section>
-      <section aria-labelledby="hl-h"><h2 id="hl-h" class="section-title">Highlight rules</h2><imt-highlight-editor /></section>
+    <div class="scroll" role="region" aria-label="Bookmarks" i18n-aria-label="@@projects.view.region" tabindex="0">
+      <section aria-labelledby="bm-h"><h2 id="bm-h" class="section-title" i18n="@@projects.view.bookmarks">Bookmarks and notes</h2><imt-bookmark-list /></section>
+      <section aria-labelledby="sq-h"><h2 id="sq-h" class="section-title" i18n="@@projects.view.queries">Saved queries</h2><imt-saved-queries /></section>
+      <section aria-labelledby="hl-h"><h2 id="hl-h" class="section-title" i18n="@@projects.view.highlights">Highlight rules</h2><imt-highlight-editor /></section>
     </div>
   `,
   styles: `

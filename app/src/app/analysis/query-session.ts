@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { QlError, QlQuery, QlResult, Completion } from '../core/api.types';
+import { QlError, QlQuery, QlResult, Completion, QueryProgress } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { ImtEvents } from '../extensions/events';
 import { AnalysisActions } from './analysis-actions';
@@ -10,6 +10,13 @@ export const CHECK_DELAY_MS = 150;
 const FOCUS_REQUEST_TTL_MS = 5000;
 
 export type TableResult = Extract<QlResult, { kind: 'table' }>;
+
+let queryCounter = 0;
+/** A query id for `run_query_stream`: unique in this window, `[A-Za-z0-9-]`, at most 64 characters. */
+export function newQueryId(now = Date.now()): string {
+  queryCounter = (queryCounter + 1) % 1_000_000;
+  return `q-${now.toString(36)}-${queryCounter.toString(36)}`;
+}
 
 /**
  * State of the query bar: text, live syntax check, completions, history and the last table result.
@@ -32,6 +39,15 @@ export class QuerySession {
   readonly table = signal<TableResult | null>(null);
   /** Number of events matched by the last event-returning run. */
   readonly matched = signal<number | null>(null);
+  /** Progress of the run in flight, as the engine reports it. */
+  readonly progress = signal<QueryProgress | null>(null);
+  /** True when the last run was cancelled (a normal outcome, shown as a note, not an error). */
+  readonly cancelled = signal(false);
+  /** Whether a cancel was asked for the run in flight. */
+  readonly cancelling = signal(false);
+
+  /** Id of the run in flight (`run_query_stream`). */
+  private runId: string | null = null;
 
   /** `ql` currently applied to the workspace. */
   readonly applied = computed(() => (this.events.query() as QlQuery).ql ?? '');
@@ -79,6 +95,15 @@ export class QuerySession {
    */
   async run(): Promise<'events' | 'table' | null> {
     const text = this.text();
+    // A new run replaces the one in flight (whose outcome is then ignored).
+    if (this.runId) {
+      void this.cancel();
+      this.runId = null;
+      this.running.set(false);
+      this.progress.set(null);
+    }
+    this.cancelled.set(false);
+    this.cancelling.set(false);
     if (!text.trim()) {
       this.actions.setQl('');
       this.table.set(null);
@@ -86,10 +111,22 @@ export class QuerySession {
       this.runError.set(null);
       return 'events';
     }
+    const id = newQueryId();
+    this.runId = id;
     this.running.set(true);
+    this.cancelling.set(false);
+    this.progress.set(null);
     this.runError.set(null);
+    const mine = () => this.runId === id;
     try {
-      const outcome = await this.backend.runQuery({ ...(this.events.query() as QlQuery), ql: text });
+      const outcome = await this.backend.runQueryStreaming({ ...(this.events.query() as QlQuery), ql: text }, id, (p) => {
+        if (mine()) this.progress.set(p);
+      });
+      if (!mine()) return null;
+      if ('cancelled' in outcome) {
+        this.cancelled.set(true);
+        return null;
+      }
       if ('error' in outcome) {
         this.error.set(outcome.error);
         this.runError.set(outcome.error.message);
@@ -108,10 +145,27 @@ export class QuerySession {
       this.actions.setQl(text);
       return 'events';
     } catch (e) {
-      this.runError.set(errorText(e));
+      if (mine()) this.runError.set(errorText(e));
       return null;
     } finally {
-      this.running.set(false);
+      if (mine()) {
+        this.runId = null;
+        this.running.set(false);
+        this.cancelling.set(false);
+        this.progress.set(null);
+      }
+    }
+  }
+
+  /** Asks the run in flight to stop; it then ends with `cancelled()` set. */
+  async cancel(): Promise<void> {
+    const id = this.runId;
+    if (!id) return;
+    this.cancelling.set(true);
+    try {
+      await this.backend.cancelQuery(id);
+    } catch {
+      // It finished meanwhile, or the backend is gone: the run's own outcome tells.
     }
   }
 

@@ -11,18 +11,18 @@ import { ImportStatus } from '../import/import-ui';
   imports: [BackgroundWork, ImportStatus],
   template: `
     @if (store.summary(); as s) {
-      <span class="strong">{{ s.sources.length }} source{{ s.sources.length === 1 ? '' : 's' }}</span>
-      <span>{{ fmt(s.total) }} events</span>
+      <span class="strong" i18n="@@shell.statusBar.sources">{s.sources.length, plural, =1 {{{ s.sources.length }} source} other {{{ s.sources.length }} sources}}</span>
+      <span i18n="@@shell.statusBar.events">{{ fmt(s.total) }} events</span>
       @if (store.matchTotal() !== null) {
-        <span>{{ fmt(store.matchTotal()!) }} matching</span>
+        <span i18n="@@shell.statusBar.matching">{{ fmt(store.matchTotal()!) }} matching</span>
       }
-      <span>{{ store.instanceCount() }} instances</span>
+      <span i18n="@@shell.statusBar.instances">{{ store.instanceCount() }} instances</span>
       @if (s.dropped > 0) {
-        <span class="dropped" title="Events removed by the profile pipeline">{{ fmt(s.dropped) }} dropped by pipeline</span>
+        <span class="dropped" title="Events removed by the profile pipeline" i18n-title="@@shell.statusBar.droppedTitle" i18n="@@shell.statusBar.dropped">{{ fmt(s.dropped) }} dropped by pipeline</span>
       }
-      <span>Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
+      <span i18n="@@shell.statusBar.group">Group: {{ store.effectiveGroupBy().join(', ') || '—' }}</span>
     } @else {
-      <span>No workspace</span>
+      <span i18n="@@shell.statusBar.noWorkspace">No workspace</span>
     }
     <span class="spacer"></span>
     <imt-import-status />
@@ -31,18 +31,20 @@ import { ImportStatus } from '../import/import-ui';
       class="live"
       data-testid="live-toggle"
       aria-label="Live tail"
+      i18n-aria-label="@@shell.statusBar.liveTail"
       [class.on]="live.enabled()"
       [class.failed]="!!live.error()"
       [attr.aria-pressed]="live.enabled()"
       [disabled]="!live.available()"
       [title]="liveTitle()"
       (click)="live.toggle()"
+      i18n="@@shell.statusBar.live"
     >
       <span class="live-dot" aria-hidden="true"></span>Live
     </button>
     <imt-background-work />
-    <span>Importers: {{ importers() }}</span>
-    <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time">{{ tz() }}</button>
+    <span i18n="@@shell.statusBar.importers">Importers: {{ importers() }}</span>
+    <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@shell.statusBar.toggleTimezone">{{ tz() }}</button>
     <span>IMT 0.1.0</span>
   `,
   styles: `
@@ -67,9 +69,11 @@ export class StatusBar {
   protected readonly live = inject(LiveTail);
   protected readonly liveTitle = computed(() => {
     const error = this.live.error();
-    if (error) return `Live tail failed: ${error}`;
-    if (this.live.enabled()) return 'Live tail is on: new lines appear as the files grow. Click to stop.';
-    return this.live.available() ? 'Follow the opened files as they grow' : 'Open files to follow them live';
+    if (error) return $localize`:@@shell.statusBar.liveFailed:Live tail failed: ${error}:error:`;
+    if (this.live.enabled()) return $localize`:@@shell.statusBar.liveOn:Live tail is on: new lines appear as the files grow. Click to stop.`;
+    return this.live.available()
+      ? $localize`:@@shell.statusBar.liveFollow:Follow the opened files as they grow`
+      : $localize`:@@shell.statusBar.liveOpenFiles:Open files to follow them live`;
   });
   protected readonly fmt = formatCount;
   protected readonly tz = computed(() => tzLabel(this.store.timezone()));

@@ -13,7 +13,7 @@ import { MockAnalysisBackend, recordsFrom } from './mock/mock-analysis-backend';
 export const ANALYSIS_VIEWS: ImtView[] = [
   {
     id: 'query',
-    title: 'Query',
+    title: $localize`:@@analysis.plugin.view.query:Query`,
     category: 'core',
     icon: 'search',
     defaultPosition: 'bottom',
@@ -21,14 +21,14 @@ export const ANALYSIS_VIEWS: ImtView[] = [
     when: (s) => s.total > 0,
     autoOpen: true,
   },
-  { id: 'query-results', category: 'Analysis', title: 'Query results', icon: 'columns', defaultPosition: 'bottom', component: () => import('./query-results-view').then((m) => m.QueryResultsView) },
-  { id: 'moment', category: 'Analysis', title: 'Moment', icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },
-  { id: 'anomalies', category: 'Analysis', title: 'Anomalies', icon: 'alert', defaultPosition: 'bottom', component: () => import('./anomalies-view').then((m) => m.AnomaliesView) },
-  { id: 'patterns', category: 'Analysis', title: 'Patterns', icon: 'group', defaultPosition: 'bottom', component: () => import('./patterns-view').then((m) => m.PatternsView) },
-  { id: 'exceptions', category: 'Analysis', title: 'Exceptions', icon: 'alert', defaultPosition: 'bottom', component: () => import('./exceptions-view').then((m) => m.ExceptionsView) },
-  { id: 'compare', category: 'Analysis', title: 'Compare', icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
-  { id: 'field-stats', category: 'Analysis', title: 'Field statistics', icon: 'chart', defaultPosition: 'center', component: () => import('./field-stats-view').then((m) => m.FieldStatsView) },
-  { id: 'traces', category: 'Analysis', title: 'Traces', icon: 'timeline', defaultPosition: 'center', component: () => import('./traces-view').then((m) => m.TracesView) },
+  { id: 'query-results', category: 'Analysis', title: $localize`:@@analysis.plugin.view.queryResults:Query results`, icon: 'columns', defaultPosition: 'bottom', component: () => import('./query-results-view').then((m) => m.QueryResultsView) },
+  { id: 'moment', category: 'Analysis', title: $localize`:@@analysis.plugin.view.moment:Moment`, icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },
+  { id: 'anomalies', category: 'Analysis', title: $localize`:@@analysis.plugin.view.anomalies:Anomalies`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./anomalies-view').then((m) => m.AnomaliesView) },
+  { id: 'patterns', category: 'Analysis', title: $localize`:@@analysis.plugin.view.patterns:Patterns`, icon: 'group', defaultPosition: 'bottom', component: () => import('./patterns-view').then((m) => m.PatternsView) },
+  { id: 'exceptions', category: 'Analysis', title: $localize`:@@analysis.plugin.view.exceptions:Exceptions`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./exceptions-view').then((m) => m.ExceptionsView) },
+  { id: 'compare', category: 'Analysis', title: $localize`:@@analysis.plugin.view.compare:Compare`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare-view').then((m) => m.CompareView) },
+  { id: 'field-stats', category: 'Analysis', title: $localize`:@@analysis.plugin.view.fieldStatistics:Field statistics`, icon: 'chart', defaultPosition: 'center', component: () => import('./field-stats-view').then((m) => m.FieldStatsView) },
+  { id: 'traces', category: 'Analysis', title: $localize`:@@analysis.plugin.view.traces:Traces`, icon: 'timeline', defaultPosition: 'center', component: () => import('./traces-view').then((m) => m.TracesView) },
 ];
 
 /** The engine-backed analysis backend inside Tauri, the mock (derived from the demo records) in a browser. */

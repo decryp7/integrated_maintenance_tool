@@ -94,10 +94,11 @@ pub fn without_secrets(v: &Value) -> Value {
     }
 }
 
-/// IMT's own log files, newest first: the active `imt.log`, then rotated ones by modification time.
+/// IMT's own log files, newest first: today's daily file, then older daily files (and earlier versions'
+/// `imt.log`, `imt_*.log`) by modification time.
 pub fn log_files(log_dir: &Path) -> Vec<PathBuf> {
     let name = crate::diagnostics::LOG_NAME;
-    let active = log_dir.join(format!("{name}.log"));
+    let active = crate::logging::active_log_file(log_dir);
     let mut rotated: Vec<(std::time::SystemTime, PathBuf)> = std::fs::read_dir(log_dir)
         .map(|entries| {
             entries
@@ -317,7 +318,7 @@ fn inputs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> ReportInputs {
         })
         .unwrap_or_default();
     ReportInputs {
-        log_dir: app.path().app_log_dir().ok(),
+        log_dir: crate::app_dirs::log(app).ok(),
         config_dir: crate::snapshots::config_dir(app),
         snapshots: crate::snapshots::store(app).ok(),
         plugins,
@@ -396,8 +397,8 @@ pub fn write_activity_project(data_dir: &Path, log_dir: &Path) -> anyhow::Result
 /// filtered to the activity entries. Returns the new window's label.
 #[tauri::command]
 pub fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
-    let log_dir = app.path().app_log_dir().map_err(err)?;
-    let data_dir = app.path().app_data_dir().map_err(err)?;
+    let log_dir = crate::app_dirs::log(&app).map_err(err)?;
+    let data_dir = crate::app_dirs::data(&app).map_err(err)?;
     let project = write_activity_project(&data_dir, &log_dir).map_err(err)?;
     crate::window_manager::open_new(&app, vec![project.to_string_lossy().into_owned()]).map_err(err)
 }
@@ -557,20 +558,22 @@ mod tests {
         let big = line.repeat((LOG_WINDOW as usize / line.len()) + 100);
         std::fs::write(d.join("imt_old.log"), "old\n").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
-        std::fs::write(d.join("imt_newer.log"), "newer\n").unwrap();
-        std::fs::write(d.join("imt.log"), &big).unwrap();
+        std::fs::write(d.join("imt.2000-01-02.log"), "newer\n").unwrap();
+        let today = crate::logging::active_log_file(&d);
+        let today_name = today.file_name().unwrap().to_string_lossy().into_owned();
+        std::fs::write(&today, &big).unwrap();
         std::fs::write(d.join("other.log"), "x").unwrap();
         let files = log_files(&d);
         assert_eq!(files.len(), 3);
-        assert!(files[0].ends_with("imt.log") && files[1].ends_with("imt_newer.log"));
+        assert!(files[0] == today && files[1].ends_with("imt.2000-01-02.log"), "{files:?}");
         let w = log_window(&d);
         let total: usize = w.iter().map(|(_, b)| b.len()).sum();
         assert!(total as u64 <= LOG_WINDOW, "{total}");
-        assert_eq!(w[0].0, "imt.log");
-        // A small current file leaves room for the newest rotated one, never the older one.
-        std::fs::write(d.join("imt.log"), "now\n").unwrap();
+        assert_eq!(w[0].0, today_name);
+        // A small current file leaves room for the newest older one, never the oldest.
+        std::fs::write(&today, "now\n").unwrap();
         let names: Vec<String> = log_window(&d).into_iter().map(|(n, _)| n).collect();
-        assert_eq!(names, ["imt.log", "imt_newer.log"]);
+        assert_eq!(names, [today_name.as_str(), "imt.2000-01-02.log"]);
         assert!(log_files(&d.join("missing")).is_empty());
         std::fs::remove_dir_all(d).unwrap();
     }

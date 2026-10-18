@@ -1,0 +1,10 @@
+The system time has changed to ‎2026‎-‎10‎-‎17T14:14:45.286819700Z from ‎2026‎-‎10‎-‎17T14:14:45.286862200Z.
+Time Delta: 0 ms
+
+Change Reason: An application or system component changed the time.
+Process: '\Device\HarddiskVolume3\Windows\System32\svchost.exe' (PID 11700).
+
+RTC time: ‎2026‎-‎10‎-‎17T22:14:45.286819700Z
+Current time zone bias: -480
+RTC time is in UTC: false
+System time was based on RTC time: false

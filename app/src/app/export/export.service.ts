@@ -12,7 +12,7 @@ export class ExportService {
   private readonly dialogs = inject(DialogService);
 
   async exportCurrent(): Promise<void> {
-    if (!this.store.summary()?.exporters.length) throw new Error('No export formats are available.');
-    await this.dialogs.open(ExportDialog, { title: 'Export events', width: 480 }).closed;
+    if (!this.store.summary()?.exporters.length) throw new Error($localize`:@@export.service.noFormats:No export formats are available.`);
+    await this.dialogs.open(ExportDialog, { title: $localize`:@@export.service.title:Export events`, width: 480 }).closed;
   }
 }

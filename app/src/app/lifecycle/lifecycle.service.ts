@@ -55,7 +55,7 @@ export class LifecycleService {
     try {
       const path = await this.backend.lastSession();
       if (!path) {
-        this.store.setNotice('There is no saved session to restore');
+        this.store.setNotice($localize`:@@lifecycle.service.noSession:There is no saved session to restore`);
       } else if (!(await this.projects.open(path, { session: true }))) {
         return;
       } else {
@@ -63,29 +63,29 @@ export class LifecycleService {
       }
       this.dismissCrash();
     } catch (e) {
-      this.store.setError(`Could not restore the last session: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@lifecycle.service.restoreFailed:Could not restore the last session: ${errorMessage(e)}:error:`);
     }
     // The previous run's other windows; this window's restore counts even when they cannot reopen.
-    if (restored) await this.windowing.restoreWindows().catch((e: unknown) => this.store.setError(`Could not reopen the other windows: ${errorMessage(e)}`));
+    if (restored) await this.windowing.restoreWindows().catch((e: unknown) => this.store.setError($localize`:@@lifecycle.service.reopenFailed:Could not reopen the other windows: ${errorMessage(e)}:error:`));
   }
 
   /** Relaunches without plugins and the saved profile. Nothing is reopened (the old session may be the cause). */
   async startInSafeMode(): Promise<void> {
-    await this.run('Could not restart in safe mode', () => this.backend.restartApp(true, []));
+    await this.run((error) => $localize`:@@lifecycle.service.safeModeFailed:Could not restart in safe mode: ${error}:error:`, () => this.backend.restartApp(true, []));
   }
 
   async restartNormally(): Promise<void> {
-    await this.run('Could not restart', () => this.backend.restartApp(false, []));
+    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, () => this.backend.restartApp(false, []));
   }
 
   /** Relaunches the app keeping its mode, reopening the session (after a plugin was enabled or disabled). */
   async restartKeepingSession(): Promise<void> {
-    await this.run('Could not restart', async () => this.backend.restartApp(this.safeMode(), await this.sessionPaths()));
+    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, async () => this.backend.restartApp(this.safeMode(), await this.sessionPaths()));
   }
 
   /** Saves the session, then relaunches as administrator (Windows UAC prompt) reopening it. */
   async restartElevated(): Promise<void> {
-    await this.run('Could not restart as administrator', async () => this.backend.restartElevated(await this.sessionPaths()));
+    await this.run((error) => $localize`:@@lifecycle.service.elevatedFailed:Could not restart as administrator: ${error}:error:`, async () => this.backend.restartElevated(await this.sessionPaths()));
   }
 
   private async sessionPaths(): Promise<string[]> {
@@ -94,11 +94,11 @@ export class LifecycleService {
     return path ? [path] : [];
   }
 
-  private async run(failure: string, op: () => Promise<void>): Promise<void> {
+  private async run(failure: (error: string) => string, op: () => Promise<void>): Promise<void> {
     try {
       await op();
     } catch (e) {
-      this.store.setError(`${failure}: ${errorMessage(e)}`);
+      this.store.setError(failure(errorMessage(e)));
     }
   }
 }

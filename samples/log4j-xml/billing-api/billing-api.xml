@@ -1,0 +1,1628 @@
+<log4j:event logger="Billing.Api.Program" timestamp="1791968400000" level="INFO" thread="1">
+<log4j:message><![CDATA[Billing API starting (v2.8.1)]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.Program" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968411585" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-636685 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968517963" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-334130 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968581932" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-683594 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968675911" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-674421 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968698608" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-905427 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968752764" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-715011 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968854857" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-744039 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968857633" level="INFO" thread="14">
+<log4j:message><![CDATA[Invoice INV-956436 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968895144" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-954340 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968898723" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-812390 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968904302" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-363730 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968917563" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-944246 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968936621" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-638535 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968950597" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-456929 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968971368" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-406311 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968996750" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-776116 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791968999561" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-424008 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969106073" level="WARN" thread="27">
+<log4j:message><![CDATA[ERP call took 5021 ms for order 88372]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969226038" level="INFO" thread="7">
+<log4j:message><![CDATA[Invoice INV-518144 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969252631" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-622668 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969267149" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-630955 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969385739" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-614883 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969423813" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-371207 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969485455" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-602467 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969499945" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-126608 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969522676" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-235265 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969536964" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-648632 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969539389" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-852151 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969556981" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-249330 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969581760" level="INFO" thread="12">
+<log4j:message><![CDATA[Invoice INV-990900 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969588873" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-834744 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969613055" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-849231 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969620621" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-363199 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969635453" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-422570 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969677401" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-626279 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969698881" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-521473 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969703399" level="INFO" thread="14">
+<log4j:message><![CDATA[Invoice INV-972249 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969798952" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-257122 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969809860" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-580486 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969818887" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-477420 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969891852" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-826293 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969924780" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-903946 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969933140" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-555322 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969933588" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-971789 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969938091" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-951340 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969939011" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-851324 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969958293" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-371404 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969977725" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-546459 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969978944" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-167418 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791969993928" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-488108 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970058056" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-998249 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970167432" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-114714 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970220072" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-708845 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970229728" level="INFO" thread="7">
+<log4j:message><![CDATA[Invoice INV-739771 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970250629" level="INFO" thread="12">
+<log4j:message><![CDATA[Invoice INV-226687 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970264773" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-672992 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970317086" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-894465 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970380889" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-105380 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970404801" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-702179 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970411660" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-823262 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970457076" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-672316 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970465354" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-237590 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970506293" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-629238 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970511683" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-801030 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970513191" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-921494 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970521311" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-420868 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970540300" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-947244 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970606059" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-306251 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970620674" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-508260 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970736086" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-974302 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970763002" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-906914 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970778599" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-635180 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970798963" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-418422 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970857888" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-621739 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970894038" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-748655 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970915867" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-719982 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791970940586" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-753622 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971058618" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-344660 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971079305" level="INFO" thread="7">
+<log4j:message><![CDATA[Invoice INV-673942 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971095173" level="INFO" thread="11">
+<log4j:message><![CDATA[Invoice INV-778670 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971112337" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-779719 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971123283" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-573768 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971134859" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-297687 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971171068" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-121464 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971288726" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-329348 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971333502" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-244411 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971383768" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-508914 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971384391" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-534201 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971485176" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-419720 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971487765" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-376240 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971516666" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-954583 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971621997" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-285558 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971649622" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-566178 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971753427" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-650186 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971825900" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-989056 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971850449" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-197642 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971851877" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-446493 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971878289" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-974045 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971886844" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-291314 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971924712" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-987661 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971976007" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-820536 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971985380" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-327061 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791971993896" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-394096 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972058121" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-866478 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972067316" level="INFO" thread="14">
+<log4j:message><![CDATA[Invoice INV-690171 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972072234" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-239060 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972085806" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-201114 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972092580" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-211186 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972102970" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-473558 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972152132" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-777321 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972167620" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-428781 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972227767" level="INFO" thread="7">
+<log4j:message><![CDATA[Invoice INV-405173 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972241991" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-373529 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972289130" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-531638 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972297238" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-369528 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972297682" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-160095 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972344373" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-424973 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972355545" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-688438 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972384597" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-430274 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972388781" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-756123 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972420456" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-139857 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972427225" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-737309 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972472458" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-546823 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972504252" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-819809 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972627338" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-814503 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972681333" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-507945 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972689055" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-160430 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972748155" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-124812 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972909201" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-403621 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791972938010" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-938696 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973034077" level="INFO" thread="14">
+<log4j:message><![CDATA[Invoice INV-905194 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973102027" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-121254 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973120231" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-307039 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973121928" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-218067 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973129029" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-224028 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973181700" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 4900 ms for order 88611]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973191602" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-416922 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973193590" level="WARN" thread="23">
+<log4j:message><![CDATA[ERP call took 3034 ms for order 88364]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973195270" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-350930 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973214893" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-330230 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973247873" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-669300 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973257950" level="WARN" thread="27">
+<log4j:message><![CDATA[ERP call took 6434 ms for order 88700]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973298241" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-924815 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973351009" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-117401 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973376810" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-538178 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973417296" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-245392 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973423180" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-193791 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973449697" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-139855 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973463116" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-959689 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973543527" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-645730 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973579553" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-158988 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973611510" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-758356 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973616575" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-161128 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973671013" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-633326 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973703782" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-518459 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973735857" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-928546 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973778052" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-460382 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973805856" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-476552 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973855714" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-675453 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973863114" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-806114 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973884696" level="INFO" thread="11">
+<log4j:message><![CDATA[Invoice INV-265983 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973937764" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-608409 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791973988514" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-953282 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974002357" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-836465 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974007679" level="INFO" thread="6">
+<log4j:message><![CDATA[Invoice INV-770162 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974148226" level="WARN" thread="14">
+<log4j:message><![CDATA[ERP call took 5053 ms for order 88559]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974214140" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-849435 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974293445" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-659326 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974313917" level="WARN" thread="27">
+<log4j:message><![CDATA[ERP call took 6770 ms for order 88314]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974339896" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-499069 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974344160" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-951492 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974345089" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-633475 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974434821" level="WARN" thread="9">
+<log4j:message><![CDATA[ERP call took 8001 ms for order 88398]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974464228" level="WARN" thread="13">
+<log4j:message><![CDATA[ERP call took 4542 ms for order 88042]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974493356" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-925484 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974505352" level="WARN" thread="14">
+<log4j:message><![CDATA[ERP call took 4419 ms for order 88554]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974539035" level="WARN" thread="9">
+<log4j:message><![CDATA[ERP call took 5183 ms for order 88193]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974576173" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-109907 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974595066" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-603329 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974632204" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-951578 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974647996" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-663476 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974665603" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 2241 ms for order 88183]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974708333" level="WARN" thread="9">
+<log4j:message><![CDATA[ERP call took 3342 ms for order 88029]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974763401" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-800137 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974772324" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-904062 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974780950" level="ERROR" thread="16">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974787588" level="ERROR" thread="14">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974885698" level="WARN" thread="9">
+<log4j:message><![CDATA[ERP call took 6911 ms for order 88624]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974907549" level="WARN" thread="8">
+<log4j:message><![CDATA[ERP call took 4672 ms for order 88496]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974922805" level="WARN" thread="28">
+<log4j:message><![CDATA[ERP call took 2599 ms for order 88390]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974954580" level="WARN" thread="14">
+<log4j:message><![CDATA[ERP call took 7304 ms for order 88120]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974962834" level="WARN" thread="20">
+<log4j:message><![CDATA[ERP call took 2990 ms for order 88568]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974991689" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-816737 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974995719" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-461883 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791974997875" level="ERROR" thread="29">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975013134" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-618848 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975097468" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-889884 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975119681" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-440789 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975136351" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-447825 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975158728" level="WARN" thread="28">
+<log4j:message><![CDATA[ERP call took 7382 ms for order 88877]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975190484" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-285328 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975199115" level="WARN" thread="19">
+<log4j:message><![CDATA[ERP call took 3803 ms for order 88886]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975218658" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-895685 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975220783" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-972018 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975241832" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-323216 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975247150" level="WARN" thread="28">
+<log4j:message><![CDATA[ERP call took 6641 ms for order 88672]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975301746" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-380629 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975321009" level="WARN" thread="8">
+<log4j:message><![CDATA[ERP call took 4621 ms for order 88272]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975336273" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-376428 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975345537" level="WARN" thread="25">
+<log4j:message><![CDATA[ERP call took 4196 ms for order 88239]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975354080" level="WARN" thread="9">
+<log4j:message><![CDATA[ERP call took 6598 ms for order 88790]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975450844" level="WARN" thread="14">
+<log4j:message><![CDATA[ERP call took 6705 ms for order 88469]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975460296" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-122775 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975474151" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-806862 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975545350" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-812166 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975547626" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-811146 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975548348" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-901499 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975686162" level="INFO" thread="11">
+<log4j:message><![CDATA[Invoice INV-545053 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975697919" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-162947 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975719701" level="INFO" thread="28">
+<log4j:message><![CDATA[Invoice INV-281371 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975740111" level="ERROR" thread="22">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975778307" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-450238 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975790081" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-534763 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975805280" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-599062 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975868478" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-455201 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975958119" level="ERROR" thread="29">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791975986134" level="WARN" thread="8">
+<log4j:message><![CDATA[ERP call took 7412 ms for order 88872]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976017491" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-118652 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976084350" level="INFO" thread="30">
+<log4j:message><![CDATA[Invoice INV-579342 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976157762" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-760780 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976223356" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-826069 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976225036" level="WARN" thread="29">
+<log4j:message><![CDATA[ERP call took 2093 ms for order 88097]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976275885" level="WARN" thread="12">
+<log4j:message><![CDATA[ERP call took 5796 ms for order 88211]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976277805" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-839787 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976317293" level="WARN" thread="23">
+<log4j:message><![CDATA[ERP call took 5416 ms for order 88728]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976324486" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-686319 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976405499" level="WARN" thread="5">
+<log4j:message><![CDATA[ERP call took 4219 ms for order 88961]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976424749" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-676960 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976487697" level="INFO" thread="12">
+<log4j:message><![CDATA[Invoice INV-593637 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976499462" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-460246 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976512082" level="WARN" thread="24">
+<log4j:message><![CDATA[ERP call took 5929 ms for order 88261]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976533374" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-979714 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976646356" level="WARN" thread="25">
+<log4j:message><![CDATA[ERP call took 6014 ms for order 88136]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976664361" level="ERROR" thread="30">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976672391" level="INFO" thread="29">
+<log4j:message><![CDATA[Invoice INV-588759 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976689408" level="WARN" thread="13">
+<log4j:message><![CDATA[ERP call took 6196 ms for order 88862]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976765495" level="INFO" thread="14">
+<log4j:message><![CDATA[Invoice INV-328898 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976769804" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-167690 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976804660" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-793276 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976824556" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-903049 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976839660" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-746352 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976866871" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 6279 ms for order 88610]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976870267" level="WARN" thread="15">
+<log4j:message><![CDATA[ERP call took 7411 ms for order 88347]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976882683" level="INFO" thread="7">
+<log4j:message><![CDATA[Invoice INV-689344 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791976940343" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-896208 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977028856" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 6264 ms for order 88889]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977031305" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-738955 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977044165" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-586339 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977102536" level="WARN" thread="18">
+<log4j:message><![CDATA[ERP call took 6161 ms for order 88876]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977143253" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-321541 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977148189" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-913469 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977148619" level="INFO" thread="20">
+<log4j:message><![CDATA[Invoice INV-243351 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977188025" level="INFO" thread="15">
+<log4j:message><![CDATA[Invoice INV-481415 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977188370" level="INFO" thread="17">
+<log4j:message><![CDATA[Invoice INV-658579 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977210722" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-298236 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977216076" level="WARN" thread="22">
+<log4j:message><![CDATA[ERP call took 7773 ms for order 88156]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977263653" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-936045 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977295481" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-700773 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977304937" level="ERROR" thread="26">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977323343" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-927862 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977345533" level="WARN" thread="10">
+<log4j:message><![CDATA[ERP call took 3140 ms for order 88273]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977365681" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-473975 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977418494" level="WARN" thread="10">
+<log4j:message><![CDATA[ERP call took 3528 ms for order 88709]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977449970" level="ERROR" thread="10">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977482133" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-772373 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977491240" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-130418 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977532519" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 4983 ms for order 88909]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977581372" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-813445 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977647559" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-440266 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977684314" level="WARN" thread="21">
+<log4j:message><![CDATA[ERP call took 2329 ms for order 88482]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977698708" level="ERROR" thread="8">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977732139" level="INFO" thread="27">
+<log4j:message><![CDATA[Invoice INV-832397 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977748745" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-444742 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977756777" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-627709 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977775819" level="WARN" thread="7">
+<log4j:message><![CDATA[ERP call took 5463 ms for order 88679]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977795590" level="INFO" thread="10">
+<log4j:message><![CDATA[Invoice INV-352833 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977808536" level="WARN" thread="20">
+<log4j:message><![CDATA[ERP call took 3742 ms for order 88381]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977833731" level="WARN" thread="18">
+<log4j:message><![CDATA[ERP call took 7907 ms for order 88433]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977877054" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-839290 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791977952878" level="WARN" thread="14">
+<log4j:message><![CDATA[ERP call took 7155 ms for order 88756]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978072741" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-736075 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978160659" level="INFO" thread="11">
+<log4j:message><![CDATA[Invoice INV-874952 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978223488" level="WARN" thread="29">
+<log4j:message><![CDATA[ERP call took 2645 ms for order 88362]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978311265" level="INFO" thread="24">
+<log4j:message><![CDATA[Invoice INV-821326 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978354235" level="WARN" thread="10">
+<log4j:message><![CDATA[ERP call took 3667 ms for order 88656]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978391179" level="INFO" thread="18">
+<log4j:message><![CDATA[Invoice INV-131983 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978480991" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-779679 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978571331" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-927799 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978599839" level="WARN" thread="28">
+<log4j:message><![CDATA[ERP call took 4991 ms for order 88407]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978600266" level="ERROR" thread="21">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978602051" level="INFO" thread="13">
+<log4j:message><![CDATA[Invoice INV-981295 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978614261" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-212682 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978620858" level="INFO" thread="22">
+<log4j:message><![CDATA[Invoice INV-333404 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978630916" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-495734 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978644442" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-150578 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978662716" level="INFO" thread="26">
+<log4j:message><![CDATA[Invoice INV-687405 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978712746" level="WARN" thread="13">
+<log4j:message><![CDATA[ERP call took 7587 ms for order 88080]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978759953" level="INFO" thread="16">
+<log4j:message><![CDATA[Invoice INV-672624 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978853034" level="INFO" thread="21">
+<log4j:message><![CDATA[Invoice INV-960844 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978901370" level="INFO" thread="8">
+<log4j:message><![CDATA[Invoice INV-953104 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791978919262" level="WARN" thread="6">
+<log4j:message><![CDATA[ERP call took 2659 ms for order 88604]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979019926" level="ERROR" thread="21">
+<log4j:message><![CDATA[Posting invoice to ERP failed]]></log4j:message>
+<log4j:throwable><![CDATA[System.ServiceModel.CommunicationException: The underlying connection was closed.
+   at Billing.Erp.ErpClient.Post(Invoice invoice)
+   at Billing.Api.InvoiceController.Post(InvoiceDto dto)]]></log4j:throwable>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979061565" level="INFO" thread="23">
+<log4j:message><![CDATA[Invoice INV-214082 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979075578" level="INFO" thread="25">
+<log4j:message><![CDATA[Invoice INV-939060 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979101507" level="INFO" thread="19">
+<log4j:message><![CDATA[Invoice INV-743137 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979169176" level="INFO" thread="5">
+<log4j:message><![CDATA[Invoice INV-260540 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979176745" level="INFO" thread="9">
+<log4j:message><![CDATA[Invoice INV-127874 <posted> & acknowledged]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>
+<log4j:event logger="Billing.Api.InvoiceController" timestamp="1791979196620" level="WARN" thread="7">
+<log4j:message><![CDATA[ERP call took 3377 ms for order 88547]]></log4j:message>
+<log4j:locationInfo class="Billing.Api.InvoiceController" method="Run" file="" line="0" />
+<log4j:properties><log4j:data name="log4jmachinename" value="BILL01" /><log4j:data name="log4japp" value="Billing.Api.exe" /></log4j:properties>
+</log4j:event>

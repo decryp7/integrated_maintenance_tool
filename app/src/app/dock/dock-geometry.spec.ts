@@ -10,6 +10,7 @@ import {
   Rect,
   resolveGuideDrop,
 } from './dock-geometry';
+import { at } from '../../testing/must';
 
 const r = (x: number, y: number, width: number, height: number): Rect => ({ x, y, width, height });
 const ALL = new Set(['center', 'left', 'right', 'top', 'bottom']);
@@ -67,11 +68,11 @@ describe('guide cells', () => {
   it('lays out five cells centred in a large group', () => {
     const cells = compassCells(200, 200);
     expect(cells.map((c) => c.position)).toEqual(['center', 'left', 'right', 'top', 'bottom']);
-    expect(cells[0].rect).toEqual(r(84, 84, 32, 32));
-    expect(cells[1].rect).toEqual(r(48, 84, 32, 32));
-    expect(cells[2].rect).toEqual(r(120, 84, 32, 32));
-    expect(cells[3].rect).toEqual(r(84, 48, 32, 32));
-    expect(cells[4].rect).toEqual(r(84, 120, 32, 32));
+    expect(at(cells, 0).rect).toEqual(r(84, 84, 32, 32));
+    expect(at(cells, 1).rect).toEqual(r(48, 84, 32, 32));
+    expect(at(cells, 2).rect).toEqual(r(120, 84, 32, 32));
+    expect(at(cells, 3).rect).toEqual(r(84, 48, 32, 32));
+    expect(at(cells, 4).rect).toEqual(r(84, 120, 32, 32));
   });
 
   it('keeps only the centre in a small group and nothing in a tiny one', () => {

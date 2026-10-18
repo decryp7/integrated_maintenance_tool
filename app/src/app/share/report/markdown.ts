@@ -101,7 +101,7 @@ export function parseMarkdown(text: string): MdBlock[] {
     if (item || numbered) {
       flushPara();
       const ordered = !!numbered;
-      const body = parseInline((item ?? numbered)![1].trim());
+      const body = parseInline(((item ?? numbered)?.[1] ?? '').trim());
       if (list && list.ordered === ordered) list.items.push(body);
       else {
         flushList();
@@ -116,7 +116,7 @@ export function parseMarkdown(text: string): MdBlock[] {
       out.push({ kind: 'rule' });
     } else if (heading) {
       flushPara();
-      out.push({ kind: 'heading', level: heading[1].length as 1 | 2 | 3, inlines: parseInline(heading[2].trim()) });
+      out.push({ kind: 'heading', level: (heading[1] ?? '').length as 1 | 2 | 3, inlines: parseInline((heading[2] ?? '').trim()) });
     } else if (t.startsWith('>')) {
       flushPara();
       out.push({ kind: 'quote', inlines: parseInline(t.slice(1).trim()) });

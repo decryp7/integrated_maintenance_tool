@@ -59,22 +59,22 @@ interface VisibleRow {
   imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps],
   template: `
     <div class="bar">
-      <span class="section-title">Events</span>
+      <span class="section-title" i18n="@@grid.title">Events</span>
       <span class="mono total">{{ fmt(total()) }}</span>
-      <span class="faint">of {{ fmt(store.summary()?.total ?? 0) }} · sorted by time {{ store.descending() ? '↓' : '↑' }}</span>
+      <span class="faint" i18n="@@grid.subtitle">of {{ fmt(store.summary()?.total ?? 0) //i18n(ph="total") }} · sorted by time {{ store.descending() ? '↓' : '↑' //i18n(ph="direction") }}</span>
       @if (store.anchorMissed()) {
-        <span class="warn">That event is hidden by the current filters.</span>
+        <span class="warn" i18n="@@grid.anchorMissed">That event is hidden by the current filters.</span>
       }
       <span class="spacer"></span>
-      <button class="btn ghost" (click)="store.toggleSort()" title="Toggle sort order">
-        <imt-icon [name]="store.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ store.descending() ? 'Newest first' : 'Oldest first' }}
+      <button class="btn ghost" (click)="store.toggleSort()" title="Toggle sort order" i18n-title="@@grid.sortToggle">
+        <imt-icon [name]="store.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ sortLabel() }}
       </button>
       <div class="anchor" (imtClickOutside)="colsOpen.set(false)">
-        <button class="btn ghost" (click)="colsOpen.set(!colsOpen())" [attr.aria-expanded]="colsOpen()"><imt-icon name="columns" [size]="14" /> Columns</button>
+        <button class="btn ghost" (click)="colsOpen.set(!colsOpen())" [attr.aria-expanded]="colsOpen()" i18n="@@grid.columns"><imt-icon name="columns" [size]="14" /> Columns</button>
         @if (colsOpen()) {
           <div class="popover cols">
-            <input class="input" placeholder="Filter fields" aria-label="Filter fields" [value]="colFilter()" (input)="colFilter.set($any($event.target).value)" />
-            <imt-virtual-list [items]="colChoices()" [itemHeight]="24" [maxHeight]="300" label="Columns">
+            <input class="input" placeholder="Filter fields" i18n-placeholder="@@grid.filterFields.placeholder" aria-label="Filter fields" i18n-aria-label="@@grid.filterFields.aria" [value]="colFilter()" (input)="colFilter.set($any($event.target).value)" />
+            <imt-virtual-list [items]="colChoices()" [itemHeight]="24" [maxHeight]="300" label="Columns" i18n-label="@@grid.columns.listLabel">
               <ng-template let-f>
                 <label class="col-opt">
                   <input type="checkbox" [checked]="store.extraColumns().includes(f)" (change)="toggleColumn(f)" />
@@ -93,7 +93,7 @@ interface VisibleRow {
       #viewport
       tabindex="0"
       role="grid"
-      aria-label="Events"
+      aria-label="Events" i18n-aria-label="@@grid.aria"
       aria-multiselectable="true"
       [attr.aria-rowcount]="total() + 1"
       [attr.aria-colcount]="colCount()"
@@ -102,16 +102,16 @@ interface VisibleRow {
       (keydown)="onKey($event)"
     >
       <div class="header" role="row" aria-rowindex="1" [style.grid-template-columns]="columns()">
-        <span class="hcell" role="columnheader"><span class="sr-only">Marker</span></span>
+        <span class="hcell" role="columnheader"><span class="sr-only" i18n="@@grid.header.marker">Marker</span></span>
         <span class="hcell" role="columnheader" [attr.aria-sort]="store.descending() ? 'descending' : 'ascending'">
-          <button class="sort" (click)="store.toggleSort()">Time {{ store.descending() ? '↓' : '↑' }}</button>
+          <button class="sort" (click)="store.toggleSort()" i18n="@@grid.header.time">Time {{ store.descending() ? '↓' : '↑' //i18n(ph="direction") }}</button>
         </span>
-        <span class="hcell" role="columnheader">Level</span>
-        <span class="hcell" role="columnheader">Instance</span>
+        <span class="hcell" role="columnheader" i18n="@@grid.header.level">Level</span>
+        <span class="hcell" role="columnheader" i18n="@@grid.header.instance">Instance</span>
         @for (c of store.extraColumns(); track c) {
-          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="'Remove column ' + c" (click)="store.removeColumn(c)" [attr.title]="'Remove column ' + c">×</button></span>
+          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="removeColumnLabel(c)" (click)="store.removeColumn(c)" [attr.title]="removeColumnLabel(c)">×</button></span>
         }
-        <span class="hcell" role="columnheader">Message</span>
+        <span class="hcell" role="columnheader" i18n="@@grid.header.message">Message</span>
       </div>
       <div class="layer" role="presentation" [style.height.px]="viewportH()">
         @for (v of visible(); track v.index) {
@@ -131,7 +131,7 @@ interface VisibleRow {
               (contextmenu)="openRowMenu($event, v.index, r)"
             >
               <span class="mk" role="gridcell">
-                @if (r.markers.length) { <imt-marker-icon [kind]="r.markers[0]" [color]="markerColor(r.markers[0])" [label]="markerLabel(r.markers[0])" /> }
+                @if (r.markers[0]; as mk) { <imt-marker-icon [kind]="mk" [color]="markerColor(mk)" [label]="markerLabel(mk)" /> }
               </span>
               <span class="mono time" role="gridcell">{{ time(r.ts) }}</span>
               <span class="lvl" role="gridcell"><span class="dot" [style.background]="levelVar(r.level)"></span><span class="mono">{{ code(r.level) }}</span></span>
@@ -142,20 +142,20 @@ interface VisibleRow {
               <span class="msg ellipsis" role="gridcell">{{ r.message }}</span>
             </div>
           } @else {
-            <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading"></span></div>
+            <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading" i18n-aria-label="@@grid.loading"></span></div>
           }
         }
         @if (loaded() && total() === 0 && !pageError()) {
-          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ store.summary()?.sources?.length ? 'No events match the current filters.' : 'No events: nothing is open yet.' }}<imt-next-steps /></span></div>
+          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ emptyMessage() }}<imt-next-steps /></span></div>
         }
       </div>
       <div aria-hidden="true" [style.height.px]="spacerH()"></div>
     </div>
     @if (pageError(); as err) {
       <div class="err-card" role="alert">
-        <strong>Could not load events</strong>
+        <strong i18n="@@grid.error.title">Could not load events</strong>
         <span class="mono">{{ err }}</span>
-        <button class="btn" (click)="retry()">Retry</button>
+        <button class="btn" (click)="retry()" i18n="@@grid.error.retry">Retry</button>
       </div>
     }
   `,
@@ -219,6 +219,14 @@ export class EventsGrid {
   protected readonly total = signal(0);
   protected readonly loaded = signal(false);
   protected readonly pageError = signal<string | null>(null);
+  protected readonly sortLabel = computed(() => (this.store.descending() ? $localize`:@@grid.sort.newest:Newest first` : $localize`:@@grid.sort.oldest:Oldest first`));
+  protected readonly emptyMessage = computed(() =>
+    this.store.summary()?.sources?.length ? $localize`:@@grid.empty.filtered:No events match the current filters.` : $localize`:@@grid.empty.noFiles:No events: nothing is open yet.`,
+  );
+
+  protected removeColumnLabel(column: string): string {
+    return $localize`:@@grid.removeColumn:Remove column ${column}:column:`;
+  }
   protected readonly viewportH = signal(400);
   /**
    * Offset (px) into the true, uncapped content at the top of the rows area. This, not the element's scrollTop,
@@ -487,7 +495,7 @@ export class EventsGrid {
     }
     this.total.set(res.total);
     this.selection.set(single(res.anchorIndex));
-    this.store.anchorResolved(res.rows[0]);
+    this.store.anchorResolved(res.rows[0] ?? null);
     this.revealRow(res.anchorIndex, 'center', res.total);
   }
 

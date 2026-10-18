@@ -1,4 +1,5 @@
 import { ActionFile, ActionKind, AgentFieldSchema, AgentIssue, AgentSchema, ScheduleFile, TriggerFile, TriggerKind } from '../core/agent.types';
+import { localizeDecimal } from '../i18n/locale';
 
 /** How a schedule is started. */
 export type TimingKind = 'cron' | 'every' | 'trigger';
@@ -86,9 +87,9 @@ export function parseJsonObject(text: string): { value: Record<string, unknown> 
   try {
     const v: unknown = JSON.parse(text);
     if (v && typeof v === 'object' && !Array.isArray(v)) return { value: v as Record<string, unknown> };
-    return { error: 'Enter a JSON object, e.g. {"msinfo": true}' };
+    return { error: $localize`:@@schedules.model.notObject:Enter a JSON object, e.g. {"msinfo": true}` };
   } catch (e) {
-    return { error: `Not valid JSON: ${(e as Error).message}` };
+    return { error: $localize`:@@schedules.model.notJson:Not valid JSON: ${(e as Error).message}:detail:` };
   }
 }
 
@@ -102,5 +103,5 @@ export function formatBytes(n: number): string {
     v /= 1024;
     u++;
   }
-  return `${v.toFixed(1)} ${units[u]}`;
+  return `${localizeDecimal(v.toFixed(1))} ${units[u]}`;
 }

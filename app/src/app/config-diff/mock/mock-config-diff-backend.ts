@@ -73,7 +73,8 @@ const depthOf = (path: string) => path.split('/').length - 1 + (path.match(/\[\d
 const nameOf = (path: string) => {
   const last = path.split('/').at(-1) ?? path;
   const idx = /(\[\d+\])$/.exec(last);
-  return idx && last !== idx[1] ? idx[1] : last;
+  const tail = idx?.[1];
+  return tail && last !== tail ? tail : last;
 };
 const isUnder = (path: string, parent: string) => path.startsWith(`${parent}/`) || path.startsWith(`${parent}[`);
 
@@ -118,7 +119,8 @@ export function mockPage(entries: Entry[], options: DiffOptions): Omit<DiffPage,
   shown.forEach((e, i) => {
     if (foldUnder && isUnder(e.path, foldUnder)) return;
     foldUnder = null;
-    const expandable = !!shown[i + 1] && isUnder(shown[i + 1].path, e.path);
+    const next = shown[i + 1];
+    const expandable = !!next && isUnder(next.path, e.path);
     const hasChanges = changed(e.path);
     const byDefault = !!search || options.view.expand === 'all' || hasChanges;
     const expanded = expandable && byDefault !== toggled.has(e.path);

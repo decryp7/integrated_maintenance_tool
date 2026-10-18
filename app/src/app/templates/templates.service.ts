@@ -16,7 +16,7 @@ export class TemplatesService {
   async open(target: TemplateTarget | null = null): Promise<boolean> {
     // Loaded on demand: the gallery is not part of the initial bundle.
     const { TemplatesGallery } = await import('./templates-gallery');
-    const ref = this.dialogs.open<boolean>(TemplatesGallery, { title: 'New profile from a template', width: 900, inputs: { path: target?.path ?? null, name: target?.name ?? null } });
+    const ref = this.dialogs.open<boolean>(TemplatesGallery, { title: $localize`:@@templates.service.title:New profile from a template`, width: 900, inputs: { path: target?.path ?? null, name: target?.name ?? null } });
     return (await ref.closed) === true;
   }
 }

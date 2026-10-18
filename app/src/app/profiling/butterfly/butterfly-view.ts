@@ -19,55 +19,55 @@ import { PROFILING_STYLES } from '../profiling-styles';
     @if (active.profile()) {
       <imt-profile-bar />
       <div class="bar">
-        <span class="section-title">Callers and callees</span>
+        <span class="section-title" i18n="@@profiling.butterfly.title">Callers and callees</span>
         @if (state.selectedFrame(); as f) { <span class="mono ellipsis grow" [title]="f.name">{{ f.name }}</span> }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." i18n-emptyText="@@profiling.butterfly.empty" (retry)="res.retry()">
         @if (res.data(); as b) {
           <div class="body">
-            <h3 class="sec" id="bf-callers">Callers ({{ b.callers.length }})</h3>
+            <h3 class="sec" id="bf-callers" i18n="@@profiling.butterfly.callers">Callers ({{ b.callers.length }})</h3>
             <ul class="list" aria-labelledby="bf-callers">
               @for (r of b.callers; track $index) {
                 <li>
-                  <button class="row" type="button" [disabled]="!r.frame" (click)="go(r.frame)" [attr.aria-label]="label(r, 'Caller')">
+                  <button class="row" type="button" [disabled]="!r.frame" (click)="go(r.frame)" [attr.aria-label]="label(r, 'caller')">
                     <span class="meter" aria-hidden="true"><span [style.width.%]="r.pct"></span></span>
                     <span class="num pct">{{ pct(r.pct) }}</span>
                     <span class="num val">{{ value(r.values) }}</span>
-                    <span class="ellipsis grow" [class.muted]="!r.frame">{{ r.frame?.name ?? '(top of the stack: no caller)' }}</span>
+                    <span class="ellipsis grow" [class.muted]="!r.frame">{{ r.frame?.name ?? noCaller }}</span>
                   </button>
                 </li>
-              } @empty { <li class="muted pad">No callers.</li> }
+              } @empty { <li class="muted pad" i18n="@@profiling.butterfly.noCallers">No callers.</li> }
             </ul>
 
-            <div class="focus" role="group" aria-label="Selected function">
+            <div class="focus" role="group" aria-label="Selected function" i18n-aria-label="@@profiling.butterfly.selected">
               <strong class="ellipsis" [title]="b.function.name">{{ b.function.name }}</strong>
-              <span class="mono">total {{ value(b.function.total) }} ({{ pct(b.function.totalPct) }}) · self {{ value(b.function.self) }} ({{ pct(b.function.selfPct) }})</span>
+              <span class="mono" i18n="@@profiling.butterfly.totals">total {{ value(b.function.total) }} ({{ pct(b.function.totalPct) }}) · self {{ value(b.function.self) }} ({{ pct(b.function.selfPct) }})</span>
               @if (measurement(); as m) { <imt-measurement [m]="m" /> }
               <span class="spacer"></span>
               @if (b.function.frame; as f) {
-                <button class="mini" type="button" (click)="nav.showInFlame(f)">Show in flame graph</button>
-                <button class="mini" type="button" (click)="nav.focusInFlame(f, b.metric)">Zoom flame graph to it</button>
+                <button class="mini" type="button" (click)="nav.showInFlame(f)" i18n="@@profiling.butterfly.showInFlame">Show in flame graph</button>
+                <button class="mini" type="button" (click)="nav.focusInFlame(f, b.metric)" i18n="@@profiling.butterfly.zoomFlame">Zoom flame graph to it</button>
               }
             </div>
 
-            <h3 class="sec" id="bf-callees">Callees ({{ b.callees.length }})</h3>
+            <h3 class="sec" id="bf-callees" i18n="@@profiling.butterfly.callees">Callees ({{ b.callees.length }})</h3>
             <ul class="list" aria-labelledby="bf-callees">
               @for (r of b.callees; track $index) {
                 <li>
-                  <button class="row" type="button" [disabled]="!r.frame" (click)="go(r.frame)" [attr.aria-label]="label(r, 'Callee')">
+                  <button class="row" type="button" [disabled]="!r.frame" (click)="go(r.frame)" [attr.aria-label]="label(r, 'callee')">
                     <span class="meter" aria-hidden="true"><span [style.width.%]="r.pct"></span></span>
                     <span class="num pct">{{ pct(r.pct) }}</span>
                     <span class="num val">{{ value(r.values) }}</span>
                     <span class="ellipsis grow">{{ r.frame?.name }}</span>
                   </button>
                 </li>
-              } @empty { <li class="muted pad">No callees: all of its time is self time.</li> }
+              } @empty { <li class="muted pad" i18n="@@profiling.butterfly.noCallees">No callees: all of its time is self time.</li> }
             </ul>
           </div>
         }
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see callers and callees." />
+      <imt-no-capture text="Open a profile to see callers and callees." i18n-text="@@profiling.butterfly.noCapture" />
     }
   `,
   styles: [
@@ -89,6 +89,7 @@ export class ButterflyView {
   private readonly names = inject(FrameNames);
   protected readonly res = new AsyncResource<Butterfly>();
   protected readonly pct = formatPct;
+  protected readonly noCaller = $localize`:@@profiling.butterfly.topOfStack:(top of the stack: no caller)`;
 
   constructor() {
     effect(() => {
@@ -117,8 +118,13 @@ export class ButterflyView {
     return m ? formatMetric(v[m], m, this.active.profile()?.metrics) : '—';
   }
 
-  protected label(r: ButterflyRow, role: string): string {
-    return `${role} ${r.frame?.name ?? '(top of the stack)'}: ${formatPct(r.pct)} of the function, ${this.value(r.values)}`;
+  protected label(r: ButterflyRow, role: 'caller' | 'callee'): string {
+    const name = r.frame?.name ?? $localize`:@@profiling.butterfly.topOfStackShort:(top of the stack)`;
+    const pct = formatPct(r.pct);
+    const value = this.value(r.values);
+    return role === 'caller'
+      ? $localize`:@@profiling.butterfly.callerLabel:Caller ${name}:name:: ${pct}:pct: of the function, ${value}:value:`
+      : $localize`:@@profiling.butterfly.calleeLabel:Callee ${name}:name:: ${pct}:pct: of the function, ${value}:value:`;
   }
 
   protected go(frame: FrameDto | null): void {

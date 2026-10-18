@@ -12,12 +12,12 @@ export const DETECTORS = ['error_spike', 'silence', 'crash', 'slow_outlier', 'ra
 export type Detector = (typeof DETECTORS)[number];
 
 export const DETECTOR_LABELS: Record<Detector, string> = {
-  error_spike: 'Error spike',
-  silence: 'Silence',
-  crash: 'Crash',
-  slow_outlier: 'Slow outlier',
-  rate_change: 'Rate change',
-  memory_growth: 'Memory growth',
+  error_spike: $localize`:@@live.rules.detector.errorSpike:Error spike`,
+  silence: $localize`:@@live.rules.detector.silence:Silence`,
+  crash: $localize`:@@live.rules.detector.crash:Crash`,
+  slow_outlier: $localize`:@@live.rules.detector.slowOutlier:Slow outlier`,
+  rate_change: $localize`:@@live.rules.detector.rateChange:Rate change`,
+  memory_growth: $localize`:@@live.rules.detector.memoryGrowth:Memory growth`,
 };
 
 export interface LiveRuleDraft {
@@ -121,7 +121,7 @@ export type ErrorTarget = { kind: 'rule'; index: number } | { kind: 'field'; fie
 export function errorTarget(message: string, rules: readonly LiveRuleDraft[]): ErrorTarget {
   const rule = /live\.rule "([^"]*)"/.exec(message);
   if (rule) {
-    const name = rule[1];
+    const name = rule[1] ?? '';
     let index = rules.findIndex((r) => r.name.trim() === name);
     const numbered = /^rule (\d+)$/.exec(name);
     if (index < 0 && numbered) index = Number(numbered[1]) - 1;

@@ -14,7 +14,7 @@ use crate::api::{
 use crate::exceptions::ExceptionGroup;
 use crate::patterns::Pattern;
 use crate::profile::Profile;
-use crate::ql::{Completion, QlError, QlResult};
+use crate::ql::{Completion, QlError, QlResult, QueryControl, RunError};
 use crate::workspace::Workspace;
 use anyhow::Result;
 use std::path::PathBuf;
@@ -77,6 +77,15 @@ pub trait LogStore: Send + Sync {
 
     /// Runs a query-language program (`stats`, `sort`, ...) over the matching records.
     fn run_query(&self, req: &QueryRequest) -> std::result::Result<QlResult, QlError>;
+
+    /// Like [`run_query`](Self::run_query), stopping with [`RunError::Cancelled`] soon after `control`
+    /// is cancelled and reporting progress through it. A store that cannot interrupt a query may run
+    /// it to completion (the default), but must still return `Cancelled` if it was cancelled meanwhile.
+    fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> std::result::Result<QlResult, RunError> {
+        let out = self.run_query(req).map_err(RunError::Invalid)?;
+        control.check()?;
+        Ok(out)
+    }
 
     /// Parse error of a query-language text, if any.
     fn check_query(&self, text: &str) -> Option<QlError>;
@@ -349,6 +358,10 @@ impl LogStore for Workspace {
 
     fn run_query(&self, req: &QueryRequest) -> std::result::Result<QlResult, QlError> {
         Workspace::run_query(self, req)
+    }
+
+    fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> std::result::Result<QlResult, RunError> {
+        Workspace::run_query_with(self, req, control)
     }
 
     fn check_query(&self, text: &str) -> Option<QlError> {

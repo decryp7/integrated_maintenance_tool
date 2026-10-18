@@ -46,6 +46,9 @@ test.describe('panel error boundaries', () => {
 
   test('a failed facet request shows an inline error with Retry', async ({ page }) => {
     await openAppWith(page, '?mockFail=queryFacet:1');
+    // Open the popover only once the workspace has settled: a query change while it is open reloads the facet,
+    // and that newer (successful) request would supersede the failing one before its error is shown.
+    await expect(gridRows(page).first()).toBeVisible();
     await page.locator('imt-sidebar .field').first().click();
     const pop = page.locator('imt-facet-popover');
     await expect(pop.getByRole('alert')).toContainText('Simulated queryFacet failure');

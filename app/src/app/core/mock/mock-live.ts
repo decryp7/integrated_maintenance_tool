@@ -148,12 +148,14 @@ export class MockLiveSim {
     const targets = this.targets(live);
     for (let i = 0; i < count; i++) {
       const source = targets[i % targets.length];
+      if (!source) break;
       const ts = cfg.ratePerSec === null ? base + 1000 : base + Math.max(1, Math.round(((i + 1) * cfg.tickMs) / Math.max(1, count)));
       batch.records.push(this.record(source, ts, last(source.id), i));
     }
     // A process stats line per tick for the CPU / working set charts (realistic mode only).
-    if (cfg.ratePerSec !== null && targets.length) {
-      const source = targets[0];
+    const head = targets[0];
+    if (cfg.ratePerSec !== null && head) {
+      const source = head;
       const prev = last(source.id);
       const cpu = (25 + 20 * Math.sin(this.elapsed / 7000) + (this.counter % 7)).toFixed(1);
       const ws = Math.round(400 + (this.elapsed / 1000) * 2);
@@ -169,9 +171,9 @@ export class MockLiveSim {
 
     if (cfg.rotateEveryMs > 0) {
       this.sinceRotation += cfg.tickMs;
-      if (this.sinceRotation >= cfg.rotateEveryMs) {
+      const rotated = head;
+      if (rotated && this.sinceRotation >= cfg.rotateEveryMs) {
         this.sinceRotation = 0;
-        const rotated = targets[0];
         const n = sources.filter((s) => mockGroupOf(s.path) === mockGroupOf(rotated.path)).length;
         const to = `${rotated.path}.${n}`;
         const replacement: MockSource = { id: this.nextSourceId(), path: rotated.path, name: rotated.name, importer: rotated.importer, skipped: 0 };
@@ -186,7 +188,7 @@ export class MockLiveSim {
       this.sinceAlert += cfg.tickMs;
       if (this.sinceAlert >= cfg.alertEveryMs) {
         this.sinceAlert = 0;
-        batch.alerts.push(this.alert(base, targets[0], last(targets[0].id)));
+        if (head) batch.alerts.push(this.alert(base, head, last(head.id)));
       }
     }
     return batch;
@@ -236,14 +238,17 @@ export class MockLiveSim {
     const open = live.filter((s) => !rotated.has(s.id));
     const pool = open.length ? open : live;
     const first = pool.find((s) => s.id === this.target);
-    if (this.config.ratePerSec === null) return [first ?? pool[0]];
+    if (this.config.ratePerSec === null) {
+      const only = first ?? pool[0];
+      return only ? [only] : [];
+    }
     const text = pool.filter((s) => s !== first && s.importer !== 'csv').slice(0, 2);
     return first ? [first, ...text] : text.length ? text : pool.slice(0, 1);
   }
 
   private record(source: MockSource, ts: number, prev: MockRecord | undefined, i: number): MockRecord {
     this.counter++;
-    const level = this.config.ratePerSec === null ? 'Information' : LEVEL_CYCLE[(this.counter + i) % LEVEL_CYCLE.length];
+    const level = this.config.ratePerSec === null ? 'Information' : LEVEL_CYCLE[(this.counter + i) % LEVEL_CYCLE.length] ?? 'Information';
     return {
       id: 0,
       ts,
@@ -280,6 +285,7 @@ export class MockLiveSim {
       { kind: 'silence', rule: null, severity: 'info', message: `${instance} has been silent for 60s` },
     ];
     const pick = kinds[this.alertCount++ % kinds.length];
+    if (!pick) throw new Error('no alert kinds');
     const from = now - 60_000;
     const who = pick.kind === 'rule' ? (pick.rule ?? '') : instance;
     return {

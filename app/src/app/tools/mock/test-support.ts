@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ImtBackend } from '../../core/backend';
 import {
   CollectBackend,
+  EventLogBackend,
   LifecycleBackend,
   PerfmonBackend,
   ProjectBackend,
@@ -59,6 +60,7 @@ export function provideToolsTesting(
     { provide: ToolCatalogBackend, useExisting: ToolsBackend },
     { provide: PerfmonBackend, useExisting: ToolsBackend },
     { provide: CollectBackend, useExisting: ToolsBackend },
+    { provide: EventLogBackend, useExisting: ToolsBackend },
     { provide: LifecycleBackend, useExisting: ToolsBackend },
     { provide: ProjectBackend, useExisting: ToolsBackend },
     { provide: RECENT_PROJECTS, useValue: new MemoryRecentProjects() },

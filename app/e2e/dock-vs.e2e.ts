@@ -66,7 +66,7 @@ test.describe('VS-style docking', () => {
     await expect(groups(page)).toHaveCount(4);
   });
 
-  test('a released drag away from any guide does not move the panel', async ({ page, browserName }) => {
+  test('a released drag away from any guide does not move the panel', async ({ page }) => {
     const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + 40, content.y + content.height - 20);
     await page.mouse.up();

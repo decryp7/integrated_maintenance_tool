@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { plural } from '../../i18n/locale';
 import { Evidence, EvidenceView, ProfileFinding } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
@@ -11,22 +12,30 @@ import { NoCapture, ProfileBar } from '../profiling-shared';
 import { PROFILING_STYLES } from '../profiling-styles';
 
 const VIEW_LABEL: Record<EvidenceView, string> = {
-  hotspots: 'hotspots',
-  callTree: 'call tree',
-  flame: 'flame graph',
-  butterfly: 'callers and callees',
-  timeline: 'thread timeline',
-  diff: 'comparison',
+  hotspots: $localize`:@@profiling.findings.view.hotspots:hotspots`,
+  callTree: $localize`:@@profiling.findings.view.callTree:call tree`,
+  flame: $localize`:@@profiling.findings.view.flame:flame graph`,
+  butterfly: $localize`:@@profiling.findings.view.butterfly:callers and callees`,
+  timeline: $localize`:@@profiling.findings.view.timeline:thread timeline`,
+  diff: $localize`:@@profiling.findings.view.diff:comparison`,
 };
 
 /** Where an evidence link goes, in words ("call tree · OrderRepository.Save · 2 threads"). */
 export function evidenceSummary(e: Evidence): string {
   const parts = [VIEW_LABEL[e.view]];
   if (e.frame) parts.push(e.frame.name);
-  else if (e.path.length) parts.push(`path of ${e.path.length} frames`);
+  else if (e.path.length) parts.push($localize`:@@profiling.findings.pathOf:path of ${e.path.length}:count: frames`);
   if (e.range) parts.push(`${formatNs(e.range.fromNs)} – ${formatNs(e.range.toNs)}`);
-  if (e.threads?.length) parts.push(`${e.threads.length} thread${e.threads.length === 1 ? '' : 's'}`);
-  if (e.eventKind) parts.push(`${e.eventKind} events`);
+  if (e.threads?.length) {
+    const n = e.threads.length;
+    parts.push(
+      plural(n, {
+        one: $localize`:@@profiling.findings.threads.one:${n}:count: thread`,
+        other: $localize`:@@profiling.findings.threads.other:${n}:count: threads`,
+      }),
+    );
+  }
+  if (e.eventKind) parts.push($localize`:@@profiling.findings.events:${e.eventKind}:kind: events`);
   return parts.join(' · ');
 }
 
@@ -39,11 +48,11 @@ export function evidenceSummary(e: Evidence): string {
     @if (active.profile(); as p) {
       <imt-profile-bar [showMetric]="false" />
       <div class="bar">
-        <span class="section-title">Findings</span>
-        @if (state.baselineId() !== null) { <span class="muted">including regressions against the baseline</span> }
+        <span class="section-title" i18n="@@profiling.findings.title">Findings</span>
+        @if (state.baselineId() !== null) { <span class="muted" i18n="@@profiling.findings.regressions">including regressions against the baseline</span> }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." (retry)="res.retry()">
-        <ul class="list body" aria-label="Findings">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
+        <ul class="list body" aria-label="Findings" i18n-aria-label="@@profiling.findings.listLabel">
           @for (f of res.data() ?? []; track $index) {
             <li class="finding" [attr.data-kind]="f.kind">
               <div class="head">
@@ -53,7 +62,7 @@ export function evidenceSummary(e: Evidence): string {
               </div>
               <p class="detail">{{ f.detail }}</p>
               <div class="foot">
-                <button class="btn" type="button" (click)="open(f)" [attr.aria-label]="'Open evidence for ' + f.title">Open evidence</button>
+                <button class="btn" type="button" (click)="open(f)" [attr.aria-label]="evidenceLabel(f)" i18n="@@profiling.findings.openEvidence">Open evidence</button>
                 <span class="muted ellipsis">{{ summary(f.evidence) }}</span>
               </div>
             </li>
@@ -61,7 +70,7 @@ export function evidenceSummary(e: Evidence): string {
         </ul>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see automatic findings." />
+      <imt-no-capture text="Open a profile to see automatic findings." i18n-text="@@profiling.findings.noCapture" />
     }
   `,
   styles: [
@@ -91,6 +100,10 @@ export class FindingsView {
       const view = this.state.view();
       untracked(() => (p ? void this.res.load(() => this.backend.findings({ profileId: p.id, baselineId: baselineId !== p.id ? baselineId : null, view })) : this.res.reset()));
     });
+  }
+
+  protected evidenceLabel(f: ProfileFinding): string {
+    return $localize`:@@profiling.findings.evidenceLabel:Open evidence for ${f.title}:title:`;
   }
 
   protected open(f: ProfileFinding): void {

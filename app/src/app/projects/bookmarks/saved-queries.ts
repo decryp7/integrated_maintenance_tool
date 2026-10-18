@@ -9,21 +9,21 @@ import { SavedQueryStore } from './saved-query.store';
   imports: [Icon],
   template: `
     <div class="bar">
-      <input class="input grow" aria-label="Saved query name" placeholder="Name for the current query" [value]="name()" (input)="name.set(val($event))" (keydown.enter)="save()" />
-      <button type="button" class="btn" (click)="save()">Save current query</button>
+      <input class="input grow" aria-label="Saved query name" i18n-aria-label="@@projects.savedQueries.name" placeholder="Name for the current query" i18n-placeholder="@@projects.savedQueries.namePlaceholder" [value]="name()" (input)="name.set(val($event))" (keydown.enter)="save()" />
+      <button type="button" class="btn" (click)="save()" i18n="@@projects.savedQueries.save">Save current query</button>
     </div>
     @if (queries.items().length) {
-      <ul class="list" aria-label="Saved queries">
+      <ul class="list" aria-label="Saved queries" i18n-aria-label="@@projects.savedQueries.list">
         @for (q of queries.items(); track q.id) {
           <li class="item">
             <span class="ellipsis grow" [title]="q.name">{{ q.name }}</span>
-            <button type="button" class="btn" [attr.aria-label]="'Apply query ' + q.name" (click)="queries.apply(q.id)">Apply</button>
-            <button type="button" class="icon-btn" [attr.aria-label]="'Delete query ' + q.name" title="Delete" (click)="queries.remove(q.id)"><imt-icon name="trash" [size]="13" /></button>
+            <button type="button" class="btn" [attr.aria-label]="applyLabel(q.name)" (click)="queries.apply(q.id)" i18n="@@projects.savedQueries.apply">Apply</button>
+            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(q.name)" title="Delete" i18n-title="@@projects.savedQueries.delete" (click)="queries.remove(q.id)"><imt-icon name="trash" [size]="13" /></button>
           </li>
         }
       </ul>
     } @else {
-      <p class="faint">No saved queries.</p>
+      <p class="faint" i18n="@@projects.savedQueries.empty">No saved queries.</p>
     }
   `,
   styles: `
@@ -38,6 +38,13 @@ import { SavedQueryStore } from './saved-query.store';
 export class SavedQueries {
   protected readonly queries = inject(SavedQueryStore);
   protected readonly name = signal('');
+
+  protected applyLabel(name: string): string {
+    return $localize`:@@projects.savedQueries.applyAria:Apply query ${name}:name:`;
+  }
+  protected deleteLabel(name: string): string {
+    return $localize`:@@projects.savedQueries.deleteAria:Delete query ${name}:name:`;
+  }
 
   protected save(): void {
     this.queries.saveCurrent(this.name());

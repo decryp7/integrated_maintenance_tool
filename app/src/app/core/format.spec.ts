@@ -70,15 +70,15 @@ describe('format', () => {
     const to = Date.UTC(2026, 9, 14, 12, 0, 0);
     const ticks = timeTicks(from, to, 7, 'utc');
     expect(ticks.map((t) => t.label)).toEqual(['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00']);
-    expect(ticks[0].frac).toBe(0);
-    expect(ticks[6].frac).toBe(1);
+    expect(ticks[0]?.frac).toBe(0);
+    expect(ticks[6]?.frac).toBe(1);
   });
 
   it('chooses tick precision from the span', () => {
     const from = Date.UTC(2026, 9, 14, 10, 0, 0);
-    expect(timeTicks(from, from + 10_000, 5, 'utc')[1].label).toMatch(/^10:00:0\d$/);
-    expect(timeTicks(from, from + 400, 4, 'utc')[1].label).toMatch(/^\d{2}\.\d{3}$/);
-    expect(timeTicks(from, from + 5 * 86_400_000, 5, 'utc')[0].label).toMatch(/^\d+ Oct$/);
+    expect(timeTicks(from, from + 10_000, 5, 'utc')[1]?.label).toMatch(/^10:00:0\d$/);
+    expect(timeTicks(from, from + 400, 4, 'utc')[1]?.label).toMatch(/^\d{2}\.\d{3}$/);
+    expect(timeTicks(from, from + 5 * 86_400_000, 5, 'utc')[0]?.label).toMatch(/^\d+ Oct$/);
     expect(timeTicks(Date.UTC(2026, 9, 14, 23, 0), Date.UTC(2026, 9, 15, 1, 0), 4, 'utc').map((t) => t.label)).toContain('15 Oct');
     expect(timeTicks(from, from, 5, 'utc')).toEqual([]);
     expect(timeTicks(from, from + 1000, 0, 'utc')).toEqual([]);

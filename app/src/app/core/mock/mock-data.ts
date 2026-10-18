@@ -90,7 +90,7 @@ interface Instance {
 /** Builds a realistic multi-instance incident: a payment timeout storm that crashes WEB02. */
 export function generateDemo(seed = 42): MockDataset {
   const rnd = mulberry32(seed);
-  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)] as T; // callers pass non-empty lists
   const guid = () =>
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.floor(rnd() * 16);
@@ -245,7 +245,8 @@ export function generateDemo(seed = 42): MockDataset {
   }
 
   // Gateway notices the restart.
-  emit(instances[5], RESTART + 112 * SEC, 'Warning', 'Yarp.ReverseProxy', 'Health probe for {Destination} recovered after {Failures} timeouts', { Destination: 'web02:8080', Failures: 2 });
+  const gateway = instances[5];
+  if (gateway) emit(gateway, RESTART + 112 * SEC, 'Warning', 'Yarp.ReverseProxy', 'Health probe for {Destination} recovered after {Failures} timeouts', { Destination: 'web02:8080', Failures: 2 });
 
   // CSV source: a scheduled sync job exporting rows with level and duration columns.
   const sync = { app: 'InventorySync', machine: 'SYNC01', pid: 900, source: 4 };

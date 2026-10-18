@@ -18,59 +18,59 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
   imports: [ChartCard, Icon, NextSteps],
   template: `
     <div class="bar">
-      <span class="section-title">Metrics</span>
-      <span class="faint">{{ store.summary()?.profileName }} · {{ charts().length }} chart{{ charts().length === 1 ? '' : 's' }} · drag across a chart to zoom</span>
+      <span class="section-title" i18n="@@metrics.title">Metrics</span>
+      <span class="faint" i18n="@@metrics.summary">{{ store.summary()?.profileName }} · {charts().length, plural, =1 {{{ charts().length }} chart} other {{{ charts().length }} charts}} · drag across a chart to zoom</span>
       <span class="spacer"></span>
       <span class="mono range">{{ range() }}</span>
       @if (store.hasRange()) {
-        <button class="btn" (click)="zoom.fit()"><imt-icon name="zoomOut" [size]="13" /> Reset zoom</button>
+        <button class="btn" (click)="zoom.fit()" i18n="@@metrics.resetZoom"><imt-icon name="zoomOut" [size]="13" /> Reset zoom</button>
       }
-      <button class="btn dashed" (click)="builderOpen.set(!builderOpen())" [attr.aria-expanded]="builderOpen()">+ Add chart</button>
-      <button class="btn ghost" (click)="dock.show('profile')">Edit charts in profile</button>
+      <button class="btn dashed" (click)="builderOpen.set(!builderOpen())" [attr.aria-expanded]="builderOpen()" i18n="@@metrics.addChartToggle">+ Add chart</button>
+      <button class="btn ghost" (click)="dock.show('profile')" i18n="@@metrics.editInProfile">Edit charts in profile</button>
     </div>
 
     @if (builderOpen()) {
       <form class="builder" (submit)="$event.preventDefault(); addChart()">
-        <label class="lbl">Title<input class="input" [value]="title()" (input)="title.set($any($event.target).value)" placeholder="e.g. CPU %" /></label>
-        <label class="lbl">Aggregate
+        <label class="lbl"><ng-container i18n="@@metrics.builder.title">Title</ng-container><input class="input" [value]="title()" (input)="title.set($any($event.target).value)" placeholder="e.g. CPU %" i18n-placeholder="@@metrics.builder.title.placeholder" /></label>
+        <label class="lbl"><ng-container i18n="@@metrics.builder.aggregate">Aggregate</ng-container>
           <select class="select" [value]="agg()" (change)="agg.set($any($event.target).value)">
             @for (a of aggregates; track a) { <option [value]="a" [selected]="a === agg()">{{ a }}</option> }
           </select>
         </label>
         @if (agg() !== 'count') {
-          <label class="lbl">Field
+          <label class="lbl"><ng-container i18n="@@metrics.builder.field">Field</ng-container>
             <select class="select mono" [value]="field()" (change)="field.set($any($event.target).value)">
-              <option value="" disabled [selected]="!field()">Choose a numeric field</option>
+              <option value="" disabled [selected]="!field()" i18n="@@metrics.builder.chooseField">Choose a numeric field</option>
               @for (f of store.numericFields(); track f) { <option [value]="f" [selected]="f === field()">{{ f }}</option> }
             </select>
           </label>
         }
-        <label class="lbl">Bucket
+        <label class="lbl"><ng-container i18n="@@metrics.builder.bucket">Bucket</ng-container>
           <select class="select" [value]="bucket()" (change)="bucket.set($any($event.target).value)">
             @for (b of buckets; track b) { <option [value]="b" [selected]="b === bucket()">{{ b }}</option> }
           </select>
         </label>
-        <label class="lbl">Split by
+        <label class="lbl"><ng-container i18n="@@metrics.builder.splitBy">Split by</ng-container>
           <select class="select mono" multiple size="3" (change)="setSplit($event)">
             @for (f of splitChoices(); track f) { <option [value]="f" [selected]="splitBy().includes(f)">{{ f }}</option> }
           </select>
         </label>
-        <label class="lbl">Type
+        <label class="lbl"><ng-container i18n="@@metrics.builder.type">Type</ng-container>
           <select class="select" [value]="type()" (change)="type.set($any($event.target).value)">
-            <option value="line">line</option>
-            <option value="bar">bar</option>
-            <option value="stacked">stacked bars</option>
+            <option value="line" i18n="@@metrics.builder.type.line">line</option>
+            <option value="bar" i18n="@@metrics.builder.type.bar">bar</option>
+            <option value="stacked" i18n="@@metrics.builder.type.stacked">stacked bars</option>
           </select>
         </label>
-        <label class="lbl">Unit<input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" placeholder="%, MB, ms" /></label>
+        <label class="lbl"><ng-container i18n="@@metrics.builder.unit">Unit</ng-container><input class="input" [value]="unit()" (input)="unit.set($any($event.target).value)" placeholder="%, MB, ms" /></label>
         <div class="b-actions">
-          <button type="button" class="btn ghost" (click)="builderOpen.set(false)">Cancel</button>
-          <button type="submit" class="btn primary" [disabled]="agg() !== 'count' && !field()">Add chart</button>
+          <button type="button" class="btn ghost" (click)="builderOpen.set(false)" i18n="@@metrics.builder.cancel">Cancel</button>
+          <button type="submit" class="btn primary" [disabled]="agg() !== 'count' && !field()" i18n="@@metrics.builder.add">Add chart</button>
         </div>
       </form>
     }
 
-    <div class="charts" tabindex="0" role="region" aria-label="Charts">
+    <div class="charts" tabindex="0" role="region" aria-label="Charts" i18n-aria-label="@@metrics.charts.region">
       @for (c of profileCharts(); track c.id) {
         <imt-chart-card [def]="c" />
       }
@@ -79,10 +79,10 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
       }
       @if (!charts().length) {
         <div class="empty-state">
-          <div>No charts defined.</div>
-          <div class="faint">Add [[chart]] sections to the profile, or build one here from any numeric field.</div>
+          <div i18n="@@metrics.empty.title">No charts defined.</div>
+          <div class="faint" i18n="@@metrics.empty.hint">Add [[chart]] sections to the profile, or build one here from any numeric field.</div>
           @if (store.summary()?.sources?.length) {
-            <button type="button" class="btn" (click)="dock.show('profile')">Open the profile</button>
+            <button type="button" class="btn" (click)="dock.show('profile')" i18n="@@metrics.openProfile">Open the profile</button>
           } @else {
             <imt-next-steps />
           }

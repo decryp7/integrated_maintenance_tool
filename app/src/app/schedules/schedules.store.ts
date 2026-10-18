@@ -5,6 +5,7 @@ import { errorMessage } from '../tools/tool-errors';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { issueIndex, newAction, newSchedule, newTrigger, setKey, TimingKind, withTiming } from './schedule-model';
 import { SchedulesBackend } from './schedules-backend';
+import { plural } from '../i18n/locale';
 
 interface SchedulesState {
   /** The config file (empty: IMT's default). */
@@ -56,22 +57,22 @@ export const SchedulesStore = signalStore(
       dismissError: () => patchState(store, { error: null }),
 
       load: () =>
-        run('Loading…', async () => {
+        run($localize`:@@schedules.busy.loading:Loading…`, async () => {
           const [s, doc] = await Promise.all([store.schema() ? Promise.resolve(store.schema()!) : backend.schema(), backend.load(pathArg())]);
           patchState(store, { schema: s, path: doc.path, loadedPath: doc.path, config: doc.config, exists: doc.exists, issues: doc.issues, dirty: false });
-          if (!doc.exists) patchState(store, { notice: 'No schedules saved yet: this is a starter configuration. Save it to create the file.' });
+          if (!doc.exists) patchState(store, { notice: $localize`:@@schedules.notice.starter:No schedules saved yet: this is a starter configuration. Save it to create the file.` });
         }),
 
       validate: () =>
-        run('Validating…', async () => {
+        run($localize`:@@schedules.busy.validating:Validating…`, async () => {
           const c = store.config();
           if (!c) return;
           const issues = await backend.validate(c, pathArg());
-          patchState(store, { issues, notice: issues.length ? null : 'The configuration is valid.' });
+          patchState(store, { issues, notice: issues.length ? null : $localize`:@@schedules.notice.valid:The configuration is valid.` });
         }),
 
       save: () =>
-        run('Saving…', async () => {
+        run($localize`:@@schedules.busy.saving:Saving…`, async () => {
           const c = store.config();
           if (!c) return;
           // Saving back to the file that was loaded is the editor's normal save; any other existing file
@@ -79,11 +80,14 @@ export const SchedulesStore = signalStore(
           const own = store.exists() && store.path().trim() === store.loadedPath();
           const issues = await guard.write(store.path(), (overwrite) => backend.save(c, pathArg(), overwrite || own), 'app');
           if (issues === null) {
-            patchState(store, { notice: 'Not saved: the existing file was kept.' });
+            patchState(store, { notice: $localize`:@@schedules.notice.kept:Not saved: the existing file was kept.` });
           } else if (issues.length) {
-            patchState(store, { issues, error: `Not saved: ${issues.length} problem${issues.length === 1 ? '' : 's'} to fix.` });
+            patchState(store, { issues, error: plural(issues.length, {
+                one: $localize`:@@schedules.error.notSaved.one:Not saved: ${issues.length}:count: problem to fix.`,
+                other: $localize`:@@schedules.error.notSaved.other:Not saved: ${issues.length}:count: problems to fix.`,
+              }) });
           } else {
-            patchState(store, { issues, dirty: false, exists: true, loadedPath: store.path().trim(), notice: `Saved ${store.path()}` });
+            patchState(store, { issues, dirty: false, exists: true, loadedPath: store.path().trim(), notice: $localize`:@@schedules.notice.saved:Saved ${store.path()}:path:` });
           }
         }),
 

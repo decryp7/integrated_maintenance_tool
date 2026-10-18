@@ -15,35 +15,35 @@ import { OverrideStyle, PluginKindRow, styleProblems } from './marker-overrides'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph],
   template: `
-    <p class="faint">This marker belongs to the plugin <span class="mono">{{ row().owner }}</span>. Its rule cannot be edited; you can change how it looks. Empty fields keep the plugin's style.</p>
+    <p class="faint" i18n="@@markers.override.intro">This marker belongs to the plugin <span class="mono">{{ row().owner }}</span>. Its rule cannot be edited; you can change how it looks. Empty fields keep the plugin's style.</p>
     <div class="top">
-      <imt-marker-glyph [glyph]="preview()" [size]="32" [label]="'Marker preview'" />
+      <imt-marker-glyph [glyph]="preview()" [size]="32" [label]="previewLabel" />
       <div class="grow">
-        <label class="lbl">Label<input class="input" name="label" [value]="label()" [placeholder]="row().info?.label ?? ''" (input)="label.set($any($event.target).value)" /></label>
-        <label class="lbl">Description<input class="input" name="description" [value]="description()" (input)="description.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@markers.override.label">Label</ng-container><input class="input" name="label" [value]="label()" [placeholder]="row().info?.label ?? ''" (input)="label.set($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@markers.override.description">Description</ng-container><input class="input" name="description" [value]="description()" (input)="description.set($any($event.target).value)" /></label>
       </div>
     </div>
     <div class="row">
-      <label class="lbl">Colour<input class="input mono" name="color" [value]="color()" placeholder="#RRGGBB" (input)="color.set($any($event.target).value)" /></label>
-      <div class="presets" role="group" aria-label="Colour presets">
+      <label class="lbl"><ng-container i18n="@@markers.override.colour">Colour</ng-container><input class="input mono" name="color" [value]="color()" placeholder="#RRGGBB" (input)="color.set($any($event.target).value)" /></label>
+      <div class="presets" role="group" aria-label="Colour presets" i18n-aria-label="@@markers.override.colourPresets">
         @for (p of presets; track p) {
-          <button type="button" class="swatch" [style.background]="p" [attr.aria-label]="'Colour ' + p" [attr.aria-pressed]="color() === p" (click)="color.set(p)"></button>
+          <button type="button" class="swatch" [style.background]="p" [attr.aria-label]="colourLabel(p)" [attr.aria-pressed]="color() === p" (click)="color.set(p)"></button>
         }
       </div>
     </div>
     <div class="row">
-      <label class="lbl">Badge (1–3 characters)<input class="input mono" name="badge" [value]="badge()" (input)="badge.set($any($event.target).value)" /></label>
-      <label class="lbl">Shape
+      <label class="lbl"><ng-container i18n="@@markers.override.badge">Badge (1–3 characters)</ng-container><input class="input mono" name="badge" [value]="badge()" (input)="badge.set($any($event.target).value)" /></label>
+      <label class="lbl"><ng-container i18n="@@markers.override.shape">Shape</ng-container>
         <select class="input" name="shape" [value]="shape()" (change)="shape.set($any($event.target).value)">
-          <option value="">Plugin default</option>
+          <option value="" i18n="@@markers.override.pluginDefault">Plugin default</option>
           @for (s of shapes; track s) { <option [value]="s">{{ s }}</option> }
         </select>
       </label>
     </div>
     @for (p of problems(); track p) { <div class="err" role="alert">{{ p }}</div> }
     <div class="actions">
-      <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="problems().length > 0" (click)="save()">Save style</button>
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@markers.override.cancel">Cancel</button>
+      <button type="button" class="btn primary" [disabled]="problems().length > 0" (click)="save()" i18n="@@markers.override.save">Save style</button>
     </div>
   `,
   styles: [
@@ -66,6 +66,7 @@ export class MarkerOverrideDialog {
   /** The profile's current override of the kind's style. */
   readonly current = input<OverrideStyle>({});
 
+  protected readonly previewLabel = $localize`:@@markers.override.previewLabel:Marker preview`;
   protected readonly presets = COLOR_PRESETS;
   protected readonly shapes = MARKER_SHAPES;
   protected readonly label = linkedSignal(() => this.current().label ?? '');
@@ -94,6 +95,10 @@ export class MarkerOverrideDialog {
       shape: s.shape ?? info?.shape ?? null,
     };
   });
+
+  protected colourLabel(colour: string): string {
+    return $localize`:@@markers.override.colourAria:Colour ${colour}:colour:`;
+  }
 
   protected save(): void {
     if (!this.problems().length) this.ref.close(this.style());

@@ -1,6 +1,7 @@
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { computed, inject, Injector } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import { plural } from '../i18n/locale';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { errorMessage } from '../tools/tool-errors';
 import { SettingsBackend } from './settings-backend';
@@ -48,9 +49,17 @@ const INITIAL: EngineSettingsState = {
 };
 
 function describeImport(r: ImportResult): string {
-  const parts = [`Imported ${r.applied.length} section${r.applied.length === 1 ? '' : 's'}`];
-  if (r.kept.length) parts.push(`kept ${r.kept.length} for later (${r.kept.join(', ')})`);
-  if (r.rejected.length) parts.push(`rejected ${r.rejected.map((s) => s.section || 'invalid').join(', ')}`);
+  const n = r.applied.length;
+  const parts = [
+    plural(n, {
+      one: $localize`:Start of the settings import summary@@settings.import.applied.one:Imported ${n}:count: section`,
+      other: $localize`:Start of the settings import summary@@settings.import.applied.other:Imported ${n}:count: sections`,
+    }),
+  ];
+  const kept = r.kept.join(', ');
+  if (r.kept.length) parts.push($localize`:Part of the settings import summary; sections are plugin settings kept until the plugin is installed@@settings.import.kept:kept ${r.kept.length}:count: for later (${kept}:sections:)`);
+  const rejected = r.rejected.map((s) => s.section || $localize`:A rejected section without a name@@settings.import.invalid:invalid`).join(', ');
+  if (r.rejected.length) parts.push($localize`:Part of the settings import summary@@settings.import.rejected:rejected ${rejected}:sections:`);
   return parts.join('; ') + '.';
 }
 
@@ -64,7 +73,7 @@ export const EngineSettingsStore = signalStore(
   withComputed((store) => ({
     sections: computed<SettingsSection[]>(() => store.overview()?.sections ?? []),
     /** Sections with an edit that differs from the applied value. */
-    dirtySections: computed(() => Object.keys(store.drafts()).filter((id) => Object.keys(store.drafts()[id]).length > 0)),
+    dirtySections: computed(() => Object.keys(store.drafts()).filter((id) => Object.keys(store.drafts()[id] ?? {}).length > 0)),
     restartPending: computed(() => store.restartRequired() || !!store.overview()?.restartPending),
   })),
   withComputed((store) => ({
@@ -164,7 +173,7 @@ export const EngineSettingsStore = signalStore(
             drafts: without(st.drafts, id),
             errors: without(st.errors, id),
             restartRequired: st.restartRequired || r.restartRequired,
-            notice: `${section(id)?.title ?? id} reset to defaults.`,
+            notice: $localize`:@@settings.notice.sectionReset:${section(id)?.title ?? id}:section: reset to defaults.`,
           }));
         }),
       /** Applies every edited section; on engine errors, shows the first section with errors. */
@@ -172,7 +181,7 @@ export const EngineSettingsStore = signalStore(
         let ok = true;
         await run(async () => {
           for (const id of store.dirtySections()) ok = (await applySection(id)) && ok;
-          if (ok) patchState(store, { notice: 'Settings applied.' });
+          if (ok) patchState(store, { notice: $localize`:@@settings.notice.applied:Settings applied.` });
           else {
             const first = Object.keys(store.errors())[0];
             if (first) patchState(store, { selected: first, query: '' });
@@ -192,7 +201,7 @@ export const EngineSettingsStore = signalStore(
       exportTo: (path: string) =>
         run(async () => {
           if ((await overwrite.write(path, (replace) => backend.exportTo(path, replace))) === null) return;
-          patchState(store, { notice: `Settings exported to ${path}.` });
+          patchState(store, { notice: $localize`:@@settings.notice.exported:Settings exported to ${path}:path:.` });
         }),
       importFrom: (path: string) =>
         run(async () => {

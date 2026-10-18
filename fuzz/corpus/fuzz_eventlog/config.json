@@ -1,0 +1,1 @@
+{"channels":["System","Microsoft-Windows-TaskScheduler/Operational"],"levels":["error"],"xpath":"System[EventID=1]","backfill":"1h"}

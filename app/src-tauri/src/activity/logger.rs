@@ -264,6 +264,8 @@ mod test_support {
                 message: record.args().to_string(),
                 props: props.0,
             });
+            // On to `tracing`, as in the app (see `crate::logging`): tests with a subscriber see the file output.
+            crate::logging::TracingBridge.log(record);
         }
         fn flush(&self) {}
     }

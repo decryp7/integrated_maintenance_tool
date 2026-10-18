@@ -18,16 +18,16 @@ export class HelpCommands {
   readonly commands: ImtCommand[] = [
     {
       id: 'help.shortcuts',
-      title: 'Keyboard shortcuts',
-      category: 'Help',
+      title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`,
+      category: $localize`:@@help.command.category:Help`,
       keybinding: SHORTCUTS_KEY,
       run: async () => {
         // Loaded on demand: the sheet is not part of the initial bundle.
         const { CheatSheet } = await import('./cheat-sheet');
-        if (!this.dialogs.stack().some((d) => d.component === CheatSheet)) this.dialogs.open(CheatSheet, { title: 'Keyboard shortcuts', width: 640 });
+        if (!this.dialogs.stack().some((d) => d.component === CheatSheet)) this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
       },
     },
-    { id: 'profile.newFromTemplate', title: 'New profile from template…', category: 'Profile', run: () => void this.templates.open() },
+    { id: 'profile.newFromTemplate', title: $localize`:@@help.command.newFromTemplate:New profile from template…`, category: $localize`:@@help.command.profileCategory:Profile`, run: () => void this.templates.open() },
   ];
 }
 

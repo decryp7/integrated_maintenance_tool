@@ -12,6 +12,7 @@ import { AlertsStore, kindLabel, MAX_ALERTS, MAX_TOASTS, MUTE_MS, muteKey, muteL
 import { AlertsView } from './alerts-view';
 import { LiveAlerts } from './live-alerts';
 import { SeverityBadge } from './severity-badge';
+import { at } from '../../testing/must';
 
 const rule = (name: string, patch: Partial<LiveAlert> = {}) => alert({ kind: 'rule', rule: name, instance: null, severity: 'warning', message: `Rule "${name}" matched`, ...patch });
 
@@ -28,7 +29,7 @@ describe('AlertsStore', () => {
   it('lists alerts newest first and toasts them, keeping a bounded number', () => {
     const store = setup();
     for (let i = 0; i < MAX_TOASTS + 2; i++) store.receive(alert({ message: `m${i}`, severity: 'info' }), 1000);
-    expect(store.alerts()[0].alert.message).toBe(`m${MAX_TOASTS + 1}`);
+    expect(at(store.alerts(), 0).alert.message).toBe(`m${MAX_TOASTS + 1}`);
     expect(store.toasts().length).toBe(MAX_TOASTS);
     expect(store.toasts().at(-1)!.alert.message).toBe(`m${MAX_TOASTS + 1}`);
     for (let i = 0; i < MAX_ALERTS + 5; i++) store.receive(alert(), 1000);
@@ -49,7 +50,7 @@ describe('AlertsStore', () => {
     const muted = store.receive(alert({ message: 'again' }), t0 + 60_000);
     expect(muted!.muted).toBe(true);
     expect(store.toasts().length).toBe(1);
-    expect(store.alerts()[0].muted).toBe(true);
+    expect(at(store.alerts(), 0).muted).toBe(true);
     // Another rule is not muted by muting "payments".
     store.mute(rule('payments'), t0);
     expect(store.receive(rule('disk'), t0 + 1)!.muted).toBe(false);
@@ -136,7 +137,7 @@ describe('AlertsStore', () => {
     expect(store.toasts().length).toBe(2);
     await vi.advanceTimersByTimeAsync(TOAST_MS + 10);
     expect(store.toasts().map((t) => t.alert.severity)).toEqual(['critical']);
-    store.dismissToast(store.toasts()[0].id);
+    store.dismissToast(at(store.toasts(), 0).id);
     expect(store.toasts()).toEqual([]);
   });
 
@@ -150,7 +151,7 @@ describe('AlertsStore', () => {
     expect(store.visible().length).toBe(2);
     store.setFilter('nonsense' as never);
     expect(store.filter()).toBe('all');
-    store.remove(store.alerts()[0].id);
+    store.remove(at(store.alerts(), 0).id);
     expect(store.alerts().length).toBe(2);
     store.clear();
     expect(store.alerts()).toEqual([]);

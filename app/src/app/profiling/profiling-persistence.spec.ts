@@ -8,8 +8,9 @@ import { ProfileViewState } from './profile-view-state';
 import { ProfilingBackend } from './profiling-backend';
 import { parseProfilingUiState, PROFILING_STATE_KEY, PROFILING_STATE_VERSION, ProfilingPersistence, ProfilingUiState } from './profiling-persistence';
 import { openDemoCaptures, provideProfilingTesting, setupProfiling } from './testing/profiling-test-support';
+import { at } from '../../testing/must';
 
-const [ORDERS, REGRESSION, HEAP1, HEAP2] = MOCK_CAPTURE_PATHS;
+const [ORDERS, REGRESSION, HEAP1, HEAP2] = MOCK_CAPTURE_PATHS.map((p) => p) as [string, string, string, string];
 
 function setup() {
   setupProfiling();
@@ -69,10 +70,12 @@ describe('ProfilingPersistence', () => {
     const { persistence, captures, state } = setup();
     expect(persistence.capture()).toEqual(saved({ frameworkPatterns: state.frameworkPatterns() }));
     await openDemoCaptures();
-    const [orders, regression] = captures.profiles();
+    const profiles = captures.profiles();
+    const orders = at(profiles, 0);
+    const regression = at(profiles, 1);
     state.setProfile(regression.id);
     state.setBaseline(orders.id);
-    state.setHeap(captures.heaps()[1].id);
+    state.setHeap(at(captures.heaps(), 1).id);
     state.setJustMyCode(true);
     state.setRecursion('direct');
     state.setMetric('samples');
@@ -84,7 +87,7 @@ describe('ProfilingPersistence', () => {
   it('round-trips: a restored state reopens the captures and reapplies the settings', async () => {
     const { persistence, captures, state } = setup();
     await openDemoCaptures();
-    state.setProfile(captures.profiles()[1].id);
+    state.setProfile(at(captures.profiles(), 1).id);
     state.setJustMyCode(true);
     state.setFrameworkPatterns(['Shop.*']);
     state.setUseFrameFlags(false);
@@ -130,7 +133,7 @@ describe('ProfilingPersistence', () => {
     expect(captures.error()).toBeNull();
     expect(captures.notice()).toContain('1 capture was not found: missing-orders.nettrace');
     expect(captures.heaps()).toHaveLength(1);
-    expect(state.heapId()).toBe(captures.heaps()[0].id);
+    expect(state.heapId()).toBe(captures.heaps()[0]?.id);
     expect(state.profileId()).toBeNull();
     expect(state.baselineId()).toBeNull();
   });

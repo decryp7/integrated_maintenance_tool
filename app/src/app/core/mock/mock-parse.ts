@@ -89,7 +89,7 @@ export function mockPreviewParse(req: ParsePreviewRequest): ParsePreview {
   try {
     model = parse(req.toml) as ProfileModel;
   } catch (e) {
-    return empty(e instanceof Error ? e.message.split('\n')[0] : String(e));
+    return empty(e instanceof Error ? (e.message.split('\n')[0] ?? '') : String(e));
   }
   const sources = [...(model.parse?.regexes ?? []), ...(model.parse?.output_templates ?? []).map(regexFromOutputTemplate).filter((r): r is string => !!r)];
   const patterns: RegExp[] = [];

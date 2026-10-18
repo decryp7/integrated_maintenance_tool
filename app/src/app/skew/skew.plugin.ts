@@ -6,7 +6,7 @@ import { ClockDialogService, ClockSection } from './clock-section';
 import { ClockSkewStore } from './clock-skew.store';
 
 /** The inspector section offering "Use as clock reference" and alignment (timed events only). */
-export const CLOCK_SECTION: ImtInspectorSection = { id: 'clock', title: 'Clock', order: 150, component: ClockSection, when: (r) => r.ts !== null };
+export const CLOCK_SECTION: ImtInspectorSection = { id: 'clock', title: $localize`:@@skew.plugin.section:Clock`, order: 150, component: ClockSection, when: (r) => r.ts !== null };
 
 /** Palette commands for clock-skew correction. */
 export function clockCommands(): ImtCommand[] {
@@ -16,8 +16,8 @@ export function clockCommands(): ImtCommand[] {
   return [
     {
       id: 'skew.adjust',
-      title: "Adjust clock of the selected event's source…",
-      category: 'Events',
+      title: $localize`:@@skew.plugin.adjust:Adjust clock of the selected event's source…`,
+      category: $localize`:@@skew.plugin.category:Events`,
       when: () => store.selected() !== null,
       run: () => {
         const r = store.selected();
@@ -26,8 +26,8 @@ export function clockCommands(): ImtCommand[] {
     },
     {
       id: 'skew.reference',
-      title: 'Use selected event as clock reference',
-      category: 'Events',
+      title: $localize`:@@skew.plugin.reference:Use selected event as clock reference`,
+      category: $localize`:@@skew.plugin.category:Events`,
       when: () => store.selected()?.ts != null,
       run: () => void skew.setReference(store.selected()),
     },

@@ -1,6 +1,6 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ImportProgress } from '../core/api.types';
-import { WorkspaceStore } from '../core/workspace.store';
+import { isImportBusyLabel, WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
 
 /** How often progress is read while an import runs. */
@@ -14,9 +14,9 @@ export interface PartialImport {
   total: number;
 }
 
-/** True for the store's busy labels of work that imports files (open, re-import). */
+/** True for the store's busy labels of work that imports files (open, re-import), in any language. */
 export function isImportLabel(busy: string | null): boolean {
-  return !!busy && /^(Opening|Re-importing)/.test(busy);
+  return !!busy && (isImportBusyLabel(busy) || /^(Opening|Re-importing)/.test(busy));
 }
 
 /**
@@ -58,7 +58,8 @@ export class ImportProgressService {
       await this.backend.cancelImport();
     } catch (e) {
       this.cancelling.set(false);
-      this.store.setError(`Could not cancel the import: ${e instanceof Error ? e.message : String(e)}`);
+      const reason = e instanceof Error ? e.message : String(e);
+      this.store.setError($localize`:@@import.progress.cancelFailed:Could not cancel the import: ${reason}:error:`);
     }
   }
 

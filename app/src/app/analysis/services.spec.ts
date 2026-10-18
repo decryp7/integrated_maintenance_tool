@@ -20,6 +20,7 @@ import { QlQuery } from '../core/api.types';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { DEMO_START } from '../core/mock/mock-data';
 
+import { at } from '../../testing/must';
 describe('AnalysisTargets', () => {
   it('resolves the current range: selection, then query range, then the workspace', async () => {
     TestBed.configureTestingModule({ providers: provideAnalysisTesting() });
@@ -147,7 +148,7 @@ describe('AnalysisCommands', () => {
 
   it('show commands open their view and need a loaded workspace', async () => {
     const { cmds, ctx } = await setup();
-    for (const [id, view] of [['query.results', 'query-results'], ['anomalies.show', 'anomalies'], ['patterns.show', 'patterns'], ['exceptions.show', 'exceptions'], ['compare.show', 'compare'], ['fieldstats.show', 'field-stats'], ['traces.show', 'traces']]) {
+    for (const [id, view] of [['query.results', 'query-results'], ['anomalies.show', 'anomalies'], ['patterns.show', 'patterns'], ['exceptions.show', 'exceptions'], ['compare.show', 'compare'], ['fieldstats.show', 'field-stats'], ['traces.show', 'traces']] as [string, string][]) {
       const c = find(cmds, id);
       expect(c.when!({ ...ctx, summary: null } as never)).toBe(false);
       expect(c.when!({ ...ctx, summary: {} } as never)).toBe(true);
@@ -225,7 +226,7 @@ describe('analysis plugin', () => {
 
   it('loads every view component lazily', async () => {
     for (const v of ANALYSIS_VIEWS) expect(typeof (await v.component())).toBe('function');
-    const query = ANALYSIS_VIEWS[0];
+    const query = at(ANALYSIS_VIEWS, 0);
     expect(query.when!({ total: 0 } as never)).toBe(false);
     expect(query.when!({ total: 5 } as never)).toBe(true);
   });

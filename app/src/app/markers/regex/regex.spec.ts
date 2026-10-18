@@ -9,6 +9,7 @@ import { RegexAssist, splitByBytes } from './regex-assist';
 import { fieldTypeFor, InferDialog, renameGroups } from './infer-dialog';
 import { qlQuote } from '../../analysis/ql-text';
 import { InferredRegex } from '../../core/api.types';
+import { at } from '../../../testing/must';
 
 const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
 
@@ -57,14 +58,14 @@ describe('RegexAssist', () => {
     expect(f.nativeElement.querySelector('button').getAttribute('aria-expanded')).toBe('true');
     const items = all(f, 'li');
     expect(items.map((i) => i.textContent)).toEqual(['Literal "ab"', 'One or more digits']);
-    items[1].dispatchEvent(new Event('mouseenter'));
+    at(items, 1).dispatchEvent(new Event('mouseenter'));
     await settle(f);
     expect(el(f, 'mark').textContent).toBe('\\d+');
-    items[1].dispatchEvent(new Event('mouseleave'));
-    items[0].dispatchEvent(new Event('focus'));
+    at(items, 1).dispatchEvent(new Event('mouseleave'));
+    at(items, 0).dispatchEvent(new Event('focus'));
     await settle(f);
     expect(el(f, 'mark').textContent).toBe('ab');
-    items[0].dispatchEvent(new Event('blur'));
+    at(items, 0).dispatchEvent(new Event('blur'));
     f.componentRef.setInput('pattern', 'zz');
     await settle(f, 4);
     expect(all(f, 'li').map((i) => i.textContent)).toEqual(['Literal "zz"']);
@@ -145,7 +146,7 @@ describe('InferDialog', () => {
     rename(f, 'Ms');
     buttonByText(f, 'Highlight these lines').click();
     expect(ref.close).toHaveBeenCalled();
-    const d = TestBed.inject(DialogService).stack()[0];
+    const d = at(TestBed.inject(DialogService).stack(), 0);
     expect(d.component).toBe(MarkDialog);
     expect(d.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: 'Slow request /a took (?P<Ms>\\d+) ms' }]);
   });

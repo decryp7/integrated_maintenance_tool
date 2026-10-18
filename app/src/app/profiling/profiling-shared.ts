@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Measurement, MetricId, RecursionMode } from '../core/api.types';
 import { CapturesStore } from './captures.store';
-import { formatNs, measurementGlyph, measurementHelp, measurementLabel } from './profiling-format';
+import { formatNs, measurementGlyph, measurementHelp } from './profiling-format';
 import { PROFILING_STYLES } from './profiling-styles';
 import { ActiveProfile } from './profiling-navigator';
 import { cleanPatterns, ProfileViewState } from './profile-view-state';
@@ -15,7 +15,7 @@ let tagIds = 0;
 @Component({
   selector: 'imt-measurement',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="m" [class.sampled]="m() === 'sampled'" [attr.title]="help()" [attr.data-measurement]="m()" aria-hidden="true">{{ glyph() }}</span><span class="sr">({{ label() }}{{ m() === 'sampled' ? ', estimate' : '' }})</span>`,
+  template: `<span class="m" [class.sampled]="m() === 'sampled'" [attr.title]="help()" [attr.data-measurement]="m()" aria-hidden="true">{{ glyph() }}</span><span class="sr">{{ srLabel() }}</span>`,
   styles: `
     :host { display: inline-flex; }
     .m { font-family: var(--font-mono); font-size: 10px; min-width: 12px; text-align: center; padding: 0 3px; border-radius: 3px; border: 1px solid var(--border-3); color: var(--text-2); cursor: help; }
@@ -26,7 +26,11 @@ let tagIds = 0;
 export class MeasurementTag {
   readonly m = input.required<Measurement>();
   protected readonly glyph = computed(() => measurementGlyph(this.m()));
-  protected readonly label = computed(() => measurementLabel(this.m()));
+  protected readonly srLabel = computed(() =>
+    this.m() === 'sampled'
+      ? $localize`:@@profiling.measurement.srSampled:(Sampled, estimate)`
+      : $localize`:@@profiling.measurement.srExact:(Exact)`,
+  );
   protected readonly help = computed(() => measurementHelp(this.m()));
 }
 
@@ -35,7 +39,7 @@ export class MeasurementTag {
   selector: 'imt-measurement-legend',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
-  template: `<span class="lg"><imt-measurement m="sampled" /> sampled estimate</span><span class="lg"><imt-measurement m="exact" /> exact</span>`,
+  template: `<span class="lg" i18n="@@profiling.legend.sampled"><imt-measurement m="sampled" /> sampled estimate</span><span class="lg" i18n="@@profiling.legend.exact"><imt-measurement m="exact" /> exact</span>`,
   styles: `:host { display: inline-flex; gap: 10px; font-size: 11px; color: var(--muted); } .lg { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }`,
 })
 export class MeasurementLegend {}
@@ -46,8 +50,8 @@ export class MeasurementLegend {}
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (notes().length) {
-      <div class="notes" role="note" [attr.aria-label]="'Import notes for ' + name()">
-        <strong>Import notes</strong>
+      <div class="notes" role="note" [attr.aria-label]="notesLabel()">
+        <strong i18n="@@profiling.captureNotes.title">Import notes</strong>
         <ul>
           @for (n of notes(); track $index) { <li>{{ n }}</li> }
         </ul>
@@ -63,6 +67,7 @@ export class MeasurementLegend {}
 export class CaptureNotes {
   readonly notes = input<string[]>([]);
   readonly name = input('');
+  protected readonly notesLabel = computed(() => $localize`:@@profiling.captureNotes.label:Import notes for ${this.name()}:name:`);
 }
 
 /** "Open a profile" empty state with the open action. */
@@ -72,7 +77,7 @@ export class CaptureNotes {
   template: `
     <div class="state" role="status">
       <span>{{ text() }}</span>
-      <button class="btn" type="button" [disabled]="captures.loading()" (click)="captures.pickAndOpen()">Open profile…</button>
+      <button class="btn" type="button" [disabled]="captures.loading()" (click)="captures.pickAndOpen()" i18n="@@profiling.noCapture.open">Open profile…</button>
       @if (captures.error(); as e) { <span class="err" role="alert">{{ e }}</span> }
     </div>
   `,
@@ -82,14 +87,14 @@ export class CaptureNotes {
   `,
 })
 export class NoCapture {
-  readonly text = input('Open a profile to see this view.');
+  readonly text = input($localize`:@@profiling.noCapture.default:Open a profile to see this view.`);
   protected readonly captures = inject(CapturesStore);
 }
 
 const RECURSION: { id: RecursionMode; label: string }[] = [
-  { id: 'off', label: 'No folding' },
-  { id: 'direct', label: 'Fold direct recursion' },
-  { id: 'all', label: 'Fold all recursion' },
+  { id: 'off', label: $localize`:@@profiling.bar.recursion.off:No folding` },
+  { id: 'direct', label: $localize`:@@profiling.bar.recursion.direct:Fold direct recursion` },
+  { id: 'all', label: $localize`:@@profiling.bar.recursion.all:Fold all recursion` },
 ];
 
 /**
@@ -102,43 +107,43 @@ const RECURSION: { id: RecursionMode; label: string }[] = [
   imports: [MeasurementTag],
   template: `
     @if (active.profile(); as p) {
-      <div class="bar" role="toolbar" aria-label="Profile view">
-        <label class="inline">Profile
-          <select [value]="p.id" (change)="pickProfile($event)" aria-label="Active profile">
+      <div class="bar" role="toolbar" aria-label="Profile view" i18n-aria-label="@@profiling.bar.toolbarLabel">
+        <label class="inline"><ng-container i18n="@@profiling.bar.profile">Profile</ng-container>&ngsp;
+          <select [value]="p.id" (change)="pickProfile($event)" aria-label="Active profile" i18n-aria-label="@@profiling.bar.activeProfileLabel">
             @for (c of captures.profiles(); track c.id) { <option [value]="c.id" [selected]="c.id === p.id">{{ c.name }}</option> }
           </select>
         </label>
         @if (showMetric()) {
-          <label class="inline">Metric
-            <select (change)="pickMetric($event)" aria-label="Metric">
+          <label class="inline"><ng-container i18n="@@profiling.bar.metric">Metric</ng-container>&ngsp;
+            <select (change)="pickMetric($event)" aria-label="Metric" i18n-aria-label="@@profiling.bar.metricLabel">
               @for (m of p.metrics; track m.id) { <option [value]="m.id" [selected]="m.id === active.metric()">{{ m.label }} ({{ m.measurement }})</option> }
             </select>
           </label>
           @if (measurement(); as m) { <imt-measurement [m]="m" /> }
         }
         @if (state.range(); as r) {
-          <span class="pill" data-testid="range-pill">Range {{ ns(r.fromNs) }} – {{ ns(r.toNs) }}<button type="button" aria-label="Clear time range" (click)="state.setRange(null)">✕</button></span>
+          <span class="pill" data-testid="range-pill"><ng-container i18n="@@profiling.bar.range">Range {{ ns(r.fromNs) // i18n(ph: "from") }} – {{ ns(r.toNs) // i18n(ph: "to") }}</ng-container><button type="button" aria-label="Clear time range" i18n-aria-label="@@profiling.bar.clearRange" (click)="state.setRange(null)">✕</button></span>
         }
         @if (state.threads(); as t) {
-          <span class="pill">{{ t.length }} thread{{ t.length === 1 ? '' : 's' }}<button type="button" aria-label="Show all threads" (click)="state.setThreads(null)">✕</button></span>
+          <span class="pill"><ng-container i18n="@@profiling.bar.threads">{t.length, plural, =1 {{{ t.length }} thread} other {{{ t.length }} threads}}</ng-container><button type="button" aria-label="Show all threads" i18n-aria-label="@@profiling.bar.showAllThreads" (click)="state.setThreads(null)">✕</button></span>
         }
-        <label class="inline"><input type="checkbox" [checked]="state.justMyCode()" (change)="state.setJustMyCode($any($event.target).checked)" /> Just my code</label>
-        <button class="mini" type="button" [attr.aria-expanded]="editing()" [attr.aria-controls]="editorId" (click)="editing.set(!editing())">Framework patterns…</button>
-        <label class="inline">Recursion
-          <select (change)="state.setRecursion($any($event.target).value)" aria-label="Recursion folding">
+        <label class="inline" i18n="@@profiling.bar.justMyCode"><input type="checkbox" [checked]="state.justMyCode()" (change)="state.setJustMyCode($any($event.target).checked)" /> Just my code</label>
+        <button class="mini" type="button" [attr.aria-expanded]="editing()" [attr.aria-controls]="editorId" (click)="editing.set(!editing())" i18n="@@profiling.bar.frameworkPatterns">Framework patterns…</button>
+        <label class="inline"><ng-container i18n="@@profiling.bar.recursion">Recursion</ng-container>&ngsp;
+          <select (change)="state.setRecursion($any($event.target).value)" aria-label="Recursion folding" i18n-aria-label="@@profiling.bar.recursionLabel">
             @for (r of recursion; track r.id) { <option [value]="r.id" [selected]="r.id === state.recursion()">{{ r.label }}</option> }
           </select>
         </label>
       </div>
       @if (editing()) {
-        <div class="jmc" [id]="editorId" role="group" aria-label="Just my code patterns">
-          <label class="col">Framework modules or functions (one per line, * wildcard, matched case-insensitively)
-            <textarea rows="3" aria-label="Framework patterns" [value]="state.frameworkPatterns().join('\n')" #pat></textarea>
+        <div class="jmc" [id]="editorId" role="group" aria-label="Just my code patterns" i18n-aria-label="@@profiling.bar.jmcLabel">
+          <label class="col"><ng-container i18n="@@profiling.bar.patternsHelp">Framework modules or functions (one per line, * wildcard, matched case-insensitively)</ng-container>&ngsp;
+            <textarea rows="3" aria-label="Framework patterns" i18n-aria-label="@@profiling.bar.patternsLabel" [value]="state.frameworkPatterns().join('\n')" #pat></textarea>
           </label>
-          <label class="inline"><input type="checkbox" [checked]="state.useFrameFlags()" (change)="state.setUseFrameFlags($any($event.target).checked)" /> Also use the importer's framework flags</label>
+          <label class="inline" i18n="@@profiling.bar.useFrameFlags"><input type="checkbox" [checked]="state.useFrameFlags()" (change)="state.setUseFrameFlags($any($event.target).checked)" /> Also use the importer's framework flags</label>
           <div class="row-btns">
-            <button class="btn" type="button" (click)="savePatterns(pat.value)">Apply patterns</button>
-            <button class="btn" type="button" (click)="editing.set(false)">Close</button>
+            <button class="btn" type="button" (click)="savePatterns(pat.value)" i18n="@@profiling.bar.applyPatterns">Apply patterns</button>
+            <button class="btn" type="button" (click)="editing.set(false)" i18n="@@profiling.bar.closeEditor">Close</button>
           </div>
         </div>
       }

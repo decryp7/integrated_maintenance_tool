@@ -136,13 +136,13 @@ export function parseMarkdown(source: string, citations: readonly Citation[] = [
   };
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i] ?? '';
     if (FENCE.test(line)) {
       flushPara();
       flushList();
       const code: string[] = [];
       i++;
-      while (i < lines.length && !FENCE.test(lines[i])) code.push(lines[i++]);
+      while (i < lines.length && !FENCE.test(lines[i] ?? '')) code.push(lines[i++] ?? '');
       blocks.push({ kind: 'code', text: code.join('\n') });
       continue;
     }
@@ -155,7 +155,7 @@ export function parseMarkdown(source: string, citations: readonly Citation[] = [
     if (h) {
       flushPara();
       flushList();
-      blocks.push({ kind: 'h', level: h[1].length, inlines: parseInline(h[2], citations, links) });
+      blocks.push({ kind: 'h', level: (h[1] ?? '').length, inlines: parseInline(h[2] ?? '', citations, links) });
       continue;
     }
     const b = BULLET.exec(line);
@@ -165,13 +165,13 @@ export function parseMarkdown(source: string, citations: readonly Citation[] = [
       const kind = b ? 'ul' : 'ol';
       if (list && list.kind !== kind) flushList();
       list ??= { kind, items: [] };
-      list.items.push(parseInline((b ?? n)![1], citations, links));
+      list.items.push(parseInline((b ?? n)?.[1] ?? '', citations, links));
       continue;
     }
     if (list && /^\s{2,}\S/.test(line)) {
       // A continuation line of the last list item.
       const items: Inline[][] = list.items;
-      items[items.length - 1] = merge([...items[items.length - 1], { kind: 'text', text: ' ' }, ...parseInline(line.trim(), citations, links)]);
+      items[items.length - 1] = merge([...(items[items.length - 1] ?? []), { kind: 'text', text: ' ' }, ...parseInline(line.trim(), citations, links)]);
       continue;
     }
     flushList();

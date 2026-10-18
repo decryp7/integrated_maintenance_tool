@@ -17,12 +17,12 @@ const PAGE = 200;
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <input type="search" placeholder="Search types…" aria-label="Search types" (input)="onSearch($event)" />
-      @if (res.data(); as d) { <span class="muted">{{ count(d.totalRows) }} types · {{ count(d.totalCount) }} objects · {{ bytes(d.totalBytes) }}</span> }
+      <input type="search" placeholder="Search types…" i18n-placeholder="@@profiling.heapTypes.searchPlaceholder" aria-label="Search types" i18n-aria-label="@@profiling.heapTypes.searchLabel" (input)="onSearch($event)" />
+      @if (res.data(); as d) { <span class="muted" i18n="@@profiling.heapTypes.summary">{{ count(d.totalRows) // i18n(ph: "types") }} types · {{ count(d.totalCount) // i18n(ph: "objects") }} objects · {{ bytes(d.totalBytes) // i18n(ph: "bytes") }}</span> }
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." (retry)="res.retry()">
-      <div class="body tight" tabindex="0" role="region" aria-label="Type rows">
-        <table class="grid" aria-label="Types">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." i18n-emptyText="@@profiling.heapTypes.empty" (retry)="res.retry()">
+      <div class="body tight" tabindex="0" role="region" aria-label="Type rows" i18n-aria-label="@@profiling.heapTypes.rowsRegion">
+        <table class="grid" aria-label="Types" i18n-aria-label="@@profiling.heapTypes.tableLabel">
           <thead>
             <tr>
               @for (c of cols; track c.id) {
@@ -30,13 +30,13 @@ const PAGE = 200;
                   <button type="button" (click)="sort.set(c.id)" [disabled]="c.id === 'retained' && !res.data()?.hasGraph">{{ c.label }}{{ sort() === c.id ? (c.id === 'name' ? ' ▲' : ' ▼') : '' }}</button>
                 </th>
               }
-              <th scope="col" class="num">Share</th>
+              <th scope="col" class="num" i18n="@@profiling.heapTypes.col.share">Share</th>
             </tr>
           </thead>
           <tbody>
             @for (r of rows(); track r.name) {
               <tr>
-                <td class="ellipsis fn"><button class="link" type="button" [title]="'Instances of ' + r.name" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
+                <td class="ellipsis fn"><button class="link" type="button" [title]="instancesTitle(r.name)" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
                 <td class="num">{{ count(r.count) }}</td>
                 <td class="num">{{ bytes(r.bytes) }}</td>
                 <td class="num">{{ r.retained === null ? '—' : bytes(r.retained) }}</td>
@@ -45,7 +45,7 @@ const PAGE = 200;
             }
           </tbody>
         </table>
-        @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()">Load {{ more() }} more</button> }
+        @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()" i18n="@@profiling.heapTypes.loadMore">Load {{ more() // i18n(ph: "count") }} more</button> }
       </div>
     </imt-analysis-state>
   `,
@@ -60,10 +60,10 @@ export class HeapTypes {
   private readonly search = signal('');
   private readonly extra = signal<HeapTypeRow[]>([]);
   protected readonly cols: { id: HeapSort; label: string }[] = [
-    { id: 'name', label: 'Type' },
-    { id: 'count', label: 'Count' },
-    { id: 'bytes', label: 'Bytes' },
-    { id: 'retained', label: 'Retained' },
+    { id: 'name', label: $localize`:@@profiling.heapTypes.col.type:Type` },
+    { id: 'count', label: $localize`:@@profiling.heapTypes.col.count:Count` },
+    { id: 'bytes', label: $localize`:@@profiling.heapTypes.col.bytes:Bytes` },
+    { id: 'retained', label: $localize`:@@profiling.heapTypes.col.retained:Retained` },
   ];
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
@@ -81,6 +81,10 @@ export class HeapTypes {
       });
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+  }
+
+  protected instancesTitle(name: string): string {
+    return $localize`:@@profiling.heapTypes.instancesOf:Instances of ${name}:name:`;
   }
 
   protected onSearch(e: Event): void {

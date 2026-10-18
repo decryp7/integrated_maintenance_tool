@@ -7,6 +7,7 @@ import { CheatSheet, PRINT_CLASS } from './cheat-sheet';
 import { HelpCommands, provideHelp, SHORTCUTS_KEY } from './help.commands';
 import { FIXED_KEYS, shortcutGroups } from './shortcuts';
 import { TemplatesService } from '../templates/templates.service';
+import { at } from '../../testing/must';
 
 const cmd = (id: string, title: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title, run: () => undefined, ...extra });
 
@@ -22,10 +23,10 @@ describe('shortcutGroups', () => {
   it('groups bound commands by category with formatted keys, plus the fixed keys, sorted', () => {
     const groups = shortcutGroups(commands, [{ group: 'Timeline', binding: 'Alt+Left', description: 'Back' }, { group: 'General', text: '/', description: 'Search' }], '', false);
     expect(groups.map((g) => g.title)).toEqual(['File', 'General', 'Timeline', 'View']);
-    expect(groups[0].items).toEqual([{ keys: 'Ctrl+O', description: 'Open files…' }]);
-    expect(groups[1].items.map((i) => i.keys)).toEqual(['/', 'F2']);
-    expect(groups[2].items[0].keys).toBe('Alt+←');
-    expect(shortcutGroups(commands, [], '', true)[0].items[0].keys).toBe('⌘O');
+    expect(at(groups, 0).items).toEqual([{ keys: 'Ctrl+O', description: 'Open files…' }]);
+    expect(at(groups, 1).items.map((i) => i.keys)).toEqual(['/', 'F2']);
+    expect(at(at(groups, 2).items, 0).keys).toBe('Alt+←');
+    expect(at(at(shortcutGroups(commands, [], '', true), 0).items, 0).keys).toBe('⌘O');
   });
 
   it('filters by every word over group, description and keys, dropping empty groups', () => {
@@ -54,7 +55,7 @@ describe('cheat sheet and help commands', () => {
     expect(registry.runForKey(new KeyboardEvent('keydown', { key: 'F1' }))).toBe(true);
     const dialogs = TestBed.inject(DialogService);
     await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
-    expect(dialogs.stack()[0].options.title).toBe('Keyboard shortcuts');
+    expect(at(dialogs.stack(), 0).options.title).toBe('Keyboard shortcuts');
     await registry.run('help.shortcuts');
     expect(dialogs.stack().length).toBe(1);
     const open = vi.spyOn(TestBed.inject(TemplatesService), 'open').mockResolvedValue(false);

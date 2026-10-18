@@ -41,6 +41,6 @@ export function regexFromMarks(line: string, marks: Marks): string | null {
     pos = m.end;
   }
   out += escapeRegex(line.slice(pos));
-  if (pos < line.length || entries[entries.length - 1][0] !== 'message') out += '$';
+  if (pos < line.length || entries[entries.length - 1]?.[0] !== 'message') out += '$';
   return out;
 }

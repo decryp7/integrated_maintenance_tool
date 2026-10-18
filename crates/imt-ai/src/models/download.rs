@@ -72,8 +72,14 @@ impl Downloader<'_> {
     /// Downloads `remote` into `dir` and returns the final path. If a complete, correct file is
     /// already there it is kept. Cancelling keeps the `.part` file so the next run resumes.
     pub fn download(&self, remote: &RemoteFile, dir: &Path, progress: &Progress) -> Result<PathBuf> {
-        if !is_safe_file_name(&remote.file) {
-            return Err(AiError::Refused(format!("'{}' is not an acceptable model file name", remote.file)));
+        self.download_checked(remote, dir, progress, is_safe_file_name)
+    }
+
+    /// [`Self::download`] for files other than models (e.g. inference runtimes): `name_ok` decides which
+    /// file names are acceptable in `dir`; it must reject path separators and `..`.
+    pub fn download_checked(&self, remote: &RemoteFile, dir: &Path, progress: &Progress, name_ok: fn(&str) -> bool) -> Result<PathBuf> {
+        if !name_ok(&remote.file) || remote.file.contains(['/', '\\']) || remote.file.contains("..") {
+            return Err(AiError::Refused(format!("'{}' is not an acceptable file name", remote.file)));
         }
         if remote.size == 0 || remote.size > self.opts.max_bytes {
             return Err(AiError::Refused(format!(

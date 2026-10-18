@@ -60,6 +60,7 @@ export function treeKey(rows: readonly TreeRow[], index: number, key: string): T
   if (!rows.length) return null;
   const i = Math.max(0, Math.min(rows.length - 1, index));
   const row = rows[i];
+  if (!row) return null;
   switch (key) {
     case 'ArrowDown':
       return { type: 'focus', index: Math.min(rows.length - 1, i + 1) };

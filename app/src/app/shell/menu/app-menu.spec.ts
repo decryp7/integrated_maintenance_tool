@@ -10,6 +10,7 @@ import { AppMenu, MENU_MODE } from './app-menu.service';
 import { TopMenu } from './menu-model';
 import { NATIVE_MENU_PORT, NativeMenuBridge, NativeMenuPort, toNativeModel } from './native-menu';
 import { NativeMenuModel } from './native-menu.types';
+import { at } from '../../../testing/must';
 
 function setup(extra: unknown[] = []) {
   const dock = new FakeDock();
@@ -127,7 +128,7 @@ describe('native menu bar', () => {
     menus.set([...MENUS]);
     await settle();
     expect(sent).toHaveLength(1);
-    menus.set([MENUS[0]]);
+    menus.set([at(MENUS, 0)]);
     await settle();
     expect(sent).toHaveLength(2);
     window.dispatchEvent(new Event('focus'));

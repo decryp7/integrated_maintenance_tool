@@ -18,17 +18,20 @@
 mod activity;
 mod agent_commands;
 mod ai;
+mod app_dirs;
 mod app_state;
 mod background;
 mod clef;
 mod config_diff;
 mod demo;
+mod dev_overrides;
 mod diagnostics;
 mod engine_errors;
 mod insights;
 mod instance;
 mod lifecycle;
 mod live;
+mod logging;
 mod menu;
 mod notify;
 mod panel_windows;
@@ -36,14 +39,17 @@ mod plugin_isolation;
 mod pointer;
 mod profile;
 mod profiling;
+mod query_cancel;
 mod settings;
 mod share;
 mod skew_commands;
 mod snapshots;
+mod storage;
 mod system;
 mod tools;
 mod tools_compat;
 mod tray;
+mod updater;
 mod window_manager;
 mod window_prefs;
 mod windows;
@@ -93,6 +99,8 @@ macro_rules! commands {
             live::open_paths_live,
             // Analysis (per window)
             insights::run_query,
+            query_cancel::run_query_stream,
+            query_cancel::cancel_query,
             insights::check_query,
             insights::complete_query,
             insights::query_patterns,
@@ -155,6 +163,10 @@ macro_rules! commands {
             snapshots::delete_error_snapshot,
             snapshots::open_snapshots_folder,
             snapshots::export_diagnostics,
+            // Settings ▸ Storage (see storage.rs)
+            storage::storage_usage,
+            storage::storage_clear,
+            storage::storage_reveal,
             activity::report::problem_report_preview,
             activity::report::save_problem_report,
             activity::report::open_activity_log,
@@ -256,6 +268,11 @@ macro_rules! commands {
             ai::commands::ai_set_brave_key,
             ai::commands::ai_clear_brave_key,
             ai::commands::ai_brave_key_set,
+            ai::runtime_commands::ai_runtimes,
+            ai::runtime_commands::ai_runtime_install,
+            ai::runtime_commands::ai_runtime_cancel,
+            ai::runtime_commands::ai_runtime_delete,
+            ai::runtime_commands::ai_runtime_choose,
             // Explain and share (per window)
             share::set_redacted_view,
             share::preview_redaction,
@@ -266,49 +283,42 @@ macro_rules! commands {
             share::estimate_bundle,
             share::create_bundle,
             share::open_bundle,
+            // Signed updates (see updater.rs)
+            updater::updates_status,
+            updater::updates_check,
+            updater::updates_download,
+            updater::updates_cancel,
+            updater::updates_install_on_quit,
+            updater::updates_restart,
+            updater::updates_open_releases,
         ]
     };
-}
-
-/// Logs go to rolling files in the app's log directory (and stdout) as CLEF,
-/// Serilog's compact JSON, including events forwarded from the UI. File size,
-/// count and level come from the user's diagnostics settings.
-fn log_builder(limits: &diagnostics::LogLimits) -> tauri_plugin_log::Builder {
-    use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
-    tauri_plugin_log::Builder::new()
-        .targets([
-            Target::new(TargetKind::LogDir {
-                file_name: Some(diagnostics::LOG_NAME.into()),
-            }),
-            Target::new(TargetKind::Stdout),
-        ])
-        // Everything reaches the dispatcher; `log::set_max_level` applies the
-        // configured level, so it can change without a restart.
-        .level(log::LevelFilter::Trace)
-        .rotation_strategy(RotationStrategy::KeepSome(limits.keep_files as usize))
-        .max_file_size(u128::from(limits.max_file_mb) * 1024 * 1024)
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "{}",
-                clef::format(chrono::Utc::now(), record, &message.to_string(), &clef::Enrichment::current())
-            ))
-        })
 }
 
 /// Window size and position are remembered per window label; visibility is
 /// not (start in the tray decides it).
 fn window_state_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     use tauri_plugin_window_state::StateFlags;
-    tauri_plugin_window_state::Builder::default()
+    let builder = tauri_plugin_window_state::Builder::default()
         .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
-        .with_filter(|label| !panel_windows::is_popout(label))
-        .build()
+        .with_filter(|label| !panel_windows::is_popout(label));
+    match app_dirs::window_state_file(dev_overrides::current().data_dir.as_deref()) {
+        Some(file) => builder.with_filename(file.to_string_lossy()),
+        None => builder,
+    }
+    .build()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Debug builds only: test-run overrides (browser arguments, data folder, paths to open); a bad value stops here.
+    if let Err(e) = dev_overrides::init() {
+        eprintln!("IMT cannot start: {e}");
+        std::process::exit(2);
+    }
     // `imt-app [--safe-mode] [--new-instance] [--new-window] <paths...>`
-    let launch = instance::parse_args(std::env::args().skip(1), std::env::current_dir().ok().as_deref());
+    let mut launch = instance::parse_args(std::env::args().skip(1), std::env::current_dir().ok().as_deref());
+    launch.paths.extend(dev_overrides::current().open_paths.iter().cloned());
     let safe_mode_env = std::env::var_os("IMT_SAFE_MODE").is_some();
     let single = instance::wants_single_instance(&launch, safe_mode_env);
     let safe_mode = launch.safe_mode || safe_mode_env;
@@ -330,6 +340,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(window_state_plugin())
+        .plugin(updater::plugin())
         .setup(move |app| setup(app, &launch, safe_mode, single))
         .on_window_event(window_manager::on_window_event)
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`.
@@ -340,23 +351,22 @@ pub fn run() {
 }
 
 fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, single: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let diag = diagnostics::load(app.path().app_config_dir().ok().as_deref());
-    // The activity logger sits in front of the log plugin (breadcrumbs, error dedup): see `activity`.
-    let (log_plugin, _, logger) = log_builder(&diag.log).split(app.handle())?;
-    app.handle().plugin(log_plugin)?;
-    let _ = log::set_boxed_logger(Box::new(activity::ActivityLogger::new(logger)));
-    log::set_max_level(diag.log.level.filter());
+    create_main_window(app)?;
+    let diag = diagnostics::load(app_dirs::config(app.handle()).ok().as_deref());
+    // `tracing` with CLEF to daily files; `log` records pass the activity logger (breadcrumbs, error
+    // dedup) on their way to it, the webview's through the log plugin's command: see `logging`.
+    logging::init(app.handle(), app_dirs::log(app.handle()).ok().as_deref(), &diag.log)?;
     activity::set_config(diag.activity);
-    if let Ok(dir) = app.path().app_log_dir() {
+    if let Ok(dir) = app_dirs::log(app.handle()) {
         diagnostics::prune_old_logs(&dir, diag.log.max_age_days, std::time::SystemTime::now());
     }
     lifecycle::install_panic_logging();
-    let life = lifecycle::Lifecycle::begin_in(app.path().app_data_dir().ok(), safe_mode, lifecycle::InstanceScope::of(single));
+    let life = lifecycle::Lifecycle::begin_in(app_dirs::data(app.handle()).ok(), safe_mode, lifecycle::InstanceScope::of(single));
     let previous_crash = life.previous_crash;
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new(app.path().app_config_dir().ok().map(|d| d.join("profiles")), safe_mode);
+    let shared = AppState::new(app_dirs::config(app.handle()).ok().map(|d| d.join("profiles")), safe_mode);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
     windows.get_or_create(windows::MAIN)?.queue(instance::existing(&launch.paths));
@@ -369,6 +379,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(notify::Notifier::default());
     app.manage(tray::TrayState::default());
     app.manage(instance::SingleInstance(single));
+    app.manage(query_cancel::QueryJobs::default());
 
     // ---- settings ----
     settings::init(app.handle());
@@ -379,6 +390,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     )?;
     plugin_isolation::install(app.handle());
     window_prefs::register(app.handle())?;
+    updater::init(app.handle());
     ai::init(app.handle(), safe_mode);
     snapshots::prune_on_startup(app.handle());
 
@@ -409,6 +421,15 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     Ok(())
 }
 
+/// The startup window from `tauri.conf.json` (`create: false` there), built here so it gets the same
+/// [`dev_overrides`] as every other window.
+fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
+    let config = app.config().app.windows.iter().find(|w| w.label == windows::MAIN).cloned();
+    let config = config.ok_or_else(|| tauri::Error::WindowNotFound)?;
+    dev_overrides::apply(tauri::WebviewWindowBuilder::from_config(app, &config)?).build()?;
+    Ok(())
+}
+
 fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
     match event {
         tauri::RunEvent::ExitRequested { .. } => {
@@ -423,7 +444,9 @@ fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
             if let Some(life) = app.try_state::<lifecycle::Lifecycle>() {
                 life.end();
             }
-            log::info!("Application is shutting down")
+            log::info!("Application is shutting down");
+            // Last: may hand over to the update installer (which ends the process on Windows).
+            updater::on_exit(app);
         }
         // Files opened from Finder (double-click, "Open with").
         #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -484,6 +507,7 @@ pub(crate) mod test_support {
         app.manage(window_prefs::SharedPrefs::default());
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
+        app.manage(query_cancel::QueryJobs::default());
         app
     }
 
@@ -514,6 +538,17 @@ pub(crate) mod test_support {
             .build(mock_context(noop_assets()))
             .unwrap();
         manage_in(app, None, true)
+    }
+
+    /// The origin of the app's own pages, which the IPC ACL treats as local: `tauri://localhost`, but
+    /// `http://tauri.localhost` on Windows (and Android), where wry serves custom protocols over http.
+    pub fn ipc_url() -> tauri::Url {
+        let url = if cfg!(any(windows, target_os = "android")) {
+            "http://tauri.localhost"
+        } else {
+            "tauri://localhost"
+        };
+        url.parse().unwrap()
     }
 
     /// The main window's state (as a command would get it).

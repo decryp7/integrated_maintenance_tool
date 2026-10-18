@@ -10,7 +10,7 @@ export class VisualCommands {
   private readonly store = inject(WorkspaceStore);
 
   readonly commands: ImtCommand[] = [
-    { id: 'visuals.timelinePng', title: 'Export timeline as PNG…', category: 'File', when: () => !!this.store.timeline(), run: async () => void (await this.visuals.exportTimeline('png')) },
-    { id: 'visuals.timelineSvg', title: 'Export timeline as SVG…', category: 'File', when: () => !!this.store.timeline(), run: async () => void (await this.visuals.exportTimeline('svg')) },
+    { id: 'visuals.timelinePng', title: $localize`:@@share.visualCommands.timelinePng:Export timeline as PNG…`, category: $localize`:@@share.commands.categoryFile:File`, when: () => !!this.store.timeline(), run: async () => void (await this.visuals.exportTimeline('png')) },
+    { id: 'visuals.timelineSvg', title: $localize`:@@share.visualCommands.timelineSvg:Export timeline as SVG…`, category: $localize`:@@share.commands.categoryFile:File`, when: () => !!this.store.timeline(), run: async () => void (await this.visuals.exportTimeline('svg')) },
   ];
 }

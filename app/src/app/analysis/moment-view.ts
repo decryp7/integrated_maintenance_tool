@@ -22,32 +22,32 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
   imports: [AnalysisState, ProfileMomentSection, AiButton],
   template: `
     <div class="bar">
-      <span class="section-title">Moment</span>
+      <span class="section-title" i18n="@@analysis.moment.title">Moment</span>
       <span class="mono">{{ time.range(range()) }}</span>
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="!range()" (click)="zoom()">Zoom to this range</button>
-      <imt-ai-button label="Summarize" hint="The local model summarizes what happened in this range" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
+      <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
+      <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
       @if (res.data(); as m) {
-        <div class="body" tabindex="0" role="region" aria-label="Moment details">
+        <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">
-            <strong class="total">{{ count(m.total) }} events</strong>
+            <strong class="total" i18n="@@analysis.moment.total">{{ count(m.total) }} events</strong>
             @for (l of levelChips(m); track l.level) {
               <span class="lvl" [class]="'lvl ' + l.level">{{ l.level }} {{ count(l.count) }}</span>
             }
           </div>
 
-          <h3 class="sec">Instances</h3>
+          <h3 class="sec" i18n="@@analysis.moment.instances">Instances</h3>
           @if (m.instances.length) {
             <div class="cards">
               @for (i of m.instances; track i.key) {
-                <section class="card" [attr.aria-label]="'Instance ' + i.key">
+                <section class="card" [attr.aria-label]="instanceLabel(i.key)">
                   <div class="head"><strong class="ellipsis" [title]="i.key">{{ i.key }}</strong></div>
                   <div class="counts mono">
-                    <span>{{ count(i.events) }} events</span>
-                    <span class="warn">{{ count(i.warnings) }} warnings</span>
-                    <span [class.errs]="i.errors">{{ count(i.errors) }} errors</span>
+                    <span i18n="@@analysis.moment.events">{{ count(i.events) }} events</span>
+                    <span class="warn" i18n="@@analysis.moment.warnings">{{ count(i.warnings) }} warnings</span>
+                    <span [class.errs]="i.errors" i18n="@@analysis.moment.errors">{{ count(i.errors) }} errors</span>
                   </div>
                   <ul class="list pats">
                     @for (p of i.patterns; track p.id) {
@@ -55,20 +55,20 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
                     }
                   </ul>
                   @if (i.firstError !== null) {
-                    <button class="btn" type="button" (click)="select(i.firstError)">Go to first error</button>
+                    <button class="btn" type="button" (click)="select(i.firstError)" i18n="@@analysis.moment.firstError">Go to first error</button>
                   }
                 </section>
               }
             </div>
           } @else {
-            <p class="muted">No events in this window.</p>
+            <p class="muted" i18n="@@analysis.moment.noEvents">No events in this window.</p>
           }
 
-          <h3 class="sec">Metrics</h3>
+          <h3 class="sec" i18n="@@analysis.moment.metrics">Metrics</h3>
           @if (m.metrics.length) {
             <table class="grid">
               <thead>
-                <tr><th scope="col">Series</th><th scope="col">Metric</th><th scope="col" class="num">Min</th><th scope="col" class="num">Avg</th><th scope="col" class="num">Max</th><th scope="col" class="num">Last</th><th scope="col" class="num">Previous avg</th><th scope="col" class="num">Change</th></tr>
+                <tr><th scope="col" i18n="@@analysis.moment.col.series">Series</th><th scope="col" i18n="@@analysis.moment.col.metric">Metric</th><th scope="col" class="num" i18n="@@analysis.moment.col.min">Min</th><th scope="col" class="num" i18n="@@analysis.moment.col.avg">Avg</th><th scope="col" class="num" i18n="@@analysis.moment.col.max">Max</th><th scope="col" class="num" i18n="@@analysis.moment.col.last">Last</th><th scope="col" class="num" i18n="@@analysis.moment.col.previousAvg">Previous avg</th><th scope="col" class="num" i18n="@@analysis.moment.col.change">Change</th></tr>
               </thead>
               <tbody>
                 @for (x of m.metrics; track x.series + x.metric) {
@@ -82,21 +82,21 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
               </tbody>
             </table>
           } @else {
-            <p class="muted">No numeric metrics in this window.</p>
+            <p class="muted" i18n="@@analysis.moment.noMetrics">No numeric metrics in this window.</p>
           }
 
-          <h3 class="sec">Users</h3>
+          <h3 class="sec" i18n="@@analysis.moment.users">Users</h3>
           @if (m.users.length) {
-            <div class="chips" role="group" aria-label="Users active in this window">
+            <div class="chips" role="group" aria-label="Users active in this window" i18n-aria-label="@@analysis.moment.usersLabel">
               @for (u of m.users; track u.field + '=' + u.value) {
-                <button class="chip" type="button" (click)="filterUser(u)" [title]="'Filter by ' + u.field + ' = ' + u.value">{{ u.value }} <span class="mono">{{ count(u.count) }}</span></button>
+                <button class="chip" type="button" (click)="filterUser(u)" title="Filter by {{ u.field }} = {{ u.value }}" i18n-title="@@analysis.moment.filterUser">{{ u.value }} <span class="mono">{{ count(u.count) }}</span></button>
               }
             </div>
           } @else {
-            <p class="muted">No user information in this window.</p>
+            <p class="muted" i18n="@@analysis.moment.noUsers">No user information in this window.</p>
           }
 
-          <h3 class="sec">User activity</h3>
+          <h3 class="sec" i18n="@@analysis.moment.userActivity">User activity</h3>
           @if (m.activity.length) {
             <ul class="list activity">
               @for (a of m.activity; track a.id) {
@@ -111,23 +111,23 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
               }
             </ul>
           } @else {
-            <p class="muted">No user actions recorded.</p>
+            <p class="muted" i18n="@@analysis.moment.noActivity">No user actions recorded.</p>
           }
 
-          <h3 class="sec">Anomalies in this window</h3>
+          <h3 class="sec" i18n="@@analysis.moment.anomalies">Anomalies in this window</h3>
           @if (m.anomalies.length) {
             <ul class="list">
               @for (a of m.anomalies; track $index) {
                 <li>
                   <button class="row" type="button" (click)="selectSample(a.sampleIds[0])">
                     <span aria-hidden="true">{{ icon(a.kind) }}</span><strong>{{ label(a.kind) }}</strong>
-                    <span class="muted ellipsis">{{ a.instance ?? 'all instances' }}</span><span class="grow ellipsis">{{ a.message }}</span>
+                    <span class="muted ellipsis">{{ a.instance ?? allInstances }}</span><span class="grow ellipsis">{{ a.message }}</span>
                   </button>
                 </li>
               }
             </ul>
           } @else {
-            <p class="muted">None.</p>
+            <p class="muted" i18n="@@analysis.moment.none">None.</p>
           }
 
           <imt-profile-moment [range]="range()" />
@@ -156,6 +156,9 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
   ],
 })
 export class MomentView {
+  protected instanceLabel(key: string): string {
+    return $localize`:@@analysis.moment.instanceN:Instance ${key}:instance:`;
+  }
   private readonly ai = inject(AiLauncher);
   protected readonly actions = inject(AnalysisActions);
   protected readonly time = inject(AnalysisTime);
@@ -169,6 +172,7 @@ export class MomentView {
   protected readonly count = formatCount;
   protected readonly num = formatNumber;
   protected readonly change = formatChange;
+  protected readonly allInstances = $localize`:@@analysis.anomalies.allInstances:all instances`;
   protected readonly icon = anomalyIcon;
   protected readonly label = anomalyLabel;
 

@@ -8,6 +8,7 @@ import { LiveTail } from '../workspace/live-tail';
 import { FACET_INTERVAL_MS, LiveFeed } from './live-feed';
 import { LiveFollow } from './live-follow.store';
 import { TailStatusStore } from './tail-status.store';
+import { at } from '../../testing/must';
 
 describe('LiveFeed', () => {
   async function setup() {
@@ -33,7 +34,7 @@ describe('LiveFeed', () => {
   it('applies per-file state changes of a report to the tail status at once', async () => {
     const { notify, status, live, tailStatus } = await setup();
     await vi.waitFor(() => expect(status.status()).not.toBeNull());
-    const id = status.status()!.files[0].sourceId;
+    const id = at(status.status()!.files, 0).sourceId;
     // The polled status (the fallback) does not answer: the badge comes from the report alone.
     tailStatus.mockImplementation(() => new Promise(() => undefined));
     const apply = vi.spyOn(status, 'applyFileStates');

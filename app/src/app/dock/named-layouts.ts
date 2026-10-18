@@ -46,7 +46,11 @@ export function moveLayout(list: readonly NamedLayout[], name: string, delta: -1
   const j = i + delta;
   if (i < 0 || j < 0 || j >= list.length) return [...list];
   const next = [...list];
-  [next[i], next[j]] = [next[j], next[i]];
+  const a = next[i];
+  const b = next[j];
+  if (a === undefined || b === undefined) return next;
+  next[i] = b;
+  next[j] = a;
   return next;
 }
 

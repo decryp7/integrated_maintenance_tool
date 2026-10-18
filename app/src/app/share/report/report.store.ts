@@ -49,12 +49,12 @@ export const ReportStore = signalStore(
       },
       create(title?: string): Report {
         const r = newReport(title);
-        edit('new report', () => patchState(store, (s) => ({ reports: [...s.reports, r], activeId: r.id })));
+        edit($localize`:@@share.reportStore.undo.newReport:new report`, () => patchState(store, (s) => ({ reports: [...s.reports, r], activeId: r.id })));
         return r;
       },
       setActive: (id: string) => patchState(store, { activeId: id }),
       remove(id: string) {
-        edit('report deletion', () =>
+        edit($localize`:@@share.reportStore.undo.reportDeletion:report deletion`, () =>
           patchState(store, (s) => {
             const reports = s.reports.filter((r) => r.id !== id);
             return { reports, activeId: s.activeId === id ? (reports[0]?.id ?? null) : s.activeId };
@@ -63,29 +63,29 @@ export const ReportStore = signalStore(
       },
       update(id: string, patch: Partial<Pick<Report, 'title' | 'summary'>>) {
         const r = store.reports().find((x) => x.id === id);
-        if (r) edit('report edit', () => replaceReport({ ...r, ...patch, updatedAt: Date.now() }), `report:${id}:${Object.keys(patch).join(',')}`);
+        if (r) edit($localize`:@@share.reportStore.undo.reportEdit:report edit`, () => replaceReport({ ...r, ...patch, updatedAt: Date.now() }), `report:${id}:${Object.keys(patch).join(',')}`);
       },
       /** Adds a block to the active report (creating one when there is none); returns the block. */
       add(block: NewBlock, sectionId?: string | null): ReportBlock {
         const b = withId(block);
-        edit('report block addition', () => replaceReport(addBlock(target(), b, sectionId)));
+        edit($localize`:@@share.reportStore.undo.reportBlockAddition:report block addition`, () => replaceReport(addBlock(target(), b, sectionId)));
         return b;
       },
       updateBlock(id: string, patch: Partial<ReportBlock>) {
         const r = current();
-        if (r) edit('report block edit', () => replaceReport(updateBlock(r, id, patch)), `block:${id}:${Object.keys(patch).join(',')}`);
+        if (r) edit($localize`:@@share.reportStore.undo.reportBlockEdit:report block edit`, () => replaceReport(updateBlock(r, id, patch)), `block:${id}:${Object.keys(patch).join(',')}`);
       },
       removeBlock(id: string) {
         const r = current();
-        if (r) edit('report block removal', () => replaceReport(removeBlock(r, id)));
+        if (r) edit($localize`:@@share.reportStore.undo.reportBlockRemoval:report block removal`, () => replaceReport(removeBlock(r, id)));
       },
       moveBlock(id: string, delta: -1 | 1) {
         const r = current();
-        if (r) edit('report block move', () => replaceReport(moveBlock(r, id, delta)));
+        if (r) edit($localize`:@@share.reportStore.undo.reportBlockMove:report block move`, () => replaceReport(moveBlock(r, id, delta)));
       },
       addSection(title?: string): ReportSection {
         const s = newSection(title);
-        edit('report section addition', () => {
+        edit($localize`:@@share.reportStore.undo.reportSectionAddition:report section addition`, () => {
           const r = target();
           replaceReport({ ...r, sections: [...r.sections, s], updatedAt: Date.now() });
         });
@@ -93,15 +93,15 @@ export const ReportStore = signalStore(
       },
       renameSection(id: string, title: string) {
         const r = current();
-        if (r) edit('report section rename', () => replaceReport({ ...r, sections: r.sections.map((s) => (s.id === id ? { ...s, title } : s)), updatedAt: Date.now() }), `section:${id}`);
+        if (r) edit($localize`:@@share.reportStore.undo.reportSectionRename:report section rename`, () => replaceReport({ ...r, sections: r.sections.map((s) => (s.id === id ? { ...s, title } : s)), updatedAt: Date.now() }), `section:${id}`);
       },
       removeSection(id: string) {
         const r = current();
-        if (r) edit('report section removal', () => replaceReport({ ...r, sections: r.sections.filter((s) => s.id !== id), updatedAt: Date.now() }));
+        if (r) edit($localize`:@@share.reportStore.undo.reportSectionRemoval:report section removal`, () => replaceReport({ ...r, sections: r.sections.filter((s) => s.id !== id), updatedAt: Date.now() }));
       },
       moveSection(id: string, delta: -1 | 1) {
         const r = current();
-        if (r) edit('report section move', () => replaceReport(moveSection(r, id, delta)));
+        if (r) edit($localize`:@@share.reportStore.undo.reportSectionMove:report section move`, () => replaceReport(moveSection(r, id, delta)));
       },
     };
   }),

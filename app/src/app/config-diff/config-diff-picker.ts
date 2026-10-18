@@ -12,7 +12,7 @@ export class ConfigDiffPicker {
   async pickFile(side: Side): Promise<string | null> {
     if (!isTauri()) return `/demo/config/${side}/appsettings.json`;
     const { open } = await import('@tauri-apps/plugin-dialog');
-    const result = await open({ multiple: false, directory: false, title: side === 'left' ? 'Original (left) file' : 'Changed (right) file' });
+    const result = await open({ multiple: false, directory: false, title: side === 'left' ? $localize`:@@configDiff.picker.leftFile:Original (left) file` : $localize`:@@configDiff.picker.rightFile:Changed (right) file` });
     return typeof result === 'string' ? result : null;
   }
 
@@ -20,7 +20,7 @@ export class ConfigDiffPicker {
   async pickFolder(side: Side): Promise<string | null> {
     if (!isTauri()) return `/demo/snapshots/${side === 'left' ? 'monday' : 'tuesday'}`;
     const { open } = await import('@tauri-apps/plugin-dialog');
-    const result = await open({ multiple: false, directory: true, title: side === 'left' ? 'Earlier snapshot folder' : 'Later snapshot folder' });
+    const result = await open({ multiple: false, directory: true, title: side === 'left' ? $localize`:@@configDiff.picker.leftFolder:Earlier snapshot folder` : $localize`:@@configDiff.picker.rightFolder:Later snapshot folder` });
     return typeof result === 'string' ? result : null;
   }
 
@@ -29,7 +29,7 @@ export class ConfigDiffPicker {
     const name = `config-diff.${format}`;
     if (!isTauri()) return `/demo/exports/${name}`;
     const { save } = await import('@tauri-apps/plugin-dialog');
-    return save({ title: 'Export diff', defaultPath: name, filters: [{ name: format.toUpperCase(), extensions: [format] }] });
+    return save({ title: $localize`:@@configDiff.picker.exportDiff:Export diff`, defaultPath: name, filters: [{ name: format.toUpperCase(), extensions: [format] }] });
   }
 }
 /* v8 ignore stop */

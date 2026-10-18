@@ -31,7 +31,7 @@ pub use config::{build_commit, config, session_id, set_config, ActivitySettings,
 pub(crate) use ipc::current_window;
 #[cfg(test)]
 pub(crate) use ipc::OP_HEADER;
-pub use ipc::{current_op, logged, OpId};
+pub use ipc::{current_op, logged, valid_op_id, OpId};
 pub use logger::{breadcrumbs, ActivityLogger};
 #[cfg(test)]
 pub(crate) use logger::{captured, test_capture, Captured};

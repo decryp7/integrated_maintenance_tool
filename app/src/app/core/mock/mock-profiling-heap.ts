@@ -22,8 +22,8 @@ export function indexHeap(data: MockHeapData): HeapIndex {
   const retained = data.objects.map((o) => o.shallow);
   // Objects are created after their dominator, so a reverse pass accumulates subtrees.
   for (let i = data.objects.length - 1; i > 0; i--) {
-    const parent = data.objects[i].from[0]?.id;
-    if (parent !== undefined) retained[parent] += retained[i];
+    const parent = data.objects[i]?.from[0]?.id;
+    if (parent !== undefined) retained[parent] = (retained[parent] ?? 0) + (retained[i] ?? 0);
   }
   return { data, children, retained };
 }
@@ -35,7 +35,7 @@ function typeTable(h: HeapIndex): Map<string, { count: number; bytes: number; re
     const t = m.get(o.type) ?? m.set(o.type, { count: 0, bytes: 0, retained: 0 }).get(o.type)!;
     t.count++;
     t.bytes += o.shallow;
-    t.retained += h.retained[o.id];
+    t.retained += h.retained[o.id] ?? 0;
   }
   return m;
 }
@@ -93,8 +93,8 @@ export function mockHeapGrowth(snaps: HeapIndex[], search: string | null | undef
       const mx = (n - 1) / 2;
       const my = bytes.reduce((a, x) => a + x, 0) / n;
       const slopeBytes = bytes.reduce((a, y, i) => a + (i - mx) * (y - my), 0) / bytes.reduce((a, _, i) => a + (i - mx) ** 2, 0);
-      const growthBytes = bytes[n - 1] - bytes[0];
-      const steady = growthBytes > 0 && bytes.every((x, i) => i === 0 || x >= bytes[i - 1]);
+      const growthBytes = (bytes[n - 1] ?? 0) - (bytes[0] ?? 0);
+      const steady = growthBytes > 0 && bytes.every((x, i) => i === 0 || x >= (bytes[i - 1] ?? 0));
       return { name, bytes, counts, slopeBytes, growthBytes, steady };
     });
   const steadyCount = rows.filter((r) => r.steady).length;
@@ -105,19 +105,20 @@ export function mockHeapGrowth(snaps: HeapIndex[], search: string | null | undef
 
 function objectRow(h: HeapIndex, id: number): HeapObjectRow {
   const o = h.data.objects[id];
-  return { object: id, typeName: o.type, shallow: o.shallow, retained: h.retained[id], childCount: h.children.get(id)?.length ?? 0 };
+  if (!o) throw new Error(`object ${id} is not in this snapshot`);
+  return { object: id, typeName: o.type, shallow: o.shallow, retained: h.retained[id] ?? 0, childCount: h.children.get(id)?.length ?? 0 };
 }
 
-const byRetained = (h: HeapIndex) => (a: number, b: number) => h.retained[b] - h.retained[a] || a - b;
+const byRetained = (h: HeapIndex) => (a: number, b: number) => (h.retained[b] ?? 0) - (h.retained[a] ?? 0) || a - b;
 
 export function mockHeapDominators(h: HeapIndex, parent: number | null, offset: number, limit: number): HeapObjectsPage {
   const ids = [...(h.children.get(parent ?? 0) ?? [])].sort(byRetained(h));
-  return { rows: ids.slice(offset, offset + limit).map((id) => objectRow(h, id)), totalRows: ids.length, totalBytes: h.retained[0] };
+  return { rows: ids.slice(offset, offset + limit).map((id) => objectRow(h, id)), totalRows: ids.length, totalBytes: h.retained[0] ?? 0 };
 }
 
 export function mockHeapInstances(h: HeapIndex, typeName: string, offset: number, limit: number): HeapObjectsPage {
   const ids = h.data.objects.filter((o) => o.type === typeName && o.id !== 0).map((o) => o.id).sort(byRetained(h));
-  return { rows: ids.slice(offset, offset + limit).map((id) => objectRow(h, id)), totalRows: ids.length, totalBytes: ids.reduce((a, id) => a + h.data.objects[id].shallow, 0) };
+  return { rows: ids.slice(offset, offset + limit).map((id) => objectRow(h, id)), totalRows: ids.length, totalBytes: ids.reduce((a, id) => a + (h.data.objects[id]?.shallow ?? 0), 0) };
 }
 
 /** Shortest paths from a root-referenced object to `object`, one per referrer of the target. */
@@ -130,11 +131,13 @@ export function mockHeapPaths(h: HeapIndex, object: number, maxPaths: number): H
     let cur = start;
     while (cur.id !== 0) {
       const o = h.data.objects[cur.id];
-      const up = o.from[0];
-      steps.unshift({ object: o.id, typeName: o.type, edge: up.id !== 0 ? up.edge : null });
+      const up = o?.from[0];
+      if (!o || !up) break;
+      const step: PathStep = { object: o.id, typeName: o.type, edge: up.id !== 0 ? up.edge : null };
+      steps.unshift(step);
       // The first step's edge is null; the root reference becomes part of its label.
       if (up.id === 0) {
-        steps[0] = { ...steps[0], edge: null, typeName: `${o.type} (${up.edge})` };
+        steps[0] = { ...step, edge: null, typeName: `${o.type} (${up.edge})` };
         break;
       }
       cur = up;

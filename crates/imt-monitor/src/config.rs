@@ -1,4 +1,17 @@
 //! Monitor settings: parsed once from JSON into typed values (parse, don't validate).
+//!
+//! JSON schema (camelCase; unknown keys are rejected):
+//!
+//! | Key | Type | Default | Meaning |
+//! |---|---|---|---|
+//! | `targets` | `[{name}\|{path}\|{pid}]` | `[]` | processes to watch: name glob, executable path glob or PID |
+//! | `intervalMs` | integer ≥ 250 | 2000 | sampling interval |
+//! | `cpu` | `"machine"` \| `"core"` | `"machine"` | CPU scaling |
+//! | `counters` | `[string]` | `[]` | extra PDH counter paths (Windows), e.g. `\Process(*)\Handle Count` |
+//! | `includeChildren` | bool | `false` | also watch descendants of matched processes |
+//! | `dotnet` | bool | `false` | add .NET runtime fields (`Dotnet*`) to `Process stats`; see [`crate::dotnet`] |
+//!
+//! At least one target or counter is required.
 
 use crate::counters::CounterPath;
 use anyhow::{anyhow, bail, Result};
@@ -42,6 +55,8 @@ struct RawConfig {
     counters: Vec<String>,
     #[serde(default)]
     include_children: bool,
+    #[serde(default)]
+    dotnet: bool,
 }
 
 /// One thing to watch.
@@ -106,6 +121,8 @@ pub struct Config {
     pub cpu: CpuMode,
     pub counters: Vec<CounterPath>,
     pub include_children: bool,
+    /// Collect .NET runtime counters for monitored .NET processes (Windows; see [`crate::dotnet`]).
+    pub dotnet: bool,
 }
 
 impl Config {
@@ -159,6 +176,7 @@ impl Config {
             cpu: raw.cpu,
             counters,
             include_children: raw.include_children,
+            dotnet: raw.dotnet,
         })
     }
 

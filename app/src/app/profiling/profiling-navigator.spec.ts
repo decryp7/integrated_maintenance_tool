@@ -6,6 +6,7 @@ import { ActiveProfile, PROFILING_VIEW_IDS as V, ProfilingNavigator } from './pr
 import { CapturesStore } from './captures.store';
 import { ProfilingBackend } from './profiling-backend';
 import { openDemoCaptures, setupProfiling } from './testing/profiling-test-support';
+import { at } from '../../testing/must';
 
 const frame: FrameDto = { id: 4, name: 'Shop.Orders.Pricing.PriceCalculator.Calculate', module: 'Shop.Orders', file: null, line: null, kind: 'managed', isFramework: false };
 
@@ -32,15 +33,15 @@ describe('ActiveProfile', () => {
     const active = TestBed.inject(ActiveProfile);
     const state = TestBed.inject(ProfileViewState);
     const captures = TestBed.inject(CapturesStore);
-    expect(active.profile()?.id).toBe(captures.profiles()[0].id);
-    expect(active.heap()?.id).toBe(captures.heaps()[0].id);
-    state.setProfile(captures.profiles()[1].id);
-    state.setHeap(captures.heaps()[2].id);
+    expect(active.profile()?.id).toBe(captures.profiles()[0]?.id);
+    expect(active.heap()?.id).toBe(captures.heaps()[0]?.id);
+    state.setProfile(at(captures.profiles(), 1).id);
+    state.setHeap(at(captures.heaps(), 2).id);
     expect(active.profile()?.name).toContain('regression');
-    expect(active.heap()?.id).toBe(captures.heaps()[2].id);
+    expect(active.heap()?.id).toBe(captures.heaps()[2]?.id);
     // A heap id never resolves as the active profile and vice versa.
-    state.setProfile(captures.heaps()[0].id);
-    state.setHeap(captures.profiles()[0].id);
+    state.setProfile(at(captures.heaps(), 0).id);
+    state.setHeap(at(captures.profiles(), 0).id);
     expect(active.profile()).toBeNull();
     expect(active.heap()).toBeNull();
   });
@@ -50,7 +51,9 @@ describe('ActiveProfile', () => {
     await openDemoCaptures();
     const active = TestBed.inject(ActiveProfile);
     const state = TestBed.inject(ProfileViewState);
-    const [orders, regression] = TestBed.inject(CapturesStore).profiles();
+    const profiles = TestBed.inject(CapturesStore).profiles();
+    const orders = at(profiles, 0);
+    const regression = at(profiles, 1);
     expect(active.metric()).toBe(orders.defaultMetric);
     state.setMetric('allocBytes');
     expect(active.metric()).toBe('allocBytes');
@@ -129,7 +132,7 @@ describe('ProfilingNavigator', () => {
     const framePaths = vi.spyOn(TestBed.inject(ProfilingBackend), 'framePaths');
     await nav.showInTree(row(5), 'timeNs');
     expect(framePaths).toHaveBeenCalledWith({ profileId: state.profileId(), view: state.view(), frame: frame.id, metric: 'timeNs', limit: 1 });
-    const best = (await framePaths.mock.results[0].value).paths[0].path;
+    const best = (await at(framePaths.mock.results, 0).value).paths[0].path;
     expect(best.at(-1)).toBe(frame.id);
     expect(state.selectedFrame()).toEqual(frame);
     expect(state.reveal()).toEqual({ path: best, direction: 'topDown', nonce: 1 });

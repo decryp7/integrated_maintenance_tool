@@ -11,6 +11,7 @@ import { TimeCursor } from '../analysis/time-cursor';
 import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
+import { at } from '../../testing/must';
 
 const mk = (kind: string, left: number, count = 1, id = left): MarkerVm => ({
   cluster: { kind, bucket: Math.round(left), ts: left, id, count, message: '' },
@@ -81,7 +82,7 @@ describe('TimelinePanel', () => {
 
   it('filters to an instance from its lane label', async () => {
     const { fixture, store } = await render();
-    all<HTMLButtonElement>(fixture, '.lane-label')[1].click();
+    at(all<HTMLButtonElement>(fixture, '.lane-label'), 1).click();
     await settle(fixture);
     expect(store.query().groups).toEqual(['WEB02 · 300']);
     expect(all(fixture, '.lane-label.filtered')).toHaveLength(1);
@@ -159,15 +160,15 @@ describe('TimelinePanel', () => {
     expect(event.defaultPrevented).toBe(true);
     const items = menu.menu()!.items;
     expect(items.map((i) => i.label)).toEqual(['Analyse this moment']);
-    items[0].run();
+    at(items, 0).run();
     const mid = t.from + (t.to - t.from) / 2;
-    expect(targets.moment()).toEqual(momentAt(mid, null, WIDTHS[1].ms));
+    expect(targets.moment()).toEqual(momentAt(mid, null, at(WIDTHS, 1).ms));
     expect(showView).toHaveBeenCalledWith('moment');
 
     // Inside a selected range, the moment is that range.
     TestBed.inject(TimeCursor).select({ from: t.from, to: t.to });
     el(fixture, '.axis').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 250 + 400 }));
-    menu.menu()!.items[0].run();
+    at(menu.menu()!.items, 0).run();
     expect(targets.moment()).toEqual({ from: t.from, to: t.to });
   });
 
@@ -250,7 +251,11 @@ describe('TimelinePanel', () => {
 
   it('navigates history with buttons and Alt+arrows', async () => {
     const { fixture, store, zoom } = await render();
-    const [back, fwd, zin, zout] = all<HTMLButtonElement>(fixture, '.zoom .icon-btn');
+    const buttons = all<HTMLButtonElement>(fixture, '.zoom .icon-btn');
+    const back = at(buttons, 0);
+    const fwd = at(buttons, 1);
+    const zin = at(buttons, 2);
+    const zout = at(buttons, 3);
     expect(back.disabled).toBe(true);
     zin.click();
     await settle(fixture);
@@ -277,12 +282,48 @@ describe('TimelinePanel', () => {
     typing.remove();
   });
 
+  it('shares one 24px target between close markers: the keyboard activates the most important, a click picks the glyph', async () => {
+    const backend = tinyBackend();
+    const real = backend.queryTimeline.bind(backend);
+    vi.spyOn(backend, 'queryTimeline').mockImplementation(async (req) => {
+      const t = await real(req);
+      const lane = at(t.lanes, 0);
+      const mid = (t.from + t.to) / 2;
+      lane.markers = [
+        { kind: 'warning', bucket: 1, ts: mid + (t.to - t.from) / 1000, id: 3, count: 1, message: 'w' },
+        { kind: 'fatal', bucket: 1, ts: mid, id: 5, count: 1, message: 'f' },
+      ];
+      return t;
+    });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    const store = TestBed.inject(WorkspaceStore);
+    const jump = vi.spyOn(store, 'jumpTo');
+    await settle(fixture);
+    const lane0 = at(all(fixture, '.lane'), 0);
+    const targets = lane0.querySelectorAll<HTMLButtonElement>('.marker');
+    expect(targets).toHaveLength(1);
+    const target = at([...targets], 0);
+    expect(target.getAttribute('aria-label')).toMatch(/^Fatal at .*; Warning at /);
+    expect(parseFloat(target.style.width)).toBeGreaterThanOrEqual(24);
+    expect(target.querySelectorAll('.glyph')).toHaveLength(2);
+    expect(target.querySelectorAll('.glyph.primary')).toHaveLength(1);
+    target.click();
+    expect(jump).toHaveBeenLastCalledWith(5);
+    const warning = [...target.querySelectorAll<HTMLElement>('.glyph')].find((g) => !g.classList.contains('primary'))!;
+    warning.dispatchEvent(new PointerEvent('pointerenter', { clientX: 1, clientY: 1 }));
+    await settle(fixture);
+    expect(el(fixture, '.tip').textContent).toContain('Warning');
+    warning.click();
+    expect(jump).toHaveBeenLastCalledWith(3);
+  });
+
   it('collapses warnings of a busy lane into a tick strip and keeps counts in the tooltip', async () => {
     const backend = tinyBackend();
     const real = backend.queryTimeline.bind(backend);
     vi.spyOn(backend, 'queryTimeline').mockImplementation(async (req) => {
       const t = await real(req);
-      const lane = t.lanes[0];
+      const lane = at(t.lanes, 0);
       const span = t.to - t.from;
       lane.markers = Array.from({ length: 60 }, (_, i) => ({ kind: 'warning', bucket: i, ts: t.from + (span * i) / 60, id: 2, count: 1 + (i % 3), message: 'w' }));
       lane.markers.push({ kind: 'fatal', bucket: 59, ts: t.to, id: 5, count: 1, message: 'Host terminated' });
@@ -291,7 +332,7 @@ describe('TimelinePanel', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(TimelinePanel);
     await settle(fixture);
-    const firstLane = all(fixture, '.lane')[0];
+    const firstLane = at(all(fixture, '.lane'), 0);
     const strip = firstLane.querySelector('svg.ticks')!;
     expect(strip.getAttribute('aria-label')).toBe('120 warnings (zoom in for detail)');
     expect(firstLane.querySelectorAll('.marker')).toHaveLength(1);
@@ -360,11 +401,11 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
     const { fixture, store } = await render();
     const items = all<HTMLButtonElement>(fixture, '.legend .lg');
     expect(items.map((i) => i.textContent?.trim())).toEqual(['Payment failed', 'Plain']);
-    const pay = items[0];
+    const pay = at(items, 0);
     expect(pay.title).toBe('Payment gateway rejected the capture');
     expect(el(fixture, '#' + pay.getAttribute('aria-describedby')).textContent).toBe('Payment gateway rejected the capture');
-    expect(items[1].getAttribute('aria-describedby')).toBeNull();
-    expect(items[1].title).toBe('Plain');
+    expect(items[1]?.getAttribute('aria-describedby')).toBeNull();
+    expect(items[1]?.title).toBe('Plain');
     expect(pay.querySelector('imt-marker-glyph')!.getAttribute('data-glyph')).toBe('badge');
     expect(pay.getAttribute('aria-pressed')).toBe('false');
     // Without a kind filter no item looks switched off (the others are dimmed only while one kind is picked).
@@ -372,9 +413,9 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
     pay.click();
     await settle(fixture);
     expect(store.query().markers).toEqual(['pay']);
-    expect(all<HTMLButtonElement>(fixture, '.legend .lg')[0].getAttribute('aria-pressed')).toBe('true');
+    expect(all<HTMLButtonElement>(fixture, '.legend .lg')[0]?.getAttribute('aria-pressed')).toBe('true');
     expect(el(fixture, '.legend').classList).toContain('filtering');
-    all<HTMLButtonElement>(fixture, '.legend .lg')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.legend .lg'), 0).click();
     await settle(fixture);
     expect(store.query().markers).toEqual([]);
     expect(el(fixture, '.legend').classList).not.toContain('filtering');
@@ -431,6 +472,39 @@ describe('TimelinePanel annotations', () => {
     downtime.click();
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.lane [data-kind="net.decryptology.windows/downtime"]')).not.toBeNull();
+  });
+
+  it('keeps bands out of the tab order and lists every annotation in view, once, in the Evidence menu', async () => {
+    const { fixture, store } = await render();
+    expect(all(fixture, '.ann').every((b) => b.getAttribute('tabindex') === '-1')).toBe(true);
+    const menu = TestBed.inject(ContextMenuService);
+    const open = vi.spyOn(menu, 'open');
+    el<HTMLButtonElement>(fixture, '.ann-legend .ann-list').click();
+    const items = at(open.mock.calls, 0)[2];
+    const labels = items.map((i) => i.label);
+    // The downtime is drawn on two lanes but listed once.
+    expect(labels.filter((l) => l.startsWith('Unexpected shutdown'))).toHaveLength(1);
+    expect(labels.length).toBe(new Set(labels).size);
+    items.find((i) => i.label.startsWith('Unexpected shutdown'))!.run();
+    await settle(fixture);
+    expect(store.query().filters).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
+  });
+
+  it('caps the Evidence menu and says how many more are in view', async () => {
+    const backend = tinyBackend();
+    const real = backend.annotations.bind(backend);
+    vi.spyOn(backend, 'annotations').mockImplementation(async (req) => {
+      const [first] = await real(req);
+      return Array.from({ length: 53 }, (_, i) => ({ ...first!, label: `A${i}`, from: first!.from + i, to: first!.from + i }));
+    });
+    const { fixture } = await render(backend);
+    const menu = TestBed.inject(ContextMenuService);
+    const open = vi.spyOn(menu, 'open');
+    el<HTMLButtonElement>(fixture, '.ann-legend .ann-list').click();
+    const items = at(open.mock.calls, 0)[2];
+    expect(items).toHaveLength(51);
+    expect(at(items, 50)).toMatchObject({ label: '3 more — zoom in to list them', disabled: true });
+    expect(at(items, 50).run()).toBeUndefined();
   });
 
   it('shows label, owner and time on hover and applies the evidence query on click', async () => {

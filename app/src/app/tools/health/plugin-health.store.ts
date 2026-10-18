@@ -42,7 +42,7 @@ export const PluginHealthStore = signalStore(
           ...p,
           status: wasReset ? 'active' : p.status,
           failures: wasReset ? 0 : p.failures,
-          pendingEnabled: p.id in store.pending() ? store.pending()[p.id] : null,
+          pendingEnabled: p.id in store.pending() ? (store.pending()[p.id] ?? null) : null,
         };
       }),
     ),
@@ -68,13 +68,13 @@ export const PluginHealthStore = signalStore(
     return {
       /** Lifts a quarantine now (the plugin is called again). */
       reset: (id: string) =>
-        run('Resetting…', async () => {
+        run($localize`:@@tools.health.busy.resetting:Resetting…`, async () => {
           await backend.pluginReset(id);
           patchState(store, (s) => ({ reset: [...s.reset, id] }));
         }),
       /** Saves the choice for the next start. */
       setEnabled: (id: string, enabled: boolean) =>
-        run(enabled ? 'Enabling…' : 'Disabling…', async () => {
+        run(enabled ? $localize`:@@tools.health.busy.enabling:Enabling…` : $localize`:@@tools.health.busy.disabling:Disabling…`, async () => {
           await backend.pluginSetEnabled(id, enabled);
           patchState(store, (s) => ({ pending: { ...s.pending, [id]: enabled } }));
         }),

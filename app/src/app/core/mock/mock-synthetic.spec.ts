@@ -1,5 +1,6 @@
 import { FACET_LIMIT_MAX, syntheticFacet, syntheticPage, syntheticRow } from './mock-synthetic';
 import { query } from '../../../testing/helpers';
+import { at } from '../../../testing/must';
 
 const req = (p: Partial<Parameters<typeof syntheticPage>[0]> = {}) => ({ query: query(), offset: 0, limit: 5, descending: false, ...p });
 
@@ -29,10 +30,10 @@ describe('synthetic rows', () => {
   it('resolves anchors to their position in either direction', () => {
     const a = syntheticPage(req({ anchor: 40_000_123, limit: 1 }), 50_000_000);
     expect(a.anchorIndex).toBe(40_000_123);
-    expect(a.rows[0].id).toBe(40_000_123);
+    expect(at(a.rows, 0).id).toBe(40_000_123);
     const d = syntheticPage(req({ anchor: 40_000_123, limit: 1, descending: true }), 50_000_000);
     expect(d.anchorIndex).toBe(9_999_876);
-    expect(d.rows[0].id).toBe(40_000_123);
+    expect(at(d.rows, 0).id).toBe(40_000_123);
     expect(syntheticPage(req({ anchor: 10 }), 10).anchorIndex).toBeNull();
     expect(syntheticPage(req({ anchor: -1 }), 10).anchorIndex).toBeNull();
     expect(syntheticPage(req({ anchor: 1.5 }), 10).anchorIndex).toBeNull();
@@ -41,7 +42,7 @@ describe('synthetic rows', () => {
   it('centres a multi-row anchor page on the anchor', () => {
     const a = syntheticPage(req({ anchor: 100, limit: 10 }), 1000);
     expect(a.offset).toBe(95);
-    expect(a.rows[5].id).toBe(100);
+    expect(at(a.rows, 5).id).toBe(100);
   });
 });
 

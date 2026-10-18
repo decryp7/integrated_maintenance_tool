@@ -13,9 +13,28 @@ export interface LaidMarker extends MarkerVm {
   showCount: boolean;
 }
 
+/**
+ * One clickable hit area on a lane (WCAG 2.2 SC 2.5.8, target size minimum): at least {@link TARGET_PX} px wide and
+ * never overlapping another target. Markers whose 24px targets would overlap are aggregated into one target that
+ * still draws every glyph at its own time; from the keyboard it activates its primary member, while a pointer can
+ * still pick a glyph.
+ */
+export interface MarkerTarget {
+  /** Left edge in px from the plot's left. */
+  left: number;
+  /** Width in px (at least TARGET_PX). */
+  width: number;
+  /** The member the target activates: the earliest of its most important kind. */
+  primary: LaidMarker;
+  /** Members in paint order (least important first), each with its glyph centre in px from the target's left. */
+  members: { marker: LaidMarker; offset: number }[];
+}
+
 export interface LaneLayout {
   /** Full-shape markers, in paint order (least important first, so important ones stay on top). */
   shapes: LaidMarker[];
+  /** Hit areas for the shapes, left to right. */
+  targets: MarkerTarget[];
   /** Positions (%) of markers drawn as a thin tick strip because the lane is too busy. */
   ticks: number[];
   /** Events represented by the tick strip. */
@@ -33,6 +52,10 @@ export interface LayoutOptions {
   /** Above this many shapes in view, compact kinds become ticks. */
   maxShapes?: number;
 }
+
+/** Minimum hit-area size in px (WCAG 2.2 SC 2.5.8, target size minimum). */
+export const TARGET_PX = 24;
+const TARGET_HALF = TARGET_PX / 2;
 
 /** Icon half-width plus a small gap, in px. */
 const ICON_HALF = 8;
@@ -108,6 +131,32 @@ export function placeBadges(markers: MarkerVm[], plotWidth: number): Set<MarkerV
   return shown;
 }
 
+/**
+ * Groups shapes (given in paint order) into non-overlapping hit areas of at least TARGET_PX. A target is centred on
+ * its first marker (clamped to the plot's left edge) and absorbs the following markers whose own target would start
+ * inside it, so one target never spans 2 × TARGET_PX; it stretches right over its members up to where the next
+ * target begins.
+ */
+export function layoutTargets(shapes: LaidMarker[], plotWidth: number): MarkerTarget[] {
+  const items = shapes.map((marker, paint) => ({ marker, paint, x: (marker.left / 100) * plotWidth })).sort((a, b) => a.x - b.x || a.paint - b.paint);
+  const groups: { left: number; items: typeof items }[] = [];
+  for (const item of items) {
+    const cur = groups[groups.length - 1];
+    if (cur && item.x - TARGET_HALF < cur.left + TARGET_PX) cur.items.push(item);
+    else groups.push({ left: Math.max(0, item.x - TARGET_HALF), items: [item] });
+  }
+  return groups.map((g, i) => {
+    const last = g.items[g.items.length - 1]!;
+    const next = groups[i + 1];
+    const right = Math.max(g.left + TARGET_PX, Math.min(last.x + TARGET_HALF, next ? next.left : Infinity));
+    const painted = [...g.items].sort((a, b) => a.paint - b.paint);
+    // Paint order is least important first, so the last member has the most important kind; g.items is by time.
+    const topKind = painted[painted.length - 1]!.marker.cluster.kind;
+    const primary = g.items.find((p) => p.marker.cluster.kind === topKind)!;
+    return { left: g.left, width: right - g.left, primary: primary.marker, members: painted.map((p) => ({ marker: p.marker, offset: p.x - g.left })) };
+  });
+}
+
 /** Lays out one lane's markers: merge, collapse busy kinds to ticks, order by priority, fit badges. */
 export function layoutLane(markers: MarkerVm[], opts: LayoutOptions): LaneLayout {
   const width = Math.max(1, opts.plotWidth);
@@ -121,8 +170,10 @@ export function layoutLane(markers: MarkerVm[], opts: LayoutOptions): LaneLayout
   };
   shapes.sort((a, b) => rank(b.cluster.kind) - rank(a.cluster.kind) || a.left - b.left);
   const badges = placeBadges(shapes, width);
+  const laid = shapes.map((m) => ({ ...m, showCount: badges.has(m) }));
   return {
-    shapes: shapes.map((m) => ({ ...m, showCount: badges.has(m) })),
+    shapes: laid,
+    targets: layoutTargets(laid, width),
     ticks: compact.map((m) => m.left).sort((a, b) => a - b),
     tickCount: compact.reduce((n, m) => n + m.cluster.count, 0),
   };

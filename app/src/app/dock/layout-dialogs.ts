@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { AutoFocus } from '../shared/auto-focus';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { DockService } from './dock.service';
 import { MAX_LAYOUT_NAME } from './named-layouts';
@@ -9,16 +10,17 @@ import { WindowLayouts } from './window-layouts';
 @Component({
   selector: 'imt-save-layout-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AutoFocus],
   template: `
     <form (submit)="$event.preventDefault(); save()">
-      <label for="imt-layout-name">Layout name</label>
-      <input id="imt-layout-name" class="input" type="text" [maxLength]="max" [value]="name()" (input)="name.set($any($event.target).value)" autofocus />
+      <label for="imt-layout-name" i18n="@@dock.layoutDialog.name">Layout name</label>
+      <input id="imt-layout-name" class="input" type="text" [maxLength]="max" [value]="name()" (input)="name.set($any($event.target).value)" imtAutoFocus />
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
       <div class="foot">
-        <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-        <button type="submit" class="btn primary">Save</button>
+        <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@dock.layoutDialog.cancel">Cancel</button>
+        <button type="submit" class="btn primary" i18n="@@dock.layoutDialog.save">Save</button>
       </div>
     </form>
   `,
@@ -33,13 +35,13 @@ export class SaveLayoutDialog {
   protected readonly ref = inject(DIALOG_REF);
   private readonly layouts = inject(WindowLayouts);
   protected readonly max = MAX_LAYOUT_NAME;
-  protected readonly name = signal(`Layout ${this.layouts.list().length + 1}`);
+  protected readonly name = signal($localize`:@@dock.layoutDialog.defaultName:Layout ${this.layouts.list().length + 1}:n:`);
   protected readonly error = signal<string | null>(null);
 
   protected save(): void {
     const saved = this.layouts.saveCurrent(this.name());
     if (saved) this.ref.close(saved);
-    else this.error.set('Type a name for the layout.');
+    else this.error.set($localize`:@@dock.layoutDialog.nameRequired:Type a name for the layout.`);
   }
 }
 
@@ -47,34 +49,34 @@ export class SaveLayoutDialog {
 @Component({
   selector: 'imt-manage-layouts-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe],
+  imports: [DatePipe, AutoFocus],
   template: `
     @if (layouts.list().length) {
-      <ol class="list" aria-label="Saved window layouts">
+      <ol class="list" aria-label="Saved window layouts" i18n-aria-label="@@dock.layoutDialog.saved">
         @for (l of layouts.list(); track l.name; let i = $index) {
           <li>
             <span class="key">{{ i < 4 ? 'Ctrl+Alt+' + (i + 1) : '' }}</span>
             @if (renaming() === l.name) {
-              <input class="input" type="text" [attr.aria-label]="'New name for ' + l.name" [value]="l.name" [maxLength]="60"
-                     (keydown.enter)="rename(l.name, $any($event.target).value)" (keydown.escape)="$event.stopPropagation(); renaming.set(null)" autofocus />
+              <input class="input" type="text" [attr.aria-label]="newNameLabel(l.name)" [value]="l.name" [maxLength]="60"
+                     (keydown.enter)="rename(l.name, $any($event.target).value)" (keydown.escape)="$event.stopPropagation(); renaming.set(null)" imtAutoFocus />
             } @else {
               <span class="name">{{ l.name }}</span>
               <span class="when">{{ l.savedAt | date: 'short' }}</span>
             }
-            <button type="button" class="btn" (click)="apply(l.name)" [attr.aria-label]="'Apply ' + l.name">Apply</button>
-            <button type="button" class="btn ghost" (click)="renaming.set(l.name)" [attr.aria-label]="'Rename ' + l.name">Rename</button>
-            <button type="button" class="btn ghost" [disabled]="i === 0" (click)="layouts.move(l.name, -1)" [attr.aria-label]="'Move ' + l.name + ' up'">↑</button>
-            <button type="button" class="btn ghost" [disabled]="i === layouts.list().length - 1" (click)="layouts.move(l.name, 1)" [attr.aria-label]="'Move ' + l.name + ' down'">↓</button>
-            <button type="button" class="btn ghost" (click)="layouts.remove(l.name)" [attr.aria-label]="'Delete ' + l.name">Delete</button>
+            <button type="button" class="btn" (click)="apply(l.name)" [attr.aria-label]="applyLabel(l.name)" i18n="@@dock.layoutDialog.apply">Apply</button>
+            <button type="button" class="btn ghost" (click)="renaming.set(l.name)" [attr.aria-label]="renameLabel(l.name)" i18n="@@dock.layoutDialog.rename">Rename</button>
+            <button type="button" class="btn ghost" [disabled]="i === 0" (click)="layouts.move(l.name, -1)" [attr.aria-label]="moveUpLabel(l.name)">↑</button>
+            <button type="button" class="btn ghost" [disabled]="i === layouts.list().length - 1" (click)="layouts.move(l.name, 1)" [attr.aria-label]="moveDownLabel(l.name)">↓</button>
+            <button type="button" class="btn ghost" (click)="layouts.remove(l.name)" [attr.aria-label]="deleteLabel(l.name)" i18n="@@dock.layoutDialog.delete">Delete</button>
           </li>
         }
       </ol>
     } @else {
-      <p class="empty">No saved window layouts yet. Use Window › Save window layout… to save the current arrangement.</p>
+      <p class="empty" i18n="@@dock.layoutDialog.empty">No saved window layouts yet. Use Window › Save window layout… to save the current arrangement.</p>
     }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="reset()">Reset window layout</button>
-      <button type="button" class="btn primary" (click)="ref.close()">Close</button>
+      <button type="button" class="btn ghost" (click)="reset()" i18n="@@dock.layoutDialog.reset">Reset window layout</button>
+      <button type="button" class="btn primary" (click)="ref.close()" i18n="@@dock.layoutDialog.close">Close</button>
     </div>
   `,
   styles: `
@@ -93,6 +95,30 @@ export class ManageLayoutsDialog {
   protected readonly layouts = inject(WindowLayouts);
   private readonly dock = inject(DockService);
   protected readonly renaming = signal<string | null>(null);
+
+  protected newNameLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.newNameLabel:New name for ${name}:name:`;
+  }
+
+  protected applyLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.applyLabel:Apply ${name}:name:`;
+  }
+
+  protected renameLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.renameLabel:Rename ${name}:name:`;
+  }
+
+  protected moveUpLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.moveUpLabel:Move ${name}:name: up`;
+  }
+
+  protected moveDownLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.moveDownLabel:Move ${name}:name: down`;
+  }
+
+  protected deleteLabel(name: string): string {
+    return $localize`:@@dock.layoutDialog.deleteLabel:Delete ${name}:name:`;
+  }
 
   protected apply(name: string): void {
     if (this.layouts.apply(name)) this.ref.close();

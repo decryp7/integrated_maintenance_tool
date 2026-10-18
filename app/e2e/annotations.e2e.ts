@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { gridTotal, initialTotal, openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
+import { openAppWith } from './mock-url';
 
 async function runCommand(page: Page, title: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
@@ -48,13 +49,36 @@ test.describe('plugin annotations on the timeline', () => {
     await expect(page.getByRole('button', { name: 'Fit' })).toBeEnabled();
   });
 
-  test('annotations come back after a failed request with Retry', async ({ page }) => {
-    await page.goto('/?mockFail=annotations:1');
+  test('the Evidence menu reaches every annotation from the keyboard', async ({ page }, testInfo) => {
     const timeline = page.locator('imt-timeline-panel');
-    await expect(timeline.getByText('Annotations unavailable')).toBeVisible();
-    await timeline.getByRole('group', { name: 'Annotations' }).getByRole('button', { name: 'Retry' }).click();
-    await expect(timeline.locator('.lane .ann').first()).toBeVisible();
+    // Bands and glyphs are pointer shortcuts (markers may cover them): they are not tab stops.
+    await expect(timeline.locator('.lane .ann').first()).toHaveAttribute('tabindex', '-1');
+    const evidence = timeline.getByRole('group', { name: 'Annotations' }).getByRole('button', { name: 'Evidence…' });
+    await evidence.focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu');
+    const item = menu.getByRole('menuitem', { name: /Unexpected shutdown/ }).first();
+    await expect(item).toBeVisible();
+    await expectNoSeriousViolations(page, testInfo, 'timeline-evidence-menu');
+    const all = await initialTotal(page);
+    await item.click();
+    await expect(menu).toHaveCount(0);
+    await expect(gridTotal(page)).not.toHaveText(all);
   });
+});
+
+test('annotations come back after a failed request with Retry', async ({ page }) => {
+  // Load the app once, with the failure (no prior load to wait for), and sync on the timeline's lanes: the
+  // annotations are requested only once the timeline has data, so the error can only appear after them.
+  await openAppWith(page, '?mockFail=annotations:1');
+  const timeline = page.locator('imt-timeline-panel');
+  await expect(timeline.locator('.lane').first()).toBeVisible();
+  const legend = timeline.getByRole('group', { name: 'Annotations' });
+  await expect(legend.getByRole('alert')).toHaveText('Annotations unavailable');
+  await expect(timeline.locator('.lane .ann')).toHaveCount(0);
+  await legend.getByRole('button', { name: 'Retry' }).click();
+  await expect(timeline.locator('.lane .ann').first()).toBeVisible();
+  await expect(legend.getByRole('alert')).toHaveCount(0);
 });
 
 test.describe('plugin marker kinds', () => {

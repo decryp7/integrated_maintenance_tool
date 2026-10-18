@@ -9,6 +9,7 @@ import { QlSuggestions } from './ql-suggestions';
 import { CHECK_DELAY_MS, QuerySession } from './query-session';
 import { QueryView } from './query-view';
 import { loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
+import { at } from '../../testing/must';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const unknown = (text: string, name: string, suggestions: string[]): QlError => {
@@ -50,7 +51,7 @@ describe('did you mean (query language)', () => {
     expect(el(fixture, '[data-testid=did-you-mean]').textContent).toContain('Did you mean');
     const buttons = all<HTMLButtonElement>(fixture, 'button');
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Replace with Level', 'Replace with LevelName']);
-    buttons[1].click();
+    at(buttons, 1).click();
     expect(picked).toEqual(['LevelName']);
   });
 });

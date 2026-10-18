@@ -51,13 +51,14 @@ export function qlToConditions(ql: string): Condition[] | null {
   const pieces = text.split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/);
   let buf = '';
   for (let i = 0; i < pieces.length; i++) {
-    if (i % 2) buf += pieces[i];
+    const piece = pieces[i] ?? '';
+    if (i % 2) buf += piece;
     else {
-      const bits = pieces[i].split(/\s+and\s+/i);
-      buf += bits[0];
+      const bits = piece.split(/\s+and\s+/i);
+      buf += bits[0] ?? '';
       for (let b = 1; b < bits.length; b++) {
         parts.push(buf);
-        buf = bits[b];
+        buf = bits[b] ?? '';
       }
     }
   }
@@ -66,10 +67,12 @@ export function qlToConditions(ql: string): Condition[] | null {
   for (const part of parts) {
     const m = QL_TERM.exec(part.trim());
     if (!m) return null;
-    const raw = m[3];
+    const [, name, opText, raw] = m;
+    const op = opText === undefined ? undefined : QL_OPS[opText.toLowerCase()];
+    if (name === undefined || raw === undefined || op === undefined) return null;
     const value = raw.slice(1, -1).replace(/\\(["'\\])/g, '$1');
-    const field = ['level', 'message', 'exception', 'template', 'source'].includes(m[1].toLowerCase()) ? `@${m[1].toLowerCase()}` : m[1];
-    out.push({ field, op: QL_OPS[m[2].toLowerCase()], value });
+    const field = ['level', 'message', 'exception', 'template', 'source'].includes(name.toLowerCase()) ? `@${name.toLowerCase()}` : name;
+    out.push({ field, op, value });
   }
   return out;
 }

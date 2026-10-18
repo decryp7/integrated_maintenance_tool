@@ -27,6 +27,7 @@ pub(crate) const STEP_KINDS: &[&str] = &[
     "parse_json",
     "parse_kv",
     "shift_time",
+    "calc",
 ];
 const MAX_STEPS: usize = 8;
 
@@ -36,7 +37,7 @@ Pseudo-fields: @level @message @exception @source. Regexes use Rust syntax. Answ
 
 const CATALOGUE: &str = "Step kinds: drop (when) removes events; keep (when) keeps only matching events; mask (field, regex, replace like \"$1=***\"); \
 dedupe (fields, window like \"5s\"); remove_fields (fields); rename (from, to); set (field, value); set_level (level, when); truncate (field, max); \
-parse_json / parse_kv (field, prefix); shift_time (by like \"+2.4s\").";
+parse_json / parse_kv (field, prefix); shift_time (by like \"+2.4s\"); calc (field, expr) computes a field from an expression, e.g. {\"field\":\"ElapsedSec\",\"expr\":\"round(ElapsedMs / 1000, 1)\"} (operators + - * / % comparisons and/or/not; functions round floor ceil abs min max len lower upper coalesce if substr to_number).";
 
 const EXAMPLES: &str = r#"Examples:
 Goal "ignore health checks": {"steps":[{"step":"drop","when":[{"field":"@message","op":"contains","value":"/health"}]}],"rationale":"Health probes are noise."}
@@ -52,7 +53,7 @@ pub(crate) fn step_schema() -> Value {
                 "step": {"type": "string", "enum": STEP_KINDS},
                 "when": {"type": "array", "items": cond},
                 "field": text, "fields": {"type": "array", "items": text}, "regex": text, "replace": text, "window": text,
-                "from": text, "to": text, "value": text, "level": text, "max": {"type": "integer"}, "prefix": text, "by": text
+                "from": text, "to": text, "value": text, "level": text, "max": {"type": "integer"}, "prefix": text, "by": text, "expr": text
             }, "required": ["step"]}},
             "rationale": {"type": "string"}
         },

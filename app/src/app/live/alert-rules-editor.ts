@@ -20,10 +20,10 @@ type Phase = 'loading' | 'ready' | 'busy';
   imports: [QlInput],
   template: `
     @if (loadError(); as e) {
-      <p class="err" role="alert">The profile could not be loaded: {{ e }}</p>
+      <p class="err" role="alert" i18n="@@live.rulesEditor.loadFailed">The profile could not be loaded: {{ e }}</p>
     } @else if (draft(); as d) {
       <fieldset class="group" [class.invalid]="isField('alerts')">
-        <legend>Detectors that raise alerts</legend>
+        <legend i18n="@@live.rulesEditor.detectors">Detectors that raise alerts</legend>
         <div class="checks">
           @for (k of detectors; track k) {
             <label class="check"><input type="checkbox" [checked]="d.detectors.includes(k)" (change)="toggleDetector(k, $any($event.target).checked)" />{{ detectorLabels[k] }}</label>
@@ -33,70 +33,70 @@ type Phase = 'loading' | 'ready' | 'busy';
       </fieldset>
 
       <div class="row">
-        <label class="lbl" [class.invalid]="isField('silence_after')">Silence after
+        <label class="lbl" [class.invalid]="isField('silence_after')"><ng-container i18n="@@live.rulesEditor.silenceAfter">Silence after</ng-container>
           <input class="input mono" [value]="d.silenceAfter" (change)="patch({ silenceAfter: $any($event.target).value })" placeholder="60s" />
         </label>
-        <label class="lbl" [class.invalid]="isField('cooldown')">Cooldown
+        <label class="lbl" [class.invalid]="isField('cooldown')"><ng-container i18n="@@live.rulesEditor.cooldown">Cooldown</ng-container>
           <input class="input mono" [value]="d.cooldown" (change)="patch({ cooldown: $any($event.target).value })" placeholder="5m" />
         </label>
-        <label class="lbl" [class.invalid]="isField('window')">Detector window
+        <label class="lbl" [class.invalid]="isField('window')"><ng-container i18n="@@live.rulesEditor.detectorWindow">Detector window</ng-container>
           <input class="input mono" [value]="d.window" (change)="patch({ window: $any($event.target).value })" placeholder="5m" />
         </label>
-        <label class="lbl" [class.invalid]="isField('clock')">"Now" is
+        <label class="lbl" [class.invalid]="isField('clock')"><ng-container i18n="@@live.rulesEditor.nowIs">"Now" is</ng-container>
           <select class="select" (change)="patch({ clock: $any($event.target).value })">
-            <option value="data" [selected]="d.clock === 'data'">the newest event</option>
-            <option value="wall" [selected]="d.clock === 'wall'">the system clock</option>
+            <option value="data" [selected]="d.clock === 'data'" i18n="@@live.rulesEditor.clockData">the newest event</option>
+            <option value="wall" [selected]="d.clock === 'wall'" i18n="@@live.rulesEditor.clockWall">the system clock</option>
           </select>
         </label>
       </div>
       @if (fieldError(); as e) { <div class="err">{{ e }}</div> }
 
       <div class="rules-head">
-        <span class="section-title">Alert rules</span>
-        <span class="faint small">Alert when the condition matches at least <em>threshold</em> events within the window.</span>
+        <span class="section-title" i18n="@@live.rulesEditor.rulesTitle">Alert rules</span>
+        <span class="faint small" i18n="@@live.rulesEditor.rulesHelp">Alert when the condition matches at least <em>threshold</em> events within the window.</span>
         <span class="spacer"></span>
-        <button type="button" class="btn" (click)="addRule()">+ Add rule</button>
+        <button type="button" class="btn" (click)="addRule()" i18n="@@live.rulesEditor.addRule">+ Add rule</button>
       </div>
       <div class="rules">
         @for (r of d.rules; track $index; let i = $index) {
           <fieldset class="rule" [class.invalid]="isRule(i)" [attr.aria-invalid]="isRule(i) ? 'true' : null">
-            <legend class="sr">Rule {{ i + 1 }}</legend>
+            <legend class="sr" i18n="@@live.rulesEditor.ruleLegend">Rule {{ i + 1 }}</legend>
             <div class="row">
-              <label class="lbl name">Name<input class="input" [value]="r.name" (change)="patchRule(i, { name: $any($event.target).value })" /></label>
-              <label class="lbl num">Threshold<input class="input mono" type="number" min="1" [value]="r.threshold" (change)="patchRule(i, { threshold: +$any($event.target).value })" /></label>
-              <label class="lbl num">Window<input class="input mono" [value]="r.window" (change)="patchRule(i, { window: $any($event.target).value })" placeholder="1m" /></label>
-              <label class="lbl num">Severity
+              <label class="lbl name"><ng-container i18n="@@live.rulesEditor.ruleName">Name</ng-container><input class="input" [value]="r.name" (change)="patchRule(i, { name: $any($event.target).value })" /></label>
+              <label class="lbl num"><ng-container i18n="@@live.rulesEditor.threshold">Threshold</ng-container><input class="input mono" type="number" min="1" [value]="r.threshold" (change)="patchRule(i, { threshold: +$any($event.target).value })" /></label>
+              <label class="lbl num"><ng-container i18n="@@live.rulesEditor.ruleWindow">Window</ng-container><input class="input mono" [value]="r.window" (change)="patchRule(i, { window: $any($event.target).value })" placeholder="1m" /></label>
+              <label class="lbl num"><ng-container i18n="@@live.rulesEditor.severity">Severity</ng-container>
                 <select class="select" (change)="patchRule(i, { severity: $any($event.target).value })">
                   @for (s of severities; track s) { <option [value]="s" [selected]="s === r.severity">{{ sevLabel(s) }}</option> }
                 </select>
               </label>
-              <button type="button" class="icon-btn rm" [attr.aria-label]="'Remove rule ' + r.name" [title]="'Remove rule ' + r.name" (click)="removeRule(i)">×</button>
+              <button type="button" class="icon-btn rm" [attr.aria-label]="removeLabel(r.name)" [title]="removeLabel(r.name)" (click)="removeRule(i)">×</button>
             </div>
-            <div class="lbl">When
-              <imt-ql-input [value]="r.when" [label]="'Condition of rule ' + (i + 1)" (valueChange)="patchRule(i, { when: $event })" />
+            <div class="lbl"><ng-container i18n="@@live.rulesEditor.when">When</ng-container>
+              <imt-ql-input [value]="r.when" [label]="conditionLabel(i)" (valueChange)="patchRule(i, { when: $event })" />
             </div>
             @if (isRule(i)) { <div class="err" role="alert">{{ failure()!.message }}</div> }
           </fieldset>
         } @empty {
-          <p class="faint small">No alert rules. The detectors above still raise alerts.</p>
+          <p class="faint small" i18n="@@live.rulesEditor.noRules">No alert rules. The detectors above still raise alerts.</p>
         }
       </div>
 
       @if (generalError(); as f) {
         <div class="err" role="alert">
           {{ f.message }}
-          @if (f.line) { <div class="box">line {{ f.line }}: {{ f.excerpt }}</div> }
+          @if (f.line) { <div class="box" i18n="@@live.rulesEditor.lineExcerpt">line {{ f.line }}: {{ f.excerpt }}</div> }
         </div>
       }
-      @if (validated()) { <p class="ok" role="status">The rules are valid.</p> }
+      @if (validated()) { <p class="ok" role="status" i18n="@@live.rulesEditor.valid">The rules are valid.</p> }
 
       <div class="foot">
-        <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-        <button type="button" class="btn" [disabled]="phase() !== 'ready'" (click)="validate()">Validate</button>
-        <button type="button" class="btn primary" [disabled]="phase() !== 'ready'" (click)="save()">Save</button>
+        <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@live.rulesEditor.cancel">Cancel</button>
+        <button type="button" class="btn" [disabled]="phase() !== 'ready'" (click)="validate()" i18n="@@live.rulesEditor.validate">Validate</button>
+        <button type="button" class="btn primary" [disabled]="phase() !== 'ready'" (click)="save()" i18n="@@live.rulesEditor.save">Save</button>
       </div>
     } @else {
-      <p class="faint" role="status">Loading the profile…</p>
+      <p class="faint" role="status" i18n="@@live.rulesEditor.loading">Loading the profile…</p>
     }
   `,
   styles: [
@@ -155,6 +155,14 @@ export class AlertRulesEditor implements OnInit {
     } catch (e) {
       this.loadError.set(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  protected removeLabel(name: string): string {
+    return $localize`:@@live.rulesEditor.removeRule:Remove rule ${name}:name:`;
+  }
+
+  protected conditionLabel(i: number): string {
+    return $localize`:@@live.rulesEditor.condition:Condition of rule ${i + 1}:number:`;
   }
 
   protected isRule(i: number): boolean {

@@ -7,9 +7,14 @@ import { MockToolsOptions } from '../mock/mock-tools-backend';
 import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { MonitorView } from './monitor-view';
 import { ACCESS_DENIED_FIELD, MonitorStore } from './monitor.store';
+import { at } from '../../../testing/must';
+import { FakeECharts } from '../../../testing/fake-echarts';
+
+// The view hosts the live charts once a run starts: a fake ECharts keeps canvas out of jsdom.
+const charts = new FakeECharts();
 
 async function setup(options: Partial<MockToolsOptions> = {}) {
-  TestBed.configureTestingModule({ providers: provideToolsTesting(options) });
+  TestBed.configureTestingModule({ providers: [...provideToolsTesting(options), charts.provider] });
   const fixture = TestBed.createComponent(MonitorView);
   await TestBed.inject(LifecycleService).init();
   await settle(fixture);
@@ -73,12 +78,15 @@ describe('MonitorStore', () => {
 
 describe('MonitorView', () => {
   it('configures targets and sampling, starts and stops with a running status', async () => {
-    const { fixture, store, tools } = await setup();
+    const { fixture, store } = await setup();
     expect(el(fixture, '[data-testid=monitor-status]').textContent).toContain('Stopped');
     expect(buttonByText(fixture, 'Start').disabled).toBe(true);
-    expect(text(fixture)).toContain('Add at least one process');
+    // No validation message before the user has touched the form.
+    expect(text(fixture)).not.toContain('Add at least one process');
 
     typeInto(el(fixture, 'select[aria-label="Target type 1"]'), 'path', 'change');
+    await settle(fixture);
+    expect(text(fixture)).toContain('Add at least one process');
     typeInto(el(fixture, 'input[aria-label="Target value 1"]'), 'C:\\svc\\*');
     buttonByText(fixture, /Add target/).click();
     await settle(fixture);
@@ -92,9 +100,11 @@ describe('MonitorView', () => {
     typeInto(el(fixture, 'input[type=number]'), '1000');
     typeInto(el(fixture, 'select:not([aria-label])'), 'core', 'change');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
+    at(all<HTMLInputElement>(fixture, 'input[type=checkbox]'), 1).click();
     typeInto(el(fixture, 'textarea'), '\\Process(*)\\Handle Count');
-    typeInto(all<HTMLInputElement>(fixture, 'input.mono')[0], '/out');
-    expect(store.draft()).toMatchObject({ intervalMs: 1000, cpu: 'core', includeChildren: true, counters: '\\Process(*)\\Handle Count', dir: '/out' });
+    typeInto(at(all<HTMLInputElement>(fixture, 'input.mono'), 0), '/out');
+    expect(store.draft()).toMatchObject({ intervalMs: 1000, cpu: 'core', includeChildren: true, counters: '\\Process(*)\\Handle Count', dir: '/out', dotnet: true });
+    expect(text(fixture)).toContain('.NET runtime counters (Framework)');
 
     buttonByText(fixture, 'Start').click();
     await settle(fixture);
@@ -109,7 +119,7 @@ describe('MonitorView', () => {
   });
 
   it('offers counters on Windows even when already elevated', async () => {
-    TestBed.configureTestingModule({ providers: provideToolsTesting() });
+    TestBed.configureTestingModule({ providers: [...provideToolsTesting(), charts.provider] });
     vi.spyOn(mockTools(), 'elevation').mockResolvedValue({ elevated: true, canRestartElevated: false, platform: 'windows' });
     await TestBed.inject(LifecycleService).init();
     expect(TestBed.inject(MonitorStore).countersAvailable()).toBe(true);

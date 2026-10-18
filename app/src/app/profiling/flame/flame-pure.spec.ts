@@ -106,8 +106,8 @@ describe('chainTo / extendFocus / hitTest / topRects / breadcrumbs', () => {
 
   it('breadcrumbs start with All and accumulate paths', () => {
     const names: Record<number, string> = { 5: 'five', 6: 'six' };
-    expect(breadcrumbs([], (i) => names[i])).toEqual([{ label: 'All', path: [] }]);
-    expect(breadcrumbs([5, 6], (i) => names[i])).toEqual([
+    expect(breadcrumbs([], (i) => names[i] ?? '')).toEqual([{ label: 'All', path: [] }]);
+    expect(breadcrumbs([5, 6], (i) => names[i] ?? '')).toEqual([
       { label: 'All', path: [] },
       { label: 'five', path: [5] },
       { label: 'six', path: [5, 6] },
@@ -365,8 +365,8 @@ describe('flame drawing', () => {
     const m = buildFlameModel(graph([rc(0, 0, 0, 1), rc(1, 1, 0, 0.5)]));
     drawFlame(ctx, m, opts({ orientation: 'flame' }));
     const fills = calls.filter((c) => c[0] === 'fillRect');
-    expect(fills[0][2]).toBe(FLAME_ROW_H);
-    expect(fills[1][2]).toBe(0);
+    expect(fills[0]?.[2]).toBe(FLAME_ROW_H);
+    expect(fills[1]?.[2]).toBe(0);
   });
 
   it('uses the frame id as a label for unknown frames and skips labels that cannot fit', () => {
@@ -387,8 +387,8 @@ describe('flame drawing', () => {
     drawFlame(ctx, m, opts());
     const fills = calls.filter((c) => c[0] === 'fillRect');
     expect(fills).toHaveLength(1); // only the one overlapping the right edge, clipped
-    expect(fills[0][1]).toBe(900);
-    expect(fills[0][3]).toBe(99); // (1000 - 900) - gap
+    expect(fills[0]?.[1]).toBe(900);
+    expect(fills[0]?.[3]).toBe(99); // (1000 - 900) - gap
   });
 
   it('draws a minimum 0.5px width for slivers', () => {
@@ -406,7 +406,7 @@ describe('flame drawing', () => {
     expect(alphas).toEqual([0.3, 1, 1, 1]); // per-rect, then reset
     const outlines = calls.filter((c) => c[0] === 'strokeRect');
     expect(outlines).toHaveLength(1); // the sliver (< 2px) is not outlined, the unmatched is not outlined
-    expect(outlines[0][2]).toBe(FLAME_ROW_H + 0.5);
+    expect(outlines[0]?.[2]).toBe(FLAME_ROW_H + 0.5);
   });
 
   it('does not dim when not searching', () => {

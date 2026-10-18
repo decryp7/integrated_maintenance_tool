@@ -182,6 +182,8 @@ impl Fixture {
             secrets: Arc::new(MemorySecretStore::new()),
             worker_path: self.worker.clone(),
             download_backoff: Duration::from_millis(1),
+            runtimes: test_runtimes(&self.tmp, self.host_delay),
+            settings: Arc::default(),
         }
     }
 
@@ -973,7 +975,7 @@ fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
         Some(tmp.0.join("ai")),
         tmp.0.join("models"),
         false,
-        AiDeps::system(worker),
+        AiDeps::system(worker, &tmp.0),
     ));
     let app = test_app_with_commands(None);
     super::manage(app.handle(), core.clone());
@@ -1015,4 +1017,434 @@ fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
     println!("status after {status}");
     assert_eq!(status["state"], "ready");
     assert!(status["rssBytes"].as_u64().unwrap() > 0);
+}
+
+// ---- inference runtimes ----
+
+const RT_TAG: &str = "b7";
+const SERVER_FILE: &str = if cfg!(windows) { "llama-server.exe" } else { "llama-server" };
+
+fn zip_of(files: &[(&str, &[u8])]) -> Vec<u8> {
+    use std::io::Write;
+    let mut w = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, data) in files {
+        w.start_file(*name, zip::write::SimpleFileOptions::default()).unwrap();
+        w.write_all(data).unwrap();
+    }
+    w.finish().unwrap().into_inner()
+}
+
+/// The archives of the test catalog: `cpu` and `vulkan` hold llama-server; `cuda-13` does not (broken).
+fn runtime_assets() -> Vec<(String, Vec<u8>)> {
+    let server = zip_of(&[(SERVER_FILE, b"fake server"), ("LICENSE", b"MIT")]);
+    // Incompressible, so the download takes a while (cancel, ticker).
+    let mut x: u32 = 1;
+    let noise: Vec<u8> = (0..128 * 1024)
+        .map(|_| {
+            x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (x >> 24) as u8
+        })
+        .collect();
+    let gpu = zip_of(&[(SERVER_FILE, &noise), ("ggml-vulkan.dll", b"lib")]);
+    let broken = zip_of(&[("README.md", b"no server here")]);
+    vec![
+        ("llama-b7-bin-test-cpu.zip".into(), server),
+        ("llama-b7-bin-test-vulkan.zip".into(), gpu),
+        ("llama-b7-bin-test-cuda-13.zip".into(), broken),
+    ]
+}
+
+fn runtime_catalog(assets: &[(String, Vec<u8>)], dir: &Path) -> imt_ai::runtimes::RuntimeCatalog {
+    let builds: Vec<Value> = assets
+        .iter()
+        .map(|(name, data)| {
+            let id = name.trim_start_matches("llama-b7-bin-test-").trim_end_matches(".zip");
+            json!({"id": id, "assets": [{
+                "name": name,
+                "url": format!("https://github.com/ggml-org/llama.cpp/releases/download/{RT_TAG}/{name}"),
+                "size": data.len(),
+                "sha256": sha256_of(data, dir),
+            }]})
+        })
+        .collect();
+    let json = json!({"version": 1, "release": "v9", "tag": RT_TAG, "platforms": {"test": builds}});
+    imt_ai::runtimes::RuntimeCatalog::parse(&json.to_string()).unwrap()
+}
+
+/// GitHub releases, served from memory (slowly when asked, honouring cancel).
+struct FakeReleases {
+    assets: Vec<(String, Vec<u8>)>,
+    catalog: imt_ai::runtimes::RuntimeCatalog,
+    delay: Duration,
+}
+
+impl ModelSource for FakeReleases {
+    fn describe(&self, tag: &str, name: &str) -> imt_ai::Result<RemoteFile> {
+        let a = self
+            .catalog
+            .platforms
+            .values()
+            .flatten()
+            .flat_map(|b| &b.assets)
+            .find(|a| a.name == name)
+            .ok_or_else(|| AiError::NotFound(name.into()))?;
+        Ok(RemoteFile {
+            repo: tag.into(),
+            file: a.name.clone(),
+            size: a.size,
+            sha256: a.sha256.clone(),
+            license: Some("MIT".into()),
+            gated: false,
+        })
+    }
+    fn fetch(
+        &self,
+        remote: &RemoteFile,
+        offset: u64,
+        sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+        cancel: &AtomicBool,
+    ) -> imt_ai::Result<()> {
+        let bytes = &self.assets.iter().find(|(n, _)| *n == remote.file).unwrap().1;
+        for chunk in bytes[offset as usize..].chunks(4 * 1024) {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(AiError::Cancelled);
+            }
+            std::thread::sleep(self.delay);
+            sink(chunk)?;
+        }
+        Ok(())
+    }
+}
+
+/// The runtime manager's adapters for tests: builds in `<tmp>/runtimes`, the fake releases, and a build
+/// report that lists every installed build as usable except Vulkan (no real GPU), like the worker would.
+fn test_runtimes(tmp: &TempDir, delay: Duration) -> super::runtimes::RuntimeDeps {
+    let assets = runtime_assets();
+    let catalog = runtime_catalog(&assets, &tmp.0);
+    let c = catalog.clone();
+    super::runtimes::RuntimeDeps {
+        store: Arc::new(imt_ai::runtimes::RuntimeStore::new(tmp.0.join("runtimes"))),
+        catalog,
+        platform: "test".into(),
+        source: Arc::new(move |_, _| {
+            Ok(Box::new(FakeReleases {
+                assets: assets.clone(),
+                catalog: c.clone(),
+                delay,
+            }) as Box<dyn ModelSource>)
+        }),
+        report: Arc::new(|env: &[(String, String)]| {
+            let get = |k: &str| env.iter().find(|(key, _)| key == k).map(|(_, v)| v.clone());
+            if get("IMT_LLAMA_SERVER").is_some_and(|p| p.contains("broken")) {
+                return Err(AiError::Engine("checking the inference builds failed".into()));
+            }
+            let dir = PathBuf::from(get("IMT_LLAMA_DIR").unwrap_or_default());
+            let mut builds: Vec<imt_ai::runtimes::BuildInfo> = std::fs::read_dir(&dir)
+                .map(|it| {
+                    it.flatten()
+                        .map(|e| e.file_name().to_string_lossy().into_owned())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|id| !id.starts_with('.') && id != "manifest.json")
+                .map(|id| imt_ai::runtimes::BuildInfo {
+                    usable: id != "vulkan",
+                    problem: (id == "vulkan").then(|| "no supported GPU was found".to_string()),
+                    devices: vec![],
+                    label: imt_ai::runtimes::builds::label(&id),
+                    id,
+                })
+                .collect();
+            builds.sort_by(|a, b| a.id.cmp(&b.id));
+            Ok(imt_ai::runtimes::BuildsReport {
+                release: Some(RT_TAG.into()),
+                source: "installed".into(),
+                choice: get("IMT_LLAMA_BUILD").unwrap_or_default(),
+                auto: None,
+                builds,
+                problem: None,
+            })
+        }),
+    }
+}
+
+fn runtime_events(app: &tauri::App<MockRuntime>) -> Arc<Mutex<Vec<Value>>> {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let e = events.clone();
+    app.listen_any(super::RUNTIME_EVENT, move |ev| {
+        e.lock().unwrap().push(serde_json::from_str::<Value>(ev.payload()).unwrap());
+    });
+    events
+}
+
+/// Waits for the install of `id` to end and returns its final event.
+fn install_end(events: &Arc<Mutex<Vec<Value>>>, id: &str) -> Value {
+    let end = |events: &Arc<Mutex<Vec<Value>>>| {
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| e["id"] == id && matches!(e["stage"].as_str(), Some("ready" | "failed" | "cancelled")))
+            .cloned()
+    };
+    wait_until("the install to end", || end(events).is_some());
+    end(events).unwrap()
+}
+
+fn build<'a>(overview: &'a Value, id: &str) -> &'a Value {
+    overview["builds"].as_array().unwrap().iter().find(|b| b["id"] == id).unwrap()
+}
+
+fn ai_section(main: &tauri::WebviewWindow<MockRuntime>) -> Value {
+    let overview = ipc(main, "settings_sections", json!({})).unwrap();
+    overview["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["id"] == "ai")
+        .unwrap()
+        .clone()
+}
+
+fn inference_build_options(main: &tauri::WebviewWindow<MockRuntime>) -> Vec<String> {
+    let ai = ai_section(main);
+    let field = ai["fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["key"] == "inference_build")
+        .unwrap()
+        .clone();
+    let options = field["kind"]["options"].as_array().cloned().unwrap_or_default();
+    options.iter().map(|o| o["value"].as_str().unwrap().to_string()).collect()
+}
+
+#[test]
+fn runtimes_are_listed_installed_as_a_background_task_chosen_and_deleted() {
+    let mut f = Fixture::new("runtimes");
+    f.host_delay = Duration::from_millis(2);
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = runtime_events(&app);
+    let main = window(&app, "main");
+
+    // Nothing installed: the set-up should offer the suggested download (Vulkan for the laptop's GPU).
+    let o = ipc(&main, "ai_runtimes", json!({})).unwrap();
+    assert_eq!(
+        (o["needsDownload"].as_bool(), o["suggested"].as_str()),
+        (Some(true), Some("vulkan"))
+    );
+    assert_eq!(
+        (o["tag"].as_str(), o["choice"].as_str(), o["active"].as_str()),
+        (Some(RT_TAG), Some("auto"), None)
+    );
+    assert_eq!(o["builds"].as_array().unwrap().len(), 3);
+    assert!(build(&o, "cpu")["downloadBytes"].as_u64().unwrap() > 0 && build(&o, "cpu")["installed"] == false);
+    assert_eq!(inference_build_options(&main), ["auto"], "only installed builds can be chosen");
+
+    // Install the CPU build: stages, ticker, ready; listed as a stoppable download meanwhile.
+    ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
+    let end = install_end(&events, "cpu");
+    assert_eq!(end["stage"], "ready", "{end}");
+    assert_eq!(
+        (end["runtime"]["tag"].as_str(), end["runtime"]["current"].as_bool()),
+        (Some(RT_TAG), Some(true))
+    );
+    let stages: Vec<String> = events
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|e| e["stage"].as_str().unwrap().to_string())
+        .collect();
+    for s in ["downloading", "unpacking", "finishing", "ready"] {
+        assert!(stages.contains(&s.to_string()), "{s} in {stages:?}");
+    }
+    let first = events.lock().unwrap()[0].clone();
+    assert_eq!((first["index"].as_u64(), first["count"].as_u64()), (Some(1), Some(1)));
+    wait_until("the task to go", || {
+        ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty()
+    });
+    let o = ipc(&main, "ai_runtimes", json!({})).unwrap();
+    assert_eq!((o["needsDownload"].as_bool(), o["active"].as_str()), (Some(false), Some("cpu")));
+    let cpu = build(&o, "cpu");
+    assert!(cpu["installed"] == true && cpu["usable"] == true && cpu["active"] == true && cpu["installedBytes"].as_u64() > Some(0));
+    assert_eq!(inference_build_options(&main), ["auto", "cpu"]);
+
+    // A broken download is reported and leaves nothing behind.
+    ipc(&main, "ai_runtime_install", json!({"id": "cuda-13"})).unwrap();
+    let end = install_end(&events, "cuda-13");
+    assert_eq!(
+        (end["stage"].as_str(), end["code"].as_str()),
+        (Some("failed"), Some("integrity")),
+        "{end}"
+    );
+    assert!(!f.tmp.0.join("runtimes").join(RT_TAG).join("cuda-13").exists());
+
+    // An installed GPU build that sees no GPU is listed with its problem and not used automatically.
+    ipc(&main, "ai_runtime_install", json!({"id": "vulkan"})).unwrap();
+    assert_eq!(install_end(&events, "vulkan")["stage"], "ready");
+    let o = ipc(&main, "ai_runtimes", json!({})).unwrap();
+    let vk = build(&o, "vulkan");
+    assert!(vk["usable"] == false && vk["problem"].as_str().unwrap().contains("GPU") && vk["suggested"] == true);
+    assert_eq!(o["active"], "cpu");
+
+    // Choosing goes through the settings (saved and validated there) and reaches the worker's environment.
+    ipc(&main, "ai_runtime_choose", json!({"id": "vulkan"})).unwrap();
+    assert_eq!(core.settings().inference_build, "vulkan");
+    let env = core.deps.runtimes.worker_env(&core.settings());
+    assert!(env.contains(&("IMT_LLAMA_BUILD".to_string(), "vulkan".to_string())), "{env:?}");
+    assert_eq!(ai_section(&main)["values"]["inference_build"], "vulkan");
+    assert_eq!(ipc(&main, "ai_runtimes", json!({})).unwrap()["choice"], "vulkan");
+    ipc(&main, "ai_runtime_choose", json!({"id": "AUTO"})).unwrap();
+    assert_eq!(core.settings().inference_build, "auto");
+    for (id, want) in [("cuda-13", "notFound"), ("../x", "invalid"), ("", "invalid")] {
+        assert_eq!(code(ipc(&main, "ai_runtime_choose", json!({"id": id})).unwrap_err()), want, "{id}");
+    }
+
+    // Deleting removes the build (its option disappears); bad names are refused before anything runs.
+    ipc(&main, "ai_runtime_delete", json!({"tag": RT_TAG, "id": "vulkan"})).unwrap();
+    assert_eq!(inference_build_options(&main), ["auto", "cpu"]);
+    assert_eq!(
+        code(ipc(&main, "ai_runtime_delete", json!({"tag": RT_TAG, "id": "vulkan"})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_runtime_delete", json!({"tag": "..", "id": "cpu"})).unwrap_err()),
+        "invalid"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_runtime_install", json!({"id": "metal"})).unwrap_err()),
+        "notFound"
+    );
+}
+
+#[test]
+fn a_runtime_install_can_be_cancelled_and_only_one_runs() {
+    let mut f = Fixture::new("rt-cancel");
+    f.host_delay = Duration::from_millis(30);
+    let app = f.app(f.core());
+    let events = runtime_events(&app);
+    let main = window(&app, "main");
+    assert_eq!(ipc(&main, "ai_runtime_cancel", json!({})).unwrap(), false);
+    ipc(&main, "ai_runtime_install", json!({"id": "vulkan"})).unwrap();
+    assert_eq!(code(ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap_err()), "busy");
+    wait_until("the download task", || {
+        ipc(&main, "background_tasks", json!({}))
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["id"] == super::runtime_commands::RUNTIME_TASK && t["stoppable"] == true)
+    });
+    wait_until("progress", || events.lock().unwrap().iter().any(|e| e["stage"] == "progress"));
+    let tick = events.lock().unwrap().iter().find(|e| e["stage"] == "progress").cloned().unwrap();
+    assert!(tick["total"].as_u64().unwrap() > 0 && tick.get("bytesPerSec").is_some() && tick["verifying"] == false);
+    // Stop it like the tray does.
+    ipc(&main, "stop_background_task", json!({"id": super::runtime_commands::RUNTIME_TASK})).unwrap();
+    assert_eq!(install_end(&events, "vulkan")["stage"], "cancelled");
+    wait_until("no task", || {
+        ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty()
+    });
+    assert_eq!(ipc(&main, "ai_runtimes", json!({})).unwrap()["needsDownload"], true);
+}
+
+#[test]
+fn changing_the_build_restarts_a_loaded_engine_and_deleting_stops_it() {
+    let f = Fixture::new("rt-restart");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let rt_events = runtime_events(&app);
+    let main = window(&app, "main");
+    ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap();
+    assert_eq!(install_end(&rt_events, "cpu")["stage"], "ready");
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
+    wait_until("loaded", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
+    assert_eq!(*f.runtime.loads.lock().unwrap(), 1);
+    // A new build: the engine restarts with it (loaded again, in the background).
+    ipc(&main, "ai_runtime_choose", json!({"id": "cpu"})).unwrap();
+    wait_until("reloaded", || *f.runtime.loads.lock().unwrap() == 2);
+    // The same choice again changes nothing.
+    ipc(&main, "ai_runtime_choose", json!({"id": "cpu"})).unwrap();
+    wait_until("ready again", || ipc(&main, "ai_status", json!({})).unwrap()["state"] == "ready");
+    assert_eq!(*f.runtime.loads.lock().unwrap(), 2);
+    // Deleting the build in use stops the engine first; the model stays chosen and loads on next use.
+    ipc(&main, "ai_runtime_delete", json!({"tag": RT_TAG, "id": "cpu"})).unwrap();
+    let status = ipc(&main, "ai_status", json!({})).unwrap();
+    assert_eq!(
+        (status["state"].as_str(), status["model"].as_str()),
+        (Some("idle"), Some(TEST_FILE))
+    );
+    assert!(!f.tmp.0.join("runtimes").join(RT_TAG).join("cpu").exists());
+}
+
+#[test]
+fn a_missing_runtime_is_a_typed_error_and_a_failed_report_is_shown() {
+    struct NoRuntime;
+    impl ModelRuntime for NoRuntime {
+        fn load(&self, _: &LoadRequest) -> imt_ai::Result<Loaded> {
+            Err(AiError::NoRuntime)
+        }
+    }
+    let f = Fixture::new("rt-missing");
+    let mut deps = f.deps();
+    deps.runtime = Arc::new(NoRuntime);
+    let core = Arc::new(AiCore::new(Some(ai_dir(&f.tmp)), f.tmp.0.join("models"), false, deps));
+    let app = f.app(core.clone());
+    let events = setup_events(&app);
+    let main = window(&app, "main");
+    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    wait_until("failed", || stages(&events).last().is_some_and(|s| s == "failed"));
+    let last = events.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(last["code"], "noRuntime", "{last}");
+    assert!(last["message"].as_str().unwrap().contains("download one in the AI set-up"));
+    // A custom llama-server path replaces the downloads; when the worker cannot check it, the overview says why.
+    let mut s = core.settings();
+    s.llama_server_path = Some(
+        if cfg!(windows) {
+            r"C:\broken\llama-server.exe"
+        } else {
+            "/broken/llama-server"
+        }
+        .into(),
+    );
+    core.apply_settings(s).unwrap();
+    let o = ipc(&main, "ai_runtimes", json!({})).unwrap();
+    assert_eq!(o["needsDownload"], false);
+    assert!(o["customPath"].as_str().unwrap().contains("broken"));
+    assert!(o["problem"].as_str().unwrap().contains("failed"), "{o}");
+}
+
+#[test]
+fn the_worker_environment_follows_the_settings_at_each_launch() {
+    let tmp = TempDir::new("rt-env");
+    let rt = test_runtimes(&tmp, Duration::ZERO);
+    let cell = Arc::new(std::sync::RwLock::new(imt_ai::settings::AiSettings::default()));
+    let env = rt.worker_env_source(cell.clone());
+    let chosen = |env: &[(String, String)]| env.iter().find(|(k, _)| k == "IMT_LLAMA_BUILD").map(|(_, v)| v.clone());
+    assert_eq!(chosen(&env()).as_deref(), Some("auto"));
+    assert!(env().contains(&(
+        "IMT_LLAMA_DIR".to_string(),
+        tmp.0.join("runtimes").join(RT_TAG).to_string_lossy().into_owned()
+    )));
+    cell.write().unwrap().inference_build = "cpu".into();
+    assert_eq!(chosen(&env()).as_deref(), Some("cpu"));
+}
+
+#[test]
+fn worker_memory_counts_the_workers_llama_server_children() {
+    use super::core::tree_rss_bytes;
+    let rows = vec![
+        (10, Some(1), "imt-ai-worker".to_string(), 30),
+        (11, Some(10), "llama-server".to_string(), 3000),
+        (12, Some(11), "grandchild".to_string(), 7),
+        (20, Some(1), "imt-plugin-host".to_string(), 500),
+        (21, Some(20), "llama-server".to_string(), 999),
+        (30, Some(2), "imt-ai-worker".to_string(), 40),
+        (31, Some(30), "llama-server".to_string(), 4000),
+    ];
+    assert_eq!(tree_rss_bytes(1, &rows), 3030, "only this IMT's workers and their direct children");
+    assert_eq!(tree_rss_bytes(99, &rows), 0);
 }

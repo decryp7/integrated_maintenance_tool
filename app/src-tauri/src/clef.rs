@@ -29,16 +29,45 @@ impl Enrichment {
     }
 }
 
-/// Formats one record as a CLEF line (without the trailing newline).
+/// Formats one record as a CLEF line (without the trailing newline). The app formats `tracing` events
+/// with [`format_event`]; this is its `log` counterpart, used by tests.
+#[cfg(test)]
 pub fn format(time: DateTime<Utc>, record: &log::Record, message: &str, enrich: &Enrichment) -> String {
+    format_event(
+        time,
+        record.level(),
+        record.target(),
+        message,
+        key_values(record.key_values()),
+        enrich,
+    )
+}
+
+/// A `log` record's key/values as JSON (booleans and numbers keep their type).
+pub fn key_values(source: &dyn log::kv::Source) -> Map<String, Value> {
+    let mut props = Props(Map::new());
+    let _ = source.visit(&mut props);
+    props.0
+}
+
+/// Formats one event as a CLEF line (without the trailing newline): `target` is its `SourceContext`
+/// (a `SourceContext` property wins), `props` its properties.
+pub fn format_event(
+    time: DateTime<Utc>,
+    level: log::Level,
+    target: &str,
+    message: &str,
+    props: Map<String, Value>,
+    enrich: &Enrichment,
+) -> String {
     let mut event = Map::new();
     event.insert("@t".into(), Value::from(time.to_rfc3339_opts(SecondsFormat::Micros, true)));
     // CLEF omits @l for Information.
-    if let Some(level) = clef_level(record.level()) {
+    if let Some(level) = clef_level(level) {
         event.insert("@l".into(), Value::from(level));
     }
     event.insert("@m".into(), Value::from(message));
-    event.insert("SourceContext".into(), Value::from(record.target()));
+    event.insert("SourceContext".into(), Value::from(target));
     event.insert("Application".into(), Value::from(enrich.application));
     event.insert("Version".into(), Value::from(enrich.version));
     event.insert("ProcessId".into(), Value::from(enrich.process_id));
@@ -46,9 +75,7 @@ pub fn format(time: DateTime<Utc>, record: &log::Record, message: &str, enrich: 
     event.insert("Os".into(), Value::from(enrich.os));
     event.insert("SessionId".into(), Value::from(enrich.session_id));
 
-    let mut props = Props(Map::new());
-    let _ = record.key_values().visit(&mut props);
-    for (k, v) in props.0 {
+    for (k, v) in props {
         // `Severity = "Fatal"` raises the level beyond what the `log` crate has (crashes).
         if k == "Severity" {
             if let Some(level) = v.as_str().filter(|l| *l == "Fatal") {

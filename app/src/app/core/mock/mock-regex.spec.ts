@@ -1,4 +1,5 @@
 import { mockExplainRegex, mockInferRegex } from './mock-regex';
+import { at } from '../../../testing/must';
 
 describe('mock regex assistance', () => {
   it('infers a pattern with typed groups, examples and per-line matches', () => {
@@ -7,7 +8,7 @@ describe('mock regex assistance', () => {
     expect(r.groups).toEqual([{ name: 'n1', kind: 'number', examples: ['15', '2'] }]);
     expect(r.matches).toEqual([true, true, false]);
     expect(r.explanation.length).toBeGreaterThan(0);
-    expect(mockInferRegex(['x 2.5 y']).groups[0].kind).toBe('decimal');
+    expect(at(mockInferRegex(['x 2.5 y']).groups, 0).kind).toBe('decimal');
   });
 
   it('escapes literal text and matches lines without groups', () => {
@@ -38,7 +39,7 @@ describe('mock regex assistance', () => {
       'End group',
       'End of text',
     ]);
-    expect(nodes[2].start).toBe(3); // 'é' is two bytes
+    expect(at(nodes, 2).start).toBe(3); // 'é' is two bytes
     expect(nodes.every((n) => n.depth === 0)).toBe(true);
   });
 });

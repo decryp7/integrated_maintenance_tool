@@ -1,4 +1,5 @@
 import { DRAG_THRESHOLD, hitDockTarget, moveTab, popoutDragReduce, PopoutDrag, pressTab, releaseTab, screenToClient, SETTLE_MS, targetPreview } from './dock-target';
+import { at } from '../../testing/must';
 
 const root = { x: 0, y: 0, width: 800, height: 600 };
 const groups = [
@@ -25,7 +26,7 @@ describe('hitDockTarget', () => {
 
   it('previews the drop: a quarter of the dock for an edge, half (or all) of the group for its compass', () => {
     expect(targetPreview({ kind: 'edge', position: 'left' }, root, groups)).toEqual({ x: 0, y: 0, width: 200, height: 600 });
-    expect(targetPreview({ kind: 'group', groupId: 'g1', position: 'center' }, root, groups)).toEqual(groups[0].rect);
+    expect(targetPreview({ kind: 'group', groupId: 'g1', position: 'center' }, root, groups)).toEqual(at(groups, 0).rect);
     expect(targetPreview({ kind: 'group', groupId: 'g1', position: 'bottom' }, root, groups)).toEqual({ x: 100, y: 250, width: 400, height: 150 });
     expect(targetPreview({ kind: 'group', groupId: 'gone', position: 'left' }, root, groups)).toBeNull();
   });

@@ -16,24 +16,24 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
     @if (life.safeMode()) {
       <div class="banner warn" role="status" data-testid="safe-mode-banner">
         <imt-icon name="alert" [size]="14" />
-        <span class="msg">Running in safe mode: plugins and saved profile are off.</span>
-        <button type="button" class="btn" (click)="life.restartNormally()">Restart normally</button>
+        <span class="msg" i18n="@@lifecycle.banners.safeMode">Running in safe mode: plugins and saved profile are off.</span>
+        <button type="button" class="btn" (click)="life.restartNormally()" i18n="@@lifecycle.banners.restartNormally">Restart normally</button>
       </div>
     }
     @if (life.showCrashBanner()) {
       <div class="banner warn" role="alert" data-testid="crash-banner">
         <imt-icon name="alert" [size]="14" />
-        <span class="msg">IMT didn't close properly last time.</span>
-        <button type="button" class="btn primary" [disabled]="!life.sessionAvailable()" (click)="life.restoreLastSession()">Restore last session</button>
-        <button type="button" class="btn" (click)="life.startInSafeMode()">Start in safe mode</button>
-        <button type="button" class="btn ghost" (click)="life.dismissCrash()">Dismiss</button>
+        <span class="msg" i18n="@@lifecycle.banners.crashed">IMT didn't close properly last time.</span>
+        <button type="button" class="btn primary" [disabled]="!life.sessionAvailable()" (click)="life.restoreLastSession()" i18n="@@lifecycle.banners.restore">Restore last session</button>
+        <button type="button" class="btn" (click)="life.startInSafeMode()" i18n="@@lifecycle.banners.startSafeMode">Start in safe mode</button>
+        <button type="button" class="btn ghost" (click)="life.dismissCrash()" i18n="@@lifecycle.banners.dismissCrash">Dismiss</button>
       </div>
     }
     @if (projects.missing().length; as n) {
       <div class="banner info" role="status" data-testid="missing-banner">
         <imt-icon name="alert" [size]="14" />
-        <span class="msg">{{ n }} path{{ n === 1 ? '' : 's' }} of this project could not be found: <span class="mono" [title]="projects.missing().join('\\n')">{{ names() }}</span></span>
-        <button type="button" class="btn ghost" (click)="projects.dismissMissing()">Dismiss</button>
+        <span class="msg" i18n="@@lifecycle.banners.missing">{n, plural, =1 {{{ n }} path} other {{{ n }} paths}} of this project could not be found: <span class="mono" [title]="projects.missing().join('\\n')">{{ names() }}</span></span>
+        <button type="button" class="btn ghost" (click)="projects.dismissMissing()" i18n="@@lifecycle.banners.dismissMissing">Dismiss</button>
       </div>
     }
     <imt-bundle-banner />
@@ -41,9 +41,9 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
   `,
   styles: `
     .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); }
-    .banner.warn { border-left: 3px solid var(--lvl-warn); }
+    .banner.warn { border-inline-start: 3px solid var(--lvl-warn); }
     .banner.warn imt-icon { color: var(--warn-text); }
-    .banner.info { border-left: 3px solid var(--accent); }
+    .banner.info { border-inline-start: 3px solid var(--accent); }
     .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   `,
 })
@@ -53,6 +53,6 @@ export class LifecycleBanners {
 
   protected names(): string {
     const names = this.projects.missing().map(baseName);
-    return names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(', ');
+    return names.length > 3 ? $localize`:@@lifecycle.banners.andMore:${names.slice(0, 3).join(', ')}:names: and ${names.length - 3}:count: more` : names.join(', ');
   }
 }

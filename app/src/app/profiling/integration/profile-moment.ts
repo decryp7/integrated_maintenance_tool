@@ -19,16 +19,16 @@ import { MeasurementTag } from '../profiling-shared';
   imports: [AnalysisState, MeasurementTag],
   template: `
     @if (backend && (res.loading() || res.error() || res.data()?.length)) {
-      <h3 class="sec">Profile samples in this window</h3>
+      <h3 class="sec" i18n="@@profiling.moment.title">Profile samples in this window</h3>
       <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" (retry)="res.retry()">
         @for (m of res.data() ?? []; track m.profileId) {
-          <section class="card" [attr.aria-label]="'Profile ' + m.name">
+          <section class="card" [attr.aria-label]="profileLabel(m.name)">
             <div class="head">
               <strong class="ellipsis">{{ m.name }}</strong>
-              <span class="mono muted">{{ count(m.samples) }} samples · {{ ns(m.value) }}</span>
+              <span class="mono muted" i18n="@@profiling.moment.samples">{{ count(m.samples) // i18n(ph: "samples") }} samples · {{ ns(m.value) // i18n(ph: "value") }}</span>
               <imt-measurement [m]="m.measurement" />
               <span class="spacer"></span>
-              <button class="btn" type="button" (click)="open(m)">Open profile on this range</button>
+              <button class="btn" type="button" (click)="open(m)" i18n="@@profiling.moment.open">Open profile on this range</button>
             </div>
             <ol class="top">
               @for (r of m.top; track r.key) {
@@ -72,6 +72,10 @@ export class ProfileMomentSection {
       const backend = this.backend;
       untracked(() => (r && backend ? void this.res.load(() => backend.moment({ fromMs: r.from, toMs: r.to, top: 5 })) : this.res.reset()));
     });
+  }
+
+  protected profileLabel(name: string): string {
+    return $localize`:@@profiling.moment.profileLabel:Profile ${name}:name:`;
   }
 
   protected open(m: ProfileMoment): void {

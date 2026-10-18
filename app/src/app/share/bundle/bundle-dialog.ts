@@ -12,13 +12,14 @@ import { RedactionService } from '../redaction/redaction.service';
 import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { localizeDecimal } from '../../i18n/locale';
 
 const ESTIMATE_MS = 200;
 
 /** 1.2 MB, 340 KB, 12 B. */
 export function formatBytes(n: number): string {
-  if (n >= 1 << 30) return `${(n / (1 << 30)).toFixed(1)} GB`;
-  if (n >= 1 << 20) return `${(n / (1 << 20)).toFixed(1)} MB`;
+  if (n >= 1 << 30) return `${localizeDecimal((n / (1 << 30)).toFixed(1))} GB`;
+  if (n >= 1 << 20) return `${localizeDecimal((n / (1 << 20)).toFixed(1))} MB`;
   if (n >= 1024) return `${Math.round(n / 1024)} KB`;
   return `${n} B`;
 }
@@ -33,40 +34,40 @@ export function bundleFileName(name: string): string {
   selector: 'imt-bundle-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <label class="lbl">Name <input class="input" [value]="name()" (input)="name.set($any($event.target).value)" aria-label="Bundle name" /></label>
+    <label class="lbl"><ng-container i18n="@@share.bundleDialog.name">Name</ng-container>&ngsp;<input class="input" [value]="name()" (input)="name.set($any($event.target).value)" aria-label="Bundle name" i18n-aria-label="@@share.bundleDialog.nameAria" /></label>
     <fieldset class="group">
-      <legend>Logs</legend>
-      <label class="check"><input type="radio" name="content" value="raw" [checked]="content() === 'raw'" (change)="content.set('raw')" /> The opened files as they are</label>
-      <label class="check"><input type="radio" name="content" value="events" [checked]="content() === 'events'" (change)="content.set('events')" /> Only the events matching the current filter (CLEF)</label>
+      <legend i18n="@@share.bundleDialog.logs">Logs</legend>
+      <label class="check"><input type="radio" name="content" value="raw" [checked]="content() === 'raw'" (change)="content.set('raw')" />&ngsp;<ng-container i18n="@@share.bundleDialog.contentRaw">The opened files as they are</ng-container></label>
+      <label class="check"><input type="radio" name="content" value="events" [checked]="content() === 'events'" (change)="content.set('events')" />&ngsp;<ng-container i18n="@@share.bundleDialog.contentEvents">Only the events matching the current filter (CLEF)</ng-container></label>
     </fieldset>
-    <label class="check"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
-    <label class="check"><input type="checkbox" [disabled]="!reportCount()" [checked]="includeReports() && reportCount() > 0" (change)="includeReports.set($any($event.target).checked)" /> Include reports ({{ reportCount() }})</label>
+    <label class="check"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" />&ngsp;<ng-container i18n="@@share.bundleDialog.redact">Redact with the profile's rules</ng-container></label>
+    <label class="check"><input type="checkbox" [disabled]="!reportCount()" [checked]="includeReports() && reportCount() > 0" (change)="includeReports.set($any($event.target).checked)" />&ngsp;<ng-container i18n="@@share.bundleDialog.includeReports">Include reports ({{ reportCount() }})</ng-container></label>
     @if (redact() && content() === 'raw') {
-      <p class="status">Binary files and archives cannot be redacted and are left out; bundle the filtered events to keep them.</p>
+      <p class="status" i18n="@@share.bundleDialog.binaryNote">Binary files and archives cannot be redacted and are left out; bundle the filtered events to keep them.</p>
     }
     <div class="status" role="status" aria-live="polite">
       @if (estimate(); as e) {
-        About <strong>{{ bytes(e.bytes) }}</strong> before compression · {{ fmt(e.files) }} files · {{ fmt(e.events) }} events
+        <ng-container i18n="@@share.bundleDialog.estimate">About <strong>{{ bytes(e.bytes) }}</strong> before compression · {{ fmt(e.files) }} files · {{ fmt(e.events) }} events</ng-container>
         @if (e.skipped.length) {
           <ul class="skipped">
             @for (s of e.skipped; track s.path) { <li><span class="mono">{{ base(s.path) }}</span>: {{ s.reason }}</li> }
           </ul>
         }
       } @else {
-        Estimating…
+        <ng-container i18n="@@share.bundleDialog.estimating">Estimating…</ng-container>
       }
     </div>
     @if (error(); as e) { <p class="err" role="alert">{{ e }}</p> }
     <div class="foot">
-      <button class="btn" type="button" (click)="ref.close()">Cancel</button>
-      <button class="btn primary" type="button" [disabled]="busy() || !name().trim()" (click)="save()">{{ busy() ? 'Writing…' : 'Save bundle…' }}</button>
+      <button class="btn" type="button" (click)="ref.close()" i18n="@@share.bundleDialog.cancel">Cancel</button>
+      <button class="btn primary" type="button" [disabled]="busy() || !name().trim()" (click)="save()">{{ saveLabel() }}</button>
     </div>
   `,
   styles: `
     ${DIALOG_FORM_STYLES}
     .group { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
     legend { font-size: 11px; color: var(--muted); padding: 0 4px; }
-    .skipped { margin: 4px 0 0; padding-left: 18px; }
+    .skipped { margin: 4px 0 0; padding-inline-start: 18px; }
   `,
 })
 export class BundleDialog {
@@ -89,6 +90,7 @@ export class BundleDialog {
   protected readonly estimate = signal<BundleEstimate | null>(null);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly saveLabel = computed(() => (this.busy() ? $localize`:@@share.bundleDialog.writing:Writing…` : $localize`:@@share.bundleDialog.save:Save bundle…`));
   protected readonly reportCount = computed(() => this.reports.reports().length);
   protected readonly fmt = formatCount;
   protected readonly bytes = formatBytes;
@@ -137,12 +139,14 @@ export class BundleDialog {
     this.error.set(null);
     try {
       const options = { ...this.options(), ui: this.registry.serialize() };
-      const path = await this.platform.pickSavePath('Share bundle', bundleFileName(options.name), [{ name: 'IMT bundle', extensions: ['imtz'] }]);
+      const path = await this.platform.pickSavePath($localize`:@@share.bundleDialog.pickTitle:Share bundle`, bundleFileName(options.name), [
+        { name: $localize`:@@share.bundle.filterName:IMT bundle`, extensions: ['imtz'] },
+      ]);
       if (!path) return;
       const m = await this.overwrite.write(path, (overwrite) => this.share.createBundle(options, path, overwrite));
       if (!m) return;
-      const note = m.redacted ? `, redacted (${Object.values(m.redaction).reduce((a, b) => a + b, 0)} values)` : '';
-      this.store.setNotice(`Bundle written to ${baseName(path)}${note}`);
+      const note = m.redacted ? $localize`:@@share.bundleDialog.redactedNote:, redacted (${Object.values(m.redaction).reduce((a, b) => a + b, 0)}:count: values)` : '';
+      this.store.setNotice($localize`:@@share.bundleDialog.written:Bundle written to ${baseName(path)}:file:${note}:note:`);
       this.ref.close();
     } catch (e) {
       this.error.set(errorMessage(e));

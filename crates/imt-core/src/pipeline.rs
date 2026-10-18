@@ -5,6 +5,8 @@ use crate::chart::parse_bucket;
 use crate::condition::{Condition, ConditionCfg};
 use crate::model::{Level, Record};
 use crate::plugin::{RecordTransform, TransformCtx, Verdict};
+use crate::ql::calc::MAX_CALC_LEN;
+use crate::ql::{CalcExpr, QlError};
 use crate::user_regex;
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
@@ -58,6 +60,12 @@ pub struct StepCfg {
     /// `shift_time`: signed duration such as "+2.4s" or "-150ms".
     #[serde(default)]
     pub by: Option<String>,
+    /// `calc`: expression computing `field` from other fields (see [`crate::ql::calc`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expr: Option<String>,
+    /// `script`: Rhai source run once per record (see [`crate::script`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub script: Option<String>,
 }
 
 /// Events entering and leaving one pipeline step.
@@ -65,6 +73,8 @@ pub struct StepCfg {
 pub struct StepStats {
     pub input: usize,
     pub output: usize,
+    /// Records the step failed on and left unchanged (`script` runtime errors and limits).
+    pub errors: usize,
 }
 
 enum Step {
@@ -72,12 +82,16 @@ enum Step {
     Transform(Arc<dyn RecordTransform>),
     /// Needs the whole (time-ordered) batch.
     Dedupe { fields: Vec<String>, window_ms: i64 },
+    /// A script run record by record with one reused scope; failures are counted.
+    Script(Arc<crate::script::Script>),
 }
 
 /// Compiled pipeline. Steps run in order over a file's records.
 #[derive(Default)]
 pub struct Pipeline {
     steps: Vec<(Vec<Condition>, Step)>,
+    /// Fields written by enabled `calc` steps (derived, like extractor fields).
+    calc_fields: Vec<String>,
 }
 
 /// Field name for the number of collapsed repeats added by `dedupe`.
@@ -107,11 +121,21 @@ impl Pipeline {
             };
             steps.push((when, step));
         }
-        Ok(Pipeline { steps })
+        let calc_fields = cfgs
+            .iter()
+            .filter(|c| !c.disabled && c.step == "calc")
+            .filter_map(|c| c.field.clone())
+            .collect();
+        Ok(Pipeline { steps, calc_fields })
     }
 
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()
+    }
+
+    /// Names of the fields computed by enabled `calc` steps.
+    pub fn calc_fields(&self) -> impl Iterator<Item = &str> {
+        self.calc_fields.iter().map(String::as_str)
     }
 
     /// Runs every step; returns the surviving records and how many were dropped.
@@ -138,6 +162,7 @@ impl Pipeline {
         let mut stats = Vec::with_capacity(self.steps.len());
         for (when, step) in &self.steps {
             let input = records.len();
+            let mut errors = 0;
             let applies = |r: &Record| when.iter().all(|c| c.eval(r, source_name));
             match step {
                 Step::Transform(t) if t.batched() => records = run_batched(t.as_ref(), records, &applies, &ctx),
@@ -145,10 +170,18 @@ impl Pipeline {
                 Step::Dedupe { fields, window_ms } => {
                     records = dedupe(records, fields, *window_ms, source_name, &applies);
                 }
+                Step::Script(script) => {
+                    let mut runner = script.runner(source_name);
+                    records.retain_mut(|r| {
+                        // A failing record is kept as it was and counted.
+                        !applies(r) || runner.apply(r).unwrap_or_else(|_| (errors += 1, Verdict::Keep).1) == Verdict::Keep
+                    });
+                }
             }
             stats.push(StepStats {
                 input,
                 output: records.len(),
+                errors,
             });
         }
         (records, stats)
@@ -225,13 +258,18 @@ fn compile_step(cfg: &StepCfg, transforms: &HashMap<String, Arc<dyn RecordTransf
         }),
         "lookup" => Arc::new(Lookup { field: need(&cfg.field, "field")?.into(), table: lookup_table(cfg)? }),
         "shift_time" => Arc::new(ShiftTime(parse_signed_ms(need(&cfg.by, "by")?)?)),
+        "calc" => Arc::new(calc_step(cfg)?),
+        "script" => {
+            let script = crate::script::Script::compile(cfg.script.as_deref().unwrap_or_default()).map_err(|e| anyhow!("`script` {e}"))?;
+            return Ok(Step::Script(Arc::new(script)));
+        }
         "plugin" => {
             let id = need(&cfg.id, "id")?;
             transforms.get(id).cloned().ok_or_else(|| anyhow!("no plugin transform \"{id}\" is installed"))?
         }
         other => {
             return Err(anyhow!(
-                "unknown step \"{other}\" (use drop, keep, mask, dedupe, remove_fields, rename, set, set_level, truncate, parse_json, parse_kv, lookup, shift_time, plugin)"
+                "unknown step \"{other}\" (use drop, keep, mask, dedupe, remove_fields, rename, set, set_level, truncate, parse_json, parse_kv, lookup, shift_time, calc, script, plugin)"
             ))
         }
     };
@@ -514,6 +552,49 @@ impl RecordTransform for ShiftTime {
         }
         Verdict::Keep
     }
+}
+
+/// Writes the value of an expression to a field; a null result leaves the record as it is.
+struct Calc {
+    field: String,
+    expr: CalcExpr,
+}
+impl RecordTransform for Calc {
+    fn id(&self) -> &str {
+        "calc"
+    }
+    fn apply(&self, r: &mut Record, ctx: &TransformCtx) -> Verdict {
+        if let Some(v) = self.expr.eval_json(r, ctx.source_name) {
+            r.fields.insert(self.field.clone(), v);
+        }
+        Verdict::Keep
+    }
+}
+
+/// Parses a `calc` step once, when the profile is compiled.
+fn calc_step(cfg: &StepCfg) -> Result<Calc> {
+    let field = need(&cfg.field, "field")?;
+    if field.starts_with('@') {
+        return Err(anyhow!(
+            "`field` \"{field}\" is a built-in; calc writes a field of its own (use a name without @)"
+        ));
+    }
+    let text = need(&cfg.expr, "expr")?;
+    let expr = CalcExpr::parse(text).map_err(|e| anyhow!("`expr` {}", describe_error(text, &e)))?;
+    Ok(Calc { field: field.into(), expr })
+}
+
+/// "error at column N: message" with the expression and a caret under the position.
+fn describe_error(text: &str, e: &QlError) -> String {
+    let at = e.offset.min(text.len());
+    let column = text.char_indices().take_while(|(i, _)| *i < at).count() + 1;
+    let message = format!("error at column {column}: {}", e.message);
+    if text.len() > MAX_CALC_LEN {
+        return message;
+    }
+    // Control characters (newlines, tabs) become spaces so the caret lines up.
+    let shown: String = text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
+    format!("{message}\n  {shown}\n  {}^", " ".repeat(column - 1))
 }
 
 /// "+2.4s", "-150ms", "1m" -> milliseconds.
@@ -912,6 +993,135 @@ when = [{{ field = "MachineName", op = "eq", value = "nobody" }}]
         let p = pipeline("[[pipeline]]\nstep='drop'\ndisabled=true\n[[pipeline]]\nstep='nonsense'\ndisabled=true").unwrap();
         let (out, stats) = p.run_with_stats(sample(), "f");
         assert_eq!(out.len(), 6);
-        assert_eq!(stats, vec![StepStats { input: 6, output: 6 }; 2]);
+        assert_eq!(
+            stats,
+            vec![
+                StepStats {
+                    input: 6,
+                    output: 6,
+                    errors: 0
+                };
+                2
+            ]
+        );
+    }
+
+    #[test]
+    fn calc_computes_fields() {
+        let mut records = sample();
+        records[0].fields.insert("ElapsedMs".into(), 1500.into());
+        records[1].fields.insert("ElapsedMs".into(), "250".into());
+        let p = pipeline(
+            "[[pipeline]]\nstep='calc'\nfield='ElapsedSec'\nexpr='ElapsedMs / 1000'\n\
+             [[pipeline]]\nstep='calc'\nfield='Slow'\nexpr='ElapsedSec > 1'\n\
+             [[pipeline]]\nstep='calc'\nfield='Where'\nexpr='lower(SourceContext) + \"#\" + ThreadId'\n\
+             when=[{ field='@level', op='eq', value='Error' }]",
+        )
+        .unwrap();
+        let (out, stats) = p.run_with_stats(records, "f");
+        assert_eq!(stats.len(), 3);
+        assert_eq!(out[0].fields["ElapsedSec"], 1.5);
+        assert_eq!(out[0].fields["Slow"], true);
+        assert_eq!(out[1].fields["ElapsedSec"], 0.25, "numeric text is used as a number");
+        assert_eq!(out[1].fields["Slow"], false);
+        // Missing inputs write nothing; `when` limits the step.
+        assert!(!out[2].fields.contains_key("ElapsedSec") && !out[2].fields.contains_key("Slow"));
+        assert!(!out[0].fields.contains_key("Where"));
+        assert_eq!(out[2].fields["Where"], "payments#7");
+    }
+
+    #[test]
+    fn script_steps_transform_drop_and_count_errors() {
+        let p = pipeline(
+            r#"
+[[pipeline]]
+step = "script"
+when = [{ field = "@level", op = "eq", value = "Error" }]
+script = '''
+if fields.ThreadId == 7 && message == "boom" && timestamp >= 4000 { drop(); }
+fields.Seen = source;
+'''
+[[pipeline]]
+step = "script"
+script = 'if message.contains("password=") { message = 1; } else { level = "Fatal"; }'
+"#,
+        )
+        .unwrap();
+        let (out, stats) = p.run_with_stats(sample(), "f.log");
+        // Two of the four errors are from 4 s on; `when` keeps the script off the others.
+        assert_eq!(out.len(), 4);
+        assert_eq!(
+            stats[0],
+            StepStats {
+                input: 6,
+                output: 4,
+                errors: 0
+            }
+        );
+        assert_eq!(out[2].fields["Seen"], "f.log");
+        assert!(!out[0].fields.contains_key("Seen"));
+        // The login record fails (message must stay a string): kept unchanged and counted.
+        assert_eq!(
+            stats[1],
+            StepStats {
+                input: 4,
+                output: 4,
+                errors: 1
+            }
+        );
+        assert_eq!(
+            (out[1].level, out[1].message.as_str()),
+            (Level::Warning, "login password=hunter2 user=ann")
+        );
+        assert!(out.iter().filter(|r| r.message != out[1].message).all(|r| r.level == Level::Fatal));
+    }
+
+    #[test]
+    fn script_errors_are_profile_errors() {
+        let err = |step: &str| format!("{:#}", pipeline(&format!("[[pipeline]]\nstep='script'\n{step}")).err().unwrap());
+        assert_eq!(err(""), "pipeline step 1 (script): `script` is empty");
+        let e = err("script = '''\nlet a = 1;\nlevel = ;\n'''");
+        assert!(
+            e.starts_with("pipeline step 1 (script): `script` syntax error at line 2, column 9: "),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn calc_null_keeps_an_existing_value() {
+        let mut records = sample();
+        records[0].fields.insert("Ratio".into(), "keep me".into());
+        let p = pipeline("[[pipeline]]\nstep='calc'\nfield='Ratio'\nexpr='Missing / 2'").unwrap();
+        let (out, _) = p.run(records, "f");
+        assert_eq!(out[0].fields["Ratio"], "keep me");
+        assert_eq!(out.len(), 6, "calc never drops events");
+    }
+
+    #[test]
+    fn calc_rejects_bad_configuration() {
+        let err = |step: &str| format!("{:#}", pipeline(&format!("[[pipeline]]\nstep='calc'\n{step}")).err().unwrap());
+        assert!(err("expr='1'").contains("needs `field`"));
+        assert!(err("field='X'").contains("needs `expr`"));
+        assert!(err("field='@message'\nexpr='1'").contains("built-in"));
+        let e = err("field='X'\nexpr='ElapsedMs / foo(1)'");
+        assert!(
+            e.starts_with("pipeline step 1 (calc): `expr` error at column 13: unknown function 'foo'"),
+            "{e}"
+        );
+        assert!(e.ends_with("\n  ElapsedMs / foo(1)\n              ^"), "{e}");
+        // Columns count characters; a newline in a multi-line string shows as a space.
+        let e = err("field='X'\nexpr=\"\"\"é +\n(\"\"\"");
+        assert!(e.ends_with("error at column 6: expected a value\n  é + (\n       ^"), "{e}");
+        let long = format!("1{}", "+1".repeat(MAX_CALC_LEN));
+        let e = err(&format!("field='X'\nexpr='{long}'"));
+        assert!(e.contains("too long") && !e.contains('^'), "{e}");
+        assert_eq!(
+            Calc {
+                field: "X".into(),
+                expr: CalcExpr::parse("1").unwrap()
+            }
+            .id(),
+            "calc"
+        );
     }
 }

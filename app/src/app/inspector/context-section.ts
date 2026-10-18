@@ -15,7 +15,7 @@ export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="head">
-      <button class="toggle section-title" [attr.aria-expanded]="open()" aria-controls="ctx-body" (click)="open.set(!open())">
+      <button class="toggle section-title" [attr.aria-expanded]="open()" aria-controls="ctx-body" (click)="open.set(!open())" i18n="@@inspector.context.title">
         <span aria-hidden="true">{{ open() ? '▾' : '▸' }}</span> Context
       </button>
       @if (open() && data()) {
@@ -26,11 +26,11 @@ export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
       <div id="ctx-body" class="body">
         @if (error(); as e) {
           <div class="err" role="alert">
-            <span>Could not load the source lines: {{ e }}</span>
-            <button class="btn" (click)="load()">Retry</button>
+            <span i18n="@@inspector.context.loadError">Could not load the source lines: {{ e //i18n(ph="error") }}</span>
+            <button class="btn" (click)="load()" i18n="@@inspector.context.retry">Retry</button>
           </div>
         } @else if (data(); as d) {
-          <div #box class="lines mono" role="region" tabindex="0" aria-label="Source lines around the event" data-testid="context-lines">
+          <div #box class="lines mono" role="region" tabindex="0" aria-label="Source lines around the event" i18n-aria-label="@@inspector.context.linesAria" data-testid="context-lines">
             @for (l of d.lines; track l.line) {
               <div class="line" [class.hit]="l.line === d.line" [attr.aria-current]="l.line === d.line ? 'true' : null">
                 <span class="ln">{{ l.line }}</span><span class="lt">{{ l.text }}</span>
@@ -38,12 +38,12 @@ export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
             }
           </div>
           <div class="actions">
-            <button class="btn" [disabled]="!canGrow()" (click)="more()">More</button>
+            <button class="btn" [disabled]="!canGrow()" (click)="more()" i18n="@@inspector.context.more">More</button>
             <button class="btn" (click)="copy()">{{ copyLabel() }}</button>
-            <span class="faint small">±{{ radius() }} lines</span>
+            <span class="faint small" i18n="@@inspector.context.radius">±{{ radius() //i18n(ph="radius") }} lines</span>
           </div>
         } @else {
-          <div class="faint pad" role="status">Loading…</div>
+          <div class="faint pad" role="status" i18n="@@inspector.context.loading">Loading…</div>
         }
       </div>
     }
@@ -73,8 +73,8 @@ export class ContextSection {
   protected readonly radius = signal<number>(CONTEXT_STEPS[0]);
   protected readonly data = signal<SourceContext | null>(null);
   protected readonly error = signal<string | null>(null);
-  protected readonly copyLabel = signal('Copy');
-  protected readonly canGrow = computed(() => this.radius() < CONTEXT_STEPS[CONTEXT_STEPS.length - 1]);
+  protected readonly copyLabel = signal($localize`:@@inspector.context.copy:Copy`);
+  protected readonly canGrow = computed(() => this.radius() < (CONTEXT_STEPS[CONTEXT_STEPS.length - 1] ?? 0));
   private readonly box = viewChild<ElementRef<HTMLElement>>('box');
   private seq = 0;
   private shownId = -1;
@@ -130,10 +130,10 @@ export class ContextSection {
     if (!d) return;
     try {
       await navigator.clipboard.writeText(d.lines.map((l) => l.text).join('\n'));
-      this.copyLabel.set('Copied');
+      this.copyLabel.set($localize`:@@inspector.context.copied:Copied`);
     } catch {
-      this.copyLabel.set('Copy failed');
+      this.copyLabel.set($localize`:@@inspector.context.copyFailed:Copy failed`);
     }
-    setTimeout(() => this.copyLabel.set('Copy'), 1500);
+    setTimeout(() => this.copyLabel.set($localize`:@@inspector.context.copy:Copy`), 1500);
   }
 }

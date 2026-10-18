@@ -3,6 +3,7 @@ import { all, buttonByText, el, settle, text } from '../../testing/helpers';
 import { QueryResultsView } from './query-results-view';
 import { QuerySession } from './query-session';
 import { loadWorkspace, provideAnalysisTesting } from './test-setup';
+import { at } from '../../testing/must';
 
 describe('QueryResultsView', () => {
   let fixture: ComponentFixture<QueryResultsView>;
@@ -28,20 +29,20 @@ describe('QueryResultsView', () => {
     const cells = () => all(fixture, 'tbody tr').map((r) => [...r.querySelectorAll('td')].map((c) => c.textContent).join(' ').trim());
     expect(cells()).toEqual(['b.log 5', 'a.log 20', 'c.log']);
     const headers = all<HTMLElement>(fixture, 'th');
-    expect(headers[1].getAttribute('aria-sort')).toBeNull();
-    all<HTMLButtonElement>(fixture, 'th button')[1].click();
+    expect(headers[1]?.getAttribute('aria-sort')).toBeNull();
+    at(all<HTMLButtonElement>(fixture, 'th button'), 1).click();
     fixture.detectChanges();
     expect(cells()).toEqual(['b.log 5', 'a.log 20', 'c.log']);
-    expect(all(fixture, 'th')[1].getAttribute('aria-sort')).toBe('ascending');
-    all<HTMLButtonElement>(fixture, 'th button')[1].click();
+    expect(all(fixture, 'th')[1]?.getAttribute('aria-sort')).toBe('ascending');
+    at(all<HTMLButtonElement>(fixture, 'th button'), 1).click();
     fixture.detectChanges();
     expect(cells()[0]).toBe('a.log 20');
-    expect(all(fixture, 'th')[1].getAttribute('aria-sort')).toBe('descending');
-    expect(all(fixture, 'th')[1].textContent).toContain('▼');
-    all<HTMLButtonElement>(fixture, 'th button')[0].click();
+    expect(all(fixture, 'th')[1]?.getAttribute('aria-sort')).toBe('descending');
+    expect(all(fixture, 'th')[1]?.textContent).toContain('▼');
+    at(all<HTMLButtonElement>(fixture, 'th button'), 0).click();
     fixture.detectChanges();
     expect(cells()[0]).toBe('a.log 20');
-    expect(all(fixture, 'th')[0].textContent).toContain('▲');
+    expect(all(fixture, 'th')[0]?.textContent).toContain('▲');
     expect(el(fixture, 'td.num').textContent).toBe('20');
 
     const blobs: Blob[] = [];
@@ -52,7 +53,7 @@ describe('QueryResultsView', () => {
     const csv = await new Promise<string>((res) => {
       const r = new FileReader();
       r.onload = () => res(String(r.result));
-      r.readAsText(blobs[0]);
+      r.readAsText(at(blobs, 0));
     });
     expect(csv).toBe('source,n\r\na.log,20\r\nb.log,5\r\nc.log,\r\n');
     click.mockRestore();

@@ -5,6 +5,7 @@ import { LiveTail } from '../workspace/live-tail';
 import { parseDetectEvery } from './live-ui-state';
 import { stateHint, stateLabel, TailStatusStore } from './tail-status.store';
 import { NextSteps } from '../ui/next-steps';
+import { localizeDecimal } from '../i18n/locale';
 
 /** The status table refreshes this often while the panel is open and live tail runs. */
 export const STATUS_POLL_MS = 2000;
@@ -19,17 +20,17 @@ export function formatBytes(n: number): string {
     v /= 1024;
     i++;
   }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+  return `${localizeDecimal(v.toFixed(v < 10 ? 1 : 0))} ${units[i]}`;
 }
 
 /** "just now", "12 s ago", "3 min ago", "2 h ago" */
 export function formatAgo(ts: number | null, now: number): string {
   if (ts === null) return '—';
   const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 2) return 'just now';
-  if (s < 60) return `${s} s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  return `${Math.floor(s / 3600)} h ago`;
+  if (s < 2) return $localize`:@@live.tailStatus.justNow:just now`;
+  if (s < 60) return $localize`:@@live.tailStatus.secondsAgo:${s}:seconds: s ago`;
+  if (s < 3600) return $localize`:@@live.tailStatus.minutesAgo:${Math.floor(s / 60)}:minutes: min ago`;
+  return $localize`:@@live.tailStatus.hoursAgo:${Math.floor(s / 3600)}:hours: h ago`;
 }
 
 /** A positive whole number from an input, or null for empty / invalid ("off"). */
@@ -46,7 +47,7 @@ export function parseLimit(text: string): number | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NextSteps],
   template: `
-    <form class="controls" (submit)="$event.preventDefault()" aria-label="Live tail settings">
+    <form class="controls" (submit)="$event.preventDefault()" aria-label="Live tail settings" i18n-aria-label="@@live.tailStatus.settingsAria">
       <button
         type="button"
         class="btn"
@@ -54,33 +55,33 @@ export function parseLimit(text: string): number | null {
         [attr.aria-pressed]="live.enabled()"
         [disabled]="!live.available()"
         (click)="live.toggle()"
-      >Live tail {{ live.enabled() ? 'on' : 'off' }}</button>
-      <label class="lbl">Watch
+      >{{ toggleLabel() }}</button>
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.watch">Watch</ng-container>
         <select class="select" (change)="setWatch($any($event.target).value)">
-          <option value="auto" [selected]="opts().watch === 'auto'">Auto</option>
-          <option value="events" [selected]="opts().watch === 'events'">File events</option>
-          <option value="polling" [selected]="opts().watch === 'polling'">Polling</option>
+          <option value="auto" [selected]="opts().watch === 'auto'" i18n="@@live.tailStatus.watchAuto">Auto</option>
+          <option value="events" [selected]="opts().watch === 'events'" i18n="@@live.tailStatus.watchEvents">File events</option>
+          <option value="polling" [selected]="opts().watch === 'polling'" i18n="@@live.tailStatus.watchPolling">Polling</option>
         </select>
       </label>
-      <label class="lbl">Poll every (ms)
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.pollEvery">Poll every (ms)</ng-container>
         <input class="input mono num" type="number" min="100" step="100" [value]="opts().pollIntervalMs ?? 2000" [disabled]="opts().watch === 'events'" (change)="setPoll($any($event.target).value)" />
       </label>
-      <label class="lbl">Keep at most (events)
-        <input class="input mono num" type="number" min="1" placeholder="no limit" [value]="opts().retention?.maxRecords ?? ''" (change)="setMaxRecords($any($event.target).value)" />
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.keepEvents">Keep at most (events)</ng-container>
+        <input class="input mono num" type="number" min="1" placeholder="no limit" i18n-placeholder="@@live.tailStatus.noLimit" [value]="opts().retention?.maxRecords ?? ''" (change)="setMaxRecords($any($event.target).value)" />
       </label>
-      <label class="lbl">Keep at most (minutes)
-        <input class="input mono num" type="number" min="1" placeholder="no limit" [value]="maxAgeMinutes()" (change)="setMaxAge($any($event.target).value)" />
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.keepMinutes">Keep at most (minutes)</ng-container>
+        <input class="input mono num" type="number" min="1" placeholder="no limit" i18n-placeholder="@@live.tailStatus.noLimit" [value]="maxAgeMinutes()" (change)="setMaxAge($any($event.target).value)" />
       </label>
-      <label class="lbl">Deleted files
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.deletedFiles">Deleted files</ng-container>
         <select class="select" (change)="setDeleted($any($event.target).value)">
-          <option value="keep" [selected]="opts().deletedFiles !== 'drop'">Keep their events</option>
-          <option value="drop" [selected]="opts().deletedFiles === 'drop'">Drop their events</option>
+          <option value="keep" [selected]="opts().deletedFiles !== 'drop'" i18n="@@live.tailStatus.deletedKeep">Keep their events</option>
+          <option value="drop" [selected]="opts().deletedFiles === 'drop'" i18n="@@live.tailStatus.deletedDrop">Drop their events</option>
         </select>
       </label>
-      <label class="lbl">Flush partial line after (ms)
+      <label class="lbl"><ng-container i18n="@@live.tailStatus.flush">Flush partial line after (ms)</ng-container>
         <input class="input mono num" type="number" min="0" step="100" [value]="opts().carryFlushMs ?? 2000" (change)="setCarry($any($event.target).value)" />
       </label>
-      <label class="lbl" title="The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch.">Run detectors every (ms)
+      <label class="lbl" title="The live anomaly detectors (error spikes, crashes, slow outliers...) run at most this often. 0 runs them after every batch." i18n-title="@@live.tailStatus.detectTitle"><ng-container i18n="@@live.tailStatus.detectEvery">Run detectors every (ms)</ng-container>
         <input
           class="input mono num"
           type="number"
@@ -97,20 +98,20 @@ export function parseLimit(text: string): number | null {
 
     @if (status.status(); as st) {
       <div class="totals" role="status" aria-live="off">
-        <span><strong>{{ st.totals.files }}</strong> files</span>
-        <span><strong>{{ st.totals.tailing }}</strong> tailing</span>
-        @if (st.totals.errors) { <span class="bad"><strong>{{ st.totals.errors }}</strong> with errors</span> }
+        <span i18n="@@live.tailStatus.totalFiles"><strong>{{ st.totals.files }}</strong> files</span>
+        <span i18n="@@live.tailStatus.totalTailing"><strong>{{ st.totals.tailing }}</strong> tailing</span>
+        @if (st.totals.errors) { <span class="bad" i18n="@@live.tailStatus.totalErrors"><strong>{{ st.totals.errors }}</strong> with errors</span> }
         <span>{{ bytes(st.totals.bytes) }}</span>
-        <span><strong>{{ rate(st.totals.linesPerSec) }}</strong> lines/s</span>
-        <span>{{ count(st.totals.records) }} events</span>
-        <span [title]="'Events removed by the retention limit since the workspace was opened'">{{ count(st.totals.evicted) }} evicted</span>
+        <span i18n="@@live.tailStatus.totalRate"><strong>{{ rate(st.totals.linesPerSec) }}</strong> lines/s</span>
+        <span i18n="@@live.tailStatus.totalEvents">{{ count(st.totals.records) }} events</span>
+        <span title="Events removed by the retention limit since the workspace was opened" i18n-title="@@live.tailStatus.evictedTitle" i18n="@@live.tailStatus.totalEvicted">{{ count(st.totals.evicted) }} evicted</span>
       </div>
-      <div class="list" tabindex="0" role="region" aria-label="Tailed files">
+      <div class="list" tabindex="0" role="region" aria-label="Tailed files" i18n-aria-label="@@live.tailStatus.filesAria">
         <table>
           <thead>
             <tr>
-              <th scope="col">File</th><th scope="col">Group</th><th scope="col">Mode</th><th scope="col" class="r">Offset / size</th>
-              <th scope="col" class="r">Lines/s</th><th scope="col">Last change</th><th scope="col">State</th>
+              <th scope="col" i18n="@@live.tailStatus.colFile">File</th><th scope="col" i18n="@@live.tailStatus.colGroup">Group</th><th scope="col" i18n="@@live.tailStatus.colMode">Mode</th><th scope="col" class="r" i18n="@@live.tailStatus.colOffset">Offset / size</th>
+              <th scope="col" class="r" i18n="@@live.tailStatus.colRate">Lines/s</th><th scope="col" i18n="@@live.tailStatus.colLast">Last change</th><th scope="col" i18n="@@live.tailStatus.colState">State</th>
             </tr>
           </thead>
           <tbody>
@@ -125,15 +126,15 @@ export function parseLimit(text: string): number | null {
                 <td [title]="hint(f)"><span class="state" [class]="f.state.kind">{{ label(f) }}</span>@if (f.state.kind === 'error') { <span class="err-msg">{{ errorOf(f) }}</span> }</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" class="faint">No files are open. <imt-next-steps /></td></tr>
+              <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFiles">No files are open. <imt-next-steps /></td></tr>
             }
           </tbody>
         </table>
       </div>
     } @else if (status.error(); as e) {
-      <div class="empty-state"><div class="err">The tail status could not be loaded: {{ e }}</div><button type="button" class="btn" (click)="status.refresh()">Retry</button></div>
+      <div class="empty-state"><div class="err" i18n="@@live.tailStatus.loadFailed">The tail status could not be loaded: {{ e }}</div><button type="button" class="btn" (click)="status.refresh()" i18n="@@live.tailStatus.retry">Retry</button></div>
     } @else {
-      <div class="empty-state faint" role="status">Loading…</div>
+      <div class="empty-state faint" role="status" i18n="@@live.tailStatus.loading">Loading…</div>
     }
   `,
   styles: `
@@ -168,6 +169,7 @@ export class TailStatusView {
   });
   private readonly now = signal(Date.now());
 
+  protected readonly toggleLabel = computed(() => (this.live.enabled() ? $localize`:@@live.tailStatus.liveOn:Live tail on` : $localize`:@@live.tailStatus.liveOff:Live tail off`));
   protected readonly maxDetect = MAX_DETECT_EVERY_MS;
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
@@ -197,11 +199,14 @@ export class TailStatusView {
   }
 
   protected rate(v: number): string {
-    return v >= 100 ? Math.round(v).toString() : v.toFixed(1);
+    return v >= 100 ? Math.round(v).toString() : localizeDecimal(v.toFixed(1));
   }
 
   protected modeLabel(f: TailFileStatus): string {
-    return f.state.kind === 'whole' ? 'Whole file' : f.mode === 'events' ? 'Events' : f.mode === 'polling' ? 'Polling' : 'Off';
+    if (f.state.kind === 'whole') return $localize`:@@live.tailStatus.modeWhole:Whole file`;
+    if (f.mode === 'events') return $localize`:@@live.tailStatus.modeEvents:Events`;
+    if (f.mode === 'polling') return $localize`:@@live.tailStatus.modePolling:Polling`;
+    return $localize`:@@live.tailStatus.modeOff:Off`;
   }
 
   protected shortGroup(f: TailFileStatus): string {

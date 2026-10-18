@@ -7,6 +7,7 @@
 //! | [`ids::PERFMON_TEMPLATES`] | all | `presets`, `generate` (Data Collector Set XML and `logman` commands) |
 //! | [`ids::PERFMON_SETS`] | Windows | `install`, `control` (`start`/`stop`/`delete`/`query`), `outputs` |
 //! | [`ids::PROCESS_MONITOR`] | all | `start`, `stop`, `status` (rolling CLEF files, see `imt-monitor`) |
+//! | [`ids::EVENT_LOG`] | Windows | `channels`, `validate`, `start`, `stop`, `pause`, `resume`, `status` (live event logs to rolling CLEF files, see `imt_plugin_windows::eventlog`) |
 //! | [`ids::DIAGNOSTICS`] | all | `default-plan`, `collect` (an `.imtz` bundle, see `imt-collect`) |
 //! | [`ids::ELEVATION`] | all | `info` (administrator rights, platform) |
 //!
@@ -24,6 +25,7 @@
 mod collect_tool;
 pub mod counters;
 mod elevation;
+mod eventlog_tool;
 #[cfg(test)]
 pub(crate) mod fake;
 mod monitor_tool;
@@ -51,6 +53,7 @@ pub mod ids {
     pub const PERFMON_TEMPLATES: &str = "perfmon.templates";
     pub const PERFMON_SETS: &str = "perfmon.sets";
     pub const PROCESS_MONITOR: &str = "process-monitor";
+    pub const EVENT_LOG: &str = "event-log-follower";
     pub const DIAGNOSTICS: &str = "diagnostics";
     pub const ELEVATION: &str = "elevation";
 }
@@ -60,6 +63,8 @@ pub struct ToolsEnv {
     pub runner: Runner,
     /// The process monitor (`imt_monitor::ProcessMonitor` in the app).
     pub monitor: Arc<dyn Collector>,
+    /// The Windows Event Log (`imt_plugin_windows::eventlog::system()` in the app).
+    pub event_log: Arc<dyn imt_plugin_windows::eventlog::EventLog>,
     /// Whether Performance Monitor (`logman`) can be driven here.
     pub windows: bool,
 }
@@ -70,6 +75,7 @@ impl ToolsEnv {
         ToolsEnv {
             runner: Arc::new(imt_collect::SystemRunner),
             monitor: Arc::new(imt_monitor::ProcessMonitor),
+            event_log: imt_plugin_windows::eventlog::system(),
             windows: cfg!(windows),
         }
     }
@@ -105,6 +111,7 @@ impl ToolsPlugin {
             Arc::new(perfmon_tools::TemplatesTool),
             Arc::new(sets),
             Arc::new(monitor_tool::MonitorTool::new(env.monitor)),
+            Arc::new(eventlog_tool::EventLogTool::new(env.event_log)),
             Arc::new(collect_tool::DiagnosticsTool::new(env.runner.clone())),
             Arc::new(elevation::ElevationTool::new(env.runner)),
         ];

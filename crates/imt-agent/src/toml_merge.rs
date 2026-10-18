@@ -6,7 +6,8 @@
 //! canonical TOML of what it means (parsed and serialised again), `fresh` the
 //! document to save. Only what differs between `base` and `fresh` is written
 //! into `existing`, in place: changed values keep the comments around them,
-//! removed keys go, new keys are appended. Pure text in, text out.
+//! removed keys go, new keys are appended. Pure text in, text out. The file's
+//! line endings (LF or CRLF) are kept as well.
 
 use toml_edit::{ArrayOfTables, DocumentMut, InlineTable, Item, Table, Value};
 
@@ -18,7 +19,19 @@ pub fn update_preserving(existing: &str, base: &str, fresh: &str) -> Result<Stri
     let base: DocumentMut = base.parse().map_err(|e| format!("invalid TOML: {e}"))?;
     let new: DocumentMut = fresh.parse().map_err(|e| format!("invalid TOML: {e}"))?;
     merge_table(doc.as_table_mut(), Some(base.as_table()), new.as_table());
-    Ok(doc.to_string())
+    Ok(with_line_endings_of(existing, &doc.to_string()))
+}
+
+/// `text` with the line endings of `like`: CRLF when the first line break of `like` is CRLF
+/// (a file written on Windows), LF otherwise. `toml_edit` writes LF whatever it read.
+fn with_line_endings_of(like: &str, text: &str) -> String {
+    let crlf = like.find('\n').is_some_and(|i| like[..i].ends_with('\r'));
+    let lf = text.replace("\r\n", "\n");
+    if crlf {
+        lf.replace('\n', "\r\n")
+    } else {
+        lf
+    }
 }
 
 /// What an item means, whatever its spelling or layout (section or inline table, quotes, number format).
@@ -232,6 +245,23 @@ mod tests {
         let out = update(existing, fresh);
         assert_eq!(parsed(&out), parsed(fresh), "{out}");
         assert_eq!(update(existing, existing), existing, "nothing changed, nothing rewritten");
+    }
+
+    #[test]
+    fn line_endings_of_the_file_are_kept() {
+        // Regression: a CRLF file (written on Windows) came back with LF line endings.
+        let existing = "# top\r\nname = 'old' # trailing\r\n\r\n[t]\r\n# about x\r\nx = 1\r\n";
+        let fresh = "name = \"new\"\n\n[t]\nx = 1\ny = 2\n";
+        assert_eq!(
+            update(existing, fresh),
+            "# top\r\nname = \"new\" # trailing\r\n\r\n[t]\r\n# about x\r\nx = 1\r\ny = 2\r\n"
+        );
+        assert_eq!(update(existing, existing), existing, "unchanged CRLF file, byte for byte");
+        // LF files stay LF, whatever the fresh document uses.
+        assert_eq!(update("a = 1\n", "a = 2\r\n"), "a = 2\n");
+        // Without a line break to go by (one line, or empty), LF is written.
+        assert!(!update("a = 1", "a = 2\r\nb = 3\r\n").contains('\r'));
+        assert_eq!(update_preserving("", "", "a = 1\r\n").unwrap(), "a = 1\n");
     }
 
     #[test]

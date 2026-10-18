@@ -11,7 +11,7 @@ use crate::api::{
 use crate::exceptions::{self, ExceptionGroup};
 use crate::model::{Level, Record};
 use crate::patterns::{self, MinerConfig, Pattern};
-use crate::ql::{self, Completion, QlError, QlResult};
+use crate::ql::{self, Cancelled, Completion, QlError, QlResult, QueryControl, RunError};
 use crate::query::{group_key, Query};
 use anyhow::Result;
 use std::collections::{BTreeMap, HashMap};
@@ -41,14 +41,30 @@ impl Workspace {
     /// Runs a full query-language program (including `stats`, `sort`, `head`)
     /// over the records matching `query` without its `ql` (which is the program).
     pub fn run_query(&self, req: &QueryRequest) -> Result<QlResult, QlError> {
+        self.run_query_with(req, &QueryControl::new()).map_err(RunError::into_ql_error)
+    }
+
+    /// Like [`run_query`](Self::run_query), cancellable through `control` (checked between batches of
+    /// records while matching and evaluating), which also reports progress. Cancelling leaves the
+    /// workspace unchanged: nothing partial is cached.
+    pub fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> Result<QlResult, RunError> {
         let program = ql::parse(&req.query.ql)?;
         let base = Query {
             ql: String::new(),
             ..req.query.clone()
         };
-        let records = self.matched(&base).map_err(|e| QlError::new(format!("{e:#}"), 0, 0))?;
-        let mut it = records.iter().map(|r| (*r, self.source_name(r.source)));
-        ql::run(&program, &mut it)
+        let ids = self
+            .matching_with(&base, control)
+            .map_err(|e| match e.downcast_ref::<Cancelled>() {
+                Some(_) => RunError::Cancelled,
+                None => RunError::Invalid(QlError::new(format!("{e:#}"), 0, 0)),
+            })?;
+        let mut it = ids
+            .iter()
+            .take(MAX_ANALYSED)
+            .map(|&id| &self.records[id as usize])
+            .map(|r| (r, self.source_name(r.source)));
+        ql::run_with(&program, &mut it, control)
     }
 
     /// Checks a query-language text: syntax, then field names against the loaded data (an unknown

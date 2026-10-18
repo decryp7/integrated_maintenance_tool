@@ -2,8 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend } from '../../testing/helpers';
 import { MockToolsBackend } from '../tools/mock/mock-tools-backend';
 import { FailureReporter } from './failure-reporter';
-import { CollectBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, provideToolsBackend, TauriToolsBackend, ToolCatalogBackend, ToolsBackend } from './tools-backend';
+import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, provideToolsBackend, TauriToolsBackend, ToolCatalogBackend, ToolsBackend } from './tools-backend';
 import { CollectorTemplate } from './tools.types';
+import { at } from '../../testing/must';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
 const template: CollectorTemplate = { name: 'T', processes: [], presets: [], extraCounters: [], sampleIntervalSecs: 5, format: 'csv', outputDir: 'x', maxSizeMb: null, durationSecs: null };
@@ -29,6 +30,13 @@ describe('TauriToolsBackend', () => {
       [() => b.collectDefaultPlan(), 'collect_default_plan'],
       [() => b.collectDiagnostics('{}', '/o'), 'collect_diagnostics', { plan: '{}', outDir: '/o' }],
       [() => b.collectDiagnostics('{}', '/o', true), 'collect_diagnostics', { plan: '{}', outDir: '/o', overwrite: true }],
+      [() => b.eventLogChannels(), 'tool_invoke', { tool: 'event-log-follower', op: 'channels', args: {} }],
+      [() => b.eventLogValidate({ channels: ['System'], backfill: '1h' }), 'tool_invoke', { tool: 'event-log-follower', op: 'validate', args: { channels: ['System'], backfill: '1h' } }],
+      [() => b.eventLogStart({ channels: ['System'], resumeFromBookmark: false, dir: '/e' }), 'tool_invoke', { tool: 'event-log-follower', op: 'start', args: { channels: ['System'], resumeFromBookmark: false, dir: '/e' } }],
+      [() => b.eventLogStop(), 'tool_invoke', { tool: 'event-log-follower', op: 'stop', args: {} }],
+      [() => b.eventLogPause(), 'tool_invoke', { tool: 'event-log-follower', op: 'pause', args: {} }],
+      [() => b.eventLogResume(), 'tool_invoke', { tool: 'event-log-follower', op: 'resume', args: {} }],
+      [() => b.eventLogStatus(), 'tool_invoke', { tool: 'event-log-follower', op: 'status', args: {} }],
       [() => b.elevation(), 'elevation'],
       [() => b.restartElevated(['/s']), 'restart_elevated', { reopen: ['/s'] }],
       [() => b.appStatus(), 'app_status'],
@@ -45,8 +53,8 @@ describe('TauriToolsBackend', () => {
       invoke.mockClear();
       await call();
       expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke.mock.calls[0][0]).toBe(name);
-      if (args) expect(invoke.mock.calls[0][1]).toEqual(args);
+      expect(at(invoke.mock.calls, 0)[0]).toBe(name);
+      if (args) expect(at(invoke.mock.calls, 0)[1]).toEqual(args);
     }
     const handler = () => undefined;
     await b.onOpenRequested(handler);
@@ -66,6 +74,7 @@ describe('provideToolsBackend', () => {
     const full = TestBed.inject(ToolsBackend);
     expect(TestBed.inject(PerfmonBackend)).toBe(full);
     expect(TestBed.inject(CollectBackend)).toBe(full);
+    expect(TestBed.inject(EventLogBackend)).toBe(full);
     expect(TestBed.inject(LifecycleBackend)).toBe(full);
     expect(TestBed.inject(ProjectBackend)).toBe(full);
     expect(TestBed.inject(ToolCatalogBackend)).toBe(full);

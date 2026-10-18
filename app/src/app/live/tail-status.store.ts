@@ -75,17 +75,17 @@ export type TailStatusStoreType = InstanceType<typeof TailStatusStore>;
 export function stateLabel(state: TailFileState): string {
   switch (state.kind) {
     case 'tailing':
-      return 'Tailing';
+      return $localize`:@@live.tail.state.tailing:Tailing`;
     case 'rotated':
-      return 'Rotated';
+      return $localize`:@@live.tail.state.rotated:Rotated`;
     case 'truncated':
-      return 'Truncated';
+      return $localize`:@@live.tail.state.truncated:Truncated`;
     case 'deleted':
-      return 'Deleted';
+      return $localize`:@@live.tail.state.deleted:Deleted`;
     case 'whole':
-      return 'Read whole';
+      return $localize`:@@live.tail.state.whole:Read whole`;
     case 'error':
-      return 'Error';
+      return $localize`:@@live.tail.state.error:Error`;
   }
 }
 
@@ -93,16 +93,16 @@ export function stateLabel(state: TailFileState): string {
 export function stateHint(state: TailFileState): string {
   switch (state.kind) {
     case 'tailing':
-      return 'New lines are read as the file grows.';
+      return $localize`:@@live.tail.hint.tailing:New lines are read as the file grows.`;
     case 'rotated':
-      return 'Renamed by log rotation; its events are kept and it is read until the writer lets go.';
+      return $localize`:@@live.tail.hint.rotated:Renamed by log rotation; its events are kept and it is read until the writer lets go.`;
     case 'truncated':
-      return 'Truncated or rewritten in place; its events are kept and the file is read again from its start.';
+      return $localize`:@@live.tail.hint.truncated:Truncated or rewritten in place; its events are kept and the file is read again from its start.`;
     case 'deleted':
-      return 'Gone from disk; its events are kept unless deleted files are dropped.';
+      return $localize`:@@live.tail.hint.deleted:Gone from disk; its events are kept unless deleted files are dropped.`;
     case 'whole':
-      return 'Binary format or archive: read again as a whole when it changes.';
+      return $localize`:@@live.tail.hint.whole:Binary format or archive: read again as a whole when it changes.`;
     case 'error':
-      return `Cannot be read: ${state.message}`;
+      return $localize`:@@live.tail.hint.error:Cannot be read: ${state.message}:message:`;
   }
 }

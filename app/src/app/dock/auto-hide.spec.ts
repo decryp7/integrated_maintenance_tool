@@ -1,4 +1,5 @@
 import { AutoHideItem, AutoHideState, autoHideReduce, clampSize, EMPTY_AUTO_HIDE, itemsOn, MAX_FLYOUT, MIN_FLYOUT, sanitizeAutoHide } from './auto-hide';
+import { at } from '../../testing/must';
 
 const item = (id: string, side: AutoHideItem['side'] = 'left', size = 300): AutoHideItem => ({
   id,
@@ -17,7 +18,7 @@ describe('autoHideReduce', () => {
   it('unpin adds an item (closing any slide-out) and clamps its size', () => {
     const s = autoHideReduce(state('a', 'click'), { type: 'unpin', item: item('c', 'bottom', 5000) });
     expect(s.items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
-    expect(s.items[2].size).toBe(MAX_FLYOUT);
+    expect(at(s.items, 2).size).toBe(MAX_FLYOUT);
     expect(s.open).toBeNull();
     expect(s.openedBy).toBeNull();
   });

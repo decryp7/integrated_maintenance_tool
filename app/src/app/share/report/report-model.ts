@@ -11,7 +11,7 @@ export const REPORT_VERSION = 1;
 /** A block before it gets its id. */
 export type NewBlock = ReportBlock extends infer B ? (B extends ReportBlock ? Omit<B, 'id'> : never) : never;
 
-export function newReport(title = 'Incident report', now = Date.now()): Report {
+export function newReport(title = $localize`:@@share.reportModel.defaultTitle:Incident report`, now = Date.now()): Report {
   return {
     version: REPORT_VERSION,
     id: newId('rep'),
@@ -19,11 +19,11 @@ export function newReport(title = 'Incident report', now = Date.now()): Report {
     summary: '',
     createdAt: now,
     updatedAt: now,
-    sections: [newSection('Timeline')],
+    sections: [newSection($localize`:@@share.reportModel.timelineSection:Timeline`)],
   };
 }
 
-export function newSection(title = 'Section'): ReportSection {
+export function newSection(title = $localize`:@@share.reportModel.defaultSection:Section`): ReportSection {
   return { id: newId('sec'), title, blocks: [] };
 }
 
@@ -35,7 +35,7 @@ const touch = (r: Report, now: number): Report => ({ ...r, updatedAt: now });
 
 /** Appends a block to a section (the last one when `sectionId` is absent or unknown; a new one when there is none). */
 export function addBlock(r: Report, block: ReportBlock, sectionId?: string | null, now = Date.now()): Report {
-  const sections = r.sections.length ? r.sections : [newSection('Timeline')];
+  const sections = r.sections.length ? r.sections : [newSection($localize`:@@share.reportModel.timelineSection:Timeline`)];
   const target = sections.find((s) => s.id === sectionId) ?? sections[sections.length - 1];
   return touch({ ...r, sections: sections.map((s) => (s === target ? { ...s, blocks: [...s.blocks, block] } : s)) }, now);
 }
@@ -51,7 +51,7 @@ export function removeBlock(r: Report, id: string, now = Date.now()): Report {
 /** Where a block is: section index and position. */
 export function locate(r: Report, id: string): { section: number; index: number } | null {
   for (let section = 0; section < r.sections.length; section++) {
-    const index = r.sections[section].blocks.findIndex((b) => b.id === id);
+    const index = r.sections[section]?.blocks.findIndex((b) => b.id === id) ?? -1;
     if (index >= 0) return { section, index };
   }
   return null;
@@ -65,16 +65,18 @@ export function moveBlock(r: Report, id: string, delta: -1 | 1, now = Date.now()
   const at = locate(r, id);
   if (!at) return r;
   const sections = r.sections.map((s) => ({ ...s, blocks: [...s.blocks] }));
-  const blocks = sections[at.section].blocks;
-  const [block] = blocks.splice(at.index, 1);
+  const blocks = sections[at.section]?.blocks;
+  const [block] = blocks?.splice(at.index, 1) ?? [];
+  if (!blocks || !block) return r;
   const to = at.index + delta;
   if (to >= 0 && to <= blocks.length && !(delta > 0 && at.index === blocks.length)) {
     blocks.splice(to, 0, block);
   } else {
     const next = at.section + delta;
-    if (next < 0 || next >= sections.length) return r;
-    if (delta < 0) sections[next].blocks.push(block);
-    else sections[next].blocks.unshift(block);
+    const target = sections[next];
+    if (!target) return r;
+    if (delta < 0) target.blocks.push(block);
+    else target.blocks.unshift(block);
   }
   return touch({ ...r, sections }, now);
 }
@@ -84,7 +86,11 @@ export function moveSection(r: Report, id: string, delta: -1 | 1, now = Date.now
   const j = i + delta;
   if (i < 0 || j < 0 || j >= r.sections.length) return r;
   const sections = [...r.sections];
-  [sections[i], sections[j]] = [sections[j], sections[i]];
+  const a = sections[i];
+  const b = sections[j];
+  if (!a || !b) return r;
+  sections[i] = b;
+  sections[j] = a;
   return touch({ ...r, sections }, now);
 }
 

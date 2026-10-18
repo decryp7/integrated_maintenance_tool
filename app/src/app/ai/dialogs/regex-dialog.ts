@@ -16,13 +16,13 @@ const MAX_LINES = 50;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiProposalCard],
   template: `
-    <label for="ai-regex-lines">Example lines (one per line)</label>
+    <label for="ai-regex-lines" i18n="@@ai.regex.linesLabel">Example lines (one per line)</label>
     <textarea id="ai-regex-lines" class="input mono" rows="5" [value]="text()" (input)="text.set(asValue($event))"></textarea>
-    <label for="ai-regex-intent">What should it capture? (optional)</label>
-    <input id="ai-regex-intent" class="input" maxlength="500" placeholder="e.g. the order id and the duration" [value]="intentText()" (input)="intentText.set(asValue($event))" />
+    <label for="ai-regex-intent" i18n="@@ai.regex.intentLabel">What should it capture? (optional)</label>
+    <input id="ai-regex-intent" class="input" maxlength="500" placeholder="e.g. the order id and the duration" i18n-placeholder="@@ai.regex.intentPlaceholder" [value]="intentText()" (input)="intentText.set(asValue($event))" />
     <div class="row">
-      <span class="muted small">{{ lineCount() }} line{{ lineCount() === 1 ? '' : 's' }}</span>
-      <button type="button" class="btn primary" [disabled]="!lineCount() || busy()" (click)="suggest()">{{ busy() ? 'Suggesting…' : 'Suggest regex' }}</button>
+      <span class="muted small" i18n="@@ai.regex.lineCount">{lineCount(), plural, =1 {{{ lineCount() }} line} other {{{ lineCount() }} lines}}</span>
+      <button type="button" class="btn primary" [disabled]="!lineCount() || busy()" (click)="suggest()">{{ suggestLabel() }}</button>
     </div>
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
@@ -31,13 +31,13 @@ const MAX_LINES = 50;
       <imt-ai-proposal-card
         [proposal]="p"
         [customApply]="!highlight()"
-        [applyLabel]="highlight() ? '' : 'Use this pattern'"
+        [applyLabel]="highlight() ? '' : usePatternLabel"
         (applyRequested)="use($event)"
         (applied)="ref.close()"
         (dismissed)="proposal.set(null)"
       />
     }
-    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()">Close</button></div>
+    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.regex.close">Close</button></div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; }
@@ -66,6 +66,9 @@ export class AiRegexDialog implements OnInit {
       .slice(0, MAX_LINES),
   );
   protected readonly lineCount = computed(() => this.lineList().length);
+  protected readonly usePatternLabel = $localize`:@@ai.regex.usePattern:Use this pattern`;
+  protected readonly suggestLabel = computed(() => (this.busy() ? $localize`:@@ai.regex.suggesting:Suggesting…` : $localize`:@@ai.regex.suggest:Suggest regex`));
+
 
   ngOnInit(): void {
     this.text.set(this.lines().slice(0, MAX_LINES).join('\n'));

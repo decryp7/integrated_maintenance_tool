@@ -20,7 +20,8 @@ export type GlyphSpec =
 export function normalizeHex(value: string | null | undefined): string | null {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((value ?? '').trim());
   if (!m) return null;
-  const h = m[1].length === 3 ? [...m[1]].map((x) => x + x).join('') : m[1];
+  const digits = m[1] ?? '';
+  const h = digits.length === 3 ? [...digits].map((x) => x + x).join('') : digits;
   return `#${h.toLowerCase()}`;
 }
 
@@ -34,7 +35,7 @@ function luminance(hex: string): number {
 
 /** WCAG contrast ratio (1..21) between two #rrggbb colours. */
 export function contrastRatio(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  const [hi = 0, lo = 0] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
 
@@ -72,7 +73,7 @@ export function shapeGeometry(shape: MarkerShape): { tag: 'circle' | 'rect' | 'p
 /** Font size on the 24 grid so up to three characters fit the shape. */
 export function badgeFontSize(chars: number, shape: MarkerShape): number {
   const base = shape === 'diamond' ? [12, 9.5, 7.5] : [14, 11.5, 9];
-  return base[Math.min(Math.max(chars, 1), 3) - 1];
+  return base[Math.min(Math.max(chars, 1), 3) - 1] ?? 9;
 }
 
 // ---- resolution -------------------------------------------------------------------------------

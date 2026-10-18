@@ -1,19 +1,22 @@
 //! The local AI assistant (`imt-ai`): set-up and models, the use cases, chat with approvals for web
 //! search, and the Settings → AI section. Inference runs in one `imt-ai-worker` process shared by every
-//! window (llama.cpp, never a cloud service); each window has its own chats.
+//! window (a downloaded llama.cpp `llama-server` build, ADR 0009; never a cloud service); each window has its own chats.
 //!
 //! Everything is optional: in safe mode, without the worker binary or before a model is set up, every
 //! command fails with a typed [`AiCmdError`] (`code` = `unavailable` / `noModel`) and the UI hides or greys
 //! its AI features.
 //!
 //! Events: `imt://ai-setup` (set-up and activation stages, all windows), `imt://ai-status` (engine state
-//! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat).
+//! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat), `imt://ai-runtime`
+//! (inference runtime downloads, all windows).
 
 mod approvals;
 mod chats;
 pub(crate) mod commands;
 mod core;
 mod error;
+pub(crate) mod runtime_commands;
+mod runtimes;
 mod settings_section;
 #[cfg(test)]
 mod tests;
@@ -29,6 +32,8 @@ use tauri::{AppHandle, Manager, Runtime};
 pub const SETUP_EVENT: &str = "imt://ai-setup";
 pub const STATUS_EVENT: &str = "imt://ai-status";
 pub const CHAT_EVENT: &str = "imt://ai-chat";
+/// Inference runtime installs (`runtimes::RuntimeEvent`, all windows).
+pub const RUNTIME_EVENT: &str = "imt://ai-runtime";
 
 /// The app-wide AI runtime, managed as Tauri state.
 pub struct AiState(pub Arc<AiCore>);
@@ -72,13 +77,10 @@ impl Drop for WindowAi {
 /// Creates the AI runtime and registers Settings → AI. Call from `setup` after `settings::init`.
 /// Never fails: problems leave the AI unavailable with a reason the UI shows.
 pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
-    let dir = app.path().app_config_dir().ok().map(|d| d.join("ai"));
-    let models = app
-        .path()
-        .app_data_dir()
-        .map(|d| d.join("models"))
-        .unwrap_or_else(|_| std::env::temp_dir().join("imt-models"));
-    let deps = AiDeps::system(imt_ai::worker::default_worker_path());
+    let dir = crate::app_dirs::config(app).ok().map(|d| d.join("ai"));
+    let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("imt-data"));
+    let models = data.join("models");
+    let deps = AiDeps::system(imt_ai::worker::default_worker_path(), &data);
     let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
     manage(app, core.clone());
     core.autoload();

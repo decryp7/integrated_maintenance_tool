@@ -1,4 +1,5 @@
 import { isTauri, onFilesDropped, pickExportPath, pickPaths, pickProfileToOpen, pickProfileToSave, Platform, saveDialogConfirmsOverwrite } from './platform';
+import { at } from '../../testing/must';
 
 const dialog = vi.hoisted(() => ({ open: vi.fn(), save: vi.fn() }));
 const webview = vi.hoisted(() => {
@@ -54,7 +55,7 @@ describe('platform (Tauri)', () => {
     expect(await pickPaths(false)).toEqual(['/a', '/b']);
     expect(await pickPaths(true)).toEqual(['/c']);
     expect(await pickPaths(true)).toEqual([]);
-    expect(dialog.open.mock.calls[1][0]).toMatchObject({ directory: true, multiple: true });
+    expect(at(dialog.open.mock.calls, 1)[0]).toMatchObject({ directory: true, multiple: true });
   });
 
   it('asks for an export path with one filter per format', async () => {
@@ -69,7 +70,7 @@ describe('platform (Tauri)', () => {
     expect(await pickProfileToOpen()).toBeNull();
     dialog.save.mockResolvedValueOnce('/out.toml');
     expect(await pickProfileToSave('a.toml')).toBe('/out.toml');
-    expect(dialog.save.mock.calls[0][0]).toMatchObject({ defaultPath: 'a.toml' });
+    expect(at(dialog.save.mock.calls, 0)[0]).toMatchObject({ defaultPath: 'a.toml' });
   });
 
   it('reports drag-and-drop hover and drops', async () => {

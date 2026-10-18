@@ -19,17 +19,17 @@ import { lineDiff, stampToMs } from './line-diff';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (error(); as e) {
-      <div class="state err" role="alert">Could not load the profile history: {{ e }} <button type="button" class="btn" (click)="load()">Retry</button></div>
+      <div class="state err" role="alert"><ng-container i18n="@@profile.history.loadFailed">Could not load the profile history: {{ e }}</ng-container>&ngsp;<button type="button" class="btn" (click)="load()" i18n="@@profile.history.retry">Retry</button></div>
     } @else if (!versions()) {
-      <div class="state muted" role="status">Loading history…</div>
+      <div class="state muted" role="status" i18n="@@profile.history.loading">Loading history…</div>
     } @else if (!versions()!.length) {
       <div class="state empty">
-        <p>No earlier versions yet: every save keeps the previous one, up to 20.</p>
-        <p class="muted">Edit the profile in the Form or TOML view and press Save &amp; apply; the version it replaces appears here.</p>
+        <p i18n="@@profile.history.none">No earlier versions yet: every save keeps the previous one, up to 20.</p>
+        <p class="muted" i18n="@@profile.history.noneHint">Edit the profile in the Form or TOML view and press Save &amp; apply; the version it replaces appears here.</p>
       </div>
     } @else {
       <div class="cols">
-        <ul class="list" aria-label="Saved versions">
+        <ul class="list" aria-label="Saved versions" i18n-aria-label="@@profile.history.versions">
           @for (v of versions(); track v.file) {
             <li>
               <button type="button" class="ver" [class.on]="v.file === selected()" [attr.aria-pressed]="v.file === selected()" (click)="select(v.file)">
@@ -39,29 +39,29 @@ import { lineDiff, stampToMs } from './line-diff';
             </li>
           }
         </ul>
-        <section class="detail" aria-label="Difference from the current profile">
+        <section class="detail" aria-label="Difference from the current profile" i18n-aria-label="@@profile.history.difference">
           @if (!selected()) {
-            <p class="muted">Select a version to compare it with the current profile.</p>
+            <p class="muted" i18n="@@profile.history.select">Select a version to compare it with the current profile.</p>
           } @else if (versionError(); as e) {
-            <div class="err" role="alert">Could not read this version: {{ e }} <button type="button" class="btn" (click)="select(selected()!)">Retry</button></div>
+            <div class="err" role="alert"><ng-container i18n="@@profile.history.versionFailed">Could not read this version: {{ e }}</ng-container>&ngsp;<button type="button" class="btn" (click)="select(selected()!)" i18n="@@profile.history.retry">Retry</button></div>
           } @else if (diff(); as d) {
             <div class="summary" role="status">
               @if (!d.added && !d.removed) {
-                This version is the same as the current profile.
+                <ng-container i18n="@@profile.history.same">This version is the same as the current profile.</ng-container>
               } @else {
-                Restoring it would remove {{ d.removed }} line{{ d.removed === 1 ? '' : 's' }} and add {{ d.added }}.
+                <ng-container i18n="@@profile.history.restoring">Restoring it would remove {d.removed, plural, =1 {{{ d.removed }} line} other {{{ d.removed }} lines}} and add {{ d.added }}.</ng-container>
               }
-              @if (d.coarse) { <span class="muted"> (too large to align line by line)</span> }
+              @if (d.coarse) { &ngsp;<span class="muted" i18n="@@profile.history.coarse">(too large to align line by line)</span> }
             </div>
-            <pre class="diff mono" tabindex="0" aria-label="Line differences: lines starting with minus are removed, with plus are added">@for (l of d.lines; track $index) {<span [class]="'l ' + l.kind"><span class="sign" aria-hidden="true">{{ sign(l.kind) }}</span><span class="sr">{{ srLabel(l.kind) }}</span>{{ l.text }}
+            <pre class="diff mono" tabindex="0" aria-label="Line differences: lines starting with minus are removed, with plus are added" i18n-aria-label="@@profile.history.diffLabel">@for (l of d.lines; track $index) {<span [class]="'l ' + l.kind"><span class="sign" aria-hidden="true">{{ sign(l.kind) }}</span><span class="sr">{{ srLabel(l.kind) }}</span>{{ l.text }}
 </span>}</pre>
-            @if (restoreError(); as e) { <div class="err" role="alert">Not restored: {{ e }}</div> }
+            @if (restoreError(); as e) { <div class="err" role="alert" i18n="@@profile.history.notRestored">Not restored: {{ e }}</div> }
             <div class="foot">
-              @if (draft.dirty()) { <span class="muted">Save or revert your unsaved edits first.</span> }
-              <button type="button" class="btn primary" [disabled]="restoring() || draft.dirty() || (!d.added && !d.removed)" (click)="restore()">{{ restoring() ? 'Restoring…' : 'Restore this version' }}</button>
+              @if (draft.dirty()) { <span class="muted" i18n="@@profile.history.saveFirst">Save or revert your unsaved edits first.</span> }
+              <button type="button" class="btn primary" [disabled]="restoring() || draft.dirty() || (!d.added && !d.removed)" (click)="restore()">@if (restoring()) { <ng-container i18n="@@profile.history.restoringBusy">Restoring…</ng-container> } @else { <ng-container i18n="@@profile.history.restore">Restore this version</ng-container> }</button>
             </div>
           } @else {
-            <p class="muted" role="status">Loading version…</p>
+            <p class="muted" role="status" i18n="@@profile.history.loadingVersion">Loading version…</p>
           }
         </section>
       </div>
@@ -163,7 +163,7 @@ export class ProfileHistory {
   }
 
   protected srLabel(kind: string): string {
-    return kind === 'added' ? 'added: ' : kind === 'removed' ? 'removed: ' : '';
+    return kind === 'added' ? $localize`:@@profile.history.srAdded:added:` + ' ' : kind === 'removed' ? $localize`:@@profile.history.srRemoved:removed:` + ' ' : '';
   }
 
   /** Validates the selected version in the engine, then saves it (undoable) and reloads the editor. */
@@ -175,12 +175,13 @@ export class ProfileHistory {
     try {
       const v = await this.backend.validateProfile(text);
       if (!v.ok) {
-        this.restoreError.set(`${v.line ? `line ${v.line}: ` : ''}${v.error ?? 'the profile is not valid'}`);
+        const reason = v.error ?? $localize`:@@profile.history.invalid:the profile is not valid`;
+        this.restoreError.set(v.line ? $localize`:@@profile.history.invalidLine:line ${v.line}:line:: ${reason}:reason:` : reason);
         return;
       }
-      await this.undo.save('profile restore', text);
+      await this.undo.save($localize`:Undo history entry|@@profile.history.undoLabel:profile restore`, text);
       await this.draft.load();
-      this.store.setNotice('Restored the earlier profile version');
+      this.store.setNotice($localize`:@@profile.history.restored:Restored the earlier profile version`);
     } catch (e) {
       this.restoreError.set(describeError(e));
     } finally {

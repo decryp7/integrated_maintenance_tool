@@ -43,6 +43,9 @@
 //!   43 (installation started) from secondary references only.
 //! * Security-Auditing 4625 "An account failed to log on":
 //!   <https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4625>.
+//! * Process Monitor (`Result` of [`crate::ProcmonCsvImporter`] records):
+//!   `ACCESS DENIED`, `SHARING VIOLATION` and `PRIVILEGE NOT HELD` are the NTSTATUS
+//!   names ProcMon shows for permission, locking and privilege failures.
 
 use imt_core::plugin::markers::{MarkerRole, PluginMarkerKind};
 
@@ -58,6 +61,8 @@ pub const BUGCHECK: &str = "Microsoft-Windows-WER-SystemErrorReporting";
 pub const DISK: &str = "disk";
 pub const UPDATE: &str = "Microsoft-Windows-WindowsUpdateClient";
 pub const SECURITY: &str = "Microsoft-Windows-Security-Auditing";
+/// ProcMon results that mean "not allowed".
+pub const PROCMON_DENIED: [&str; 3] = ["ACCESS DENIED", "SHARING VIOLATION", "PRIVILEGE NOT HELD"];
 
 /// Kinds used only by annotators (no rules): their style for the spans.
 pub const DOWNTIME: &str = "downtime";
@@ -152,6 +157,11 @@ pub fn kinds() -> Vec<PluginMarkerKind> {
             .icon("lock")
             .color("#E9AE3F")
             .describe("Security 4625: an account failed to log on (see Status/SubStatus and LogonType)."),
+        PluginMarkerKind::new("access-denied", "Access denied")
+            .when_in("Result", &PROCMON_DENIED)
+            .icon("lock")
+            .color("#F2545B")
+            .describe("Process Monitor: an operation was denied (ACCESS DENIED, SHARING VIOLATION or PRIVILEGE NOT HELD)."),
         PluginMarkerKind::new(DOWNTIME, "Downtime")
             .icon("power")
             .color("#FF4FA3")

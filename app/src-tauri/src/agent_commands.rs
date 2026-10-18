@@ -13,7 +13,7 @@ use imt_agent::{AgentConfig, AgentConfigFile, Issue};
 use imt_core::overwrite::check_overwrite;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
 /// File name of the config in the app's config folder (the default).
 pub const CONFIG_NAME: &str = "imt-agent.toml";
@@ -48,8 +48,8 @@ pub struct Dirs {
 }
 
 fn dirs<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Dirs> {
-    let config = app.path().app_config_dir().map_err(err)?;
-    let output = app.path().app_data_dir().map_err(err)?.join("agent").join("runs");
+    let config = crate::app_dirs::config(app).map_err(err)?;
+    let output = crate::app_dirs::data(app).map_err(err)?.join("agent").join("runs");
     Ok(Dirs { config, output })
 }
 

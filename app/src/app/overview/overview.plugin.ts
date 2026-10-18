@@ -10,7 +10,7 @@ export const OVERVIEW_VIEW = 'overview';
 export const OVERVIEW_VIEWS: ImtView[] = [
   {
     id: OVERVIEW_VIEW,
-    title: 'Overview',
+    title: $localize`:@@overview.plugin.title:Overview`,
     category: 'core',
     icon: 'check',
     // Next to the inspector, so it never hides the timeline or the events.
@@ -44,7 +44,7 @@ export function provideOverview(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideImtPlugin({
       views: OVERVIEW_VIEWS,
-      commands: [{ id: 'view.overview', title: 'Show overview', category: 'View', run: (ctx) => ctx.showView(OVERVIEW_VIEW) }],
+      commands: [{ id: 'view.overview', title: $localize`:@@overview.plugin.show:Show overview`, category: $localize`:@@overview.plugin.category:View`, run: (ctx) => ctx.showView(OVERVIEW_VIEW) }],
     }),
     provideEnvironmentInitializer(() => inject(OverviewAutoOpen)),
   ]);

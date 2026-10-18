@@ -37,7 +37,8 @@ export const TreeStore = signalStore(
   withState<TreeShape>({ direction: 'topDown', entries: { [ROOT_KEY]: rootEntry() }, expanded: [], selected: null, grandTotal: null, measurement: null, notice: null, busy: false }),
   withComputed((s) => ({
     rows: computed(() => flattenTree(s.entries(), new Set(s.expanded()))),
-    root: computed(() => s.entries()[ROOT_KEY]),
+    // The root entry is always present (every reset puts a fresh one in).
+    root: computed((): TreeEntry => s.entries()[ROOT_KEY] ?? rootEntry()),
   })),
   withMethods((s) => {
     const backend = inject(ProfilingBackend);
@@ -71,7 +72,7 @@ export const TreeStore = signalStore(
           entries[k] = { key: k, path, node, children: entries[k]?.children ?? null, totalChildren: entries[k]?.totalChildren ?? 0, loading: false, error: null };
           if (!keys.includes(k)) keys.push(k);
         }
-        entries[key] = { ...entries[key], children: keys, totalChildren: page.totalChildren, loading: false, error: null };
+        entries[key] = { ...(entries[key] ?? entry), children: keys, totalChildren: page.totalChildren, loading: false, error: null };
         patchState(s, { entries, grandTotal: page.grandTotal, measurement: page.measurement });
         return true;
       } catch (e) {
@@ -94,12 +95,12 @@ export const TreeStore = signalStore(
         const k = keyOf(path.slice(0, i));
         let parent = s.entries()[keyOf(path.slice(0, i - 1))];
         // Page through the parent until the child appears (bounded by the parent's child count).
-        while (!s.entries()[k] && parent.children && parent.children.length < parent.totalChildren) {
+        while (parent && !s.entries()[k] && parent.children && parent.children.length < parent.totalChildren) {
           if (!(await loadChildren(parent.key))) return false;
           parent = s.entries()[parent.key];
         }
         if (!s.entries()[k]) {
-          patchState(s, { notice: 'That path is not in the tree under the current view (range, threads, just my code or recursion).' });
+          patchState(s, { notice: $localize`:@@profiling.tree.notInTree:That path is not in the tree under the current view (range, threads, just my code or recursion).` });
           return false;
         }
         if (i < path.length && !(await expand(k))) return false;
@@ -142,7 +143,7 @@ export const TreeStore = signalStore(
           if (mine !== generation) return;
           names.remember(q.profileId, hot.nodes.map((n) => n.frame));
           if (hot.path.length > from.length) await reveal(hot.path);
-          else patchState(s, { notice: 'Nothing below this node is hot enough to expand.' });
+          else patchState(s, { notice: $localize`:@@profiling.tree.notHot:Nothing below this node is hot enough to expand.` });
         } catch (e) {
           if (mine === generation) patchState(s, { notice: errorText(e) });
         } finally {

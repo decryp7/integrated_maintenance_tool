@@ -30,6 +30,7 @@ imt-plugin-otel = { path = "../imt-plugin-otel" }
 imt-plugin-syslog = { path = "../imt-plugin-syslog" }
 imt-plugin-windows = { path = "../imt-plugin-windows" }
 imt-plugin-web = { path = "../imt-plugin-web" }
+imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
 anyhow = "1.0"
 bytes = "1"

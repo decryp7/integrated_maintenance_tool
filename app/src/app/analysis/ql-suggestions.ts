@@ -10,10 +10,10 @@ import { QlError } from '../core/api.types';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (names().length) {
-      <span class="dym" data-testid="did-you-mean">Did you mean
+      <span class="dym" data-testid="did-you-mean"><ng-container i18n="@@analysis.qlSuggestions.didYouMean">Did you mean</ng-container>&ngsp;
         @for (n of names(); track n; let last = $last) {
-          <button type="button" class="link mono" [attr.aria-label]="'Replace with ' + n" (click)="pick.emit(n)">{{ n }}</button>@if (!last) {<span>,</span>}
-        }?
+          <button type="button" class="link mono" [attr.aria-label]="replaceLabel(n)" (click)="pick.emit(n)">{{ n }}</button>@if (!last) {<span>,</span>}
+        }<ng-container i18n="@@analysis.qlSuggestions.questionMark">?</ng-container>
       </span>
     }
   `,
@@ -25,6 +25,9 @@ import { QlError } from '../core/api.types';
   `,
 })
 export class QlSuggestions {
+  protected replaceLabel(name: string): string {
+    return $localize`:@@analysis.qlSuggestions.replaceWith:Replace with ${name}:name:`;
+  }
   readonly error = input<QlError | null>(null);
   /** The chosen name. */
   readonly pick = output<string>();

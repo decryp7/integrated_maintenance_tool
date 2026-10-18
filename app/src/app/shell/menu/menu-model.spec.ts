@@ -1,4 +1,5 @@
 import { buildMenus, menuItems, MenuNode, MenuState, MenuView, tidy, TopMenu, topLevelSize } from './menu-model';
+import { at } from '../../../testing/must';
 
 const COMMANDS: [string, string, string?][] = [
   ['project.new', 'New project'],
@@ -258,7 +259,7 @@ describe('menu model', () => {
     const updates = new Map([...state().commands, ['help.checkForUpdates', { id: 'help.checkForUpdates', title: 'Check for updates' }]]);
     const mac = buildMenus(state({ nativeAppMenu: true, commands: updates }));
     expect(mac[0]).toMatchObject({ id: 'app', label: 'IMT' });
-    expect(labels(mac[0].items)).toEqual(['About IMT', 'Check for updates…', '—', 'Settings…']);
+    expect(labels(at(mac, 0).items)).toEqual(['About IMT', 'Check for updates…', '—', 'Settings…']);
     const ids = mac.slice(1).flatMap((m) => menuItems(m.items).map((i) => i.id));
     for (const id of ['help.about', 'help.checkForUpdates', 'settings.open']) expect(ids).not.toContain(id);
     expect(labels(menu(buildMenus(state()), 'tools').items)).toContain('Settings…');

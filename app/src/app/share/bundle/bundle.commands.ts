@@ -9,7 +9,7 @@ export class BundleCommands {
   private bundles = () => this.injector.get(BundleService);
 
   readonly commands: ImtCommand[] = [
-    { id: 'share.bundle.create', title: 'Share as bundle…', category: 'File', when: (ctx) => (ctx.summary?.sources.length ?? 0) > 0, run: () => this.bundles().create() },
-    { id: 'share.bundle.open', title: 'Open bundle…', category: 'File', run: () => this.bundles().openFromDialog() },
+    { id: 'share.bundle.create', title: $localize`:@@share.bundleCommands.create:Share as bundle…`, category: $localize`:@@share.commands.categoryFile:File`, when: (ctx) => (ctx.summary?.sources.length ?? 0) > 0, run: () => this.bundles().create() },
+    { id: 'share.bundle.open', title: $localize`:@@share.bundleCommands.open:Open bundle…`, category: $localize`:@@share.commands.categoryFile:File`, run: () => this.bundles().openFromDialog() },
   ];
 }

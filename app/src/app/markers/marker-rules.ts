@@ -32,8 +32,8 @@ export function writeRows(model: ProfileModel, rows: readonly RuleRow[]): void {
 export function moveRow<T>(rows: readonly T[], from: number, to: number): T[] {
   const out = [...rows];
   if (from < 0 || from >= out.length) return out;
-  const [item] = out.splice(from, 1);
-  out.splice(Math.max(0, Math.min(to, out.length)), 0, item);
+  const moved = out.splice(from, 1);
+  out.splice(Math.max(0, Math.min(to, out.length)), 0, ...moved);
   return out;
 }
 
@@ -62,36 +62,38 @@ export function uniqueKind(rows: readonly RuleRow[], base: string, own?: string)
 }
 
 const FIELD_NAMES: Record<string, string> = {
-  '@message': 'message',
-  '@level': 'level',
-  '@exception': 'exception',
-  '@template': 'message template',
-  '@source': 'source file',
-  '@line': 'line number',
+  '@message': $localize`:Name of an event field in a rule description|@@markers.rules.field.message:message`,
+  '@level': $localize`:Name of an event field in a rule description|@@markers.rules.field.level:level`,
+  '@exception': $localize`:Name of an event field in a rule description|@@markers.rules.field.exception:exception`,
+  '@template': $localize`:Name of an event field in a rule description|@@markers.rules.field.template:message template`,
+  '@source': $localize`:Name of an event field in a rule description|@@markers.rules.field.source:source file`,
+  '@line': $localize`:Name of an event field in a rule description|@@markers.rules.field.line:line number`,
 };
 
 const OP_TEXT: Record<ConditionOp, string> = {
-  eq: 'is',
-  ne: 'is not',
-  contains: 'contains',
-  notContains: 'does not contain',
-  matches: 'matches regex',
-  exists: 'is present',
-  missing: 'is absent',
-  gt: 'is greater than',
-  lt: 'is less than',
-  in: 'is one of',
+  eq: $localize`:Condition operator in a rule description|@@markers.rules.op.eq:is`,
+  ne: $localize`:Condition operator in a rule description|@@markers.rules.op.ne:is not`,
+  contains: $localize`:Condition operator in a rule description|@@markers.rules.op.contains:contains`,
+  notContains: $localize`:Condition operator in a rule description|@@markers.rules.op.notContains:does not contain`,
+  matches: $localize`:Condition operator in a rule description|@@markers.rules.op.matches:matches regex`,
+  exists: $localize`:Condition operator in a rule description|@@markers.rules.op.exists:is present`,
+  missing: $localize`:Condition operator in a rule description|@@markers.rules.op.missing:is absent`,
+  gt: $localize`:Condition operator in a rule description|@@markers.rules.op.gt:is greater than`,
+  lt: $localize`:Condition operator in a rule description|@@markers.rules.op.lt:is less than`,
+  in: $localize`:Condition operator in a rule description|@@markers.rules.op.in:is one of`,
 };
 
 export function describeCondition(c: Condition): string {
   const field = FIELD_NAMES[c.field] ?? c.field;
   const op = OP_TEXT[c.op] ?? c.op;
-  return c.value === undefined || c.op === 'exists' || c.op === 'missing' ? `${field} ${op}` : `${field} ${op} "${c.value}"`;
+  return c.value === undefined || c.op === 'exists' || c.op === 'missing'
+    ? $localize`:@@markers.rules.describe:${field}:field: ${op}:op:`
+    : $localize`:@@markers.rules.describeValue:${field}:field: ${op}:op: "${c.value}:value:"`;
 }
 
 /** Plain-English summary of a rule's conditions. */
 export function describeWhen(when: readonly Condition[] | undefined): string {
-  return when?.length ? when.map(describeCondition).join(' and ') : 'every event';
+  return when?.length ? when.map(describeCondition).join($localize`:Joins two rule conditions|@@markers.rules.and: and `) : $localize`:@@markers.rules.everyEvent:every event`;
 }
 
 /** Names of custom icons that rules (active or disabled) still use. */
@@ -133,10 +135,10 @@ export function iconNameFromFile(fileName: string, taken: ReadonlySet<string>): 
 /** Early, friendly checks before the engine validates for real. */
 export function ruleProblems(rule: MarkerRuleX): string[] {
   const out: string[] = [];
-  if (!rule.kind) out.push('The marker needs an id.');
-  if (rule.color && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rule.color)) out.push('Colour must be #RGB or #RRGGBB.');
-  if (rule.badge !== undefined && ([...rule.badge].length < 1 || [...rule.badge].length > 3)) out.push('A badge is 1 to 3 characters.');
-  if (!rule.when?.length) out.push('Add at least one condition: a marker without any would mark every event.');
+  if (!rule.kind) out.push($localize`:@@markers.rules.needsId:The marker needs an id.`);
+  if (rule.color && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(rule.color)) out.push($localize`:@@markers.rules.colourFormat:Colour must be #RGB or #RRGGBB.`);
+  if (rule.badge !== undefined && ([...rule.badge].length < 1 || [...rule.badge].length > 3)) out.push($localize`:@@markers.rules.badgeLength:A badge is 1 to 3 characters.`);
+  if (!rule.when?.length) out.push($localize`:@@markers.rules.needsCondition:Add at least one condition: a marker without any would mark every event.`);
   return out;
 }
 

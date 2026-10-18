@@ -4,7 +4,7 @@ import { ImtView } from '../../extensions/tokens';
 export const DASHBOARD_VIEWS: ImtView[] = [
   {
     id: 'dashboards',
-    title: 'Dashboards',
+    title: $localize`:@@share.dashboardViews.title:Dashboards`,
     category: 'Sharing',
     icon: 'chart',
     defaultPosition: 'center',

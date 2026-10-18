@@ -10,6 +10,7 @@ import { sparkline } from './heap-selection';
 import { flattenDominators } from './heap-dominators';
 import { byTaken } from './heap-diff';
 import { HeapView } from './heap-view';
+import { at } from '../../../testing/must';
 
 const HEAP_PATHS = ['/demo/profiles/heap-1.heapsnapshot', '/demo/profiles/heap-2.heapsnapshot', '/demo/profiles/heap-3.heapsnapshot'];
 
@@ -197,7 +198,7 @@ describe('HeapView', () => {
       expect(spies.types.mock.calls.at(-1)![0]).toEqual({ snapshotId: 3, sort: 'bytes', search: null, offset: 0, limit: 200 });
       const rows = typeRows(fixture);
       expect(rows.length).toBeGreaterThan(3);
-      const first = cells(rows[0]);
+      const first = cells(at(rows, 0));
       expect(first[0]).not.toBe('');
       expect(first[1]).toMatch(/\d/);
       expect(first[3]).not.toBe('—');
@@ -251,7 +252,7 @@ describe('HeapView', () => {
       await settle(fixture, 6);
       const retained = all<HTMLButtonElement>(fixture, 'table[aria-label=Types] th button').find((b) => b.textContent!.startsWith('Retained'))!;
       expect(retained.disabled).toBe(true);
-      expect(cells(typeRows(fixture)[0])[3]).toBe('—');
+      expect(cells(at(typeRows(fixture), 0))[3]).toBe('—');
     });
 
     function paged(backend: MockProfilingBackend, more: number) {
@@ -295,8 +296,8 @@ describe('HeapView', () => {
 
     it('opens the instances of a clicked type', async () => {
       const { fixture, spies } = await mount();
-      const name = cells(typeRows(fixture)[0])[0];
-      typeRows(fixture)[0].querySelector<HTMLButtonElement>('button.link')!.click();
+      const name = cells(at(typeRows(fixture), 0))[0];
+      at(typeRows(fixture), 0).querySelector<HTMLButtonElement>('button.link')!.click();
       await settle(fixture, 6);
       expect(tab(fixture, 'Instances and paths').getAttribute('aria-selected')).toBe('true');
       expect(spies.instances.mock.calls.at(-1)![0]).toMatchObject({ snapshotId: 3, typeName: name, limit: 200 });
@@ -319,8 +320,8 @@ describe('HeapView', () => {
       const { fixture, spies } = await mount();
       await goto(fixture, 'Compare snapshots');
       expect(spies.diff.mock.calls.at(-1)![0]).toEqual({ baselineId: 4, targetId: 5, sort: 'bytesDelta', limit: 500 });
-      expect(select(fixture, 'Before snapshot').selectedOptions[0].textContent).toBe('heap-2.heapsnapshot');
-      expect(select(fixture, 'After snapshot').selectedOptions[0].textContent).toBe('heap-3.heapsnapshot');
+      expect(select(fixture, 'Before snapshot').selectedOptions[0]?.textContent).toBe('heap-2.heapsnapshot');
+      expect(select(fixture, 'After snapshot').selectedOptions[0]?.textContent).toBe('heap-3.heapsnapshot');
       expect(el(fixture, '[role=tabpanel] .bar .muted').textContent).toMatch(/→.*\(\+/);
       expect(rowsOf(fixture).length).toBeGreaterThan(0);
     });
@@ -355,15 +356,15 @@ describe('HeapView', () => {
       choose(select(fixture, 'Sort by'), 'countDelta');
       await settle(fixture, 6);
       expect(spies.diff.mock.calls.at(-1)![0].sort).toBe('countDelta');
-      const name = cells(rowsOf(fixture)[0])[0];
-      rowsOf(fixture)[0].querySelector<HTMLButtonElement>('button.link')!.click();
+      const name = cells(at(rowsOf(fixture), 0))[0];
+      at(rowsOf(fixture), 0).querySelector<HTMLButtonElement>('button.link')!.click();
       await settle(fixture, 6);
       expect(tab(fixture, 'Instances and paths').getAttribute('aria-selected')).toBe('true');
       expect(spies.instances.mock.calls.at(-1)![0].typeName).toBe(name);
     });
 
     it('asks for a second snapshot when fewer than two are open', async () => {
-      const { fixture, spies } = await mount({ open: [HEAP_PATHS[0]] });
+      const { fixture, spies } = await mount({ open: [at(HEAP_PATHS, 0)] });
       await goto(fixture, 'Compare snapshots');
       expect(text(fixture)).toContain('Open a second heap snapshot to compare.');
       expect(spies.diff).not.toHaveBeenCalled();
@@ -390,13 +391,13 @@ describe('HeapView', () => {
       expect(el(fixture, '[role=status]').textContent).toMatch(/\d+ types? grew in every snapshot/);
       const steady = rowsOf(fixture).filter((r) => r.querySelector('.tag.steady'));
       expect(steady.length).toBeGreaterThan(0);
-      expect(steady[0].querySelector('.tag.steady')!.textContent).toContain('steady growth');
-      const svg = steady[0].querySelector('svg')!;
-      const name = cells(steady[0])[0];
+      expect(steady[0]?.querySelector('.tag.steady')!.textContent).toContain('steady growth');
+      const svg = at(steady, 0).querySelector('svg')!;
+      const name = cells(at(steady, 0))[0] ?? '';
       expect(svg.getAttribute('aria-label')).toMatch(new RegExp(`^Trend of ${name.replace(/[.\\[\]]/g, '\\$&')}: .+ → .+ → .+$`));
       expect(svg.querySelector('polyline')!.getAttribute('points')).toMatch(/^\d/);
       expect(svg.querySelector('polyline')!.classList.contains('steady')).toBe(true);
-      expect(steady[0].querySelector('td.up')).not.toBeNull();
+      expect(steady[0]?.querySelector('td.up')).not.toBeNull();
     });
 
     it('can show steady growers only', async () => {
@@ -416,7 +417,7 @@ describe('HeapView', () => {
       const { fixture, spies } = await mount();
       await goto(fixture, 'Growth');
       const calls = spies.growth.mock.calls.length;
-      const first = all<HTMLInputElement>(fixture, 'fieldset input')[0];
+      const first = at(all<HTMLInputElement>(fixture, 'fieldset input'), 0);
       first.checked = false;
       first.dispatchEvent(new Event('change'));
       await settle(fixture, 6);
@@ -458,8 +459,8 @@ describe('HeapView', () => {
       const rows = rowsOf(fixture);
       expect(rows.length).toBeGreaterThan(0);
       expect(rows.map((r) => r.getAttribute('aria-level'))).toEqual(rows.map(() => '1'));
-      expect(rows[0].getAttribute('aria-posinset')).toBe('1');
-      expect(rows[0].getAttribute('aria-setsize')).toBe(String(rows.length));
+      expect(rows[0]?.getAttribute('aria-posinset')).toBe('1');
+      expect(rows[0]?.getAttribute('aria-setsize')).toBe(String(rows.length));
       expect(rows.map((r) => r.getAttribute('tabindex'))).toEqual(['0', ...rows.slice(1).map(() => '-1')]);
       expect(grid(fixture).getAttribute('aria-label')).toBe('Dominator tree');
     });
@@ -476,7 +477,7 @@ describe('HeapView', () => {
       const { fixture, spies } = await mount();
       const index = await openFirstParent(fixture);
       const topCount = rowsOf(fixture).length;
-      const row = () => rowsOf(fixture)[index];
+      const row = () => at(rowsOf(fixture), index);
       expect(row().getAttribute('aria-expanded')).toBe('false');
       row().querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 6);
@@ -484,7 +485,7 @@ describe('HeapView', () => {
       expect(spies.dominators.mock.calls.at(-1)![0].parent).not.toBeNull();
       const withChildren = rowsOf(fixture);
       expect(withChildren.length).toBeGreaterThan(topCount);
-      expect(withChildren[index + 1].getAttribute('aria-level')).toBe('2');
+      expect(withChildren[index + 1]?.getAttribute('aria-level')).toBe('2');
       const calls = spies.dominators.mock.calls.length;
       row().querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 3);
@@ -498,7 +499,7 @@ describe('HeapView', () => {
     it('retries a failed child level when it is expanded again (regression)', async () => {
       const { fixture, spies, orig } = await mount();
       const index = await openFirstParent(fixture);
-      const row = () => rowsOf(fixture)[index];
+      const row = () => at(rowsOf(fixture), index);
       spies.dominators.mockImplementationOnce(() => Promise.reject('children failed'));
       row().querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 6);
@@ -509,7 +510,7 @@ describe('HeapView', () => {
       row().querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 6);
       expect(text(fixture)).not.toContain('children failed');
-      expect(rowsOf(fixture)[index + 1].getAttribute('aria-level')).toBe('2');
+      expect(rowsOf(fixture)[index + 1]?.getAttribute('aria-level')).toBe('2');
     });
 
     it('ignores the twisty of a leaf', async () => {
@@ -529,22 +530,22 @@ describe('HeapView', () => {
       const g = grid(fixture);
       const rows = () => rowsOf(fixture);
       // Move down to the first expandable row.
-      for (let i = 0; i < index; i++) key(rows()[i], 'ArrowDown');
+      for (let i = 0; i < index; i++) key(at(rows(), i), 'ArrowDown');
       await settle(fixture, 2);
-      expect(rows()[index].getAttribute('tabindex')).toBe('0');
+      expect(rows()[index]?.getAttribute('tabindex')).toBe('0');
       expect(key(g, 'ArrowRight').defaultPrevented).toBe(true);
       await settle(fixture, 4);
-      expect(rows()[index].getAttribute('aria-expanded')).toBe('true');
+      expect(rows()[index]?.getAttribute('aria-expanded')).toBe('true');
       expect(key(g, 'ArrowRight').defaultPrevented).toBe(false); // already open
       key(g, 'ArrowDown');
       await settle(fixture, 2);
-      expect(rows()[index + 1].getAttribute('tabindex')).toBe('0');
+      expect(rows()[index + 1]?.getAttribute('tabindex')).toBe('0');
       key(g, 'ArrowUp');
       await settle(fixture, 2);
-      expect(rows()[index].getAttribute('tabindex')).toBe('0');
+      expect(rows()[index]?.getAttribute('tabindex')).toBe('0');
       expect(key(g, 'ArrowLeft').defaultPrevented).toBe(true);
       await settle(fixture, 2);
-      expect(rows()[index].getAttribute('aria-expanded')).toBe('false');
+      expect(rows()[index]?.getAttribute('aria-expanded')).toBe('false');
       expect(key(g, 'ArrowLeft').defaultPrevented).toBe(false);
       expect(key(g, 'x').defaultPrevented).toBe(false);
       expect(spies.dominators.mock.calls.length).toBeGreaterThan(1);
@@ -553,7 +554,7 @@ describe('HeapView', () => {
     it('opens the paths to roots with Enter and with the button', async () => {
       const { fixture, spies } = await mount();
       await goto(fixture, 'Dominator tree');
-      const firstType = rowsOf(fixture)[0].querySelector('.ellipsis')!.textContent!;
+      const firstType = at(rowsOf(fixture), 0).querySelector('.ellipsis')!.textContent!;
       key(grid(fixture), 'Enter');
       await settle(fixture, 6);
       expect(tab(fixture, 'Instances and paths').getAttribute('aria-selected')).toBe('true');
@@ -563,7 +564,7 @@ describe('HeapView', () => {
       expect(el(fixture, '[data-testid=root-path]')).toBeTruthy();
 
       await goto(fixture, 'Dominator tree');
-      const btn = rowsOf(fixture)[1].querySelector<HTMLButtonElement>('button')!;
+      const btn = at(rowsOf(fixture), 1).querySelector<HTMLButtonElement>('button')!;
       expect(btn.textContent).toBe('Paths to roots');
       expect(btn.getAttribute('aria-label')).toMatch(/^Why is .+ @\d+ alive\?$/);
       btn.click();
@@ -586,7 +587,7 @@ describe('HeapView', () => {
         return orig.dominators(r);
       });
       const index = await openFirstParent(fixture);
-      rowsOf(fixture)[index].querySelector<HTMLElement>('.tw')!.click();
+      at(rowsOf(fixture), index).querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 6);
       expect(el(fixture, '.pad').textContent).toMatch(/^@\d+: children unavailable$/);
     });
@@ -599,7 +600,7 @@ describe('HeapView', () => {
         return orig.dominators(r);
       });
       const index = await openFirstParent(fixture);
-      rowsOf(fixture)[index].querySelector<HTMLElement>('.tw')!.click();
+      at(rowsOf(fixture), index).querySelector<HTMLElement>('.tw')!.click();
       await settle(fixture, 3);
       expect(el(fixture, '.pad').textContent).toMatch(/^Loading children of @\d+…$/);
       release();
@@ -654,7 +655,7 @@ describe('HeapView', () => {
       expect(text(fixture)).toMatch(/30 instances · /);
       const retained = instanceRows(fixture).map((r) => cells(r)[1]);
       expect(retained.length).toBe(30);
-      expect(instanceRows(fixture)[0].querySelector('button')!.getAttribute('aria-label')).toMatch(/^Why is Shop\.Orders\.Customer @\d+ alive\?$/);
+      expect(instanceRows(fixture)[0]?.querySelector('button')!.getAttribute('aria-label')).toMatch(/^Why is Shop\.Orders\.Customer @\d+ alive\?$/);
     });
 
     it('says so when the type has no instances', async () => {
@@ -666,20 +667,20 @@ describe('HeapView', () => {
     it('shows the path from a GC root as an ordered chain with the edges', async () => {
       const { fixture, spies } = await mount();
       await showType(fixture, 'Shop.Orders.Customer');
-      const button = instanceRows(fixture)[0].querySelector<HTMLButtonElement>('button')!;
+      const button = at(instanceRows(fixture), 0).querySelector<HTMLButtonElement>('button')!;
       const object = Number(button.textContent!.replace('@', ''));
       button.click();
       await settle(fixture, 6);
       expect(spies.paths.mock.calls.at(-1)![0]).toEqual({ snapshotId: 3, object, maxPaths: 5 });
-      expect(instanceRows(fixture)[0].classList.contains('sel')).toBe(true);
+      expect(instanceRows(fixture)[0]?.classList.contains('sel')).toBe(true);
       const chains = all(fixture, '[data-testid=root-path]');
       expect(chains.length).toBeGreaterThan(0);
-      const steps = [...chains[0].querySelectorAll('li')];
-      expect(chains[0].tagName).toBe('OL');
-      expect(chains[0].getAttribute('aria-label')).toBe(`Path 1 from a GC root, ${steps.length} steps`);
-      expect(steps[0].classList.contains('root')).toBe(true);
-      expect(steps[0].querySelector('.tag')!.textContent).toBe('GC root');
-      expect(steps[0].querySelector('.edge')).toBeNull();
+      const steps = [...at(chains, 0).querySelectorAll('li')];
+      expect(chains[0]?.tagName).toBe('OL');
+      expect(chains[0]?.getAttribute('aria-label')).toBe(`Path 1 from a GC root, ${steps.length} steps`);
+      expect(steps[0]?.classList.contains('root')).toBe(true);
+      expect(steps[0]?.querySelector('.tag')!.textContent).toBe('GC root');
+      expect(steps[0]?.querySelector('.edge')).toBeNull();
       expect(steps.slice(1).every((s) => s.querySelector('.edge') && !s.querySelector('.tag'))).toBe(true);
       expect(steps.at(-1)!.classList.contains('target')).toBe(true);
       expect(steps.at(-1)!.textContent).toContain(`Shop.Orders.Customer @${object}`);
@@ -691,7 +692,7 @@ describe('HeapView', () => {
       const { fixture, backend } = await mount();
       await showType(fixture, 'Shop.Orders.Customer');
       const spy = vi.spyOn(backend, 'heapPaths').mockResolvedValue({ paths: [], unreachable: true, truncated: true } satisfies HeapPaths);
-      instanceRows(fixture)[0].querySelector<HTMLButtonElement>('button')!.click();
+      at(instanceRows(fixture), 0).querySelector<HTMLButtonElement>('button')!.click();
       await settle(fixture, 6);
       expect(spy).toHaveBeenCalled();
       expect(text(fixture)).toContain('Unreachable: nothing on a path from a GC root keeps it alive');
@@ -711,7 +712,7 @@ describe('HeapView', () => {
         unreachable: false,
         truncated: false,
       });
-      instanceRows(fixture)[0].querySelector<HTMLButtonElement>('button')!.click();
+      at(instanceRows(fixture), 0).querySelector<HTMLButtonElement>('button')!.click();
       await settle(fixture, 6);
       expect(all(fixture, '[data-testid=root-path]').map((c) => c.getAttribute('aria-label'))).toEqual(['Path 1 from a GC root, 2 steps', 'Path 2 from a GC root, 3 steps']);
     });
@@ -723,7 +724,7 @@ describe('HeapView', () => {
       buttonByText(fixture, 'Retry').click();
       await settle(fixture, 6);
       expect(instanceRows(fixture)).toHaveLength(30);
-      instanceRows(fixture)[0].querySelector<HTMLButtonElement>('button')!.click();
+      at(instanceRows(fixture), 0).querySelector<HTMLButtonElement>('button')!.click();
       await settle(fixture, 6);
       expect(el(fixture, '.paths [role=alert]').textContent).toContain('heapPaths failed');
       el<HTMLButtonElement>(fixture, '.paths [role=alert] button').click();
@@ -733,7 +734,7 @@ describe('HeapView', () => {
 
     it('lists the instances of a clicked type without requesting any paths', async () => {
       const { fixture, spies } = await mount();
-      typeRows(fixture)[0].querySelector<HTMLButtonElement>('button.link')!.click();
+      at(typeRows(fixture), 0).querySelector<HTMLButtonElement>('button.link')!.click();
       await settle(fixture, 6);
       expect(instanceRows(fixture).length).toBeGreaterThan(0);
       expect(spies.paths).not.toHaveBeenCalled();

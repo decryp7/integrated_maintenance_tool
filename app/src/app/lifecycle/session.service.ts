@@ -69,7 +69,7 @@ export class SessionService {
 
   private async write(snapshot: string): Promise<boolean> {
     try {
-      const [ui, reports] = snapshot.split('\u0000');
+      const [ui = '', reports = ''] = snapshot.split('\u0000');
       await this.backend.saveSession(JSON.parse(ui), JSON.parse(reports));
       this.savedSnapshot = snapshot;
       this.lastSaved.set(Date.now());

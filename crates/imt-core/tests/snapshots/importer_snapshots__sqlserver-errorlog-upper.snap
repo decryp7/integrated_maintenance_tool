@@ -1,0 +1,40 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: sqlserver/SQL01/ERRORLOG
+importer: text
+records: 86
+skipped: 0
+levels:
+  2-Information: 86
+with_timestamp: 86
+first_timestamp: "2026-10-14T11:00:00.000Z"
+last_timestamp: "2026-10-14T13:46:00.740Z"
+fields: []
+first:
+  - line: 1
+    timestamp: "2026-10-14T11:00:00.000Z"
+    level: Information
+    message: "Server      Microsoft SQL Server 2022 (RTM-CU14) (KB5038325) - 16.0.4135.4 (X64) \n\tJul 10 2024 14:09:09 \n\tCopyright (C) 2022 Microsoft Corporation\n\tStandard Edition (64-bit) on Windows Server 2022 Datacenter 10.0 <X64> (Build 20348: ) (Hypervisor)"
+    fields: {}
+  - line: 6
+    timestamp: "2026-10-14T11:00:00.000Z"
+    level: Information
+    message: "Server      UTC adjustment: 2:00"
+    fields: {}
+  - line: 7
+    timestamp: "2026-10-14T11:00:00.000Z"
+    level: Information
+    message: Server      (c) Microsoft Corporation.
+    fields: {}
+  - line: 8
+    timestamp: "2026-10-14T11:00:00.000Z"
+    level: Information
+    message: Server      Server process ID is 2716.
+    fields: {}
+  - line: 9
+    timestamp: "2026-10-14T11:00:00.000Z"
+    level: Information
+    message: Server      Authentication mode is MIXED.
+    fields: {}

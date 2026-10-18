@@ -12,7 +12,7 @@ import { SeverityBadge } from './severity-badge';
   imports: [SeverityBadge],
   host: { 'data-snapshot-ignore': '' },
   template: `
-    <div class="stack" role="region" aria-label="Live alerts" aria-live="polite">
+    <div class="stack" role="region" aria-label="Live alerts" i18n-aria-label="@@live.alertToasts.region" aria-live="polite">
       @for (t of alerts.toasts(); track t.id) {
         <div class="toast" [class]="t.alert.severity" data-testid="alert-toast">
           <div class="head">
@@ -23,10 +23,10 @@ import { SeverityBadge } from './severity-badge';
           </div>
           <div class="msg">{{ t.alert.message }}</div>
           <div class="actions">
-            <button type="button" class="btn" (click)="show(t)">Show</button>
-            <button type="button" class="btn ghost" (click)="alerts.mute(t.alert)">Mute this kind for 15 min</button>
+            <button type="button" class="btn" (click)="show(t)" i18n="@@live.alertToasts.show">Show</button>
+            <button type="button" class="btn ghost" (click)="alerts.mute(t.alert)" i18n="@@live.alertToasts.mute">Mute this kind for 15 min</button>
           </div>
-          <button type="button" class="x" aria-label="Dismiss alert" (click)="alerts.dismissToast(t.id)">×</button>
+          <button type="button" class="x" aria-label="Dismiss alert" i18n-aria-label="@@live.alertToasts.dismiss" (click)="alerts.dismissToast(t.id)">×</button>
         </div>
       }
     </div>

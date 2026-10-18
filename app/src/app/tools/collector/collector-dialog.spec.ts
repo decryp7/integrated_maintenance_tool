@@ -6,6 +6,7 @@ import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { CollectBackend } from '../../core/tools-backend';
 import { provideToolsTesting } from '../mock/test-support';
 import { CollectorDialog, CollectorDialogService } from './collector-dialog';
+import { at } from '../../../testing/must';
 
 async function setup(pick: string[] = ['/picked']) {
   const close = vi.fn();
@@ -25,7 +26,7 @@ describe('CollectorDialogService', () => {
   it('opens the dialog', () => {
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
     TestBed.inject(CollectorDialogService).open();
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Collect diagnostics bundle');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Collect diagnostics bundle');
   });
 });
 
@@ -65,7 +66,7 @@ describe('CollectorDialog', () => {
     typeInto(el(fixture, 'input[aria-label="Output folder"]'), '/out');
     buttonByText(fixture, 'Collect').click();
     await settle(fixture);
-    const plan = JSON.parse(run.mock.calls[0][0]);
+    const plan = JSON.parse(at(run.mock.calls, 0)[0]);
     expect(plan).toMatchObject({
       name: 'repro',
       logs: [{ path: 'C:\\Logs', include: ['*.log', '*.txt'], maxAgeDays: 3, maxTotalMb: 50 }],
@@ -80,7 +81,7 @@ describe('CollectorDialog', () => {
       redact: { builtIn: false, ipAddresses: false, patterns: [{ name: 'order', regex: 'ORD-\\d+', replace: '[ORDER]' }] },
     });
     expect(plan.eventLogDays).toBe(100);
-    expect(run.mock.calls[0][1]).toBe('/out');
+    expect(run.mock.calls[0]?.[1]).toBe('/out');
   });
 
   it('shows the manifest summary and opens the bundle', async () => {
@@ -147,8 +148,8 @@ describe('CollectorDialog', () => {
     // The same bundle name again: the engine refuses, the app asks.
     buttonByText(fixture, 'Collect again').click();
     await settle(fixture);
-    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
-    dialogs.stack()[0].ref.close(false);
+    expect(dialogs.stack()[0]?.options.title).toBe('Replace file?');
+    at(dialogs.stack(), 0).ref.close(false);
     await settle(fixture);
     expect(run.mock.calls.map((c) => c[2])).toEqual([false, false]);
     expect(fixture.nativeElement.querySelector('.err')).toBeNull();
@@ -156,7 +157,7 @@ describe('CollectorDialog', () => {
     // Confirmed: written again with permission.
     buttonByText(fixture, 'Collect').click();
     await settle(fixture);
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     await settle(fixture);
     expect(run.mock.calls.map((c) => c[2])).toEqual([false, false, false, true]);
     expect(text(fixture)).toContain('Open bundle');
@@ -197,7 +198,7 @@ describe('CollectorDialog', () => {
     typeInto(el(fixture, 'input[aria-label="Output folder"]'), '/o');
     buttonByText(fixture, 'Collect').click();
     await settle(fixture);
-    expect(JSON.parse(run.mock.calls[0][0])).toMatchObject({ name: 'from-json', msinfo: true });
+    expect(JSON.parse(at(run.mock.calls, 0)[0])).toMatchObject({ name: 'from-json', msinfo: true });
     buttonByText(fixture, 'Edit as JSON').click();
     await settle(fixture);
     expect(el<HTMLInputElement>(fixture, 'input[aria-label="Bundle name"]').value).toBe('from-json');

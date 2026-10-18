@@ -14,6 +14,7 @@ import { ProfileEditor } from './profile-editor';
 import { ProfileForm } from './profile-form';
 import { StringList } from './string-list';
 import { TomlEditor } from './toml-editor';
+import { at } from '../../testing/must';
 
 const fakePlatform = {
   isTauri: () => false,
@@ -154,7 +155,7 @@ describe('StringList and ConditionsEditor', () => {
     const fixture = TestBed.createComponent(ListHost);
     await settle(fixture);
     const host = fixture.componentInstance;
-    typeInto(all<HTMLInputElement>(fixture, 'imt-string-list .input')[1], 'B');
+    typeInto(at(all<HTMLInputElement>(fixture, 'imt-string-list .input'), 1), 'B');
     expect(host.values()).toEqual(['a', 'B']);
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '[aria-label="Move glob 2 up"]').click();
@@ -290,19 +291,19 @@ describe('ProfileForm', () => {
 
     await go('Parsing');
     const selects = all<HTMLSelectElement>(fixture, '.body select');
-    typeInto(selects[0], 'csv', 'change');
-    typeInto(selects[1], 'true', 'change');
-    typeInto(all<HTMLInputElement>(fixture, '.grid3 input')[0], 'local');
+    typeInto(at(selects, 0), 'csv', 'change');
+    typeInto(at(selects, 1), 'true', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.grid3 input'), 0), 'local');
     expect(m().parse).toMatchObject({ format: 'csv', day_first: 'true', assume_timezone: 'local' });
     await settle(fixture);
     while (all(fixture, '[aria-label^="Remove regex"]').length) {
-      all<HTMLButtonElement>(fixture, '[aria-label^="Remove regex"]')[0].click();
+      at(all<HTMLButtonElement>(fixture, '[aria-label^="Remove regex"]'), 0).click();
       await settle(fixture);
     }
     expect(m().parse?.regexes).toBeUndefined();
 
     await go('JSON');
-    typeInto(all<HTMLInputElement>(fixture, 'imt-string-list .input')[0], '@ts');
+    typeInto(at(all<HTMLInputElement>(fixture, 'imt-string-list .input'), 0), '@ts');
     expect(m().parse?.json?.timestamp?.[0]).toBe('@ts');
     typeInto(el<HTMLSelectElement>(fixture, '.narrow select'), 'Debug', 'change');
     expect(m().parse?.json?.default_level).toBe('Debug');
@@ -311,11 +312,11 @@ describe('ProfileForm', () => {
     typeInto(el<HTMLSelectElement>(fixture, '.body select'), ';', 'change');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     const cols = all<HTMLInputElement>(fixture, '.grid3 input.input');
-    typeInto(cols[0], 'When');
-    typeInto(cols[1], '');
+    typeInto(at(cols, 0), 'When');
+    typeInto(at(cols, 1), '');
     expect(m().parse?.csv).toMatchObject({ delimiter: ';', has_header: false, timestamp: 'When', level: 'auto' });
     await settle(fixture);
-    expect(all<HTMLInputElement>(fixture, '.grid3 input.input')[0].value).toBe('When');
+    expect(all<HTMLInputElement>(fixture, '.grid3 input.input')[0]?.value).toBe('When');
 
     await go('Instance');
     buttonByText(fixture, '+ Add field').click();
@@ -342,33 +343,33 @@ describe('ProfileForm', () => {
     expect(all(fixture, '.outputs .cap').map((c) => c.textContent)).toEqual(['cpu', 'ws', 'threads']);
     const ed = el(fixture, 'imt-extractor-editor');
     typeInto(ed.querySelector<HTMLInputElement>('.grid2 input')!, 'stats');
-    expect(m().extract?.[0].name).toBe('stats');
-    typeInto(ed.querySelectorAll<HTMLInputElement>('.grid2 input')[1], '@exception');
-    expect(m().extract?.[0].from).toBe('@exception');
+    expect(m().extract?.[0]?.name).toBe('stats');
+    typeInto(at(ed.querySelectorAll<HTMLInputElement>('.grid2 input'), 1), '@exception');
+    expect(m().extract?.[0]?.from).toBe('@exception');
     typeInto(ed.querySelector<HTMLTextAreaElement>('textarea')!, 'CPU (?P<cpu>[\\d.]+) (?P<extra>\\w+) (?P<x_unit>\\w+)');
     await settle(fixture);
     buttonByText(fixture, 'Detect from pattern').click();
     await settle(fixture);
-    expect(Object.keys(m().extract?.[0].fields ?? {})).toEqual(['cpu', 'ws', 'threads', 'extra']);
+    expect(Object.keys(m().extract?.[0]?.fields ?? {})).toEqual(['cpu', 'ws', 'threads', 'extra']);
     const typeSel = el<HTMLSelectElement>(fixture, '[aria-label="extra type"]');
     typeInto(typeSel, 'duration', 'change');
     typeInto(el<HTMLInputElement>(fixture, '[aria-label="extra unit"]'), 's');
     typeInto(el<HTMLInputElement>(fixture, '[aria-label="extra unit from"]'), 'x_unit');
     typeInto(el<HTMLInputElement>(fixture, '[aria-label="extra convert to"]'), 'ms');
     typeInto(el<HTMLInputElement>(fixture, '[aria-label="extra unit"]'), '');
-    expect(m().extract?.[0].fields?.['extra']).toEqual({ type: 'duration', unit_from: 'x_unit', to: 'ms' });
+    expect(m().extract?.[0]?.fields?.['extra']).toEqual({ type: 'duration', unit_from: 'x_unit', to: 'ms' });
     el<HTMLButtonElement>(fixture, '[aria-label="Remove output extra"]').click();
-    expect(m().extract?.[0].fields?.['extra']).toBeUndefined();
+    expect(m().extract?.[0]?.fields?.['extra']).toBeUndefined();
     buttonByText(fixture, '+ Condition').click();
-    expect(m().extract?.[0].when).toHaveLength(2);
+    expect(m().extract?.[0]?.when).toHaveLength(2);
     for (const b of [...ed.querySelectorAll<HTMLButtonElement>('[aria-label="Remove condition"]')]) b.click();
-    expect(m().extract?.[0].when).toBeUndefined();
+    expect(m().extract?.[0]?.when).toBeUndefined();
 
     buttonByText(fixture, '+ New extractor').click();
     await settle(fixture);
     expect(m().extract).toHaveLength(2);
     expect(el(fixture, '.list-item.on').textContent).toContain('extractor-2');
-    all<HTMLButtonElement>(fixture, '.li-main')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.li-main'), 0).click();
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '[aria-label="Delete extractor stats"]').click();
     await settle(fixture);
@@ -392,7 +393,7 @@ describe('ProfileForm', () => {
     expect(text(f2)).toContain('2 matches · 0 failed · 2 candidates');
     expect(all(f2, '.values .k').map((k) => k.textContent)).toEqual(['cpu', 'ws', 'threads']);
     vi.spyOn(ctx.backend, 'previewExtractor').mockRejectedValueOnce('preview broke');
-    ctx.draft.update((mm) => (mm.extract![0].regex = 'CPU (?P<cpu>[\\d.]+)%'));
+    ctx.draft.update((mm) => (at(mm.extract!, 0).regex = 'CPU (?P<cpu>[\\d.]+)%'));
     await wait(400);
     await settle(f2);
     expect(el(f2, '.err').textContent).toBe('preview broke');
@@ -404,11 +405,11 @@ describe('ProfileForm', () => {
     expect(all(fixture, '.marker-card')).toHaveLength(6);
     const first = el(fixture, '.marker-card');
     typeInto(first.querySelector<HTMLInputElement>('.kind')!, 'fatal2');
-    typeInto(first.querySelectorAll<HTMLInputElement>('.mk-row .input')[1], '');
+    typeInto(at(first.querySelectorAll<HTMLInputElement>('.mk-row .input'), 1), '');
     typeInto(first.querySelector<HTMLInputElement>('input[type=color]')!, '#123456');
     first.querySelector<HTMLInputElement>('input[type=checkbox]')!.click();
     expect(m().marker?.[0]).toMatchObject({ kind: 'fatal2', color: '#123456', lifecycle: true });
-    expect(m().marker?.[0].label).toBeUndefined();
+    expect(m().marker?.[0]?.label).toBeUndefined();
     buttonByText(fixture, '+ New marker').click();
     expect(m().marker).toHaveLength(7);
     await settle(fixture);
@@ -416,7 +417,7 @@ describe('ProfileForm', () => {
     expect(m().marker).toHaveLength(6);
     const form = fixture.componentInstance as unknown as { dropMarker(e: { previousIndex: number; currentIndex: number }): void };
     form.dropMarker({ previousIndex: 0, currentIndex: 2 });
-    expect(m().marker?.[2].kind).toBe('fatal2');
+    expect(m().marker?.[2]?.kind).toBe('fatal2');
     const textBefore = draft.text();
     form.dropMarker({ previousIndex: 1, currentIndex: 1 });
     expect(draft.text()).toBe(textBefore);
@@ -426,30 +427,30 @@ describe('ProfileForm', () => {
     const { fixture, go, m } = await render();
     await go('Charts');
     expect(all(fixture, '.chart-card')).toHaveLength(3);
-    const card = all(fixture, '.chart-card')[1];
+    const card = at(all(fixture, '.chart-card'), 1);
     const inputs = card.querySelectorAll<HTMLInputElement>('.grid4 input');
-    typeInto(inputs[0], 'cpu2');
-    typeInto(inputs[1], '');
+    typeInto(at(inputs, 0), 'cpu2');
+    typeInto(at(inputs, 1), '');
     typeInto(card.querySelector<HTMLSelectElement>('.grid4 select')!, 'max', 'change');
     expect(m().chart?.[1]).toMatchObject({ id: 'cpu2', y: 'max(cpu)' });
-    expect(m().chart?.[1].title).toBeUndefined();
+    expect(m().chart?.[1]?.title).toBeUndefined();
     await settle(fixture);
-    typeInto(inputs[2], 'ws');
-    expect(m().chart?.[1].y).toBe('max(ws)');
-    typeInto(inputs[3], '');
-    typeInto(card.querySelectorAll<HTMLSelectElement>('.grid4 select')[1], 'bar', 'change');
-    typeInto(inputs[4], 'MB');
+    typeInto(at(inputs, 2), 'ws');
+    expect(m().chart?.[1]?.y).toBe('max(ws)');
+    typeInto(at(inputs, 3), '');
+    typeInto(at(card.querySelectorAll<HTMLSelectElement>('.grid4 select'), 1), 'bar', 'change');
+    typeInto(at(inputs, 4), 'MB');
     expect(m().chart?.[1]).toMatchObject({ type: 'bar', unit: 'MB' });
-    expect(m().chart?.[1].bucket).toBeUndefined();
+    expect(m().chart?.[1]?.bucket).toBeUndefined();
     typeInto(card.querySelector<HTMLSelectElement>('.grid4 select')!, 'count', 'change');
-    expect(m().chart?.[1].y).toBe('count()');
+    expect(m().chart?.[1]?.y).toBe('count()');
     buttonByText(fixture, '+ New chart').click();
     expect(m().chart).toHaveLength(4);
     await settle(fixture);
-    all<HTMLButtonElement>(fixture, '.chart-card .del .btn')[3].click();
+    at(all<HTMLButtonElement>(fixture, '.chart-card .del .btn'), 3).click();
     expect(m().chart).toHaveLength(3);
     for (let i = 0; i < 3; i++) {
-      all<HTMLButtonElement>(fixture, '.chart-card .del .btn')[0].click();
+      at(all<HTMLButtonElement>(fixture, '.chart-card .del .btn'), 0).click();
       await settle(fixture);
     }
     expect(m().chart).toBeUndefined();

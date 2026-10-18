@@ -203,7 +203,7 @@ fn partial_line_waits_then_completes_or_flushes() {
 #[test]
 fn multiline_exception_merges_into_its_event() {
     let d = Dir::new("multiline");
-    let p = d.write("app.log", &(lines(0..2, "A") + &line(2, "ERR", "A", "Payment failed")));
+    let p = d.write("app.log", &(lines(0..2, "A") + &*line(2, "ERR", "A", "Payment failed")));
     let mut ws = ws_on(&d.0);
     let id = ws.records()[2].id;
     d.append("app.log", "System.TimeoutException: The operation has timed out.\n");
@@ -668,7 +668,7 @@ when = [{ field = "@message", op = "contains", value = "noise" }]
     let p = d.write("app.log", &line(0, "INF", "A", "start cpu=5"));
     let mut ws = Workspace::new(profile).unwrap();
     ws.open(std::slice::from_ref(&d.0)).unwrap();
-    d.append("app.log", &(line(1, "INF", "A", "noise") + &line(2, "ERR", "A", "boom cpu=97")));
+    d.append("app.log", &(line(1, "INF", "A", "noise") + &*line(2, "ERR", "A", "boom cpu=97")));
     let r = ws.refresh_tail(&[p]).unwrap();
     assert_eq!(r.appended, 1);
     let rec = ws.records().last().unwrap();
@@ -842,7 +842,7 @@ fn incremental_derived_state_equals_a_full_recompute() {
     assert_eq!(r.ids_changed_from, None);
 
     let full = Dir::new("inc-full");
-    full.write("app.log", &(base_content() + &appended_content()));
+    full.write("app.log", &(base_content() + &*appended_content()));
     let fresh = ws_on(&full.0);
     for ((name, inc), (_, exp)) in every_view(&ws).into_iter().zip(every_view(&fresh)) {
         assert_eq!(inc, exp, "{name} differs after an incremental append");
@@ -890,7 +890,7 @@ fn out_of_order_appends_renumber_only_the_tail() {
     assert!(ws.records().windows(2).all(|w| w[0].ts <= w[1].ts));
     assert!(ws.records().iter().enumerate().all(|(i, r)| r.id == i as u32));
     let full = Dir::new("order-full");
-    full.write("a.log", &(lines(0..5, "A") + &lines(6..7, "A")));
+    full.write("a.log", &(lines(0..5, "A") + &*lines(6..7, "A")));
     full.write("b.log", &lines(10..12, "B"));
     assert_eq!(page(&ws), page(&ws_on(&full.0)));
 }
@@ -1520,7 +1520,7 @@ fn start_at_end_falls_back_for_what_cannot_be_tailed() {
     // The archive and the binary file are imported; the empty file is unrecognised; app.log skipped.
     assert_eq!(ws.summary().total, 2 + 2);
     assert_eq!(ws.summary().unrecognized.len(), 1);
-    d.append("app.log", &(line(5, "INF", "A", "noise") + &line(6, "INF", "A", "kept")));
+    d.append("app.log", &(line(5, "INF", "A", "noise") + &*line(6, "INF", "A", "kept")));
     ws.refresh_tail(&[p]).unwrap();
     let s = source_of(&ws, "app.log");
     assert_eq!((s.records, s.dropped), (1, 1));

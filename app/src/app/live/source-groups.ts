@@ -48,7 +48,7 @@ export function groupSources(sources: readonly SourceInfo[]): SourceItem[] {
         label: s.group.split(/[\\/]/).filter(Boolean).pop() ?? s.group,
         sources: sorted,
         records: list.reduce((a, x) => a + x.records, 0),
-        newest: sorted[0],
+        newest: sorted[0] ?? s,
       },
     });
   }

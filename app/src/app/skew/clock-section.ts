@@ -10,7 +10,7 @@ export class ClockDialogService {
   private readonly dialogs = inject(DialogService);
 
   open(sourceId: number, sourceName = ''): void {
-    this.dialogs.open(ClockDialog, { title: sourceName ? `Adjust clock — ${sourceName}` : 'Adjust clock', inputs: { sourceId }, width: 560 });
+    this.dialogs.open(ClockDialog, { title: sourceName ? $localize`:@@skew.section.titleNamed:Adjust clock — ${sourceName}:name:` : $localize`:@@skew.section.title:Adjust clock`, inputs: { sourceId }, width: 560 });
   }
 }
 
@@ -21,13 +21,13 @@ export class ClockDialogService {
   template: `
     <div class="row">
       @if (isReference()) {
-        <span class="faint small" data-testid="is-reference">Clock reference for aligning other sources</span>
-        <button type="button" class="btn ghost" (click)="skew.clearReference()">Clear</button>
+        <span class="faint small" data-testid="is-reference" i18n="@@skew.section.isReference">Clock reference for aligning other sources</span>
+        <button type="button" class="btn ghost" (click)="skew.clearReference()" i18n="@@skew.section.clear">Clear</button>
       } @else {
-        <button type="button" class="btn" (click)="skew.setReference(record())">Use as clock reference</button>
+        <button type="button" class="btn" (click)="skew.setReference(record())" i18n="@@skew.section.use">Use as clock reference</button>
       }
       @if (alignable()) {
-        <button type="button" class="btn" (click)="adjust()">Align {{ record().sourceName }} on reference…</button>
+        <button type="button" class="btn" (click)="adjust()" i18n="@@skew.section.align">Align {{ record().sourceName }} on reference…</button>
       }
     </div>
   `,

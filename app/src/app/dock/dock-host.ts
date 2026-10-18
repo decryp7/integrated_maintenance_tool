@@ -36,7 +36,7 @@ export const HOVER_HIDE_MS = 300;
   template: `
     @for (side of sides; track side) {
       @if (bars()[side].length) {
-        <nav class="imt-ah-bar imt-ah-{{ side }}" [attr.aria-label]="'Auto-hidden tool windows (' + side + ')'">
+        <nav class="imt-ah-bar imt-ah-{{ side }}" [attr.aria-label]="barLabel(side)">
           @for (item of bars()[side]; track item.id) {
             <button
               type="button"
@@ -74,10 +74,10 @@ export const HOVER_HIDE_MS = 300;
         >
           <header class="imt-ah-head">
             <span class="imt-ah-title">{{ item.title }}</span>
-            <button type="button" class="imt-dock-action" [attr.aria-label]="'Pin ' + item.title" title="Pin (dock it again)" (click)="dock.pin(item.id)">
+            <button type="button" class="imt-dock-action" [attr.aria-label]="pinLabel(item.title)" title="Pin (dock it again)" i18n-title="@@dock.host.pinTitle" (click)="dock.pin(item.id)">
               <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5M8 3h8l-1 7 3 3H6l3-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
             </button>
-            <button type="button" class="imt-dock-action" [attr.aria-label]="'Hide ' + item.title" title="Hide (Esc)" (click)="escape()">
+            <button type="button" class="imt-dock-action" [attr.aria-label]="hideLabel(item.title)" title="Hide (Esc)" i18n-title="@@dock.host.hideTitle" (click)="escape()">
               <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
             </button>
           </header>
@@ -89,9 +89,9 @@ export const HOVER_HIDE_MS = 300;
         <div class="imt-dock-notice" role="alert">
           <span>{{ notice.message }}</span>
           @if (notice.retry) {
-            <button type="button" class="btn" (click)="retry()">Retry</button>
+            <button type="button" class="btn" (click)="retry()" i18n="@@dock.host.retry">Retry</button>
           }
-          <button type="button" class="btn" (click)="dock.notice.set(null)">Dismiss</button>
+          <button type="button" class="btn" (click)="dock.notice.set(null)" i18n="@@dock.host.dismiss">Dismiss</button>
         </div>
       }
     </div>
@@ -149,7 +149,7 @@ export const HOVER_HIDE_MS = 300;
     .imt-ah-flyout-bottom .imt-ah-grip { top: -3px; left: 0; right: 0; height: 6px; cursor: ns-resize; }
 
     .imt-dock-notice {
-      position: absolute; z-index: 995; left: 50%; top: 8px; transform: translateX(-50%); max-width: 80%;
+      position: absolute; z-index: 995; inset-inline-start: 50%; top: 8px; transform: translateX(-50%); max-width: 80%;
       display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border-radius: 6px;
       background: var(--tooltip-bg); border: 1px solid var(--lvl-error); color: var(--text); box-shadow: var(--shadow);
     }
@@ -200,6 +200,25 @@ export class DockHost implements OnDestroy {
   private readonly mount = viewChild.required<ElementRef<HTMLElement>>('mount');
   private readonly flyoutBody = viewChild<ElementRef<HTMLElement>>('flyoutBody');
   protected readonly sides: readonly Side[] = ['left', 'right', 'bottom'];
+
+  protected barLabel(side: Side): string {
+    switch (side) {
+      case 'left':
+        return $localize`:@@dock.host.barLeft:Auto-hidden tool windows (left)`;
+      case 'right':
+        return $localize`:@@dock.host.barRight:Auto-hidden tool windows (right)`;
+      default:
+        return $localize`:@@dock.host.barBottom:Auto-hidden tool windows (bottom)`;
+    }
+  }
+
+  protected pinLabel(title: string): string {
+    return $localize`:@@dock.host.pinLabel:Pin ${title}:title:`;
+  }
+
+  protected hideLabel(title: string): string {
+    return $localize`:@@dock.host.hideLabel:Hide ${title}:title:`;
+  }
   private leaveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Slid-out views keep their component while they stay auto-hidden. */
   private readonly renderers = new Map<string, AngularContentRenderer>();

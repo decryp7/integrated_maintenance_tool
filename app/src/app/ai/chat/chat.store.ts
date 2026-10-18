@@ -46,7 +46,7 @@ export const ChatStore = signalStore(
       const picked = grid.records().map((r) => r.id);
       const one = ws.selected()?.id;
       const selectedIds = picked.length ? picked : one != null ? [one] : [];
-      return { ql: q.ql ?? null, range, selectedIds, instance: q.groups.length === 1 ? q.groups[0] : null, view: 'events grid' };
+      return { ql: q.ql ?? null, range, selectedIds, instance: q.groups.length === 1 ? (q.groups[0] ?? null) : null, view: 'events grid' };
     }),
   })),
   withMethods((store, backend = inject(AiBackend), persistence = inject(AiChatPersistence)) => {

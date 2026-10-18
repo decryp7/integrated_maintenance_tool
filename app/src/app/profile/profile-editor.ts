@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
@@ -17,34 +17,34 @@ import { TemplatesService } from '../templates/templates.service';
   host: { '(keydown)': 'onKey($event)' },
   template: `
     <div class="bar">
-      <span class="section-title">Parsing profile</span>
+      <span class="section-title" i18n="@@profile.editor.title">Parsing profile</span>
       <span class="name">{{ draft.model().name ?? draft.doc()?.name ?? '…' }}</span>
-      <span class="mono faint path ellipsis">{{ draft.importedFrom() ?? draft.doc()?.path ?? 'built-in default' }}</span>
-      @if (draft.dirty()) { <span class="unsaved">● Unsaved</span> }
+      <span class="mono faint path ellipsis">{{ draft.importedFrom() ?? draft.doc()?.path ?? builtInDefault }}</span>
+      @if (draft.dirty()) { <span class="unsaved" i18n="@@profile.editor.unsaved">● Unsaved</span> }
       @if (draft.problem(); as p) {
-        <span class="bad"><imt-icon name="alert" [size]="13" /> {{ p.line ? 'Line ' + p.line + ': ' : '' }}{{ p.message }}</span>
+        <span class="bad"><imt-icon name="alert" [size]="13" /> {{ problemText(p) }}</span>
       } @else if (draft.validation()?.ok) {
-        <span class="good"><imt-icon name="check" [size]="13" /> Valid</span>
+        <span class="good" i18n="@@profile.editor.valid"><imt-icon name="check" [size]="13" /> Valid</span>
       }
       <span class="spacer"></span>
       <div class="seg" role="tablist">
-        <button role="tab" class="btn" [class.active]="mode() === 'form'" [attr.aria-selected]="mode() === 'form'" (click)="mode.set('form')">Form</button>
+        <button role="tab" class="btn" [class.active]="mode() === 'form'" [attr.aria-selected]="mode() === 'form'" (click)="mode.set('form')" i18n="@@profile.editor.tab.form">Form</button>
         <button role="tab" class="btn" [class.active]="mode() === 'toml'" [attr.aria-selected]="mode() === 'toml'" (click)="mode.set('toml')">TOML</button>
-        <button role="tab" class="btn" [class.active]="mode() === 'history'" [attr.aria-selected]="mode() === 'history'" (click)="mode.set('history')">History</button>
+        <button role="tab" class="btn" [class.active]="mode() === 'history'" [attr.aria-selected]="mode() === 'history'" (click)="mode.set('history')" i18n="@@profile.editor.tab.history">History</button>
       </div>
-      <button class="btn ghost" [disabled]="draft.dirty()" [title]="draft.dirty() ? 'Save or revert your edits first' : 'Start from a ready-made profile for a common log format'" (click)="fromTemplate()">New from template…</button>
-      <imt-ai-button label="Propose…" [disabled]="draft.dirty()" [hint]="draft.dirty() ? 'Save or revert your edits first' : 'Let the local model propose pipeline steps, markers or extractors from the file of the selected event'" testId="ai-profile-propose" (pressed)="proposeWithAi()" />
-      <button class="btn ghost" (click)="draft.importFile()">Import…</button>
-      <button class="btn ghost" (click)="draft.exportFile()">Export…</button>
-      <button class="btn" [disabled]="!draft.dirty()" (click)="draft.revert()">Revert</button>
-      <button class="btn primary" [disabled]="!draft.dirty() || !!draft.problem() || draft.saving()" (click)="draft.save()" title="Apply and re-import (Ctrl/⌘+S)">
-        {{ draft.saving() ? 'Applying…' : 'Save & apply' }}
+      <button class="btn ghost" [disabled]="draft.dirty()" [title]="templateHint()" (click)="fromTemplate()" i18n="@@profile.editor.fromTemplate">New from template…</button>
+      <imt-ai-button label="Propose…" i18n-label="@@profile.editor.propose" [disabled]="draft.dirty()" [hint]="proposeHint()" testId="ai-profile-propose" (pressed)="proposeWithAi()" />
+      <button class="btn ghost" (click)="draft.importFile()" i18n="@@profile.editor.import">Import…</button>
+      <button class="btn ghost" (click)="draft.exportFile()" i18n="@@profile.editor.export">Export…</button>
+      <button class="btn" [disabled]="!draft.dirty()" (click)="draft.revert()" i18n="@@profile.editor.revert">Revert</button>
+      <button class="btn primary" [disabled]="!draft.dirty() || !!draft.problem() || draft.saving()" (click)="draft.save()" title="Apply and re-import (Ctrl/⌘+S)" i18n-title="@@profile.editor.saveTitle">
+        @if (draft.saving()) { <ng-container i18n="@@profile.editor.applying">Applying…</ng-container> } @else { <ng-container i18n="@@profile.editor.save">Save &amp; apply</ng-container> }
       </button>
     </div>
     @if (draft.stale()) {
       <div class="stale" role="alert">
-        <imt-icon name="alert" [size]="13" /> The active profile changed (undo or restore). Your edits are based on the previous version.
-        <button type="button" class="btn" (click)="draft.revert()">Discard my edits</button>
+        <imt-icon name="alert" [size]="13" />&ngsp;<ng-container i18n="@@profile.editor.stale">The active profile changed (undo or restore). Your edits are based on the previous version.</ng-container>
+        <button type="button" class="btn" (click)="draft.revert()" i18n="@@profile.editor.discard">Discard my edits</button>
       </div>
     }
     @if (mode() === 'history') {
@@ -52,15 +52,15 @@ import { TemplatesService } from '../templates/templates.service';
     } @else if (mode() === 'form') {
       @if (draft.parseError(); as e) {
         <div class="empty-state">
-          <div>The TOML has a syntax error, so the form can't show it.</div>
-          <div class="faint">{{ e.line ? 'Line ' + e.line + ': ' : '' }}{{ e.message }}</div>
-          <button class="btn" (click)="mode.set('toml')">Fix in TOML view</button>
+          <div i18n="@@profile.editor.syntaxError">The TOML has a syntax error, so the form can't show it.</div>
+          <div class="faint">{{ problemText(e) }}</div>
+          <button class="btn" (click)="mode.set('toml')" i18n="@@profile.editor.fixToml">Fix in TOML view</button>
         </div>
       } @else {
         <imt-profile-form />
       }
     } @else {
-      <div class="note faint">Comments are kept while you edit here; editing in the form rewrites the file without comments.</div>
+      <div class="note faint" i18n="@@profile.editor.note">Comments are kept while you edit here; editing in the form rewrites the file without comments.</div>
       <imt-toml-editor />
     }
   `,
@@ -85,8 +85,24 @@ export class ProfileEditor {
   private readonly ai = inject(AiLauncher);
   private readonly workspace = inject(WorkspaceStore);
 
+  protected readonly builtInDefault = $localize`:@@profile.editor.builtInDefault:built-in default`;
+  protected readonly templateHint = computed(() =>
+    this.draft.dirty()
+      ? $localize`:@@profile.editor.saveFirst:Save or revert your edits first`
+      : $localize`:@@profile.editor.templateHint:Start from a ready-made profile for a common log format`,
+  );
+  protected readonly proposeHint = computed(() =>
+    this.draft.dirty()
+      ? $localize`:@@profile.editor.saveFirst:Save or revert your edits first`
+      : $localize`:@@profile.editor.proposeHint:Let the local model propose pipeline steps, markers or extractors from the file of the selected event`,
+  );
+
   constructor() {
     void this.draft.load();
+  }
+
+  protected problemText(p: { line?: number | null; message: string }): string {
+    return p.line ? $localize`:@@profile.editor.lineMessage:Line ${p.line}:line:: ${p.message}:message:` : p.message;
   }
 
   /** "Propose pipeline/markers/extractors" with the local AI model, on the selected event's file. */

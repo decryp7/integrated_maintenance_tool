@@ -6,6 +6,7 @@ import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { PluginHealthView } from './plugin-health-view';
 import { eventName, PluginHealthStore } from './plugin-health.store';
 import { ImtBackend } from '../../core/backend';
+import { at } from '../../../testing/must';
 
 const PLUGINS: PluginInfo[] = [
   pluginInfo({ id: 'a', name: 'Alpha', version: '1.0', contributes: ['importer'], status: 'active', failures: 0, lastError: null }),
@@ -28,34 +29,34 @@ describe('PluginHealthView', () => {
   it('lists status badges, failures and the last error', async () => {
     const { fixture } = await setup();
     expect(all(fixture, '[data-testid=plugin-status]').map((e) => e.textContent)).toEqual(['active', 'quarantined', 'disabled', 'active']);
-    const beta = all(fixture, '.plugin')[1].textContent ?? '';
+    const beta = at(all(fixture, '.plugin'), 1).textContent ?? '';
     expect(beta).toContain('3 failures');
     expect(beta).toContain('panic at x.rs:1');
-    expect(all(fixture, '.plugin')[0].textContent).not.toContain('failure');
-    expect(all(fixture, '.plugin')[3].textContent).toContain('1 failure');
-    expect(all(fixture, '.plugin')[3].textContent).not.toContain('1 failures');
+    expect(at(all(fixture, '.plugin'), 0).textContent).not.toContain('failure');
+    expect(all(fixture, '.plugin')[3]?.textContent).toContain('1 failure');
+    expect(at(all(fixture, '.plugin'), 3).textContent).not.toContain('1 failures');
   });
 
   it('resets a quarantined plugin', async () => {
     const { fixture, tools, store } = await setup();
-    expect(all(fixture, '.plugin')[1].textContent).toContain('Reset');
-    expect(all(fixture, '.plugin')[0].textContent).not.toContain('Reset');
+    expect(all(fixture, '.plugin')[1]?.textContent).toContain('Reset');
+    expect(at(all(fixture, '.plugin'), 0).textContent).not.toContain('Reset');
     buttonByText(fixture, 'Reset').click();
     await settle(fixture);
     expect(tools.calls).toContain('pluginReset:b');
-    expect(all(fixture, '[data-testid=plugin-status]')[1].textContent).toBe('active');
-    expect(store.plugins()[1].failures).toBe(0);
+    expect(all(fixture, '[data-testid=plugin-status]')[1]?.textContent).toBe('active');
+    expect(store.plugins()[1]?.failures).toBe(0);
     expect(fixture.nativeElement.textContent).not.toContain('3 failures');
   });
 
   it('disables and enables, then restarts to apply', async () => {
     const { fixture, tools } = await setup();
     expect(fixture.nativeElement.textContent).not.toContain('Restart to apply');
-    all<HTMLButtonElement>(fixture, '.plugin')[0].querySelector<HTMLButtonElement>('.actions .btn')!.click();
+    at(all<HTMLButtonElement>(fixture, '.plugin'), 0).querySelector<HTMLButtonElement>('.actions .btn')!.click();
     await settle(fixture);
     expect(tools.calls).toContain('pluginSetEnabled:a:false');
     expect(text(fixture)).toContain('will be disabled');
-    const gamma = all(fixture, '.plugin')[2].querySelector<HTMLButtonElement>('.actions .btn')!;
+    const gamma = at(all(fixture, '.plugin'), 2).querySelector<HTMLButtonElement>('.actions .btn')!;
     expect(gamma.textContent).toBe('Enable');
     gamma.click();
     await settle(fixture);
@@ -101,7 +102,10 @@ describe('PluginHealthView (plugin v2)', () => {
 
   it('shows dependencies, services, dependents, warnings, hangs and why a plugin is inactive', async () => {
     const { fixture } = await setup(V2);
-    const [win, web, otel] = all(fixture, '.plugin');
+    const plugins = all(fixture, '.plugin');
+    const win = at(plugins, 0);
+    const web = at(plugins, 1);
+    const otel = at(plugins, 2);
     expect(win.querySelector('[data-testid=plugin-hung]')!.textContent).toContain('not responding');
     expect(win.textContent).toContain('Provides');
     expect(win.textContent).toContain('net.decryptology.windows.events 1.0.0');
@@ -116,10 +120,10 @@ describe('PluginHealthView (plugin v2)', () => {
   it('shows event-bus counters per subscriber and refreshes them', async () => {
     const { fixture, store } = await setup(V2);
     await settle(fixture);
-    const table = all(fixture, '.plugin')[0].querySelector('table.events')!;
+    const table = at(all(fixture, '.plugin'), 0).querySelector('table.events')!;
     expect(table.getAttribute('aria-label')).toBe('Events delivered to Windows');
     expect(table.textContent).toContain('RecordsAppended');
-    const web = all(fixture, '.plugin')[1].querySelector('table.events tbody tr')!;
+    const web = at(all(fixture, '.plugin'), 1).querySelector('table.events tbody tr')!;
     expect(web.classList).toContain('bad');
     const backend = TestBed.inject(ImtBackend);
     vi.spyOn(backend, 'pluginEvents').mockRejectedValueOnce('bus gone');

@@ -4,6 +4,7 @@ import { MockBackend } from './mock-backend';
 import { isMockDemoPath, MOCK_DEMO_PATHS, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, SLOW_FILE_BYTES, SLOW_FILES_PER_PATH, slowImportFiles } from './mock-import';
 import { mockOptionsFromSearch } from './mock-options';
 
+import { at } from '../../../testing/must';
 describe('mock import, files and profile history', () => {
   it('a slow import reports progress file by file and stops after a cancel', async () => {
     const sim = new MockImportSim(5);
@@ -51,7 +52,7 @@ describe('mock import, files and profile history', () => {
     const list = h.list();
     expect(list).toHaveLength(20);
     expect(list[0]).toMatchObject({ name: 'v24', savedAt: '20261017-090024005', savedAtMs: Date.UTC(2026, 9, 17, 9, 0, 24, 5) });
-    expect(h.get(list[0].file).toml).toBe('name = "v24"');
+    expect(h.get(at(list, 0).file).toml).toBe('name = "v24"');
     expect(() => h.get('../x')).toThrow('invalid version');
     expect(() => h.get('nope')).toThrow('no such version');
   });
@@ -75,9 +76,9 @@ describe('mock import, files and profile history', () => {
       const demo = await b.openPaths([...MOCK_DEMO_PATHS]);
       expect(demo.sources.length).toBeGreaterThan(2);
       const tiny = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
-      const merged = await tiny.openPaths([MOCK_DEMO_PATHS[0]]);
+      const merged = await tiny.openPaths([at(MOCK_DEMO_PATHS, 0)]);
       expect(merged.sources.length).toBe(2 + demo.sources.length);
-      expect((await tiny.openPaths([MOCK_DEMO_PATHS[0]])).sources.length).toBe(merged.sources.length);
+      expect((await tiny.openPaths([at(MOCK_DEMO_PATHS, 0)])).sources.length).toBe(merged.sources.length);
     });
 
     it('a slow open is cancellable: unread files are listed as not imported', async () => {
@@ -99,8 +100,8 @@ describe('mock import, files and profile history', () => {
     it('archives the replaced profile and refuses a second export to the same file', async () => {
       const b = new MockBackend({ latency: false, dataset: tinyDataset, pluginMarkerKinds: [] });
       await b.saveProfile('name = "Next"\n');
-      expect((await b.profileHistory())[0].name).not.toBe('Next');
-      expect((await b.profileVersion((await b.profileHistory())[0].file)).path).toBeNull();
+      expect((await b.profileHistory())[0]?.name).not.toBe('Next');
+      expect((await b.profileVersion(at(await b.profileHistory(), 0).file)).path).toBeNull();
       const request = { query: { from: null, to: null, levels: [], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] }, format: 'csv', path: '/out/e.csv' };
       await b.exportEvents(request);
       await expect(b.exportEvents(request)).rejects.toContain(FILE_EXISTS_SUFFIX);

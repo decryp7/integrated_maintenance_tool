@@ -96,3 +96,24 @@ fn the_sample_security_log_marks_failed_logons_only_where_present() {
         assert_eq!(kinds_of(&c, r).contains(&ns), failed, "{:?}", r.fields.get("EventId"));
     }
 }
+
+#[test]
+fn procmon_denied_results_are_marked() {
+    use imt_core::importers::{ImportCtx, Importer};
+    let c = compiled();
+    let ctx = ImportCtx {
+        profile: &c,
+        path: std::path::Path::new("Logfile.CSV"),
+        file_date: None,
+    };
+    let csv = include_str!("../../tests/fixtures/procmon.csv");
+    let records = crate::ProcmonCsvImporter.import(&ctx, csv).unwrap().records;
+    let ns = "net.decryptology.windows/access-denied".to_string();
+    let mut marked = 0;
+    for r in &records {
+        let denied = PROCMON_DENIED.iter().any(|d| r.fields["Result"] == *d);
+        assert_eq!(kinds_of(&c, r).contains(&ns), denied, "{:?}", r.fields["Result"]);
+        marked += usize::from(denied);
+    }
+    assert_eq!(marked, 3);
+}

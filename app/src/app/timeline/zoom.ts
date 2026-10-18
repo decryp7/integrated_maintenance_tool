@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, Signal, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 
 /** A closed time interval in epoch ms. */
@@ -61,7 +61,7 @@ export class RangeHistory {
   private index = 0;
 
   get current(): Range | null {
-    return this.stack[this.index];
+    return this.stack[this.index] ?? null;
   }
   get canBack(): boolean {
     return this.index > 0;
@@ -91,41 +91,50 @@ export class RangeHistory {
 const WHEEL_COMMIT_MS = 150;
 const STEP = 0.5;
 
-/** All time-range changes go through here so the timeline, grid and charts stay in sync with history. */
-@Injectable({ providedIn: 'root' })
-export class TimelineZoom {
-  private readonly store = inject(WorkspaceStore);
+/**
+ * What a zoom controller drives: the data extent, the range on screen and how to change it. The workspace
+ * (`TimelineZoom`) and every unlinked timeline panel (its own range) each provide one.
+ */
+export interface RangePort {
+  /** Full data extent, or null before anything is loaded. */
+  readonly extent: Signal<Range | null>;
+  /** The range on screen (null before anything is loaded). */
+  readonly view: Signal<Range | null>;
+  /** True while a range narrower than the extent is applied. */
+  readonly hasRange: Signal<boolean>;
+  /** True while the view can be panned. */
+  readonly canPan: Signal<boolean>;
+  /** Applies a range; null means "fit all". */
+  setRange(r: Range | null): void;
+}
+
+/** Zoom, pan and back/forward history over a `RangePort`. */
+export class RangeZoom {
   private readonly history = new RangeHistory();
   private readonly version = signal(0);
   private pending: Range | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private readonly port: RangePort;
 
-  readonly canBack = computed(() => (this.version(), this.history.canBack));
-  readonly canForward = computed(() => (this.version(), this.history.canForward));
-
+  readonly canBack: Signal<boolean>;
+  readonly canForward: Signal<boolean>;
   /** Full data extent, or null before anything is loaded. */
-  readonly extent = computed<Range | null>(() => {
-    const s = this.store.summary();
-    return s?.from != null && s.to != null ? { from: s.from, to: Math.max(s.to, s.from + MIN_SPAN_MS) } : null;
-  });
-
-  /**
-   * The range on screen: the query range, or the full extent. While following a live window (resolved by the
-   * engine), it is the range of the latest timeline, so zooming and panning start from what is shown.
-   */
-  readonly view = computed<Range | null>(() => {
-    const ext = this.extent();
-    const q = this.store.query();
-    if (!ext) return null;
-    const t = this.store.timeline();
-    if (q.window && q.from == null && q.to == null && t) return { from: t.from, to: t.to };
-    return { from: q.from ?? ext.from, to: q.to ?? ext.to };
-  });
-
+  readonly extent: Signal<Range | null>;
+  /** The range on screen. */
+  readonly view: Signal<Range | null>;
   /** True while the view can be panned: a fixed range, or a sliding live window (panning pauses following). */
-  readonly canPan = computed(() => this.store.hasRange() || !!this.store.query().window);
+  readonly canPan: Signal<boolean>;
+  readonly isZoomed: Signal<boolean>;
 
-  readonly isZoomed = computed(() => this.store.hasRange());
+  constructor(port: RangePort) {
+    this.port = port;
+    this.canBack = computed(() => (this.version(), this.history.canBack));
+    this.canForward = computed(() => (this.version(), this.history.canForward));
+    this.extent = port.extent;
+    this.view = port.view;
+    this.canPan = port.canPan;
+    this.isZoomed = port.hasRange;
+  }
 
   /** Sets a range (null = fit all) and records it in history. */
   apply(r: Range | null): void {
@@ -138,7 +147,7 @@ export class TimelineZoom {
     this.cancelPending();
     this.history.push(next);
     this.version.update((v) => v + 1);
-    this.store.setRange(next ? Math.floor(next.from) : null, next ? Math.ceil(next.to) : null);
+    this.port.setRange(next ? { from: Math.floor(next.from), to: Math.ceil(next.to) } : null);
   }
 
   fit(): void {
@@ -182,19 +191,25 @@ export class TimelineZoom {
     this.cancelPending();
     const r = this.history.back();
     this.version.update((v) => v + 1);
-    this.store.setRange(r?.from ?? null, r?.to ?? null);
+    this.port.setRange(r);
   }
 
   forward(): void {
     this.cancelPending();
     const r = this.history.forward();
     this.version.update((v) => v + 1);
-    this.store.setRange(r?.from ?? null, r?.to ?? null);
+    this.port.setRange(r);
   }
 
   /** The range a pending wheel gesture will commit (for immediate visual feedback). */
   pendingRange(): Range | null {
     return this.pending;
+  }
+
+  /** Drops a pending wheel gesture (e.g. when its panel goes away). */
+  cancelPending(): void {
+    clearTimeout(this.timer);
+    this.pending = null;
   }
 
   private schedule(r: Range): void {
@@ -206,9 +221,41 @@ export class TimelineZoom {
       this.apply(p);
     }, WHEEL_COMMIT_MS);
   }
+}
 
-  private cancelPending(): void {
-    clearTimeout(this.timer);
-    this.pending = null;
+/** The data extent of a workspace summary (null before anything is loaded). */
+export function summaryExtent(summary: { from?: number | null; to?: number | null } | null): Range | null {
+  return summary?.from != null && summary.to != null ? { from: summary.from, to: Math.max(summary.to, summary.from + MIN_SPAN_MS) } : null;
+}
+
+/** The workspace's range: the query range that the grid, the charts and the main timeline show. */
+function workspacePort(store: InstanceType<typeof WorkspaceStore>): RangePort {
+  const extent = computed<Range | null>(() => summaryExtent(store.summary()));
+  return {
+    extent,
+    // The query range, or the full extent. While following a live window (resolved by the engine), it is the range of
+    // the latest timeline, so zooming and panning start from what is shown.
+    view: computed<Range | null>(() => {
+      const ext = extent();
+      const q = store.query();
+      if (!ext) return null;
+      const t = store.timeline();
+      if (q.window && q.from == null && q.to == null && t) return { from: t.from, to: t.to };
+      return { from: q.from ?? ext.from, to: q.to ?? ext.to };
+    }),
+    hasRange: store.hasRange,
+    canPan: computed(() => store.hasRange() || !!store.query().window),
+    setRange: (r) => store.setRange(r?.from ?? null, r?.to ?? null),
+  };
+}
+
+/**
+ * All workspace time-range changes go through here so the timeline, grid and charts stay in sync with history.
+ * Timeline panels linked to the main timeline ("Sync time") zoom through it too.
+ */
+@Injectable({ providedIn: 'root' })
+export class TimelineZoom extends RangeZoom {
+  constructor() {
+    super(workspacePort(inject(WorkspaceStore)));
   }
 }

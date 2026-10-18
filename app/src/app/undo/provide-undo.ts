@@ -23,18 +23,18 @@ export class UndoCommands {
   }
 
   readonly commands: ImtCommand[] = [
-    { id: UNDO_COMMAND, title: 'Undo', category: 'Edit', keybinding: 'Mod+Z', run: () => this.step('undo') },
-    { id: REDO_COMMAND, title: 'Redo', category: 'Edit', keybinding: 'Mod+Shift+Z', run: () => this.step('redo') },
+    { id: UNDO_COMMAND, title: $localize`:Command title|@@undo.cmd.undo:Undo`, category: $localize`:Command palette category|@@undo.cmd.category:Edit`, keybinding: 'Mod+Z', run: () => this.step('undo') },
+    { id: REDO_COMMAND, title: $localize`:Command title|@@undo.cmd.redo:Redo`, category: $localize`:Command palette category|@@undo.cmd.category:Edit`, keybinding: 'Mod+Shift+Z', run: () => this.step('redo') },
   ];
 
   /** Undoes or redoes the latest edit; tells the user what happened (or that there was nothing to do). */
   async step(op: 'undo' | 'redo'): Promise<void> {
     const label = op === 'undo' ? this.undo.undoLabel() : this.undo.redoLabel();
     if (!label) {
-      this.store.setNotice(op === 'undo' ? 'Nothing to undo' : 'Nothing to redo');
+      this.store.setNotice(op === 'undo' ? $localize`:@@undo.nothingToUndo:Nothing to undo` : $localize`:@@undo.nothingToRedo:Nothing to redo`);
       return;
     }
-    if (await (op === 'undo' ? this.undo.undo() : this.undo.redo())) this.store.setNotice(`${op === 'undo' ? 'Undone' : 'Redone'}: ${label}`);
+    if (await (op === 'undo' ? this.undo.undo() : this.undo.redo())) this.store.setNotice(op === 'undo' ? $localize`:@@undo.undone:Undone: ${label}:label:` : $localize`:@@undo.redone:Redone: ${label}:label:`);
   }
 }
 

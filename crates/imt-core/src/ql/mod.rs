@@ -24,7 +24,9 @@
 //! Everything here is pure: [`parse`] turns text into a typed [`Program`], [`run`] evaluates it over
 //! an iterator of records, and [`completions`] drives editor suggestions.
 
+pub mod calc;
 mod complete;
+mod control;
 mod error;
 mod exec;
 mod expr;
@@ -33,9 +35,11 @@ mod parser;
 mod stats;
 mod suggest;
 
+pub use calc::CalcExpr;
 pub use complete::{completions, Completion, CompletionKind};
+pub use control::{Cancelled, QueryControl, QueryProgress, QueryStage, RunError, Watched, BATCH};
 pub use error::QlError;
-pub use exec::run;
+pub use exec::{run, run_with};
 pub use expr::{Filter, Row};
 pub use parser::{parse, AggFn, AggSpec, FieldRef, Program, SortKeySpec, Stage};
 pub use stats::MAX_PERCENTILE_VALUES;

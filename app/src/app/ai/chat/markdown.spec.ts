@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Citation } from '../ai.types';
 import { Block, isNotFound, MAX_RENDER_CHARS, parseInline, parseMarkdown } from './markdown';
+import { at } from '../../../testing/must';
 
 const cites: Citation[] = [
   { kind: 'record', id: 12, verified: true },
@@ -79,7 +80,7 @@ describe('parseMarkdown', () => {
 
   it('cuts runaway answers', () => {
     const b = parseMarkdown('x'.repeat(MAX_RENDER_CHARS + 50));
-    const t = (b[0] as { inlines: { text: string }[] }).inlines[0].text;
+    const t = at((b[0] as { inlines: { text: string }[] }).inlines, 0).text;
     expect(t.length).toBe(MAX_RENDER_CHARS + 1);
     expect(t.endsWith('…')).toBe(true);
   });

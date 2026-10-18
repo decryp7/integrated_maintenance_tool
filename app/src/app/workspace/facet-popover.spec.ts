@@ -5,6 +5,7 @@ import { Facet } from '../core/api.types';
 import { MockBackend } from '../core/mock/mock-backend';
 import { FACET_LIMIT, FacetFilterEvent, FacetPopover } from './facet-popover';
 import { LiveFeed } from '../live/live-feed';
+import { at } from '../../testing/must';
 
 @Component({
   imports: [FacetPopover],
@@ -109,7 +110,7 @@ describe('FacetPopover', () => {
     expect(all(fixture, '.value').length).toBeLessThan(25);
     expect(el(fixture, '[data-testid=facet-summary]').textContent).toBe('10,000+ values in current results · top 1,000 shown');
     expect(el(fixture, '[role=list]').getAttribute('aria-label')).toBe('Values');
-    expect(all(fixture, '[role=listitem]')[0].getAttribute('aria-setsize')).toBe('1000');
+    expect(all(fixture, '[role=listitem]')[0]?.getAttribute('aria-setsize')).toBe('1000');
     typeInto(el<HTMLInputElement>(fixture, 'input[aria-label="Search values"]'), '00042');
     await settle(fixture);
     expect(all(fixture, '.value')).toHaveLength(1);
@@ -144,7 +145,7 @@ describe('FacetPopover', () => {
     expect(text(fixture)).toContain('Loading');
     host.field.set('@level');
     await settle(fixture);
-    slow[0]({} as Facet);
+    at(slow, 0)({} as Facet);
     await settle(fixture);
     expect(el(fixture, '[data-testid=facet-summary]').textContent).toContain('values in current results');
     expect(text(fixture)).toContain('Information');

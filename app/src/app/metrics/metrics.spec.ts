@@ -12,6 +12,7 @@ import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { MetricsView } from './metrics-view';
 import { TimeCursor } from '../analysis/time-cursor';
+import { at, must } from '../../testing/must';
 
 // Through DI, not vi.mock('echarts/core'): with shared module graphs (isolate: false) a module mock only applies
 // when no earlier spec in the worker has loaded echarts, which made these tests flaky.
@@ -51,9 +52,19 @@ const data = (keys: string[], patch: Partial<ChartDef> = {}): ChartData => ({
   ],
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ECharts options are deeply nested loose objects; tests probe them structurally.
 type Opt = Record<string, any>;
 
 describe('buildOption', () => {
+  it('shifts overlapping end labels and wraps the legend with headroom', () => {
+    const few = buildOption(data(['a', 'b']), TOKENS, 'utc', new Map()) as Opt;
+    expect(few['series'][0]['labelLayout']).toEqual({ moveOverlap: 'shiftY' });
+    expect(few['legend'].type).toBe('plain');
+    const many = buildOption(data(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']), TOKENS, 'utc', new Map()) as Opt;
+    expect(many['legend'].type).toBe('plain');
+    expect(many['grid'].top).toBeGreaterThan(few['grid'].top);
+  });
+
   it('colours up to four series and labels line ends', () => {
     const o = buildOption(data(['a', 'b']), TOKENS, 'utc', new Map([['fatal', 'Fatal']])) as Opt;
     expect(o['series'].map((s: Opt) => s['color'])).toEqual(['#1', '#2']);
@@ -75,21 +86,21 @@ describe('buildOption', () => {
     const o = buildOption(data(['a', 'b', 'c', 'd', 'e', 'f']), TOKENS, 'utc', new Map()) as Opt;
     const s = o['series'] as Opt[];
     expect(s.map((x) => x['name'])).toEqual(['a', 'b', 'c', 'd', 'Other', 'Other']);
-    expect(s[4]['color']).toBe('#o');
-    expect(s[4]['lineStyle'].width).toBe(1);
-    expect(s[4]['endLabel']).toBeUndefined();
+    expect(at(s, 4)['color']).toBe('#o');
+    expect(at(s, 4)['lineStyle'].width).toBe(1);
+    expect(at(s, 4)['endLabel']).toBeUndefined();
   });
 
   it('sums extra bar series into one "Other" series', () => {
     const o = buildOption(data(['a', 'b', 'c', 'd', 'e', 'f'], { type: 'stacked', unit: '' }), TOKENS, 'utc', new Map()) as Opt;
     const s = o['series'] as Opt[];
     expect(s.map((x) => x['name'])).toEqual(['a', 'b', 'c', 'd', 'Other (2)']);
-    expect(s[4]['data']).toEqual([
+    expect(at(s, 4)['data']).toEqual([
       [0, 11],
       [60_000, null],
     ]);
-    expect(s[0]['stack']).toBe('total');
-    expect(s[0]['type']).toBe('bar');
+    expect(at(s, 0)['stack']).toBe('total');
+    expect(at(s, 0)['type']).toBe('bar');
     expect(o['grid'].right).toBe(20);
     expect(o['tooltip'].valueFormatter(3)).toBe('3');
   });
@@ -116,17 +127,17 @@ describe('EChart', () => {
   it('initialises, updates, reports brushes and disposes', async () => {
     const fixture = TestBed.createComponent(Host);
     await settle(fixture);
-    const c = charts.instances[0];
+    const c = at(charts.instances, 0);
     expect(c.setOption).toHaveBeenCalledWith({ series: [] }, { notMerge: true });
     expect(c.dispatchAction).toHaveBeenCalledWith(expect.objectContaining({ type: 'takeGlobalCursor' }));
     fixture.componentInstance.opts.set({ series: [{}] });
     await settle(fixture);
     expect(c.setOption).toHaveBeenLastCalledWith({ series: [{}] }, { notMerge: true });
-    c.handlers['brushEnd']({ areas: [{ coordRange: [10.4, 20.2] }] });
+    must(c.handlers['brushEnd'])({ areas: [{ coordRange: [10.4, 20.2] }] });
     expect(fixture.componentInstance.got).toEqual([10, 21]);
     fixture.componentInstance.got = null;
-    c.handlers['brushEnd']({ areas: [] });
-    c.handlers['brushEnd']({ areas: [{ coordRange: [5, 5] }] });
+    must(c.handlers['brushEnd'])({ areas: [] });
+    must(c.handlers['brushEnd'])({ areas: [{ coordRange: [5, 5] }] });
     expect(fixture.componentInstance.got).toBeNull();
     expect(c.resize).toHaveBeenCalled();
     fixture.destroy();
@@ -181,7 +192,7 @@ describe('ChartCard', () => {
     fixture.componentInstance.remove.subscribe(() => (removed = true));
     await settle(fixture);
     const t0 = store.summary()!.from!;
-    charts.instances[0].handlers['brushEnd']({ areas: [{ coordRange: [t0 + 1000, t0 + 60_000] }] });
+    must(at(charts.instances, 0).handlers['brushEnd'])({ areas: [{ coordRange: [t0 + 1000, t0 + 60_000] }] });
     expect(store.query().from).toBe(t0 + 1000);
     expect(TestBed.inject(TimeCursor).selection()).toEqual({ from: t0 + 1000, to: t0 + 60_000 });
     el<HTMLButtonElement>(fixture, '[aria-label="Remove chart C"]').click();
@@ -251,14 +262,14 @@ describe('MetricsView', () => {
     buttonByText(fixture, '+ Add chart').click();
     await settle(fixture);
     const form = el<HTMLFormElement>(fixture, '.builder');
-    const [title, unit] = [form.querySelectorAll('input')[0], form.querySelectorAll('input')[1]];
+    const [title, unit] = [at(form.querySelectorAll('input'), 0), at(form.querySelectorAll('input'), 1)];
     const selects = form.querySelectorAll('select');
     typeInto(title, 'My CPU');
     typeInto(unit, '%');
     typeInto(selects[1] as unknown as HTMLInputElement, 'cpu', 'change');
     typeInto(selects[2] as unknown as HTMLInputElement, '1m', 'change');
     const split = selects[3] as HTMLSelectElement;
-    split.options[0].selected = true;
+    at(split.options, 0).selected = true;
     split.dispatchEvent(new Event('change'));
     typeInto(selects[4] as unknown as HTMLInputElement, 'bar', 'change');
     form.dispatchEvent(new Event('submit'));
@@ -304,7 +315,7 @@ describe('live charts', () => {
   it('merge mode updates the chart in place (notMerge false, series replaced by name)', async () => {
     const fixture = TestBed.createComponent(MergeHost);
     await settle(fixture);
-    const c = charts.instances[0];
+    const c = at(charts.instances, 0);
     fixture.componentInstance.merge.set(true);
     fixture.componentInstance.opts.set({ series: [{ name: 'a' }] });
     await settle(fixture);

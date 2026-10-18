@@ -41,7 +41,7 @@ export function fieldValueConditions(field: string, value: string): Condition[] 
 
 /** Plain-English rendering of conditions ("SourceContext eq X and @template eq Y"). */
 export function describeConditions(conditions: readonly Condition[]): string {
-  if (!conditions.length) return 'every event';
+  if (!conditions.length) return $localize`:@@context.ruleBuilders.everyEvent:every event`;
   return conditions.map((c) => (c.value === undefined ? `${c.field} ${c.op}` : `${c.field} ${c.op} "${c.value}"`)).join(' and ');
 }
 

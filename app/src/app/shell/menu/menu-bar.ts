@@ -15,7 +15,7 @@ import { MenuNode, TopMenu } from './menu-model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkMenuBar, CdkMenu, CdkMenuItem, CdkMenuItemCheckbox, CdkMenuTrigger, MenuTriggerGuard],
   template: `
-    <div cdkMenuBar class="bar" aria-label="Application menu">
+    <div cdkMenuBar class="bar" aria-label="Application menu" i18n-aria-label="@@shell.menuBar.applicationMenu">
       @for (menu of app.menus(); track menu.id) {
         <button type="button" cdkMenuItem imtMenuTrigger class="top" [cdkMenuTriggerFor]="list" [cdkMenuTriggerData]="{ $implicit: [menu.id], label: menu.label }">{{ menu.label }}</button>
       }
@@ -102,14 +102,14 @@ import { MenuNode, TopMenu } from './menu-model';
     .menu:focus { outline: none; }
     .item {
       display: flex; align-items: center; gap: 8px; flex: none; height: 26px; padding: 0 10px 0 6px; border: 0; border-radius: 5px;
-      background: transparent; color: var(--text-2); cursor: pointer; text-align: left; font: inherit; white-space: nowrap;
+      background: transparent; color: var(--text-2); cursor: pointer; text-align: start; font: inherit; white-space: nowrap;
     }
     .item:hover, .item:focus, .item[aria-expanded='true'] { background: var(--bg-active); color: var(--text); outline: none; }
     .item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
     .check { width: 14px; flex: none; text-align: center; color: var(--accent); }
     .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .hint { flex: none; margin-left: 24px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
-    .chevron { flex: none; margin-left: 24px; color: var(--muted); }
+    .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+    .chevron { flex: none; margin-inline-start: 24px; color: var(--muted); }
     .sep { flex: none; height: 1px; margin: 4px 6px; background: var(--border-2); }
     .group { display: flex; flex-direction: column; }
     .group-label { padding: 6px 10px 2px 28px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }

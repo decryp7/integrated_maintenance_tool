@@ -231,6 +231,7 @@ impl Supervisor {
                     limit: get("limit"),
                 }
             }
+            code::LOAD_FAILED if reason_of(&r) == Some(NO_RUNTIME_REASON) => AiError::NoRuntime,
             code::LOAD_FAILED => AiError::Engine(format!("cannot load the model: {}", r.message)),
             _ => AiError::Engine(r.message),
         }
@@ -496,5 +497,37 @@ impl ModelRuntime for WorkerRuntime {
             provider: Arc::new(PromptedProvider::new(engine, prompt_format_of(&req.info))),
             backend: l.backend,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_worker_errors_map_to_library_errors() {
+        let nr = RpcError {
+            code: code::LOAD_FAILED,
+            message: "no llama-server".into(),
+            data: Some(json!({"reason": NO_RUNTIME_REASON})),
+        };
+        assert_eq!(Supervisor::map_remote(nr), AiError::NoRuntime);
+        let other = RpcError {
+            code: code::LOAD_FAILED,
+            message: "bad file".into(),
+            data: Some(json!({"reason": "other"})),
+        };
+        assert_eq!(
+            Supervisor::map_remote(other),
+            AiError::Engine("cannot load the model: bad file".into())
+        );
+        assert_eq!(
+            Supervisor::map_remote(context_overflow(9, 4)),
+            AiError::ContextOverflow { prompt: 9, limit: 4 }
+        );
+        assert_eq!(
+            Supervisor::map_remote(RpcError::new(code::ENGINE, "x")),
+            AiError::Engine("x".into())
+        );
     }
 }

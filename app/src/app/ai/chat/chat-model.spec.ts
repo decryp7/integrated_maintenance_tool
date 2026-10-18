@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { QueryProposal, TurnRecord } from '../ai.types';
 import { ALL_CONTEXT, buildContext, ContextSources, decidedState, describeContext, reduceTurn, startTurn, toolLabel, turnFromRecord } from './chat-model';
+import { at } from '../../../testing/must';
 
 const q: QueryProposal = { kind: 'query', ql: 'level >= error', explanation: 'e', estimatedMatches: 2, repaired: false };
 const ev = { recordIds: [], queries: [] };
@@ -27,14 +28,14 @@ describe('reduceTurn', () => {
     const done = reduceTurn(t, { type: 'done', text: 'Final', citations: [{ kind: 'query', ql: 'a' }], usage: { inputTokens: 1, outputTokens: 2 }, notes: ['n'] });
     expect(done).toMatchObject({ text: 'Final', running: false, notes: ['n'], usage: { inputTokens: 1, outputTokens: 2 } });
     expect(done.tools.every((c) => !c.running)).toBe(true);
-    expect(done.approvals[0].state).toBe('denied');
+    expect(done.approvals[0]?.state).toBe('denied');
     expect(done.proposals).toEqual([{ proposal: q, state: 'open' }]);
     expect(done.suggestions).toHaveLength(1);
 
     const failed = reduceTurn(t, { type: 'error', message: 'engine down', cancelled: false });
-    expect([failed.error, failed.cancelled, failed.running, failed.approvals[0].state]).toEqual(['engine down', false, false, 'denied']);
-    const stopped = reduceTurn({ ...t, approvals: [{ ...t.approvals[0], state: 'allowed' }] }, { type: 'error', message: 'cancelled', cancelled: true });
-    expect([stopped.error, stopped.cancelled, stopped.approvals[0].state]).toEqual([null, true, 'allowed']);
+    expect([failed.error, failed.cancelled, failed.running, failed.approvals[0]?.state]).toEqual(['engine down', false, false, 'denied']);
+    const stopped = reduceTurn({ ...t, approvals: [{ ...at(t.approvals, 0), state: 'allowed' }] }, { type: 'error', message: 'cancelled', cancelled: true });
+    expect([stopped.error, stopped.cancelled, stopped.approvals[0]?.state]).toEqual([null, true, 'allowed']);
   });
 });
 
@@ -79,7 +80,7 @@ describe('helpers', () => {
     const none = describeContext({ ql: null, range: null, selectedIds: [], instance: null, view: null }, String);
     expect(none.map((l) => l.available)).toEqual([false, false, false, false, false]);
     expect(none.map((l) => l.label)).toEqual(['Filter: none', 'Time: whole workspace', 'Selected: none', 'Instance: all', 'View: none']);
-    expect(describeContext({ ...src, selectedIds: [5] }, String)[2].label).toBe('Selected: 1 event (#5)');
+    expect(describeContext({ ...src, selectedIds: [5] }, String)[2]?.label).toBe('Selected: 1 event (#5)');
   });
 
   it('names tools for their chips', () => {

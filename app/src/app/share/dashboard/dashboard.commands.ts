@@ -12,11 +12,11 @@ export class DashboardCommands {
   private readonly dialogs = inject(DialogService);
 
   readonly commands: ImtCommand[] = [
-    { id: 'dashboards.show', title: 'Show dashboards', category: 'View', run: (ctx) => ctx.showView('dashboards') },
+    { id: 'dashboards.show', title: $localize`:@@share.dashboardCommands.show:Show dashboards`, category: $localize`:@@share.commands.categoryView:View`, run: (ctx) => ctx.showView('dashboards') },
     {
       id: 'dashboards.edit',
-      title: 'Dashboard: toggle edit mode',
-      category: 'View',
+      title: $localize`:@@share.dashboardCommands.edit:Dashboard: toggle edit mode`,
+      category: $localize`:@@share.commands.categoryView:View`,
       when: () => !!this.ds.current(),
       run: (ctx) => {
         ctx.showView('dashboards');
@@ -26,18 +26,18 @@ export class DashboardCommands {
     },
     {
       id: 'dashboards.addTile',
-      title: 'Dashboard: add tile…',
-      category: 'View',
+      title: $localize`:@@share.dashboardCommands.addTile:Dashboard: add tile…`,
+      category: $localize`:@@share.commands.categoryView:View`,
       when: () => this.ds.editing(),
       run: async () => {
-        const tile = await this.dialogs.open<TileCfg>(AddTileDialog, { title: 'Add tile', width: 520 }).closed;
+        const tile = await this.dialogs.open<TileCfg>(AddTileDialog, { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
         if (tile) this.ds.add(tile);
       },
     },
     {
       id: 'dashboards.wall',
-      title: 'Dashboard: wall mode',
-      category: 'View',
+      title: $localize`:@@share.dashboardCommands.wall:Dashboard: wall mode`,
+      category: $localize`:@@share.commands.categoryView:View`,
       when: () => !!this.ds.current(),
       run: (ctx) => {
         ctx.showView('dashboards');

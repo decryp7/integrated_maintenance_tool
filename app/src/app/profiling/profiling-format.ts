@@ -1,5 +1,6 @@
 import { CaptureSummary, HeapSummary, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummary } from '../core/api.types';
 import { formatCount } from '../core/format';
+import { localizeDecimal } from '../i18n/locale';
 
 /** Pure presentation helpers of the profiling views (units, labels, measurement tags). */
 
@@ -23,9 +24,9 @@ export function formatNs(ns: number | null | undefined): string {
   if (ns === null || ns === undefined || !Number.isFinite(ns)) return '—';
   const a = Math.abs(ns);
   if (a < 1_000) return `${Math.round(ns)} ns`;
-  if (a < 1_000_000) return `${(ns / 1_000).toFixed(1)} µs`;
-  if (a < 1_000_000_000) return `${(ns / 1_000_000).toFixed(a < 10_000_000 ? 2 : 1)} ms`;
-  if (a < 60_000_000_000) return `${(ns / 1_000_000_000).toFixed(2)} s`;
+  if (a < 1_000_000) return `${localizeDecimal((ns / 1_000).toFixed(1))} µs`;
+  if (a < 1_000_000_000) return `${localizeDecimal((ns / 1_000_000).toFixed(a < 10_000_000 ? 2 : 1))} ms`;
+  if (a < 60_000_000_000) return `${localizeDecimal((ns / 1_000_000_000).toFixed(2))} s`;
   const s = Math.round(ns / 1_000_000_000);
   return `${Math.floor(s / 60)} min ${s % 60} s`;
 }
@@ -35,9 +36,9 @@ export function formatBytes(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return '—';
   const a = Math.abs(bytes);
   if (a < 1024) return `${Math.round(bytes)} B`;
-  if (a < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (a < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+  if (a < 1024 ** 2) return `${localizeDecimal((bytes / 1024).toFixed(1))} KB`;
+  if (a < 1024 ** 3) return `${localizeDecimal((bytes / 1024 ** 2).toFixed(1))} MB`;
+  return `${localizeDecimal((bytes / 1024 ** 3).toFixed(2))} GB`;
 }
 
 export function formatValue(value: number | null | undefined, unit: MetricUnit): string {
@@ -53,13 +54,13 @@ export function formatMetric(value: number | null | undefined, metric: MetricId,
 
 export function formatPct(pct: number | null | undefined, digits = 1): string {
   if (pct === null || pct === undefined || !Number.isFinite(pct)) return '—';
-  return `${pct.toFixed(digits)}%`;
+  return `${localizeDecimal(pct.toFixed(digits))}%`;
 }
 
 /** Percentage points with a sign: "+12.3 pp", "−4.0 pp", "0.0 pp". */
 export function formatPp(pp: number): string {
   const sign = pp > 0.005 ? '+' : pp < -0.005 ? '−' : '';
-  return `${sign}${Math.abs(pp).toFixed(1)} pp`;
+  return `${sign}${localizeDecimal(Math.abs(pp).toFixed(1))} pp`;
 }
 
 /** A signed byte or count delta: "+4.0 KB", "−3", "0". */
@@ -74,14 +75,14 @@ export function measurementGlyph(m: Measurement): string {
 }
 
 export function measurementLabel(m: Measurement): string {
-  return m === 'sampled' ? 'Sampled' : 'Exact';
+  return m === 'sampled' ? $localize`:@@profiling.format.measurement.sampled:Sampled` : $localize`:@@profiling.format.measurement.exact:Exact`;
 }
 
 /** The tooltip explaining what the tag means. */
 export function measurementHelp(m: Measurement): string {
   return m === 'sampled'
-    ? 'Sampled (≈): a statistical estimate from periodic stack samples. Small values are noisy; compare shares rather than exact numbers.'
-    : 'Exact (=): every occurrence was recorded (instrumentation or events), so the value is a count, not an estimate.';
+    ? $localize`:@@profiling.format.measurement.sampledHelp:Sampled (≈): a statistical estimate from periodic stack samples. Small values are noisy; compare shares rather than exact numbers.`
+    : $localize`:@@profiling.format.measurement.exactHelp:Exact (=): every occurrence was recorded (instrumentation or events), so the value is a count, not an estimate.`;
 }
 
 /** Sampled when any input is sampled (a ratio of an estimate is an estimate). */
@@ -97,10 +98,15 @@ export function metricLabel(summary: ProfileSummary | null | undefined, metric: 
   return summary?.metrics.find((m) => m.id === metric)?.label ?? metric;
 }
 
-const KIND_LABEL: Record<ProfileSummary['kind'], string> = { cpu: 'CPU', alloc: 'Allocations', wall: 'Wall clock', mixed: 'Mixed' };
+const KIND_LABEL: Record<ProfileSummary['kind'], string> = {
+  cpu: $localize`:@@profiling.format.kind.cpu:CPU`,
+  alloc: $localize`:@@profiling.format.kind.alloc:Allocations`,
+  wall: $localize`:@@profiling.format.kind.wall:Wall clock`,
+  mixed: $localize`:@@profiling.format.kind.mixed:Mixed`,
+};
 
 export function captureKindLabel(c: CaptureSummary): string {
-  return c.capture === 'heap' ? 'Heap snapshot' : KIND_LABEL[c.kind];
+  return c.capture === 'heap' ? $localize`:@@profiling.format.kind.heap:Heap snapshot` : KIND_LABEL[c.kind];
 }
 
 export function isProfile(c: CaptureSummary | null | undefined): c is ProfileSummary {

@@ -1,25 +1,40 @@
 [package]
 name = "imt-ai-worker"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Inference worker for IMT: serves llama.cpp over gRPC on a private local socket (imt-ipc), in its own process so a native crash cannot take IMT down"
+description = "Inference worker for IMT: serves the gRPC worker contract on a private local socket (imt-ipc) and runs inference in a supervised child, the official prebuilt llama.cpp `llama-server` (ADR 0009)"
+
+[lib]
+name = "imt_ai_worker"
+path = "src/lib.rs"
 
 [[bin]]
 name = "imt-ai-worker"
 path = "src/main.rs"
 
-[features]
-default = []
-# GPU backends. The app enables `metal` on macOS and `vulkan` on Windows and Linux (any vendor, normal
-# driver only). Without either, inference runs on the CPU.
-metal = ["llama-cpp-2/metal"]
-vulkan = ["llama-cpp-2/vulkan"]
+# A stand-in for llama-server (/health, /tokenize, /props, /completion with SSE; error, slow and crash
+# modes) used only by the tests. It is not part of the app and is never bundled.
+[[bin]]
+name = "imt-fake-llama-server"
+path = "src/bin/fake_llama_server.rs"
+test = false
 
 [dependencies]
 imt-ai = { path = "../imt-ai" }
-llama-cpp-2 = { version = "0.1.160", default-features = false, features = ["common"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+getrandom = "0.3"
+sysinfo = { version = "0.37", default-features = false, features = ["system"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
+[dev-dependencies]
+tempfile = "3"
+# Only for the opt-in end-to-end test (IMT_LLAMA_E2E=1), which downloads a tiny model.
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }

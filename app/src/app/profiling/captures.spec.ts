@@ -7,6 +7,7 @@ import { CapturePicker, CapturesStore, FrameNames } from './captures.store';
 import { ProfileViewState } from './profile-view-state';
 import { ProfilingBackend } from './profiling-backend';
 import { openDemoCaptures, setupProfiling } from './testing/profiling-test-support';
+import { at } from '../../testing/must';
 
 const ORDERS = '/demo/profiles/orders.speedscope.json';
 const REGRESSION = '/demo/profiles/orders-regression.speedscope.json';
@@ -27,8 +28,8 @@ describe('CapturesStore', () => {
     expect(store().captures()).toHaveLength(2);
     expect(store().profiles()).toHaveLength(1);
     expect(store().heaps()).toHaveLength(1);
-    expect(state().profileId()).toBe(store().profiles()[0].id);
-    expect(state().heapId()).toBe(store().heaps()[0].id);
+    expect(state().profileId()).toBe(store().profiles()[0]?.id);
+    expect(state().heapId()).toBe(store().heaps()[0]?.id);
     expect(store().loading()).toBe(false);
     expect(store().error()).toBeNull();
   });
@@ -45,12 +46,12 @@ describe('CapturesStore', () => {
     const opened = await store().openPaths(MOCK_CAPTURE_PATHS);
     expect(opened).toHaveLength(5);
     expect(store().captures()).toHaveLength(5);
-    expect(state().profileId()).toBe(opened[0].id);
-    expect(state().heapId()).toBe(opened[2].id);
+    expect(state().profileId()).toBe(opened[0]?.id);
+    expect(state().heapId()).toBe(opened[2]?.id);
     expect(store().notice()).toBe('Opened 5 captures.');
     expect(store().error()).toBeNull();
     expect(state().capturesVersion()).toBe(1);
-    expect(store().byId(opened[1].id)?.name).toContain('regression');
+    expect(store().byId(at(opened, 1).id)?.name).toContain('regression');
   });
 
   it('openPaths with no paths does nothing; a single open says "capture"', async () => {
@@ -86,7 +87,7 @@ describe('CapturesStore', () => {
     const opened = await store().openPaths([ORDERS]);
     expect(opened).toHaveLength(1);
     expect(store().error()).toContain('list broke');
-    expect(state().profileId()).toBe(opened[0].id);
+    expect(state().profileId()).toBe(opened[0]?.id);
   });
 
   it('pickAndOpen opens what the picker returns', async () => {
@@ -177,7 +178,9 @@ describe('CapturesStore', () => {
   it('close removes the capture, falls back the active ones and clears a closed baseline', async () => {
     setupProfiling();
     await openDemoCaptures();
-    const [orders, regression] = store().profiles();
+    const profiles = store().profiles();
+    const orders = at(profiles, 0);
+    const regression = at(profiles, 1);
     const heaps = store().heaps();
     state().setBaseline(regression.id);
     const version = state().capturesVersion();
@@ -186,9 +189,9 @@ describe('CapturesStore', () => {
     expect(state().profileId()).toBe(orders.id);
     await store().close(orders.id);
     expect(state().profileId()).toBeNull();
-    await store().close(heaps[0].id);
-    expect(state().heapId()).toBe(heaps[1].id);
-    expect(store().byId(heaps[0].id)).toBeNull();
+    await store().close(at(heaps, 0).id);
+    expect(state().heapId()).toBe(heaps[1]?.id);
+    expect(store().byId(at(heaps, 0).id)).toBeNull();
     expect(state().capturesVersion()).toBe(version + 3);
   });
 
@@ -196,7 +199,10 @@ describe('CapturesStore', () => {
     setupProfiling();
     await openDemoCaptures();
     await store().openPaths([ORDERS]);
-    const [orders, regression, third] = store().profiles();
+    const profiles = store().profiles();
+    const orders = at(profiles, 0);
+    const regression = at(profiles, 1);
+    const third = at(profiles, 2);
     state().setProfile(orders.id);
     state().setBaseline(third.id);
     await store().close(regression.id);
@@ -207,7 +213,7 @@ describe('CapturesStore', () => {
   it('close failure sets the error and keeps the capture', async () => {
     setupProfiling({ backend: failing({ close: vi.fn().mockRejectedValue('locked') }) });
     await store().openPaths([ORDERS]);
-    await store().close(store().captures()[0].id);
+    await store().close(at(store().captures(), 0).id);
     expect(store().error()).toContain('locked');
     expect(store().captures()).toHaveLength(1);
   });
@@ -226,7 +232,7 @@ describe('CapturesStore', () => {
     await store().openPaths([REGRESSION]);
     expect(store().byId(null)).toBeNull();
     expect(store().byId(999)).toBeNull();
-    expect(store().byId(store().captures()[0].id)).not.toBeNull();
+    expect(store().byId(at(store().captures(), 0).id)).not.toBeNull();
   });
 });
 

@@ -10,6 +10,7 @@ import { settle } from '../../../testing/helpers';
 import { AiBackend, AiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { ChatStore } from './chat.store';
+import { at } from '../../../testing/must';
 
 function setup(options: MockAiOptions = {}) {
   const backend = new MockAiBackend({ stepMs: 0, ...options });
@@ -49,25 +50,25 @@ describe('ChatStore', () => {
       text: 'what crashed?',
       context: { query: 'level >= error', timeRange: [1, 9], selectedIds: [3], focusedInstance: 'WEB01', openView: 'events grid' },
     });
-    const t = store.activeTurns()[0];
+    const t = at(store.activeTurns(), 0);
     expect(t.tools[0]).toMatchObject({ name: 'run_query', running: false, summary: '1 events' });
     expect(t.text).toContain('OutOfMemoryException');
     expect(t.citations.length).toBe(2);
-    await vi.waitFor(() => expect(store.sessions()[0].title).toBe('what crashed?'));
+    await vi.waitFor(() => expect(store.sessions()[0]?.title).toBe('what crashed?'));
     // Grid multi-selection wins; toggles leave things out.
     TestBed.inject(GridSelection).publish([{ id: 4 } as RecordView, { id: 5 } as RecordView]);
     store.toggle('filter');
     store.toggle('range');
     await store.send('more');
     await done(store);
-    expect(backend.sent[1].context).toMatchObject({ query: null, timeRange: null, selectedIds: [4, 5] });
+    expect(backend.sent[1]?.context).toMatchObject({ query: null, timeRange: null, selectedIds: [4, 5] });
     // A query range when nothing is brushed.
     TestBed.inject(TimeCursor).select(null);
     store.toggle('range');
     ws.setRange(100, 200);
     await store.send('range');
     await done(store);
-    expect(backend.sent[2].context.timeRange).toEqual([100, 200]);
+    expect(backend.sent[2]?.context.timeRange).toEqual([100, 200]);
     expect(await store.send('   ')).toBe(false);
   });
 
@@ -79,9 +80,9 @@ describe('ChatStore', () => {
     expect(store.activeTurns()).toEqual([]);
     await store.send('q');
     await done(store);
-    const text = store.activeTurns()[0].text;
+    const text = at(store.activeTurns(), 0).text;
     store.onEvent({ sessionId: id, seq: 1, type: 'delta', text: 'dup' });
-    expect(store.activeTurns()[0].text).toBe(text);
+    expect(store.activeTurns()[0]?.text).toBe(text);
   });
 
   it('shows a failed send and removes the pending turn', async () => {
@@ -115,10 +116,10 @@ describe('ChatStore', () => {
     const { store } = setup({ stepMs: 5 });
     await store.init();
     await store.send('tell me');
-    await vi.waitFor(() => expect(store.activeTurns()[0].text.length).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(store.activeTurns()[0]?.text.length).toBeGreaterThan(0));
     await store.cancel();
     await done(store);
-    expect(store.activeTurns()[0].cancelled).toBe(true);
+    expect(store.activeTurns()[0]?.cancelled).toBe(true);
   });
 
   it('answers web-search approvals', async () => {
@@ -126,16 +127,16 @@ describe('ChatStore', () => {
     await store.init();
     await store.respond(1, { kind: 'allow' });
     await store.send('search the web for this');
-    await vi.waitFor(() => expect(store.activeTurns()[0].approvals[0]?.state).toBe('pending'));
+    await vi.waitFor(() => expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('pending'));
     const fail = vi.spyOn(backend, 'approvalRespond').mockRejectedValueOnce(new AiError('invalid', 'empty'));
     await store.respond(1, { kind: 'allowEdited', text: '' });
-    expect(store.activeTurns()[0].approvals[0].state).toBe('pending');
+    expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('pending');
     expect(store.error()).toBe('empty');
     fail.mockRestore();
     await store.respond(1, { kind: 'deny' });
     await done(store);
-    expect(store.activeTurns()[0].approvals[0].state).toBe('denied');
-    expect(store.activeTurns()[0].text).toContain('declined');
+    expect(store.activeTurns()[0]?.approvals[0]?.state).toBe('denied');
+    expect(store.activeTurns()[0]?.text).toContain('declined');
   });
 
   it('manages several chats', async () => {
@@ -188,9 +189,9 @@ describe('ChatStore', () => {
     await store.send('write a regex');
     await done(store);
     store.setProposalState(0, 0, 'dismissed');
-    expect(store.activeTurns()[0].proposals[0].state).toBe('dismissed');
+    expect(store.activeTurns()[0]?.proposals[0]?.state).toBe('dismissed');
     store.setProposalState(1, 0, 'applied');
-    expect(store.activeTurns()[0].proposals[0].state).toBe('dismissed');
+    expect(store.activeTurns()[0]?.proposals[0]?.state).toBe('dismissed');
   });
 
   it('catches up with a running turn and reloads when it is too old', async () => {
@@ -212,7 +213,7 @@ describe('ChatStore', () => {
     await p.restore({ version: 1, sessions: [{ id: 'chat-5', title: 'Saved', turns: [{ user: 'u', assistant: 'a', citations: [], proposals: [], web: [], cancelled: false, usage: { inputTokens: 0, outputTokens: 0 } }], allowSearches: false }] });
     await store.reload();
     expect(store.activeId()).toBe('chat-5');
-    expect(store.activeTurns()[0].text).toBe('a');
+    expect(store.activeTurns()[0]?.text).toBe('a');
     store.setNotice('n');
     expect(store.notice()).toBe('n');
   });

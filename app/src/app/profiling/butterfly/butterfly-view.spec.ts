@@ -4,8 +4,10 @@ import { all, buttonByText, el, settle, text } from '../../../testing/helpers';
 import { FrameDto } from '../../core/api.types';
 import { FakeContext } from '../../analysis/test-setup';
 import { ProfileViewState } from '../profile-view-state';
+import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { ButterflyView } from './butterfly-view';
+import { at } from '../../../testing/must';
 
 async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = true) {
   const doubles = setupProfiling(opts);
@@ -17,7 +19,7 @@ async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = tru
 }
 
 /** A function with callers and callees, and the top-level one (no caller). */
-async function pickFrames(doubles: { backend: { hotspots: Function; butterfly: Function } }, state: InstanceType<typeof ProfileViewState>) {
+async function pickFrames(doubles: { backend: Pick<ProfilingBackend, 'hotspots' | 'butterfly'> }, state: InstanceType<typeof ProfileViewState>) {
   const page = await doubles.backend.hotspots({ profileId: state.profileId()!, view: state.view(), metric: 'timeNs', limit: 50 });
   let middle: FrameDto | null = null;
   let top: FrameDto | null = null;
@@ -54,9 +56,9 @@ describe('ButterflyView', () => {
     const callees = all<HTMLButtonElement>(fixture, 'ul[aria-labelledby=bf-callees] button');
     expect(callers.length).toBeGreaterThan(0);
     expect(callees.length).toBeGreaterThan(0);
-    expect(callers[0].querySelector('.pct')!.textContent).toMatch(/\d/);
-    expect(callers[0].getAttribute('aria-label')).toMatch(/^Caller .*of the function/);
-    expect(callees[0].getAttribute('aria-label')).toMatch(/^Callee /);
+    expect(callers[0]?.querySelector('.pct')!.textContent).toMatch(/\d/);
+    expect(callers[0]?.getAttribute('aria-label')).toMatch(/^Caller .*of the function/);
+    expect(callees[0]?.getAttribute('aria-label')).toMatch(/^Callee /);
     expect(el(fixture, '[aria-label="Selected function"]').textContent).toMatch(/total .* · self /);
     expect(all(fixture, '[data-measurement]').length).toBeGreaterThan(0);
   });
@@ -125,7 +127,7 @@ describe('ButterflyView', () => {
 
   it('shows an error with Retry', async () => {
     const { fixture, doubles, state } = await mount({ options: { fail: { butterfly: 1 } } });
-    const frame = (await doubles.backend.hotspots({ profileId: state.profileId()!, view: state.view(), metric: 'timeNs' })).rows[0].frame;
+    const frame = at((await doubles.backend.hotspots({ profileId: state.profileId()!, view: state.view(), metric: 'timeNs' })).rows, 0).frame;
     state.selectFrame(frame);
     await settle(fixture, 6);
     expect(el(fixture, '[role=alert]').textContent).toContain('butterfly failed');

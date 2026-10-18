@@ -43,24 +43,24 @@ export interface PanelFacts {
 /** The menu for one panel, in VS's order. */
 export function panelMenu(f: PanelFacts): PanelMenuItem[] {
   const items: PanelMenuItem[] = [
-    { action: 'float', label: 'Float inside window', disabled: f.floating },
-    { action: 'popout', label: 'Pop out to window', disabled: !f.canPopout },
-    { action: 'dock', label: 'Dock', disabled: !f.floating },
+    { action: 'float', label: $localize`:@@dock.panelMenu.float:Float inside window`, disabled: f.floating },
+    { action: 'popout', label: $localize`:@@dock.panelMenu.popOut:Pop out to window`, disabled: !f.canPopout },
+    { action: 'dock', label: $localize`:Verb, dock a panel@@dock.panelMenu.dock:Dock`, disabled: !f.floating },
   ];
   if (f.kind === 'tool') {
-    items.push({ action: 'dockAsDocument', label: 'Dock as tabbed document', disabled: f.inDocumentWell && !f.floating });
-    items.push({ action: 'autoHide', label: 'Auto hide' });
+    items.push({ action: 'dockAsDocument', label: $localize`:@@dock.panelMenu.dockAsDocument:Dock as tabbed document`, disabled: f.inDocumentWell && !f.floating });
+    items.push({ action: 'autoHide', label: $localize`:@@dock.panelMenu.autoHide:Auto hide` });
   }
-  items.push({ action: f.pinnedTab ? 'unpinTab' : 'pinTab', label: f.pinnedTab ? 'Unpin tab' : 'Pin tab' });
-  items.push({ action: 'close', label: 'Close' });
+  items.push({ action: f.pinnedTab ? 'unpinTab' : 'pinTab', label: f.pinnedTab ? $localize`:@@dock.panelMenu.unpinTab:Unpin tab` : $localize`:@@dock.panelMenu.pinTab:Pin tab` });
+  items.push({ action: 'close', label: $localize`:Menu item@@dock.panelMenu.close:Close` });
   if (f.kind === 'document') {
     items.push(
-      { action: 'closeOthers', label: 'Close all but this', disabled: !f.hasSiblings },
-      { action: 'closeRight', label: 'Close all to the right', disabled: !f.hasRight },
-      { action: 'closeAllDocuments', label: 'Close all documents' },
-      { action: 'newHorizontalGroup', label: 'New horizontal tab group', disabled: !f.hasSiblings || f.floating },
-      { action: 'newVerticalGroup', label: 'New vertical tab group', disabled: !f.hasSiblings || f.floating },
-      { action: 'moveToNextGroup', label: 'Move to next tab group', disabled: f.groups < 2 || f.floating },
+      { action: 'closeOthers', label: $localize`:@@dock.panelMenu.closeOthers:Close all but this`, disabled: !f.hasSiblings },
+      { action: 'closeRight', label: $localize`:@@dock.panelMenu.closeRight:Close all to the right`, disabled: !f.hasRight },
+      { action: 'closeAllDocuments', label: $localize`:@@dock.panelMenu.closeAllDocuments:Close all documents` },
+      { action: 'newHorizontalGroup', label: $localize`:@@dock.panelMenu.newHorizontalGroup:New horizontal tab group`, disabled: !f.hasSiblings || f.floating },
+      { action: 'newVerticalGroup', label: $localize`:@@dock.panelMenu.newVerticalGroup:New vertical tab group`, disabled: !f.hasSiblings || f.floating },
+      { action: 'moveToNextGroup', label: $localize`:@@dock.panelMenu.moveToNextGroup:Move to next tab group`, disabled: f.groups < 2 || f.floating },
     );
   }
   return items;

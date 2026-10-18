@@ -4,6 +4,7 @@ import { provideTinyBackend, testLogger } from '../../testing/helpers';
 import { Bus } from './popout-testing';
 import { SyncMessage } from './sync-protocol';
 import { HELLO_INTERVAL_MS, HELLO_TRIES, SyncedValue, UiSync } from './ui-sync';
+import { at } from '../../testing/must';
 
 function value<T>(key: string, initial: T, direction?: 'both' | 'fromHost') {
   const s = signal<T>(initial);
@@ -66,13 +67,13 @@ describe('UiSync', () => {
     flush();
     expect(pop.d.s()).toBe(2);
     // A host-only value from a pop-out is ignored even when sent.
-    bus.ports[0].handlers.forEach((fn) => fn({ t: 'state', origin: 'x', seq: 1, host: false, key: 'data', value: 7 }));
+    at(bus.ports, 0).handlers.forEach((fn) => fn({ t: 'state', origin: 'x', seq: 1, host: false, key: 'data', value: 7 }));
     expect(host.d.s()).toBe(2);
   });
 
   it('drops stale, duplicate, malformed and unknown messages', () => {
     const { host } = pair();
-    const deliver = (m: unknown) => bus.ports[0].handlers.forEach((fn) => fn(m));
+    const deliver = (m: unknown) => at(bus.ports, 0).handlers.forEach((fn) => fn(m));
     deliver({ t: 'state', origin: 'z', seq: 5, host: false, key: 'q', value: 'new' });
     deliver({ t: 'state', origin: 'z', seq: 4, host: false, key: 'q', value: 'old' });
     deliver({ t: 'state', origin: 'z', seq: 5, host: false, key: 'q', value: 'dup' });
@@ -105,10 +106,10 @@ describe('UiSync', () => {
     const pa = make();
     pa.start(bus.port(), false, 'p-main-1', [a.v], 'oa');
     flush();
-    bus.ports[0].post = ((orig) => (m: SyncMessage) => {
+    at(bus.ports, 0).post = ((orig) => (m: SyncMessage) => {
       relayed.push(m);
       orig.call(bus.ports[0], m);
-    })(bus.ports[0].post);
+    })(at(bus.ports, 0).post);
     a.s.set('from a');
     flush();
     expect(host.s()).toBe('from a');
@@ -120,14 +121,14 @@ describe('UiSync', () => {
     const big = value('big', '');
     const h = make();
     h.start(bus.port(), true, 'main', [bad, big.v], 'oh');
-    bus.ports[0].handlers.forEach((fn) => fn({ t: 'state', origin: 'z', seq: 1, host: false, key: 'q', value: 'y' }));
+    at(bus.ports, 0).handlers.forEach((fn) => fn({ t: 'state', origin: 'z', seq: 1, host: false, key: 'q', value: 'y' }));
     expect(testLogger().entries.some((e) => e.message.includes('could not be applied'))).toBe(true);
     big.s.set('x'.repeat(600 * 1024));
     flush();
     expect(bus.log).toHaveLength(0);
     expect(testLogger().entries.some((e) => e.message.includes('too large'))).toBe(true);
     h.stop();
-    expect(bus.ports[0].closed).toBe(true);
+    expect(bus.ports[0]?.closed).toBe(true);
   });
 
   it('repeats hello until the host answers, at most a few times', () => {

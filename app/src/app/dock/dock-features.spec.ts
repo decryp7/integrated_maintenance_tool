@@ -11,6 +11,7 @@ import { EMPTY_EXTRAS, LAYOUT_STORE, LayoutStore, PoppedOutPanel, SavedLayout } 
 import { PANEL_WINDOWS, PanelWindows } from './panel-windows';
 import { DockSwitcher } from './switcher-overlay';
 import { loadDockview } from './dockview-loader';
+import { at } from '../../testing/must';
 
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
@@ -81,7 +82,7 @@ describe('DockService VS-style features', () => {
     dock.show('inspector');
     expect(dock.autoHide().open).toBe('inspector');
     dock.autoHideEvent({ type: 'resize', id: 'inspector', size: 500 });
-    expect(dock.autoHide().items[0].size).toBe(500);
+    expect(at(dock.autoHide().items, 0).size).toBe(500);
     dock.pin('inspector');
     expect(dock.autoHide().items).toHaveLength(0);
     expect(api(dock).getPanel('inspector')).toBeDefined();
@@ -110,7 +111,7 @@ describe('DockService VS-style features', () => {
     // The profile editor is not in the default layout: opened as a document next to the timeline.
     dock.show('profile', { inactive: true });
     dock.runPanelAction('profile', 'pinTab');
-    expect(api(dock).getPanel('timeline')!.group.panels[0].id).toBe('profile');
+    expect(at(api(dock).getPanel('timeline')!.group.panels, 0).id).toBe('profile');
     expect(container.querySelector('.imt-tab[data-panel-id="profile"]')!.classList.contains('pinned')).toBe(true);
     dock.runPanelAction('metrics', 'closeOthers');
     expect(dock.isOpen('profile')).toBe(true);
@@ -385,11 +386,11 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     dock.autoHideEvent({ type: 'click', id: 'inspector' });
     await settle(fixture);
     const grip = el.querySelector<HTMLElement>('.imt-ah-grip')!;
-    const start = dock.autoHide().items[0].size;
+    const start = at(dock.autoHide().items, 0).size;
     grip.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 0, bubbles: true }));
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 140, clientY: 0 }));
     document.dispatchEvent(new PointerEvent('pointerup'));
-    expect(dock.autoHide().items[0].size).not.toBe(start);
+    expect(at(dock.autoHide().items, 0).size).not.toBe(start);
     el.querySelector<HTMLButtonElement>('button[aria-label="Pin Inspector"]')!.click();
     await settle(fixture);
     expect(dock.isOpen('inspector')).toBe(true);
@@ -416,8 +417,8 @@ describe('DockHost auto-hide bars, slide-out and navigator', () => {
     await settle(fixture);
     const lists = [...el.querySelectorAll('imt-dock-switcher [role=listbox]')];
     expect(lists).toHaveLength(2);
-    expect(lists[0].textContent).toContain('Inspector');
-    expect(lists[1].textContent).toContain('Timeline');
+    expect(at(lists, 0).textContent).toContain('Inspector');
+    expect(at(lists, 1).textContent).toContain('Timeline');
     const option = el.querySelector<HTMLElement>('imt-dock-switcher [role=option]')!;
     option.dispatchEvent(new PointerEvent('pointerenter'));
     option.click();

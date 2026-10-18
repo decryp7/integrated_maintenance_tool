@@ -11,6 +11,7 @@ import { AlertRulesEditor } from './alert-rules-editor';
 import { errorTarget, LIVE_DEFAULTS, newRule, readLive, writeLive } from './live-rules.model';
 import { LiveRulesProfile } from './live-rules.profile';
 import { QL_CHECK_MS, QlInput } from './ql-input';
+import { at } from '../../testing/must';
 
 class FakeAnalysis {
   error: QlError | null = null;
@@ -48,7 +49,7 @@ describe('live rules model', () => {
       { name: 'rule 2', when: 'x', threshold: 1, window: '1m', severity: 'warning' },
       { name: 'rule 3', when: '', threshold: 1, window: '1m', severity: 'warning' },
     ]);
-    writeLive(model, { ...draft, detectors: ['silence', 'crash'], rules: [{ ...draft.rules[0], name: ' pay ', threshold: 2.6, severity: 'info' }, { ...draft.rules[1], threshold: Number.NaN }] });
+    writeLive(model, { ...draft, detectors: ['silence', 'crash'], rules: [{ ...at(draft.rules, 0), name: ' pay ', threshold: 2.6, severity: 'info' }, { ...at(draft.rules, 1), threshold: Number.NaN }] });
     expect(model['live']).toEqual({
       alerts: ['silence', 'crash'],
       silence_after: '30',
@@ -64,7 +65,7 @@ describe('live rules model', () => {
     writeLive(model, { ...draft, rules: [] });
     expect((model['live'] as Record<string, unknown>)['rule']).toBeUndefined();
     expect(readLive({ live: 'nonsense' } as never).detectors.length).toBe(6);
-    expect(readLive({ live: { rule: [{ severity: 'INFO' }] } }).rules[0].severity).toBe('info');
+    expect(at(readLive({ live: { rule: [{ severity: 'INFO' }] } }).rules, 0).severity).toBe('info');
     expect(newRule(1).name).toBe('rule 2');
   });
 
@@ -125,16 +126,16 @@ describe('LiveRulesProfile and the rules editor', () => {
     expect(text(fixture)).toContain('Loading the profile');
     await settle(fixture);
     expect(all<HTMLInputElement>(fixture, 'input[type=checkbox]').filter((c) => c.checked).length).toBe(6);
-    all<HTMLInputElement>(fixture, 'input[type=checkbox]')[0].click();
+    at(all<HTMLInputElement>(fixture, 'input[type=checkbox]'), 0).click();
     await settle(fixture);
     expect(text(fixture)).toContain('No alert rules');
     buttonByText(fixture, '+ Add rule').click();
     await settle(fixture);
     const rule = el(fixture, 'fieldset.rule');
     const inputs = [...rule.querySelectorAll<HTMLInputElement>('input.input')];
-    typeInto(inputs[0], 'payments', 'change');
-    typeInto(inputs[1], '3', 'change');
-    typeInto(inputs[2], 'later', 'change');
+    typeInto(at(inputs, 0), 'payments', 'change');
+    typeInto(at(inputs, 1), '3', 'change');
+    typeInto(at(inputs, 2), 'later', 'change');
     typeInto(rule.querySelector('select')!, 'critical', 'change');
     await settle(fixture);
     buttonByText(fixture, 'Validate').click();
@@ -144,14 +145,14 @@ describe('LiveRulesProfile and the rules editor', () => {
     });
     expect(el(fixture, 'fieldset.rule [role=alert]').textContent).toContain('live.rule "payments".window');
     // Fix it: validation passes, Save applies and closes.
-    typeInto([...el(fixture, 'fieldset.rule').querySelectorAll<HTMLInputElement>('input.input')][2], '2m', 'change');
+    typeInto(at([...el(fixture, 'fieldset.rule').querySelectorAll<HTMLInputElement>('input.input')], 2), '2m', 'change');
     await settle(fixture);
     buttonByText(fixture, 'Validate').click();
     await vi.waitFor(async () => {
       await settle(fixture);
       expect(text(fixture)).toContain('The rules are valid');
     });
-    typeInto(all<HTMLInputElement>(fixture, '.row input.input')[1], 'never', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.row input.input'), 1), 'never', 'change');
     await settle(fixture);
     buttonByText(fixture, 'Save').click();
     await vi.waitFor(async () => {
@@ -159,10 +160,10 @@ describe('LiveRulesProfile and the rules editor', () => {
       expect(text(fixture)).toContain('live.cooldown');
     });
     expect(close).not.toHaveBeenCalled();
-    typeInto(all<HTMLInputElement>(fixture, '.row input.input')[1], '5m', 'change');
-    typeInto(all<HTMLInputElement>(fixture, '.row input.input')[0], '30s', 'change');
-    typeInto(all<HTMLInputElement>(fixture, '.row input.input')[2], '10m', 'change');
-    typeInto(all<HTMLSelectElement>(fixture, '.row select')[0], 'wall', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.row input.input'), 1), '5m', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.row input.input'), 0), '30s', 'change');
+    typeInto(at(all<HTMLInputElement>(fixture, '.row input.input'), 2), '10m', 'change');
+    typeInto(at(all<HTMLSelectElement>(fixture, '.row select'), 0), 'wall', 'change');
     await settle(fixture);
     buttonByText(fixture, 'Save').click();
     await vi.waitFor(() => expect(close).toHaveBeenCalledWith(true));
@@ -219,11 +220,11 @@ describe('LiveRulesProfile and the rules editor', () => {
     const key = (k: string, extra: KeyboardEventInit = {}) => input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, ...extra }));
     key('ArrowDown');
     await settle(fixture);
-    expect(all(fixture, '[role=option]')[1].getAttribute('aria-selected')).toBe('true');
+    expect(at(all(fixture, '[role=option]'), 1).getAttribute('aria-selected')).toBe('true');
     key('ArrowUp');
     key('ArrowUp');
     await settle(fixture);
-    expect(all(fixture, '[role=option]')[1].getAttribute('aria-selected')).toBe('true');
+    expect(at(all(fixture, '[role=option]'), 1).getAttribute('aria-selected')).toBe('true');
     key('Enter');
     await settle(fixture);
     expect(input.value).toBe('message');
@@ -238,7 +239,7 @@ describe('LiveRulesProfile and the rules editor', () => {
       expect(text(fixture)).toContain('expected an operator');
     });
     expect(input.getAttribute('aria-invalid')).toBe('true');
-    all<HTMLElement>(fixture, '[role=option]')[0].click();
+    at(all<HTMLElement>(fixture, '[role=option]'), 0).click();
     await settle(fixture);
     expect(changes.at(-1)).toBe('level');
     key('Tab');

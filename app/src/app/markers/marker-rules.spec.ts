@@ -1,6 +1,7 @@
 import { ProfileModel } from '../core/profile.model';
 import { cleanRule, describeCondition, describeWhen, iconNameFromFile, moveRow, nextFreeBadge, pruneIcons, readRows, ruleProblems, uniqueKind, upsertIcon, writeRows } from './marker-rules';
 import { RuleRow } from './markers.types';
+import { at } from '../../testing/must';
 
 const row = (kind: string, extra: Partial<RuleRow['rule']> = {}, enabled = true): RuleRow => ({ rule: { kind, ...extra }, enabled });
 
@@ -13,7 +14,7 @@ describe('rows', () => {
     expect((model['imt_disabled_markers'] as { kind: string; imt_index: number }[]).map((d) => [d.kind, d.imt_index])).toEqual([['b', 1], ['d', 3]]);
     expect(model['unknown']).toBe(1);
     expect(readRows(model).map((r) => [r.rule.kind, r.enabled])).toEqual([['a', true], ['b', false], ['c', true], ['d', false]]);
-    expect(readRows(model)[1].rule).not.toHaveProperty('imt_index');
+    expect(at(readRows(model), 1).rule).not.toHaveProperty('imt_index');
   });
   it('drops the disabled key when nothing is disabled and tolerates a missing index', () => {
     const model: ProfileModel = { imt_disabled_markers: [{ kind: 'z' }] };

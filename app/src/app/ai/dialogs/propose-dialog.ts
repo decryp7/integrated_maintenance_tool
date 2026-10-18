@@ -6,10 +6,19 @@ import { Proposal, SampleSource } from '../ai.types';
 import { AiProposalCard } from '../proposals/proposal-card';
 
 const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
-  pipeline: { label: 'What should the pipeline do?', placeholder: 'e.g. drop health checks and mask customer e-mails' },
-  markers: { label: 'Which events should be marked?', placeholder: 'e.g. timeouts and payment failures' },
-  extractors: { label: 'Which values should be extracted?', placeholder: 'e.g. the order id and the duration in ms' },
-  profile: { label: 'Anything special about this file? (optional)', placeholder: '' },
+  pipeline: {
+    label: $localize`:@@ai.propose.pipeline.label:What should the pipeline do?`,
+    placeholder: $localize`:@@ai.propose.pipeline.placeholder:e.g. drop health checks and mask customer e-mails`,
+  },
+  markers: {
+    label: $localize`:@@ai.propose.markers.label:Which events should be marked?`,
+    placeholder: $localize`:@@ai.propose.markers.placeholder:e.g. timeouts and payment failures`,
+  },
+  extractors: {
+    label: $localize`:@@ai.propose.extractors.label:Which values should be extracted?`,
+    placeholder: $localize`:@@ai.propose.extractors.placeholder:e.g. the order id and the duration in ms`,
+  },
+  profile: { label: $localize`:@@ai.propose.profile.label:Anything special about this file? (optional)`, placeholder: '' },
 };
 
 /**
@@ -23,11 +32,11 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
   template: `
     <p class="muted small">{{ sourceLine() }}</p>
     @if (chooseKind()) {
-      <label for="ai-propose-kind">Propose</label>
+      <label for="ai-propose-kind" i18n="verb|@@ai.propose.kindLabel">Propose</label>
       <select id="ai-propose-kind" class="select" [value]="current()" (change)="pick(asValue($event))">
-        <option value="pipeline">Pipeline steps</option>
-        <option value="markers">Markers</option>
-        <option value="extractors">Extractors</option>
+        <option value="pipeline" i18n="@@ai.propose.kind.pipeline">Pipeline steps</option>
+        <option value="markers" i18n="@@ai.propose.kind.markers">Markers</option>
+        <option value="extractors" i18n="@@ai.propose.kind.extractors">Extractors</option>
       </select>
     }
     @if (current() !== 'profile') {
@@ -35,10 +44,10 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
       <textarea id="ai-propose-goal" class="input" rows="2" maxlength="2000" [attr.placeholder]="prompt().placeholder" [value]="goal()" (input)="goal.set(asValue($event))"></textarea>
     }
     <div class="row">
-      <button type="button" class="btn primary" [disabled]="(current() !== 'profile' && !goal().trim()) || busy()" (click)="propose()">{{ busy() ? 'Proposing…' : 'Propose' }}</button>
+      <button type="button" class="btn primary" [disabled]="(current() !== 'profile' && !goal().trim()) || busy()" (click)="propose()">{{ proposeLabel() }}</button>
     </div>
     @if (busy()) {
-      <p class="muted" role="status">The local model proposes; the engine checks the proposal on the sample…</p>
+      <p class="muted" role="status" i18n="@@ai.propose.busy">The local model proposes; the engine checks the proposal on the sample…</p>
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
@@ -46,7 +55,7 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
     @if (proposal(); as p) {
       <imt-ai-proposal-card [proposal]="p" [state]="state()" (applied)="state.set('applied')" (dismissed)="proposal.set(null)" />
     }
-    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()">Close</button></div>
+    <div class="foot"><button type="button" class="btn ghost" (click)="ref.close()" i18n="@@ai.propose.close">Close</button></div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; }
@@ -72,11 +81,17 @@ export class AiProposeDialog implements OnInit {
   protected readonly proposal = signal<Proposal | null>(null);
   protected readonly state = signal<'open' | 'applied'>('open');
   protected readonly prompt = computed(() => PROMPTS[this.current()]);
+  protected readonly proposeLabel = computed(() =>
+    this.busy() ? $localize`:@@ai.propose.proposing:Proposing…` : $localize`:verb, button that asks the AI for a proposal|@@ai.propose.button:Propose`,
+  );
   protected readonly sourceLine = computed(() => {
     const s = this.source();
-    if (s.sample?.trim()) return `Sample: ${s.sample.split(/\r?\n/).length} lines you provided.`;
-    if (s.recordId != null) return `Sample: the lines around event ${s.recordId} in its file.`;
-    return 'Select an event first: its file is the sample.';
+    if (s.sample?.trim()) {
+      const n = s.sample.split(/\r?\n/).length;
+      return $localize`:@@ai.propose.sample.given:Sample: ${n}:count: lines you provided.`;
+    }
+    if (s.recordId != null) return $localize`:@@ai.propose.sample.event:Sample: the lines around event ${s.recordId}:id: in its file.`;
+    return $localize`:@@ai.propose.sample.none:Select an event first: its file is the sample.`;
   });
 
   ngOnInit(): void {

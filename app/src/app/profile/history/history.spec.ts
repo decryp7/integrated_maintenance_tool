@@ -7,6 +7,7 @@ import { UndoStack } from '../../undo/undo-stack';
 import { ProfileDraft } from '../profile-draft';
 import { lineDiff, stampToMs } from './line-diff';
 import { ProfileHistory } from './profile-history';
+import { at } from '../../../testing/must';
 
 describe('lineDiff', () => {
   it('aligns lines with the longest common subsequence after the common head and tail', () => {
@@ -67,11 +68,11 @@ describe('ProfileHistory', () => {
     const versions = all<HTMLButtonElement>(fixture, '.ver');
     expect(versions.length).toBe(1);
     expect(text(fixture)).toContain('Select a version');
-    versions[0].click();
+    at(versions, 0).click();
     await settle(fixture, 6);
     expect(el(fixture, '.summary').textContent).toContain('remove 1 line and add 1');
-    expect(all(fixture, '.l.added .sr')[0].textContent).toBe('added: ');
-    expect(all(fixture, '.l.removed .sign')[0].textContent).toBe('−');
+    expect(all(fixture, '.l.added .sr')[0]?.textContent).toBe('added: ');
+    expect(all(fixture, '.l.removed .sign')[0]?.textContent).toBe('−');
     buttonByText(fixture, 'Restore this version').click();
     await settle(fixture, 8);
     expect((await backend.getProfile()).toml).toBe(original);
@@ -88,7 +89,7 @@ describe('ProfileHistory', () => {
     await saveAs(backend, 'Second');
     await draft.load();
     await settle(fixture, 6);
-    all<HTMLButtonElement>(fixture, '.ver')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.ver'), 0).click();
     await settle(fixture, 6);
     draft.setText(draft.text() + '\n# edit');
     await settle(fixture);
@@ -127,7 +128,7 @@ describe('ProfileHistory', () => {
     await settle(fixture, 6);
     expect(text(fixture)).toContain('odd');
     expect(text(fixture)).toContain('2026');
-    all<HTMLButtonElement>(fixture, '.ver')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.ver'), 0).click();
     await settle(fixture, 6);
     expect(text(fixture)).toContain('Could not read this version: gone');
     version.mockResolvedValueOnce({ name: 'A', path: null, toml: 'name = "A"' });

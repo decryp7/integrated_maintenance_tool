@@ -56,7 +56,7 @@ export class DockKeys {
       const step: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
       if (e.key === 'Escape') this.dock.cancelSwitch();
       else if (e.key === 'Enter') this.dock.commitSwitch();
-      else if (step[e.key]) this.dock.switch(step[e.key] < 0);
+      else if (step[e.key]) this.dock.switch((step[e.key] ?? 0) < 0);
       else return;
       e.preventDefault();
       e.stopPropagation();

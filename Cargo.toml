@@ -1,3 +1,6 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-api-perf", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-sdk", "crates/imt-plugin-host", "app/src-tauri"]
+members = ["crates/imt-core", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-api-perf", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-sdk", "crates/imt-plugin-host", "crates/imt-clr-format", "app/src-tauri"]
+# The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion and a prebuilt
+# libduckdb, which no shipped crate uses.
+exclude = ["crates/imt-store-spike"]
 resolver = "2"

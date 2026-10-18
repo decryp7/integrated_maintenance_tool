@@ -12,19 +12,19 @@ export class ProjectCommands {
   private readonly guard = inject(UnsavedChangesGuard);
 
   readonly commands: ImtCommand[] = [
-    { id: 'project.new', title: 'New project', category: 'File', run: () => this.newProject() },
-    { id: 'project.open', title: 'Open project…', category: 'File', run: () => this.openProject() },
-    { id: 'project.recent', title: 'Open recent project…', category: 'File', run: () => this.recent.open() },
-    { id: 'project.save', title: 'Save project', category: 'File', keybinding: 'Mod+S', run: async () => void (await this.projects.save()) },
-    { id: 'project.saveAs', title: 'Save project as…', category: 'File', keybinding: 'Mod+Shift+S', run: async () => void (await this.projects.saveAs()) },
+    { id: 'project.new', title: $localize`:@@projects.cmd.new:New project`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.newProject() },
+    { id: 'project.open', title: $localize`:@@projects.cmd.open:Open project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.openProject() },
+    { id: 'project.recent', title: $localize`:@@projects.cmd.recent:Open recent project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.recent.open() },
+    { id: 'project.save', title: $localize`:@@projects.cmd.save:Save project`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, keybinding: 'Mod+S', run: async () => void (await this.projects.save()) },
+    { id: 'project.saveAs', title: $localize`:@@projects.cmd.saveAs:Save project as…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, keybinding: 'Mod+Shift+S', run: async () => void (await this.projects.saveAs()) },
   ];
 
   /** New and Open replace the current project, so they ask first when it has unsaved changes. */
   private async newProject(): Promise<void> {
-    if (await this.guard.confirm('start a new project')) await this.projects.newProject();
+    if (await this.guard.confirm($localize`:Completes "Save the changes before you ..."|@@projects.cmd.actionNew:start a new project`)) await this.projects.newProject();
   }
 
   private async openProject(): Promise<void> {
-    if (await this.guard.confirm('open another project')) await this.projects.openFromDialog();
+    if (await this.guard.confirm($localize`:Completes "Save the changes before you ..."|@@projects.cmd.actionOpen:open another project`)) await this.projects.openFromDialog();
   }
 }

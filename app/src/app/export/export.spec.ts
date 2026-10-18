@@ -9,6 +9,7 @@ import { ExportDialog, exportQuery } from './export-dialog';
 import { ExportService, exporterForPath } from './export.service';
 import { provideMockShare } from '../share/redaction/share-testing';
 import { ShareBackend } from '../share/share-backend';
+import { at } from '../../testing/must';
 
 const exporters: ExporterInfo[] = [
   { id: 'csv', name: 'CSV', extension: 'csv' },
@@ -77,8 +78,8 @@ describe('ExportDialog', () => {
     el<HTMLSelectElement>(fixture, '#exp-format').dispatchEvent(new Event('change'));
     buttonByText(fixture, 'Export…').click();
     await settle(fixture);
-    expect(pick.mock.calls[0][0]).toBe('events.clef');
-    expect(spy.mock.calls[0][0]).toMatchObject({ format: 'clef', path: '/out/events.clef', descending: true });
+    expect(at(pick.mock.calls, 0)[0]).toBe('events.clef');
+    expect(at(spy.mock.calls, 0)[0]).toMatchObject({ format: 'clef', path: '/out/events.clef', descending: true });
     expect(store.notice()).toBe('Exported 11 events to events.clef');
     expect(closed).toHaveBeenCalled();
   });
@@ -89,7 +90,7 @@ describe('ExportDialog', () => {
     pick.mockResolvedValue('/out/x.clef');
     buttonByText(fixture, 'Export…').click();
     await settle(fixture);
-    expect(spy.mock.calls[0][0].format).toBe('clef');
+    expect(at(spy.mock.calls, 0)[0].format).toBe('clef');
   });
 
   it('does nothing when the save dialog is cancelled and shows backend errors', async () => {
@@ -160,7 +161,7 @@ describe('ExportDialog redaction', () => {
     const spy = vi.spyOn(backend, 'exportEvents').mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11, redactions: { email: 1 } });
     buttonByText(fixture, 'Export…').click();
     await settle(fixture);
-    expect(spy.mock.calls[0][0].redact).toBe(true);
+    expect(at(spy.mock.calls, 0)[0].redact).toBe(true);
     expect(store.notice()).toBe('Exported 11 events to events.csv (redacted, 1 value masked)');
     spy.mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11 });
     buttonByText(fixture, 'Export…').click();
@@ -205,7 +206,7 @@ describe('ExportService', () => {
     expect(store.summary()?.exporters).toHaveLength(2);
     const dialogs = TestBed.inject(DialogService);
     const done = service.exportCurrent();
-    expect(dialogs.stack()[0].options.title).toBe('Export events');
+    expect(at(dialogs.stack(), 0).options.title).toBe('Export events');
     dialogs.dismissTop();
     await done;
     expect(dialogs.stack()).toHaveLength(0);

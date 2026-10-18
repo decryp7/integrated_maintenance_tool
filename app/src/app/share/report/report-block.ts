@@ -8,13 +8,19 @@ import { MarkdownView } from './markdown-view';
 import { ReportStore } from './report.store';
 
 const LABELS: Record<string, string> = {
-  text: 'Text',
-  events: 'Events',
-  chart: 'Chart',
-  timeline: 'Timeline',
-  table: 'Query result',
-  finding: 'Finding',
-  annotations: 'Annotations',
+  text: $localize`:@@share.reportBlock.kind.text:Text`,
+  events: $localize`:@@share.reportBlock.kind.events:Events`,
+  chart: $localize`:@@share.reportBlock.kind.chart:Chart`,
+  timeline: $localize`:@@share.reportBlock.kind.timeline:Timeline`,
+  table: $localize`:@@share.reportBlock.kind.table:Query result`,
+  finding: $localize`:@@share.reportBlock.kind.finding:Finding`,
+  annotations: $localize`:@@share.reportBlock.kind.annotations:Annotations`,
+};
+
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: $localize`:@@share.reportBlock.severity.critical:critical`,
+  warning: $localize`:@@share.reportBlock.severity.warning:warning`,
+  info: $localize`:@@share.reportBlock.severity.info:info`,
 };
 
 /** An SVG snapshot as an image URL: shown in an <img>, which never runs anything inside the SVG. */
@@ -42,24 +48,24 @@ export function svgImageUrl(svg: string): string {
     <div class="head">
       <span class="kind">{{ kindLabel() }}</span>
       <span class="spacer"></span>
-      <button type="button" class="icon-btn" [attr.aria-label]="'Move up: ' + label()" title="Move up (Alt+↑)" [disabled]="first()" (click)="move(-1)"><span aria-hidden="true">↑</span></button>
-      <button type="button" class="icon-btn" [attr.aria-label]="'Move down: ' + label()" title="Move down (Alt+↓)" [disabled]="last()" (click)="move(1)"><span aria-hidden="true">↓</span></button>
-      <button type="button" class="icon-btn" [attr.aria-label]="'Remove: ' + label()" title="Remove" (click)="reports.removeBlock(block().id)"><imt-icon name="trash" [size]="13" /></button>
+      <button type="button" class="icon-btn" [attr.aria-label]="moveUpLabel()" title="Move up (Alt+↑)" i18n-title="@@share.reportBlock.moveUpTitle" [disabled]="first()" (click)="move(-1)"><span aria-hidden="true">↑</span></button>
+      <button type="button" class="icon-btn" [attr.aria-label]="moveDownLabel()" title="Move down (Alt+↓)" i18n-title="@@share.reportBlock.moveDownTitle" [disabled]="last()" (click)="move(1)"><span aria-hidden="true">↓</span></button>
+      <button type="button" class="icon-btn" [attr.aria-label]="removeLabel()" title="Remove" i18n-title="@@share.reportBlock.removeTitle" (click)="reports.removeBlock(block().id)"><imt-icon name="trash" [size]="13" /></button>
     </div>
     @switch (block().type) {
       @case ('text') {
-        <textarea class="input text" rows="4" [attr.aria-label]="'Text of ' + label()" placeholder="Write Markdown: # heading, **bold**, - list…" [value]="$any(block()).markdown" (change)="patch({ markdown: val($event) })"></textarea>
+        <textarea class="input text" rows="4" [attr.aria-label]="textLabel()" placeholder="Write Markdown: # heading, **bold**, - list…" i18n-placeholder="@@share.reportBlock.textPlaceholder" [value]="$any(block()).markdown" (change)="patch({ markdown: val($event) })"></textarea>
         <imt-markdown-view class="md" [text]="$any(block()).markdown" />
       }
       @case ('events') {
-        <ul class="ids" aria-label="Events in this block">
+        <ul class="ids" aria-label="Events in this block" i18n-aria-label="@@share.reportBlock.eventsAria">
           @for (id of $any(block()).ids; track id) {
-            <li><button type="button" class="btn link" [attr.aria-label]="'Show event ' + id" (click)="ws.jumpTo(id)">#{{ id }}</button></li>
+            <li><button type="button" class="btn link" [attr.aria-label]="showEventLabel(id)" (click)="ws.jumpTo(id)">#{{ id }}</button></li>
           }
         </ul>
       }
       @case ('finding') {
-        <p class="finding"><strong [class]="'sev ' + $any(block()).severity">{{ $any(block()).severity }}</strong> {{ $any(block()).title }}</p>
+        <p class="finding"><strong [class]="'sev ' + $any(block()).severity">{{ severityLabel($any(block()).severity) }}</strong> {{ $any(block()).title }}</p>
         <p class="faint detail">{{ $any(block()).detail }}</p>
       }
       @case ('table') {
@@ -72,7 +78,7 @@ export function svgImageUrl(svg: string): string {
             </tbody>
           </table>
         </div>
-        @if (moreRows()) { <p class="faint">… and {{ moreRows() }} more rows</p> }
+        @if (moreRows()) { <p class="faint" i18n="@@share.reportBlock.moreRows">… and {{ moreRows() }} more rows</p> }
       }
       @case ('annotations') {
         <ul class="ann">
@@ -83,14 +89,14 @@ export function svgImageUrl(svg: string): string {
         @if (image(); as src) {
           <img class="snap" [src]="src" [alt]="label()" />
         } @else if (block().type === 'chart' || block().type === 'timeline') {
-          <p class="faint">No snapshot.</p>
+          <p class="faint" i18n="@@share.reportBlock.noSnapshot">No snapshot.</p>
         } @else {
-          <p class="faint">A "{{ block().type }}" block (from a newer IMT) — kept as it is.</p>
+          <p class="faint" i18n="@@share.reportBlock.unknown">A "{{ block().type }}" block (from a newer IMT) — kept as it is.</p>
         }
       }
     }
     @if (block().type !== 'text' && block().type !== 'finding') {
-      <input class="input caption" [attr.aria-label]="'Caption of ' + label()" placeholder="Caption…" [value]="$any(block()).caption ?? ''" (change)="patch({ caption: val($event) })" />
+      <input class="input caption" [attr.aria-label]="captionLabel()" placeholder="Caption…" i18n-placeholder="@@share.reportBlock.captionPlaceholder" [value]="$any(block()).caption ?? ''" (change)="patch({ caption: val($event) })" />
     }
   `,
   styles: `
@@ -130,8 +136,14 @@ export class ReportBlockView {
   protected readonly label = computed(() => {
     const b = this.block();
     const extra = b.type === 'chart' ? b.title : b.type === 'finding' ? b.title : 'caption' in b ? b.caption : '';
-    return `${this.kindLabel()} block${extra ? `: ${extra}` : ''}`;
+    const kind = this.kindLabel();
+    return extra ? $localize`:@@share.reportBlock.labelExtra:${kind}:kind: block: ${extra}:extra:` : $localize`:@@share.reportBlock.label:${kind}:kind: block`;
   });
+  protected readonly moveUpLabel = computed(() => $localize`:@@share.reportBlock.moveUpAria:Move up: ${this.label()}:label:`);
+  protected readonly moveDownLabel = computed(() => $localize`:@@share.reportBlock.moveDownAria:Move down: ${this.label()}:label:`);
+  protected readonly removeLabel = computed(() => $localize`:@@share.reportBlock.removeAria:Remove: ${this.label()}:label:`);
+  protected readonly textLabel = computed(() => $localize`:@@share.reportBlock.textAria:Text of ${this.label()}:label:`);
+  protected readonly captionLabel = computed(() => $localize`:@@share.reportBlock.captionAria:Caption of ${this.label()}:label:`);
   protected readonly image = computed<SafeUrl | null>(() => {
     const b = this.block();
     const svg = b.type === 'chart' || b.type === 'timeline' ? b.svg : null;
@@ -146,6 +158,14 @@ export class ReportBlockView {
     const b = this.block();
     return b.type === 'table' ? Math.max(0, b.rows.length - 50) : 0;
   });
+
+  protected showEventLabel(id: number): string {
+    return $localize`:@@share.reportBlock.showEventAria:Show event ${id}:id:`;
+  }
+
+  protected severityLabel(s: string): string {
+    return SEVERITY_LABELS[s] ?? s;
+  }
 
   protected when(ts: number): string {
     return formatFull(ts, this.ws.timezone());

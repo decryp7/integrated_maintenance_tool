@@ -28,6 +28,7 @@ export function mockUnknownField(text: string, fields: readonly string[]): QlErr
   for (let i = 0; i + 1 < toks.length; i++) {
     const t = toks[i];
     const next = toks[i + 1];
+    if (!t || !next) continue;
     const compared = next.kind === 'op' || (next.kind === 'word' && ['contains', 'in'].includes(next.text.toLowerCase()));
     if (t.kind !== 'word' || !compared || lower.has(t.text.toLowerCase())) continue;
     const limit = Math.max(2, Math.floor(t.text.length / 3));

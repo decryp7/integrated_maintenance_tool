@@ -66,7 +66,8 @@ export function mockPatterns(records: RecordView[]): Pattern[] {
       map.set(template, p);
     }
     p.count++;
-    p.levels[LEVELS.indexOf(r.level)]++;
+    const li = LEVELS.indexOf(r.level);
+    p.levels[li] = (p.levels[li] ?? 0) + 1;
     if (r.ts !== null) {
       p.firstTs = p.firstTs === null ? r.ts : Math.min(p.firstTs, r.ts);
       p.lastTs = p.lastTs === null ? r.ts : Math.max(p.lastTs, r.ts);
@@ -81,8 +82,9 @@ export function mockExceptions(records: RecordView[]): ExceptionGroup[] {
   for (const r of records) {
     if (!r.exception) continue;
     const lines = r.exception.split('\n');
-    const m = /^([\w.]+(?:Exception|Error)):\s*(.*)$/.exec(lines[0]);
-    const typeName = m?.[1] ?? lines[0].split(':')[0];
+    const first = lines[0] ?? '';
+    const m = /^([\w.]+(?:Exception|Error)):\s*(.*)$/.exec(first);
+    const typeName = m?.[1] ?? first.split(':')[0] ?? first;
     const message = m?.[2] ?? '';
     const topFrame = lines.find((l) => l.trim().startsWith('at '))?.trim().slice(3).split(' in ')[0] ?? null;
     const key = `${typeName}|${topFrame}`;
@@ -106,7 +108,7 @@ export function mockExceptions(records: RecordView[]): ExceptionGroup[] {
 
 const median = (xs: number[]): number => {
   const s = [...xs].sort((a, b) => a - b);
-  return s.length ? s[Math.floor(s.length / 2)] : 0;
+  return s[Math.floor(s.length / 2)] ?? 0;
 };
 
 export function mockAnomalies(records: RecordView[]): Anomaly[] {
@@ -125,7 +127,9 @@ export function mockAnomalies(records: RecordView[]): Anomaly[] {
       }
     }
     const slow = rs.filter((r) => Number(r.fields['ElapsedMs']) >= 5000);
-    if (slow.length >= 3) out.push({ kind: 'slowOutlier', instance: group, from: slow[0].ts!, to: slow[slow.length - 1].ts!, score: 4.2, message: `${slow.length} requests took 5 s or more`, sampleIds: slow.slice(0, 5).map((r) => r.id) });
+    const firstSlow = slow[0];
+    const lastSlow = slow[slow.length - 1];
+    if (slow.length >= 3 && firstSlow && lastSlow) out.push({ kind: 'slowOutlier', instance: group, from: firstSlow.ts!, to: lastSlow.ts!, score: 4.2, message: `${slow.length} requests took 5 s or more`, sampleIds: slow.slice(0, 5).map((r) => r.id) });
   }
   return out.sort((a, b) => b.score - a.score);
 }
@@ -161,7 +165,7 @@ const counts = (rs: RecordView[], field: string): Map<string, number> => {
 const numbers = (rs: RecordView[], field: string): number[] =>
   rs.map((r) => r.fields[field]).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
 
-const pct = (sorted: number[], p: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))] : 0);
+const pct = (sorted: number[], p: number) => (sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))] ?? 0);
 
 export function mockCompare(a: RecordView[], b: RecordView[]): Comparison {
   const sa = sideStats(a);
@@ -217,12 +221,15 @@ export function mockFieldStats(records: RecordView[], field: string, buckets: nu
   const nums = values.filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
   let numeric: FieldStats['numeric'] = null;
   if (nums.length && nums.length === values.length) {
-    const min = nums[0];
-    const max = nums[nums.length - 1];
+    const min = nums[0] ?? 0;
+    const max = nums[nums.length - 1] ?? 0;
     const mean = nums.reduce((s, x) => s + x, 0) / nums.length;
     const width = (max - min) / Math.max(1, buckets) || 1;
     const histogram = Array.from({ length: Math.max(1, buckets) }, (_, i) => ({ from: min + i * width, to: min + (i + 1) * width, count: 0 }));
-    for (const n of nums) histogram[Math.min(histogram.length - 1, Math.floor((n - min) / width))].count++;
+    for (const n of nums) {
+      const bucket = histogram[Math.min(histogram.length - 1, Math.floor((n - min) / width))];
+      if (bucket) bucket.count++;
+    }
     numeric = {
       min, max, mean,
       stddev: Math.sqrt(nums.reduce((s, x) => s + (x - mean) ** 2, 0) / nums.length),
@@ -247,7 +254,8 @@ export function mockTraces(records: RecordView[], traceId: string): TracesResult
     const spans = new Set(rs.map((r) => r.group)).size;
     const start = Math.min(...rs.map((r) => r.ts!));
     const end = Math.max(...rs.map((r) => r.ts! + (Number(r.fields['ElapsedMs']) || 0)));
-    return { traceId: id, spans, errors: rs.filter((r) => r.level === 'Error' || r.level === 'Fatal').length, start, durationMs: end - start, root: rs[0].fields['RequestPath'] ? String(rs[0].fields['RequestPath']) : rs[0].group };
+    const head = rs[0];
+    return { traceId: id, spans, errors: rs.filter((r) => r.level === 'Error' || r.level === 'Fatal').length, start, durationMs: end - start, root: head?.fields['RequestPath'] ? String(head.fields['RequestPath']) : (head?.group ?? '') };
   });
   summaries.sort((a, b) => b.durationMs - a.durationMs);
   let waterfall: WaterfallRow[] = [];
@@ -256,11 +264,11 @@ export function mockTraces(records: RecordView[], traceId: string): TracesResult
     const start = Math.min(...rs.map((r) => r.ts!));
     const byGroup = new Map<string, RecordView[]>();
     for (const r of rs) (byGroup.get(r.group) ?? byGroup.set(r.group, []).get(r.group)!).push(r);
-    waterfall = [...byGroup].sort((a, b) => a[1][0].ts! - b[1][0].ts!).map(([group, items], i, all) => {
-      const s = items[0].ts!;
+    waterfall = [...byGroup].sort((a, b) => (a[1][0]?.ts ?? 0) - (b[1][0]?.ts ?? 0)).map(([group, items], i, all) => {
+      const s = items[0]?.ts ?? 0;
       const e = Math.max(...items.map((r) => r.ts! + (Number(r.fields['ElapsedMs']) || 0)));
       return {
-        spanId: group, parent: i === 0 ? null : all[0][0], depth: i === 0 ? 0 : 1, name: `${group} · ${items[0].message.slice(0, 40)}`,
+        spanId: group, parent: i === 0 ? null : all[0]?.[0] ?? null, depth: i === 0 ? 0 : 1, name: `${group} · ${items[0]?.message.slice(0, 40) ?? ''}`,
         startOffsetMs: s - start, durationMs: Math.max(1, e - s), errors: items.filter((r) => r.level === 'Error' || r.level === 'Fatal').length,
       };
     });
@@ -316,7 +324,7 @@ export function mockMoment(all: RecordView[], base: QlQuery, from: number, to: n
       const a = avg(vals);
       const p = prev.length ? avg(prev) : null;
       metrics.push({
-        series, metric, samples: vals.length, min: vals[0], avg: +a.toFixed(2), max: vals[vals.length - 1],
+        series, metric, samples: vals.length, min: vals[0] ?? 0, avg: +a.toFixed(2), max: vals[vals.length - 1] ?? 0,
         last: Number(rs.filter((r) => typeof r.fields[metric] === 'number').pop()?.fields[metric]),
         previousAvg: p === null ? null : +p.toFixed(2), changePct: p ? +(((a - p) / p) * 100).toFixed(1) : null,
       });

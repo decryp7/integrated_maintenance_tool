@@ -66,7 +66,7 @@ describe('provideTools', () => {
     await commands.run('tools.health.show');
     expect(dock.calls).toEqual(['show:perfmon', 'show:process-monitor', 'show:plugin-health']);
     await commands.run('tools.collect');
-    expect(TestBed.inject(DialogService).stack()[0].component).toBe(CollectorDialog);
+    expect(TestBed.inject(DialogService).stack()[0]?.component).toBe(CollectorDialog);
   });
 
   it('starts the lifecycle in the background: status and autosave, without touching the DOM', async () => {

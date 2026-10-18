@@ -36,41 +36,41 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
   imports: [AnalysisState, EChart],
   template: `
     <div class="bar">
-      <span class="section-title">Field statistics</span>
-      <label class="lbl">Field
-        <select class="select mono" aria-label="Field" (change)="targets.setField($any($event.target).value || null)">
-          <option value="" [selected]="!targets.field()">Choose a field</option>
+      <span class="section-title" i18n="@@analysis.fieldStats.title">Field statistics</span>
+      <label class="lbl"><ng-container i18n="@@analysis.fieldStats.field">Field</ng-container>
+        <select class="select mono" aria-label="Field" i18n-aria-label="@@analysis.fieldStats.fieldLabel" (change)="targets.setField($any($event.target).value || null)">
+          <option value="" [selected]="!targets.field()" i18n="@@analysis.fieldStats.chooseField">Choose a field</option>
           @for (f of fields(); track f) { <option [value]="f" [selected]="f === targets.field()">{{ f }}</option> }
         </select>
       </label>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
       @if (res.data(); as s) {
-        <div class="body" tabindex="0" role="region" aria-label="Field statistics">
-          <p class="facts mono">{{ count(s.count) }} events with the field · {{ count(s.missing) }} without · {{ count(s.distinct) }} distinct</p>
+        <div class="body" tabindex="0" role="region" aria-label="Field statistics" i18n-aria-label="@@analysis.fieldStats.region">
+          <p class="facts mono" i18n="@@analysis.fieldStats.facts">{{ count(s.count) }} events with the field · {{ count(s.missing) }} without · {{ count(s.distinct) }} distinct</p>
           @if (s.numeric; as n) {
-            <h3 class="sec first">Distribution</h3>
-            <div class="chart" role="img" [attr.aria-label]="'Histogram of ' + targets.field() + ' from ' + num(n.min) + ' to ' + num(n.max)">
+            <h3 class="sec first" i18n="@@analysis.fieldStats.distribution">Distribution</h3>
+            <div class="chart" role="img" [attr.aria-label]="histogramLabel(targets.field(), num(n.min), num(n.max))">
               <imt-echart [options]="option()!" />
             </div>
             <dl class="pcts mono">
               @for (p of percentiles(n); track p[0]) { <div><dt>{{ p[0] }}</dt><dd>{{ num(p[1]) }}</dd></div> }
             </dl>
           }
-          <h3 class="sec">Top values</h3>
+          <h3 class="sec" i18n="@@analysis.fieldStats.topValues">Top values</h3>
           @if (s.top.length) {
             <ul class="list">
               @for (v of s.top; track v.value) {
                 <li>
-                  <button class="row top" type="button" (click)="filter(v.value)" [title]="'Filter ' + targets.field() + ' = ' + v.value">
+                  <button class="row top" type="button" (click)="filter(v.value)" title="Filter {{ targets.field() }} = {{ v.value }}" i18n-title="@@analysis.fieldStats.filterValue">
                     <span class="val mono ellipsis">{{ v.value }}</span>
-                    <span class="track"><span class="fill" [style.width.%]="share(v.count, s.top[0].count)"></span></span>
+                    <span class="track"><span class="fill" [style.width.%]="share(v.count, s.top[0]?.count ?? 0)"></span></span>
                     <span class="num">{{ count(v.count) }}</span>
                   </button>
                 </li>
               }
             </ul>
-          } @else { <p class="muted">No values.</p> }
+          } @else { <p class="muted" i18n="@@analysis.fieldStats.noValues">No values.</p> }
         </div>
       }
     </imt-analysis-state>
@@ -96,6 +96,9 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
   ],
 })
 export class FieldStatsView {
+  protected histogramLabel(field: string | null, min: string, max: string): string {
+    return $localize`:@@analysis.fieldStats.histogram:Histogram of ${field ?? ''}:field: from ${min}:min: to ${max}:max:`;
+  }
   protected readonly targets = inject(AnalysisTargets);
   protected readonly res = new AsyncResource<FieldStats>();
   protected readonly count = formatCount;
@@ -121,7 +124,7 @@ export class FieldStatsView {
   }
 
   protected percentiles(n: NumericStats): [string, number][] {
-    return [['min', n.min], ['p50', n.p50], ['p90', n.p90], ['p95', n.p95], ['p99', n.p99], ['max', n.max], ['mean', n.mean], ['σ', n.stddev]];
+    return [[$localize`:@@analysis.fieldStats.stat.min:min`, n.min], ['p50', n.p50], ['p90', n.p90], ['p95', n.p95], ['p99', n.p99], [$localize`:@@analysis.fieldStats.stat.max:max`, n.max], [$localize`:@@analysis.fieldStats.stat.mean:mean`, n.mean], ['σ', n.stddev]];
   }
 
   protected share(n: number, max: number): number {

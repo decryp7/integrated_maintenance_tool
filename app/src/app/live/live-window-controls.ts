@@ -11,9 +11,9 @@ import { CUSTOM_MINUTES, LiveFollow, WINDOW_PRESETS, WindowPreset } from './live
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (live.enabled()) {
-      <div class="live-ctl" role="group" aria-label="Follow live events">
+      <div class="live-ctl" role="group" aria-label="Follow live events" i18n-aria-label="@@live.windowControls.group">
         @if (follow.paused() && follow.follow()) {
-          <button type="button" class="paused" data-testid="resume-following" (click)="follow.resume()">
+          <button type="button" class="paused" data-testid="resume-following" (click)="follow.resume()" i18n="@@live.windowControls.resume">
             <span aria-hidden="true">⏸</span> Paused — Resume following
           </button>
         } @else {
@@ -22,13 +22,14 @@ import { CUSTOM_MINUTES, LiveFollow, WINDOW_PRESETS, WindowPreset } from './live
             class="toggle"
             data-testid="follow-toggle"
             [attr.aria-pressed]="follow.follow()"
-            title="Keep the newest events in view as they arrive"
+            title="Keep the newest events in view as they arrive" i18n-title="@@live.windowControls.followTitle"
             (click)="follow.setFollow(!follow.follow())"
+            i18n="@@live.windowControls.follow"
           ><span class="dot" aria-hidden="true"></span>Follow</button>
         }
         <label class="win">
-          <span class="sr">Live window</span>
-          <select class="select" aria-label="Live window" (change)="setPreset($any($event.target).value)">
+          <span class="sr" i18n="@@live.windowControls.window">Live window</span>
+          <select class="select" aria-label="Live window" i18n-aria-label="@@live.windowControls.windowAria" (change)="setPreset($any($event.target).value)">
             @for (p of presets; track p.id) { <option [value]="p.id" [selected]="p.id === follow.preset()">{{ p.label }}</option> }
           </select>
         </label>
@@ -39,10 +40,10 @@ import { CUSTOM_MINUTES, LiveFollow, WINDOW_PRESETS, WindowPreset } from './live
               type="number"
               [min]="limits.min"
               [max]="limits.max"
-              aria-label="Custom window in minutes"
+              aria-label="Custom window in minutes" i18n-aria-label="@@live.windowControls.customAria"
               [value]="follow.customMinutes()"
               (change)="setCustom($any($event.target).value)"
-            /><span class="faint">min</span>
+            /><span class="faint" i18n="@@live.windowControls.minutes">min</span>
           </label>
         }
       </div>

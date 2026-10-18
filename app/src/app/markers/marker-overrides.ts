@@ -95,8 +95,8 @@ export function resetStyle(model: ProfileModel, kind: string): void {
 /** Early checks of a restyle; the engine validates for real. */
 export function styleProblems(style: OverrideStyle): string[] {
   const out: string[] = [];
-  if (style.color && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(style.color)) out.push('Colour must be #RGB or #RRGGBB.');
-  if (style.badge !== undefined && style.badge !== '' && [...style.badge].length > 3) out.push('A badge is 1 to 3 characters.');
-  if (style.shape && !(['circle', 'square', 'diamond', 'hexagon'] as MarkerShape[]).includes(style.shape as MarkerShape)) out.push('Unknown badge shape.');
+  if (style.color && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(style.color)) out.push($localize`:@@markers.overrides.colourFormat:Colour must be #RGB or #RRGGBB.`);
+  if (style.badge !== undefined && style.badge !== '' && [...style.badge].length > 3) out.push($localize`:@@markers.overrides.badgeLength:A badge is 1 to 3 characters.`);
+  if (style.shape && !(['circle', 'square', 'diamond', 'hexagon'] as MarkerShape[]).includes(style.shape as MarkerShape)) out.push($localize`:@@markers.overrides.badgeShape:Unknown badge shape.`);
   return out;
 }

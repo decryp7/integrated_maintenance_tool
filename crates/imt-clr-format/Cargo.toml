@@ -1,0 +1,12 @@
+[package]
+name = "imt-clr-format"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "IMT .NET Framework profiler: capture file format, attach configuration and the agent pipe protocol (pure, no dependencies)"
+
+[dependencies]
+
+[dev-dependencies]
+proptest = "1"

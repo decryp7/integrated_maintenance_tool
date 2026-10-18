@@ -3,6 +3,7 @@ import { ExporterInfo, Query, RedactionSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount } from '../core/format';
 import { Platform } from '../core/platform';
+import { plural } from '../i18n/locale';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { HelpHint } from '../ui/help-hint';
@@ -33,7 +34,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
   imports: [HelpHint, RedactionSummaryView],
   template: `
     <div class="field">
-      <label for="exp-format">Format</label>
+      <label for="exp-format" i18n="@@export.dialog.format">Format</label>
       <select id="exp-format" class="select" [value]="format()" (change)="format.set($any($event.target).value)">
         @for (e of exporters(); track e.id) {
           <option [value]="e.id">{{ e.name }} (.{{ e.extension }})</option>
@@ -42,43 +43,44 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
     </div>
 
     <fieldset class="field">
-      <legend>Which events <imt-help label="Which events" text="'Current filter' exports exactly what the grid shows. 'All events' ignores every filter and the time range." /></legend>
-      <label class="opt"><input type="radio" name="scope" value="filter" [checked]="scope() === 'filter'" (change)="scope.set('filter')" /> Current filter</label>
+      <legend><ng-container i18n="@@export.dialog.whichEvents">Which events</ng-container> <imt-help label="Which events" i18n-label="@@export.dialog.whichEventsHelpLabel" i18n-text="@@export.dialog.whichEventsHelpText" text="'Current filter' exports exactly what the grid shows. 'All events' ignores every filter and the time range." /></legend>
+      <label class="opt" i18n="@@export.dialog.scopeFilter"><input type="radio" name="scope" value="filter" [checked]="scope() === 'filter'" (change)="scope.set('filter')" /> Current filter</label>
       @if (hasRange()) {
-        <label class="opt"><input type="radio" name="scope" value="filterAnyTime" [checked]="scope() === 'filterAnyTime'" (change)="scope.set('filterAnyTime')" /> Current filter, any time (ignore the zoomed range)</label>
+        <label class="opt" i18n="@@export.dialog.scopeAnyTime"><input type="radio" name="scope" value="filterAnyTime" [checked]="scope() === 'filterAnyTime'" (change)="scope.set('filterAnyTime')" /> Current filter, any time (ignore the zoomed range)</label>
       }
-      <label class="opt"><input type="radio" name="scope" value="all" [checked]="scope() === 'all'" (change)="scope.set('all')" /> All events</label>
+      <label class="opt" i18n="@@export.dialog.scopeAll"><input type="radio" name="scope" value="all" [checked]="scope() === 'all'" (change)="scope.set('all')" /> All events</label>
     </fieldset>
 
     <fieldset class="field">
-      <legend>Order</legend>
-      <label class="opt"><input type="radio" name="order" value="asc" [checked]="!descending()" (change)="descending.set(false)" /> Oldest first</label>
-      <label class="opt"><input type="radio" name="order" value="desc" [checked]="descending()" (change)="descending.set(true)" /> Newest first</label>
+      <legend i18n="@@export.dialog.order">Order</legend>
+      <label class="opt" i18n="@@export.dialog.oldestFirst"><input type="radio" name="order" value="asc" [checked]="!descending()" (change)="descending.set(false)" /> Oldest first</label>
+      <label class="opt" i18n="@@export.dialog.newestFirst"><input type="radio" name="order" value="desc" [checked]="descending()" (change)="descending.set(true)" /> Newest first</label>
     </fieldset>
 
     <fieldset class="field">
-      <legend>Privacy <imt-help label="Redaction" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
-      <label class="opt"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
+      <legend><ng-container i18n="@@export.dialog.privacy">Privacy</ng-container> <imt-help label="Redaction" i18n-label="@@export.dialog.redactionHelpLabel" i18n-text="@@export.dialog.redactionHelpText" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
+      <label class="opt" i18n="@@export.dialog.redact"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
       @if (redact()) {
         <imt-redaction-summary [summary]="redaction()" />
       }
     </fieldset>
 
     <p class="count" role="status" aria-live="polite">
-      @if (count() === null) { Counting events… } @else { <strong>{{ fmt(count()!) }}</strong> events will be exported. }
+      @if (count() === null) { <ng-container i18n="@@export.dialog.counting">Counting events…</ng-container> } @else { <ng-container i18n="@@export.dialog.willExport"><strong>{{ fmt(count()!) }}</strong> events will be exported.</ng-container> }
     </p>
     @if (error(); as e) { <p class="err" role="alert">{{ e }}</p> }
 
     <div class="footer">
-      <button class="btn" type="button" (click)="ref.close()">Cancel</button>
-      <button class="btn primary" type="button" [disabled]="busy() || !count()" (click)="export()">{{ busy() ? 'Exporting…' : 'Export…' }}</button>
+      <button class="btn" type="button" (click)="ref.close()" i18n="@@export.dialog.cancel">Cancel</button>
+      <button class="btn primary" type="button" [disabled]="busy() || !count()" (click)="export()">{{ busy() ? exportingLabel : exportLabel }}</button>
     </div>
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     .field { display: flex; flex-direction: column; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
     label, legend { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
-    .opt { color: var(--text-2); font-size: 13px; }
+    /* Stacked options stay 24px apart (WCAG 2.5.8 spacing for the 13px radios). */
+    .opt { color: var(--text-2); font-size: 13px; min-height: 24px; }
     .count { margin: 0; color: var(--text-2); }
     .err { margin: 0; color: var(--danger-text); }
     .footer { display: flex; justify-content: flex-end; gap: 8px; }
@@ -101,6 +103,8 @@ export class ExportDialog {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly fmt = formatCount;
+  protected readonly exportingLabel = $localize`:@@export.dialog.exporting:Exporting…`;
+  protected readonly exportLabel = $localize`:Start the export|Button@@export.dialog.export:Export…`;
   protected readonly hasRange = computed(() => this.store.hasRange());
   /** Redact the export (defaults to the profile's `[redact] on_export`). */
   protected readonly redact = signal(false);
@@ -167,8 +171,17 @@ export class ExportDialog {
       );
       if (!result) return;
       const masked = Object.values(result.redactions ?? {}).reduce((a, b) => a + b, 0);
-      const redacted = this.redact() ? ` (redacted, ${formatCount(masked)} value${masked === 1 ? '' : 's'} masked)` : '';
-      this.store.setNotice(`Exported ${formatCount(result.events)} events to ${result.path.split(/[\\/]/).pop()}${redacted}`);
+      const events = formatCount(result.events);
+      const file = result.path.split(/[\\/]/).pop();
+      const count = formatCount(masked);
+      this.store.setNotice(
+        !this.redact()
+          ? $localize`:@@export.dialog.notice:Exported ${events}:events: events to ${file}:file:`
+          : plural(masked, {
+              one: $localize`:@@export.dialog.noticeRedacted.one:Exported ${events}:events: events to ${file}:file: (redacted, ${count}:count: value masked)`,
+              other: $localize`:@@export.dialog.noticeRedacted.other:Exported ${events}:events: events to ${file}:file: (redacted, ${count}:count: values masked)`,
+            }),
+      );
       this.ref.close();
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));

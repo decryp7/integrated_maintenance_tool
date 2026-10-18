@@ -13,6 +13,7 @@ import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock/mock-r
 import { MockShareBackend, mockTileQuery } from './mock/mock-share-backend';
 import { ShareBackend, TauriShareBackend } from './share-backend';
 import { createShareBackend, provideShare } from './share.plugin';
+import { at } from '../../testing/must';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
 
@@ -118,7 +119,8 @@ describe('mock redaction', () => {
 
 describe('mock dashboards', () => {
   it('fills defaults and validates like the engine', () => {
-    const [d] = mockDashboards({ dashboard: [{ id: 'd', title: 'D', tile: [{ id: 'a', type: 'top', field: 'f', by: ['x'], limit: 3, query: 'q' }] }] });
+    const dashboards = mockDashboards({ dashboard: [{ id: 'd', title: 'D', tile: [{ id: 'a', type: 'top', field: 'f', by: ['x'], limit: 3, query: 'q' }] }] });
+    const d = at(dashboards, 0);
     expect(d).toEqual({ id: 'd', title: 'D', columns: 12, tile: [{ id: 'a', title: '', type: 'top', x: 0, y: 0, w: 4, h: 3, field: 'f', by: ['x'], limit: 3, query: 'q' }] });
     expect(mockDashboards({})).toEqual([]);
     expect(mockDashboards({ dashboard: [{}] })).toEqual([{ id: '', title: '', columns: 12, tile: [] }]);
@@ -126,8 +128,8 @@ describe('mock dashboards', () => {
     expect(mockDashboardsError([d, d])).toMatch(/used twice/);
     expect(mockDashboardsError([{ ...d, id: ' ' }])).toMatch(/needs an id/);
     expect(mockDashboardsError([{ ...d, columns: 30 }])).toMatch(/columns/);
-    expect(mockDashboardsError([{ ...d, tile: [d.tile[0], d.tile[0]] }])).toMatch(/tile id "a" is used twice/);
-    expect(mockDashboardsError([{ ...d, tile: [{ ...d.tile[0], field: '' }] }])).toMatch(/needs a `field`/);
+    expect(mockDashboardsError([{ ...d, tile: [at(d.tile, 0), at(d.tile, 0)] }])).toMatch(/tile id "a" is used twice/);
+    expect(mockDashboardsError([{ ...d, tile: [{ ...at(d.tile, 0), field: '' }] }])).toMatch(/needs a `field`/);
     const cases: [Partial<TileCfg> & Pick<TileCfg, 'type'>, RegExp | null][] = [
       [{ type: 'stat', query: 'x | stats count()' }, null],
       [{ type: 'stat' }, /needs a query/],
@@ -160,16 +162,16 @@ describe('MockShareBackend', () => {
   it('switches the redacted view of the mock workspace (pages, facets, context, exports)', async () => {
     const listening = { ...q, text: 'listening' };
     const before = await imt.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
-    expect(before.rows[0].message).toContain('0.0.0.0');
+    expect(before.rows[0]?.message).toContain('0.0.0.0');
     const on = await share.setRedactedView(true);
     expect(on.redactedView).toBe(true);
     const after = await imt.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
-    expect(after.rows[0].message).toContain('<ipv4>');
-    expect(after.rows[0].fields['Address']).toContain('<ipv4>');
+    expect(after.rows[0]?.message).toContain('<ipv4>');
+    expect(after.rows[0]?.fields['Address']).toContain('<ipv4>');
     const facet = await imt.queryFacet({ query: q, field: 'CorrelationId', limit: 10 });
     expect(facet.values).toEqual([{ value: '<guid>', count: expect.any(Number) }]);
-    const ctx = await imt.sourceContext({ recordId: after.rows[0].id, before: 0, after: 0 });
-    expect(ctx.lines[0].text).toContain('<ipv4>');
+    const ctx = await imt.sourceContext({ recordId: at(after.rows, 0).id, before: 0, after: 0 });
+    expect(ctx.lines[0]?.text).toContain('<ipv4>');
     const exported = await imt.exportEvents({ query: listening, format: 'csv', path: 'x.csv', redact: true });
     expect(exported.redactions?.['ipv4']).toBeGreaterThan(0);
     // A profile without rules switches the view off; switching on then fails.
@@ -184,8 +186,8 @@ describe('MockShareBackend', () => {
     const doc = await imt.getProfile();
     await imt.saveProfile(doc.toml.replace('mode = "mask"', 'mode = "drop"'));
     const page = await imt.queryPage({ query: { ...q, text: 'listening' }, offset: 0, limit: 1, descending: false });
-    expect(page.rows[0].message).not.toContain('0.0.0.0');
-    expect(page.rows[0].message).not.toContain('<ipv4>');
+    expect(at(page.rows, 0).message).not.toContain('0.0.0.0');
+    expect(at(page.rows, 0).message).not.toContain('<ipv4>');
   });
 
   it('previews redaction and summarises a query', async () => {
@@ -198,7 +200,8 @@ describe('MockShareBackend', () => {
   });
 
   it('evaluates every tile kind of the demo dashboard', async () => {
-    const [health] = (await imt.workspaceSummary()).dashboards;
+    const dashboards = (await imt.workspaceSummary()).dashboards;
+    const health = at(dashboards, 0);
     expect(health.title).toBe('OrderService health');
     const kinds = new Set<string>();
     for (const t of health.tile) {
@@ -229,13 +232,13 @@ describe('MockShareBackend', () => {
     if (data.kind !== 'stat') throw new Error('not a stat tile');
     expect(data.sparkline).toHaveLength(24);
     const analysis = new MockAnalysisBackend(recordsFrom(imt));
-    const at = [0, 11, 23];
-    for (const i of at) {
-      const [start] = data.sparkline[i];
-      const end = i === 23 ? (await imt.workspaceSummary()).to! : data.sparkline[i + 1][0] - 1;
+    const picks = [0, 11, 23];
+    for (const i of picks) {
+      const [start] = at(data.sparkline, i);
+      const end = i === 23 ? (await imt.workspaceSummary()).to! : at(data.sparkline, i + 1)[0] - 1;
       const out = await analysis.runQuery(mockTileQuery({ ...q, window: null, from: start, to: end }, stat.query));
       if ('error' in out || out.result.kind !== 'table') throw new Error('expected a table');
-      expect(data.sparkline[i][1]).toBe(out.result.rows[0]?.[0] ?? null);
+      expect(data.sparkline[i]?.[1]).toBe(out.result.rows[0]?.[0] ?? null);
     }
   });
 

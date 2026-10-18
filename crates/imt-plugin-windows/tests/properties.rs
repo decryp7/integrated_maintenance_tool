@@ -68,7 +68,9 @@ fn seeds() -> &'static Vec<Vec<u8>> {
         let paths: Vec<PathBuf> = [
             "tests/fixtures/msinfo.nfo",
             "tests/fixtures/perfmon.csv",
+            "tests/fixtures/procmon.csv",
             "tests/fixtures/security.evtx",
+            "tests/fixtures/crash.dmp",
             "../../samples/csv/perfmon-export.csv",
         ]
         .iter()
@@ -150,7 +152,10 @@ proptest! {
         guard(move || {
             exercise_text(&imt_plugin_windows::NfoImporter, &bytes);
             exercise_text(&imt_plugin_windows::PerfmonCsvImporter, &bytes);
+            exercise_text(&imt_plugin_windows::ProcmonCsvImporter, &bytes);
+            procmon_with_file_date(&bytes);
             exercise_binary(&imt_plugin_windows::EvtxImporter, &bytes);
+            exercise_binary(&imt_plugin_windows::MinidumpImporter, &bytes);
             // BLG import shells out to `relog` on Windows; only sniff there.
             #[cfg(not(windows))]
             exercise_binary(&imt_plugin_windows::BlgImporter::default(), &bytes);
@@ -163,7 +168,10 @@ proptest! {
             let bytes = text.into_bytes();
             exercise_text(&imt_plugin_windows::NfoImporter, &bytes);
             exercise_text(&imt_plugin_windows::PerfmonCsvImporter, &bytes);
+            exercise_text(&imt_plugin_windows::ProcmonCsvImporter, &bytes);
+            procmon_with_file_date(&bytes);
             exercise_binary(&imt_plugin_windows::EvtxImporter, &bytes);
+            exercise_binary(&imt_plugin_windows::MinidumpImporter, &bytes);
             // BLG import shells out to `relog` on Windows; only sniff there.
             #[cfg(not(windows))]
             exercise_binary(&imt_plugin_windows::BlgImporter::default(), &bytes);
@@ -177,9 +185,80 @@ fn fixtures_import_cleanly() {
         let bytes = s.clone();
         exercise_text(&imt_plugin_windows::NfoImporter, &bytes);
         exercise_text(&imt_plugin_windows::PerfmonCsvImporter, &bytes);
+        exercise_text(&imt_plugin_windows::ProcmonCsvImporter, &bytes);
+        procmon_with_file_date(&bytes);
         exercise_binary(&imt_plugin_windows::EvtxImporter, &bytes);
+        exercise_binary(&imt_plugin_windows::MinidumpImporter, &bytes);
         // BLG import shells out to `relog` on Windows; only sniff there.
         #[cfg(not(windows))]
         exercise_binary(&imt_plugin_windows::BlgImporter::default(), &bytes);
+    }
+}
+
+/// The ProcMon importer with a file date, so time-of-day rows exercise the date rollover.
+fn procmon_with_file_date(bytes: &[u8]) {
+    let Some(text) = importers::decode(bytes) else { return };
+    let date = chrono::NaiveDate::from_ymd_opt(2026, 10, 14);
+    if let Ok(out) = imt_plugin_windows::procmon::parse_procmon(&text, &profile().timestamps, date) {
+        for r in &out.records {
+            let _ = serde_json::to_string(&r.fields).unwrap();
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(CASES))]
+
+    /// Header-valid ProcMon files with arbitrary cells: every row path is reached.
+    #[test]
+    fn procmon_rows_never_panic(rows in prop::collection::vec(prop::collection::vec(".{0,24}", 0..9), 0..40)) {
+        guard(move || {
+            let mut text = String::from("Time of Day,Date & Time,Process Name,PID,Operation,Path,Result,Duration,TID\n");
+            for row in rows {
+                let cells: Vec<String> = row.iter().map(|c| format!("\"{}\"", c.replace('"', "\"\""))).collect();
+                text.push_str(&cells.join(","));
+                text.push('\n');
+            }
+            procmon_with_file_date(text.as_bytes());
+            exercise_text(&imt_plugin_windows::ProcmonCsvImporter, text.as_bytes());
+        });
+    }
+}
+
+#[path = "support/synth_minidump.rs"]
+mod synth_minidump;
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(CASES))]
+
+    /// Structurally valid minidumps with arbitrary values (stack words, registers, module
+    /// layout, exception code and parameters) reach the stack scan and module lookups.
+    #[test]
+    fn minidumps_with_arbitrary_values_never_panic(
+        arch in prop_oneof![Just(synth_minidump::ARCH_AMD64), Just(synth_minidump::ARCH_X86), any::<u16>()],
+        words in prop::collection::vec(any::<u64>(), 0..64),
+        ip in any::<u64>(),
+        sp in any::<u64>(),
+        stack_base in any::<u64>(),
+        modules in prop::collection::vec((any::<u64>(), any::<u32>(), ".{0,40}"), 0..8),
+        code in any::<u32>(),
+        params in prop::collection::vec(any::<u64>(), 0..20),
+        thread in any::<u32>(),
+        times in (any::<u32>(), any::<u32>()),
+    ) {
+        guard(move || {
+            use synth_minidump::*;
+            let ctx = if arch == ARCH_X86 { x86_context(ip as u32, sp as u32) } else { amd64_context(ip, sp) };
+            let mods: Vec<synth_minidump::ModuleSpec> =
+                modules.iter().map(|m| (m.0, m.1, m.2.as_str(), Some((1, 0, 0, 0)))).collect();
+            let dump = DumpBuilder::new()
+                .system_info(arch, (10, 0, 1), 4, "")
+                .misc_info(1, times.0)
+                .module_list(&mods)
+                .thread_list(thread, stack_base, &stack64(&words), &ctx)
+                .exception(thread, code, ip, &params, &ctx)
+                .finish(times.1);
+            exercise_binary(&imt_plugin_windows::MinidumpImporter, &dump);
+        });
     }
 }

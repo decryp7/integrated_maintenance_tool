@@ -111,7 +111,7 @@ describe('PopoutService (host side)', () => {
       { id: 'no-such-view', bounds: null, monitor: null, slot: { referencePanel: null, direction: 'within' } },
     ]);
     expect(backend.opened).toHaveLength(1);
-    expect(backend.opened[0].bounds).toEqual({ x: 760, y: 290, width: 400, height: 500 });
+    expect(backend.opened[0]?.bounds).toEqual({ x: 760, y: 290, width: 400, height: 500 });
     // A failed restore docks the panel at its slot instead.
     await popouts.dockBack('inspector');
     dock.takeOut('inspector');
@@ -123,11 +123,11 @@ describe('PopoutService (host side)', () => {
   it('opens a dragged-out panel under the pointer and reuses remembered bounds otherwise', async () => {
     const { popouts } = await setup();
     await popouts.popOut('metrics', { at: { x: 900, y: 500 } });
-    expect(backend.opened[0].bounds).toMatchObject({ y: 488 });
+    expect(backend.opened[0]?.bounds).toMatchObject({ y: 488 });
     backend.bounds['metrics'] = { x: 10, y: 20, width: 600, height: 400 };
     backend.changed!();
     await settle();
-    expect(popouts.records()[0].bounds).toEqual({ x: 10, y: 20, width: 600, height: 400 });
+    expect(popouts.records()[0]?.bounds).toEqual({ x: 10, y: 20, width: 600, height: 400 });
     await popouts.dockBack('metrics');
     await popouts.popOut('metrics');
     expect(backend.opened.at(-1)!.bounds).toEqual({ x: 10, y: 20, width: 600, height: 400 });

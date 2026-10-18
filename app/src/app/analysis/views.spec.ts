@@ -13,6 +13,7 @@ import { MomentView } from './moment-view';
 import { PatternsView } from './patterns-view';
 import { TimeCursor } from './time-cursor';
 import { FakeContext, FIX, loadWorkspace, provideAnalysisTesting, stubBackend } from './test-setup';
+import { at } from '../../testing/must';
 
 async function mount<T>(view: Type<T>, backend: AnalysisBackend = stubBackend(), ctx = new FakeContext()) {
   TestBed.configureTestingModule({ providers: provideAnalysisTesting({ backend, context: ctx }) });
@@ -51,35 +52,35 @@ describe('AnomaliesView', () => {
     const { fixture } = await mount(AnomaliesView);
     const rows = all<HTMLButtonElement>(fixture, 'li button');
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('Error spike');
-    expect(rows[0].textContent).toContain('WEB01 · 3312');
-    expect(rows[0].textContent).toContain('12 errors in 5 min');
-    expect(rows[0].textContent).toContain('→');
-    expect(rows[0].textContent).toContain('6.5');
-    expect(rows[1].textContent).toContain('all instances');
-    expect(rows[1].textContent).toContain('Crash');
+    expect(rows[0]?.textContent).toContain('Error spike');
+    expect(rows[0]?.textContent).toContain('WEB01 · 3312');
+    expect(rows[0]?.textContent).toContain('12 errors in 5 min');
+    expect(rows[0]?.textContent).toContain('→');
+    expect(rows[0]?.textContent).toContain('6.5');
+    expect(rows[1]?.textContent).toContain('all instances');
+    expect(rows[1]?.textContent).toContain('Crash');
     expect(text(fixture)).toContain('2 found');
   });
 
   it('click zooms to the range and jumps to the first sample', async () => {
     const { fixture, ctx } = await mount(AnomaliesView);
-    all<HTMLButtonElement>(fixture, 'li button')[0].click();
+    at(all<HTMLButtonElement>(fixture, 'li button'), 0).click();
     await settle(fixture);
     expect(ctx.calls.map((c) => [c.fn, c.args])).toEqual([
       ['setQuery', [{ from: 1000, to: 5000 }]],
       ['jumpTo', [7]],
     ]);
     ctx.calls.length = 0;
-    all<HTMLButtonElement>(fixture, 'li button')[1].click();
+    at(all<HTMLButtonElement>(fixture, 'li button'), 1).click();
     await settle(fixture);
     expect(ctx.calls.map((c) => c.fn)).toEqual(['setQuery']);
-    expect(ctx.calls[0].args).toEqual([{ from: 9000, to: 9001 }]);
+    expect(ctx.calls[0]?.args).toEqual([{ from: 9000, to: 9001 }]);
   });
 
   it('publishes the hovered time to the shared time cursor', async () => {
     const { fixture } = await mount(AnomaliesView);
     const cursor = TestBed.inject(TimeCursor);
-    const row = all<HTMLButtonElement>(fixture, 'li button')[0];
+    const row = at(all<HTMLButtonElement>(fixture, 'li button'), 0);
     row.dispatchEvent(new Event('mouseenter'));
     expect(cursor.hovered()).toBe(1000);
     row.dispatchEvent(new Event('mouseleave'));
@@ -115,27 +116,30 @@ describe('PatternsView', () => {
     const { fixture } = await mount(PatternsView);
     const rows = all<HTMLButtonElement>(fixture, 'li .row');
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('120');
-    expect(rows[0].textContent).toContain('Order {OrderId} placed');
+    expect(rows[0]?.textContent).toContain('120');
+    expect(rows[0]?.textContent).toContain('Order {OrderId} placed');
     expect(el(fixture, '[role=img]').getAttribute('aria-label')).toBe('Information 100, Warning 15, Error 5');
-    expect(rows[0].querySelectorAll('.bars span')).toHaveLength(3);
-    expect(all(fixture, '[role=img]')[1].getAttribute('aria-label')).toBe('Information 30');
+    expect(rows[0]?.querySelectorAll('.bars span')).toHaveLength(3);
+    // Bar length is relative to the most frequent pattern (120 → 90px, 30 → 23px).
+    const bars = all<HTMLElement>(fixture, '.bars');
+    expect([bars[0]?.style.width, bars[1]?.style.width]).toEqual(['90px', '23px']);
+    expect(all(fixture, '[role=img]')[1]?.getAttribute('aria-label')).toBe('Information 30');
     expect(text(fixture)).toContain('2 templates');
   });
 
   it('filters by a Serilog template or a mined message pattern', async () => {
     const { fixture, ctx } = await mount(PatternsView);
     const rows = all<HTMLButtonElement>(fixture, 'li .row');
-    rows[0].click();
+    at(rows, 0).click();
     expect(ctx.last('setQuery')).toEqual([{ ql: '@template = "Order {OrderId} placed"' }]);
-    rows[1].click();
+    at(rows, 1).click();
     expect(ctx.last('setQuery')).toEqual([{ ql: '@message ~ "Took .+ ms"' }]);
   });
 
   it('ANDs the pattern with the query already applied', async () => {
     const { fixture, ctx } = await mount(PatternsView);
     TestBed.inject(WorkspaceStore).patchQuery({ ql: 'level >= warning or Ms > 5 | head 10' } as Partial<QlQuery>);
-    all<HTMLButtonElement>(fixture, 'li .row')[0].click();
+    at(all<HTMLButtonElement>(fixture, 'li .row'), 0).click();
     expect(ctx.last('setQuery')).toEqual([{ ql: '(level >= warning or Ms > 5) and @template = "Order {OrderId} placed" | head 10' }]);
   });
 
@@ -143,8 +147,8 @@ describe('PatternsView', () => {
     const { fixture, ctx } = await mount(PatternsView);
     const examples = all<HTMLButtonElement>(fixture, 'li .sample');
     expect(examples).toHaveLength(1);
-    expect(examples[0].getAttribute('aria-label')).toBe('Show an example event of Order {OrderId} placed');
-    examples[0].click();
+    expect(examples[0]?.getAttribute('aria-label')).toBe('Show an example event of Order {OrderId} placed');
+    at(examples, 0).click();
     await settle(fixture);
     expect(ctx.last('jumpTo')).toEqual([1]);
   });
@@ -163,27 +167,27 @@ describe('ExceptionsView', () => {
     const { fixture, ctx } = await mount(ExceptionsView);
     const heads = all<HTMLButtonElement>(fixture, '.head');
     expect(heads).toHaveLength(2);
-    expect(heads[0].textContent).toContain('System.TimeoutException');
-    expect(heads[0].textContent).toContain('Foo.Bar()');
-    expect(heads[0].getAttribute('aria-expanded')).toBe('false');
+    expect(heads[0]?.textContent).toContain('System.TimeoutException');
+    expect(heads[0]?.textContent).toContain('Foo.Bar()');
+    expect(heads[0]?.getAttribute('aria-expanded')).toBe('false');
     expect(all(fixture, '.detail')).toHaveLength(0);
 
-    heads[0].click();
+    at(heads, 0).click();
     fixture.detectChanges();
-    expect(heads[0].getAttribute('aria-expanded')).toBe('true');
+    expect(heads[0]?.getAttribute('aria-expanded')).toBe('true');
     const detail = el(fixture, '.detail');
     expect(detail.textContent).toContain('WEB01');
     expect(detail.textContent).toContain('WEB02');
     const samples = all<HTMLButtonElement>(fixture, '.samples button');
     expect(samples.map((s) => s.textContent?.trim())).toEqual(['Event 11', 'Event 12']);
-    samples[0].click();
+    at(samples, 0).click();
     await settle(fixture);
     expect(ctx.last('jumpTo')).toEqual([11]);
 
-    heads[0].click();
+    at(heads, 0).click();
     fixture.detectChanges();
     expect(all(fixture, '.detail')).toHaveLength(0);
-    heads[1].click();
+    at(heads, 1).click();
     fixture.detectChanges();
     expect(el(fixture, '.detail').textContent).toContain('—');
   });
@@ -214,27 +218,27 @@ describe('MomentView', () => {
 
     const cards = all(fixture, '.card');
     expect(cards).toHaveLength(2);
-    expect(cards[0].textContent).toContain('2,000 events');
-    expect(cards[0].textContent).toContain('25 errors');
-    expect(cards[0].textContent).toContain('Failed to capture payment');
-    expect(cards[0].textContent).toContain('Go to first error');
-    expect(cards[1].textContent).not.toContain('Go to first error');
+    expect(cards[0]?.textContent).toContain('2,000 events');
+    expect(cards[0]?.textContent).toContain('25 errors');
+    expect(cards[0]?.textContent).toContain('Failed to capture payment');
+    expect(cards[0]?.textContent).toContain('Go to first error');
+    expect(cards[1]?.textContent).not.toContain('Go to first error');
 
     const rows = all(fixture, 'tbody tr');
     expect(rows).toHaveLength(3);
-    expect(rows[0].textContent).toContain('Cpu');
-    expect(rows[0].textContent).toContain('+177.5%');
-    expect(rows[0].textContent).toContain('▲');
-    expect(rows[0].querySelector('.up')).toBeTruthy();
-    expect(rows[1].textContent).toContain('−37.5%');
-    expect(rows[1].textContent).toContain('▼');
-    expect(rows[1].querySelector('.down')).toBeTruthy();
-    expect(rows[2].textContent).toContain('—');
-    expect(rows[2].querySelector('.flat')).toBeTruthy();
+    expect(rows[0]?.textContent).toContain('Cpu');
+    expect(rows[0]?.textContent).toContain('+177.5%');
+    expect(rows[0]?.textContent).toContain('▲');
+    expect(rows[0]?.querySelector('.up')).toBeTruthy();
+    expect(rows[1]?.textContent).toContain('−37.5%');
+    expect(rows[1]?.textContent).toContain('▼');
+    expect(rows[1]?.querySelector('.down')).toBeTruthy();
+    expect(rows[2]?.textContent).toContain('—');
+    expect(rows[2]?.querySelector('.flat')).toBeTruthy();
 
     expect(all(fixture, '.chips .chip').map((c) => c.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['ann 9', 'bob 2']);
     expect(all(fixture, '.activity .row')).toHaveLength(2);
-    expect(all(fixture, '.activity .row')[1].textContent).toContain('—');
+    expect(all(fixture, '.activity .row')[1]?.textContent).toContain('—');
     expect(all(fixture, 'h3.sec').map((h) => h.textContent)).toEqual(['Instances', 'Metrics', 'Users', 'User activity', 'Anomalies in this window']);
   });
 
@@ -245,7 +249,7 @@ describe('MomentView', () => {
     buttonByText(fixture, 'Go to first error').click();
     await settle(fixture);
     expect(ctx.last('jumpTo')).toEqual([77]);
-    const chip = all<HTMLButtonElement>(fixture, '.chips .chip')[0];
+    const chip = at(all<HTMLButtonElement>(fixture, '.chips .chip'), 0);
     expect(chip.title).toBe('Filter by UserName = ann');
     chip.click();
     expect(ctx.last('setQuery')).toEqual([{ ql: 'UserName = "ann"' }]);
@@ -253,13 +257,13 @@ describe('MomentView', () => {
     chip.click();
     expect(ctx.last('setQuery')).toEqual([{ ql: 'level >= error and UserName = "ann"' }]);
     ctx.calls.length = 0;
-    all<HTMLButtonElement>(fixture, '.activity .row')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.activity .row'), 0).click();
     await settle(fixture);
     expect(ctx.last('jumpTo')).toEqual([5]);
     ctx.calls.length = 0;
     const anomalyRows = all<HTMLButtonElement>(fixture, 'h3.sec ~ ul.list:last-of-type .row');
-    anomalyRows[0].click();
-    anomalyRows[1].click();
+    at(anomalyRows, 0).click();
+    at(anomalyRows, 1).click();
     await settle(fixture);
     buttonByText(fixture, 'Zoom to this range').click();
     expect(ctx.last('setQuery')).toEqual([{ from: 1000, to: 61000 }]);
@@ -269,7 +273,7 @@ describe('MomentView', () => {
     const { fixture, targets } = await mount(MomentView);
     targets.setMoment({ from: 1000, to: 61000 });
     await settle(fixture, 6);
-    const row = all<HTMLButtonElement>(fixture, '.activity .row')[0];
+    const row = at(all<HTMLButtonElement>(fixture, '.activity .row'), 0);
     row.dispatchEvent(new Event('mouseenter'));
     expect(TestBed.inject(TimeCursor).hovered()).toBe(2000);
     row.dispatchEvent(new Event('focus'));

@@ -18,43 +18,43 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <span class="section-title">Compare</span>
-      <button class="btn" type="button" (click)="previous()">Current range vs previous</button>
-      <label class="lbl">Window
-        <select class="select" [value]="width()" (change)="width.set(+$any($event.target).value)" aria-label="Window length for before and after">
+      <span class="section-title" i18n="@@analysis.compare.title">Compare</span>
+      <button class="btn" type="button" (click)="previous()" i18n="@@analysis.compare.currentVsPrevious">Current range vs previous</button>
+      <label class="lbl"><ng-container i18n="@@analysis.compare.window">Window</ng-container>
+        <select class="select" [value]="width()" (change)="width.set(+$any($event.target).value)" aria-label="Window length for before and after" i18n-aria-label="@@analysis.compare.windowLength">
           @for (w of widths; track w.ms) { <option [value]="w.ms" [selected]="w.ms === width()">{{ w.label }}</option> }
         </select>
       </label>
-      <button class="btn" type="button" (click)="beforeAfter()">Before / after selected time</button>
-      <button class="btn" type="button" [disabled]="!cursor.selection()" (click)="targets.setWindowA(cursor.selection())">Set A from selection</button>
-      <button class="btn" type="button" [disabled]="!cursor.selection()" (click)="targets.setWindowB(cursor.selection())">Set B from selection</button>
+      <button class="btn" type="button" (click)="beforeAfter()" i18n="@@analysis.compare.beforeAfter">Before / after selected time</button>
+      <button class="btn" type="button" [disabled]="!cursor.selection()" (click)="targets.setWindowA(cursor.selection())" i18n="@@analysis.compare.setA">Set A from selection</button>
+      <button class="btn" type="button" [disabled]="!cursor.selection()" (click)="targets.setWindowB(cursor.selection())" i18n="@@analysis.compare.setB">Set B from selection</button>
     </div>
     <div class="windows">
       <div><strong>A</strong> <span class="mono">{{ time.range(targets.windowA()) }}</span></div>
       <div><strong>B</strong> <span class="mono">{{ time.range(targets.windowB()) }}</span></div>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
       @if (res.data(); as c) {
-        <div class="body" tabindex="0" role="region" aria-label="Comparison">
-          <h3 class="sec first">Summary</h3>
+        <div class="body" tabindex="0" role="region" aria-label="Comparison" i18n-aria-label="@@analysis.compare.region">
+          <h3 class="sec first" i18n="@@analysis.compare.summary">Summary</h3>
           <ul class="summary">
             @for (s of c.summary; track $index) { <li>{{ s }}</li> }
           </ul>
 
           <div class="cards">
             @for (side of sides(c); track side.name) {
-              <section class="card" [attr.aria-label]="'Window ' + side.name">
-                <strong>Window {{ side.name }}</strong>
-                <div class="mono">{{ count(side.stats.count) }} events · {{ side.stats.perMinute }}/min · {{ duration(side.stats.durationMs) }}</div>
+              <section class="card" [attr.aria-label]="windowLabel(side.name)">
+                <strong i18n="@@analysis.compare.windowN.title">Window {{ side.name }}</strong>
+                <div class="mono" i18n="@@analysis.compare.side.stats">{{ count(side.stats.count) }} events · {{ side.stats.perMinute }}/min · {{ duration(side.stats.durationMs) }}</div>
                 <div class="lv">@for (l of side.stats.levels; track l.level) { <span class="lvl" [class]="'lvl ' + l.level">{{ l.level }} {{ count(l.count) }}</span> }</div>
               </section>
             }
           </div>
 
-          <h3 class="sec">Changed fields</h3>
+          <h3 class="sec" i18n="@@analysis.compare.changedFields">Changed fields</h3>
           @for (f of c.changedFields; track f.field) {
-            <section class="field" [attr.aria-label]="'Field ' + f.field">
-              <div><strong class="mono">{{ f.field }}</strong> <span class="muted">distance {{ f.distance }}</span></div>
+            <section class="field" [attr.aria-label]="fieldLabel(f.field)">
+              <div><strong class="mono">{{ f.field }}</strong> <span class="muted" i18n="@@analysis.compare.distance">distance {{ f.distance }}</span></div>
               @for (v of f.top; track v.value) {
                 <div class="share">
                   <span class="val mono ellipsis" [title]="v.value">{{ v.value }}</span>
@@ -62,18 +62,18 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
                     <span class="track"><span class="fill a" [style.width.%]="w(v.shareA)"></span></span>
                     <span class="track"><span class="fill b" [style.width.%]="w(v.shareB)"></span></span>
                   </span>
-                  <span class="mono nums">A {{ pct(v.shareA) }} · B {{ pct(v.shareB) }}</span>
+                  <span class="mono nums" i18n="@@analysis.compare.shares">A {{ pct(v.shareA) }} · B {{ pct(v.shareB) }}</span>
                 </div>
               }
             </section>
           } @empty {
-            <p class="muted">No field distribution changed noticeably.</p>
+            <p class="muted" i18n="@@analysis.compare.noFieldChange">No field distribution changed noticeably.</p>
           }
 
-          <h3 class="sec">Numeric changes</h3>
+          <h3 class="sec" i18n="@@analysis.compare.numericChanges">Numeric changes</h3>
           @if (c.numericChanges.length) {
             <table class="grid">
-              <thead><tr><th scope="col">Field</th><th scope="col" class="num">Median A</th><th scope="col" class="num">Median B</th><th scope="col" class="num">Change</th><th scope="col" class="num">p95 A</th><th scope="col" class="num">p95 B</th><th scope="col" class="num">Change</th></tr></thead>
+              <thead><tr><th scope="col" i18n="@@analysis.compare.col.field">Field</th><th scope="col" class="num" i18n="@@analysis.compare.col.medianA">Median A</th><th scope="col" class="num" i18n="@@analysis.compare.col.medianB">Median B</th><th scope="col" class="num" i18n="@@analysis.compare.col.change">Change</th><th scope="col" class="num" i18n="@@analysis.compare.col.p95A">p95 A</th><th scope="col" class="num" i18n="@@analysis.compare.col.p95B">p95 B</th><th scope="col" class="num" i18n="@@analysis.compare.col.change">Change</th></tr></thead>
               <tbody>
                 @for (n of c.numericChanges; track n.field) {
                   <tr>
@@ -87,21 +87,21 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
               </tbody>
             </table>
           } @else {
-            <p class="muted">No numeric field changed noticeably.</p>
+            <p class="muted" i18n="@@analysis.compare.noNumericChange">No numeric field changed noticeably.</p>
           }
 
           <div class="two">
             <div>
-              <h3 class="sec">New in B</h3>
+              <h3 class="sec" i18n="@@analysis.compare.newInB">New in B</h3>
               @for (a of c.newValues; track a.field) {
                 <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ v.count }}</span></span> }</p>
-              } @empty { <p class="muted">Nothing new.</p> }
+              } @empty { <p class="muted" i18n="@@analysis.compare.nothingNew">Nothing new.</p> }
             </div>
             <div>
-              <h3 class="sec">Gone from A</h3>
+              <h3 class="sec" i18n="@@analysis.compare.goneFromA">Gone from A</h3>
               @for (a of c.goneValues; track a.field) {
                 <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ v.count }}</span></span> }</p>
-              } @empty { <p class="muted">Nothing gone.</p> }
+              } @empty { <p class="muted" i18n="@@analysis.compare.nothingGone">Nothing gone.</p> }
             </div>
           </div>
         </div>
@@ -131,12 +131,18 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
   ],
 })
 export class CompareView {
+  protected fieldLabel(field: string): string {
+    return $localize`:@@analysis.compare.fieldN:Field ${field}:field:`;
+  }
+  protected windowLabel(name: string): string {
+    return $localize`:@@analysis.compare.windowN:Window ${name}:name:`;
+  }
   protected readonly targets = inject(AnalysisTargets);
   protected readonly cursor = inject(TimeCursor);
   protected readonly time = inject(AnalysisTime);
   protected readonly res = new AsyncResource<Comparison>();
   protected readonly widths = WIDTHS;
-  protected readonly width = signal(WIDTHS[1].ms);
+  protected readonly width = signal(WIDTHS[1]?.ms ?? 5 * 60_000);
   private readonly backend = inject(AnalysisBackend);
 
   protected readonly count = formatCount;

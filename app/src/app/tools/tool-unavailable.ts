@@ -24,9 +24,9 @@ export class ToolUnavailable {
   protected readonly message = computed(() => {
     const problem = this.catalog.problem(this.tool());
     if (!problem) return null;
-    if (problem.kind === 'plugin') return `This tool is unavailable: ${problem.reason}.`;
+    if (problem.kind === 'plugin') return $localize`:@@tools.unavailable.plugin:This tool is unavailable: ${problem.reason}:reason:.`;
     return this.life.safeMode()
-      ? 'This tool is off in safe mode (plugins are not loaded). Restart normally to use it.'
-      : 'This tool is not installed: the System tools plugin is disabled. Enable it in Plugin health and restart.';
+      ? $localize`:@@tools.unavailable.safeMode:This tool is off in safe mode (plugins are not loaded). Restart normally to use it.`
+      : $localize`:@@tools.unavailable.missing:This tool is not installed: the System tools plugin is disabled. Enable it in Plugin health and restart.`;
   });
 }

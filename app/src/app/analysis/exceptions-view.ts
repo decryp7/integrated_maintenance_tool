@@ -16,13 +16,13 @@ import { AsyncResource } from './async-resource';
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <span class="section-title">Exceptions</span>
-      @if (res.data(); as list) { <span class="faint">{{ list.length }} groups</span> }
+      <span class="section-title" i18n="@@analysis.exceptions.title">Exceptions</span>
+      @if (res.data(); as list) { <span class="faint" i18n="@@analysis.exceptions.groups">{{ list.length }} groups</span> }
       <span class="spacer"></span>
-      <button class="btn" type="button" (click)="res.retry()">Refresh</button>
+      <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." suggest (retry)="res.retry()">
-      <ul class="list body" aria-label="Exception groups">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
+      <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.data() ?? []; track g.fingerprint) {
           <li class="group">
             <button class="row head" type="button" [attr.aria-expanded]="isOpen(g)" (click)="toggle(g)">
@@ -34,17 +34,17 @@ import { AsyncResource } from './async-resource';
             </button>
             @if (isOpen(g)) {
               <div class="detail">
-                <h3 class="sec">Instances</h3>
+                <h3 class="sec" i18n="@@analysis.exceptions.instances">Instances</h3>
                 <ul class="list">
                   @for (i of g.instances; track i[0]) {
                     <li class="inst"><span class="ellipsis">{{ i[0] }}</span><span class="num">{{ count(i[1]) }}</span></li>
                   }
                 </ul>
                 <p class="muted">{{ time.format(g.firstTs) }} → {{ time.format(g.lastTs) }}</p>
-                <h3 class="sec">Sample events</h3>
+                <h3 class="sec" i18n="@@analysis.exceptions.sampleEvents">Sample events</h3>
                 <div class="samples">
                   @for (id of g.sampleIds; track id) {
-                    <button class="btn" type="button" (click)="select(id)">Event {{ id }}</button>
+                    <button class="btn" type="button" (click)="select(id)" i18n="@@analysis.exceptions.event">Event {{ id }}</button>
                   }
                 </div>
               </div>

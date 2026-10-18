@@ -9,6 +9,7 @@ import { ProfileViewState } from '../profile-view-state';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { CallTreeView, InvertedTreeView } from './call-tree-view';
+import { at } from '../../../testing/must';
 
 async function mount<T>(view: Type<T> = CallTreeView as Type<T>, opts: Parameters<typeof setupProfiling>[0] = {}, open = true) {
   const doubles = setupProfiling(opts);
@@ -42,8 +43,8 @@ function pagedBackend(failChildOnce = false): { backend: ProfilingBackend; calls
     if (r.path?.length) return real.tree(r);
     const page = await real.tree({ ...r, offset: 0, limit: 200 });
     if (!r.offset) return { ...page, totalChildren: page.nodes.length + 2 };
-    const extra: FrameDto = { ...page.nodes[0].frame, id: 9000 + r.offset, name: `Extra.${r.offset}` };
-    return { ...page, nodes: [{ ...page.nodes[0], frame: extra, hasChildren: false }], totalChildren: page.nodes.length + 2 };
+    const extra: FrameDto = { ...at(page.nodes, 0).frame, id: 9000 + r.offset, name: `Extra.${r.offset}` };
+    return { ...page, nodes: [{ ...at(page.nodes, 0), frame: extra, hasChildren: false }], totalChildren: page.nodes.length + 2 };
   };
   return { backend, calls };
 }
@@ -59,7 +60,7 @@ describe('Call tree view', () => {
     const grid = el(fixture, 'table');
     expect(grid.getAttribute('role')).toBe('treegrid');
     expect(grid.getAttribute('aria-label')).toBe('Call tree (top-down)');
-    const first = nodeRows(fixture)[0];
+    const first = at(nodeRows(fixture), 0);
     expect(first.getAttribute('aria-level')).toBe('1');
     expect(first.getAttribute('aria-posinset')).toBe('1');
     expect(Number(first.getAttribute('aria-setsize'))).toBeGreaterThan(0);
@@ -71,24 +72,24 @@ describe('Call tree view', () => {
 
   it('expands and collapses with the twisty and selects on row click', async () => {
     const { fixture } = await mount();
-    const first = nodeRows(fixture)[0];
+    const first = at(nodeRows(fixture), 0);
     first.querySelector<HTMLElement>('.tw')!.click();
     await settle(fixture, 4);
-    expect(nodeRows(fixture)[0].getAttribute('aria-expanded')).toBe('true');
-    expect(nodeRows(fixture)[1].getAttribute('aria-level')).toBe('2');
-    expect(nodeRows(fixture)[0].getAttribute('aria-selected')).toBe('false');
-    nodeRows(fixture)[0].querySelector<HTMLElement>('.tw')!.click();
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-expanded')).toBe('true');
+    expect(nodeRows(fixture)[1]?.getAttribute('aria-level')).toBe('2');
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-selected')).toBe('false');
+    at(nodeRows(fixture), 0).querySelector<HTMLElement>('.tw')!.click();
     await settle(fixture, 4);
-    expect(nodeRows(fixture)[0].getAttribute('aria-expanded')).toBe('false');
-    nodeRows(fixture)[0].click();
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-expanded')).toBe('false');
+    at(nodeRows(fixture), 0).click();
     await settle(fixture, 2);
-    expect(nodeRows(fixture)[0].getAttribute('aria-selected')).toBe('true');
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-selected')).toBe('true');
     expect(focused(fixture)).toBe(0);
   });
 
   it('double-click opens the butterfly of the node', async () => {
     const { fixture, ctx, state } = await mount();
-    nodeRows(fixture)[0].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    at(nodeRows(fixture), 0).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(ctx.last('showView')).toEqual(['profiling-butterfly']);
     expect(state.selectedFrame()).not.toBeNull();
   });
@@ -124,19 +125,19 @@ describe('Call tree view', () => {
     const { fixture, ctx } = await mount();
     expect(focused(fixture)).toBe(0);
     await press(fixture, 'ArrowRight');
-    expect(nodeRows(fixture)[0].getAttribute('aria-expanded')).toBe('true');
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-expanded')).toBe('true');
     await press(fixture, 'ArrowRight');
     expect(focused(fixture)).toBe(1);
     await press(fixture, 'ArrowLeft');
     expect(focused(fixture)).toBe(0);
     await press(fixture, 'ArrowLeft');
-    expect(nodeRows(fixture)[0].getAttribute('aria-expanded')).toBe('false');
+    expect(nodeRows(fixture)[0]?.getAttribute('aria-expanded')).toBe('false');
     await press(fixture, 'ArrowLeft');
     expect(focused(fixture)).toBe(0);
     await press(fixture, 'ArrowRight');
     await press(fixture, 'ArrowDown');
     expect(focused(fixture)).toBe(1);
-    expect(nodeRows(fixture)[1].getAttribute('aria-selected')).toBe('true');
+    expect(nodeRows(fixture)[1]?.getAttribute('aria-selected')).toBe('true');
     await press(fixture, 'ArrowUp');
     expect(focused(fixture)).toBe(0);
     await press(fixture, 'ArrowUp');
@@ -162,7 +163,7 @@ describe('Call tree view', () => {
     await settle(fixture, 8);
     const leafIndex = rows(fixture).findIndex((r) => r.hasAttribute('data-key') && !r.hasAttribute('aria-expanded'));
     if (leafIndex < 0) return;
-    rows(fixture)[leafIndex].click();
+    at(rows(fixture), leafIndex).click();
     await settle(fixture, 2);
     const e = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
     el(fixture, 'table').dispatchEvent(e);
@@ -192,20 +193,20 @@ describe('Call tree view', () => {
   it('shows a loading row, then an error row with Retry when a child page fails', async () => {
     const { backend } = pagedBackend(true);
     const { fixture } = await mount(CallTreeView, { backend });
-    nodeRows(fixture)[0].querySelector<HTMLElement>('.tw')!.click();
+    at(nodeRows(fixture), 0).querySelector<HTMLElement>('.tw')!.click();
     await settle(fixture, 6);
     expect(el(fixture, 'tbody [role=alert]').textContent).toContain('child load failed');
     buttonByText(fixture, 'Retry').click();
     await settle(fixture, 6);
     expect(all(fixture, 'tbody [role=alert]')).toHaveLength(0);
-    expect(nodeRows(fixture)[1].getAttribute('aria-level')).toBe('2');
+    expect(nodeRows(fixture)[1]?.getAttribute('aria-level')).toBe('2');
   });
 
   it('shows a loading status row while children load', async () => {
     const { fixture } = await mount(CallTreeView, { options: { latencyMs: 30 } });
     await new Promise((r) => setTimeout(r, 120));
     await settle(fixture, 4);
-    nodeRows(fixture)[0].querySelector<HTMLElement>('.tw')!.click();
+    at(nodeRows(fixture), 0).querySelector<HTMLElement>('.tw')!.click();
     await settle(fixture, 1);
     fixture.detectChanges();
     expect(rows(fixture).some((r) => r.textContent?.includes('Loading…'))).toBe(true);
@@ -246,7 +247,7 @@ describe('Call tree view', () => {
   it('applies a bottom-up reveal to the inverted tree only and expands its hot path', async () => {
     const top = await mount(CallTreeView);
     const { state } = top;
-    const first = nodeRows(top.fixture)[0];
+    const first = at(nodeRows(top.fixture), 0);
     const topLevel = nodeRows(top.fixture).length;
     const inv = TestBed.createComponent(InvertedTreeView);
     inv.detectChanges();
@@ -267,7 +268,7 @@ describe('Call tree view', () => {
     const spy = vi.spyOn(doubles.backend, 'tree');
     state.setRange({ fromNs: 0, toNs: 5_000_000 });
     await settle(fixture, 6);
-    expect(spy.mock.calls[0][0].view?.range).toEqual({ fromNs: 0, toNs: 5_000_000 });
+    expect(spy.mock.calls[0]?.[0].view?.range).toEqual({ fromNs: 0, toNs: 5_000_000 });
   });
 
   it('shows the empty state when no sample is in the view', async () => {

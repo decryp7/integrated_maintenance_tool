@@ -45,12 +45,12 @@ function rasterize(svg: string, width: number, height: number, scale: number): P
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
       const ctx = canvas.getContext('2d');
-      if (!ctx) return reject(new Error('This browser cannot draw images.'));
+      if (!ctx) return reject(new Error($localize`:@@share.visualExport.noCanvas:This browser cannot draw images.`));
       ctx.scale(scale, scale);
       ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/png'));
     };
-    img.onerror = () => reject(new Error('The image could not be drawn.'));
+    img.onerror = () => reject(new Error($localize`:@@share.visualExport.drawFailed:The image could not be drawn.`));
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   });
 }
@@ -140,24 +140,27 @@ export class VisualExportService {
       .items()
       .filter((a) => this.annotations.isShown(a.kind))
       .map((a) => ({ from: a.from, to: a.to, label: a.label, color: kinds.get(a.kind)?.color ?? null }));
-    const title = `Timeline — ${this.store.summary()?.profileName ?? 'IMT'}`;
+    const profile = this.store.summary()?.profileName ?? 'IMT';
+    const title = $localize`:@@share.visualExport.timelineTitle:Timeline — ${profile}:profile:`;
     return timelineToSvg({ timeline, title, markerColors, annotations, theme, tz: this.store.timezone() });
   }
 
   /** Asks where to save, then writes the image. Returns the saved path, or null when cancelled or failed (reported). */
   private async save(kind: VisualFormat, title: string, data: () => Promise<string> | string): Promise<string | null> {
     try {
-      const path = await this.platform.pickSavePath(`Export ${kind.toUpperCase()} image`, `${fileStem(title)}.${kind}`, [
-        { name: kind === 'png' ? 'PNG image' : 'SVG image', extensions: [kind] },
-      ]);
+      const path = await this.platform.pickSavePath(
+        kind === 'png' ? $localize`:@@share.visualExport.pickPng:Export PNG image` : $localize`:@@share.visualExport.pickSvg:Export SVG image`,
+        `${fileStem(title)}.${kind}`,
+        [{ name: kind === 'png' ? $localize`:@@share.visualExport.filterPng:PNG image` : $localize`:@@share.visualExport.filterSvg:SVG image`, extensions: [kind] }],
+      );
       if (!path) return null;
       const image = await data();
       const saved = await this.overwrite.write(path, (overwrite) => this.backend.saveVisual({ path, kind, data: image, overwrite }));
       if (!saved) return null;
-      this.store.setNotice(`Saved ${saved.path.split(/[\\/]/).pop()}`);
+      this.store.setNotice($localize`:@@share.visualExport.saved:Saved ${saved.path.split(/[\\/]/).pop()}:file:`);
       return saved.path;
     } catch (e) {
-      this.store.setError(`Could not export the image: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@share.visualExport.exportFailed:Could not export the image: ${errorMessage(e)}:error:`);
       return null;
     }
   }
@@ -169,7 +172,7 @@ export class VisualExportService {
   exportTimeline(kind: VisualFormat): Promise<string | null> {
     return this.save(kind, 'timeline', async () => {
       const svg = this.timelineSvg();
-      if (!svg) throw new Error('There is no timeline to export.');
+      if (!svg) throw new Error($localize`:@@share.visualExport.noTimeline:There is no timeline to export.`);
       if (kind === 'svg') return svg;
       const { width, height } = svgSize(svg);
       return this.rasterizer(svg, width, height, 2);

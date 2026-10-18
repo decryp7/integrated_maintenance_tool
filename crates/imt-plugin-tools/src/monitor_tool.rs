@@ -157,10 +157,14 @@ mod tests {
                 "fail" => bail!("sampling failed"),
                 "panic" => panic!("sampler bug"),
                 _ => {
-                    while !stop.load(Ordering::SeqCst) {
+                    // At least one tick, however soon it is stopped (a loaded test machine).
+                    loop {
                         let mut r = Record::new(0);
                         r.message = "tick".into();
                         sink.write(&[r])?;
+                        if stop.load(Ordering::SeqCst) {
+                            break;
+                        }
                         std::thread::sleep(Duration::from_millis(5));
                     }
                     Ok(())

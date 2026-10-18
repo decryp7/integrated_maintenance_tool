@@ -3,6 +3,7 @@ import { query, SEC, T0, tinyDataset } from '../../../testing/helpers';
 import { ProfileModel } from '../profile.model';
 import { compileConditions, MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PROFILE_TOML } from './mock-profile';
+import { at, must } from '../../../testing/must';
 
 function engine(profile: ProfileModel = parse(MOCK_PROFILE_TOML) as ProfileModel): MockEngine {
   const ds = tinyDataset();
@@ -31,7 +32,7 @@ describe('MockEngine', () => {
 
     it('reads the source name and ignores a blank query', () => {
       const e = engine();
-      const name = e.sources[0].name;
+      const name = at(e.sources, 0).name;
       const bySource = e.page({ query: { ...query(), ql: `@source = "${name}"` }, offset: 0, limit: 100, descending: false });
       expect(bySource.total).toBeGreaterThan(0);
       expect(bySource.rows.every((r) => r.sourceName === name)).toBe(true);
@@ -49,7 +50,7 @@ describe('MockEngine', () => {
       const e = engine();
       expect(e.records.map((r) => r.id)).toEqual(e.records.map((_, i) => i));
       expect(e.records.at(-1)!.ts).toBeNull();
-      for (let i = 1; i < e.records.length - 1; i++) expect(e.records[i].ts!).toBeGreaterThanOrEqual(e.records[i - 1].ts!);
+      for (let i = 1; i < e.records.length - 1; i++) expect(at(e.records, i).ts!).toBeGreaterThanOrEqual(at(e.records, i - 1).ts!);
     });
 
     it('applies extractors with unit conversion', () => {
@@ -156,6 +157,15 @@ describe('MockEngine', () => {
       expect(count({ groupBy: ['MachineName'], groups: ['WEB02'] })).toBe(4);
       expect(count({ markers: ['start', 'stop'] })).toBe(5);
     });
+
+    it('filters by source id like the engine (empty = all, unknown = nothing)', () => {
+      expect(count({ sources: [0] })).toBe(7);
+      expect(count({ sources: [1] })).toBe(4);
+      expect(count({ sources: [0, 1] })).toBe(11);
+      expect(count({ sources: [] })).toBe(11);
+      expect(count({ sources: [42] })).toBe(0);
+      expect(e.page({ query: query({ sources: [1] }), offset: 0, limit: 50, descending: false }).rows.every((r) => r.source === 1)).toBe(true);
+    });
   });
 
   describe('paging', () => {
@@ -166,8 +176,8 @@ describe('MockEngine', () => {
       expect(p.total).toBe(11);
       expect(p.offset).toBe(2);
       expect(p.rows.map((r) => r.id)).toEqual([2, 3, 4]);
-      expect(p.rows[0].group).toBe('WEB01 · 100');
-      expect(p.rows[0].sourceName).toBe('app.clef');
+      expect(p.rows[0]?.group).toBe('WEB01 · 100');
+      expect(p.rows[0]?.sourceName).toBe('app.clef');
       expect(p.anchorIndex).toBeNull();
     });
 
@@ -182,7 +192,7 @@ describe('MockEngine', () => {
       expect(p.offset).toBe(4);
       const d = e.page({ query: query(), offset: 0, limit: 1, descending: true, anchor: 6 });
       expect(d.anchorIndex).toBe(4);
-      expect(d.rows[0].id).toBe(6);
+      expect(d.rows[0]?.id).toBe(6);
     });
 
     it('reports a filtered-out anchor as null and clamps offsets', () => {
@@ -204,7 +214,7 @@ describe('MockEngine', () => {
       expect(t.histogram).toHaveLength(10);
       expect(t.histogram.flat().reduce((a, b) => a + b, 0)).toBe(10);
       expect(t.lanes.map((l) => l.key)).toEqual(['WEB01 · 100', 'WEB02 · 300', 'WEB01 · 200']);
-      const web01 = t.lanes[0];
+      const web01 = at(t.lanes, 0);
       expect(web01).toMatchObject({ first: T0, last: T0 + 240 * SEC, total: 5, matched: 5 });
       expect(web01.markers.map((m) => m.kind).sort()).toEqual(['exception', 'fatal', 'start', 'warning']);
       expect(t.truncatedLanes).toBe(0);
@@ -213,15 +223,15 @@ describe('MockEngine', () => {
     it('keeps lifecycle markers for non-matching events only when asked', () => {
       const q = query({ levels: ['Error'] });
       const withLc = e.timeline({ query: q, buckets: 10, alwaysShowLifecycle: true });
-      expect(withLc.lanes[0].matched).toBe(1);
-      expect(withLc.lanes[0].markers.map((m) => m.kind).sort()).toEqual(['exception', 'start']);
+      expect(withLc.lanes[0]?.matched).toBe(1);
+      expect(withLc.lanes[0]?.markers.map((m) => m.kind).sort()).toEqual(['exception', 'start']);
       const without = e.timeline({ query: q, buckets: 10, alwaysShowLifecycle: false });
-      expect(without.lanes[0].markers.map((m) => m.kind)).toEqual(['exception']);
+      expect(without.lanes[0]?.markers.map((m) => m.kind)).toEqual(['exception']);
     });
 
     it('clusters markers of the same kind in a bucket', () => {
       const t = e.timeline({ query: query({ groupBy: ['Application'] }), buckets: 10, alwaysShowLifecycle: true });
-      const starts = t.lanes[0].markers.filter((m) => m.kind === 'start');
+      const starts = at(t.lanes, 0).markers.filter((m) => m.kind === 'start');
       expect(starts.find((m) => m.bucket === 0)!.count).toBe(2);
     });
 
@@ -254,13 +264,13 @@ describe('MockEngine', () => {
       expect(d.series.map((s) => s.key).sort()).toEqual(['WEB01 · 100', 'WEB01 · 200']);
       const s100 = d.series.find((s) => s.key === 'WEB01 · 100')!;
       expect(s100.points[1]).toEqual([T0 + 60 * SEC, 10.5]);
-      expect(s100.points[0][1]).toBeNull();
+      expect(at(at(s100.points, 0), 1)).toBeNull();
       expect(d.lifecycle.map((l) => l.kind)).toEqual(['start', 'start', 'fatal', 'start', 'stop']);
     });
 
     it('supports every aggregate and ad-hoc definitions', () => {
       const def = (y: string, splitBy: string[] = []) => ({ id: 'x', title: 'x', y, bucket: '10m', splitBy, type: 'bar' as const, unit: '' });
-      const value = (y: string) => e.chart({ query: query(), def: def(y), buckets: 10 }).series[0].points[0][1];
+      const value = (y: string) => at(at(e.chart({ query: query(), def: def(y), buckets: 10 }).series, 0).points, 0)[1];
       expect(value('count()')).toBe(10);
       expect(value('sum(ElapsedMs)')).toBe(6502);
       expect(value('min(ElapsedMs)')).toBe(2);
@@ -268,7 +278,7 @@ describe('MockEngine', () => {
       expect(value('last(ElapsedMs)')).toBe(2);
       expect(value('avg(ElapsedMs)')).toBeCloseTo(6502 / 3);
       const empty = e.chart({ query: query(), def: { ...def('count()', ['MachineName']), bucket: '1m' }, buckets: 10 });
-      expect(empty.series[0].points.some(([, v]) => v === 0)).toBe(true);
+      expect(empty.series[0]?.points.some(([, v]) => v === 0)).toBe(true);
     });
 
     it('rejects unknown charts and bad expressions', () => {
@@ -280,21 +290,21 @@ describe('MockEngine', () => {
       const none = e.chart({ query: query({ filters: [{ field: 'MachineName', op: 'eq', value: 'none' }] }), chartId: 'cpu', buckets: 10 });
       expect(none.series).toEqual([]);
       const fine = e.chart({ query: query(), def: { id: 'x', title: '', y: 'count()', bucket: '1ms', splitBy: [], type: 'line', unit: '' }, buckets: 10 });
-      expect(fine.series[0].points.length).toBeLessThanOrEqual(5000);
+      expect(fine.series[0]?.points.length).toBeLessThanOrEqual(5000);
     });
   });
 
   describe('extractor preview', () => {
     const e = engine();
-    const rule = (parse(MOCK_PROFILE_TOML) as ProfileModel).extract![0];
+    const rule = at(must((parse(MOCK_PROFILE_TOML) as ProfileModel).extract), 0);
 
     it('reports matches with capture spans and converted values', () => {
       const p = e.previewExtractor(rule, query(), 1);
       expect(p).toMatchObject({ candidates: 2, matches: 2, failed: 0, error: null });
       expect(p.samples).toHaveLength(1);
-      const cpu = p.samples[0].spans.find((s) => s.name === 'cpu')!;
-      expect(p.samples[0].text.slice(cpu.start, cpu.end)).toBe('10.5');
-      expect(p.samples[0].values).toMatchObject({ cpu: 10.5, ws: 100, threads: 20 });
+      const cpu = at(p.samples, 0).spans.find((s) => s.name === 'cpu')!;
+      expect(p.samples[0]?.text.slice(cpu.start, cpu.end)).toBe('10.5');
+      expect(p.samples[0]?.values).toMatchObject({ cpu: 10.5, ws: 100, threads: 20 });
     });
 
     it('counts failures and reports invalid patterns', () => {
@@ -319,7 +329,7 @@ describe('conditions and conversions', () => {
 
   it('converts every extracted field type', () => {
     const ds = tinyDataset();
-    ds.records = [{ ...ds.records[0], message: 'v=1.5 on=yes d=00:00:01.5 n=7 b=2 KB s=hi t=3' }];
+    ds.records = [{ ...at(ds.records, 0), message: 'v=1.5 on=yes d=00:00:01.5 n=7 b=2 KB s=hi t=3' }];
     const e = new MockEngine();
     e.rebuild(ds.records, ds.sources, {
       extract: [
@@ -339,8 +349,8 @@ describe('conditions and conversions', () => {
         },
       ],
     });
-    expect(e.records[0].fields).toMatchObject({ v: 1.5, on: true, d: 1.5, n: 7, b: 2048, s: 'hi', t: 3000 });
-    expect(e.records[0].fields['missing']).toBeUndefined();
+    expect(e.records[0]?.fields).toMatchObject({ v: 1.5, on: true, d: 1.5, n: 7, b: 2048, s: 'hi', t: 3000 });
+    expect(e.records[0]?.fields['missing']).toBeUndefined();
   });
 
   it('builds safe regexes', () => {

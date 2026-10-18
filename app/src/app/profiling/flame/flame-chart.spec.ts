@@ -107,7 +107,7 @@ describe('FlameChart', () => {
     expect(legend).toContain('no change');
     expect(el(f, '.ramp').getAttribute('style')).toContain('linear-gradient');
     expect(text(f)).toContain('Change');
-    expect(all(f, '.frames tbody tr')[1].textContent).toContain('+10.0 pp');
+    expect(all(f, '.frames tbody tr')[1]?.textContent).toContain('+10.0 pp');
   });
 
   it('describes the chart, and mentions truncation', () => {
@@ -262,7 +262,7 @@ describe('FlameChart', () => {
     f.componentInstance.selected.subscribe((s) => selected.push(s));
     pointer(surface, 'click', 700, 20);
     expect(zooms).toEqual([[1, 3]]);
-    expect(selected[0].name).toBe('lib!Native');
+    expect(selected[0]?.name).toBe('lib!Native');
     pointer(surface, 'click', 900, 0);
     expect(zooms).toHaveLength(1);
     f.componentInstance.zoomAt(99);

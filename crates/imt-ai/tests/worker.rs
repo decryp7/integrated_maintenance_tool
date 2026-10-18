@@ -31,7 +31,7 @@ fn config(args: &[&str]) -> WorkerConfig {
     let mut c = WorkerConfig::new(Arc::new(GrpcLauncher {
         exe: fake_worker_exe(),
         args: args.iter().map(|s| s.to_string()).collect(),
-        env: no_profile(),
+        env: imt_ai::worker::fixed_env(no_profile()),
     }));
     c.hello_timeout = Duration::from_secs(10);
     c.load_timeout = Duration::from_secs(10);
@@ -365,7 +365,7 @@ fn start_failures_and_memory_limits() {
     let c = WorkerConfig::new(Arc::new(GrpcLauncher {
         exe: PathBuf::from("/definitely/not/here"),
         args: vec![],
-        env: vec![],
+        env: imt_ai::worker::fixed_env(vec![]),
     }));
     let rt = WorkerRuntime::new(c, Box::new(big_machine));
     let e = rt.load(&model(GpuMode::Cpu).req).err().unwrap();

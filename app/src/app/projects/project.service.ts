@@ -7,9 +7,10 @@ import { ProjectPicker } from './project-picker';
 import { RECENT_PROJECTS } from './recent-projects';
 import { ReportStore } from '../share/report/report.store';
 import { OverwriteGuard } from '../ui/overwrite-guard';
+import { plural } from '../i18n/locale';
 
 export const PROJECT_EXTENSION = '.imtproj';
-export const UNTITLED = 'Untitled';
+export const UNTITLED = $localize`:Name of a project that was not saved yet|@@projects.untitled:Untitled`;
 
 export function isProjectPath(path: string): boolean {
   return path.toLowerCase().endsWith(PROJECT_EXTENSION);
@@ -96,10 +97,18 @@ export class ProjectService {
         this.name.set(UNTITLED);
       }
       this.markClean();
-      if (opened.missing.length) this.store.setNotice(`${opened.missing.length} path${opened.missing.length === 1 ? '' : 's'} of this project could not be found`);
+      if (opened.missing.length) {
+        const n = opened.missing.length;
+        this.store.setNotice(
+          plural(n, {
+            one: $localize`:@@projects.service.missing.one:${n}:count: path of this project could not be found`,
+            other: $localize`:@@projects.service.missing.other:${n}:count: paths of this project could not be found`,
+          }),
+        );
+      }
       return true;
     } catch (e) {
-      this.store.setError(`Could not open the project: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@projects.service.openFailed:Could not open the project: ${errorMessage(e)}:error:`);
       return false;
     } finally {
       this.busy.set(false);
@@ -153,10 +162,10 @@ export class ProjectService {
       this.name.set(saved.name);
       this.remember(saved.path, saved.name);
       this.baseline.set(written);
-      this.store.setNotice(`Saved ${saved.name}`);
+      this.store.setNotice($localize`:@@projects.service.saved:Saved ${saved.name}:name:`);
       return true;
     } catch (e) {
-      this.store.setError(`Could not save the project: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@projects.service.saveFailed:Could not save the project: ${errorMessage(e)}:error:`);
       return false;
     } finally {
       this.busy.set(false);

@@ -46,13 +46,13 @@ export function flattenDominators(levels: ReadonlyMap<number | null, Level>, exp
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (top().error; as e) {
-      <div class="state" role="alert"><span class="err">{{ e }}</span><button class="btn" type="button" (click)="load(null)">Retry</button></div>
+      <div class="state" role="alert"><span class="err">{{ e }}</span><button class="btn" type="button" (click)="load(null)" i18n="@@profiling.heapDominators.retry">Retry</button></div>
     } @else if (top().loading && !top().rows.length) {
-      <div class="state" role="status">Loading…</div>
+      <div class="state" role="status" i18n="@@profiling.heapDominators.loading">Loading…</div>
     } @else {
-      <div class="body tight" tabindex="0" role="region" aria-label="Dominator tree rows">
-        <table class="grid" role="treegrid" aria-label="Dominator tree" (keydown)="onKey($event)">
-          <thead><tr role="row"><th role="columnheader">Object</th><th role="columnheader" class="num">Retained</th><th role="columnheader" class="num">Shallow</th><th role="columnheader" class="num">Dominates</th><th role="columnheader"><span class="sr">Actions</span></th></tr></thead>
+      <div class="body tight" tabindex="0" role="region" aria-label="Dominator tree rows" i18n-aria-label="@@profiling.heapDominators.rowsRegion">
+        <table class="grid" role="treegrid" aria-label="Dominator tree" i18n-aria-label="@@profiling.heapDominators.tableLabel" (keydown)="onKey($event)">
+          <thead><tr role="row"><th role="columnheader" i18n="@@profiling.heapDominators.col.object">Object</th><th role="columnheader" class="num" i18n="@@profiling.heapDominators.col.retained">Retained</th><th role="columnheader" class="num" i18n="@@profiling.heapDominators.col.shallow">Shallow</th><th role="columnheader" class="num" i18n="@@profiling.heapDominators.col.dominates">Dominates</th><th role="columnheader"><span class="sr" i18n="@@profiling.heapDominators.col.actions">Actions</span></th></tr></thead>
           <tbody>
             @for (r of rows(); track r.row.object; let i = $index) {
               <tr role="row" [attr.aria-level]="r.level" [attr.aria-posinset]="r.pos" [attr.aria-setsize]="r.size" [attr.aria-expanded]="r.row.childCount ? r.expanded : null" [attr.tabindex]="focus() === i ? 0 : -1" (click)="focus.set(i)">
@@ -63,7 +63,7 @@ export function flattenDominators(levels: ReadonlyMap<number | null, Level>, exp
                 <td role="gridcell" class="num">{{ bytes(r.row.retained) }}</td>
                 <td role="gridcell" class="num">{{ bytes(r.row.shallow) }}</td>
                 <td role="gridcell" class="num">{{ count(r.row.childCount) }}</td>
-                <td role="gridcell"><button class="mini" type="button" [attr.aria-label]="'Why is ' + r.row.typeName + ' @' + r.row.object + ' alive?'" (click)="sel.showPaths(r.row.object, r.row.typeName)">Paths to roots</button></td>
+                <td role="gridcell"><button class="mini" type="button" [attr.aria-label]="whyLabel(r.row.typeName, r.row.object)" (click)="sel.showPaths(r.row.object, r.row.typeName)" i18n="@@profiling.heapDominators.paths">Paths to roots</button></td>
               </tr>
             }
           </tbody>
@@ -99,7 +99,7 @@ export class HeapDominators {
   protected readonly rows = computed(() => flattenDominators(this.levels(), this.expanded()));
   /** Loading/error lines of expanded levels. */
   protected readonly pending = computed(() =>
-    [...this.levels().entries()].filter(([k, l]) => k !== null && (l.loading || l.error)).map(([k, l]) => (l.error ? `@${k}: ${l.error}` : `Loading children of @${k}…`)),
+    [...this.levels().entries()].filter(([k, l]) => k !== null && (l.loading || l.error)).map(([k, l]) => (l.error ? `@${k}: ${l.error}` : $localize`:@@profiling.heapDominators.loadingChildren:Loading children of @${k}:object:…`)),
   );
   private generation = 0;
 
@@ -113,6 +113,10 @@ export class HeapDominators {
         void this.load(null);
       });
     });
+  }
+
+  protected whyLabel(typeName: string, object: number): string {
+    return $localize`:@@profiling.heapDominators.whyLabel:Why is ${typeName}:type: @${object}:object: alive?`;
   }
 
   private setLevel(parent: number | null, l: Level): void {

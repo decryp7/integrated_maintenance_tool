@@ -1,0 +1,22 @@
+[package]
+name = "imt-plugin-formats"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "IMT plugin: log4j/log4net/NLog XML events, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI container logs"
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+chrono = "0.4"
+regex = "1"
+quick-xml = "0.42"
+
+[dev-dependencies]
+proptest = "1"
+# End-to-end tests check that no other text-format importer outranks these.
+imt-plugin-web = { path = "../imt-plugin-web" }
+imt-plugin-syslog = { path = "../imt-plugin-syslog" }
+imt-plugin-otel = { path = "../imt-plugin-otel" }

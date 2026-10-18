@@ -10,7 +10,12 @@ export const ROW_H = 24;
 const OVERSCAN = 8;
 const SEARCH_DELAY_MS = 250;
 
-const KIND_LABEL: Record<ChangeKind, string> = { added: 'Added', removed: 'Removed', changed: 'Changed', unchanged: 'Unchanged' };
+const KIND_LABEL: Record<ChangeKind, string> = {
+  added: $localize`:@@configDiff.view.kind.added:Added`,
+  removed: $localize`:@@configDiff.view.kind.removed:Removed`,
+  changed: $localize`:@@configDiff.view.kind.changed:Changed`,
+  unchanged: $localize`:@@configDiff.view.kind.unchanged:Unchanged`,
+};
 const MARK: Record<ChangeKind, string> = { added: '+', removed: '−', changed: '~', unchanged: ' ' };
 
 /** A row slot of the virtual window: the row, or null while its page loads. */
@@ -37,53 +42,53 @@ export function valueText(v: ValueDto | null): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">
-      <div class="modes" role="group" aria-label="Compare">
-        <button type="button" class="btn" [attr.aria-pressed]="store.mode() === 'files'" (click)="store.setMode('files')">Two files</button>
-        <button type="button" class="btn" [attr.aria-pressed]="store.mode() === 'folders'" (click)="store.setMode('folders')">Two snapshot folders</button>
+      <div class="modes" role="group" aria-label="Compare" i18n-aria-label="@@configDiff.view.modes">
+        <button type="button" class="btn" [attr.aria-pressed]="store.mode() === 'files'" (click)="store.setMode('files')" i18n="@@configDiff.view.twoFiles">Two files</button>
+        <button type="button" class="btn" [attr.aria-pressed]="store.mode() === 'folders'" (click)="store.setMode('folders')" i18n="@@configDiff.view.twoFolders">Two snapshot folders</button>
       </div>
 
       @if (store.mode() === 'files') {
         <div class="pick">
           <label class="side">
-            <span class="lbl">Left (original)</span>
-            <input class="input mono" [value]="store.left()" (change)="store.setPath('left', value($event))" placeholder="Path to a configuration file" />
+            <span class="lbl" i18n="@@configDiff.view.leftLabel">Left (original)</span>
+            <input class="input mono" [value]="store.left()" (change)="store.setPath('left', value($event))" placeholder="Path to a configuration file" i18n-placeholder="@@configDiff.view.pathPlaceholder" />
           </label>
-          <button type="button" class="btn" (click)="store.choose('left')">Choose…</button>
-          <button type="button" class="btn ghost" aria-label="Swap left and right" title="Swap left and right" (click)="store.swap()">⇄</button>
+          <button type="button" class="btn" (click)="store.choose('left')" i18n="Pick a file or folder|Button@@configDiff.view.choose">Choose…</button>
+          <button type="button" class="btn ghost" aria-label="Swap left and right" i18n-aria-label="@@configDiff.view.swapLabel" title="Swap left and right" i18n-title="@@configDiff.view.swapTitle" (click)="store.swap()">⇄</button>
           <label class="side">
-            <span class="lbl">Right (changed)</span>
-            <input class="input mono" [value]="store.right()" (change)="store.setPath('right', value($event))" placeholder="Path to a configuration file" />
+            <span class="lbl" i18n="@@configDiff.view.rightLabel">Right (changed)</span>
+            <input class="input mono" [value]="store.right()" (change)="store.setPath('right', value($event))" placeholder="Path to a configuration file" i18n-placeholder="@@configDiff.view.pathPlaceholder" />
           </label>
-          <button type="button" class="btn" (click)="store.choose('right')">Choose…</button>
-          <button type="button" class="btn primary" [disabled]="!store.ready()" (click)="store.compare()">Compare</button>
+          <button type="button" class="btn" (click)="store.choose('right')" i18n="Pick a file or folder|Button@@configDiff.view.choose">Choose…</button>
+          <button type="button" class="btn primary" [disabled]="!store.ready()" (click)="store.compare()" i18n="Run the comparison|Button@@configDiff.view.compare">Compare</button>
         </div>
       } @else {
         <div class="pick">
           <label class="side">
-            <span class="lbl">Earlier snapshot</span>
-            <input class="input mono" [value]="store.leftDir()" (change)="store.setDir('left', value($event))" placeholder="Folder, e.g. a collector run" />
+            <span class="lbl" i18n="@@configDiff.view.earlier">Earlier snapshot</span>
+            <input class="input mono" [value]="store.leftDir()" (change)="store.setDir('left', value($event))" placeholder="Folder, e.g. a collector run" i18n-placeholder="@@configDiff.view.folderPlaceholder" />
           </label>
-          <button type="button" class="btn" (click)="store.chooseFolder('left')">Choose…</button>
+          <button type="button" class="btn" (click)="store.chooseFolder('left')" i18n="Pick a file or folder|Button@@configDiff.view.choose">Choose…</button>
           <label class="side">
-            <span class="lbl">Later snapshot</span>
-            <input class="input mono" [value]="store.rightDir()" (change)="store.setDir('right', value($event))" placeholder="Folder, e.g. a collector run" />
+            <span class="lbl" i18n="@@configDiff.view.later">Later snapshot</span>
+            <input class="input mono" [value]="store.rightDir()" (change)="store.setDir('right', value($event))" placeholder="Folder, e.g. a collector run" i18n-placeholder="@@configDiff.view.folderPlaceholder" />
           </label>
-          <button type="button" class="btn" (click)="store.chooseFolder('right')">Choose…</button>
-          <button type="button" class="btn primary" [disabled]="!store.leftDir() || !store.rightDir() || store.snapshotBusy()" (click)="store.compareFolders()">Compare folders</button>
+          <button type="button" class="btn" (click)="store.chooseFolder('right')" i18n="Pick a file or folder|Button@@configDiff.view.choose">Choose…</button>
+          <button type="button" class="btn primary" [disabled]="!store.leftDir() || !store.rightDir() || store.snapshotBusy()" (click)="store.compareFolders()" i18n="@@configDiff.view.compareFolders">Compare folders</button>
         </div>
       }
 
       <details class="opts">
-        <summary>Ignore patterns and options</summary>
+        <summary i18n="@@configDiff.view.opts">Ignore patterns and options</summary>
         <label class="ign">
-          <span class="lbl">Ignore paths matching (one per line; globs like <code>*InstallDate*</code>, or <code>re:</code> regexes)</span>
+          <span class="lbl" i18n="@@configDiff.view.ignoreLabel">Ignore paths matching (one per line; globs like <code>*InstallDate*</code>, or <code>re:</code> regexes)</span>
           <textarea class="input mono" rows="4" [value]="store.ignoreText()" (change)="store.setIgnoreText(value($event))"></textarea>
         </label>
         <div class="row-opts">
-          <button type="button" class="btn ghost" (click)="store.resetIgnore()">Reset to defaults</button>
-          <label class="check"><input type="checkbox" [checked]="store.caseInsensitive()" (change)="store.setCaseInsensitive(checked($event))" /> Ignore case in paths</label>
+          <button type="button" class="btn ghost" (click)="store.resetIgnore()" i18n="@@configDiff.view.resetIgnore">Reset to defaults</button>
+          <label class="check" i18n="@@configDiff.view.ignoreCase"><input type="checkbox" [checked]="store.caseInsensitive()" (change)="store.setCaseInsensitive(checked($event))" /> Ignore case in paths</label>
           @if (store.formats().length) {
-            <span class="faint formats">Formats: {{ formatNames() }}</span>
+            <span class="faint formats" i18n="@@configDiff.view.formats">Formats: {{ formatNames() }}</span>
           }
         </div>
       </details>
@@ -91,8 +96,8 @@ export function valueText(v: ValueDto | null): string {
       @if (store.error(); as e) {
         <div class="alert" role="alert">
           <span>{{ e }}</span>
-          <button type="button" class="btn" (click)="store.compare()" [disabled]="!store.ready()">Retry</button>
-          <button type="button" class="btn ghost" (click)="store.dismiss()">Dismiss</button>
+          <button type="button" class="btn" (click)="store.compare()" [disabled]="!store.ready()" i18n="@@configDiff.view.retry">Retry</button>
+          <button type="button" class="btn ghost" (click)="store.dismiss()" i18n="@@configDiff.view.dismiss">Dismiss</button>
         </div>
       }
       @if (store.notice(); as n) {
@@ -101,11 +106,11 @@ export function valueText(v: ValueDto | null): string {
 
       @if (store.mode() === 'folders') {
         @if (store.snapshotError(); as e) {
-          <div class="alert" role="alert"><span>{{ e }}</span> <button type="button" class="btn" (click)="store.compareFolders()">Retry</button></div>
+          <div class="alert" role="alert"><span>{{ e }}</span> <button type="button" class="btn" (click)="store.compareFolders()" i18n="@@configDiff.view.retry">Retry</button></div>
         }
         @if (store.snapshot(); as snap) {
-          <table class="files" aria-label="Configuration files in both snapshots">
-            <thead><tr><th scope="col">File</th><th scope="col">Status</th><th scope="col">Format</th><th scope="col" class="num">Changes</th><th scope="col"><span class="sr">Action</span></th></tr></thead>
+          <table class="files" aria-label="Configuration files in both snapshots" i18n-aria-label="@@configDiff.view.filesTable">
+            <thead><tr><th scope="col" i18n="@@configDiff.view.col.file">File</th><th scope="col" i18n="@@configDiff.view.col.status">Status</th><th scope="col" i18n="@@configDiff.view.col.format">Format</th><th scope="col" class="num" i18n="@@configDiff.view.col.changes">Changes</th><th scope="col"><span class="sr" i18n="@@configDiff.view.col.action">Action</span></th></tr></thead>
             <tbody>
               @for (f of snap.files; track f.relPath) {
                 <tr [attr.data-status]="f.status">
@@ -113,45 +118,45 @@ export function valueText(v: ValueDto | null): string {
                   <td><span class="st" [class]="'st ' + f.status">{{ f.status }}</span>@if (f.error) { <span class="faint err"> {{ f.error }}</span> }</td>
                   <td>{{ f.format ?? '' }}</td>
                   <td class="num mono">{{ f.counts ? f.counts.added + f.counts.removed + f.counts.changed : '' }}</td>
-                  <td>@if (f.leftPath && f.rightPath && f.status !== 'unreadable') { <button type="button" class="btn" [attr.aria-label]="'Show diff of ' + f.relPath" (click)="open(f)">Show diff</button> }</td>
+                  <td>@if (f.leftPath && f.rightPath && f.status !== 'unreadable') { <button type="button" class="btn" [attr.aria-label]="showDiffLabel(f.relPath)" (click)="open(f)" i18n="@@configDiff.view.showDiff">Show diff</button> }</td>
                 </tr>
               } @empty {
-                <tr><td colspan="5" class="faint">No configuration files found in these folders.</td></tr>
+                <tr><td colspan="5" class="faint" i18n="@@configDiff.view.noFiles">No configuration files found in these folders.</td></tr>
               }
             </tbody>
           </table>
-          @if (snap.truncated) { <p class="faint">Only the first files of each folder were compared.</p> }
+          @if (snap.truncated) { <p class="faint" i18n="@@configDiff.view.truncated">Only the first files of each folder were compared.</p> }
         } @else if (store.snapshotBusy()) {
-          <p class="faint" role="status">Comparing folders…</p>
+          <p class="faint" role="status" i18n="@@configDiff.view.comparingFolders">Comparing folders…</p>
         } @else {
-          <p class="faint">Choose two folders, for example two diagnostics-collector runs of the same machine, to see which configuration files changed.</p>
+          <p class="faint" i18n="@@configDiff.view.chooseFolders">Choose two folders, for example two diagnostics-collector runs of the same machine, to see which configuration files changed.</p>
         }
       } @else {
         @if (store.meta(); as m) {
           <div class="bar">
-            <div class="kinds" role="group" aria-label="Show changes">
+            <div class="kinds" role="group" aria-label="Show changes" i18n-aria-label="@@configDiff.view.showChanges">
               @for (k of kinds; track k) {
                 <label class="check kind" [attr.data-kind]="k">
                   <input type="checkbox" [checked]="store.kinds().includes(k)" (change)="store.toggleKind(k)" />
                   <span class="mark" aria-hidden="true">{{ mark[k] }}</span> {{ label[k] }} <span class="mono count">{{ m.counts[k] }}</span>
                 </label>
               }
-              @if (m.counts.ignored) { <span class="faint">{{ m.counts.ignored }} ignored</span> }
+              @if (m.counts.ignored) { <span class="faint" i18n="@@configDiff.view.ignored">{{ m.counts.ignored }} ignored</span> }
             </div>
-            <input class="input search" type="search" aria-label="Search paths and values" placeholder="Search paths and values" [value]="store.search()" (input)="onSearch(value($event))" />
-            <label class="check"><input type="checkbox" [checked]="store.expand() === 'changedOnly'" (change)="store.setExpand(checked($event) ? 'changedOnly' : 'all')" /> Expand changed only</label>
-            <div class="seg" role="group" aria-label="Layout">
-              <button type="button" class="btn" [attr.aria-pressed]="store.layout() === 'split'" (click)="store.setLayout('split')">Side by side</button>
-              <button type="button" class="btn" [attr.aria-pressed]="store.layout() === 'unified'" (click)="store.setLayout('unified')">Unified</button>
+            <input class="input search" type="search" aria-label="Search paths and values" i18n-aria-label="@@configDiff.view.searchLabel" placeholder="Search paths and values" i18n-placeholder="@@configDiff.view.searchPlaceholder" [value]="store.search()" (input)="onSearch(value($event))" />
+            <label class="check" i18n="@@configDiff.view.expandChanged"><input type="checkbox" [checked]="store.expand() === 'changedOnly'" (change)="store.setExpand(checked($event) ? 'changedOnly' : 'all')" /> Expand changed only</label>
+            <div class="seg" role="group" aria-label="Layout" i18n-aria-label="@@configDiff.view.layout">
+              <button type="button" class="btn" [attr.aria-pressed]="store.layout() === 'split'" (click)="store.setLayout('split')" i18n="@@configDiff.view.split">Side by side</button>
+              <button type="button" class="btn" [attr.aria-pressed]="store.layout() === 'unified'" (click)="store.setLayout('unified')" i18n="@@configDiff.view.unified">Unified</button>
             </div>
-            <button type="button" class="btn" (click)="store.exportAs('csv')">Export CSV</button>
-            <button type="button" class="btn" (click)="store.exportAs('html')">Export HTML</button>
+            <button type="button" class="btn" (click)="store.exportAs('csv')" i18n="@@configDiff.view.exportCsv">Export CSV</button>
+            <button type="button" class="btn" (click)="store.exportAs('html')" i18n="@@configDiff.view.exportHtml">Export HTML</button>
           </div>
           <div class="sides faint mono">
-            <span title="{{ m.left.path }}">− {{ base(m.left.path) }} ({{ m.left.format }}, {{ m.left.nodes }} nodes)</span>
-            <span title="{{ m.right.path }}">+ {{ base(m.right.path) }} ({{ m.right.format }}, {{ m.right.nodes }} nodes)</span>
-            @if (m.caseInsensitive) { <span>paths ignore case</span> }
-            @if (m.truncated) { <span class="warn">a file is larger than the node limit; the rest is not compared</span> }
+            <span title="{{ m.left.path }}" i18n="@@configDiff.view.leftSummary">− {{ base(m.left.path) }} ({{ m.left.format }}, {{ m.left.nodes }} nodes)</span>
+            <span title="{{ m.right.path }}" i18n="@@configDiff.view.rightSummary">+ {{ base(m.right.path) }} ({{ m.right.format }}, {{ m.right.nodes }} nodes)</span>
+            @if (m.caseInsensitive) { <span i18n="@@configDiff.view.pathsIgnoreCase">paths ignore case</span> }
+            @if (m.truncated) { <span class="warn" i18n="@@configDiff.view.nodeLimit">a file is larger than the node limit; the rest is not compared</span> }
           </div>
         }
 
@@ -161,7 +166,7 @@ export function valueText(v: ValueDto | null): string {
           class="tree"
           [class.unified]="store.layout() === 'unified'"
           role="treegrid"
-          aria-label="Configuration diff"
+          aria-label="Configuration diff" i18n-aria-label="@@configDiff.view.tree"
           [attr.aria-rowcount]="store.total()"
           [attr.aria-activedescendant]="activeId()"
           [attr.aria-busy]="store.loading()"
@@ -200,7 +205,7 @@ export function valueText(v: ValueDto | null): string {
                       <span class="mark" aria-hidden="true">{{ mark[r.kind] }}</span>
                       <span class="name">{{ r.name }}</span>
                       @if (r.kind === 'changed') {
-                        <span class="val old">{{ text(r.old) }}</span><span class="arrow" aria-hidden="true">→</span><span class="sr">changed to</span><span class="val new">{{ text(r.new) }}</span>
+                        <span class="val old">{{ text(r.old) }}</span><span class="arrow" aria-hidden="true">→</span><span class="sr" i18n="@@configDiff.view.changedTo">changed to</span><span class="val new">{{ text(r.new) }}</span>
                       } @else {
                         <span class="val">{{ text(r.new ?? r.old) }}</span>
                       }
@@ -208,24 +213,24 @@ export function valueText(v: ValueDto | null): string {
                   }
                 </div>
               } @else {
-                <div class="r loading" role="row" [style.top.px]="s.top" [attr.aria-rowindex]="s.index + 1"><div class="c" role="gridcell">Loading…</div></div>
+                <div class="r loading" role="row" [style.top.px]="s.top" [attr.aria-rowindex]="s.index + 1"><div class="c" role="gridcell" i18n="@@configDiff.view.loading">Loading…</div></div>
               }
             }
           </div>
         </div>
         @if (!store.meta() && !store.error()) {
-          <p class="empty faint">{{ store.loading() ? 'Comparing…' : 'Choose two configuration files to compare.' }}</p>
+          <p class="empty faint">@if (store.loading()) {<ng-container i18n="@@configDiff.view.comparing">Comparing…</ng-container>} @else {<ng-container i18n="@@configDiff.view.chooseFiles">Choose two configuration files to compare.</ng-container>}</p>
         } @else if (store.meta() && store.total() === 0) {
-          <p class="empty faint">No differences to show with these filters.</p>
+          <p class="empty faint" i18n="@@configDiff.view.noDifferences">No differences to show with these filters.</p>
         }
         </div>
 
         @if (store.selectedRow(); as r) {
-          <div class="details" role="group" aria-label="Selected row">
-            <div class="d-path mono" [title]="r.path">{{ r.path || '(root)' }}</div>
-            <button type="button" class="btn" (click)="store.copy('path', r.path)">Copy path</button>
-            @if (r.old && r.old.kind !== 'section') { <button type="button" class="btn" (click)="store.copy('old value', r.old.text)">Copy old value</button> }
-            @if (r.new && r.new.kind !== 'section') { <button type="button" class="btn" (click)="store.copy('new value', r.new.text)">Copy new value</button> }
+          <div class="details" role="group" aria-label="Selected row" i18n-aria-label="@@configDiff.view.selectedRow">
+            <div class="d-path mono" [title]="r.path">{{ r.path || rootLabel }}</div>
+            <button type="button" class="btn" (click)="store.copy('path', r.path)" i18n="@@configDiff.view.copyPath">Copy path</button>
+            @if (r.old && r.old.kind !== 'section') { <button type="button" class="btn" (click)="store.copy('old value', r.old.text)" i18n="@@configDiff.view.copyOld">Copy old value</button> }
+            @if (r.new && r.new.kind !== 'section') { <button type="button" class="btn" (click)="store.copy('new value', r.new.text)" i18n="@@configDiff.view.copyNew">Copy new value</button> }
           </div>
         }
       }
@@ -233,7 +238,7 @@ export function valueText(v: ValueDto | null): string {
 
     <ng-template #toggleTpl let-r>
       @if (r.expandable) {
-        <button type="button" class="tog" tabindex="-1" [attr.aria-label]="(r.expanded ? 'Collapse ' : 'Expand ') + r.path" (click)="toggle($event, r.path)">{{ r.expanded ? '▾' : '▸' }}</button>
+        <button type="button" class="tog" tabindex="-1" [attr.aria-label]="toggleLabel(r.expanded, r.path)" (click)="toggle($event, r.path)">{{ r.expanded ? '▾' : '▸' }}</button>
       } @else {
         <span class="tog" aria-hidden="true"></span>
       }
@@ -298,12 +303,16 @@ export function valueText(v: ValueDto | null): string {
   `,
 })
 export class ConfigDiffView {
+  protected showDiffLabel(path: string): string {
+    return $localize`:@@configDiff.view.showDiffOf:Show diff of ${path}:path:`;
+  }
   protected readonly store = inject(ConfigDiffStore);
   protected readonly kinds = CHANGE_KINDS;
   protected readonly label = KIND_LABEL;
   protected readonly mark = MARK;
   protected readonly text = valueText;
   protected readonly base = baseName;
+  protected readonly rootLabel = $localize`:@@configDiff.view.root:(root)`;
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
   private readonly scrollTop = signal(0);
   private readonly viewportH = signal(400);
@@ -333,7 +342,9 @@ export class ConfigDiffView {
     effect(() => {
       const slots = this.slots();
       this.store.generation();
-      if (slots.length && slots.some((s) => !s.row)) void this.store.ensure(slots[0].index, slots[slots.length - 1].index + 1);
+      const first = slots[0];
+      const last = slots[slots.length - 1];
+      if (first && last && slots.some((s) => !s.row)) void this.store.ensure(first.index, last.index + 1);
     });
     effect((onCleanup) => {
       const host = this.scroller()?.nativeElement;
@@ -346,6 +357,12 @@ export class ConfigDiffView {
       onCleanup(() => ro.disconnect());
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.searchTimer));
+  }
+
+  protected toggleLabel(expanded: boolean, path: string): string {
+    return expanded
+      ? $localize`:@@configDiff.view.collapse:Collapse ${path}:path:`
+      : $localize`:@@configDiff.view.expand:Expand ${path}:path:`;
   }
 
   protected value(e: Event): string {
@@ -380,7 +397,7 @@ export class ConfigDiffView {
     if (!total) return;
     const cur = this.store.selected();
     const row = cur === null ? null : this.store.rowAt(cur);
-    let next: number | null = null;
+    let next: number;
     switch (e.key) {
       case 'ArrowDown':
         next = cur === null ? 0 : Math.min(total - 1, cur + 1);

@@ -18,6 +18,7 @@ import { DASHBOARD_VIEWS } from './dashboard.views';
 import { addTile, bottomOf, clampTile, moveTile, overlaps, placeTile, removeTile, resizeTile, resolveCollisions, sizeTile, uniqueId } from './dashboard-layout';
 import { cellText, DashboardTile, sparkPoints } from './dashboard-tile';
 import { DashboardView, tileKeyAction } from './dashboard-view';
+import { at } from '../../../testing/must';
 
 const charts = new FakeECharts();
 
@@ -55,14 +56,14 @@ describe('dashboard layout', () => {
     expect(moveTile(tiles, 'a', 1, 0, 12)[0]).toMatchObject({ x: 1, y: 0 });
     expect(moveTile(tiles, 'a', 1, 0, 12)[1]).toMatchObject({ x: 4, y: 3 });
     expect(moveTile(tiles, 'a', -5, -5, 12)[0]).toMatchObject({ x: 0, y: 0 });
-    expect(moveTile(tiles, 'a', 20, 0, 12)[0].x).toBe(8);
+    expect(moveTile(tiles, 'a', 20, 0, 12)[0]?.x).toBe(8);
     expect(moveTile(tiles, 'zz', 1, 1, 12)).toEqual(tiles);
     expect(placeTile(tiles, 'b', 0, 0, 12).find((t) => t.id === 'a')!.y).toBe(3);
     expect(resizeTile(tiles, 'b', 1, 1, 12)[1]).toMatchObject({ w: 5, h: 4 });
     expect(resizeTile(tiles, 'b', 20, -5, 12)[1]).toMatchObject({ w: 8, h: 1 });
-    expect(resizeTile(tiles, 'a', -9, 0, 12)[0].w).toBe(1);
+    expect(resizeTile(tiles, 'a', -9, 0, 12)[0]?.w).toBe(1);
     expect(sizeTile(tiles, 'b', 50, 2, 12)[1]).toMatchObject({ w: 8, h: 2 });
-    expect(sizeTile(tiles, 'b', 0, 2, 12)[1].w).toBe(1);
+    expect(sizeTile(tiles, 'b', 0, 2, 12)[1]?.w).toBe(1);
     expect(removeTile(tiles, 'a').map((t) => t.id)).toEqual(['b']);
     expect(addTile(tiles, tile('c', { x: 9, w: 20 }), 12)[2]).toMatchObject({ x: 0, y: 3, w: 12 });
   });
@@ -158,9 +159,9 @@ describe('DashboardStore', () => {
     expect(ds.editing()).toBe(true);
     ds.select('other');
     expect(ds.selectedId()).toBeNull();
-    const first = ds.current()!.tile[0].id;
+    const first = at(ds.current()!.tile, 0).id;
     ds.move(first, 1, 0);
-    expect(ds.current()!.tile[0].x).toBe(1);
+    expect(ds.current()!.tile[0]?.x).toBe(1);
     expect(ds.announcement()).toMatch(/column 2, row 1/);
     ds.resize(first, 1, 1);
     expect(ds.current()!.tile[0]).toMatchObject({ w: 4, h: 3 });
@@ -174,7 +175,7 @@ describe('DashboardStore', () => {
     expect(ds.announcement()).toMatch(/removed/);
     expect(await ds.save()).toBe(true);
     expect(ds.editing()).toBe(false);
-    const saved = store.summary()!.dashboards[0];
+    const saved = at(store.summary()!.dashboards, 0);
     expect(saved.title).toBe('Health');
     expect(saved.tile.some((t) => t.id === 'extra-tile')).toBe(true);
 
@@ -272,6 +273,9 @@ describe('DashboardTile', () => {
     const alerts = await render(tile('t'), [{ kind: 'alerts', items: [{ kind: 'errorSpike', instance: 'WEB01', from: 0, to: 1, score: 3, message: 'Errors up', sampleIds: [] }, { kind: 'silence', instance: null, from: 0, to: 1, score: 1, message: 'Quiet', sampleIds: [] }] } as TileData]);
     expect(text(alerts.fixture)).toContain('Errors up');
     expect(text(alerts.fixture)).toContain('WEB01');
+    const meta = el(alerts.fixture, '.meta');
+    expect(meta.children[0]?.textContent).toBe('errorSpike');
+    expect(getComputedStyle(meta).display).toBe('flex');
     TestBed.resetTestingModule();
     const noAlerts = await render(tile('t'), [{ kind: 'alerts', items: [] }]);
     expect(text(noAlerts.fixture)).toContain('No alerts');
@@ -306,7 +310,7 @@ describe('DashboardTile', () => {
     TestBed.inject(WorkspaceStore).setRange(1, 2);
     await settle(fixture);
     expect(share.requests.length).toBe(3);
-    expect(share.requests[2].query.from).toBe(1);
+    expect(share.requests[2]?.query.from).toBe(1);
     expect(el(fixture, '[data-testid=stat-value]')).toBeTruthy();
   });
 });
@@ -373,9 +377,9 @@ describe('DashboardView', () => {
     const { fixture } = await render();
     const tiles = all<HTMLElement>(fixture, '.tile');
     expect(tiles.length).toBe(8);
-    expect(tiles[0].style.gridColumn).toMatch(/1 \/ span 3/);
-    expect(tiles[0].getAttribute('data-size')).toBe('3x2');
-    expect(tiles[0].getAttribute('tabindex')).toBeNull();
+    expect(tiles[0]?.style.gridColumn).toMatch(/1 \/ span 3/);
+    expect(tiles[0]?.getAttribute('data-size')).toBe('3x2');
+    expect(tiles[0]?.getAttribute('tabindex')).toBeNull();
     expect(text(fixture)).toContain('Errors');
   });
 
@@ -434,12 +438,12 @@ describe('DashboardView', () => {
     await settle(fixture);
     buttonByText(fixture, /Add tile/).click();
     await settle(fixture);
-    dialogs.stack()[0].ref.close({ ...tile('new one'), type: 'annotations' });
+    at(dialogs.stack(), 0).ref.close({ ...tile('new one'), type: 'annotations' });
     await settle(fixture);
     expect(ds.current()!.tile.some((t) => t.id === 'new-one')).toBe(true);
     buttonByText(fixture, /Add tile/).click();
     await settle(fixture);
-    dialogs.stack()[0].ref.close();
+    at(dialogs.stack(), 0).ref.close();
     buttonByText(fixture, 'Save').click();
     await settle(fixture);
     expect(ds.editing()).toBe(false);
@@ -490,8 +494,8 @@ describe('dashboard commands and view', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   it('registers the view and runs its commands', async () => {
-    expect(DASHBOARD_VIEWS[0].id).toBe('dashboards');
-    expect(await DASHBOARD_VIEWS[0].component()).toBe(DashboardView);
+    expect(DASHBOARD_VIEWS[0]?.id).toBe('dashboards');
+    expect(await DASHBOARD_VIEWS[0]?.component()).toBe(DashboardView);
     const { ds } = await setup();
     const shown: string[] = [];
     const ctx = { showView: (id: string) => shown.push(id) } as unknown as CommandContext;
@@ -505,12 +509,12 @@ describe('dashboard commands and view', () => {
     expect(cmd('dashboards.addTile').when!(ctx)).toBe(true);
     const done = cmd('dashboards.addTile').run(ctx);
     await settle();
-    TestBed.inject(DialogService).stack()[0].ref.close(tile('cmd'));
+    at(TestBed.inject(DialogService).stack(), 0).ref.close(tile('cmd'));
     await done;
     expect(ds.current()!.tile.some((t) => t.id === 'cmd')).toBe(true);
     const nothing = cmd('dashboards.addTile').run(ctx);
     await settle();
-    TestBed.inject(DialogService).stack()[0].ref.close();
+    at(TestBed.inject(DialogService).stack(), 0).ref.close();
     await nothing;
     await cmd('dashboards.edit').run(ctx);
     expect(ds.editing()).toBe(false);

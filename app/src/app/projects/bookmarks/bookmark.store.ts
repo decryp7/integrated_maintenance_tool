@@ -11,6 +11,8 @@ interface BookmarkState {
   items: Bookmark[];
 }
 
+const NEW_BOOKMARK = () => $localize`:Undo history entry|@@projects.bookmarks.undoNew:new bookmark`;
+
 /** Keeps only well-formed bookmarks of untrusted saved state. */
 export function parseBookmarks(value: unknown): Bookmark[] {
   if (!Array.isArray(value)) return [];
@@ -38,19 +40,19 @@ export const BookmarkStore = signalStore(
         if (!r) return false;
         const label = r.message.length > 80 ? `${r.message.slice(0, 80)}…` : r.message;
         const item: Bookmark = { id: newId('bm'), kind: 'record', recordId: r.id, ts: r.ts, level: r.level, label, note, createdAt: Date.now() };
-        edit('new bookmark', () => patchState(store, (s) => ({ items: [...s.items, item] })));
+        edit(NEW_BOOKMARK(), () => patchState(store, (s) => ({ items: [...s.items, item] })));
         return true;
       },
       /** Bookmarks the time range of the current query. Returns false when no range is set. */
       addRange(note = ''): boolean {
         const { from, to } = workspace.query();
         if (from == null || to == null) return false;
-        const item: Bookmark = { id: newId('bm'), kind: 'range', from, to, label: 'Time range', note, createdAt: Date.now() };
-        edit('new bookmark', () => patchState(store, (s) => ({ items: [...s.items, item] })));
+        const item: Bookmark = { id: newId('bm'), kind: 'range', from, to, label: $localize`:Default label of a range bookmark|@@projects.bookmarks.rangeLabel:Time range`, note, createdAt: Date.now() };
+        edit(NEW_BOOKMARK(), () => patchState(store, (s) => ({ items: [...s.items, item] })));
         return true;
       },
-      setNote: (id: string, note: string) => edit('bookmark note edit', () => patchState(store, (s) => ({ items: s.items.map((b) => (b.id === id ? { ...b, note } : b)) })), `bookmark-note:${id}`),
-      remove: (id: string) => edit('bookmark removal', () => patchState(store, (s) => ({ items: s.items.filter((b) => b.id !== id) }))),
+      setNote: (id: string, note: string) => edit($localize`:Undo history entry|@@projects.bookmarks.undoNote:bookmark note edit`, () => patchState(store, (s) => ({ items: s.items.map((b) => (b.id === id ? { ...b, note } : b)) })), `bookmark-note:${id}`),
+      remove: (id: string) => edit($localize`:Undo history entry|@@projects.bookmarks.undoRemove:bookmark removal`, () => patchState(store, (s) => ({ items: s.items.filter((b) => b.id !== id) }))),
       replace: (items: Bookmark[]) => patchState(store, { items }),
       /**
        * Follows records the engine renumbered (e.g. after a clock offset moved a source in time):

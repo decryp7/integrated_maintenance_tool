@@ -32,7 +32,7 @@ describe('TauriSettingsBackend', () => {
     const backend = TestBed.inject(SettingsBackend);
     expect((await backend.sections()).sections.length).toBeGreaterThan(3);
     await expect(backend.set('nope', {})).rejects.toContain('no settings section');
-    expect((TestBed.inject(Logger) as MemoryLogger).entries[0].props?.['Command']).toBe('set');
+    expect((TestBed.inject(Logger) as MemoryLogger).entries[0]?.props?.['Command']).toBe('set');
   });
 });
 

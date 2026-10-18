@@ -59,19 +59,19 @@ export class RecordActions {
     if (filterField) {
       const { name, value } = filterField;
       items.push(
-        { label: `Filter: only this ${name}`, run: () => this.store.addFilter({ field: name, op: 'eq', value }) },
-        { label: `Exclude this ${name}`, run: () => this.store.addFilter({ field: name, op: 'ne', value }) },
+        { label: $localize`:@@context.recordActions.filterOnly:Filter: only this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'eq', value }) },
+        { label: $localize`:@@context.recordActions.exclude:Exclude this ${name}:name:`, run: () => this.store.addFilter({ field: name, op: 'ne', value }) },
       );
     }
     items.push(
-      { label: 'Drop events like this (pipeline)…', run: () => this.drop(record, target.field) },
-      { label: 'Mark events like this…', run: () => this.mark(record, target.field) },
-      { label: 'Highlight lines…', run: () => this.highlight(record, target.selection?.text) },
-      { label: 'Infer pattern from lines…', run: () => this.infer(target.records?.length ? target.records : [record]) },
+      { label: $localize`:@@context.recordActions.menu.drop:Drop events like this (pipeline)…`, run: () => this.drop(record, target.field) },
+      { label: $localize`:@@context.recordActions.menu.mark:Mark events like this…`, run: () => this.mark(record, target.field) },
+      { label: $localize`:@@context.recordActions.menu.highlight:Highlight lines…`, run: () => this.highlight(record, target.selection?.text) },
+      { label: $localize`:@@context.recordActions.menu.infer:Infer pattern from lines…`, run: () => this.infer(target.records?.length ? target.records : [record]) },
     );
     const sel = target.selection;
     if (sel?.text.trim()) {
-      items.push({ label: 'Mask in message…', run: () => this.mask(record, sel) }, { label: 'Extract value…', run: () => this.extract(record, sel) });
+      items.push({ label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => this.mask(record, sel) }, { label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => this.extract(record, sel) });
     }
     for (const contribute of this.contributions) items.push(...contribute(record, target));
     return items;
@@ -95,34 +95,34 @@ export class RecordActions {
 
   drop(record: RecordView, field?: FieldRef): void {
     const initial = field ? fieldValueConditions(field.name, field.value) : likeThisConditions(record);
-    this.dialogs.open(DropDialog, { title: 'Drop events like this', inputs: { initial }, width: 640 });
+    this.dialogs.open(DropDialog, { title: $localize`:@@context.recordActions.drop.title:Drop events like this`, inputs: { initial }, width: 640 });
   }
 
   mark(record: RecordView, field?: FieldRef): void {
     const initial = field ? fieldValueConditions(field.name, field.value) : likeThisConditions(record);
     const basis = field ? `${field.name} ${field.value}` : (record.template ?? record.message);
     const suggestedLabel = basis.length > LABEL_MAX ? `${basis.slice(0, LABEL_MAX).trim()}…` : basis;
-    this.dialogs.open(MarkDialog, { title: 'Mark events like this', inputs: { initial, suggestedLabel }, width: 760 });
+    this.dialogs.open(MarkDialog, { title: $localize`:@@context.recordActions.mark.title:Mark events like this`, inputs: { initial, suggestedLabel }, width: 760 });
   }
 
   /** "Highlight lines…": a marker rule prefilled from the selected text (as a regex), the template or the message. */
   highlight(record: RecordView, selectedText?: string | null): void {
     const p = proposeHighlight(record, selectedText);
     const hint = {
-      selection: 'The selected text became a regex (numbers and ids generalised). Edit it below; the preview shows what it highlights.',
-      template: 'Highlights every event with this message template.',
-      message: 'Highlights events whose message looks like this one (numbers generalised).',
+      selection: $localize`:@@context.recordActions.highlight.hintSelection:The selected text became a regex (numbers and ids generalised). Edit it below; the preview shows what it highlights.`,
+      template: $localize`:@@context.recordActions.highlight.hintTemplate:Highlights every event with this message template.`,
+      message: $localize`:@@context.recordActions.highlight.hintMessage:Highlights events whose message looks like this one (numbers generalised).`,
     }[p.basis];
     this.dialogs.open(MarkDialog, {
-      title: 'Highlight lines',
-      inputs: { initial: p.conditions, suggestedLabel: p.label, submitLabel: 'Add highlight', hint },
+      title: $localize`:@@context.recordActions.highlight.title:Highlight lines`,
+      inputs: { initial: p.conditions, suggestedLabel: p.label, submitLabel: $localize`:@@context.recordActions.highlight.submit:Add highlight`, hint },
       width: 760,
     });
   }
 
   /** "Infer pattern from lines…": derives one regex from the messages of these records. */
   infer(records: readonly RecordView[]): void {
-    this.dialogs.open(InferDialog, { title: 'Infer pattern from lines', inputs: { lines: records.map((r) => r.message) }, width: 780 });
+    this.dialogs.open(InferDialog, { title: $localize`:@@context.recordActions.infer.title:Infer pattern from lines`, inputs: { lines: records.map((r) => r.message) }, width: 780 });
   }
 
   /**
@@ -137,11 +137,11 @@ export class RecordActions {
   }
 
   mask(record: RecordView, selection: MessageSelection): void {
-    this.dialogs.open(MaskDialog, { title: 'Mask in message', inputs: { record, selected: selection.text }, width: 640 });
+    this.dialogs.open(MaskDialog, { title: $localize`:@@context.recordActions.mask.title:Mask in message`, inputs: { record, selected: selection.text }, width: 640 });
   }
 
   extract(record: RecordView, selection: MessageSelection): void {
-    this.dialogs.open(ExtractDialog, { title: 'Extract value', inputs: { record, start: selection.start, end: selection.end }, width: 680 });
+    this.dialogs.open(ExtractDialog, { title: $localize`:@@context.recordActions.extract.title:Extract value`, inputs: { record, start: selection.start, end: selection.end }, width: 680 });
   }
 
   /** "Filter only this logger" is the most useful row-level filter when the record has a SourceContext. */

@@ -46,7 +46,7 @@ describe('WindowingService', () => {
     await service.closeWindow();
     await service.closeWindow();
     expect(dialogs.stack().map((d) => d.component)).toEqual([ClosePrompt]);
-    expect(dialogs.stack()[0].options.title).toBe('Close IMT?');
+    expect(dialogs.stack()[0]?.options.title).toBe('Close IMT?');
     dialogs.dismissTop();
     await settle();
     await backend.closeWindow();
@@ -57,9 +57,9 @@ describe('WindowingService', () => {
     const { service, backend, dialogs } = setup();
     await service.init();
     backend.emitOpenAsk({ count: 2, names: ['a.log', 'b.log'] });
-    expect(dialogs.stack()[0].component).toBe(OpenAskDialog);
-    expect(dialogs.stack()[0].options.title).toBe('Open 2 files');
-    expect(dialogs.stack()[0].options.inputs).toEqual({ ask: { count: 2, names: ['a.log', 'b.log'] } });
+    expect(dialogs.stack()[0]?.component).toBe(OpenAskDialog);
+    expect(dialogs.stack()[0]?.options.title).toBe('Open 2 files');
+    expect(dialogs.stack()[0]?.options.inputs).toEqual({ ask: { count: 2, names: ['a.log', 'b.log'] } });
   });
 
   it('runs the capture command and turns live tail off when the tray says so', async () => {

@@ -164,8 +164,16 @@ test('settings: switches keep their labels beside them, readable and clear of ba
   const dialog = settingsDialog(page);
   const sections = sectionNav(page).getByRole('button');
   let checked = 0;
+  // Wait for the section list (the plugin sections load after the dialog opens).
+  await expect(sections.nth(1)).toBeVisible();
   for (let i = 0; i < (await sections.count()); i++) {
-    await sections.nth(i).click();
+    const button = sections.nth(i);
+    await button.click();
+    // Measure only once the clicked section has rendered (its heading shows), not the previous one.
+    await expect(button).toHaveAttribute('aria-current', 'page');
+    const name = button.locator('.name');
+    const title = ((await name.count()) ? await name.innerText() : await button.innerText()).trim();
+    await expect(dialog.locator('section.content h3').first()).toHaveText(title);
     const problems = await dialog.evaluate((root) => {
       const out: string[] = [];
       for (const field of root.querySelectorAll('imt-setting-field')) {

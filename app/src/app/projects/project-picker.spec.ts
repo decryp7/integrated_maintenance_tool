@@ -26,9 +26,9 @@ describe('ProjectPicker', () => {
     expect(await picker.pickOpen()).toBe('/p/a.imtproj');
     expect(await picker.pickOpen()).toBeNull();
     expect(await picker.pickOpen()).toBeNull();
-    expect(dialog.open.mock.calls[0][0]).toMatchObject({ multiple: false, filters: [{ extensions: ['imtproj'] }] });
+    expect(dialog.open.mock.calls[0]?.[0]).toMatchObject({ multiple: false, filters: [{ extensions: ['imtproj'] }] });
     dialog.save.mockResolvedValue('/p/b.imtproj');
     expect(await picker.pickSave('b.imtproj')).toBe('/p/b.imtproj');
-    expect(dialog.save.mock.calls[0][0]).toMatchObject({ defaultPath: 'b.imtproj' });
+    expect(dialog.save.mock.calls[0]?.[0]).toMatchObject({ defaultPath: 'b.imtproj' });
   });
 });

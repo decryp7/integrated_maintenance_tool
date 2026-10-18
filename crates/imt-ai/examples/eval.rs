@@ -794,7 +794,7 @@ fn main() {
     let cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
         exe: worker,
         args: vec![],
-        env: vec![],
+        env: imt_ai::worker::fixed_env(vec![]),
     }));
     let rt = WorkerRuntime::new(cfg, Box::new(|| SystemProbe::new(Sys).probe()));
     let t0 = Instant::now();

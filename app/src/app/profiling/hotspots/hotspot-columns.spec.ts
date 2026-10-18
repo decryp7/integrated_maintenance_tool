@@ -21,8 +21,8 @@ describe('hotspotColumns', () => {
     const cols = hotspotColumns(summary([metric('samples', 'sampled')]), 'samples', 'Function');
     expect(ids(cols)).toEqual(['name', 'selfPct', 'totalPct', 'total-samples']);
     expect(cols[0]).toMatchObject({ label: 'Function', sort: { metric: null }, measurement: null, numeric: false });
-    expect(cols[0].help).toBe('Sort by function name');
-    expect(cols[0].value(row())).toBe('Foo.Bar');
+    expect(cols[0]?.help).toBe('Sort by function name');
+    expect(cols[0]?.value(row())).toBe('Foo.Bar');
   });
 
   it('offers every column for a full instrumented profile', () => {

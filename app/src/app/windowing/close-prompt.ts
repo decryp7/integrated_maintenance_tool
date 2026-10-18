@@ -14,7 +14,7 @@ export class ClosePromptService {
   /** Opens the prompt (once: a second request while it is open is ignored). Dismissing keeps the window open. */
   open(): DialogRef<CloseChoice> {
     if (this.ref) return this.ref;
-    const ref = this.dialogs.open<CloseChoice>(ClosePrompt, { title: 'Close IMT?', width: 460 });
+    const ref = this.dialogs.open<CloseChoice>(ClosePrompt, { title: $localize`:@@windowing.closePrompt.title:Close IMT?`, width: 460 });
     this.ref = ref;
     void ref.closed.then(() => (this.ref = null));
     return ref;
@@ -25,12 +25,12 @@ export class ClosePromptService {
   selector: 'imt-close-prompt',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p>This is the last open window. Do you want to quit IMT, or keep it running in the system tray?</p>
-    <p class="faint">Background work such as live tail and the process monitor keeps running in the tray, and you can reopen a window from there.</p>
-    <label class="remember"><input type="checkbox" [checked]="remember()" (change)="remember.set($any($event.target).checked)" /> Remember my choice</label>
+    <p i18n="@@windowing.closePrompt.question">This is the last open window. Do you want to quit IMT, or keep it running in the system tray?</p>
+    <p class="faint" i18n="@@windowing.closePrompt.hint">Background work such as live tail and the process monitor keeps running in the tray, and you can reopen a window from there.</p>
+    <label class="remember" i18n="@@windowing.closePrompt.remember"><input type="checkbox" [checked]="remember()" (change)="remember.set($any($event.target).checked)" /> Remember my choice</label>
     <div class="foot">
-      <button type="button" class="btn" [disabled]="busy()" (click)="choose('quit')">Quit</button>
-      <button type="button" class="btn primary" [disabled]="busy()" (click)="choose('tray')">Keep running in tray</button>
+      <button type="button" class="btn" [disabled]="busy()" (click)="choose('quit')" i18n="@@windowing.closePrompt.quit">Quit</button>
+      <button type="button" class="btn primary" [disabled]="busy()" (click)="choose('tray')" i18n="@@windowing.closePrompt.tray">Keep running in tray</button>
     </div>
   `,
   styles: `
@@ -53,7 +53,7 @@ export class ClosePrompt {
       await this.backend.resolveClose(choice, this.remember());
       this.ref.close(choice);
     } catch (e) {
-      this.store.setError(`Could not close the window: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@windowing.closePrompt.failed:Could not close the window: ${errorMessage(e)}:error:`);
     } finally {
       this.busy.set(false);
     }

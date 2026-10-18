@@ -26,6 +26,12 @@
  *   open_project      { path }                    -> ProjectOpened
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]
+ * Event Log follower (`tool_invoke { tool: 'event-log-follower', op, args }`, imt-plugin-tools `eventlog_tool`):
+ *   channels {}                                   -> EventLogChannel[]
+ *   validate EventLogQuery                        -> EventLogValidation
+ *   start    EventLogStartArgs                    -> EventLogStarted
+ *   stop     {}                                   -> string | null (folder)
+ *   pause / resume / status {}                    -> EventLogStatus
  * Events: "imt://open" (take_pending_open has paths), "imt://workspace-changed" (live tail refreshed).
  */
 import { Level, Report, WorkspaceSummary } from './api.types';
@@ -96,11 +102,136 @@ export interface MonitorConfig {
   cpu: CpuMode;
   counters: string[];
   includeChildren: boolean;
+  /** Also sample .NET runtime counters (GC, heap, exceptions, contention) of .NET Framework processes; default off. */
+  dotnet?: boolean;
 }
 
 export interface MonitorStatus {
   running: boolean;
   dir: string | null;
+}
+
+// ---- Event Log follower -------------------------------------------------------------------
+
+/** An Event Log level as users pick it (`EventLevel` in imt-plugin-windows). */
+export type EventLogLevel = 'critical' | 'error' | 'warning' | 'information' | 'verbose';
+export const EVENT_LOG_LEVELS: readonly EventLogLevel[] = ['critical', 'error', 'warning', 'information', 'verbose'];
+
+/** How far back to read before following live events. */
+export type EventLogBackfill = 'none' | '1h' | '24h' | '7d';
+export const EVENT_LOG_BACKFILLS: readonly EventLogBackfill[] = ['none', '1h', '24h', '7d'];
+
+/** A channel the follower offers (`channels`). */
+export interface EventLogChannel {
+  name: string;
+  /** Reading it needs administrator rights (Security). */
+  needsAdmin: boolean;
+}
+
+/** What to follow (`validate`, and the base of `start`). Missing levels mean all levels. */
+export interface EventLogQuery {
+  channels: string[];
+  levels?: EventLogLevel[];
+  /** A user XPath filter, combined with the levels and the backfill window. */
+  xpath?: string;
+  backfill?: EventLogBackfill;
+}
+
+export interface EventLogChannelCheck {
+  name: string;
+  ok: boolean;
+  error: string | null;
+}
+
+/** Result of `validate`: the composed queries and whether each channel accepts them. */
+export interface EventLogValidation {
+  /** The live query. */
+  xpath: string;
+  /** The query for the backfill window; null without backfill. */
+  backfillXpath: string | null;
+  channels: EventLogChannelCheck[];
+}
+
+export interface EventLogStartArgs extends EventLogQuery {
+  /** Continue after the saved positions (default true). */
+  resumeFromBookmark?: boolean;
+  /** Output folder; defaults to IMT's data folder. */
+  dir?: string;
+  /** Size of one rolling file, 1-100 MB (10). */
+  maxFileMb?: number;
+  /** Rolling files kept, 1-50 (10). */
+  maxFiles?: number;
+}
+
+export interface EventLogStarted {
+  dir: string;
+  /** The live query. */
+  xpath: string;
+  /** Channels that continue from their saved position. */
+  resumed: string[];
+}
+
+export type EventLogChannelState = 'starting' | 'backfill' | 'live' | 'retrying' | 'stopped';
+
+export interface EventLogChannelStatus {
+  channel: string;
+  state: EventLogChannelState;
+  /** Events written from this channel in this run. */
+  events: number;
+  /** The last written record (the bookmark). */
+  lastRecordId: number | null;
+  /** The current failure, while retrying. */
+  error: string | null;
+}
+
+export interface EventLogLastEvent {
+  /** Epoch ms; null when the event had no time. */
+  ts: number | null;
+  channel: string;
+  provider: string;
+  eventId: number | string | null;
+  level: Level;
+}
+
+export interface EventLogErrorEntry {
+  /** Epoch ms. */
+  at: number;
+  channel: string | null;
+  message: string;
+}
+
+/** `status` while nothing runs. */
+export interface EventLogIdle {
+  running: false;
+  dir: null;
+}
+
+/** `status` (and `pause` / `resume`) of a run. */
+export interface EventLogRun {
+  running: boolean;
+  paused: boolean;
+  dir: string;
+  /** Events written in this run. */
+  events: number;
+  /** Over the last ten seconds. */
+  eventsPerSecond: number;
+  lastEvent: EventLogLastEvent | null;
+  channels: EventLogChannelStatus[];
+  /** Most recent first, at most 20. */
+  errors: EventLogErrorEntry[];
+  /** Events that could not be read and were skipped. */
+  unreadable: number;
+  queued: number;
+  queueCapacity: number;
+  /** The live query. */
+  xpath: string;
+}
+
+export type EventLogStatus = EventLogIdle | EventLogRun;
+
+/** True when the status describes a run rather than the idle answer. */
+export function isEventLogRun(s: EventLogStatus | null | undefined): s is EventLogRun {
+  return !!s && 'channels' in s;
 }
 
 // ---- Diagnostics collector -----------------------------------------------------------------
@@ -201,6 +332,7 @@ export const TOOL_IDS = {
   perfmonTemplates: 'perfmon.templates',
   perfmonSets: 'perfmon.sets',
   processMonitor: 'process-monitor',
+  eventLog: 'event-log-follower',
   diagnostics: 'diagnostics',
   elevation: 'elevation',
 } as const;

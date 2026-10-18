@@ -22,14 +22,14 @@ describe('welcome, settings and export commands', () => {
     const registry = setup();
     await settle();
     await registry.run('settings.open');
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Settings');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Settings');
   });
 
   it('opens the settings dialog at the Diagnostics section', async () => {
     const registry = setup();
     await settle();
     await registry.run('settings.diagnostics');
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Settings');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Settings');
     expect(TestBed.inject(EngineSettingsStore).selected()).toBe('diagnostics');
   });
 
@@ -38,7 +38,7 @@ describe('welcome, settings and export commands', () => {
     expect(await registry.run('file.export')).toBe(false);
     await settle();
     const done = registry.run('file.export');
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Export events');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Export events');
     TestBed.inject(DialogService).dismissTop();
     expect(await done).toBe(true);
   });

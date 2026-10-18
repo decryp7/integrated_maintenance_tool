@@ -51,7 +51,7 @@ export type TriggerKind = TriggerFile['kind'];
 
 export type ActionFile =
   | { kind: 'collect'; planFile?: string; plan?: Record<string, unknown> }
-  | { kind: 'monitor'; targets: string[]; duration: string; intervalMs?: number; includeChildren?: boolean }
+  | { kind: 'monitor'; targets: string[]; duration: string; intervalMs?: number; includeChildren?: boolean; dotnet?: boolean }
   | { kind: 'copyLogs'; from: string; include?: string[]; maxAgeDays?: number; maxTotalMb?: number }
   | { kind: 'perfmon'; collector: string; duration: string };
 export type ActionKind = ActionFile['kind'];

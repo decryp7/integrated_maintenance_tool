@@ -88,7 +88,7 @@ export class SchemaField {
   protected readonly describedBy = computed(() => [this.field().help ? `${this.id}-help` : '', this.problem() ? `${this.id}-err` : ''].filter(Boolean).join(' ') || null);
   protected readonly placeholder = computed(() => {
     const f = this.field();
-    if (f.kind === 'duration') return 'e.g. 15m';
+    if (f.kind === 'duration') return $localize`:@@schedules.field.durationExample:e.g. 15m`;
     if (f.kind === 'cron') return '0 2 * * *';
     if (f.kind === 'query') return 'level >= Error';
     return null;

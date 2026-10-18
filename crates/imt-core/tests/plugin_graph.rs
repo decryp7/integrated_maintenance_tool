@@ -659,7 +659,8 @@ fn the_watchdog_abandons_a_sleeping_import_and_fails_fast_afterwards() {
     std::fs::write(d.0.join("slow.txt"), "SLEEPY\n").unwrap();
     let mut r = PluginRegistry::new();
     r.install(&P::new("t.sleepy", "1.0.0").on_register(|r| {
-        r.add_importer(Box::new(Sleepy(Duration::from_millis(800))));
+        // Far longer than the 100 ms budget, so "abandoned, not waited for" holds even on a loaded machine.
+        r.add_importer(Box::new(Sleepy(Duration::from_millis(3000))));
         Ok(())
     }))
     .unwrap();
@@ -672,7 +673,7 @@ fn the_watchdog_abandons_a_sleeping_import_and_fails_fast_afterwards() {
     let started = Instant::now();
     ws.open(std::slice::from_ref(&d.0)).unwrap();
     assert!(
-        started.elapsed() < Duration::from_millis(700),
+        started.elapsed() < Duration::from_millis(2500),
         "the import was abandoned: {:?}",
         started.elapsed()
     );

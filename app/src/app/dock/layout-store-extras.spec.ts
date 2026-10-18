@@ -1,4 +1,5 @@
 import { EMPTY_EXTRAS, ENVELOPE_VERSION, migrateLayout, sanitizeExtras, toEnvelope } from './layout-store';
+import { at } from '../../testing/must';
 
 const layout = { grid: { root: { type: 'leaf', data: { views: [], id: '1' } }, height: 1, width: 1, orientation: 'HORIZONTAL' }, panels: {} } as never;
 
@@ -20,12 +21,12 @@ describe('sanitizeExtras', () => {
   it('drops malformed and duplicate popped-out panels', () => {
     const e = sanitizeExtras({ poppedOut: [null, 'x', { id: '' }, { id: 4 }, { id: 'p' }, { id: 'p', monitor: 'M' }, { id: 'q' }] });
     expect(e.poppedOut.map((p) => p.id)).toEqual(['p', 'q']);
-    expect(e.poppedOut[0].monitor).toBeNull();
+    expect(at(e.poppedOut, 0).monitor).toBeNull();
     expect(sanitizeExtras({ poppedOut: 'p' }).poppedOut).toEqual([]);
   });
 
   it('keeps finite bounds and turns invalid ones into null', () => {
-    const bounds = (b: unknown) => sanitizeExtras({ poppedOut: [{ id: 'p', bounds: b }] }).poppedOut[0].bounds;
+    const bounds = (b: unknown) => at(sanitizeExtras({ poppedOut: [{ id: 'p', bounds: b }] }).poppedOut, 0).bounds;
     expect(bounds({ x: 1, y: -2, width: 300, height: 200, extra: 9 })).toEqual({ x: 1, y: -2, width: 300, height: 200 });
     expect(bounds({ x: NaN, y: 0, width: 1, height: 1 })).toBeNull();
     expect(bounds({ x: 0, y: 0, width: Infinity, height: 1 })).toBeNull();
@@ -36,7 +37,7 @@ describe('sanitizeExtras', () => {
   });
 
   it('sanitizes the slot of a popped-out panel', () => {
-    const slot = (s: unknown) => sanitizeExtras({ poppedOut: [{ id: 'p', slot: s, monitor: 'DP-1' }] }).poppedOut[0];
+    const slot = (s: unknown) => at(sanitizeExtras({ poppedOut: [{ id: 'p', slot: s, monitor: 'DP-1' }] }).poppedOut, 0);
     expect(slot({ referencePanel: 'r', direction: 'above', index: 2, size: 120 })).toMatchObject({
       monitor: 'DP-1',
       slot: { referencePanel: 'r', direction: 'above', index: 2, size: 120 },

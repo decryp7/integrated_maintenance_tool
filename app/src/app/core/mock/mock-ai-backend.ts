@@ -7,6 +7,7 @@
 import { AiBackend, AiError, Unlisten } from '../../ai/ai-backend';
 import {
   AiErrorCode,
+  AiRuntimeEvent,
   AiStatus,
   ApprovalDecision,
   ChatContext,
@@ -31,6 +32,7 @@ import {
   demoRecordIds,
   installedFrom,
   MOCK_CATALOG,
+  catalogModel,
   MOCK_HARDWARE,
   mockExtractorsProposal,
   mockMarkersProposal,
@@ -40,9 +42,20 @@ import {
   mockRegexProposal,
 } from './mock-ai-data';
 import { FILE_EXISTS_SUFFIX } from '../api.types';
+import { MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 
 /** Operations `mockAiFail` may name: their calls reject with an engine error. */
-export const AI_FAILABLE = ['setup', 'chat', 'nlToQuery', 'explain', 'summarize', 'rootCauses', 'propose', 'models'] as const;
+export const AI_FAILABLE = [
+  'setup',
+  'chat',
+  'nlToQuery',
+  'explain',
+  'summarize',
+  'rootCauses',
+  'propose',
+  'models',
+  'runtime',
+] as const;
 export type AiFailable = (typeof AI_FAILABLE)[number];
 
 export interface MockAiOptions {
@@ -53,13 +66,16 @@ export interface MockAiOptions {
   /** Delay between streamed pieces, ms (0 in unit tests). */
   stepMs?: number;
   fail?: AiFailable[];
+  /** The inference runtimes on disk (default `installed`: Vulkan works, CUDA is suggested). */
+  runtime?: MockRuntimeMode;
 }
 
 /**
  * Browser-demo switches (never used inside Tauri):
  *   ?mockAi=setup|off        start without a model, or with AI unavailable (hidden)
  *   ?mockAiWeb=1             web search is on (approvals in chat)
- *   ?mockAiFail=chat,setup   these operations fail
+ *   ?mockAiFail=chat,setup   these operations fail (`runtime`: runtime downloads)
+ *   ?mockAiRuntime=none|broken  no inference runtime installed, or one that finds no GPU
  *   ?mockAiStepMs=5          streaming speed
  */
 export function mockAiOptionsFromSearch(search: string): MockAiOptions {
@@ -70,8 +86,12 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   if (p.get('mockAiWeb') === '1') o.web = true;
   const step = p.get('mockAiStepMs');
   if (step !== null && /^\d{1,4}$/.test(step)) o.stepMs = Number(step);
-  const fail = (p.get('mockAiFail') ?? '').split(',').filter((f): f is AiFailable => (AI_FAILABLE as readonly string[]).includes(f));
+  const fail = (p.get('mockAiFail') ?? '')
+    .split(',')
+    .filter((f): f is AiFailable => (AI_FAILABLE as readonly string[]).includes(f));
   if (fail.length) o.fail = fail;
+  const runtime = p.get('mockAiRuntime');
+  if (runtime === 'none' || runtime === 'broken' || runtime === 'installed') o.runtime = runtime;
   return o;
 }
 
@@ -93,6 +113,7 @@ export class MockAiBackend extends AiBackend {
   private installed: InstalledModel[];
   private activeFile: string | null;
   private backend: string | null;
+  private readonly rt: MockRuntimes;
   private setupCancelled = false;
   private setupRunning = false;
   private braveKey = false;
@@ -113,19 +134,30 @@ export class MockAiBackend extends AiBackend {
     this.web = options.web ? 'brave' : 'none';
     this.braveKey = !!options.web;
     const ready = this.mode === 'ready';
-    this.installed = ready ? [installedFrom(MOCK_CATALOG[1], true)] : [];
-    this.activeFile = ready ? MOCK_CATALOG[1].file : null;
-    this.backend = ready ? 'Vulkan' : null;
+    this.installed = ready ? [installedFrom(catalogModel(1), true)] : [];
+    this.activeFile = ready ? catalogModel(1).file : null;
+    this.rt = new MockRuntimes(
+      options.runtime ?? 'installed',
+      this.stepMs,
+      this.fails.has('runtime'),
+    );
+    this.backend = ready ? (this.rt.backendName() ?? 'Vulkan') : null;
   }
 
   private check(op?: AiFailable): void {
-    if (this.mode === 'off') throw new AiError('unavailable', 'The AI engine is not installed in this build of IMT.');
-    if (op && this.fails.has(op)) throw new AiError('engine', `The model engine failed: simulated ${op} failure.`);
+    if (this.mode === 'off')
+      throw new AiError('unavailable', 'The AI engine is not installed in this build of IMT.');
+    if (op && this.fails.has(op))
+      throw new AiError('engine', `The model engine failed: simulated ${op} failure.`);
   }
 
   private needModel(op: AiFailable): void {
     this.check(op);
-    if (!this.activeFile) throw new AiError('noModel', 'No AI model is set up yet: choose "Set up AI assistant" first.');
+    if (!this.activeFile)
+      throw new AiError(
+        'noModel',
+        'No AI model is set up yet: choose "Set up AI assistant" first.',
+      );
   }
 
   private async later<T>(f: () => T, ms = this.stepMs * 4): Promise<T> {
@@ -135,7 +167,18 @@ export class MockAiBackend extends AiBackend {
 
   private currentStatus(): AiStatus {
     if (this.mode === 'off') {
-      return { available: false, state: 'unavailable', reason: 'The AI engine is not installed in this build of IMT.', model: null, backend: null, rssBytes: 0, notes: [], safeMode: false, setupRunning: false, webSearch: this.web };
+      return {
+        available: false,
+        state: 'unavailable',
+        reason: 'The AI engine is not installed in this build of IMT.',
+        model: null,
+        backend: null,
+        rssBytes: 0,
+        notes: [],
+        safeMode: false,
+        setupRunning: false,
+        webSearch: this.web,
+      };
     }
     return {
       available: true,
@@ -187,8 +230,10 @@ export class MockAiBackend extends AiBackend {
     return this.later(() => {
       this.check();
       const recs = mockRecommendations(this.installed.map((m) => m.fileName));
-      const chosen = (modelId ? recs.ranked.find((r) => r.model.id === modelId) : recs.best) ?? null;
-      if (modelId && !chosen) throw new AiError('notFound', `'${modelId}' is not in the model list`);
+      const chosen =
+        (modelId ? recs.ranked.find((r) => r.model.id === modelId) : recs.best) ?? null;
+      if (modelId && !chosen)
+        throw new AiError('notFound', `'${modelId}' is not in the model list`);
       return {
         hardware: structuredClone(MOCK_HARDWARE),
         recommendations: recs,
@@ -206,7 +251,8 @@ export class MockAiBackend extends AiBackend {
     this.check();
     const m = MOCK_CATALOG.find((c) => c.id === modelId);
     if (!m) throw new AiError('notFound', `'${modelId}' is not in the model list`);
-    if (this.setupRunning) throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
+    if (this.setupRunning)
+      throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
     this.setupRunning = true;
     this.setupCancelled = false;
     void this.runSetup(m.file, !this.installed.some((i) => i.fileName === m.file), m.sizeBytes);
@@ -230,22 +276,45 @@ export class MockAiBackend extends AiBackend {
         const steps = 8;
         for (let i = 0; i <= steps; i++) {
           const bytes = Math.round((size * i) / steps);
-          await step({ stage: 'downloading', bytes, total: size, bytesPerSec: 48_000_000, etaSecs: Math.ceil((size - bytes) / 48_000_000) });
+          await step({
+            stage: 'downloading',
+            bytes,
+            total: size,
+            bytesPerSec: 48_000_000,
+            etaSecs: Math.ceil((size - bytes) / 48_000_000),
+          });
         }
-        if (this.fails.has('setup')) throw new AiError('network', 'network error: the connection to the model host was reset');
+        if (this.fails.has('setup'))
+          throw new AiError('network', 'network error: the connection to the model host was reset');
         await step({ stage: 'verifying', bytes: size, total: size });
-        this.installed = [...this.installed, installedFrom(MOCK_CATALOG.find((c) => c.file === file)!, false)];
+        this.installed = [
+          ...this.installed,
+          installedFrom(
+            MOCK_CATALOG.find((c) => c.file === file)!,
+            false,
+          ),
+        ];
       }
       await step({ stage: 'validating' });
       await step({ stage: 'loading', gpu: true });
+      if (!this.rt.hasRuntime())
+        throw new AiError(
+          'noRuntime',
+          'no inference runtime is installed: download one in the AI set-up',
+        );
       await step({ stage: 'warmingUp' });
+      const backend = this.rt.backendName() ?? 'CPU';
       this.activeFile = file;
-      this.backend = 'Vulkan';
+      this.backend = backend;
       this.installed = this.installed.map((i) => ({ ...i, active: i.fileName === file }));
-      end({ stage: 'ready', model: file, backend: 'Vulkan' });
+      end({ stage: 'ready', model: file, backend });
     } catch (e) {
       const err = e instanceof AiError ? e : new AiError('engine', String(e));
-      end(err.code === 'cancelled' ? { stage: 'cancelled' } : { stage: 'failed', code: err.code, message: err.message });
+      end(
+        err.code === 'cancelled'
+          ? { stage: 'cancelled' }
+          : { stage: 'failed', code: err.code, message: err.message },
+      );
     }
   }
 
@@ -266,8 +335,10 @@ export class MockAiBackend extends AiBackend {
 
   async activateModel(fileName: string): Promise<void> {
     this.check();
-    if (!this.installed.some((m) => m.fileName === fileName)) throw new AiError('notFound', `${fileName} is not installed`);
-    if (this.setupRunning) throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
+    if (!this.installed.some((m) => m.fileName === fileName))
+      throw new AiError('notFound', `${fileName} is not installed`);
+    if (this.setupRunning)
+      throw new AiError('busy', 'A model is already being set up; wait for it or cancel it first.');
     this.setupRunning = true;
     this.setupCancelled = false;
     void this.runSetup(fileName, false, 0);
@@ -276,7 +347,8 @@ export class MockAiBackend extends AiBackend {
   deleteModel(fileName: string) {
     return this.later(() => {
       this.check();
-      if (!this.installed.some((m) => m.fileName === fileName)) throw new AiError('notFound', `not found: ${fileName}`);
+      if (!this.installed.some((m) => m.fileName === fileName))
+        throw new AiError('notFound', `not found: ${fileName}`);
       this.installed = this.installed.filter((m) => m.fileName !== fileName);
       if (this.activeFile === fileName) {
         this.activeFile = null;
@@ -291,7 +363,13 @@ export class MockAiBackend extends AiBackend {
       this.check();
       if (!/\.gguf$/i.test(path)) throw new AiError('invalid', 'model files end in .gguf');
       const name = (path.split(/[\\/]/).pop() ?? 'model.gguf').replace(/[^A-Za-z0-9.+_-]/g, '_');
-      const m: InstalledModel = { ...installedFrom(MOCK_CATALOG[2], false), fileName: name, name: name.replace(/\.gguf$/i, ''), catalogId: null, license: null };
+      const m: InstalledModel = {
+        ...installedFrom(catalogModel(2), false),
+        fileName: name,
+        name: name.replace(/\.gguf$/i, ''),
+        catalogId: null,
+        license: null,
+      };
       this.installed = [...this.installed.filter((i) => i.fileName !== name), m];
       return structuredClone(m);
     });
@@ -299,6 +377,39 @@ export class MockAiBackend extends AiBackend {
 
   reset() {
     return this.later(() => this.currentStatus(), 0);
+  }
+
+  // ---- inference runtimes ----
+
+  runtimes() {
+    return this.later(() => {
+      this.check();
+      return this.rt.overview();
+    });
+  }
+  async runtimeInstall(id: string): Promise<void> {
+    this.check();
+    this.rt.install(id);
+  }
+  runtimeCancel() {
+    return this.later(() => this.rt.cancel(), 0);
+  }
+  runtimeDelete(tag: string, id: string) {
+    return this.later(() => {
+      this.check();
+      const wasActive = this.rt.active() === id;
+      this.rt.delete(tag, id);
+      if (wasActive) this.backend = this.rt.backendName();
+      this.emitStatus();
+    });
+  }
+  runtimeChoose(id: string) {
+    return this.later(() => {
+      this.check();
+      this.rt.choose(id);
+      if (this.activeFile) this.backend = this.rt.backendName();
+      this.emitStatus();
+    });
   }
 
   // ---- use cases ----
@@ -338,8 +449,18 @@ export class MockAiBackend extends AiBackend {
     return this.later((): QueryProposal => {
       this.needModel('nlToQuery');
       const q = question.toLowerCase();
-      const ql = q.includes('warn') ? 'level = warning' : q.includes('web02') ? 'MachineName = WEB02 and level >= error' : 'level >= error';
-      return { kind: 'query', ql, explanation: `Events matching "${question.trim()}": ${ql}.`, estimatedMatches: 37, repaired: false };
+      const ql = q.includes('warn')
+        ? 'level = warning'
+        : q.includes('web02')
+          ? 'MachineName = WEB02 and level >= error'
+          : 'level >= error';
+      return {
+        kind: 'query',
+        ql,
+        explanation: `Events matching "${question.trim()}": ${ql}.`,
+        estimatedMatches: 37,
+        repaired: false,
+      };
     });
   }
   explainEvent(recordId: number) {
@@ -347,7 +468,10 @@ export class MockAiBackend extends AiBackend {
       this.needModel('explain');
       return {
         text: `Event ${recordId} is a failed order submission: the payment gateway timed out after 30 s.\n\n- **Likely cause:** the gateway pool was exhausted\n- **Next step:** check \`level >= error\` around it`,
-        citations: [{ kind: 'record', id: recordId, verified: true }, { kind: 'query', ql: 'level >= error' }],
+        citations: [
+          { kind: 'record', id: recordId, verified: true },
+          { kind: 'query', ql: 'level >= error' },
+        ],
         evidence: { recordIds: [recordId], queries: ['level >= error'] },
         usage: { inputTokens: 900, outputTokens: 80 },
       };
@@ -388,7 +512,12 @@ export class MockAiBackend extends AiBackend {
   // ---- chat ----
 
   private info(c: MockChat): SessionInfo {
-    return { id: c.record.id, title: c.record.title, turns: c.record.turns.length, running: c.running };
+    return {
+      id: c.record.id,
+      title: c.record.title,
+      turns: c.record.turns.length,
+      running: c.running,
+    };
   }
 
   private chat(id: string): MockChat {
@@ -407,7 +536,13 @@ export class MockAiBackend extends AiBackend {
     return this.later(() => {
       this.check();
       const id = `chat-${++this.counter}`;
-      const c: MockChat = { record: { id, title: '', turns: [], allowSearches: false }, events: [], nextSeq: 1, running: false, cancel: false };
+      const c: MockChat = {
+        record: { id, title: '', turns: [], allowSearches: false },
+        events: [],
+        nextSeq: 1,
+        running: false,
+        cancel: false,
+      };
       this.chats.set(id, c);
       return this.info(c);
     }, 0);
@@ -427,7 +562,8 @@ export class MockAiBackend extends AiBackend {
   async chatSend(sessionId: string, text: string, context: ChatContext): Promise<void> {
     this.needModel('chat');
     const c = this.chat(sessionId);
-    if (c.running) throw new AiError('busy', 'This chat is still answering; wait for it or stop it first.');
+    if (c.running)
+      throw new AiError('busy', 'This chat is still answering; wait for it or stop it first.');
     if (!text.trim()) throw new AiError('invalid', 'the question is empty');
     this.sent.push({ sessionId, text, context });
     c.running = true;
@@ -451,10 +587,26 @@ export class MockAiBackend extends AiBackend {
     return !c.cancel;
   }
 
-  private async askApproval(c: MockChat, requestId: number, kind: 'search' | 'fetch', text: string, domain: string | null): Promise<ApprovalDecision> {
+  private async askApproval(
+    c: MockChat,
+    requestId: number,
+    kind: 'search' | 'fetch',
+    text: string,
+    domain: string | null,
+  ): Promise<ApprovalDecision> {
     if (c.record.allowSearches && kind === 'search') return { kind: 'allow' };
-    this.emitChat(c, { type: 'approvalRequired', requestId, kind, text, domain, provider: 'brave', editable: kind === 'search' });
-    const d = await new Promise<ApprovalDecision>((resolve) => this.approvals.set(`${c.record.id}#${requestId}`, resolve));
+    this.emitChat(c, {
+      type: 'approvalRequired',
+      requestId,
+      kind,
+      text,
+      domain,
+      provider: 'brave',
+      editable: kind === 'search',
+    });
+    const d = await new Promise<ApprovalDecision>((resolve) =>
+      this.approvals.set(`${c.record.id}#${requestId}`, resolve),
+    );
     this.approvals.delete(`${c.record.id}#${requestId}`);
     if (d.kind === 'allowSearchesInChat') c.record.allowSearches = true;
     return d;
@@ -467,50 +619,125 @@ export class MockAiBackend extends AiBackend {
     const citations: Citation[] = [];
     const proposals: Proposal[] = [];
     const web: { title: string; url: string }[] = [];
-    const tool = async (name: string, args: string, summary: string, recordIds: number[] = [], queries: string[] = [], error = false) => {
+    const tool = async (
+      name: string,
+      args: string,
+      summary: string,
+      recordIds: number[] = [],
+      queries: string[] = [],
+      error = false,
+    ) => {
       this.emitChat(c, { type: 'toolStarted', name, args });
       await sleep(this.stepMs * 2);
-      this.emitChat(c, { type: 'toolFinished', name, summary, error, evidence: { recordIds, queries } });
+      this.emitChat(c, {
+        type: 'toolFinished',
+        name,
+        summary,
+        error,
+        evidence: { recordIds, queries },
+      });
     };
     const finish = (ok: boolean, partial: string) => {
       c.running = false;
       if (!c.record.title) c.record.title = text.slice(0, 60);
       if (ok) {
-        this.emitChat(c, { type: 'done', text: answer, citations, usage: { inputTokens: 1500, outputTokens: Math.ceil(answer.length / 4) }, notes: [] });
-        c.record.turns.push({ user: text, assistant: answer, citations, proposals, web, cancelled: false, usage: { inputTokens: 1500, outputTokens: Math.ceil(answer.length / 4) } });
+        this.emitChat(c, {
+          type: 'done',
+          text: answer,
+          citations,
+          usage: { inputTokens: 1500, outputTokens: Math.ceil(answer.length / 4) },
+          notes: [],
+        });
+        c.record.turns.push({
+          user: text,
+          assistant: answer,
+          citations,
+          proposals,
+          web,
+          cancelled: false,
+          usage: { inputTokens: 1500, outputTokens: Math.ceil(answer.length / 4) },
+        });
       } else {
         this.emitChat(c, { type: 'error', message: 'cancelled', cancelled: true });
-        if (partial.trim()) c.record.turns.push({ user: text, assistant: partial, citations: [], proposals: [], web: [], cancelled: true, usage: { inputTokens: 0, outputTokens: 0 } } as TurnRecord);
+        if (partial.trim())
+          c.record.turns.push({
+            user: text,
+            assistant: partial,
+            citations: [],
+            proposals: [],
+            web: [],
+            cancelled: true,
+            usage: { inputTokens: 0, outputTokens: 0 },
+          } as TurnRecord);
       }
     };
     try {
       await sleep(this.stepMs);
       if (this.web !== 'none' && /\b(web|internet|online|search)\b/.test(q)) {
-        this.emitChat(c, { type: 'toolStarted', name: 'web_search', args: '{"query_intent":{"exception_type":"System.TimeoutException"}}' });
-        const d = await this.askApproval(c, 1, 'search', 'System.TimeoutException payment gateway', null);
+        this.emitChat(c, {
+          type: 'toolStarted',
+          name: 'web_search',
+          args: '{"query_intent":{"exception_type":"System.TimeoutException"}}',
+        });
+        const d = await this.askApproval(
+          c,
+          1,
+          'search',
+          'System.TimeoutException payment gateway',
+          null,
+        );
         if (c.cancel) return finish(false, '');
         if (d.kind === 'deny') {
-          this.emitChat(c, { type: 'toolFinished', name: 'web_search', summary: 'declined', error: false, evidence: { recordIds: [], queries: [] } });
-          answer = 'You declined the web search, so this answer uses only the logs: the payment gateway timed out repeatedly.';
+          this.emitChat(c, {
+            type: 'toolFinished',
+            name: 'web_search',
+            summary: 'declined',
+            error: false,
+            evidence: { recordIds: [], queries: [] },
+          });
+          answer =
+            'You declined the web search, so this answer uses only the logs: the payment gateway timed out repeatedly.';
         } else {
-          this.emitChat(c, { type: 'toolFinished', name: 'web_search', summary: '3 results', error: false, evidence: { recordIds: [], queries: [] } });
-          const page = { title: 'TimeoutException troubleshooting', url: 'https://learn.example.com/dotnet/timeouts' };
+          this.emitChat(c, {
+            type: 'toolFinished',
+            name: 'web_search',
+            summary: '3 results',
+            error: false,
+            evidence: { recordIds: [], queries: [] },
+          });
+          const page = {
+            title: 'TimeoutException troubleshooting',
+            url: 'https://learn.example.com/dotnet/timeouts',
+          };
           web.push(page);
           citations.push({ kind: 'web', ...page });
           answer = `A TimeoutException from the gateway usually means its connection pool is exhausted. See ${page.title} (${page.url}).`;
         }
       } else if (q.includes('regex')) {
-        await tool('propose_regex', '{"example_lines":["…"]}', 'Regular expression ready to review');
-        const p = mockRegexProposal(['2026-10-14 09:00:02 [INF] Worker started', '2026-10-14 09:00:03 [WRN] Queue depth 812']);
+        await tool(
+          'propose_regex',
+          '{"example_lines":["…"]}',
+          'Regular expression ready to review',
+        );
+        const p = mockRegexProposal([
+          '2026-10-14 09:00:02 [INF] Worker started',
+          '2026-10-14 09:00:03 [WRN] Queue depth 812',
+        ]);
         proposals.push(p);
         this.emitChat(c, { type: 'proposal', proposal: p });
-        answer = 'I prepared a regular expression for these lines; review it and apply it as a highlight rule.';
+        answer =
+          'I prepared a regular expression for these lines; review it and apply it as a highlight rule.';
       } else if (q.includes('pipeline') || q.includes('drop')) {
-        await tool('propose_pipeline', '{"goal":"drop health checks"}', 'Pipeline steps ready to review');
+        await tool(
+          'propose_pipeline',
+          '{"goal":"drop health checks"}',
+          'Pipeline steps ready to review',
+        );
         const p = mockPipelineProposal('drop health checks');
         proposals.push(p);
         this.emitChat(c, { type: 'proposal', proposal: p });
-        answer = 'I prepared a pipeline step that drops health checks. Nothing changes until you apply it.';
+        answer =
+          'I prepared a pipeline step that drops health checks. Nothing changes until you apply it.';
       } else if (q.includes('marker')) {
         await tool('propose_markers', '{"goal":"timeouts"}', 'Markers ready to review');
         const p = mockMarkersProposal('timeouts');
@@ -525,25 +752,50 @@ export class MockAiBackend extends AiBackend {
         answer = 'I prepared an extractor for request durations.';
       } else if (q.includes('query')) {
         await tool('propose_query', '{"question":"errors on WEB02"}', 'Query ready to review');
-        const p: QueryProposal = { kind: 'query', ql: 'MachineName = WEB02 and level >= error', explanation: 'Errors and worse on WEB02.', estimatedMatches: 14, repaired: false };
+        const p: QueryProposal = {
+          kind: 'query',
+          ql: 'MachineName = WEB02 and level >= error',
+          explanation: 'Errors and worse on WEB02.',
+          estimatedMatches: 14,
+          repaired: false,
+        };
         proposals.push(p);
         this.emitChat(c, { type: 'proposal', proposal: p });
         answer = 'Here is a query for errors on WEB02: `MachineName = WEB02 and level >= error`.';
         citations.push({ kind: 'query', ql: p.ql });
       } else if (q.includes('unknown') || q.includes('kubernetes')) {
-        await tool('run_query', '{"ql":"message contains \\"kubernetes\\""}', '0 events', [], ['message contains "kubernetes"']);
+        await tool(
+          'run_query',
+          '{"ql":"message contains \\"kubernetes\\""}',
+          '0 events',
+          [],
+          ['message contains "kubernetes"'],
+        );
         answer = 'Not found in the logs: no event mentions that.';
       } else {
-        await tool('run_query', '{"ql":"level = fatal"}', '1 events', [ids.fatal], ['level = fatal']);
+        await tool(
+          'run_query',
+          '{"ql":"level = fatal"}',
+          '1 events',
+          [ids.fatal],
+          ['level = fatal'],
+        );
         answer = `WEB02 crashed with an OutOfMemoryException (event ${ids.fatal}) after its working set grew for an hour.\n\n- Errors before the crash: \`level >= error\`\n- It restarted about a minute later\n\n\`\`\`\nSystem.OutOfMemoryException: Insufficient memory\n\`\`\``;
-        citations.push({ kind: 'record', id: ids.fatal, verified: true }, { kind: 'query', ql: 'level >= error' });
+        citations.push(
+          { kind: 'record', id: ids.fatal, verified: true },
+          { kind: 'query', ql: 'level >= error' },
+        );
       }
       if (c.cancel) return finish(false, '');
       const ok = await this.stream(c, answer);
       finish(ok, ok ? answer : answer.slice(0, 20));
     } catch {
       c.running = false;
-      this.emitChat(c, { type: 'error', message: 'The assistant stopped unexpectedly.', cancelled: false });
+      this.emitChat(c, {
+        type: 'error',
+        message: 'The assistant stopped unexpectedly.',
+        cancelled: false,
+      });
     }
   }
 
@@ -552,7 +804,8 @@ export class MockAiBackend extends AiBackend {
       const c = this.chats.get(sessionId);
       if (!c?.running) return false;
       c.cancel = true;
-      for (const [k, resolve] of this.approvals) if (k.startsWith(`${sessionId}#`)) resolve({ kind: 'deny' });
+      for (const [k, resolve] of this.approvals)
+        if (k.startsWith(`${sessionId}#`)) resolve({ kind: 'deny' });
       return true;
     }, 0);
   }
@@ -563,17 +816,34 @@ export class MockAiBackend extends AiBackend {
     }, 0);
   }
   chatHistory() {
-    return this.later((): ChatHistoryRecord => ({ version: 1, sessions: [...this.chats.values()].map((c) => structuredClone(c.record)) }), 0);
+    return this.later(
+      (): ChatHistoryRecord => ({
+        version: 1,
+        sessions: [...this.chats.values()].map((c) => structuredClone(c.record)),
+      }),
+      0,
+    );
   }
   chatRestore(record: unknown) {
     return this.later((): RestoreResult => {
       this.chats.clear();
       const r = record as ChatHistoryRecord | null | undefined;
       if (r == null) return { sessions: [], warning: null };
-      if (typeof r !== 'object' || typeof r.version !== 'number' || !Array.isArray(r.sessions)) return { sessions: [], warning: 'The saved chats are damaged and were not loaded.' };
-      if (r.version > 1) return { sessions: [], warning: 'The saved chats were written by a newer IMT and were not loaded.' };
+      if (typeof r !== 'object' || typeof r.version !== 'number' || !Array.isArray(r.sessions))
+        return { sessions: [], warning: 'The saved chats are damaged and were not loaded.' };
+      if (r.version > 1)
+        return {
+          sessions: [],
+          warning: 'The saved chats were written by a newer IMT and were not loaded.',
+        };
       for (const s of r.sessions) {
-        this.chats.set(s.id, { record: structuredClone(s), events: [], nextSeq: 1, running: false, cancel: false });
+        this.chats.set(s.id, {
+          record: structuredClone(s),
+          events: [],
+          nextSeq: 1,
+          running: false,
+          cancel: false,
+        });
         const n = Number(s.id.replace('chat-', ''));
         if (Number.isFinite(n)) this.counter = Math.max(this.counter, n);
       }
@@ -585,7 +855,8 @@ export class MockAiBackend extends AiBackend {
   chatExportMarkdown(sessionId: string, path: string, overwrite = false) {
     return this.later(() => {
       this.chat(sessionId);
-      if (this.written.has(path) && !overwrite) throw new AiError('fileExists', `${path}${FILE_EXISTS_SUFFIX}`);
+      if (this.written.has(path) && !overwrite)
+        throw new AiError('fileExists', `${path}${FILE_EXISTS_SUFFIX}`);
       this.written.add(path);
       return path;
     }, 0);
@@ -593,12 +864,18 @@ export class MockAiBackend extends AiBackend {
   suggestedPrompts() {
     return this.later(() => {
       this.check();
-      return ['What happened around 10:42 (OrderService crashed)?', 'Why is "Payment gateway timeout" happening and what should I do?', 'Which instance has the most errors?', 'What should I look at first?'];
+      return [
+        'What happened around 10:42 (OrderService crashed)?',
+        'Why is "Payment gateway timeout" happening and what should I do?',
+        'Which instance has the most errors?',
+        'What should I look at first?',
+      ];
     }, 0);
   }
   approvalRespond(sessionId: string, requestId: number, decision: ApprovalDecision) {
     return this.later(() => {
-      if (decision.kind === 'allowEdited' && !decision.text.trim()) throw new AiError('invalid', 'the edited search is empty');
+      if (decision.kind === 'allowEdited' && !decision.text.trim())
+        throw new AiError('invalid', 'the edited search is empty');
       const resolve = this.approvals.get(`${sessionId}#${requestId}`);
       resolve?.(decision);
       return !!resolve;
@@ -609,13 +886,15 @@ export class MockAiBackend extends AiBackend {
   readonly opened: string[] = [];
   openLink(url: string) {
     return this.later(() => {
-      if (!/^https:\/\//.test(url)) throw new AiError('refused', 'refused: only https links to public sites are opened');
+      if (!/^https:\/\//.test(url))
+        throw new AiError('refused', 'refused: only https links to public sites are opened');
       this.opened.push(url);
     }, 0);
   }
   setBraveKey(key: string) {
     return this.later(() => {
-      if (!key.trim() || /\s/.test(key.trim())) throw new AiError('invalid', 'paste the API key exactly as Brave shows it');
+      if (!key.trim() || /\s/.test(key.trim()))
+        throw new AiError('invalid', 'paste the API key exactly as Brave shows it');
       this.braveKey = true;
     }, 0);
   }
@@ -634,6 +913,9 @@ export class MockAiBackend extends AiBackend {
   }
   onSetup(handler: (e: SetupEvent) => void) {
     return this.subscribe(this.setupHandlers, handler);
+  }
+  onRuntime(handler: (e: AiRuntimeEvent) => void) {
+    return Promise.resolve(this.rt.subscribe(handler));
   }
   onStatus(handler: (s: AiStatus) => void) {
     return this.subscribe(this.statusHandlers, handler);

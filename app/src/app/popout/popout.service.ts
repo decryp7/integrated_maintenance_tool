@@ -154,7 +154,7 @@ export class PopoutService implements PanelWindows {
     }
     if (this.opening.has(id)) return false;
     if (!this.canPopOut()) {
-      this.dock.notice.set({ message: `At most ${MAX_POPOUTS} panels can be popped out of one window; dock one back first.` });
+      this.dock.notice.set({ message: $localize`:@@popout.service.limit:At most ${MAX_POPOUTS}:max: panels can be popped out of one window; dock one back first.` });
       if (options.slot) this.dock.restoreSlot(id, options.slot);
       return false;
     }
@@ -171,7 +171,7 @@ export class PopoutService implements PanelWindows {
     } catch (e) {
       // The panel stays docked (or docks where it belongs when this was a restore).
       this.dock.restoreSlot(id, slot, { inactive: true });
-      this.dock.notice.set({ message: `Could not pop out ${view.title}: ${errorMessage(e)}. It stays docked.`, retry: () => void this.popOut(id, options) });
+      this.dock.notice.set({ message: $localize`:@@popout.service.failed:Could not pop out ${view.title}:title:: ${errorMessage(e)}:error:. It stays docked.`, retry: () => void this.popOut(id, options) });
       return false;
     } finally {
       this.opening.delete(id);

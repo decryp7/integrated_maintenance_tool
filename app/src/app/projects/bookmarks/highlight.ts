@@ -7,14 +7,14 @@ import { UndoStack } from '../../undo/undo-stack';
 import { recordSnapshot } from '../../undo/snapshot-undo';
 
 export const HIGHLIGHT_OPS: { id: HighlightOp; label: string; needsValue: boolean }[] = [
-  { id: 'eq', label: 'equals', needsValue: true },
-  { id: 'ne', label: 'does not equal', needsValue: true },
-  { id: 'contains', label: 'contains', needsValue: true },
-  { id: 'notContains', label: 'does not contain', needsValue: true },
-  { id: 'gt', label: 'is greater than', needsValue: true },
-  { id: 'lt', label: 'is less than', needsValue: true },
-  { id: 'exists', label: 'exists', needsValue: false },
-  { id: 'missing', label: 'is missing', needsValue: false },
+  { id: 'eq', label: $localize`:Highlight rule operator|@@projects.highlight.op.eq:equals`, needsValue: true },
+  { id: 'ne', label: $localize`:Highlight rule operator|@@projects.highlight.op.ne:does not equal`, needsValue: true },
+  { id: 'contains', label: $localize`:Highlight rule operator|@@projects.highlight.op.contains:contains`, needsValue: true },
+  { id: 'notContains', label: $localize`:Highlight rule operator|@@projects.highlight.op.notContains:does not contain`, needsValue: true },
+  { id: 'gt', label: $localize`:Highlight rule operator|@@projects.highlight.op.gt:is greater than`, needsValue: true },
+  { id: 'lt', label: $localize`:Highlight rule operator|@@projects.highlight.op.lt:is less than`, needsValue: true },
+  { id: 'exists', label: $localize`:Highlight rule operator|@@projects.highlight.op.exists:exists`, needsValue: false },
+  { id: 'missing', label: $localize`:Highlight rule operator|@@projects.highlight.op.missing:is missing`, needsValue: false },
 ];
 
 /** Colours offered for rows (distinguishable and readable as a tint behind text on both themes). */
@@ -95,11 +95,11 @@ export const HighlightRules = signalStore(
     const edit = (label: string, mutate: () => void, mergeKey?: string) => recordSnapshot(undo, state, label, mutate, { mergeKey });
     return {
       add(rule: Omit<HighlightRule, 'id' | 'enabled'>): void {
-        edit('new highlight rule', () => patchState(store, (s) => ({ items: [...s.items, { ...rule, id: newId('hl'), enabled: true }] })));
+        edit($localize`:Undo history entry|@@projects.highlight.undoNew:new highlight rule`, () => patchState(store, (s) => ({ items: [...s.items, { ...rule, id: newId('hl'), enabled: true }] })));
       },
       update: (id: string, patch: Partial<Omit<HighlightRule, 'id'>>) =>
-        edit('highlight rule edit', () => patchState(store, (s) => ({ items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) })), `highlight:${id}:${Object.keys(patch).join(',')}`),
-      remove: (id: string) => edit('highlight rule removal', () => patchState(store, (s) => ({ items: s.items.filter((r) => r.id !== id) }))),
+        edit($localize`:Undo history entry|@@projects.highlight.undoEdit:highlight rule edit`, () => patchState(store, (s) => ({ items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) })), `highlight:${id}:${Object.keys(patch).join(',')}`),
+      remove: (id: string) => edit($localize`:Undo history entry|@@projects.highlight.undoRemove:highlight rule removal`, () => patchState(store, (s) => ({ items: s.items.filter((r) => r.id !== id) }))),
       replace: (items: HighlightRule[]) => patchState(store, { items }),
       /** The row colour (CSS colour) for a record, or null when no rule matches. */
       colorFor(record: RecordView): string | null {

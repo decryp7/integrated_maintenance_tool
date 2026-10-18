@@ -41,7 +41,7 @@ export class OverviewActions {
           return;
         case 'setupFormat':
           if (action.kind !== 'setupFormat') return;
-          this.dialogs.open(FormatWizard, { title: 'Set up format', inputs: { path: action.path, name: action.path.split(/[\\/]/).pop() ?? action.path }, width: 760 });
+          this.dialogs.open(FormatWizard, { title: $localize`:@@overview.actions.setupFormat:Set up format`, inputs: { path: action.path, name: action.path.split(/[\\/]/).pop() ?? action.path }, width: 760 });
           return;
         case 'openPanel':
           if (action.kind === 'openPanel') this.ctx.showView(panelTarget(action.panel).view);
@@ -57,7 +57,7 @@ export class OverviewActions {
     const groups = await this.analysis.queryExceptions(this.store.effectiveQuery());
     const group = groups.find((g) => g.fingerprint === fingerprint);
     if (!group) {
-      this.ctx.notifyError('That exception is not in the current view any more. Clear the filters and try again.');
+      this.ctx.notifyError($localize`:@@overview.actions.exceptionGone:That exception is not in the current view any more. Clear the filters and try again.`);
       return;
     }
     this.ctx.addFilter({ field: '@exception', op: 'contains', value: group.typeName });

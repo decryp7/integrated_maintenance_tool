@@ -7,6 +7,7 @@ import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { MarkersManager } from './markers-manager';
 import { MarkerOverrideDialog } from './marker-override-dialog';
 import { isPluginOwned, ownerOfKind, pluginRows, resetStyle, setOverride, styleProblems, toCondition } from './marker-overrides';
+import { at } from '../../testing/must';
 
 describe('marker overrides (pure)', () => {
   it('tells plugin kinds from profile and built-in ones', () => {
@@ -56,8 +57,8 @@ describe('marker overrides (pure)', () => {
       ['p/crash', 'p', true, 'Crash'],
       ['p/stop', 'p', false, 'Stopped'],
     ]);
-    expect(rows[0].restyled).toEqual(['color']);
-    expect(rows[0].when).toEqual([{ field: '@level', op: 'eq', value: 'Fatal' }]);
+    expect(at(rows, 0).restyled).toEqual(['color']);
+    expect(at(rows, 0).when).toEqual([{ field: '@level', op: 'eq', value: 'Fatal' }]);
     expect(pluginRows(kinds, { marker_override: 'bad' as never })).toHaveLength(1);
   });
 
@@ -161,7 +162,7 @@ describe('MarkerOverrideDialog', () => {
     (fixture.componentInstance as unknown as { save(): void }).save();
     expect(close).not.toHaveBeenCalled();
     typeInto(input('color'), '');
-    all<HTMLButtonElement>(fixture, '.swatch')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.swatch'), 0).click();
     typeInto(input('badge'), 'Z');
     typeInto(input('label'), ' New label ');
     typeInto(el<HTMLSelectElement>(fixture, '[name="shape"]'), 'square', 'change');

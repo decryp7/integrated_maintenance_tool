@@ -126,7 +126,23 @@ function ordered(category: ViewCategory, views: readonly MenuView[]): Part[] {
 }
 
 /** Menu labels that differ from the view titles (the tab keeps its short title). */
-const VIEW_LABELS: Readonly<Record<string, string>> = { profile: 'Profile editor', plugins: 'Manage plugins', 'ai-chat': 'Chat' };
+const VIEW_LABELS: Readonly<Record<string, string>> = {
+  profile: $localize`:@@shell.menu.view.profileEditor:Profile editor`,
+  plugins: $localize`:@@shell.menu.view.managePlugins:Manage plugins`,
+  'ai-chat': $localize`:@@shell.menu.view.chat:Chat`,
+};
+
+/** Display names of the View submenus (the category itself stays the key). */
+const CATEGORY_LABELS: Readonly<Record<Exclude<ViewCategory, 'core'>, string>> = {
+  Analysis: $localize`:View submenu@@shell.menu.view.category.analysis:Analysis`,
+  Live: $localize`:View submenu@@shell.menu.view.category.live:Live`,
+  Profiling: $localize`:View submenu@@shell.menu.view.category.profiling:Profiling`,
+  Tools: $localize`:View submenu@@shell.menu.view.category.tools:Tools`,
+  Sharing: $localize`:View submenu@@shell.menu.view.category.sharing:Sharing`,
+  Diagnostics: $localize`:View submenu@@shell.menu.view.category.diagnostics:Diagnostics`,
+  Plugins: $localize`:View submenu@@shell.menu.view.category.plugins:Plugins`,
+  AI: $localize`:View submenu@@shell.menu.view.category.ai:AI`,
+};
 
 /** A separator; collapsed when leading, trailing or doubled. */
 const SEP: SeparatorNode = { kind: 'separator' };
@@ -139,7 +155,7 @@ export function tidy(parts: readonly Part[]): MenuNode[] {
   for (const p of parts) {
     if (!p) continue;
     if (p.kind === 'separator') {
-      if (out.length && out[out.length - 1].kind !== 'separator') out.push(p);
+      if (out.length && out[out.length - 1]?.kind !== 'separator') out.push(p);
     } else if (p.kind === 'submenu') {
       const items = tidy(p.items);
       if (items.length) out.push({ ...p, items });
@@ -147,7 +163,7 @@ export function tidy(parts: readonly Part[]): MenuNode[] {
       if (p.items.length) out.push(p);
     } else out.push(p);
   }
-  while (out.length && out[out.length - 1].kind === 'separator') out.pop();
+  while (out.length && out[out.length - 1]?.kind === 'separator') out.pop();
   return out;
 }
 
@@ -161,15 +177,29 @@ export function buildMenus(state: MenuState): TopMenu[] {
   const sub = (id: string, label: string, items: Part[]): SubmenuNode => ({ kind: 'submenu', id, label, items: tidy(items) });
   /** In the app menu in native mode, else where it is placed. */
   const appMenu = (id: (typeof APP_MENU_COMMANDS)[number], label?: string) => (state.nativeAppMenu ? null : cmd(id, label));
-  const history = (id: string, verb: string, what: string | null) => cmd(id, what ? `${verb} ${what}` : `${verb} (nothing to ${verb.toLowerCase()})`);
+  const undo = (what: string | null) =>
+    cmd('edit.undo', what ? $localize`:@@shell.menu.edit.undo:Undo ${what}:what:` : $localize`:@@shell.menu.edit.undoNothing:Undo (nothing to undo)`);
+  const redo = (what: string | null) =>
+    cmd('edit.redo', what ? $localize`:@@shell.menu.edit.redo:Redo ${what}:what:` : $localize`:@@shell.menu.edit.redoNothing:Redo (nothing to redo)`);
 
   const menus: TopMenu[] = [
     ...(state.nativeAppMenu
-      ? [{ id: 'app', label: 'IMT', items: tidy([cmd('help.about', 'About IMT'), cmd('help.checkForUpdates', 'Check for updates…'), SEP, cmd('settings.open', 'Settings…')]) }]
+      ? [
+          {
+            id: 'app',
+            label: 'IMT',
+            items: tidy([
+              cmd('help.about', $localize`:@@shell.menu.help.about:About IMT`),
+              cmd('help.checkForUpdates', $localize`:@@shell.menu.help.checkForUpdates:Check for updates…`),
+              SEP,
+              cmd('settings.open', $localize`:@@shell.menu.settings:Settings…`),
+            ]),
+          },
+        ]
       : []),
     {
       id: 'file',
-      label: 'File',
+      label: $localize`:Top-level menu@@shell.menu.top.file:File`,
       items: tidy([
         cmd('project.new'),
         cmd('window.new'),
@@ -179,7 +209,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         cmd('live.open'),
         cmd('profiling.open'),
         cmd('project.open'),
-        cmd('project.recent', 'Open recent project…'),
+        cmd('project.recent', $localize`:@@shell.menu.file.openRecentProject:Open recent project…`),
         SEP,
         cmd('project.save'),
         cmd('project.saveAs'),
@@ -196,50 +226,60 @@ export function buildMenus(state: MenuState): TopMenu[] {
     },
     {
       id: 'edit',
-      label: 'Edit',
-      items: tidy([history('edit.undo', 'Undo', state.undoLabel), history('edit.redo', 'Redo', state.redoLabel)]),
+      label: $localize`:Top-level menu@@shell.menu.top.edit:Edit`,
+      items: tidy([undo(state.undoLabel), redo(state.redoLabel)]),
     },
-    { id: 'view', label: 'View', items: viewMenu(state, cmd, sub) },
+    { id: 'view', label: $localize`:Top-level menu@@shell.menu.top.view:View`, items: viewMenu(state, cmd, sub) },
     {
       id: 'analyze',
-      label: 'Analyze',
+      label: $localize`:Top-level menu@@shell.menu.top.analyze:Analyze`,
       items: tidy([
         cmd('analyze.search'),
-        cmd('query.focus', 'Focus query bar'),
+        cmd('query.focus', $localize`:@@shell.menu.analyze.focusQueryBar:Focus query bar`),
         cmd('markers.highlight'),
-        cmd('analyze.markedOnly', 'Marked events only', state.markedOnly),
+        cmd('analyze.markedOnly', $localize`:@@shell.menu.analyze.markedOnly:Marked events only`, state.markedOnly),
         cmd('analyze.clearFilters'),
         SEP,
         cmd('analyze.fit'),
         cmd('analyze.back'),
         cmd('analyze.forward'),
-        sub('analyze.timezone', 'Time zone', [cmd('analyze.utc', 'UTC', state.timezone === 'utc'), cmd('analyze.local', 'Local', state.timezone === 'local')]),
+        sub('analyze.timezone', $localize`:@@shell.menu.analyze.timeZone:Time zone`, [
+          cmd('analyze.utc', $localize`:@@shell.menu.analyze.utc:UTC`, state.timezone === 'utc'),
+          cmd('analyze.local', $localize`:Time zone option@@shell.menu.analyze.local:Local`, state.timezone === 'local'),
+        ]),
         SEP,
         cmd('moment.analyse'),
-        cmd('moment.selected', 'Analyse the selected range'),
-        sub('analyze.compare', 'Compare', [cmd('compare.previous', 'Current range vs previous'), cmd('compare.beforeAfter', 'Before / after selected time')]),
+        cmd('moment.selected', $localize`:@@shell.menu.analyze.analyseSelectedRange:Analyse the selected range`),
+        sub('analyze.compare', $localize`:Menu@@shell.menu.analyze.compare:Compare`, [
+          cmd('compare.previous', $localize`:@@shell.menu.analyze.compare.previous:Current range vs previous`),
+          cmd('compare.beforeAfter', $localize`:@@shell.menu.analyze.compare.beforeAfter:Before / after selected time`),
+        ]),
         cmd('fieldstats.show'),
         SEP,
-        sub('analyze.ai', 'AI', [cmd('ai.query', 'Ask AI to write a query…'), cmd('ai.summarize', 'Summarize this range'), cmd('ai.rootCauses', 'Find likely root causes')]),
+        sub('analyze.ai', $localize`:@@shell.menu.analyze.ai:AI`, [
+          cmd('ai.query', $localize`:@@shell.menu.analyze.ai.query:Ask AI to write a query…`),
+          cmd('ai.summarize', $localize`:@@shell.menu.analyze.ai.summarize:Summarize this range`),
+          cmd('ai.rootCauses', $localize`:@@shell.menu.analyze.ai.rootCauses:Find likely root causes`),
+        ]),
         SEP,
         cmd('live.resume'),
         cmd('live.rules'),
         SEP,
         cmd('report.new'),
-        sub('analyze.report', 'Add to report', [
-          cmd('report.addSelected', 'Selected event'),
-          cmd('report.addBookmarks', 'Bookmarks'),
-          cmd('report.addTimeline', 'Timeline'),
-          cmd('report.addAnnotations', 'Annotations'),
-          cmd('report.addQueryTable', 'Query result'),
-          cmd('report.addFindings', 'Health-check findings'),
-          cmd('report.addAnomalies', 'Anomalies as findings'),
+        sub('analyze.report', $localize`:@@shell.menu.analyze.addToReport:Add to report`, [
+          cmd('report.addSelected', $localize`:@@shell.menu.report.selectedEvent:Selected event`),
+          cmd('report.addBookmarks', $localize`:@@shell.menu.report.bookmarks:Bookmarks`),
+          cmd('report.addTimeline', $localize`:@@shell.menu.report.timeline:Timeline`),
+          cmd('report.addAnnotations', $localize`:@@shell.menu.report.annotations:Annotations`),
+          cmd('report.addQueryTable', $localize`:@@shell.menu.report.queryResult:Query result`),
+          cmd('report.addFindings', $localize`:@@shell.menu.report.findings:Health-check findings`),
+          cmd('report.addAnomalies', $localize`:@@shell.menu.report.anomalies:Anomalies as findings`),
         ]),
       ]),
     },
     {
       id: 'tools',
-      label: 'Tools',
+      label: $localize`:Top-level menu@@shell.menu.top.tools:Tools`,
       items: tidy([
         cmd('tools.collect'),
         cmd('diagnostics.capture'),
@@ -248,32 +288,33 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('app.restartElevated'),
         SEP,
-        appMenu('settings.open', 'Settings…'),
+        appMenu('settings.open', $localize`:@@shell.menu.settings:Settings…`),
       ]),
     },
-    { id: 'window', label: 'Window', items: windowMenu(state, cmd, sub) },
+    { id: 'window', label: $localize`:Top-level menu@@shell.menu.top.window:Window`, items: windowMenu(state, cmd, sub) },
     {
       id: 'help',
-      label: 'Help',
+      label: $localize`:Top-level menu@@shell.menu.top.help:Help`,
       items: tidy([
-        cmd('help.welcome', 'Welcome'),
+        cmd('help.welcome', $localize`:@@shell.menu.help.welcome:Welcome`),
         cmd('help.demo'),
         cmd('help.tour'),
         cmd('help.shortcuts'),
         SEP,
         // Commands that are not registered (yet) are left out: these appear when their feature lands.
-        cmd('help.documentation', 'Documentation'),
-        cmd('help.whatsNew', "What's new"),
+        cmd('help.documentation', $localize`:@@shell.menu.help.documentation:Documentation`),
+        cmd('help.whatsNew', $localize`:@@shell.menu.help.whatsNew:What's new`),
         SEP,
         cmd('help.reportProblem'),
         cmd('help.activityLog'),
-        cmd('help.openLogs', 'Open logs folder'),
+        cmd('help.openLogs', $localize`:@@shell.menu.help.openLogs:Open logs folder`),
+        cmd('help.clearCache', $localize`:@@shell.menu.help.clearCache:Clear cache…`),
         cmd('app.restartSafeMode'),
         cmd('app.restartNormally'),
         SEP,
-        appMenu('help.checkForUpdates', 'Check for updates…'),
-        cmd('help.notices', 'Third-party notices'),
-        appMenu('help.about', 'About IMT'),
+        appMenu('help.checkForUpdates', $localize`:@@shell.menu.help.checkForUpdates:Check for updates…`),
+        cmd('help.notices', $localize`:@@shell.menu.help.notices:Third-party notices`),
+        appMenu('help.about', $localize`:@@shell.menu.help.about:About IMT`),
       ]),
     },
   ];
@@ -295,23 +336,31 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
   const inCategory = (c: ViewCategory) => listed.filter((v) => (v.category ?? 'Plugins') === c);
   const submenus = VIEW_SUBMENUS.map((c) => {
     const id = `view.${c.toLowerCase()}`;
-    if (c === 'Plugins') return sub(id, c, pluginItems(inCategory(c)));
-    if (c === 'AI') return sub(id, c, [...inCategory(c).map(viewItem), cmd('ai.setup', 'Set up…'), cmd('ai.models', 'Models…')]);
-    return sub(id, c, ordered(c, inCategory(c)));
+    const label = CATEGORY_LABELS[c];
+    if (c === 'Plugins') return sub(id, label, pluginItems(inCategory(c)));
+    if (c === 'AI') {
+      return sub(id, label, [
+        ...inCategory(c).map(viewItem),
+        cmd('ai.setup', $localize`:@@shell.menu.view.ai.setup:Set up…`),
+        cmd('ai.models', $localize`:@@shell.menu.view.ai.models:Models…`),
+      ]);
+    }
+    return sub(id, label, ordered(c, inCategory(c)));
   });
   return tidy([
-    cmd('view.toggleSidebar', 'Explorer', state.sidebarOpen),
-    { kind: 'item', id: MENU_IDS.fields, label: 'Fields' },
+    cmd('view.toggleSidebar', $localize`:@@shell.menu.view.explorer:Explorer`, state.sidebarOpen),
+    { kind: 'item', id: MENU_IDS.fields, label: $localize`:@@shell.menu.view.fields:Fields` },
     ...[...core, ...extraCore].map(viewItem),
+    cmd('timeline.new'),
     SEP,
     ...submenus,
     SEP,
-    { kind: 'item', id: MENU_IDS.otherWindows, label: 'Other windows…' },
+    { kind: 'item', id: MENU_IDS.otherWindows, label: $localize`:@@shell.menu.view.otherWindows:Other windows…` },
     SEP,
-    sub('view.theme', 'Theme', [
-      cmd('view.theme.system', 'System', state.theme === 'system'),
-      cmd('view.theme.dark', 'Dark', state.theme === 'dark'),
-      cmd('view.theme.light', 'Light', state.theme === 'light'),
+    sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
+      cmd('view.theme.system', $localize`:@@shell.menu.view.theme.system:System`, state.theme === 'system'),
+      cmd('view.theme.dark', $localize`:@@shell.menu.view.theme.dark:Dark`, state.theme === 'dark'),
+      cmd('view.theme.light', $localize`:@@shell.menu.view.theme.light:Light`, state.theme === 'light'),
     ]),
   ]);
 }
@@ -322,7 +371,7 @@ function pluginItems(views: readonly MenuView[]): MenuNode[] {
   const byPlugin = new Map<string, MenuView[]>();
   for (const v of views) {
     if (manager.includes(v)) continue;
-    const name = v.plugin ?? 'Other plugins';
+    const name = v.plugin ?? $localize`:@@shell.menu.view.otherPlugins:Other plugins`;
     byPlugin.set(name, [...(byPlugin.get(name) ?? []), v]);
   }
   const groups: MenuNode[] = [...byPlugin.entries()]
@@ -336,7 +385,7 @@ function windowMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
   const windows: MenuItemNode[] = state.windows.map((w) => ({ kind: 'item', id: MENU_IDS.window + w.label, label: w.title || w.label, checked: w.current }));
   const popouts: MenuItemNode[] = state.popouts.map((p) => ({ kind: 'item', id: MENU_IDS.popout + p.id, label: p.title }));
   return tidy([
-    sub('window.layouts', 'Layouts', [
+    sub('window.layouts', $localize`:@@shell.menu.window.layouts:Layouts`, [
       cmd('window.layout.save'),
       SEP,
       ...[1, 2, 3, 4].map((n) => cmd(`window.layout.apply${n}`)),
@@ -352,8 +401,8 @@ function windowMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     cmd('window.popOut'),
     cmd('window.fullScreen'),
     SEP,
-    windows.length > 1 || popouts.length ? { kind: 'group', label: 'Windows', items: windows } : null,
-    popouts.length ? { kind: 'group', label: 'Pop-out panels', items: popouts } : null,
+    windows.length > 1 || popouts.length ? { kind: 'group', label: $localize`:Menu group@@shell.menu.window.windows:Windows`, items: windows } : null,
+    popouts.length ? { kind: 'group', label: $localize`:@@shell.menu.window.popoutPanels:Pop-out panels`, items: popouts } : null,
   ]);
 }
 

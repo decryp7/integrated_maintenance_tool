@@ -3,13 +3,13 @@ import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/toke
 
 /** The scheduled-collection views. Same extension point as plugin views. */
 export const SCHEDULES_VIEWS: ImtView[] = [
-  { id: 'collection-schedules', category: 'Tools', title: 'Collection schedules', icon: 'timeline', defaultPosition: 'center', component: () => import('./schedules-view').then((m) => m.SchedulesView) },
-  { id: 'collection-runs', category: 'Tools', title: 'Collection runs', icon: 'folder', defaultPosition: 'center', component: () => import('./runs-view').then((m) => m.RunsView) },
+  { id: 'collection-schedules', category: 'Tools', title: $localize`:@@schedules.view.schedules:Collection schedules`, icon: 'timeline', defaultPosition: 'center', component: () => import('./schedules-view').then((m) => m.SchedulesView) },
+  { id: 'collection-runs', category: 'Tools', title: $localize`:@@schedules.view.runs:Collection runs`, icon: 'folder', defaultPosition: 'center', component: () => import('./runs-view').then((m) => m.RunsView) },
 ];
 
 export const SCHEDULES_COMMANDS: ImtCommand[] = [
-  { id: 'tools.schedules.show', title: 'Open collection schedules', category: 'Tools', run: (ctx) => ctx.showView('collection-schedules') },
-  { id: 'tools.runs.show', title: 'Open collection runs', category: 'Tools', run: (ctx) => ctx.showView('collection-runs') },
+  { id: 'tools.schedules.show', title: $localize`:@@schedules.cmd.schedules:Open collection schedules`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-schedules') },
+  { id: 'tools.runs.show', title: $localize`:@@schedules.cmd.runs:Open collection runs`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-runs') },
 ];
 
 /**

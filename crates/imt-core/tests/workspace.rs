@@ -142,7 +142,13 @@ fn remove_reload_clear_and_set_profile() {
     assert_eq!(ws.summary().sources.len(), 1);
 
     // Removing a file inside an opened folder keeps it out of reloads.
-    let in_b = |ws: &Workspace| ws.summary().sources.iter().find(|x| x.path.ends_with("b/app.clef")).map(|x| x.id);
+    let in_b = |ws: &Workspace| {
+        ws.summary()
+            .sources
+            .iter()
+            .find(|x| x.path.replace('\\', "/").ends_with("b/app.clef"))
+            .map(|x| x.id)
+    };
     ws.remove_source(in_b(&ws).unwrap());
     ws.reload().unwrap();
     assert_eq!(in_b(&ws), None);

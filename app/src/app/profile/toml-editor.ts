@@ -16,7 +16,7 @@ import { ProfileDraft } from './profile-draft';
         #area
         class="mono"
         spellcheck="false"
-        aria-label="Profile TOML"
+        aria-label="Profile TOML" i18n-aria-label="@@profile.toml.label"
         [value]="draft.text()"
         (input)="draft.setText($any($event.target).value)"
         (scroll)="syncScroll()"
@@ -25,7 +25,7 @@ import { ProfileDraft } from './profile-draft';
     </div>
     @if (draft.problem(); as p) {
       <div class="problem" role="status">
-        @if (p.line) { <button class="link mono" (click)="goToLine(p.line)">Line {{ p.line }}</button> }
+        @if (p.line) { <button class="link mono" (click)="goToLine(p.line)" i18n="@@profile.toml.line">Line {{ p.line }}</button> }
         <span>{{ p.message }}</span>
       </div>
     }

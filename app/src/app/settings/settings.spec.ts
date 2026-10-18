@@ -105,8 +105,8 @@ describe('SettingsDialogService', () => {
     service.open();
     const stack = TestBed.inject(DialogService).stack();
     expect(stack).toHaveLength(1);
-    expect(stack[0].options.title).toBe('Settings');
-    expect(stack[0].component).toBe(SettingsScreen);
+    expect(stack[0]?.options.title).toBe('Settings');
+    expect(stack[0]?.component).toBe(SettingsScreen);
   });
 
   it('asks the settings store before closing, so unapplied edits are not lost by Escape or the backdrop', async () => {

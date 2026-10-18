@@ -7,7 +7,7 @@ use super::lexer::{lex, CmpOp, Tok, Token};
 use crate::model::Level;
 use crate::user_regex;
 
-const MAX_DEPTH: usize = 64;
+pub(super) const MAX_DEPTH: usize = 64;
 
 /// A parsed query: a filter over events followed by pipeline stages.
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ pub enum Stage {
 }
 
 /// Maps the friendly aliases onto the pseudo-fields.
-fn canonical(word: &str) -> String {
+pub(super) fn canonical(word: &str) -> String {
     match word.to_ascii_lowercase().as_str() {
         "level" => "@level".into(),
         "message" => "@message".into(),

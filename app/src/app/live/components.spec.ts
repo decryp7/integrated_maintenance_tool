@@ -20,6 +20,7 @@ import { OpenLiveDialog } from './open-live-dialog';
 import { ALERTS_VIEW, alertsTitle, LIVE_VIEWS, provideLive, TAIL_STATUS_VIEW } from './provide-live';
 import { groupSources } from './source-groups';
 import { TailStatusStore } from './tail-status.store';
+import { at } from '../../testing/must';
 
 const src = (id: number, path: string, group: string, to: number | null, records = 1): SourceInfo => ({
   id,
@@ -39,7 +40,7 @@ const src = (id: number, path: string, group: string, to: number | null, records
 function rolledDataset() {
   const d = tinyDataset();
   d.sources.push({ id: 7, path: '/logs/web02/app.log.1', name: 'app.log.1', importer: 'text', skipped: 0 }, { id: 8, path: '/logs/web02/app.log.2', name: 'app.log.2', importer: 'text', skipped: 0 });
-  d.records.push({ ...d.records[8], source: 7, ts: T0 - 60_000, line: 1 }, { ...d.records[8], source: 8, ts: T0 - 120_000, line: 1 });
+  d.records.push({ ...at(d.records, 8), source: 7, ts: T0 - 60_000, line: 1 }, { ...at(d.records, 8), source: 8, ts: T0 - 120_000, line: 1 });
   return d;
 }
 
@@ -67,12 +68,14 @@ describe('source groups', () => {
       src(9, '/l/d.log.1', 'd.log', null),
     ]);
     expect(items.map((i) => (i.kind === 'file' ? i.source.id : i.group.key))).toEqual(['/l/a.log', 2, 4, 'd.log']);
-    const g = items[0].kind === 'group' ? items[0].group : null;
+    const first = at(items, 0);
+    const g = first.kind === 'group' ? first.group : null;
     expect(g!.label).toBe('a.log');
     expect(g!.sources.map((s) => s.id)).toEqual([5, 1, 3]);
     expect(g!.newest.id).toBe(5);
     expect(g!.records).toBe(10);
-    const d = items[3].kind === 'group' ? items[3].group : null;
+    const last = at(items, 3);
+    const d = last.kind === 'group' ? last.group : null;
     expect(d!.newest.id).toBe(9);
     expect(groupSources([])).toEqual([]);
   });
@@ -99,8 +102,8 @@ describe('source groups', () => {
     await settle(fixture);
     const badges = all(fixture, '.state');
     expect(badges.map((b) => b.textContent?.trim())).toEqual(['Rotated', 'Error']);
-    expect(badges[0].getAttribute('aria-label')).toContain('Renamed by log rotation');
-    expect(badges[1].getAttribute('title')).toContain('locked');
+    expect(at(badges, 0).getAttribute('aria-label')).toContain('Renamed by log rotation');
+    expect(at(badges, 1).getAttribute('title')).toContain('locked');
     row.click();
     await settle(fixture);
     expect(all(fixture, '.src.member').length).toBe(0);

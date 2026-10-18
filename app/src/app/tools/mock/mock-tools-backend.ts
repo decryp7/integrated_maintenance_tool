@@ -8,6 +8,12 @@ import {
   CollectResult,
   CounterPreset,
   ElevationInfo,
+  EventLogChannel,
+  EventLogQuery,
+  EventLogStartArgs,
+  EventLogStarted,
+  EventLogStatus,
+  EventLogValidation,
   GeneratedCollector,
   MonitorConfig,
   MonitorStatus,
@@ -24,6 +30,7 @@ import type { Report } from '../../core/api.types';
 import type { ToolsBackend, Unlisten } from '../../core/tools-backend';
 import { MockFiles } from '../../core/mock/mock-import';
 import { DEFAULT_PLAN } from '../collector/plan-model';
+import { MockEventLog } from './mock-event-log';
 
 /** Switches for e2e tests and browser development, read from the page URL (`?mock-crash=1`). */
 export interface MockToolsOptions {
@@ -129,6 +136,20 @@ const MOCK_TOOLS: Omit<ToolEntry, 'availability'>[] = [
     platforms: [],
     needsElevation: false,
     ops: [{ name: 'info', title: 'Elevation and platform', args: ANY_ARGS, budgetMs: 10_000 }],
+    plugin: TOOLS_PLUGIN,
+  },
+  {
+    id: TOOL_IDS.eventLog,
+    title: 'Event Log follower',
+    description: 'Follows Windows event log channels into rolling CLEF files that open with live tail.',
+    platforms: ['windows'],
+    needsElevation: false,
+    ops: ['channels', 'validate', 'start', 'stop', 'pause', 'resume', 'status'].map((name) => ({
+      name,
+      title: name,
+      args: ANY_ARGS,
+      budgetMs: 60_000,
+    })),
     plugin: TOOLS_PLUGIN,
   },
 ];
@@ -276,8 +297,18 @@ export class MockToolsBackend implements ToolsBackend {
   private readonly files = new MockFiles();
   private readonly disabled = new Set<string>();
   private monitorCount = 0;
+  /**
+   * The config of the current or last monitor run: the mock live charts write .NET runtime samples only when it
+   * asked for them (`dotnet`), like the engine.
+   */
+  monitorConfig: MonitorConfig | null = null;
   /** Everything the UI asked to be done, for assertions. */
   readonly calls: string[] = [];
+  /** The Event Log follower: Security needs `elevated`; `denied` refuses every start. */
+  private readonly eventLog = new MockEventLog(() => ({
+    elevated: this.options.elevated,
+    denied: this.options.denied,
+  }));
 
   constructor(
     readonly options: MockToolsOptions = optionsFromSearch(
@@ -329,15 +360,23 @@ export class MockToolsBackend implements ToolsBackend {
       : { state: 'available' };
   }
 
-  async toolInvoke<T = unknown>(tool: string, op: string): Promise<T> {
+  async toolInvoke<T = unknown>(tool: string, op: string, args: unknown = {}): Promise<T> {
     const entry = (await this.toolsList()).find((t) => t.id === tool);
     if (!entry) throw new Error(`no installed plugin provides the tool "${tool}"`);
     if (entry.availability.state !== 'available') throw new Error(entry.availability.reason);
+    const log = TOOL_IDS.eventLog;
     const ops: Record<string, () => Promise<unknown>> = {
       [`${TOOL_IDS.perfmonTemplates}/presets`]: () => this.perfmonPresets(),
       [`${TOOL_IDS.processMonitor}/status`]: () => this.monitorStatus(),
       [`${TOOL_IDS.diagnostics}/default-plan`]: () => this.collectDefaultPlan(),
       [`${TOOL_IDS.elevation}/info`]: () => this.elevation(),
+      [`${log}/channels`]: () => this.eventLog.channels(),
+      [`${log}/validate`]: () => this.eventLog.validate(args as EventLogQuery),
+      [`${log}/start`]: () => this.startEventLog(args as EventLogStartArgs),
+      [`${log}/stop`]: () => this.eventLog.stop(),
+      [`${log}/pause`]: () => this.eventLog.pause(),
+      [`${log}/resume`]: () => this.eventLog.resume(),
+      [`${log}/status`]: () => this.eventLog.status(),
     };
     const run = ops[`${tool}/${op}`];
     if (!run) throw new Error(`tool "${tool}" has no operation "${op}"`);
@@ -433,6 +472,7 @@ export class MockToolsBackend implements ToolsBackend {
     if (!config.targets.length) throw new Error('invalid monitor config: add at least one target');
     const folder = dir ?? `/demo/monitor/run-${++this.monitorCount}`;
     this.monitor = { running: true, dir: folder };
+    this.monitorConfig = config;
     this.calls.push(`monitorStart:${folder}`);
     return folder;
   }
@@ -445,6 +485,35 @@ export class MockToolsBackend implements ToolsBackend {
 
   async monitorStatus(): Promise<MonitorStatus> {
     return { ...this.monitor };
+  }
+
+  private async startEventLog(args: EventLogStartArgs): Promise<EventLogStarted> {
+    const started = await this.eventLog.start(args);
+    this.calls.push(`eventLogStart:${started.dir}`);
+    return started;
+  }
+
+  // The Event Log follower goes through `toolInvoke`, like the real backend, so availability applies.
+  eventLogChannels(): Promise<EventLogChannel[]> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'channels');
+  }
+  eventLogValidate(query: EventLogQuery): Promise<EventLogValidation> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'validate', query);
+  }
+  eventLogStart(args: EventLogStartArgs): Promise<EventLogStarted> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'start', args);
+  }
+  eventLogStop(): Promise<string | null> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'stop');
+  }
+  eventLogPause(): Promise<EventLogStatus> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'pause');
+  }
+  eventLogResume(): Promise<EventLogStatus> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'resume');
+  }
+  eventLogStatus(): Promise<EventLogStatus> {
+    return this.toolInvoke(TOOL_IDS.eventLog, 'status');
   }
 
   async collectDefaultPlan(): Promise<string> {
@@ -460,7 +529,7 @@ export class MockToolsBackend implements ToolsBackend {
     try {
       parsed = JSON.parse(plan) as CollectPlan;
     } catch (e) {
-      throw new Error(`the plan is not valid JSON: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`the plan is not valid JSON: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
     }
     if (!outDir.trim()) throw new Error('choose an output folder');
     // The mock's bundle name has no timestamp, so a second run into the same folder meets the first bundle.

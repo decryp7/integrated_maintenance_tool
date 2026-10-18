@@ -66,7 +66,9 @@ export const ClockSkewStore = signalStore(
         await workspace.refreshSummary();
         const next = selected ? moved.get(selected.id) : null;
         if (next != null) workspace.jumpTo(next);
-        workspace.setNotice(`Clock of ${sourceLabel(workspace, change.source)} shifted by ${formatOffset(change.offsetMs)}`);
+        const source = sourceLabel(workspace, change.source);
+        const offset = formatOffset(change.offsetMs);
+        workspace.setNotice($localize`:@@skew.store.shifted:Clock of ${source}:source: shifted by ${offset}:offset:`);
         patchState(store, { busy: false, lastChange: change, suggestion: null });
         return change;
       } catch (e) {
@@ -89,5 +91,5 @@ export const ClockSkewStore = signalStore(
 );
 
 function sourceLabel(workspace: InstanceType<typeof WorkspaceStore>, id: number): string {
-  return workspace.summary()?.sources.find((s) => s.id === id)?.name ?? `source ${id}`;
+  return workspace.summary()?.sources.find((s) => s.id === id)?.name ?? $localize`:@@skew.dialog.sourceFallback:source ${id}:id:`;
 }

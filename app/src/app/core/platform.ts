@@ -16,7 +16,7 @@ export async function pickPaths(directory: boolean): Promise<string[]> {
   const result = await open({
     multiple: true,
     directory,
-    title: directory ? 'Open folder' : 'Open log files',
+    title: directory ? $localize`:@@core.dialog.openFolder:Open folder` : $localize`:@@core.dialog.openLogFiles:Open log files`,
   });
   if (result === null) return [];
   return Array.isArray(result) ? result : [result];
@@ -44,7 +44,7 @@ export async function onFilesDropped(
 export async function pickProfileToOpen(): Promise<string | null> {
   if (!isTauri()) return '/demo/profiles/imported.toml';
   const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({ multiple: false, directory: false, title: 'Import profile', filters: [{ name: 'IMT profile', extensions: ['toml'] }] });
+  const result = await open({ multiple: false, directory: false, title: $localize`:@@core.dialog.importProfile:Import profile`, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
   return typeof result === 'string' ? result : null;
 }
 
@@ -52,14 +52,14 @@ export async function pickProfileToOpen(): Promise<string | null> {
 export async function pickProfileToSave(defaultName: string): Promise<string | null> {
   if (!isTauri()) return defaultName;
   const { save } = await import('@tauri-apps/plugin-dialog');
-  return save({ title: 'Export profile', defaultPath: defaultName, filters: [{ name: 'IMT profile', extensions: ['toml'] }] });
+  return save({ title: $localize`:@@core.dialog.exportProfile:Export profile`, defaultPath: defaultName, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
 }
 
 /** Native save dialog for an events export; null when cancelled. Browser mode returns the default name. */
 export async function pickExportPath(defaultName: string, formats: { name: string; extension: string }[]): Promise<string | null> {
   if (!isTauri()) return defaultName;
   const { save } = await import('@tauri-apps/plugin-dialog');
-  return save({ title: 'Export events', defaultPath: defaultName, filters: formats.map((f) => ({ name: f.name, extensions: [f.extension] })) });
+  return save({ title: $localize`:@@core.dialog.exportEvents:Export events`, defaultPath: defaultName, filters: formats.map((f) => ({ name: f.name, extensions: [f.extension] })) });
 }
 
 /** A file type offered in a save or open dialog. */

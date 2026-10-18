@@ -44,13 +44,13 @@ export class OverwriteGuard {
   /** Asks whether to replace `path`; true only for an explicit "Replace". */
   async confirm(path: string): Promise<boolean> {
     const ref = this.dialogs.open<boolean>(ConfirmDialog, {
-      title: 'Replace file?',
+      title: $localize`:@@ui.overwrite.title:Replace file?`,
       width: 460,
       inputs: {
-        message: `${fileName(path)} already exists. Do you want to replace it? Its current content will be lost.`,
+        message: $localize`:@@ui.overwrite.message:${fileName(path)}:name: already exists. Do you want to replace it? Its current content will be lost.`,
         detail: path,
-        confirmLabel: 'Replace',
-        cancelLabel: 'Keep the existing file',
+        confirmLabel: $localize`:@@ui.overwrite.replace:Replace`,
+        cancelLabel: $localize`:@@ui.overwrite.keep:Keep the existing file`,
         danger: true,
       },
     });

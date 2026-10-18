@@ -46,14 +46,14 @@ describe('timelineToSvg', () => {
     expect(root.querySelectorAll('g.lane')).toHaveLength(2);
     expect(root.querySelectorAll('g.axis text').length).toBeGreaterThan(1);
     // Two non-empty density buckets in the first lane.
-    expect(root.querySelectorAll('g.lane')[0].querySelectorAll('rect')).toHaveLength(2);
+    expect(root.querySelectorAll('g.lane')[0]?.querySelectorAll('rect')).toHaveLength(2);
     const circles = root.querySelectorAll('circle');
     expect(circles).toHaveLength(2);
-    expect(circles[0].getAttribute('fill')).toBe('#f2545b');
+    expect(circles[0]?.getAttribute('fill')).toBe('#f2545b');
     // An unsafe colour falls back to the theme.
-    expect(circles[1].getAttribute('fill')).toBe(SVG_PALETTES.light.muted);
-    expect(circles[1].getAttribute('r')).toBe('5');
-    expect(circles[1].querySelector('title')?.textContent).toBe('crash ×3: boom');
+    expect(circles[1]?.getAttribute('fill')).toBe(SVG_PALETTES.light.muted);
+    expect(circles[1]?.getAttribute('r')).toBe('5');
+    expect(circles[1]?.querySelector('title')?.textContent).toBe('crash ×3: boom');
     expect(svg).not.toContain('<b>');
     expect(svg).toContain('Order &lt;b&gt;failed&lt;/b&gt;');
     const labels = [...root.querySelectorAll('g.lane > text')].map((t) => t.textContent);
@@ -76,9 +76,9 @@ describe('timelineToSvg', () => {
     const doc = parse(svg);
     const ann = doc.querySelectorAll('g.annotations rect');
     expect(ann).toHaveLength(2);
-    expect(ann[0].getAttribute('fill')).toBe('#3987e5');
-    expect(ann[1].getAttribute('fill')).toBe(SVG_PALETTES.dark.accent);
-    expect(Number(ann[1].getAttribute('width'))).toBeGreaterThanOrEqual(2);
+    expect(ann[0]?.getAttribute('fill')).toBe('#3987e5');
+    expect(ann[1]?.getAttribute('fill')).toBe(SVG_PALETTES.dark.accent);
+    expect(Number(ann[1]?.getAttribute('width'))).toBeGreaterThanOrEqual(2);
     expect(svg).toContain('2 more instances not shown');
     expect(doc.documentElement.querySelector('rect')?.getAttribute('fill')).toBe(SVG_PALETTES.dark.background);
     expect(timelineToSvg({ timeline: timeline({ truncatedLanes: 1 }), title: 'T', theme: 'light', tz: 'local' })).toContain('1 more instance not shown');

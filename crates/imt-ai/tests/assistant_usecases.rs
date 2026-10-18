@@ -241,6 +241,21 @@ fn pipeline_mask_step_reports_changes() {
 }
 
 #[test]
+fn pipeline_calc_step_computes_a_field() {
+    let sample = billing_sample(60);
+    let reply = steps_reply(json!([{"step": "calc", "field": "MsgLen", "expr": "len(@message)"}]));
+    let p = assistant(&[&reply])
+        .propose_pipeline(store(), "message length", &sample, None)
+        .unwrap();
+    assert!(p.changed > 0 && p.dropped == 0);
+    assert!(p.toml.contains("calc") && p.toml.contains("len(@message)"), "{}", p.toml);
+    assert!(imt_core::Profile::from_toml(&p.profile_toml).is_ok());
+    // A bad expression is refused by the engine before it reaches the user.
+    let bad = steps_reply(json!([{"step": "calc", "field": "X", "expr": "nope("}]));
+    assert!(assistant(&[&bad, &bad]).propose_pipeline(store(), "x", &sample, None).is_err());
+}
+
+#[test]
 fn pipeline_repairs_noop_and_rejects_bad_steps() {
     let sample = billing_sample(60);
     let noop = steps_reply(json!([{"step": "drop", "when": [{"field": "@message", "op": "contains", "value": "ZZZ-never"}]}]));

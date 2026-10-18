@@ -8,6 +8,7 @@ import { ProfileViewState } from '../profile-view-state';
 import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { HotspotsView, ROW_H, rowWindow } from './hotspots-view';
+import { at } from '../../../testing/must';
 
 async function mount(opts: Parameters<typeof setupProfiling>[0] = {}, open = true) {
   const doubles = setupProfiling(opts);
@@ -104,7 +105,7 @@ describe('HotspotsView', () => {
     await new Promise((r) => setTimeout(r, 260));
     await settle(fixture, 6);
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy.mock.calls[0][0].search).toBe('Orde');
+    expect(spy.mock.calls[0]?.[0].search).toBe('Orde');
     for (const n of names(fixture)) expect(n!.toLowerCase()).toContain('orde');
   });
 
@@ -151,10 +152,10 @@ describe('HotspotsView', () => {
 
   it('primary click on a function opens its butterfly and selects the row', async () => {
     const { fixture, ctx } = await mount();
-    all<HTMLButtonElement>(fixture, 'td.name button')[1].click();
+    at(all<HTMLButtonElement>(fixture, 'td.name button'), 1).click();
     fixture.detectChanges();
     expect(ctx.last('showView')).toEqual(['profiling-butterfly']);
-    expect(all(fixture, 'tbody tr[data-index]')[1].classList).toContain('sel');
+    expect(all(fixture, 'tbody tr[data-index]')[1]?.classList).toContain('sel');
   });
 
   it('primary click on a thread row filters the view to that thread; thread rows have no actions', async () => {
@@ -162,7 +163,7 @@ describe('HotspotsView', () => {
     typeInto(el<HTMLSelectElement>(fixture, 'select[aria-label="Group by"]'), 'thread', 'change');
     await settle(fixture, 6);
     expect(all(fixture, '.actions')).toHaveLength(0);
-    all<HTMLButtonElement>(fixture, 'td.name button')[0].click();
+    at(all<HTMLButtonElement>(fixture, 'td.name button'), 0).click();
     expect(state.threads()?.length).toBe(1);
     expect(ctx.last('showView')).toBeUndefined();
   });
@@ -215,7 +216,7 @@ describe('HotspotsView', () => {
     const backend: ProfilingBackend = Object.create(real);
     backend.hotspots = async (r: HotspotsRequest): Promise<HotspotsPage> => {
       const page = await real.hotspots({ ...r, offset: 0, limit: 10 });
-      return { ...page, totalRows: 1000, rows: Array.from({ length: r.limit ?? 200 }, (_, i) => ({ ...page.rows[i % page.rows.length], name: `fn-${r.offset! + i}` })) };
+      return { ...page, totalRows: 1000, rows: Array.from({ length: r.limit ?? 200 }, (_, i) => ({ ...at(page.rows, i % page.rows.length), name: `fn-${r.offset! + i}` })) };
     };
     const { fixture } = await mount({ backend });
     expect(names(fixture)[0]).toBe('fn-0');
@@ -236,7 +237,7 @@ describe('HotspotsView', () => {
     const backend: ProfilingBackend = Object.create(real);
     backend.hotspots = async (r: HotspotsRequest) => {
       const page = await real.hotspots({ ...r, offset: 0, limit: 10 });
-      return { ...page, totalRows: 500, rows: Array.from({ length: r.limit ?? 200 }, (_, i) => ({ ...page.rows[i % page.rows.length], name: `fn-${r.offset! + i}` })) };
+      return { ...page, totalRows: 500, rows: Array.from({ length: r.limit ?? 200 }, (_, i) => ({ ...at(page.rows, i % page.rows.length), name: `fn-${r.offset! + i}` })) };
     };
     const { fixture } = await mount({ backend });
     el(fixture, 'tbody').dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));

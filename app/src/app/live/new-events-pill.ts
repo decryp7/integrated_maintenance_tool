@@ -8,8 +8,8 @@ import { LiveFeed } from './live-feed';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (feed.newEvents() > 0) {
-      <button type="button" class="pill" data-testid="new-events" (click)="feed.showNewEvents()">
-        <span aria-hidden="true">↑</span> {{ fmt(feed.newEvents()) }} new event{{ feed.newEvents() === 1 ? '' : 's' }} — show
+      <button type="button" class="pill" data-testid="new-events" (click)="feed.showNewEvents()" i18n="@@live.newEvents.pill">
+        <span aria-hidden="true">↑</span> {feed.newEvents(), plural, =1 {{{ fmt(feed.newEvents()) }} new event — show} other {{{ fmt(feed.newEvents()) }} new events — show}}
       </button>
     }
   `,

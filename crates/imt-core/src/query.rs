@@ -27,7 +27,15 @@ pub struct Query {
     /// evaluating (live tail).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<TimeWindow>,
+    /// Only records from these source ids (`SourceInfo::id`); empty = all
+    /// sources. Unknown ids simply match nothing; at most [`MAX_QUERY_SOURCES`].
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<u32>,
 }
+
+/// Upper bound on [`Query::sources`], so a hostile request cannot make every
+/// evaluation allocate an unbounded set.
+pub const MAX_QUERY_SOURCES: usize = 10_000;
 
 /// A time window relative to "now": the newest record (default) or the wall
 /// clock (`[live] clock = "wall"`).
@@ -60,6 +68,7 @@ pub struct CompiledQuery {
     filters: Vec<Condition>,
     pub group_by: Vec<String>,
     groups: Option<HashSet<String>>,
+    sources: Option<HashSet<u32>>,
     marker_mask: crate::model::MarkerMask,
     match_nothing: bool,
     ql: Vec<crate::ql::Filter>,
@@ -67,6 +76,12 @@ pub struct CompiledQuery {
 
 impl CompiledQuery {
     pub fn new(q: &Query, default_group_by: &[String], marker_kinds: &[String]) -> Result<CompiledQuery> {
+        if q.sources.len() > MAX_QUERY_SOURCES {
+            anyhow::bail!(
+                "the query restricts to {} sources, more than the maximum of {MAX_QUERY_SOURCES}; clear the source selection",
+                q.sources.len()
+            );
+        }
         let text = if q.text.trim().is_empty() {
             None
         } else {
@@ -108,6 +123,7 @@ impl CompiledQuery {
                 q.group_by.clone()
             },
             groups: (!q.groups.is_empty()).then(|| q.groups.iter().cloned().collect()),
+            sources: (!q.sources.is_empty()).then(|| q.sources.iter().copied().collect()),
             marker_mask,
             // Asking only for marker kinds that do not exist matches nothing.
             match_nothing: !q.markers.is_empty() && marker_mask == 0,
@@ -125,8 +141,11 @@ impl CompiledQuery {
         }
     }
 
-    /// Time range, field filters and instance selection.
+    /// Source selection, time range, field filters and instance selection.
     pub fn structural(&self, rec: &Record, source_name: &str, key: Option<&str>) -> bool {
+        if self.sources.as_ref().is_some_and(|s| !s.contains(&rec.source)) {
+            return false;
+        }
         if !self.in_range(rec) || !self.filters.iter().all(|f| f.eval(rec, source_name)) {
             return false;
         }
@@ -378,5 +397,38 @@ mod tests {
             ..Default::default()
         };
         assert!(CompiledQuery::new(&bad, &[], &[]).err().unwrap().to_string().starts_with("query: "));
+    }
+
+    #[test]
+    fn source_selection_is_structural_and_bounded() {
+        let mut r = rec(10, "x");
+        r.source = 3;
+        let only = |sources: Vec<u32>| {
+            CompiledQuery::new(
+                &Query {
+                    sources,
+                    ..Default::default()
+                },
+                &[],
+                &[],
+            )
+            .unwrap()
+        };
+        assert!(only(vec![]).matches(&r, "s"));
+        assert!(only(vec![1, 3]).structural(&r, "s", None));
+        assert!(only(vec![1, 3]).matches(&r, "s"));
+        assert!(!only(vec![1]).structural(&r, "s", Some("any")));
+        // Unknown ids match nothing rather than failing.
+        assert!(!only(vec![999]).matches(&r, "s"));
+        let too_many = Query {
+            sources: (0..=MAX_QUERY_SOURCES as u32).collect(),
+            ..Default::default()
+        };
+        let err = CompiledQuery::new(&too_many, &[], &[]).err().unwrap().to_string();
+        assert!(err.contains("maximum of 10000"), "{err}");
+        // Absent and empty are the same, and empty is not serialized.
+        let parsed: Query = serde_json::from_str(r#"{"sources":[2]}"#).unwrap();
+        assert_eq!(parsed.sources, vec![2]);
+        assert!(!serde_json::to_string(&Query::default()).unwrap().contains("sources"));
     }
 }

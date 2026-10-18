@@ -14,16 +14,16 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
   selector: 'imt-clock-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p>
+    <p i18n="@@skew.dialog.intro">
       Shift the timestamps of <strong>{{ name() }}</strong> so its events line up with other machines.
       Current offset: <strong data-testid="current-offset">{{ fmt(current()) }}</strong>.
     </p>
 
     <section aria-labelledby="skew-manual">
-      <h3 id="skew-manual">Manual offset</h3>
+      <h3 id="skew-manual" i18n="@@skew.dialog.manual">Manual offset</h3>
       <div class="row">
         <label class="lbl">
-          Offset (seconds, or with units such as 2350ms or -1h 5s)
+          <ng-container i18n="@@skew.dialog.offsetLabel">Offset (seconds, or with units such as 2350ms or -1h 5s)</ng-container>&ngsp;
           <input
             type="text"
             data-testid="offset-input"
@@ -34,30 +34,30 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
             aria-describedby="skew-manual-hint"
           />
         </label>
-        <button type="button" class="btn primary" [disabled]="parsed() === null || skew.busy()" (click)="applyManual()">Apply</button>
+        <button type="button" class="btn primary" [disabled]="parsed() === null || skew.busy()" (click)="applyManual()" i18n="@@skew.dialog.apply">Apply</button>
         @if (current() !== 0) {
-          <button type="button" class="btn" [disabled]="skew.busy()" (click)="reset()">Reset to 0</button>
+          <button type="button" class="btn" [disabled]="skew.busy()" (click)="reset()" i18n="@@skew.dialog.reset">Reset to 0</button>
         }
       </div>
       <p id="skew-manual-hint" class="hint">
-        @if (text() !== '' && parsed() === null) { <span class="err">Not an offset. Examples: 2.35, -1.5, +2350ms, -1h 5s.</span> }
-        @else if (parsed() !== null) { Will shift by {{ fmt(parsed()!) }}. }
-        @else { Positive values move the events later. }
+        @if (text() !== '' && parsed() === null) { <span class="err" i18n="@@skew.dialog.invalid">Not an offset. Examples: 2.35, -1.5, +2350ms, -1h 5s.</span> }
+        @else if (parsed() !== null) { <ng-container i18n="@@skew.dialog.willShift">Will shift by {{ fmt(parsed()!) // i18n(ph: "offset") }}.</ng-container> }
+        @else { <ng-container i18n="@@skew.dialog.positiveHint">Positive values move the events later.</ng-container> }
       </p>
     </section>
 
     <section aria-labelledby="skew-align">
-      <h3 id="skew-align">Align on an event</h3>
+      <h3 id="skew-align" i18n="@@skew.dialog.align">Align on an event</h3>
       @if (reference(); as ref) {
-        <p class="small">Reference: <strong>{{ ref.sourceName }}</strong> · {{ time(ref.ts) }} · <span class="ellipsis">{{ ref.message }}</span></p>
+        <p class="small" i18n="@@skew.dialog.reference">Reference: <strong>{{ ref.sourceName }}</strong> · {{ time(ref.ts) }} · <span class="ellipsis">{{ ref.message }}</span></p>
         @if (target(); as t) {
-          <p class="small">Same moment in this source: {{ time(t.ts) }} · <span class="ellipsis">{{ t.message }}</span></p>
-          <button type="button" class="btn" data-testid="align" [disabled]="skew.busy()" (click)="align()">Align on these events</button>
+          <p class="small" i18n="@@skew.dialog.sameMoment">Same moment in this source: {{ time(t.ts) }} · <span class="ellipsis">{{ t.message }}</span></p>
+          <button type="button" class="btn" data-testid="align" [disabled]="skew.busy()" (click)="align()" i18n="@@skew.dialog.alignButton">Align on these events</button>
         } @else {
-          <p class="small faint">Select the matching event of {{ name() }} in the events grid, then open this dialog again.</p>
+          <p class="small faint" i18n="@@skew.dialog.selectMatching">Select the matching event of {{ name() }} in the events grid, then open this dialog again.</p>
         }
       } @else {
-        <p class="small faint">
+        <p class="small faint" i18n="@@skew.dialog.selectReference">
           Select an event in another source and choose "Use as clock reference" in the inspector, then select the same real-world
           event in {{ name() }}.
         </p>
@@ -65,33 +65,33 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
     </section>
 
     <section aria-labelledby="skew-suggest">
-      <h3 id="skew-suggest">Suggestion from correlation ids</h3>
+      <h3 id="skew-suggest" i18n="@@skew.dialog.suggestion">Suggestion from correlation ids</h3>
       <div class="row">
         <button type="button" class="btn" data-testid="suggest" [disabled]="skew.suggesting()" (click)="suggest()">
-          {{ skew.suggesting() ? 'Looking…' : 'Suggest' }}
+          {{ suggestLabel() }}
         </button>
       </div>
       @if (skew.suggestion(); as result) {
         @if (mine(); as s) {
           <div class="suggestion" data-testid="suggestion">
             <p>
-              Align with <strong>{{ sourceName(s.reference) }}</strong>: <strong>{{ fmt(s.suggestedMs) }}</strong>
-              <span class="conf" [class]="'conf ' + label(s.confidence)">{{ label(s.confidence) }} confidence · {{ pct(s.confidence) }}</span>
+              <ng-container i18n="@@skew.dialog.alignWith">Align with <strong>{{ sourceName(s.reference) // i18n(ph: "source") }}</strong>: <strong>{{ fmt(s.suggestedMs) // i18n(ph: "offset") }}</strong></ng-container>&ngsp;
+              <span class="conf" [class]="'conf ' + label(s.confidence)">{{ confidenceText(s.confidence) }}</span>
             </p>
-            <p class="small faint">{{ s.agreeing }} of {{ s.pairs }} events with a shared {{ result.fields.join(' / ') }} agree (spread {{ fmt(s.spreadMs).replace('+', '') }}).</p>
-            <button type="button" class="btn primary" data-testid="apply-suggestion" [disabled]="skew.busy()" (click)="applySuggestion(s.suggestedMs)">Apply</button>
+            <p class="small faint" i18n="@@skew.dialog.agree">{{ s.agreeing }} of {{ s.pairs }} events with a shared {{ result.fields.join(' / ') }} agree (spread {{ fmt(s.spreadMs).replace('+', '') }}).</p>
+            <button type="button" class="btn primary" data-testid="apply-suggestion" [disabled]="skew.busy()" (click)="applySuggestion(s.suggestedMs)" i18n="@@skew.dialog.applySuggestion">Apply</button>
           </div>
         } @else if (result.reference === sourceId()) {
-          <p class="small faint">This source is the reference others are aligned to.</p>
+          <p class="small faint" i18n="@@skew.dialog.isReference">This source is the reference others are aligned to.</p>
         } @else {
-          <p class="small faint">Too few events share a {{ result.fields.join(' / ') }} with another source to suggest an offset.</p>
+          <p class="small faint" i18n="@@skew.dialog.tooFew">Too few events share a {{ result.fields.join(' / ') }} with another source to suggest an offset.</p>
         }
       }
     </section>
 
     @if (skew.error(); as e) { <p class="err" role="alert">{{ e }}</p> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="ref.close()">Close</button>
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@skew.dialog.close">Close</button>
     </div>
   `,
   styles: [
@@ -120,7 +120,11 @@ export class ClockDialog {
   protected readonly text = signal('');
   protected readonly parsed = computed(() => parseOffset(this.text()));
   private readonly source = computed(() => this.store.summary()?.sources.find((s) => s.id === this.sourceId()) ?? null);
-  protected readonly name = computed(() => this.source()?.name ?? `source ${this.sourceId()}`);
+  protected readonly name = computed(() => {
+    const id = this.sourceId();
+    return this.source()?.name ?? $localize`:@@skew.dialog.sourceFallback:source ${id}:id:`;
+  });
+  protected readonly suggestLabel = computed(() => (this.skew.suggesting() ? $localize`:@@skew.dialog.looking:Looking…` : $localize`:@@skew.dialog.suggest:Suggest`));
   protected readonly current = computed(() => this.source()?.offsetMs ?? 0);
   /** The reference event, when it belongs to another source. */
   protected readonly reference = computed(() => {
@@ -147,7 +151,19 @@ export class ClockDialog {
   }
 
   protected sourceName(id: number): string {
-    return this.store.summary()?.sources.find((s) => s.id === id)?.name ?? `source ${id}`;
+    return this.store.summary()?.sources.find((s) => s.id === id)?.name ?? $localize`:@@skew.dialog.sourceFallback:source ${id}:id:`;
+  }
+
+  protected confidenceText(c: number): string {
+    const pct = this.pct(c);
+    switch (this.label(c)) {
+      case 'high':
+        return $localize`:@@skew.dialog.confidence.high:high confidence · ${pct}:pct:`;
+      case 'medium':
+        return $localize`:@@skew.dialog.confidence.medium:medium confidence · ${pct}:pct:`;
+      default:
+        return $localize`:@@skew.dialog.confidence.low:low confidence · ${pct}:pct:`;
+    }
   }
 
   protected applyManual(): Promise<void> {

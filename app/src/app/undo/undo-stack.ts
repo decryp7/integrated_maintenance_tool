@@ -66,7 +66,8 @@ export class UndoStack {
     try {
       await action.do();
     } catch (e) {
-      this.lastError.set(`${capitalise(action.label)} failed: ${message(e)}`);
+      const label = capitalise(action.label);
+      this.lastError.set($localize`:@@undo.stack.actionFailed:${label}:label: failed: ${message(e)}:error:`);
       return false;
     }
     this.record(action);
@@ -105,7 +106,12 @@ export class UndoStack {
       to.update((s) => [...s, { ...entry, mergeKey: undefined }].slice(-UNDO_LIMIT));
       return true;
     } catch (e) {
-      this.lastError.set(`Could not ${op === 'undo' ? 'undo' : 'redo'} ${entry.label}: ${message(e)}`);
+      const label = entry.label;
+      this.lastError.set(
+        op === 'undo'
+          ? $localize`:@@undo.stack.undoFailed:Could not undo ${label}:label:: ${message(e)}:error:`
+          : $localize`:@@undo.stack.redoFailed:Could not redo ${label}:label:: ${message(e)}:error:`,
+      );
       return false;
     } finally {
       this.running.set(false);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FrameDto, TreeNode } from '../../core/api.types';
 import { flattenTree, keyOf, ROOT_KEY, TreeEntry, TreeRow, treeKey } from './tree-model';
+import { at } from '../../../testing/must';
 
 const frame = (id: number): FrameDto => ({ id, name: `f${id}`, module: null, file: null, line: null, kind: 'managed', isFramework: false });
 const node = (id: number, hasChildren: boolean): TreeNode => ({ frame: frame(id), self: {}, total: {}, selfPct: 0, totalPct: 0, hasChildren });
@@ -22,7 +23,7 @@ describe('flattenTree', () => {
   it('lists top-level nodes collapsed, with position and set size', () => {
     const rows = flattenTree({ '': root(['1', '2']), '1': entry([1], true), '2': entry([2], false) }, new Set());
     expect(rows.map((r) => r.key)).toEqual(['1', '2']);
-    const r0 = rows[0];
+    const r0 = at(rows, 0);
     expect(r0.kind === 'node' && [r0.level, r0.posinset, r0.setsize, r0.expanded, r0.parent]).toEqual([1, 1, 2, false, '']);
   });
 
@@ -37,9 +38,9 @@ describe('flattenTree', () => {
     const rows = flattenTree(entries, new Set(['1', '2']));
     // '2' is expanded but has no children; 'gone' has no entry.
     expect(rows.map((r) => r.key)).toEqual(['1', '1/5', '2']);
-    const child = rows[1];
+    const child = at(rows, 1);
     expect(child.kind === 'node' && [child.level, child.parent]).toEqual([2, '1']);
-    const two = rows[2];
+    const two = at(rows, 2);
     expect(two.kind === 'node' && two.expanded).toBe(false);
   });
 
@@ -66,7 +67,7 @@ describe('flattenTree', () => {
     };
     const rows = flattenTree(entries, new Set(['1']));
     expect(rows.map((r) => r.kind)).toEqual(['node', 'status']);
-    expect(rows[1].level).toBe(2);
+    expect(rows[1]?.level).toBe(2);
   });
 });
 

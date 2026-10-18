@@ -25,12 +25,12 @@ interface Tip {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
   template: `
-    <div class="legend" role="group" aria-label="Colour legend">
+    <div class="legend" role="group" aria-label="Colour legend" i18n-aria-label="@@profiling.flame.legendLabel">
       @if (diff()) {
-        <span class="lg"><span class="sw" [style.background]="palette().less"></span>− less than the baseline ({{ pp(-scale()) }})</span>
+        <span class="lg" i18n="@@profiling.flame.legend.less"><span class="sw" [style.background]="palette().less"></span>− less than the baseline ({{ pp(-scale()) // i18n(ph: "delta") }})</span>
         <span class="ramp" aria-hidden="true" [style.background]="'linear-gradient(90deg,' + palette().less + ',' + palette().neutral + ',' + palette().more + ')'"></span>
-        <span class="lg"><span class="sw" [style.background]="palette().more"></span>+ more than the baseline ({{ pp(scale()) }})</span>
-        <span class="lg"><span class="sw" [style.background]="palette().neutral"></span>no change</span>
+        <span class="lg" i18n="@@profiling.flame.legend.more"><span class="sw" [style.background]="palette().more"></span>+ more than the baseline ({{ pp(scale()) // i18n(ph: "delta") }})</span>
+        <span class="lg" i18n="@@profiling.flame.legend.same"><span class="sw" [style.background]="palette().neutral"></span>no change</span>
       } @else {
         @for (l of legend(); track l.label) {
           <span class="lg"><span class="sw" [style.background]="l.color"></span>{{ l.label }}</span>
@@ -48,7 +48,8 @@ interface Tip {
         tabindex="0"
         role="group"
         aria-roledescription="flame graph"
-        [attr.aria-label]="label() + '. ' + summary()"
+        i18n-aria-roledescription="@@profiling.flame.roleDescription"
+        [attr.aria-label]="ariaLabel()"
         [attr.aria-describedby]="helpId"
         [style.height.px]="height()"
         (keydown)="onKey($event)"
@@ -59,34 +60,35 @@ interface Tip {
         <canvas #canvas aria-hidden="true"></canvas>
       </div>
     </div>
-    <span [id]="helpId" class="sr">Arrow keys move between frames ({{ orientation() === 'flame' ? 'Up to a callee, Down to the caller' : 'Down to a callee, Up to the caller' }}, Left and Right to neighbours); Enter zooms in, Escape zooms out, Home goes to the top frame.</span>
+    <span [id]="helpId" class="sr">{{ helpText() }}</span>
     <div class="sr" aria-live="polite" data-testid="flame-announce">{{ announce() }}</div>
     @if (tipRect(); as t) {
       <div class="popover tip" role="tooltip" [style.left.px]="t.x + 14" [style.top.px]="t.y + 12">
         <strong class="tname">{{ frameName(t.rect) }}</strong>
-        @if (frameOf(t.rect); as f) { <span class="faint">{{ f.module ?? 'no module' }} · {{ kindLabel(f) }}</span> }
-        <span class="mono">Total {{ value(t.rect.value) }} ({{ pct(t.rect.value) }} of {{ graph()?.focusValue === graph()?.grandTotal ? 'all' : 'the zoomed frame' }})</span>
-        <span class="mono">Self {{ value(t.rect.selfValue) }}</span>
+        @if (frameOf(t.rect); as f) { <span class="faint">{{ f.module ?? noModule }} · {{ kindLabel(f) }}</span> }
+        <span class="mono">{{ totalLine(t.rect) }}</span>
+        <span class="mono" i18n="@@profiling.flame.tip.self">Self {{ value(t.rect.selfValue) // i18n(ph: "value") }}</span>
         @if (t.rect.delta !== undefined) {
-          <span class="mono">Baseline {{ value(t.rect.baselineValue ?? 0) }} · change {{ pp(t.rect.delta * 100) }}</span>
+          <span class="mono" i18n="@@profiling.flame.tip.baseline">Baseline {{ value(t.rect.baselineValue ?? 0) // i18n(ph: "baseline") }} · change {{ pp(t.rect.delta * 100) // i18n(ph: "delta") }}</span>
         }
-        <span class="faint">{{ measurement() }} · click to zoom</span>
+        <span class="faint" i18n="@@profiling.flame.tip.hint">{{ measurement() // i18n(ph: "measurement") }} · click to zoom</span>
       </div>
     }
     <details class="frames">
-      <summary>Frames in view ({{ model().rects.length }}{{ model().rects.length > listLimit ? ', largest ' + listLimit + ' listed' : '' }})</summary>
+      <summary>{{ framesSummary() }}</summary>
       <table class="grid">
-        <thead><tr><th scope="col">Frame</th><th scope="col">Depth</th><th scope="col" class="num">Total</th><th scope="col" class="num">Share</th>@if (diff()) { <th scope="col" class="num">Change</th> }</tr></thead>
+        <thead><tr><th scope="col" i18n="@@profiling.flame.col.frame">Frame</th><th scope="col" i18n="@@profiling.flame.col.depth">Depth</th><th scope="col" class="num" i18n="@@profiling.flame.col.total">Total</th><th scope="col" class="num" i18n="@@profiling.flame.col.share">Share</th>@if (diff()) { <th scope="col" class="num" i18n="@@profiling.flame.col.change">Change</th> }</tr></thead>
         <tbody>
           @for (i of listed(); track i) {
-            @let r = model().rects[i];
-            <tr [class.sel]="current() === i">
-              <td><button class="link" type="button" (click)="zoomAt(i)" [attr.aria-label]="'Zoom to ' + frameName(r)">{{ frameName(r) }}</button>@if (r.matched) { <span class="tag">match</span> }</td>
-              <td>{{ r.depth }}</td>
-              <td class="num">{{ value(r.value) }}</td>
-              <td class="num">{{ pct(r.value) }}</td>
-              @if (diff()) { <td class="num">{{ pp((r.delta ?? 0) * 100) }}</td> }
-            </tr>
+            @if (model().rects[i]; as r) {
+              <tr [class.sel]="current() === i">
+                <td><button class="link" type="button" (click)="zoomAt(i)" [attr.aria-label]="zoomLabel(r)">{{ frameName(r) }}</button>@if (r.matched) { <span class="tag" i18n="@@profiling.flame.match">match</span> }</td>
+                <td>{{ r.depth }}</td>
+                <td class="num">{{ value(r.value) }}</td>
+                <td class="num">{{ pct(r.value) }}</td>
+                @if (diff()) { <td class="num">{{ pp((r.delta ?? 0) * 100) }}</td> }
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -125,7 +127,7 @@ export class FlameChart {
   readonly colorBy = input<ColorBy>('kind');
   readonly diff = input(false);
   readonly metrics = input<MetricDto[]>([]);
-  readonly label = input('Flame graph');
+  readonly label = input($localize`:@@profiling.flame.defaultLabel:Flame graph`);
   /** Zoom request: the frame ids from depth 0 down to the chosen rectangle. */
   readonly zoom = output<number[]>();
   readonly zoomOut = output<void>();
@@ -140,6 +142,7 @@ export class FlameChart {
   protected readonly tip = signal<Tip | null>(null);
   protected readonly palette = signal<FlamePalette>(FALLBACK_PALETTE);
   protected readonly listLimit = LIST_LIMIT;
+  protected readonly noModule = $localize`:@@profiling.flame.noModule:no module`;
   protected readonly helpId = nextTagId('flame-help');
   private moduleSlots = new Map<string, number>();
 
@@ -157,21 +160,47 @@ export class FlameChart {
       return (['managed', 'native', 'kernel', 'unknown'] as const).map((k) => ({ label: KIND_LABEL[k], color: KIND_SLOT[k] === null ? p.other : p.slots[KIND_SLOT[k]!] }));
     }
     const entries = [...this.slots().entries()].filter(([m]) => modulesByValue(this.model()).includes(m)).sort((a, b) => a[1] - b[1]);
-    return [...entries.map(([m, slot]) => ({ label: m, color: p.slots[slot] })), { label: 'Other modules', color: p.other }];
+    return [...entries.map(([m, slot]) => ({ label: m, color: p.slots[slot] })), { label: $localize`:@@profiling.flame.otherModules:Other modules`, color: p.other }];
   });
   protected readonly summary = computed(() => {
     const g = this.graph();
-    if (!g) return 'No data.';
-    const parts = [`${g.rects.length} frames, ${this.model().maxDepth + 1} levels`];
-    if (g.truncated) parts.push('truncated: more frames than the limit, zoom in for detail');
+    if (!g) return $localize`:@@profiling.flame.noData:No data.`;
+    const frames = g.rects.length;
+    const levels = this.model().maxDepth + 1;
+    const parts = [$localize`:@@profiling.flame.summary:${frames}:frames: frames, ${levels}:levels: levels`];
+    if (g.truncated) parts.push($localize`:@@profiling.flame.truncated:truncated: more frames than the limit, zoom in for detail`);
     return parts.join('; ');
+  });
+  protected readonly ariaLabel = computed(() => {
+    const label = this.label();
+    const summary = this.summary();
+    return $localize`:@@profiling.flame.ariaLabel:${label}:label:. ${summary}:summary:`;
+  });
+  protected readonly helpText = computed(() =>
+    this.orientation() === 'flame'
+      ? $localize`:@@profiling.flame.help.flame:Arrow keys move between frames (Up to a callee, Down to the caller, Left and Right to neighbours); Enter zooms in, Escape zooms out, Home goes to the top frame.`
+      : $localize`:@@profiling.flame.help.icicle:Arrow keys move between frames (Down to a callee, Up to the caller, Left and Right to neighbours); Enter zooms in, Escape zooms out, Home goes to the top frame.`,
+  );
+  protected readonly framesSummary = computed(() => {
+    const count = this.model().rects.length;
+    const limit = this.listLimit;
+    return count > limit
+      ? $localize`:@@profiling.flame.framesLimited:Frames in view (${count}:count:, largest ${limit}:limit: listed)`
+      : $localize`:@@profiling.flame.frames:Frames in view (${count}:count:)`;
   });
   protected readonly announce = computed(() => {
     const i = this.current();
     const r = i === null ? null : this.model().rects[i];
     if (!r) return '';
-    const delta = r.delta !== undefined ? `, change ${formatPp(r.delta * 100)}` : '';
-    return `${this.frameName(r)}, depth ${r.depth}, total ${this.value(r.value)}, ${this.pct(r.value)}, self ${this.value(r.selfValue)}${delta}${r.matched ? ', matches the search' : ''}`;
+    const change = r.delta !== undefined ? formatPp(r.delta * 100) : null;
+    const delta = change !== null ? $localize`:@@profiling.flame.announce.change:, change ${change}:change:` : '';
+    const matched = r.matched ? $localize`:@@profiling.flame.announce.matched:, matches the search` : '';
+    const name = this.frameName(r);
+    const depth = r.depth;
+    const total = this.value(r.value);
+    const share = this.pct(r.value);
+    const self = this.value(r.selfValue);
+    return $localize`:@@profiling.flame.announce:${name}:name:, depth ${depth}:depth:, total ${total}:total:, ${share}:share:, self ${self}:self:${delta}:delta:${matched}:matched:`;
   });
   protected readonly tipRect = computed(() => {
     const t = this.tip();
@@ -212,6 +241,7 @@ export class FlameChart {
 
   private colorOf(i: number): string {
     const r = this.model().rects[i];
+    if (!r) return this.palette().other;
     if (this.diff()) return diffColor(r.delta, this.scale() / 100, this.palette());
     return frameColor(this.model().frames.get(r.frame), this.colorBy(), this.slots(), this.palette());
   }
@@ -244,7 +274,21 @@ export class FlameChart {
   }
 
   protected frameName(r: FlameRect): string {
-    return this.frameOf(r)?.name ?? `frame #${r.frame}`;
+    const number = r.frame;
+    return this.frameOf(r)?.name ?? $localize`:@@profiling.flame.frameNumber:frame #${number}:id:`;
+  }
+
+  protected zoomLabel(r: FlameRect): string {
+    const name = this.frameName(r);
+    return $localize`:@@profiling.flame.zoomTo:Zoom to ${name}:name:`;
+  }
+
+  protected totalLine(r: FlameRect): string {
+    const value = this.value(r.value);
+    const share = this.pct(r.value);
+    return this.graph()?.focusValue === this.graph()?.grandTotal
+      ? $localize`:@@profiling.flame.tip.totalAll:Total ${value}:value: (${share}:share: of all)`
+      : $localize`:@@profiling.flame.tip.totalZoomed:Total ${value}:value: (${share}:share: of the zoomed frame)`;
   }
 
   protected kindLabel(f: FrameDto): string {
@@ -267,7 +311,9 @@ export class FlameChart {
 
   protected measurement(): string {
     const g = this.graph();
-    return g ? `${measurementLabel(g.measurement)} values` : '';
+    if (!g) return '';
+    const kind = measurementLabel(g.measurement);
+    return $localize`:@@profiling.flame.measurementValues:${kind}:kind: values`;
   }
 
   /** Rectangle index under a pointer event, or null. */
@@ -295,7 +341,10 @@ export class FlameChart {
     if (!r) return;
     const frame = this.frameOf(r);
     if (frame) this.selected.emit(frame);
-    this.zoom.emit(chainTo(this.model(), index).map((i) => this.model().rects[i].frame));
+    this.zoom.emit(chainTo(this.model(), index).flatMap((i) => {
+      const rect = this.model().rects[i];
+      return rect ? [rect.frame] : [];
+    }));
   }
 
   protected onKey(e: KeyboardEvent): void {
@@ -305,6 +354,7 @@ export class FlameChart {
     if (action.type === 'move') {
       this.current.set(action.index);
       const r = this.model().rects[action.index];
+      if (!r) return;
       const f = this.frameOf(r);
       if (f) this.selected.emit(f);
       this.scrollIntoView(r);

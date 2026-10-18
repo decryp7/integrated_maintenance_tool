@@ -27,36 +27,36 @@ import { measuredWidth } from './measured-width';
       <imt-profile-bar />
       <imt-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
-        <span class="section-title">Flame graph</span>
-        <div class="seg" role="group" aria-label="Layout">
-          <button type="button" class="btn" [attr.aria-pressed]="orientation() === 'flame'" (click)="orientation.set('flame')">Flame</button>
-          <button type="button" class="btn" [attr.aria-pressed]="orientation() === 'icicle'" (click)="orientation.set('icicle')">Icicle</button>
+        <span class="section-title" i18n="@@profiling.flameView.title">Flame graph</span>
+        <div class="seg" role="group" aria-label="Layout" i18n-aria-label="@@profiling.flameView.layout">
+          <button type="button" class="btn" [attr.aria-pressed]="orientation() === 'flame'" (click)="orientation.set('flame')" i18n="@@profiling.flameView.flame">Flame</button>
+          <button type="button" class="btn" [attr.aria-pressed]="orientation() === 'icicle'" (click)="orientation.set('icicle')" i18n="@@profiling.flameView.icicle">Icicle</button>
         </div>
-        <label class="inline">Stacks
-          <select aria-label="Stack direction" (change)="setDirection($event)">
-            <option value="topDown" [selected]="direction() === 'topDown'">Callers first (top-down)</option>
-            <option value="bottomUp" [selected]="direction() === 'bottomUp'">Callees first (inverted)</option>
+        <label class="inline"><ng-container i18n="@@profiling.flameView.stacks">Stacks</ng-container>&ngsp;
+          <select aria-label="Stack direction" i18n-aria-label="@@profiling.flameView.stackDirection" (change)="setDirection($event)">
+            <option value="topDown" [selected]="direction() === 'topDown'" i18n="@@profiling.flameView.topDown">Callers first (top-down)</option>
+            <option value="bottomUp" [selected]="direction() === 'bottomUp'" i18n="@@profiling.flameView.bottomUp">Callees first (inverted)</option>
           </select>
         </label>
-        <label class="inline">Colour by
-          <select aria-label="Colour by" (change)="colorBy.set($any($event.target).value)">
-            <option value="kind" [selected]="colorBy() === 'kind'">Frame kind</option>
-            <option value="module" [selected]="colorBy() === 'module'">Module</option>
+        <label class="inline"><ng-container i18n="@@profiling.flameView.colourBy">Colour by</ng-container>&ngsp;
+          <select aria-label="Colour by" i18n-aria-label="@@profiling.flameView.colourByLabel" (change)="colorBy.set($any($event.target).value)">
+            <option value="kind" [selected]="colorBy() === 'kind'" i18n="@@profiling.flameView.byKind">Frame kind</option>
+            <option value="module" [selected]="colorBy() === 'module'" i18n="@@profiling.flameView.byModule">Module</option>
           </select>
         </label>
-        <label class="inline">Order
-          <select aria-label="Order" (change)="order.set($any($event.target).value)">
-            <option value="name" [selected]="order() === 'name'">By name</option>
-            <option value="value" [selected]="order() === 'value'">By value</option>
+        <label class="inline"><ng-container i18n="@@profiling.flameView.order">Order</ng-container>&ngsp;
+          <select aria-label="Order" i18n-aria-label="@@profiling.flameView.orderLabel" (change)="order.set($any($event.target).value)">
+            <option value="name" [selected]="order() === 'name'" i18n="@@profiling.flameView.byName">By name</option>
+            <option value="value" [selected]="order() === 'value'" i18n="@@profiling.flameView.byValue">By value</option>
           </select>
         </label>
-        <input type="search" placeholder="Highlight…" aria-label="Search frames" [value]="state.flameSearch()" (input)="onSearch($event)" />
-        <label class="inline"><input type="checkbox" [checked]="regex()" (change)="regex.set($any($event.target).checked)" /> Regex</label>
+        <input type="search" placeholder="Highlight…" i18n-placeholder="@@profiling.flameView.highlight" aria-label="Search frames" i18n-aria-label="@@profiling.flameView.searchLabel" [value]="state.flameSearch()" (input)="onSearch($event)" />
+        <label class="inline" i18n="@@profiling.flameView.regex"><input type="checkbox" [checked]="regex()" (change)="regex.set($any($event.target).checked)" /> Regex</label>
         @if (res.data(); as g) {
-          @if (state.flameSearch()) { <span class="muted" data-testid="flame-matched" role="status">Matched {{ pct(g.matchedPct) }} ({{ value(g, g.matchedValue) }})</span> }
+          @if (state.flameSearch()) { <span class="muted" data-testid="flame-matched" role="status" i18n="@@profiling.flameView.matched">Matched {{ pct(g.matchedPct) // i18n(ph: "pct") }} ({{ value(g, g.matchedValue) // i18n(ph: "value") }})</span> }
         }
       </div>
-      <nav class="crumbs" aria-label="Zoom path">
+      <nav class="crumbs" aria-label="Zoom path" i18n-aria-label="@@profiling.flameView.zoomPath">
         @for (c of crumbs(); track $index; let last = $last) {
           @if (last) {
             <span class="crumb current" aria-current="location">{{ c.label }}</span>
@@ -64,25 +64,25 @@ import { measuredWidth } from './measured-width';
             <button class="link crumb" type="button" (click)="setFocus(c.path)">{{ c.label }}</button><span aria-hidden="true" class="sep">›</span>
           }
         }
-        @if (state.flameFocus().length) { <button class="mini" type="button" (click)="setFocus([])">Reset zoom</button> }
+        @if (state.flameFocus().length) { <button class="mini" type="button" (click)="setFocus([])" i18n="@@profiling.flameView.resetZoom">Reset zoom</button> }
       </nav>
       @if (res.data()?.truncated) {
-        <div class="notice" role="status">More frames than the drawing limit: the smallest are left out. Zoom in for detail.</div>
+        <div class="notice" role="status" i18n="@@profiling.flameView.truncated">More frames than the drawing limit: the smallest are left out. Zoom in for detail.</div>
       }
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.flameView.empty" (retry)="res.retry()">
         <imt-flame-chart
           [graph]="res.data()"
           [orientation]="orientation()"
           [colorBy]="colorBy()"
           [metrics]="p.metrics"
-          [label]="'Flame graph of ' + p.name"
+          [label]="chartLabel(p.name)"
           (zoom)="zoomTo($event)"
           (zoomOut)="zoomOut()"
           (selected)="state.selectFrame($event)"
         />
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its flame graph." />
+      <imt-no-capture text="Open a profile to see its flame graph." i18n-text="@@profiling.flameView.noCapture" />
     }
   `,
   styles: [
@@ -130,6 +130,10 @@ export class FlameView {
       });
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.searchTimer));
+  }
+
+  protected chartLabel(name: string): string {
+    return $localize`:@@profiling.flameView.chartLabel:Flame graph of ${name}:name:`;
   }
 
   protected value(g: FlameGraph, v: number): string {

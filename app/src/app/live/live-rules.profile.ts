@@ -50,11 +50,11 @@ export class LiveRulesProfile {
       if (!validation.ok) {
         const line = validation.line ?? null;
         const excerpt = line ? (toml.split('\n')[line - 1]?.trim().slice(0, 160) ?? null) : null;
-        return { ok: false, failure: { message: validation.error ?? 'The profile is not valid.', line, excerpt } };
+        return { ok: false, failure: { message: validation.error ?? $localize`:@@live.rulesProfile.invalid:The profile is not valid.`, line, excerpt } };
       }
       if (save) {
         this.store.profileSaved(await this.backend.saveProfile(toml));
-        this.undo.record('live rules edit', before, toml);
+        this.undo.record($localize`:@@live.rulesProfile.undo:live rules edit`, before, toml);
       }
       return { ok: true };
     } catch (e) {

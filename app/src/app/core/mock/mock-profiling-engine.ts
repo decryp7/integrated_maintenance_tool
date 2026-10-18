@@ -56,7 +56,10 @@ export function transformStack(stack: number[], p: MockProfileData, view: Profil
       if (!f) return false;
       return (jmc.useFrameFlags !== false && f.isFramework) || patterns.some((r) => r.test(f.name) || (f.module !== null && r.test(f.module)));
     };
-    out = out.filter((id, i) => !(isFw(id) && i > 0 && isFw(out[i - 1])));
+    out = out.filter((id, i) => {
+      const prev = out[i - 1];
+      return !(isFw(id) && prev !== undefined && isFw(prev));
+    });
   }
   if (view.recursion === 'direct') out = out.filter((id, i) => i === 0 || out[i - 1] !== id);
   else if (view.recursion === 'all') {
@@ -105,7 +108,7 @@ function buildTree(p: MockProfileData, samples: MockSample[], direction: TreeDir
       add(child.total, s.v);
       node = child;
     }
-    add(direction === 'bottomUp' ? (root.children.get(stack[0]) ?? root).self : node.self, s.v);
+    add(direction === 'bottomUp' ? (root.children.get(stack[0] ?? -1) ?? root).self : node.self, s.v);
   }
   return root;
 }
@@ -263,12 +266,10 @@ export function mockButterfly(p: MockProfileData, view: ProfileView | undefined,
   for (const s of viewSamples(p, view)) {
     const i = s.stack.indexOf(frameId);
     if (i < 0) continue;
-    const caller = i === 0 ? null : s.stack[i - 1];
+    const caller = i === 0 ? null : (s.stack[i - 1] ?? null);
     add(callers.get(caller) ?? callers.set(caller, zero(p)).get(caller)!, s.v);
-    if (i < s.stack.length - 1) {
-      const callee = s.stack[i + 1];
-      add(callees.get(callee) ?? callees.set(callee, zero(p)).get(callee)!, s.v);
-    }
+    const callee = s.stack[i + 1];
+    if (callee !== undefined) add(callees.get(callee) ?? callees.set(callee, zero(p)).get(callee)!, s.v);
   }
   const total = fn.total[metric] ?? 0;
   const toRows = (m: Map<number | null, Values>): ButterflyRow[] =>
@@ -466,7 +467,7 @@ export function mockThreads(p: MockProfileData, view: ProfileView | undefined, b
   for (const s of viewSamples(p, view)) {
     const lane = lanes.get(s.thread) ?? lanes.set(s.thread, new Array<number>(buckets).fill(0)).get(s.thread)!;
     const i = Math.min(buckets - 1, Math.floor((s.t - fromNs) / bucketNs));
-    lane[i] += s.v[metric] ?? 0;
+    lane[i] = (lane[i] ?? 0) + (s.v[metric] ?? 0);
   }
   const threadSet = view?.threads?.length ? new Set(view.threads) : null;
   const events = p.events.filter((e) => e.startNs + e.durNs >= fromNs && e.startNs <= toNs && (!kinds || kinds.includes(e.kind)) && (!threadSet || e.thread === null || threadSet.has(e.thread)));

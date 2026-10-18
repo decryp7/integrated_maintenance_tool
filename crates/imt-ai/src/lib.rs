@@ -15,6 +15,7 @@ pub mod llm;
 pub mod models;
 pub mod recommend;
 pub mod runtime;
+pub mod runtimes;
 pub mod settings;
 pub mod setup;
 pub mod testing;

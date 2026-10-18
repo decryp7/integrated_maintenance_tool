@@ -65,11 +65,11 @@ export function togglePreset(preset: CounterPreset, selected: readonly string[])
 /** Draft problems found early for convenience; the engine validates again. */
 export function validateDraft(d: PerfmonDraft): string[] {
   const problems: string[] = [];
-  if (!d.name.trim() || /[\\/:*?"<>|]/.test(d.name)) problems.push('Enter a collector name without \\ / : * ? " < > |.');
-  if (!(d.intervalSecs >= 1 && d.intervalSecs <= 86_400)) problems.push('The interval must be between 1 and 86400 seconds.');
-  if (d.maxSizeMb != null && d.format !== 'blg') problems.push('A maximum size (circular log) needs the BLG format.');
-  if (!d.outputDir.trim()) problems.push('Choose an output folder.');
-  if (!d.counters.length && !d.extraCounters.length) problems.push('Select at least one counter.');
+  if (!d.name.trim() || /[\\/:*?"<>|]/.test(d.name)) problems.push($localize`:@@tools.perfmon.problem.name:Enter a collector name without \\ / : * ? " < > |.`);
+  if (!(d.intervalSecs >= 1 && d.intervalSecs <= 86_400)) problems.push($localize`:@@tools.perfmon.problem.interval:The interval must be between 1 and 86400 seconds.`);
+  if (d.maxSizeMb != null && d.format !== 'blg') problems.push($localize`:@@tools.perfmon.problem.maxSize:A maximum size (circular log) needs the BLG format.`);
+  if (!d.outputDir.trim()) problems.push($localize`:@@tools.perfmon.problem.outputDir:Choose an output folder.`);
+  if (!d.counters.length && !d.extraCounters.length) problems.push($localize`:@@tools.perfmon.problem.noCounter:Select at least one counter.`);
   return problems;
 }
 

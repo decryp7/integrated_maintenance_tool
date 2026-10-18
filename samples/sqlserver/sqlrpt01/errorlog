@@ -1,0 +1,10 @@
+2026-10-14 09:00:00.00 Server      Microsoft SQL Server 2022 (RTM-CU14) (KB5038325) - 16.0.4135.4 (X64) 
+	Jul 10 2024 14:09:09 
+	Copyright (C) 2022 Microsoft Corporation
+	Developer Edition (64-bit) on Linux (Ubuntu 22.04.4 LTS) <X64>
+2026-10-14 09:00:00.00 Server      UTC adjustment: 0:00
+2026-10-14 09:00:00.00 Server      Server process ID is 412.
+2026-10-14 09:00:01.00 spid9s      Starting up database 'Reporting'.
+2026-10-14 10:36:24.05 spid71      Error: 823, Severity: 24, State: 2.
+2026-10-14 10:36:24.06 spid71      The operating system returned error 21(The device is not ready.) to SQL Server during a read at offset 0x0000000a4e2000 in file '/var/opt/mssql/data/Reporting.mdf'.
+2026-10-14 10:37:24.05 spid71      Error: 17053, Severity: 16, State: 1.

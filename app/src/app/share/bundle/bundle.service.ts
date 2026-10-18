@@ -11,7 +11,7 @@ import { ShareBackend } from '../share-backend';
 import { BundleDialog } from './bundle-dialog';
 
 export const BUNDLE_EXTENSION = '.imtz';
-export const BUNDLE_FILTERS = [{ name: 'IMT bundle', extensions: ['imtz'] }];
+export const BUNDLE_FILTERS = [{ name: $localize`:@@share.bundle.filterName:IMT bundle`, extensions: ['imtz'] }];
 
 export function isBundlePath(path: string): boolean {
   return path.toLowerCase().endsWith(BUNDLE_EXTENSION);
@@ -44,11 +44,11 @@ export class BundleService {
   readonly busy = signal(false);
 
   async create(): Promise<void> {
-    await this.dialogs.open(BundleDialog, { title: 'Share as bundle', width: 560 }).closed;
+    await this.dialogs.open(BundleDialog, { title: $localize`:@@share.bundleService.dialogTitle:Share as bundle`, width: 560 }).closed;
   }
 
   async openFromDialog(): Promise<void> {
-    const path = await this.platform.pickOpenPath('Open bundle', BUNDLE_FILTERS);
+    const path = await this.platform.pickOpenPath($localize`:@@share.bundleService.openTitle:Open bundle`, BUNDLE_FILTERS);
     if (path) await this.open(path);
   }
 
@@ -62,10 +62,10 @@ export class BundleService {
       this.reports.replace(o.reports);
       this.projects.adoptReadOnly(o.name || baseName(path).replace(/\.imtz$/i, ''), o.missing);
       this.opened.set({ path, name: o.name || baseName(path), manifest: o.bundle });
-      this.store.setNotice(`Opened ${baseName(path)} (read-only)`);
+      this.store.setNotice($localize`:@@share.bundleService.opened:Opened ${baseName(path)}:file: (read-only)`);
       return true;
     } catch (e) {
-      this.store.setError(`Could not open the bundle: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@share.bundleService.openFailed:Could not open the bundle: ${errorMessage(e)}:error:`);
       return false;
     } finally {
       this.busy.set(false);

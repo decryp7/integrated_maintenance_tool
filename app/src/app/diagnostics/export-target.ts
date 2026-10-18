@@ -5,9 +5,9 @@ import { isTauri } from '../core/platform';
 @Injectable({ providedIn: 'root' })
 export class ExportTarget {
   /** The chosen `.zip` path, or null when cancelled. */
-  async pickZip(defaultName: string, title = 'Export diagnostics'): Promise<string | null> {
+  async pickZip(defaultName: string, title = $localize`:@@diagnostics.exportTarget.title:Export diagnostics`): Promise<string | null> {
     if (!isTauri()) return defaultName;
     const { save } = await import('@tauri-apps/plugin-dialog');
-    return save({ title, defaultPath: defaultName, filters: [{ name: 'Zip archive', extensions: ['zip'] }] });
+    return save({ title, defaultPath: defaultName, filters: [{ name: $localize`:@@diagnostics.exportTarget.zip:Zip archive`, extensions: ['zip'] }] });
   }
 }

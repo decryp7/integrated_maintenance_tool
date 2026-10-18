@@ -29,17 +29,17 @@ export function popoverPosition(spot: { top: number; left: number; width: number
         <div class="spot" aria-hidden="true" [style.top.px]="s.top - 4" [style.left.px]="s.left - 4" [style.width.px]="s.width + 8" [style.height.px]="s.height + 8"></div>
       }
       <div #box class="pop" role="dialog" aria-modal="false" aria-labelledby="imt-tour-title" aria-describedby="imt-tour-text" data-testid="tour" [style.top.px]="pos().top" [style.left.px]="pos().left">
-        <div class="count">Step {{ tour.index() + 1 }} of {{ tour.steps.length }}</div>
+        <div class="count" i18n="@@onboarding.overlay.count">Step {{ tour.index() + 1 }} of {{ tour.steps.length }}</div>
         <h2 id="imt-tour-title">{{ step.title }}</h2>
         <p id="imt-tour-text">{{ step.text }}</p>
         <div class="foot">
-          <button type="button" class="btn ghost" (click)="tour.skip()">Skip tour</button>
+          <button type="button" class="btn ghost" (click)="tour.skip()" i18n="@@onboarding.overlay.skip">Skip tour</button>
           <span class="spacer"></span>
-          <button type="button" class="btn" [disabled]="tour.isFirst()" (click)="tour.back()">Back</button>
-          <button #next type="button" class="btn primary" (click)="tour.next()">{{ tour.isLast() ? 'Finish' : 'Next' }}</button>
+          <button type="button" class="btn" [disabled]="tour.isFirst()" (click)="tour.back()" i18n="@@onboarding.overlay.back">Back</button>
+          <button #next type="button" class="btn primary" (click)="tour.next()">{{ nextLabel() }}</button>
         </div>
       </div>
-      <p class="sr-only" aria-live="polite">Tour step {{ tour.index() + 1 }} of {{ tour.steps.length }}: {{ step.title }}. {{ step.text }}</p>
+      <p class="sr-only" aria-live="polite" i18n="@@onboarding.overlay.live">Tour step {{ tour.index() + 1 }} of {{ tour.steps.length }}: {{ step.title }}. {{ step.text }}</p>
     }
   `,
   styles: `
@@ -62,6 +62,7 @@ export class TourOverlay {
   private readonly box = viewChild<ElementRef<HTMLElement>>('box');
   private returnFocus: HTMLElement | null = null;
 
+  protected readonly nextLabel = computed(() => (this.tour.isLast() ? $localize`:@@onboarding.overlay.finish:Finish` : $localize`:@@onboarding.overlay.next:Next`));
   protected readonly pos = computed(() => popoverPosition(this.tour.spot(), window.innerWidth, window.innerHeight, this.box()?.nativeElement.offsetHeight || 200));
 
   constructor() {

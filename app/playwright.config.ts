@@ -37,7 +37,7 @@ export default defineConfig({
       : [
           {
             name: 'prod-csp',
-            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, MENUS, ...DOCKING, '**/live-*.e2e.ts', '**/share-*.e2e.ts', '**/profiling-*.e2e.ts', '**/ux-*.e2e.ts', '**/ai-*.e2e.ts'],
+            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, MENUS, ...DOCKING, '**/live-*.e2e.ts', '**/share-*.e2e.ts', '**/profiling-*.e2e.ts', '**/ux-*.e2e.ts', '**/ai-*.e2e.ts', '**/i18n-*.e2e.ts'],
             use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${PROD_PORT}` },
           },
         ]),

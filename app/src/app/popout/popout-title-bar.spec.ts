@@ -5,6 +5,7 @@ import { PopoutBackend } from './popout-backend';
 import { POPOUT_ROUTE } from './popout-route';
 import { FakeBackend } from './popout-testing';
 import { PopoutTitleBar } from './popout-title-bar';
+import { at } from '../../testing/must';
 
 @Component({
   imports: [PopoutTitleBar],
@@ -83,7 +84,7 @@ describe('PopoutTitleBar', () => {
   it('macOS overlay: no drawn window buttons (the native traffic lights), title inset past them', async () => {
     const { el, button, fixture } = await render('overlay');
     expect(button('Minimise')).toBeNull();
-    expect(fixture.debugElement.children[0].nativeElement.classList.contains('mac')).toBe(true);
+    expect(fixture.debugElement.children[0]?.nativeElement.classList.contains('mac')).toBe(true);
     expect(el.querySelectorAll('.edge')).toHaveLength(0);
   });
 
@@ -96,7 +97,7 @@ describe('PopoutTitleBar', () => {
 
   it('dims while the window is inactive', async () => {
     const { fixture } = await render();
-    const bar = fixture.debugElement.children[0].nativeElement as HTMLElement;
+    const bar = at(fixture.debugElement.children, 0).nativeElement as HTMLElement;
     window.dispatchEvent(new Event('blur'));
     await settle(fixture);
     expect(bar.classList.contains('inactive')).toBe(true);

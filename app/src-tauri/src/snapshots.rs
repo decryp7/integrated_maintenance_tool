@@ -19,7 +19,6 @@ use std::hash::{BuildHasher, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
-use tauri::Manager;
 
 /// Event the shell emits when the engine contained a failure (plugin crash, quarantine, a file that crashed its importer).
 pub const ERROR_EVENT: &str = "imt://error";
@@ -402,7 +401,9 @@ impl SnapshotStore {
             count += 1;
         }
         if let Some(tail) = self.log_file.as_deref().and_then(|p| tail_of(p, EXPORT_LOG_TAIL)) {
-            zip.start_file(format!("logs/{}", log_file_name()), opts).map_err(zerr)?;
+            // Named `imt.log` in the archive whatever today's file is called.
+            zip.start_file(format!("logs/{}.log", crate::diagnostics::LOG_NAME), opts)
+                .map_err(zerr)?;
             zip.write_all(&tail)?;
             count += 1;
         }
@@ -613,11 +614,6 @@ pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &
     crate::windows::emit_to_window(app, window, ERROR_EVENT, error);
 }
 
-/// The active IMT log file's name (owned by the diagnostics module).
-fn log_file_name() -> String {
-    format!("{}.log", crate::diagnostics::LOG_NAME)
-}
-
 /// How long the OS file-manager helper may run before it is killed.
 const OPENER_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -649,13 +645,17 @@ fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) -> std::io:
 }
 
 pub(crate) fn config_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
-    app.path().app_config_dir().ok()
+    crate::app_dirs::config(app).ok()
 }
 
 pub(crate) fn store<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> CmdResult<SnapshotStore> {
-    let dir = app.path().app_log_dir().map_err(err)?;
+    let dir = crate::app_dirs::log(app).map_err(err)?;
     let limits = Limits::from(&crate::diagnostics::load(config_dir(app).as_deref()).snapshots);
-    Ok(SnapshotStore::new(dir.join("snapshots"), Some(dir.join(log_file_name())), limits))
+    Ok(SnapshotStore::new(
+        dir.join("snapshots"),
+        Some(crate::logging::active_log_file(&dir)),
+        limits,
+    ))
 }
 
 /// Applies the retention limits at start-up (call from `setup`). Never fails.
@@ -1330,8 +1330,13 @@ mod tests {
     }
 
     #[test]
-    fn log_file_name_follows_the_diagnostics_log() {
-        assert_eq!(log_file_name(), format!("{}.log", crate::diagnostics::LOG_NAME));
+    fn snapshots_attach_todays_log_file() {
+        let name = crate::logging::active_log_file(std::path::Path::new("logs"));
+        let name = name.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(
+            name.starts_with(&format!("{}.", crate::diagnostics::LOG_NAME)) && name.ends_with(".log"),
+            "{name}"
+        );
     }
 
     #[test]

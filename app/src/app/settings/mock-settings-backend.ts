@@ -52,11 +52,11 @@ export function mockSections(): SettingsSection[] {
       owner: { kind: 'app' },
       group: 'diagnostics',
       fields: [
-        f('logLevel', 'Log level', { type: 'enum', options: ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) })) }, 'info', {
+        f('logLevel', 'Log level', { type: 'enum', options: ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) })) }, 'info', {
           description: 'How much IMT writes to its own log. Debug and Trace help when reporting a problem.',
         }),
-        f('logMaxFileMb', 'Log file size', int(1, 100, 'MB'), 10, { description: 'A new log file is started when the current one reaches this size.', restartRequired: true }),
-        f('logKeepFiles', 'Old log files kept', int(1, 50), 5, { description: 'How many rotated log files are kept besides the current one.', restartRequired: true }),
+        f('logMaxFileMb', 'Log file size', int(1, 100, 'MB'), 10, { description: 'IMT starts a new log file every day. Past this size in one day, only errors are written until the next day.', restartRequired: true }),
+        f('logKeepFiles', 'Old log files kept', int(1, 50), 5, { description: 'How many older daily log files are kept besides the current one.', restartRequired: true }),
         f('logMaxAgeDays', 'Delete logs older than', int(0, 3650, 'days'), 30, { description: 'Old log files are deleted at startup. 0 keeps them regardless of age.', restartRequired: true, advanced: true }),
         f('activityDetail', 'Activity log detail', { type: 'enum', options: [{ value: 'normal', label: 'Normal' }, { value: 'detailed', label: 'Detailed' }] }, 'normal', {
           description:
@@ -83,7 +83,7 @@ export function mockSections(): SettingsSection[] {
         ['net.decryptology.windows', 'Windows diagnostics'],
         ['net.decryptology.web', 'Web server logs'],
         ['com.example.demo', 'Example plugin'],
-      ].map(([id, name]) => f(id, name, { type: 'bool' }, true, { description: `${id} 0.1.0`, restartRequired: true })),
+      ].map(([id = '', name = '']) => f(id, name, { type: 'bool' }, true, { description: `${id} 0.1.0`, restartRequired: true })),
       values: { 'net.decryptology.registry': true, 'net.decryptology.windows': true, 'net.decryptology.web': true, 'com.example.demo': false },
     }),
     section({

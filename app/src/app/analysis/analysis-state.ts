@@ -14,14 +14,14 @@ import { NextSteps } from '../ui/next-steps';
       <div class="state" role="alert">
         <span class="msg">{{ message }}</span>
         <span class="row">
-          <button class="btn" type="button" (click)="retry.emit()">Retry</button>
+          <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
         </span>
         @if (suggest()) {
           <imt-next-steps />
         }
       </div>
     } @else if (loading() && !hasData()) {
-      <div class="state" role="status">Loading…</div>
+      <div class="state" role="status" i18n="@@analysis.state.loading">Loading…</div>
     } @else if (empty()) {
       <div class="state">
         <span role="status">{{ emptyText() }}</span>
@@ -48,7 +48,7 @@ export class AnalysisState {
   readonly loading = input(false);
   readonly error = input<string | null>(null);
   readonly empty = input(false);
-  readonly emptyText = input('Nothing to show.');
+  readonly emptyText = input($localize`:@@analysis.state.nothingToShow:Nothing to show.`);
   /** What the view needs to show something (e.g. "Pick a field on the left"). */
   readonly emptyHint = input('');
   /** The view analyses the workspace's events: suggest opening files, clearing filters or widening the range. */

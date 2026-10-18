@@ -16,14 +16,14 @@ export function editDistance(a: string, b: string): number {
     const cur = [i];
     for (let j = 1; j <= t.length; j++) {
       const cost = s[i - 1] === t[j - 1] ? 0 : 1;
-      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
-      if (i > 1 && j > 1 && s[i - 1] === t[j - 2] && s[i - 2] === t[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      let v = Math.min((prev[j] ?? 0) + 1, (cur[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
+      if (i > 1 && j > 1 && s[i - 1] === t[j - 2] && s[i - 2] === t[j - 1]) v = Math.min(v, (prev2[j - 2] ?? 0) + 1);
       cur.push(v);
     }
     prev2 = prev;
     prev = cur;
   }
-  return prev[t.length];
+  return prev[t.length] ?? 0;
 }
 
 /** Typos tolerated in a word of this length: one per three characters, at least one. */

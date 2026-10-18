@@ -28,7 +28,9 @@ export function liveOption(option: EChartsCoreOption, reduced = reducedMotion())
 const MAX_NAMED = 4;
 /** Plot box of every chart (ECharts `grid`), px; the right inset grows when series are labelled directly. */
 export const CHART_GRID = { left: 56, top: 30, bottom: 28, right: 20, rightLabelled: 130 } as const;
-const OTHER = 'Other';
+const OTHER = $localize`:@@metrics.chart.other:Other`;
+const LEGEND_PER_ROW = 4;
+const LEGEND_ROW_PX = 20;
 
 interface Prepared {
   name: string;
@@ -45,14 +47,15 @@ function prepare(def: ChartDef, series: ChartSeries[], t: ChartTokens): Prepared
       .filter((s): s is ChartSeries => !!s)
       .map((s) => ({ name: s.key, color: t.levels[s.key] ?? t.other, points: s.points, other: false }));
   }
-  const named = series.slice(0, MAX_NAMED).map((s, i) => ({ name: s.key, color: t.series[i], points: s.points, other: false }));
+  const named = series.slice(0, MAX_NAMED).map((s, i) => ({ name: s.key, color: t.series[i] ?? t.other, points: s.points, other: false }));
   const rest = series.slice(MAX_NAMED);
-  if (!rest.length) return named;
+  const firstRest = rest[0];
+  if (!firstRest) return named;
   if (def.type === 'line') {
     // Averages cannot be summed: draw the remainder as thin neutral lines sharing one legend entry.
     return [...named, ...rest.map((s) => ({ name: OTHER, color: t.other, points: s.points, other: true }))];
   }
-  const sum = rest[0].points.map(([ts], i): [number, number | null] => {
+  const sum = firstRest.points.map(([ts], i): [number, number | null] => {
     let total: number | null = null;
     for (const s of rest) {
       const v = s.points[i]?.[1];
@@ -60,7 +63,7 @@ function prepare(def: ChartDef, series: ChartSeries[], t: ChartTokens): Prepared
     }
     return [ts, total];
   });
-  return [...named, { name: `${OTHER} (${rest.length})`, color: t.other, points: sum, other: true }];
+  return [...named, { name: $localize`:@@metrics.chart.otherCount:Other (${rest.length}:count:)`, color: t.other, points: sum, other: true }];
 }
 
 export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local', kindLabels: Map<string, string>): EChartsCoreOption {
@@ -97,22 +100,26 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     itemStyle: !isLine ? { borderRadius: stacked ? 0 : [2, 2, 0, 0] } : undefined,
     emphasis: { focus: 'series' },
     endLabel: directLabels && !p.other ? { show: true, formatter: '{a}', color: t.text, fontSize: 10.5, fontFamily: t.fontMono } : undefined,
+    labelLayout: directLabels && !p.other ? { moveOverlap: 'shiftY' } : undefined,
     markLine: i === 0 ? markLine : undefined,
   }));
+  // The legend wraps (never pages); reserve a row of headroom per ~LEGEND_PER_ROW entries so it cannot overlap the plot.
+  const legendRows = Math.max(1, Math.ceil(new Set(prepared.map((p) => p.name)).size / LEGEND_PER_ROW));
+  const gridTop = CHART_GRID.top + (legendRows - 1) * LEGEND_ROW_PX;
 
   return {
     animation: false,
     textStyle: { fontFamily: t.fontSans, color: t.muted },
-    grid: { left: CHART_GRID.left, right: directLabels ? CHART_GRID.rightLabelled : CHART_GRID.right, top: CHART_GRID.top, bottom: CHART_GRID.bottom },
+    grid: { left: CHART_GRID.left, right: directLabels ? CHART_GRID.rightLabelled : CHART_GRID.right, top: gridTop, bottom: CHART_GRID.bottom },
     legend: {
-      type: 'scroll',
+      type: 'plain',
+      left: CHART_GRID.left,
       top: 0,
       right: directLabels ? CHART_GRID.rightLabelled : CHART_GRID.right,
       textStyle: { color: t.text, fontFamily: t.fontMono, fontSize: 11 },
       icon: isLine ? 'roundRect' : 'rect',
       itemWidth: 14,
       itemHeight: isLine ? 3 : 8,
-      pageTextStyle: { color: t.muted },
     },
     tooltip: {
       trigger: 'axis',
@@ -159,7 +166,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     <div class="head">
       <span class="title">{{ def().title }}</span>
       <span class="mono faint sub">{{ subtitle() }}</span>
-      @if (loading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
+      @if (loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@metrics.chart.loading"></span> }
       <span class="spacer"></span>
       @if (lifecycleKinds().length) {
         <span class="lc faint">
@@ -169,18 +176,18 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
         </span>
       }
       <span class="actions">
-        <button class="icon-btn small" type="button" [attr.aria-label]="'Add chart ' + def().title + ' to report'" title="Add to report" [disabled]="!option()" (click)="addToReport()"><imt-icon name="plus" [size]="13" /></button>
-        <button class="icon-btn small" type="button" [attr.aria-label]="'Export chart ' + def().title + ' as PNG'" title="Export PNG" [disabled]="!option()" (click)="exportImage('png')">PNG</button>
-        <button class="icon-btn small" type="button" [attr.aria-label]="'Export chart ' + def().title + ' as SVG'" title="Export SVG" [disabled]="!option()" (click)="exportImage('svg')">SVG</button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="addLabel()" title="Add to report" i18n-title="@@metrics.chart.addToReport.title" [disabled]="!option()" (click)="addToReport()"><imt-icon name="plus" [size]="13" /></button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="exportLabelPng()" title="Export PNG" i18n-title="@@metrics.chart.exportPng.title" [disabled]="!option()" (click)="exportImage('png')">PNG</button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="exportLabelSvg()" title="Export SVG" i18n-title="@@metrics.chart.exportSvg.title" [disabled]="!option()" (click)="exportImage('svg')">SVG</button>
       </span>
       @if (removable()) {
-        <button class="icon-btn" [attr.aria-label]="'Remove chart ' + def().title" (click)="remove.emit()" [attr.title]="'Remove chart ' + def().title"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" [attr.aria-label]="removeLabel()" (click)="remove.emit()" [attr.title]="removeLabel()"><imt-icon name="close" [size]="14" /></button>
       }
     </div>
     @if (error(); as e) {
       <div class="msg err">{{ e }}</div>
     } @else if (empty()) {
-      <div class="msg faint">No numeric values for {{ def().y }} in the current results.</div>
+      <div class="msg faint" i18n="@@metrics.chart.empty">No numeric values for {{ def().y }} in the current results.</div>
     } @else if (option(); as o) {
       <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
         <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" />
@@ -230,6 +237,11 @@ export class ChartCard {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  protected readonly addLabel = computed(() => $localize`:@@metrics.chart.addToReport.aria:Add chart ${this.def().title}:title: to report`);
+  protected readonly exportLabelPng = computed(() => $localize`:@@metrics.chart.exportPng.aria:Export chart ${this.def().title}:title: as PNG`);
+  protected readonly exportLabelSvg = computed(() => $localize`:@@metrics.chart.exportSvg.aria:Export chart ${this.def().title}:title: as SVG`);
+  protected readonly removeLabel = computed(() => $localize`:@@metrics.chart.remove:Remove chart ${this.def().title}:title:`);
+
   protected readonly empty = computed(() => {
     const d = this.data();
     return !!d && d.series.length === 0;
@@ -239,8 +251,10 @@ export class ChartCard {
     const d = this.def();
     const data = this.data();
     const bucket = data ? formatDuration(data.bucketMs) : d.bucket;
-    const split = d.splitBy.length ? ` · split by ${d.splitBy.join(', ')}` : '';
-    return `${d.y}${d.unit ? ' (' + d.unit + ')' : ''} · per ${bucket}${split}`;
+    const y = `${d.y}${d.unit ? ' (' + d.unit + ')' : ''}`;
+    if (!d.splitBy.length) return $localize`:@@metrics.chart.subtitle:${y}:y: · per ${bucket}:bucket:`;
+    const fields = d.splitBy.join(', ');
+    return $localize`:@@metrics.chart.subtitleSplit:${y}:y: · per ${bucket}:bucket: · split by ${fields}:fields:`;
   });
 
   /** Kinds present as dashed lines on this chart, for the header key. */

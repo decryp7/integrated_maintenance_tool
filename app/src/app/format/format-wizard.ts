@@ -22,9 +22,9 @@ const PREVIEW_LINES = 50;
 const HEAD_BYTES = 32 * 1024;
 const PREVIEW_DEBOUNCE_MS = 250;
 const PARTS: { id: FormatPart; label: string }[] = [
-  { id: 'timestamp', label: 'Timestamp' },
-  { id: 'level', label: 'Level' },
-  { id: 'message', label: 'Message' },
+  { id: 'timestamp', label: $localize`:@@format.wizard.part.timestamp:Timestamp` },
+  { id: 'level', label: $localize`:Log severity level|Part of a log line@@format.wizard.part.level:Level` },
+  { id: 'message', label: $localize`:@@format.wizard.part.message:Message` },
 ];
 
 /** "Set up format": teaches IMT how to read a file it did not recognise, from marks on a sample line or a Serilog template. */
@@ -34,28 +34,28 @@ const PARTS: { id: FormatPart; label: string }[] = [
   imports: [HelpHint, AiButton],
   host: { '(document:selectionchange)': 'onSelection()' },
   template: `
-    <p>IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on. <imt-help label="Format wizard" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
+    <p><ng-container i18n="@@format.wizard.intro">IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on.</ng-container>&ngsp;<imt-help label="Format wizard" i18n-label="@@format.wizard.helpLabel" i18n-text="@@format.wizard.helpText" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
 
-    <p class="tpl-hint">Written by a common logging library or server? <button type="button" class="btn ghost" data-testid="start-from-template" (click)="fromTemplate()">Start from a template…</button></p>
+    <p class="tpl-hint" i18n="@@format.wizard.templateHint">Written by a common logging library or server? <button type="button" class="btn ghost" data-testid="start-from-template" (click)="fromTemplate()">Start from a template…</button></p>
 
     @if (loadError(); as e) {
-      <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="loadHead()">Retry</button></div>
+      <div class="err" role="alert">{{ e }} <button type="button" class="btn" (click)="loadHead()" i18n="@@format.wizard.retry">Retry</button></div>
     }
 
-    <div class="seg" role="group" aria-label="How to describe the format">
-      <button type="button" class="btn" [class.active]="mode() === 'marks'" [attr.aria-pressed]="mode() === 'marks'" (click)="mode.set('marks')">Mark on a sample line</button>
-      <button type="button" class="btn" [class.active]="mode() === 'template'" [attr.aria-pressed]="mode() === 'template'" (click)="mode.set('template')">Serilog output template</button>
+    <div class="seg" role="group" aria-label="How to describe the format" i18n-aria-label="@@format.wizard.modes">
+      <button type="button" class="btn" [class.active]="mode() === 'marks'" [attr.aria-pressed]="mode() === 'marks'" (click)="mode.set('marks')" i18n="@@format.wizard.modeMarks">Mark on a sample line</button>
+      <button type="button" class="btn" [class.active]="mode() === 'template'" [attr.aria-pressed]="mode() === 'template'" (click)="mode.set('template')" i18n="@@format.wizard.modeTemplate">Serilog output template</button>
     </div>
 
     @if (mode() === 'marks') {
       @if (lines().length) {
-        <label class="lbl">Sample line
+        <label class="lbl"><ng-container i18n="@@format.wizard.sampleLine">Sample line</ng-container>
           <select class="select mono" [value]="sampleIndex()" (change)="pickSample($any($event.target).value)">
             @for (l of lines(); track $index) { <option [value]="$index" [selected]="$index === sampleIndex()">{{ $index + 1 }}: {{ l.slice(0, 80) }}</option> }
           </select>
         </label>
-        <div class="status">Select part of the line with the mouse or Shift+arrows, then press a button:</div>
-        <div #sample class="box" tabindex="0" role="textbox" aria-readonly="true" aria-label="Sample line" data-testid="sample-line">
+        <div class="status" i18n="@@format.wizard.selectHint">Select part of the line with the mouse or Shift+arrows, then press a button:</div>
+        <div #sample class="box" tabindex="0" role="textbox" aria-readonly="true" aria-label="Sample line" i18n-aria-label="@@format.wizard.sampleLineLabel" data-testid="sample-line">
           @for (seg of segments(); track $index) {
             @if (seg.part) {
               <span class="hl" [attr.data-part]="seg.part">{{ seg.text }}</span>
@@ -70,30 +70,30 @@ const PARTS: { id: FormatPart; label: string }[] = [
               {{ p.label }}{{ marks()[p.id] ? ' ✓' : '' }}
             </button>
           }
-          <button type="button" class="btn ghost" [disabled]="!hasMarks()" (click)="marks.set({})">Clear marks</button>
+          <button type="button" class="btn ghost" [disabled]="!hasMarks()" (click)="marks.set({})" i18n="@@format.wizard.clearMarks">Clear marks</button>
         </div>
       }
     } @else {
-      <label class="lbl">Output template
+      <label class="lbl"><ng-container i18n="@@format.wizard.outputTemplate">Output template</ng-container>
         <input class="input mono" [value]="template()" (input)="template.set($any($event.target).value)" placeholder="{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}" />
       </label>
     }
 
     @if (mode() === 'marks') {
-      <div class="status">Generated pattern</div>
-      <div class="box" data-testid="format-regex">{{ regex() ?? 'Mark a timestamp and a message to generate a pattern.' }}</div>
-      <div><imt-ai-button label="Suggest regex with AI" hint="The local model proposes a pattern for these lines; the preview checks it" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
+      <div class="status" i18n="@@format.wizard.generated">Generated pattern</div>
+      <div class="box" data-testid="format-regex">{{ regex() ?? markHint }}</div>
+      <div><imt-ai-button label="Suggest regex with AI" i18n-label="@@format.wizard.aiLabel" hint="The local model proposes a pattern for these lines; the preview checks it" i18n-hint="@@format.wizard.aiHint" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
     }
 
     @if (mutation()) {
       <div class="status" role="status" data-testid="format-summary">
         @if (previewError() ?? preview()?.error; as pe) { <span class="err">{{ pe }}</span> }
-        @else if (!preview()) { Checking the sample… }
-        @else { <strong>{{ preview()!.total }}</strong> events parsed from the sample, {{ preview()!.skipped }} lines skipped. Lines that do not start an event (such as stack traces) are attached to the previous event. }
+        @else if (!preview()) { <ng-container i18n="@@format.wizard.checking">Checking the sample…</ng-container> }
+        @else { <ng-container i18n="@@format.wizard.summary"><strong>{{ preview()!.total }}</strong> events parsed from the sample, {{ preview()!.skipped }} lines skipped. Lines that do not start an event (such as stack traces) are attached to the previous event.</ng-container> }
       </div>
       @if (preview(); as p) {
-        <div class="preview" role="table" aria-label="Parse preview">
-          <div class="prow head" role="row"><span role="columnheader">Time</span><span role="columnheader">Level</span><span role="columnheader">Message</span></div>
+        <div class="preview" role="table" aria-label="Parse preview" i18n-aria-label="@@format.wizard.previewLabel">
+          <div class="prow head" role="row"><span role="columnheader" i18n="@@format.wizard.col.time">Time</span><span role="columnheader" i18n="Log severity level|Column header@@format.wizard.col.level">Level</span><span role="columnheader" i18n="@@format.wizard.col.message">Message</span></div>
           @for (r of p.records; track r.line) {
             <div class="prow" role="row">
               <span role="cell" class="mono">{{ time(r.ts) }}</span><span role="cell" class="mono">{{ r.level }}</span><span role="cell">{{ r.message }}</span>
@@ -105,8 +105,8 @@ const PARTS: { id: FormatPart; label: string }[] = [
 
     @if (error(); as e) { <div class="err" role="alert">{{ e }}</div> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-      <button type="button" class="btn primary" [disabled]="!canSave() || saving()" (click)="save()">{{ saving() ? 'Applying…' : 'Save and re-import' }}</button>
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@format.wizard.cancel">Cancel</button>
+      <button type="button" class="btn primary" [disabled]="!canSave() || saving()" (click)="save()">{{ saving() ? applying : saveLabel }}</button>
     </div>
   `,
   styles: [
@@ -137,6 +137,9 @@ export class FormatWizard implements OnInit {
 
   private readonly sampleEl = viewChild<ElementRef<HTMLElement>>('sample');
   protected readonly parts = PARTS;
+  protected readonly markHint = $localize`:@@format.wizard.markHint:Mark a timestamp and a message to generate a pattern.`;
+  protected readonly applying = $localize`:@@format.wizard.applying:Applying…`;
+  protected readonly saveLabel = $localize`:@@format.wizard.save:Save and re-import`;
   protected readonly mode = signal<'marks' | 'template'>('marks');
   /** Start of the file as the engine decoded it; this is also what the engine previews. */
   private readonly head = signal('');
@@ -281,7 +284,7 @@ export class FormatWizard implements OnInit {
     this.error.set(null);
     try {
       await this.edits.apply(mutation);
-      this.store.setNotice('Saved the format; files were re-imported.');
+      this.store.setNotice($localize`:@@format.wizard.saved:Saved the format; files were re-imported.`);
       this.ref.close(true);
     } catch (e) {
       this.error.set(describeError(e));

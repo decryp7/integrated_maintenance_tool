@@ -11,6 +11,7 @@ import { NAMED_LAYOUT_STORE, NamedLayout, NamedLayoutStore } from './named-layou
 import { dockLayoutContribution } from './provide-docking';
 import { WindowLayouts } from './window-layouts';
 import { loadDockview } from './dockview-loader';
+import { at } from '../../testing/must';
 
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
@@ -61,7 +62,7 @@ describe('window layouts, dialogs and commands', () => {
   it('reports a saved layout that cannot be applied', () => {
     const { dock, layouts, store } = setup();
     layouts.saveCurrent('Broken');
-    stored = [{ ...stored[0], saved: { ...stored[0].saved, layout: { grid: null } as never } }];
+    stored = [{ ...at(stored, 0), saved: { ...at(stored, 0).saved, layout: { grid: null } as never } }];
     const fresh = TestBed.runInInjectionContext(() => new WindowLayouts());
     expect(fresh.apply('Broken')).toBe(false);
     expect(store.error()).toContain('could not be applied');

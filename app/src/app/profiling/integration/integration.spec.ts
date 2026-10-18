@@ -11,6 +11,7 @@ import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { ProfileMomentSection } from './profile-moment';
 import { labelWidth, layoutSpans, ProfileSpanTrack } from './profile-span-track';
+import { at } from '../../../testing/must';
 
 type View = { from: number; to: number };
 
@@ -41,17 +42,17 @@ describe('layoutSpans', () => {
     ];
     const out = layoutSpans(spans, { from: 1000, to: 2000 }, 1000);
     expect(out.map((o) => o.span.id)).toEqual([2, 3, 4, 5]);
-    expect(out[0].left).toBe(0);
-    expect(out[0].width).toBe(100);
-    expect(out[0].range).toEqual({ fromNs: 0, toNs: 1_000_000_000 });
-    expect(out[1].row).toBe(1);
-    expect(out[0].row).toBe(0);
-    expect(out[2].range).toBeNull();
-    expect(out[3].left).toBe(100);
+    expect(out[0]?.left).toBe(0);
+    expect(out[0]?.width).toBe(100);
+    expect(out[0]?.range).toEqual({ fromNs: 0, toNs: 1_000_000_000 });
+    expect(out[1]?.row).toBe(1);
+    expect(out[0]?.row).toBe(0);
+    expect(out[2]?.range).toBeNull();
+    expect(out[3]?.left).toBe(100);
     // a span fully inside is not clipped
-    expect(layoutSpans([span({ id: 6, fromMs: 1100, toMs: 1200 })], { from: 1000, to: 2000 })[0].range).toBeNull();
+    expect(layoutSpans([span({ id: 6, fromMs: 1100, toMs: 1200 })], { from: 1000, to: 2000 })[0]?.range).toBeNull();
     // degenerate view does not divide by zero
-    expect(layoutSpans([span({ id: 7, fromMs: 5, toMs: 5 })], { from: 5, to: 5 })[0].left).toBe(0);
+    expect(layoutSpans([span({ id: 7, fromMs: 5, toMs: 5 })], { from: 5, to: 5 })[0]?.left).toBe(0);
     expect(labelWidth('x'.repeat(100))).toBe(220);
   });
 });
@@ -118,7 +119,7 @@ describe('ProfileSpanTrack', () => {
     const { fixture } = await mountTrack();
     let reached = false;
     (fixture.nativeElement as HTMLElement).addEventListener('pointerdown', () => (reached = true));
-    chips(fixture)[0].dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    at(chips(fixture), 0).dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(reached).toBe(false);
   });
 
@@ -179,7 +180,7 @@ describe('ProfileMomentSection', () => {
     expect(card.querySelector('[data-measurement]')).not.toBeNull();
     const items = [...card.querySelectorAll('ol.top li')];
     expect(items.length).toBeGreaterThan(0);
-    expect(items[0].textContent).toMatch(/^\d+(\.\d+)?%/);
+    expect(items[0]?.textContent).toMatch(/^\d+(\.\d+)?%/);
   });
 
   it('opens the profile on the moment range', async () => {

@@ -11,6 +11,8 @@ pub enum AiErrorCode {
     Unavailable,
     /// No model is set up yet.
     NoModel,
+    /// No inference runtime (llama-server build) is installed: offer the download.
+    NoRuntime,
     /// Something of the same kind is already running (a set-up, a turn of this chat).
     Busy,
     Cancelled,
@@ -78,6 +80,7 @@ impl From<AiError> for AiCmdError {
             AiError::Cancelled => AiErrorCode::Cancelled,
             AiError::Invalid(_) => AiErrorCode::Invalid,
             AiError::NoModel => AiErrorCode::NoModel,
+            AiError::NoRuntime => AiErrorCode::NoRuntime,
             AiError::Engine(_) => AiErrorCode::Engine,
             AiError::ContextOverflow { .. } => AiErrorCode::ContextOverflow,
             AiError::Malformed(_) => AiErrorCode::Malformed,
@@ -112,6 +115,7 @@ mod tests {
             (AiError::Cancelled, AiErrorCode::Cancelled),
             (AiError::Invalid("x".into()), AiErrorCode::Invalid),
             (AiError::NoModel, AiErrorCode::NoModel),
+            (AiError::NoRuntime, AiErrorCode::NoRuntime),
             (AiError::Engine("x".into()), AiErrorCode::Engine),
             (AiError::ContextOverflow { prompt: 2, limit: 1 }, AiErrorCode::ContextOverflow),
             (AiError::Malformed("x".into()), AiErrorCode::Malformed),
@@ -133,6 +137,7 @@ mod tests {
         }
         let json = serde_json::to_value(AiCmdError::from(AiError::NoModel)).unwrap();
         assert_eq!(json["code"], "noModel");
+        assert_eq!(serde_json::to_value(AiErrorCode::NoRuntime).unwrap(), "noRuntime");
         assert_eq!(AiCmdError::busy("b").to_string(), "b");
         let fe = AiCmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));
         assert_eq!(fe.code, AiErrorCode::FileExists);

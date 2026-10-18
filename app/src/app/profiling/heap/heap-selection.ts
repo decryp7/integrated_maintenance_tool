@@ -3,11 +3,11 @@ import { Injectable, signal } from '@angular/core';
 export type HeapTab = 'types' | 'diff' | 'growth' | 'dominators' | 'instances';
 
 export const HEAP_TABS: { id: HeapTab; label: string }[] = [
-  { id: 'types', label: 'Types' },
-  { id: 'diff', label: 'Compare snapshots' },
-  { id: 'growth', label: 'Growth' },
-  { id: 'dominators', label: 'Dominator tree' },
-  { id: 'instances', label: 'Instances and paths' },
+  { id: 'types', label: $localize`:@@profiling.heap.tab.types:Types` },
+  { id: 'diff', label: $localize`:@@profiling.heap.tab.diff:Compare snapshots` },
+  { id: 'growth', label: $localize`:@@profiling.heap.tab.growth:Growth` },
+  { id: 'dominators', label: $localize`:@@profiling.heap.tab.dominators:Dominator tree` },
+  { id: 'instances', label: $localize`:@@profiling.heap.tab.instances:Instances and paths` },
 ];
 
 /** Selection shared by the memory view's tabs (provided by the view). */

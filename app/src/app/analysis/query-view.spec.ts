@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, el, settle, typeInto } from '../../testing/helpers';
-import { WorkspaceStore } from '../core/workspace.store';
 import { MemoryHistory, FakeContext, loadWorkspace, provideAnalysisTesting } from './test-setup';
 import { CHECK_DELAY_MS, QuerySession } from './query-session';
-import { focusSoon, QueryView } from './query-view';
+import { focusSoon, progressText, QueryView } from './query-view';
+import { AnalysisBackend } from '../core/analysis-backend';
+import { StreamedQueryOutcome, QueryProgress } from '../core/api.types';
+import { at } from '../../testing/must';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -78,7 +80,7 @@ describe('QueryView', () => {
     expect(options.map((o) => o.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('level')]));
     expect(input.getAttribute('aria-expanded')).toBe('true');
     expect(input.getAttribute('aria-activedescendant')).toBe('ql-opt-0');
-    expect(options[0].getAttribute('aria-selected')).toBe('true');
+    expect(options[0]?.getAttribute('aria-selected')).toBe('true');
 
     if (options.length > 1) {
       key(input, 'ArrowDown');
@@ -164,7 +166,7 @@ describe('QueryView', () => {
     fixture.detectChanges();
     const items = all<HTMLButtonElement>(fixture, '.history .item');
     expect(items.map((i) => i.textContent?.trim())).toEqual(['stats-old', 'level >= fatal', 'Clear history']);
-    items[1].click();
+    at(items, 1).click();
     await settle(fixture);
     expect(input.value).toBe('level >= fatal');
     expect(all(fixture, '.history')).toHaveLength(0);
@@ -269,6 +271,50 @@ describe('QueryView', () => {
     el<HTMLButtonElement>(fixture, 'button.primary').click();
     await settle(fixture);
     expect(el(fixture, '.err-msg').textContent).toContain('IPC down');
+  });
+
+  it('shows progress and a Cancel button while a query runs; Cancel and Esc stop it', async () => {
+    const backend = TestBed.inject(AnalysisBackend);
+    let progress: ((p: QueryProgress) => void) | undefined;
+    let finish: ((o: StreamedQueryOutcome) => void) | undefined;
+    vi.spyOn(backend, 'runQueryStreaming').mockImplementation((_q, _id, onProgress) => {
+      progress = onProgress;
+      return new Promise((r) => (finish = r));
+    });
+    const cancel = vi.spyOn(backend, 'cancelQuery').mockImplementation(async () => (finish?.({ cancelled: true }), true));
+    expect(fixture.nativeElement.querySelector('[data-testid=query-cancel]')).toBeNull();
+    await type('level >= warning');
+    session.dismissCompletions();
+    el<HTMLButtonElement>(fixture, 'button.primary').click();
+    await settle(fixture);
+    expect(el<HTMLButtonElement>(fixture, 'button.primary').disabled).toBe(true);
+    expect(el(fixture, '.status').textContent).toContain('Running…');
+    progress?.({ stage: 'evaluating', done: 250, total: 1000 });
+    await settle(fixture);
+    expect(el(fixture, '.status').textContent).toContain('Evaluating 250 of 1,000 events (25%)');
+    expect(el<HTMLProgressElement>(fixture, 'progress').getAttribute('aria-label')).toBe('Query progress');
+    el<HTMLButtonElement>(fixture, '[data-testid=query-cancel]').click();
+    await settle(fixture);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(el(fixture, '[data-testid=query-cancelled]').textContent).toContain('Query cancelled.');
+    expect(fixture.nativeElement.querySelector('.err-msg')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid=query-cancel]')).toBeNull();
+
+    // Esc cancels too (when no completion popup is open).
+    el<HTMLButtonElement>(fixture, 'button.primary').click();
+    await settle(fixture);
+    const esc = key(input, 'Escape');
+    await settle(fixture);
+    expect(esc.defaultPrevented).toBe(true);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(session.running()).toBe(false);
+  });
+
+  it('formats progress', () => {
+    expect(progressText(null)).toBeNull();
+    expect(progressText({ stage: 'matching', done: 0, total: 0 })).toBeNull();
+    expect(progressText({ stage: 'matching', done: 5, total: 10 })).toBe('Matching 5 of 10 events (50%)');
+    expect(progressText({ stage: 'evaluating', done: 12, total: 10 })).toContain('(100%)');
   });
 
   it('clicking outside closes popups', async () => {

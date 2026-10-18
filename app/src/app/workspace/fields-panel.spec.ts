@@ -5,6 +5,7 @@ import { MockBackend } from '../core/mock/mock-backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Sidebar } from '../shell/sidebar';
 import { FieldsPanel } from './fields-panel';
+import { at } from '../../testing/must';
 
 describe('Sidebar fields with the facet popover', () => {
   async function render(backend = tinyBackend()) {
@@ -25,22 +26,22 @@ describe('Sidebar fields with the facet popover', () => {
   it('opens the popover next to the field, toggles it off, and replaces it when another field is chosen', async () => {
     const { fixture } = await render();
     const fields = all<HTMLButtonElement>(fixture, '.field');
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     const pop = el<HTMLElement>(fixture, 'imt-facet-popover');
     expect(pop.style.left).not.toBe('');
     expect(Number.parseFloat(pop.style.top)).toBeGreaterThanOrEqual(40);
-    fields[0].click();
+    at(fields, 0).click();
     await settle(fixture);
     expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
-    fields[1].click();
+    at(fields, 1).click();
     await settle(fixture);
     expect(el(fixture, 'imt-facet-popover [data-testid=facet-summary]').textContent).toContain('values');
   });
 
   it('adds a column from the popover and closes it', async () => {
     const { fixture, store } = await render();
-    all<HTMLButtonElement>(fixture, '.field')[0].click();
+    at(all<HTMLButtonElement>(fixture, '.field'), 0).click();
     await settle(fixture);
     buttonByText(fixture, 'Add column').click();
     await settle(fixture);
@@ -75,15 +76,15 @@ describe('FieldsPanel statistics action', () => {
     const names = all(fixture, '.field .fname').map((n) => n.textContent?.trim());
     const buttons = all<HTMLButtonElement>(fixture, 'button.stats');
     expect(buttons).toHaveLength(names.length);
-    expect(buttons[0].getAttribute('aria-label')).toBe(`Statistics for ${names[0]}`);
-    expect(buttons[0].title).toBe('Statistics…');
-    expect(buttons[0].type).toBe('button');
+    expect(buttons[0]?.getAttribute('aria-label')).toBe(`Statistics for ${names[0]}`);
+    expect(buttons[0]?.title).toBe('Statistics…');
+    expect(buttons[0]?.type).toBe('button');
 
     // An open facet popover closes when statistics are requested.
-    all<HTMLButtonElement>(fixture, '.field')[1].click();
+    at(all<HTMLButtonElement>(fixture, '.field'), 1).click();
     await settle(fixture);
     expect(all(fixture, 'imt-facet-popover')).toHaveLength(1);
-    buttons[0].click();
+    at(buttons, 0).click();
     await settle(fixture);
     expect(TestBed.inject(AnalysisTargets).field()).toBe(names[0]);
     expect(dock.calls).toContain('show:field-stats');
@@ -97,7 +98,7 @@ describe('FieldsPanel statistics action', () => {
     await settle(fixture);
     const numeric = TestBed.inject(WorkspaceStore).numericFields()[0];
     const index = all(fixture, '.field .fname').findIndex((n) => n.textContent?.trim() === numeric);
-    all<HTMLButtonElement>(fixture, '.field')[index].click();
+    at(all<HTMLButtonElement>(fixture, '.field'), index).click();
     await settle(fixture);
     const chart = all<HTMLButtonElement>(fixture, 'imt-facet-popover button').find((b) => /chart/i.test(b.textContent ?? ''));
     expect(chart).toBeDefined();

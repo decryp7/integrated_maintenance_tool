@@ -10,9 +10,12 @@ import {
   QlError,
   QlQuery,
   QueryOutcome,
+  QueryProgress,
   RequestSpan,
+  StreamedQueryOutcome,
   TracesResult,
 } from './api.types';
+import { ChannelFactory, tauriChannel } from './tauri-channel';
 
 /**
  * Everything the analysis views ask the engine. Injected as a class token (see
@@ -35,13 +38,35 @@ export abstract class AnalysisBackend {
   abstract queryTraces(query: QlQuery, traceId: string): Promise<TracesResult>;
   abstract queryRequests(query: QlQuery, idField: string): Promise<RequestSpan[]>;
   abstract queryMoment(query: QlQuery, from: number, to: number): Promise<MomentSummary>;
+
+  /**
+   * Like `runQuery`, reporting progress and cancellable with `cancelQuery(queryId)`; a cancelled run resolves to
+   * `{ cancelled: true }`. A backend without cancellation runs `runQuery` to completion (the default).
+   */
+  runQueryStreaming(query: QlQuery, _queryId: string, _onProgress: (p: QueryProgress) => void): Promise<StreamedQueryOutcome> {
+    return this.runQuery(query);
+  }
+  /** Asks the run `queryId` to stop; false when it is not running (any more). */
+  cancelQuery(_queryId: string): Promise<boolean> {
+    return Promise.resolve(false);
+  }
 }
 
 /** Talks to the Rust core through Tauri commands (see `api.types.ts` for the contract). */
 export class TauriAnalysisBackend extends AnalysisBackend {
-  /** `call` is Tauri's `invoke`; tests pass a fake. */
-  constructor(private readonly call: typeof invoke = invoke) {
+  /** `call` is Tauri's `invoke` and `channel` makes IPC channels; tests pass fakes. */
+  constructor(
+    private readonly call: typeof invoke = invoke,
+    private readonly channel: ChannelFactory = tauriChannel,
+  ) {
     super();
+  }
+
+  override runQueryStreaming(query: QlQuery, queryId: string, onProgress: (p: QueryProgress) => void) {
+    return this.call<StreamedQueryOutcome>('run_query_stream', { request: { query }, queryId, onProgress: this.channel(onProgress) });
+  }
+  override cancelQuery(queryId: string) {
+    return this.call<boolean>('cancel_query', { queryId });
   }
 
   runQuery(query: QlQuery) {

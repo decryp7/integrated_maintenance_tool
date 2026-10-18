@@ -3,8 +3,11 @@ import { listenHere } from '../windowing/window-events';
 import { AiBackend, toAiError, Unlisten } from './ai-backend';
 import {
   AI_CHAT_EVENT,
+  AI_RUNTIME_EVENT,
   AI_SETUP_EVENT,
   AI_STATUS_EVENT,
+  AiRuntimeEvent,
+  AiRuntimeOverview,
   AiStatus,
   ApprovalDecision,
   ChatContext,
@@ -33,7 +36,8 @@ import {
 /** Subscribes to an event with its payload; tests pass fakes. */
 export type ListenFn = (event: string, handler: (payload: unknown) => void) => Promise<Unlisten>;
 
-const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** Talks to the Rust shell; `call` is Tauri's `invoke` and `listen` the window-scoped listener (tests pass fakes). */
 export class TauriAiBackend extends AiBackend {
@@ -88,6 +92,21 @@ export class TauriAiBackend extends AiBackend {
   reset() {
     return this.run<AiStatus>('ai_reset');
   }
+  runtimes() {
+    return this.run<AiRuntimeOverview>('ai_runtimes');
+  }
+  runtimeInstall(id: string) {
+    return this.run<void>('ai_runtime_install', { id });
+  }
+  runtimeCancel() {
+    return this.run<boolean>('ai_runtime_cancel');
+  }
+  runtimeDelete(tag: string, id: string) {
+    return this.run<void>('ai_runtime_delete', { tag, id });
+  }
+  runtimeChoose(id: string) {
+    return this.run<void>('ai_runtime_choose', { id });
+  }
   proposeRegex(lines: string[], intent?: string | null) {
     return this.run<RegexProposal>('ai_propose_regex', { lines, intent: intent ?? null });
   }
@@ -95,13 +114,25 @@ export class TauriAiBackend extends AiBackend {
     return this.run<ProfileProposal>('ai_propose_profile', { ...source });
   }
   proposePipeline(goal: string, source: SampleSource) {
-    return this.run<PipelineProposal>('ai_propose_pipeline', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+    return this.run<PipelineProposal>('ai_propose_pipeline', {
+      goal,
+      recordId: source.recordId ?? null,
+      sample: source.sample ?? null,
+    });
   }
   proposeMarkers(goal: string, source: SampleSource) {
-    return this.run<MarkersProposal>('ai_propose_markers', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+    return this.run<MarkersProposal>('ai_propose_markers', {
+      goal,
+      recordId: source.recordId ?? null,
+      sample: source.sample ?? null,
+    });
   }
   proposeExtractors(goal: string, source: SampleSource) {
-    return this.run<ExtractorsProposal>('ai_propose_extractors', { goal, recordId: source.recordId ?? null, sample: source.sample ?? null });
+    return this.run<ExtractorsProposal>('ai_propose_extractors', {
+      goal,
+      recordId: source.recordId ?? null,
+      sample: source.sample ?? null,
+    });
   }
   nlToQuery(question: string) {
     return this.run<QueryProposal>('ai_nl_to_query', { question });
@@ -146,7 +177,11 @@ export class TauriAiBackend extends AiBackend {
     return this.run<RestoreResult>('ai_chat_restore', { record: record ?? null });
   }
   chatExportMarkdown(sessionId: string, path: string, overwrite = false) {
-    return this.run<string>('ai_chat_export_markdown', { sessionId, path, ...(overwrite ? { overwrite } : {}) });
+    return this.run<string>('ai_chat_export_markdown', {
+      sessionId,
+      path,
+      ...(overwrite ? { overwrite } : {}),
+    });
   }
   suggestedPrompts() {
     return this.run<string[]>('ai_suggested_prompts');
@@ -172,15 +207,27 @@ export class TauriAiBackend extends AiBackend {
       if (isObject(p) && typeof p['stage'] === 'string') handler(p as unknown as SetupEvent);
     });
   }
+  onRuntime(handler: (e: AiRuntimeEvent) => void) {
+    return this.listen(AI_RUNTIME_EVENT, (p) => {
+      if (isObject(p) && typeof p['stage'] === 'string' && typeof p['id'] === 'string')
+        handler(p as unknown as AiRuntimeEvent);
+    });
+  }
   onStatus(handler: (s: AiStatus) => void) {
     return this.listen(AI_STATUS_EVENT, (p) => {
-      if (isObject(p) && typeof p['state'] === 'string' && typeof p['available'] === 'boolean') handler(p as unknown as AiStatus);
+      if (isObject(p) && typeof p['state'] === 'string' && typeof p['available'] === 'boolean')
+        handler(p as unknown as AiStatus);
     });
   }
   onChat(handler: (e: ChatEventEnvelope) => void) {
     return this.listen(AI_CHAT_EVENT, (p) => {
-      if (isObject(p) && typeof p['sessionId'] === 'string' && typeof p['type'] === 'string' && typeof p['seq'] === 'number') handler(p as unknown as ChatEventEnvelope);
+      if (
+        isObject(p) &&
+        typeof p['sessionId'] === 'string' &&
+        typeof p['type'] === 'string' &&
+        typeof p['seq'] === 'number'
+      )
+        handler(p as unknown as ChatEventEnvelope);
     });
   }
 }
-

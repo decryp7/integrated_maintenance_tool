@@ -701,7 +701,7 @@ mod tests {
                     cmd: cmd.into(),
                     callback: CallbackFn(0),
                     error: CallbackFn(1),
-                    url: "tauri://localhost".parse().unwrap(),
+                    url: crate::test_support::ipc_url(),
                     body: InvokeBody::Json(body),
                     headers: Default::default(),
                     invoke_key: INVOKE_KEY.to_string(),

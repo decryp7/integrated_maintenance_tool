@@ -5,6 +5,7 @@ import { ImtBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from './live-tail';
+import { at } from '../../testing/must';
 
 describe('LiveTail', () => {
   async function setup(backend = new MockBackend({ latency: false, dataset: tinyDataset, liveMs: 15 })) {
@@ -33,7 +34,7 @@ describe('LiveTail', () => {
   it('refreshes the summary on every change, keeps the selection and the query, and marks the refresh as live', async () => {
     const { store, live } = await setup();
     store.toggleLevel('Information');
-    const row = (await TestBed.inject(ImtBackend).queryPage({ query: store.effectiveQuery(), offset: 1, limit: 1, descending: false })).rows[0];
+    const row = at((await TestBed.inject(ImtBackend).queryPage({ query: store.effectiveQuery(), offset: 1, limit: 1, descending: false })).rows, 0);
     store.select(row);
     const version = store.dataVersion();
     expect(live.isLiveRefresh()).toBe(false);
@@ -207,7 +208,7 @@ describe('LiveTail', () => {
     await settle();
     expect(setLive.mock.calls.length).toBe(calls);
     vi.spyOn(backend, 'setLive').mockRejectedValueOnce('watch failed');
-    await store.removeSource(store.summary()!.sources[0].id);
+    await store.removeSource(at(store.summary()!.sources, 0).id);
     await settle();
     expect(live.enabled()).toBe(false);
     expect(live.error()).toBe('watch failed');

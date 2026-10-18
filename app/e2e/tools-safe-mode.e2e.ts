@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { openAppWith, openView, runCommand } from './tools-support';
 import { chooseMenu } from './menu-support';
+import { nextRender } from './app';
 
 /** The titles of the views offered (View ▸ Other windows… lists every one). */
 async function viewMenu(page: Page): Promise<string[]> {
@@ -17,8 +18,11 @@ async function viewMenu(page: Page): Promise<string[]> {
 async function paletteOffers(page: Page, title: string): Promise<boolean> {
   await page.keyboard.press('ControlOrMeta+k');
   await page.getByRole('combobox', { name: 'Type a command' }).fill(title);
-  const options = page.locator('imt-command-palette').getByRole('option');
-  const offered = (await options.count()) > 0 && (await options.first().innerText()).includes(title);
+  // The list renders the query on the next frame: reading it earlier sees the unfiltered list, whose rows
+  // are then removed while being read (or, for a negative check, passes without having filtered).
+  await nextRender(page);
+  const first = page.locator('imt-command-palette').getByRole('option').first();
+  const offered = (await first.count()) > 0 && (await first.innerText({ timeout: 2_000 })).includes(title);
   await page.keyboard.press('Escape');
   return offered;
 }

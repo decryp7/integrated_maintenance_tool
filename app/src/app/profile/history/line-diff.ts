@@ -45,25 +45,28 @@ function lcs(a: string[], b: string[]): DiffLine[] {
   const m = b.length;
   // len[i][j] = LCS length of a[i..] and b[j..].
   const len = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+  const cell = (r: number, c: number) => len[r]?.[c] ?? 0;
   for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) len[i][j] = a[i] === b[j] ? len[i + 1][j + 1] + 1 : Math.max(len[i + 1][j], len[i][j + 1]);
+    const row = len[i];
+    if (!row) continue;
+    for (let j = m - 1; j >= 0; j--) row[j] = a[i] === b[j] ? cell(i + 1, j + 1) + 1 : Math.max(cell(i + 1, j), cell(i, j + 1));
   }
   const out: DiffLine[] = [];
   let i = 0;
   let j = 0;
   while (i < n && j < m) {
     if (a[i] === b[j]) {
-      out.push({ kind: 'same', text: a[i] });
+      out.push({ kind: 'same', text: a[i] ?? '' });
       i++;
       j++;
-    } else if (len[i + 1][j] >= len[i][j + 1]) {
-      out.push({ kind: 'removed', text: a[i++] });
+    } else if (cell(i + 1, j) >= cell(i, j + 1)) {
+      out.push({ kind: 'removed', text: a[i++] ?? '' });
     } else {
-      out.push({ kind: 'added', text: b[j++] });
+      out.push({ kind: 'added', text: b[j++] ?? '' });
     }
   }
-  while (i < n) out.push({ kind: 'removed', text: a[i++] });
-  while (j < m) out.push({ kind: 'added', text: b[j++] });
+  while (i < n) out.push({ kind: 'removed', text: a[i++] ?? '' });
+  while (j < m) out.push({ kind: 'added', text: b[j++] ?? '' });
   return out;
 }
 
@@ -71,7 +74,7 @@ function lcs(a: string[], b: string[]): DiffLine[] {
 export function stampToMs(stamp: string): number | null {
   const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(\d{3})?/.exec(stamp);
   if (!m) return null;
-  const [, y, mo, d, h, mi, s, ms] = m;
+  const [, y = '', mo = '', d = '', h = '', mi = '', s = '', ms] = m;
   const t = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s, +(ms ?? 0));
   return Number.isNaN(t) ? null : t;
 }

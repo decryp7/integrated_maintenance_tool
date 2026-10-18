@@ -19,7 +19,7 @@ import { DEFAULT_PLAN, formatBytes, joinLines, ManifestSummary, newLogSpec, opti
 export class CollectorDialogService {
   private readonly dialogs = inject(DialogService);
   open(): void {
-    this.dialogs.open(CollectorDialog, { title: 'Collect diagnostics bundle', width: 760 });
+    this.dialogs.open(CollectorDialog, { title: $localize`:@@tools.collector.title:Collect diagnostics bundle`, width: 760 });
   }
 }
 
@@ -31,140 +31,140 @@ type Phase = 'idle' | 'running' | 'done';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint, ToolError, ToolUnavailable],
   template: `
-    <p class="intro">Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</p>
+    <p class="intro" i18n="@@tools.collector.intro">Gather logs, system information and counters into one bundle (.imtz) you can open here or send to support. Secrets are masked before anything is written.</p>
     <imt-tool-unavailable tool="diagnostics" />
     <imt-tool-error [message]="error()" (dismissed)="error.set(null)" />
 
     <div class="bar">
-      <button type="button" class="btn" [class.active]="jsonMode()" [attr.aria-pressed]="jsonMode()" [disabled]="phase() === 'running'" (click)="toggleJson()">Edit as JSON</button>
+      <button type="button" class="btn" [class.active]="jsonMode()" [attr.aria-pressed]="jsonMode()" [disabled]="phase() === 'running'" (click)="toggleJson()" i18n="@@tools.collector.editAsJson">Edit as JSON</button>
     </div>
 
     @if (jsonMode()) {
-      <label class="lbl">Plan (JSON)
-        <textarea class="input mono json" rows="16" aria-label="Plan JSON" [value]="jsonText()" (input)="onJson($event)"></textarea>
+      <label class="lbl"><ng-container i18n="@@tools.collector.planJson.label">Plan (JSON)</ng-container>
+        <textarea class="input mono json" rows="16" aria-label="Plan JSON" i18n-aria-label="@@tools.collector.planJson.aria" [value]="jsonText()" (input)="onJson($event)"></textarea>
       </label>
       @if (jsonError(); as je) { <div class="err" role="alert">{{ je }}</div> }
     } @else {
       <fieldset [disabled]="phase() === 'running'">
-        <label class="lbl">Bundle name
-          <input class="input" aria-label="Bundle name" [value]="plan().name" (input)="patch({ name: val($event) })" />
+        <label class="lbl"><ng-container i18n="@@tools.collector.bundleName.label">Bundle name</ng-container>
+          <input class="input" aria-label="Bundle name" i18n-aria-label="@@tools.collector.bundleName.aria" [value]="plan().name" (input)="patch({ name: val($event) })" />
         </label>
 
-        <legend class="section-title">Log folders</legend>
+        <legend class="section-title" i18n="@@tools.collector.logFolders">Log folders</legend>
         @for (l of plan().logs; track $index) {
           <div class="log">
             <div class="inline">
-              <input class="input grow mono" [attr.aria-label]="'Log folder ' + ($index + 1)" placeholder="C:\\ProgramData\\Contoso\\Logs" [value]="l.path" (input)="setLog($index, { path: val($event) })" />
-              <button type="button" class="icon-btn" [attr.aria-label]="'Remove log folder ' + ($index + 1)" title="Remove" (click)="removeLog($index)"><imt-icon name="close" [size]="13" /></button>
+              <input class="input grow mono" [attr.aria-label]="logFolderLabel($index)" placeholder="C:\\ProgramData\\Contoso\\Logs" [value]="l.path" (input)="setLog($index, { path: val($event) })" />
+              <button type="button" class="icon-btn" [attr.aria-label]="removeLogLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removeLog($index)"><imt-icon name="close" [size]="13" /></button>
             </div>
             <div class="row">
-              <label class="lbl">Include (globs, comma separated)
-                <input class="input mono" [attr.aria-label]="'Include globs ' + ($index + 1)" [value]="l.include.join(', ')" (input)="setLog($index, { include: csv($event) })" />
+              <label class="lbl"><ng-container i18n="@@tools.collector.include.label">Include (globs, comma separated)</ng-container>
+                <input class="input mono" [attr.aria-label]="includeLabel($index)" [value]="l.include.join(', ')" (input)="setLog($index, { include: csv($event) })" />
               </label>
-              <label class="lbl">Max age (days)
-                <input class="input" type="number" min="0" [attr.aria-label]="'Max age ' + ($index + 1)" [value]="l.maxAgeDays ?? ''" placeholder="any" (input)="setLog($index, { maxAgeDays: num($event) })" />
+              <label class="lbl"><ng-container i18n="@@tools.collector.maxAge.label">Max age (days)</ng-container>
+                <input class="input" type="number" min="0" [attr.aria-label]="maxAgeLabel($index)" [value]="l.maxAgeDays ?? ''" placeholder="any" i18n-placeholder="@@tools.collector.maxAge.placeholder" (input)="setLog($index, { maxAgeDays: num($event) })" />
               </label>
-              <label class="lbl">Max size (MB)
-                <input class="input" type="number" min="0" [attr.aria-label]="'Max size ' + ($index + 1)" [value]="l.maxTotalMb ?? ''" placeholder="no limit" (input)="setLog($index, { maxTotalMb: num($event) })" />
+              <label class="lbl"><ng-container i18n="@@tools.collector.maxSize.label">Max size (MB)</ng-container>
+                <input class="input" type="number" min="0" [attr.aria-label]="maxSizeLabel($index)" [value]="l.maxTotalMb ?? ''" placeholder="no limit" i18n-placeholder="@@tools.collector.maxSize.placeholder" (input)="setLog($index, { maxTotalMb: num($event) })" />
               </label>
             </div>
           </div>
         }
-        <div><button type="button" class="btn" (click)="addLog()"><imt-icon name="plus" [size]="12" />Add log folder</button></div>
+        <div><button type="button" class="btn" (click)="addLog()"><imt-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addLogFolder">Add log folder</ng-container></button></div>
 
-        <legend class="section-title">System information</legend>
+        <legend class="section-title" i18n="@@tools.collector.systemInfo">System information</legend>
         <div class="checks">
-          <label class="check"><input type="checkbox" [checked]="plan().environment" (change)="patch({ environment: checked($event) })" /> Environment (OS, CPU, memory, disks)</label>
-          <label class="check"><input type="checkbox" [checked]="plan().msinfo" (change)="patch({ msinfo: checked($event) })" /> System information (msinfo32, Windows)</label>
-          <label class="check"><input type="checkbox" [checked]="plan().counters" (change)="patch({ counters: checked($event) })" /> Performance counter sample (Windows)</label>
-          <label class="check"><input type="checkbox" [checked]="plan().macosUnifiedLog" (change)="patch({ macosUnifiedLog: checked($event) })" /> macOS unified log</label>
-          <label class="check"><input type="checkbox" [checked]="plan().linuxJournal" (change)="patch({ linuxJournal: checked($event) })" /> Linux journal</label>
+          <label class="check" i18n="@@tools.collector.check.environment"><input type="checkbox" [checked]="plan().environment" (change)="patch({ environment: checked($event) })" /> Environment (OS, CPU, memory, disks)</label>
+          <label class="check" i18n="@@tools.collector.check.msinfo"><input type="checkbox" [checked]="plan().msinfo" (change)="patch({ msinfo: checked($event) })" /> System information (msinfo32, Windows)</label>
+          <label class="check" i18n="@@tools.collector.check.counters"><input type="checkbox" [checked]="plan().counters" (change)="patch({ counters: checked($event) })" /> Performance counter sample (Windows)</label>
+          <label class="check" i18n="@@tools.collector.check.macosLog"><input type="checkbox" [checked]="plan().macosUnifiedLog" (change)="patch({ macosUnifiedLog: checked($event) })" /> macOS unified log</label>
+          <label class="check" i18n="@@tools.collector.check.linuxJournal"><input type="checkbox" [checked]="plan().linuxJournal" (change)="patch({ linuxJournal: checked($event) })" /> Linux journal</label>
         </div>
         <div class="row">
-          <label class="lbl">Event logs (Windows, one per line)
-            <textarea class="input mono" rows="3" aria-label="Event logs" [value]="lines(plan().eventLogs)" (input)="patch({ eventLogs: split($event) })"></textarea>
+          <label class="lbl"><ng-container i18n="@@tools.collector.eventLogs.label">Event logs (Windows, one per line)</ng-container>
+            <textarea class="input mono" rows="3" aria-label="Event logs" i18n-aria-label="@@tools.collector.eventLogs.aria" [value]="lines(plan().eventLogs)" (input)="patch({ eventLogs: split($event) })"></textarea>
           </label>
-          <label class="lbl">Registry keys (Windows, one per line)
-            <textarea class="input mono" rows="3" aria-label="Registry keys" placeholder="HKLM\\SOFTWARE\\Contoso" [value]="lines(plan().registry)" (input)="patch({ registry: split($event) })"></textarea>
+          <label class="lbl"><ng-container i18n="@@tools.collector.registry.label">Registry keys (Windows, one per line)</ng-container>
+            <textarea class="input mono" rows="3" aria-label="Registry keys" i18n-aria-label="@@tools.collector.registry.aria" placeholder="HKLM\\SOFTWARE\\Contoso" [value]="lines(plan().registry)" (input)="patch({ registry: split($event) })"></textarea>
           </label>
         </div>
         <div class="row">
-          <label class="lbl">Event log days
+          <label class="lbl"><ng-container i18n="@@tools.collector.eventLogDays">Event log days</ng-container>
             <input class="input" type="number" min="1" [value]="plan().eventLogDays" (input)="patch({ eventLogDays: +val($event) })" />
           </label>
-          <label class="lbl">Recent system log hours
+          <label class="lbl"><ng-container i18n="@@tools.collector.recentLogHours">Recent system log hours</ng-container>
             <input class="input" type="number" min="1" [value]="plan().recentLogHours" (input)="patch({ recentLogHours: +val($event) })" />
           </label>
         </div>
         @if (plan().counters) {
-          <label class="lbl">Counters (one per line)
-            <textarea class="input mono" rows="3" aria-label="Counter paths" [value]="lines(plan().counterPaths)" (input)="patch({ counterPaths: split($event) })"></textarea>
+          <label class="lbl"><ng-container i18n="@@tools.collector.counters.label">Counters (one per line)</ng-container>
+            <textarea class="input mono" rows="3" aria-label="Counter paths" i18n-aria-label="@@tools.collector.counters.aria" [value]="lines(plan().counterPaths)" (input)="patch({ counterPaths: split($event) })"></textarea>
           </label>
         }
         @if (plan().environment) {
-          <label class="lbl">Environment variables to include (one per line)
-            <textarea class="input mono" rows="3" aria-label="Environment variables" [value]="lines(plan().envAllowlist)" (input)="patch({ envAllowlist: split($event) })"></textarea>
+          <label class="lbl"><ng-container i18n="@@tools.collector.envVars.label">Environment variables to include (one per line)</ng-container>
+            <textarea class="input mono" rows="3" aria-label="Environment variables" i18n-aria-label="@@tools.collector.envVars.aria" [value]="lines(plan().envAllowlist)" (input)="patch({ envAllowlist: split($event) })"></textarea>
           </label>
         }
 
-        <legend class="section-title">Redaction <imt-help label="Redaction" text="Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked." /></legend>
+        <legend class="section-title" i18n="@@tools.collector.redaction">Redaction <imt-help label="Redaction" i18n-label="@@tools.collector.redaction.helpLabel" text="Text files are scanned and matches are replaced before they enter the bundle. The manifest lists how many values each rule masked." i18n-text="@@tools.collector.redaction.helpText" /></legend>
         <div class="checks">
-          <label class="check"><input type="checkbox" [checked]="plan().redact.builtIn" (change)="patchRedact({ builtIn: checked($event) })" /> Mask e-mail addresses, tokens, passwords and card numbers</label>
-          <label class="check"><input type="checkbox" [checked]="plan().redact.ipAddresses" (change)="patchRedact({ ipAddresses: checked($event) })" /> Mask IP addresses</label>
+          <label class="check" i18n="@@tools.collector.mask.builtIn"><input type="checkbox" [checked]="plan().redact.builtIn" (change)="patchRedact({ builtIn: checked($event) })" /> Mask e-mail addresses, tokens, passwords and card numbers</label>
+          <label class="check" i18n="@@tools.collector.mask.ip"><input type="checkbox" [checked]="plan().redact.ipAddresses" (change)="patchRedact({ ipAddresses: checked($event) })" /> Mask IP addresses</label>
         </div>
         @for (p of plan().redact.patterns; track $index) {
           <div class="inline">
-            <input class="input" [attr.aria-label]="'Pattern name ' + ($index + 1)" placeholder="name" [value]="p.name" (input)="setPattern($index, { name: val($event) })" />
-            <input class="input grow mono" [attr.aria-label]="'Pattern regex ' + ($index + 1)" placeholder="regular expression" [value]="p.regex" (input)="setPattern($index, { regex: val($event) })" />
-            <input class="input" [attr.aria-label]="'Pattern replacement ' + ($index + 1)" placeholder="[REDACTED]" [value]="p.replace" (input)="setPattern($index, { replace: val($event) })" />
-            <button type="button" class="icon-btn" [attr.aria-label]="'Remove pattern ' + ($index + 1)" title="Remove" (click)="removePattern($index)"><imt-icon name="close" [size]="13" /></button>
+            <input class="input" [attr.aria-label]="patternNameLabel($index)" placeholder="name" i18n-placeholder="@@tools.collector.pattern.namePlaceholder" [value]="p.name" (input)="setPattern($index, { name: val($event) })" />
+            <input class="input grow mono" [attr.aria-label]="patternRegexLabel($index)" placeholder="regular expression" i18n-placeholder="@@tools.collector.pattern.regexPlaceholder" [value]="p.regex" (input)="setPattern($index, { regex: val($event) })" />
+            <input class="input" [attr.aria-label]="patternReplaceLabel($index)" placeholder="[REDACTED]" [value]="p.replace" (input)="setPattern($index, { replace: val($event) })" />
+            <button type="button" class="icon-btn" [attr.aria-label]="removePatternLabel($index)" title="Remove" i18n-title="@@tools.collector.remove.title" (click)="removePattern($index)"><imt-icon name="close" [size]="13" /></button>
           </div>
         }
-        <div><button type="button" class="btn" (click)="addPattern()"><imt-icon name="plus" [size]="12" />Add custom pattern</button></div>
+        <div><button type="button" class="btn" (click)="addPattern()"><imt-icon name="plus" [size]="12" /><ng-container i18n="@@tools.collector.addPattern">Add custom pattern</ng-container></button></div>
 
-        <legend class="section-title">Limits</legend>
+        <legend class="section-title" i18n="@@tools.collector.limits">Limits</legend>
         <div class="row">
-          <label class="lbl">Maximum bundle size (MB)
+          <label class="lbl"><ng-container i18n="@@tools.collector.maxBundle">Maximum bundle size (MB)</ng-container>
             <input class="input" type="number" min="1" [value]="plan().maxBundleMb" (input)="patch({ maxBundleMb: +val($event) })" />
           </label>
-          <label class="lbl">Tool timeout (seconds)
+          <label class="lbl"><ng-container i18n="@@tools.collector.toolTimeout">Tool timeout (seconds)</ng-container>
             <input class="input" type="number" min="1" [value]="plan().commandTimeoutSecs" (input)="patch({ commandTimeoutSecs: +val($event) })" />
           </label>
         </div>
       </fieldset>
     }
 
-    <label class="lbl">Output folder
+    <label class="lbl"><ng-container i18n="@@tools.collector.outputFolder.label">Output folder</ng-container>
       <span class="inline">
-        <input class="input grow mono" aria-label="Output folder" placeholder="Where to write the bundle" [value]="outDir()" (input)="outDir.set(val($event))" />
-        <button type="button" class="btn" (click)="browse()">Browse…</button>
+        <input class="input grow mono" aria-label="Output folder" i18n-aria-label="@@tools.collector.outputFolder.aria" placeholder="Where to write the bundle" i18n-placeholder="@@tools.collector.outputFolder.placeholder" [value]="outDir()" (input)="outDir.set(val($event))" />
+        <button type="button" class="btn" (click)="browse()" i18n="@@tools.collector.browse">Browse…</button>
       </span>
     </label>
 
     @if (phase() === 'running') {
-      <div class="progress" role="status" data-testid="collect-progress"><span class="spinner" aria-hidden="true"></span> Collecting… this can take a minute on large log folders.</div>
+      <div class="progress" role="status" data-testid="collect-progress" i18n="@@tools.collector.collecting"><span class="spinner" aria-hidden="true"></span> Collecting… this can take a minute on large log folders.</div>
     }
 
     @if (result(); as r) {
       <div class="result" data-testid="collect-result">
-        <strong>Bundle created</strong>
+        <strong i18n="@@tools.collector.bundleCreated">Bundle created</strong>
         <div class="mono path">{{ r.bundle }}</div>
         @if (summary(); as s) {
           <ul class="facts">
-            <li><strong>{{ s.items }}</strong> item{{ s.items === 1 ? '' : 's' }} · {{ bytes(s.bytes) }}</li>
-            <li><strong>{{ s.redactionTotal }}</strong> value{{ s.redactionTotal === 1 ? '' : 's' }} masked
+            <li i18n="@@tools.collector.facts.items"><strong>{{ s.items }}</strong> {s.items, plural, =1 {item} other {items}} · {{ bytes(s.bytes) }}</li>
+            <li><ng-container i18n="@@tools.collector.facts.masked"><strong>{{ s.redactionTotal }}</strong> {s.redactionTotal, plural, =1 {value} other {values}} masked</ng-container>
               @if (s.redactionByRule.length) { ({{ ruleText() }}) }
             </li>
-            <li><strong>{{ s.skipped.length }}</strong> skipped</li>
-            <li><strong>{{ s.errors.length }}</strong> error{{ s.errors.length === 1 ? '' : 's' }}</li>
+            <li i18n="@@tools.collector.facts.skipped"><strong>{{ s.skipped.length }}</strong> skipped</li>
+            <li i18n="@@tools.collector.facts.errors"><strong>{{ s.errors.length }}</strong> {s.errors.length, plural, =1 {error} other {errors}}</li>
           </ul>
           @if (s.skipped.length) {
-            <details open><summary>Skipped</summary>
+            <details open><summary i18n="@@tools.collector.skipped">Skipped</summary>
               <ul class="reasons">@for (k of s.skipped; track $index) { <li><span class="mono">{{ k.what }}</span>: {{ k.reason }}</li> }</ul>
             </details>
           }
           @if (s.errors.length) {
-            <details open><summary>Errors</summary>
+            <details open><summary i18n="@@tools.collector.errors">Errors</summary>
               <ul class="reasons">@for (e of s.errors; track $index) { <li class="bad">{{ e }}</li> }</ul>
             </details>
           }
@@ -173,11 +173,11 @@ type Phase = 'idle' | 'running' | 'done';
     }
 
     <div class="foot">
-      <button type="button" class="btn" (click)="ref.close()">Close</button>
+      <button type="button" class="btn" (click)="ref.close()" i18n="@@tools.collector.close">Close</button>
       @if (result()) {
-        <button type="button" class="btn" (click)="openBundle()">Open bundle</button>
+        <button type="button" class="btn" (click)="openBundle()" i18n="@@tools.collector.openBundle">Open bundle</button>
       }
-      <button type="button" class="btn primary" [disabled]="phase() === 'running' || !!jsonError() || !canCollect()" (click)="collect()">{{ result() ? 'Collect again' : 'Collect' }}</button>
+      <button type="button" class="btn primary" [disabled]="phase() === 'running' || !!jsonError() || !canCollect()" (click)="collect()">{{ collectLabel() }}</button>
     </div>
   `,
   styles: `
@@ -192,8 +192,9 @@ type Phase = 'idle' | 'running' | 'done';
     .row .lbl { min-width: 140px; }
     .inline { display: flex; gap: 8px; align-items: center; }
     .grow { flex: 1; min-width: 0; }
-    .checks { display: flex; flex-direction: column; gap: 4px; }
-    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); }
+    .checks { display: flex; flex-direction: column; gap: 2px; }
+    /* 24px rows keep the 13px checkboxes 24px apart (WCAG 2.5.8 spacing). */
+    .check { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; color: var(--text-2); }
     .log { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border-2); border-radius: 6px; }
     .json { min-height: 280px; }
     .err { color: var(--danger-text); font-size: 12px; }
@@ -201,7 +202,7 @@ type Phase = 'idle' | 'running' | 'done';
     .result { padding: 10px 12px; border: 1px solid var(--ok); border-radius: 8px; background: var(--bg-3); display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
     .path { word-break: break-all; }
     .facts { list-style: none; padding: 0; margin: 0; display: flex; gap: 16px; flex-wrap: wrap; }
-    .reasons { margin: 4px 0 0; padding-left: 18px; }
+    .reasons { margin: 4px 0 0; padding-inline-start: 18px; }
     .bad { color: var(--danger-text); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
   `,
@@ -232,6 +233,19 @@ export class CollectorDialog implements OnInit {
     (this.summary()?.redactionByRule ?? []).map((r) => `${r.rule} ${r.count}`).join(', '),
   );
   protected readonly bytes = formatBytes;
+  protected readonly collectLabel = computed(() =>
+    this.result() ? $localize`:@@tools.collector.collectAgain:Collect again` : $localize`:@@tools.collector.collect:Collect`,
+  );
+
+  protected logFolderLabel = (i: number) => $localize`:@@tools.collector.logFolderN:Log folder ${i + 1}:n:`;
+  protected removeLogLabel = (i: number) => $localize`:@@tools.collector.removeLogFolderN:Remove log folder ${i + 1}:n:`;
+  protected includeLabel = (i: number) => $localize`:@@tools.collector.includeGlobsN:Include globs ${i + 1}:n:`;
+  protected maxAgeLabel = (i: number) => $localize`:@@tools.collector.maxAgeN:Max age ${i + 1}:n:`;
+  protected maxSizeLabel = (i: number) => $localize`:@@tools.collector.maxSizeN:Max size ${i + 1}:n:`;
+  protected patternNameLabel = (i: number) => $localize`:@@tools.collector.patternNameN:Pattern name ${i + 1}:n:`;
+  protected patternRegexLabel = (i: number) => $localize`:@@tools.collector.patternRegexN:Pattern regex ${i + 1}:n:`;
+  protected patternReplaceLabel = (i: number) => $localize`:@@tools.collector.patternReplaceN:Pattern replacement ${i + 1}:n:`;
+  protected removePatternLabel = (i: number) => $localize`:@@tools.collector.removePatternN:Remove pattern ${i + 1}:n:`;
 
   async ngOnInit(): Promise<void> {
     try {
@@ -239,7 +253,7 @@ export class CollectorDialog implements OnInit {
       if (parsed.ok) this.plan.set(parsed.plan);
       else this.error.set(parsed.error);
     } catch (e) {
-      this.error.set(`Could not load the default plan: ${errorMessage(e)}`);
+      this.error.set($localize`:@@tools.collector.error.defaultPlan:Could not load the default plan: ${errorMessage(e)}:detail:`);
     }
   }
 
@@ -316,7 +330,7 @@ export class CollectorDialog implements OnInit {
   protected async collect(): Promise<void> {
     const dir = this.outDir().trim();
     if (!dir) {
-      this.error.set('Choose an output folder for the bundle.');
+      this.error.set($localize`:@@tools.collector.error.chooseFolder:Choose an output folder for the bundle.`);
       return;
     }
     this.phase.set('running');

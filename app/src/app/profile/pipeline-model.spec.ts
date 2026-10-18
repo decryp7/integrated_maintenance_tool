@@ -8,12 +8,17 @@ import {
   formatStats,
   kindInfo,
   moveItem,
+  SCRIPT_HELP,
+  SCRIPT_TEMPLATE,
+  scriptLines,
   STEP_CATALOG,
+  stepProblem,
   stepStatus,
   summarizeStep,
   transformPlugins,
 } from './pipeline-model';
 import { PIPELINE_STEP_KINDS } from '../core/profile.model';
+import { at } from '../../testing/must';
 
 describe('pipeline model', () => {
   it('catalogues every step kind exactly once', () => {
@@ -65,6 +70,11 @@ describe('pipeline model', () => {
     expect(s({ step: 'parse_kv', field: 'F' })).toBe('Parse key=value pairs in F into fields');
     expect(s({ step: 'shift_time', by: '+2s' })).toBe('Shift timestamps by +2s');
     expect(s({ step: 'shift_time' })).toBe('Shift timestamps by ?');
+    expect(s({ step: 'calc', field: 'ElapsedSec', expr: 'ElapsedMs / 1000' })).toBe('Set ElapsedSec = ElapsedMs / 1000');
+    expect(s({ step: 'calc' })).toBe('Set (field) = (expression)');
+    expect(s({ step: 'script', script: '\nif true { drop(); }\r\nlevel = "Error";\n\n' })).toBe('Run script (2 lines)');
+    expect(s({ step: 'script', script: 'drop();', when: [{ field: 'X', op: 'exists' }] })).toBe('Run script (1 line) where X exists');
+    expect(s({ step: 'script' })).toBe('Run script (0 lines)');
     expect(s({ step: 'plugin', id: 'geo' })).toBe('Run transform plugin "geo"');
     expect(s({ step: 'plugin' })).toContain('(choose one)');
     expect(s({ step: 'wat' as never })).toBe('Unknown step "wat"');
@@ -106,5 +116,27 @@ describe('pipeline model', () => {
     expect(stepStatus(drop, 0, stats, false).text).toBe('not run yet');
     expect(stepStatus({ step: 'keep' }, 1, stats, false).state).toBe('stale');
     expect(stepStatus({ step: 'drop', disabled: true }, 1, stats, false)).toEqual({ state: 'disabled', text: 'disabled' });
+    const failed = [{ index: 0, step: 'script', input: 1200, output: 1100, errors: 1500 }];
+    expect(stepStatus({ step: 'script' }, 0, failed, false)).toEqual({ state: 'failed', text: '1,200 in → 1,100 out (−100), 1,500 failed' });
+    expect(stepStatus({ step: 'script' }, 0, [{ ...at(failed, 0), errors: 0 }], false).state).toBe('ok');
+  });
+
+  it('starts a script step from a template and explains the language', () => {
+    expect(defaultStep('script')).toEqual({ step: 'script', script: SCRIPT_TEMPLATE });
+    expect(scriptLines(SCRIPT_TEMPLATE)).toBe(2);
+    expect(scriptLines(undefined)).toBe(0);
+    for (const word of ['message', 'level', 'timestamp', 'fields', 'source', 'drop()', 'regex_replace']) expect(SCRIPT_HELP).toContain(word);
+    expect(kindInfo('script')).toMatchObject({ group: 'Extend', label: 'Script' });
+  });
+
+  it('finds the engine error that belongs to a step', () => {
+    const error = 'pipeline step 2 (script): `script` syntax error at line 3, column 7: Expecting \';\'';
+    expect(stepProblem(error, 1)).toBe("`script` syntax error at line 3, column 7: Expecting ';'");
+    expect(stepProblem(`invalid profile: ${error}`, 1)).toContain('line 3, column 7');
+    expect(stepProblem(error, 0)).toBeNull();
+    expect(stepProblem('pipeline step 1 (calc): `expr` error at column 3: x\n  a +\n    ^', 0)).toBe('`expr` error at column 3: x\n  a +\n    ^');
+    expect(stepProblem('[[marker]] is missing a kind', 0)).toBeNull();
+    expect(stepProblem(null, 0)).toBeNull();
+    expect(stepProblem(undefined, 0)).toBeNull();
   });
 });

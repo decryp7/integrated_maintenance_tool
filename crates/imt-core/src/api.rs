@@ -397,6 +397,8 @@ pub struct PipelineStepInfo {
     pub step: String,
     pub input: usize,
     pub output: usize,
+    /// Records the step failed on and left unchanged (`script` runtime errors and limits).
+    pub errors: usize,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

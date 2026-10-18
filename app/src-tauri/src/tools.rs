@@ -42,7 +42,7 @@ impl<R: Runtime> Clone for ShellTasks<R> {
 impl<R: Runtime> ShellTasks<R> {
     /// The context a call of `host` gets.
     pub(crate) fn context(app: &AppHandle<R>, host: &ToolHost) -> ToolCtx {
-        let data_dir = app.path().app_data_dir().ok();
+        let data_dir = crate::app_dirs::data(app).ok();
         let sink = ShellTasks {
             app: app.clone(),
             host: host.clone(),
@@ -234,7 +234,7 @@ pub(crate) mod tests {
                 cmd: cmd.into(),
                 callback: CallbackFn(0),
                 error: CallbackFn(1),
-                url: "tauri://localhost".parse().unwrap(),
+                url: crate::test_support::ipc_url(),
                 body: InvokeBody::Json(body),
                 headers: Default::default(),
                 invoke_key: INVOKE_KEY.to_string(),
@@ -258,7 +258,7 @@ pub(crate) mod tests {
                 cmd: cmd.into(),
                 callback: CallbackFn(0),
                 error: CallbackFn(1),
-                url: "tauri://localhost".parse().unwrap(),
+                url: crate::test_support::ipc_url(),
                 body: InvokeBody::Json(body),
                 headers,
                 invoke_key: INVOKE_KEY.to_string(),
@@ -295,7 +295,14 @@ pub(crate) mod tests {
         let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
         assert_eq!(
             ids,
-            ["perfmon.templates", "perfmon.sets", "process-monitor", "diagnostics", "elevation"]
+            [
+                "perfmon.templates",
+                "perfmon.sets",
+                "process-monitor",
+                "event-log-follower",
+                "diagnostics",
+                "elevation"
+            ]
         );
         let sets = &listed[1];
         assert_eq!(sets["plugin"], "net.decryptology.tools");

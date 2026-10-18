@@ -67,8 +67,8 @@ describe('layoutAnnotations', () => {
     const items = l.lanes.get('WEB01 · 1')!;
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({ point: true, width: 0, left: 30 });
-    expect(items[1].width).toBe(MIN_BAND_PCT);
-    expect(items[1].left).toBe(100 - MIN_BAND_PCT);
+    expect(items[1]?.width).toBe(MIN_BAND_PCT);
+    expect(items[1]?.left).toBe(100 - MIN_BAND_PCT);
     expect(new Set(items.map((i) => i.id)).size).toBe(2);
   });
 });

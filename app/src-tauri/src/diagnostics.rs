@@ -9,7 +9,8 @@ use std::time::{Duration, SystemTime};
 
 const FILE: &str = "diagnostics.json";
 const VERSION: u32 = 1;
-/// Base name of IMT's log files in the app log folder (`imt.log`, rotated `imt_*.log`).
+/// Base name of IMT's log files in the app log folder (daily `imt.YYYY-MM-DD.log`; `imt.log` and
+/// `imt_*.log` from earlier versions).
 pub const LOG_NAME: &str = "imt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -35,8 +36,8 @@ impl LogLevel {
     }
 }
 
-/// Rolling log files: a new file every `max_file_mb`, keeping `keep_files`
-/// old ones, and deleting files older than `max_age_days` (0 = no age limit).
+/// Rolling log files: a new file every day (at most `max_file_mb` a day, then only errors), keeping
+/// `keep_files` old ones, and deleting files older than `max_age_days` (0 = no age limit).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct LogLimits {
@@ -177,7 +178,7 @@ pub fn set_diagnostics_settings(state: State<'_, AppState>, settings: Diagnostic
     let before = load(Some(dir));
     let settings = settings.clamped();
     save(dir, &settings).map_err(err)?;
-    log::set_max_level(settings.log.level.filter());
+    crate::logging::set_level(settings.log.level);
     crate::activity::set_config(settings.activity);
     log::info!(Detail = format!("{:?}", settings.activity.detail).as_str(), Level = format!("{:?}", settings.log.level), MaxFileMb = settings.log.max_file_mb, KeepFiles = settings.log.keep_files; "Diagnostics settings changed");
     let restart_required = before.log.max_file_mb != settings.log.max_file_mb || before.log.keep_files != settings.log.keep_files;

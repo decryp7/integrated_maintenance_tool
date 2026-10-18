@@ -18,7 +18,7 @@ export function scaleFor(width: number): number {
 function parseDataUrl(url: string): CapturedImage | null {
   const m = /^data:(image\/(?:png|jpeg));base64,(.*)$/.exec(url);
   if (!m) return null;
-  const base64 = m[2];
+  const base64 = m[2] ?? '';
   const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
   return { mime: m[1] as CapturedImage['mime'], base64, bytes: Math.floor((base64.length * 3) / 4) - padding };
 }
@@ -30,6 +30,19 @@ export function encodeWithin(canvas: EncodableCanvas, maxBytes = MAX_BYTES): Cap
   const jpeg = parseDataUrl(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
   if (!jpeg) throw new Error('The browser could not encode the screenshot.');
   return jpeg;
+}
+
+/** Prefix of Angular Material's theme tokens, which IMT maps onto its own tokens in `styles.scss`. */
+const MATERIAL_TOKEN_PREFIX = '--mat-';
+
+/**
+ * The style properties copied onto each cloned node: everything the browser computes except Angular
+ * Material's theme tokens. html-to-image copies every listed property to every node, and the ~165 tokens on
+ * `:root` made a capture far slower; computed values already resolve `var()`, so the picture is unchanged.
+ * IMT's own tokens stay, since inline SVG attributes such as `fill="var(--accent)"` read them.
+ */
+export function capturedStyleProperties(computed: Iterable<string>): string[] {
+  return Array.from(computed).filter((name) => !name.startsWith(MATERIAL_TOKEN_PREFIX));
 }
 
 /** Renders the IMT window to an image. Replaceable in tests. */
@@ -55,6 +68,7 @@ export class DomScreenCapture extends ScreenCapture {
       height,
       pixelRatio: scaleFor(width),
       skipFonts: true,
+      includeStyleProperties: capturedStyleProperties(getComputedStyle(root)),
       cacheBust: false,
       backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
       filter: (node) => !(node instanceof HTMLElement && node.hasAttribute('data-snapshot-ignore')),

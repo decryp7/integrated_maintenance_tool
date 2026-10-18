@@ -68,7 +68,8 @@ export function errorCode(e: unknown): string {
   if (typeof code === 'string' && /^[A-Za-z][\w.-]{0,40}$/.test(code)) return code;
   const text = typeof e === 'string' ? e : e instanceof Error ? e.message : '';
   const inText = /\b(E_[A-Z0-9_]{2,40})\b/.exec(text);
-  if (inText) return inText[1];
+  const coded = inText?.[1];
+  if (coded) return coded;
   if (e instanceof Error && e.name && e.name !== 'Error') return e.name;
   return 'E_FAILED';
 }

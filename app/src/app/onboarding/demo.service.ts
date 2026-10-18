@@ -4,7 +4,7 @@ import { UxBackend } from '../core/ux-backend';
 import { WelcomeService } from '../welcome/welcome';
 import { TourService } from './tour.service';
 
-export const DEMO_MISSING = 'The demo samples are not installed with this copy of IMT. Open your own log files or a folder instead.';
+export const DEMO_MISSING = $localize`:@@onboarding.demo.missing:The demo samples are not installed with this copy of IMT. Open your own log files or a folder instead.`;
 
 /** "Try a demo": opens the bundled sample incident through the normal open path, then offers the tour. */
 @Injectable({ providedIn: 'root' })
@@ -31,7 +31,7 @@ export class DemoService {
       this.tour.startOnce();
       return true;
     } catch (e) {
-      this.store.setError(`Could not open the demo: ${e instanceof Error ? e.message : String(e)}`);
+      this.store.setError($localize`:@@onboarding.demo.failed:Could not open the demo: ${e instanceof Error ? e.message : String(e)}:error:`);
       return false;
     } finally {
       this.loading.set(false);

@@ -8,17 +8,17 @@ import { QuerySession } from './query-session';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="section-title">Query results</span>
+      <span class="section-title" i18n="@@analysis.queryResults.title">Query results</span>
       @if (table(); as t) {
-        <span class="faint">{{ t.rows.length }} row{{ t.rows.length === 1 ? '' : 's' }} · {{ t.columns.length }} column{{ t.columns.length === 1 ? '' : 's' }}</span>
+        <span class="faint" i18n="@@analysis.queryResults.size">{t.rows.length, plural, =1 {1 row} other {{{ t.rows.length }} rows}} · {t.columns.length, plural, =1 {1 column} other {{{ t.columns.length }} columns}}</span>
       }
       <span class="spacer"></span>
-      <button class="btn" type="button" [disabled]="!table()" (click)="exportCsv()">Export CSV</button>
+      <button class="btn" type="button" [disabled]="!table()" (click)="exportCsv()" i18n="@@analysis.queryResults.exportCsv">Export CSV</button>
     </div>
     @if (table(); as t) {
-      <div class="body" tabindex="0" role="region" aria-label="Query result table">
+      <div class="body" tabindex="0" role="region" aria-label="Query result table" i18n-aria-label="@@analysis.queryResults.region">
         <table class="grid">
-          <caption class="sr">Result of the last stats query</caption>
+          <caption class="sr" i18n="@@analysis.queryResults.caption">Result of the last stats query</caption>
           <thead>
             <tr>
               @for (c of t.columns; track $index; let i = $index) {
@@ -40,7 +40,7 @@ import { QuerySession } from './query-session';
         </table>
       </div>
     } @else {
-      <div class="empty" role="status">Run a query with a <code class="mono">stats</code> stage (for example <code class="mono">stats count() by source</code>) to see its table here.</div>
+      <div class="empty" role="status" i18n="@@analysis.queryResults.empty">Run a query with a <code class="mono">stats</code> stage (for example <code class="mono">stats count() by source</code>) to see its table here.</div>
     }
   `,
   styles: [

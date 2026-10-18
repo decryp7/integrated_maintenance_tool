@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import { APP_LOAD_TIMEOUT } from './app';
 
 /**
  * Opens the app with the mock backend's URL switches (see src/app/core/mock/mock-options.ts), e.g.
@@ -7,7 +8,8 @@ import { expect, Page } from '@playwright/test';
  */
 export async function openAppWith(page: Page, search: string, options: { grid?: boolean } = {}): Promise<void> {
   await page.goto(`/${search}`);
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  // The first load builds the demo workspace; under a full parallel run it can take longer than one assertion.
+  await expect(page.locator('imt-status-bar')).toContainText('events', { timeout: APP_LOAD_TIMEOUT });
   if (options.grid ?? true) await expect(page.locator('imt-events-grid')).toBeVisible();
 }
 

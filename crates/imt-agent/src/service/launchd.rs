@@ -24,8 +24,10 @@ fn xml(s: &str) -> String {
 pub fn plist(o: &PlistOptions) -> Result<String, String> {
     let exe = xml(&single_line(&o.exe)?);
     let config = xml(&single_line(&o.config)?);
-    let log = |name: &str| single_line(&o.log_dir.join(name)).map(|s| xml(&s));
-    let (out, err) = (log("launchd.out.log")?, log("launchd.err.log")?);
+    // A macOS document: joined with '/' whatever the platform printing it (not the host's separator).
+    let log_dir = single_line(&o.log_dir)?;
+    let log = |name: &str| xml(&format!("{}/{name}", log_dir.trim_end_matches('/')));
+    let (out, err) = (log("launchd.out.log"), log("launchd.err.log"));
     Ok(format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -107,6 +109,19 @@ mod tests {
 </plist>
 "#
         );
+    }
+
+    #[test]
+    fn log_paths_use_slashes_on_every_platform() {
+        // Regression: on Windows the log file names were joined with '\'.
+        let text = plist(&PlistOptions {
+            exe: "/x".into(),
+            config: "/c".into(),
+            log_dir: "/var/log/a&b/".into(),
+        })
+        .unwrap();
+        assert!(text.contains("<string>/var/log/a&amp;b/launchd.out.log</string>"), "{text}");
+        assert!(text.contains("<string>/var/log/a&amp;b/launchd.err.log</string>"), "{text}");
     }
 
     #[test]

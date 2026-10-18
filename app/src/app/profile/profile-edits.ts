@@ -29,12 +29,12 @@ export class ProfileEdits {
   }
 
   /** Saves and applies the change (undoable as `label`). Rejects with the backend's message when the profile is invalid. */
-  async apply(mutate: (model: ProfileModel) => void, label = 'profile change'): Promise<WorkspaceSummary> {
+  async apply(mutate: (model: ProfileModel) => void, label = $localize`:Undo history entry|@@profile.edits.undoLabel:profile change`): Promise<WorkspaceSummary> {
     const { toml: before, model } = await this.current();
     mutate(model);
     const toml = stringifyProfile(model);
     const validation = await this.backend.validateProfile(toml);
-    if (!validation.ok) throw new Error(validation.error ?? 'The profile is not valid.');
+    if (!validation.ok) throw new Error(validation.error ?? $localize`:@@profile.edits.invalid:The profile is not valid.`);
     const summary = await this.backend.saveProfile(toml);
     this.store.profileSaved(summary);
     this.undo.record(label, before, toml);

@@ -28,7 +28,7 @@ export class MarkerProfile {
   }
 
   /** Applies `mutate` to a fresh copy of the profile and saves it (undoable as `label`). Never throws. */
-  async commit(mutate: (model: ProfileModel, rows: RuleRow[]) => void, label = 'marker rule edit'): Promise<CommitResult> {
+  async commit(mutate: (model: ProfileModel, rows: RuleRow[]) => void, label = $localize`:Undo history entry|@@markers.profile.undoLabel:marker rule edit`): Promise<CommitResult> {
     try {
       const before = (await this.backend.getProfile()).toml;
       const model = parseProfile(before);
@@ -39,7 +39,7 @@ export class MarkerProfile {
       if (!validation.ok) {
         const line = validation.line ?? null;
         const excerpt = line ? (toml.split('\n')[line - 1]?.trim().slice(0, 160) ?? null) : null;
-        return { ok: false, failure: { message: validation.error ?? 'The profile is not valid.', line, excerpt } };
+        return { ok: false, failure: { message: validation.error ?? $localize`:@@markers.profile.invalid:The profile is not valid.`, line, excerpt } };
       }
       const summary = await this.backend.saveProfile(toml);
       this.store.profileSaved(summary);

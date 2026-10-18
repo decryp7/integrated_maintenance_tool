@@ -106,6 +106,14 @@ pub struct StatusResult {
     pub uptime_secs: u64,
 }
 
+/// `data.reason` of a `LOAD_FAILED` error when no llama-server build is installed (the worker's `locate::NO_RUNTIME`).
+pub const NO_RUNTIME_REASON: &str = "no_runtime";
+
+/// The `data.reason` of a typed error, if it carries one.
+pub fn reason_of(e: &RpcError) -> Option<&str> {
+    e.data.as_ref()?.get("reason")?.as_str()
+}
+
 pub fn context_overflow(prompt: usize, limit: usize) -> RpcError {
     RpcError {
         code: code::CONTEXT_OVERFLOW,

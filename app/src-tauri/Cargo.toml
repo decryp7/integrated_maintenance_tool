@@ -42,6 +42,14 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-log = "2"
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["std", "registry"] }
+tracing-appender = "0.2.5"
+tracing-log = { version = "0.2", default-features = false, features = ["std"] }
+# >= 2.12 fixes GHSA-j38x-g3m3-95fr (downgrade through the unsigned manifest version), 2.13.3 rejects non-canonical signatures: see `updater.rs`.
+# No "zip": IMT publishes v2 updater artifacts (the installers themselves), and zip 4 has open advisories.
+tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
+semver = "1"
 notify-debouncer-mini = "0.7"
 base64 = "0.22"
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }

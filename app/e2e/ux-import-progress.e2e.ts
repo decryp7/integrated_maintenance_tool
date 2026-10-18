@@ -4,8 +4,9 @@ import { openAppWith } from './mock-url';
 
 test.describe('import progress', () => {
   test('a long import shows progress with Cancel; cancelling leaves a partially imported banner', async ({ page }, testInfo) => {
-    // Each opened path stands for six files read 600 ms apart.
-    await openAppWith(page, '?mockSlowImport=600');
+    // Each opened path stands for six files read 1.5 s apart: long enough that the axe scan of the toast never
+    // outlasts the import (Cancel would then have nothing left to cancel); cancelling early keeps the test quick.
+    await openAppWith(page, '?mockSlowImport=1500');
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
 
     const status = page.getByTestId('import-status');

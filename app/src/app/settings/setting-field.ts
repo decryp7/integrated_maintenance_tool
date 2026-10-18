@@ -27,14 +27,14 @@ let nextId = 0;
         <label class="label" [for]="id">{{ f.label }}</label>
       }
       @if (f.restartRequired) {
-        <span class="badge" title="Takes effect after a restart">restart</span>
+        <span class="badge" title="Takes effect after a restart" i18n-title="@@settings.field.restart.title" i18n="Badge on a setting that needs a restart@@settings.field.restart">restart</span>
       }
       @if (f.advanced) {
-        <span class="badge">advanced</span>
+        <span class="badge" i18n="Badge on an advanced setting@@settings.field.advanced">advanced</span>
       }
       <span class="spacer"></span>
       @if (!readOnly() && !isDefault()) {
-        <button class="btn ghost reset" type="button" [attr.aria-label]="'Reset ' + f.label + ' to default'" [title]="'Default: ' + defaultText()" (click)="resetToDefault.emit()">
+        <button class="btn ghost reset" type="button" [attr.aria-label]="resetLabel()" [title]="defaultTitle()" (click)="resetToDefault.emit()" i18n="@@settings.field.reset">
           <imt-icon name="refresh" [size]="12" /> Reset to default
         </button>
       }
@@ -53,8 +53,8 @@ let nextId = 0;
             <input class="input wide" [id]="id" type="text" [value]="text()" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit($any($event.target).value)" />
           }
           @case ('path') {
-            <input class="input wide mono" [id]="id" type="text" [value]="text()" [disabled]="readOnly()" [placeholder]="k.dir ? 'Folder (empty = default)' : 'File (empty = default)'" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit($any($event.target).value)" />
-            <button class="btn" type="button" [disabled]="readOnly()" [attr.aria-label]="'Browse for ' + f.label" (click)="browse(k.dir)">Browse…</button>
+            <input class="input wide mono" [id]="id" type="text" [value]="text()" [disabled]="readOnly()" [placeholder]="k.dir ? folderPlaceholder : filePlaceholder" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit($any($event.target).value)" />
+            <button class="btn" type="button" [disabled]="readOnly()" [attr.aria-label]="browseLabel()" (click)="browse(k.dir)" i18n="@@settings.field.browse">Browse…</button>
           }
           @case ('stringList') {
             <textarea class="input wide" rows="3" [id]="id" [value]="listText()" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit(list($any($event.target).value))"></textarea>
@@ -136,6 +136,11 @@ export class SettingFieldControl {
   protected readonly hint = computed(() => rangeHint(this.field().kind));
   protected readonly isDefault = computed(() => sameValue(this.value(), this.field().default));
   protected readonly defaultText = computed(() => displayValue(this.field(), this.field().default));
+  protected readonly resetLabel = computed(() => $localize`:@@settings.field.reset.label:Reset ${this.field().label}:setting: to default`);
+  protected readonly defaultTitle = computed(() => $localize`:@@settings.field.default.title:Default: ${this.defaultText()}:value:`);
+  protected readonly browseLabel = computed(() => $localize`:@@settings.field.browse.label:Browse for ${this.field().label}:setting:`);
+  protected readonly folderPlaceholder = $localize`:@@settings.field.folder.placeholder:Folder (empty = default)`;
+  protected readonly filePlaceholder = $localize`:@@settings.field.file.placeholder:File (empty = default)`;
   /** Engine error first; otherwise the convenience pre-check. */
   protected readonly message = computed(() => this.error() ?? (this.readOnly() ? null : precheck(this.field(), this.value())));
   protected readonly describedBy = computed(() => {

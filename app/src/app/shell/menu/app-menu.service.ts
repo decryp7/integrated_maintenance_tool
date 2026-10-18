@@ -75,6 +75,6 @@ export class AppMenu {
   /** Shows the sidebar (if hidden) and puts the focus in the fields filter. */
   private showFields(): void {
     if (!this.store.sidebarOpen()) this.store.toggleSidebar();
-    afterNextRender(() => document.querySelector<HTMLInputElement>('imt-fields-panel input[aria-label="Filter fields"]')?.focus(), { injector: this.injector });
+    afterNextRender(() => document.querySelector<HTMLInputElement>('imt-fields-panel input.filter, imt-fields-panel input[aria-label="Filter fields"]')?.focus(), { injector: this.injector });
   }
 }

@@ -16,7 +16,7 @@ export class WindowLayouts {
     const layout = this.dock.currentLayout();
     if (!layout) return null;
     const saved = this.named.save(name, layout);
-    if (saved) this.store.setNotice(`Window layout "${saved}" saved`);
+    if (saved) this.store.setNotice($localize`:@@dock.windowLayouts.saved:Window layout "${saved}:name:" saved`);
     return saved;
   }
 
@@ -24,8 +24,8 @@ export class WindowLayouts {
     const layout = this.named.find(name);
     if (!layout) return false;
     const ok = this.dock.applyLayout(layout.saved);
-    if (ok) this.store.setNotice(`Window layout "${layout.name}" applied`);
-    else this.store.setError(`Window layout "${layout.name}" could not be applied; the default layout is shown`);
+    if (ok) this.store.setNotice($localize`:@@dock.windowLayouts.applied:Window layout "${layout.name}:name:" applied`);
+    else this.store.setError($localize`:@@dock.windowLayouts.applyFailed:Window layout "${layout.name}:name:" could not be applied; the default layout is shown`);
     return ok;
   }
 

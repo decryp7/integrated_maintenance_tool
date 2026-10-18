@@ -7,6 +7,7 @@
 
 use super::core::AiCore;
 use crate::settings::AI_SECTION;
+use imt_ai::runtimes::builds::label as build_label;
 use imt_ai::settings::{AiSettings, GpuOffload};
 use imt_ai::web::WebProvider;
 use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
@@ -18,6 +19,8 @@ const NOT_FIELDS: &[&str] = &["active_model", "web_search.brave_key", "web_searc
 const MAX_TEXT: usize = 2048;
 /// "all layers on the GPU".
 const ALL_LAYERS: u32 = 1000;
+/// The automatic inference build.
+const AUTO: &str = "auto";
 
 pub struct AiSettingsSection {
     pub core: Arc<AiCore>,
@@ -81,6 +84,7 @@ fn field_of(f: &Value) -> Option<SettingField> {
             (FieldKind::Enum { options }, default)
         }
         "path" => (FieldKind::Path { dir: true }, Value::from(default.as_str().unwrap_or(""))),
+        "file" => (FieldKind::Path { dir: false }, Value::from(default.as_str().unwrap_or(""))),
         "string" => (
             FieldKind::Text {
                 max_len: MAX_TEXT,
@@ -93,22 +97,51 @@ fn field_of(f: &Value) -> Option<SettingField> {
     let mut field = SettingField::new(key, label, kind, default).describe(desc);
     if matches!(
         key,
-        "threads" | "hf_endpoint" | "download_proxy" | "max_download_gb" | "models_dir" | "temperature"
+        "threads" | "hf_endpoint" | "download_proxy" | "max_download_gb" | "models_dir" | "temperature" | "llama_server_path"
     ) {
         field = field.as_advanced();
     }
     Some(field)
 }
 
-/// The section, from the library's schema.
+/// The *Inference build* options: `auto`, then `installed` (when given) or the schema's, each with its label.
+fn with_build_options(mut field: SettingField, installed: Option<&[String]>) -> SettingField {
+    if field.key != "inference_build" {
+        return field;
+    }
+    if let FieldKind::Enum { options } = &mut field.kind {
+        let ids: Vec<String> = match installed {
+            Some(ids) => ids.iter().filter(|id| id.as_str() != AUTO).cloned().collect(),
+            None => options.iter().map(|o| o.value.clone()).filter(|v| v != AUTO).collect(),
+        };
+        *options = std::iter::once(EnumOption::new(AUTO, label_of(AUTO)))
+            .chain(ids.iter().map(|id| EnumOption::new(id, build_label(id))))
+            .collect();
+    }
+    field
+}
+
+/// The section, from the library's schema, offering every build the schema names (tests, documentation).
+#[cfg(test)]
 pub fn section() -> SettingsSection {
+    build_section(None)
+}
+
+/// The section with *Inference build* limited to `auto` and the builds installed here (`optionsSource:
+/// aiInferenceBuilds`): a build that is not installed cannot be chosen, and a stored choice of a deleted
+/// build falls back to automatic.
+pub fn section_with_builds(installed: &[String]) -> SettingsSection {
+    build_section(Some(installed))
+}
+
+fn build_section(installed: Option<&[String]>) -> SettingsSection {
     let mut s = SettingsSection::new(AI_SECTION, "AI assistant", SectionOwner::App).describe(
         "The assistant runs fully on this computer with a local model; nothing about your logs is sent anywhere. \
 Only the model file is downloaded (from Hugging Face). Web search is off unless you turn it on, and every search or page read asks you first.",
     );
     if let Some(fields) = imt_ai::settings::schema().as_array() {
         for f in fields.iter().filter_map(field_of) {
-            s = s.field(f);
+            s = s.field(with_build_options(f, installed));
         }
     }
     s
@@ -144,6 +177,10 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
     s.download_proxy = text(values, "download_proxy");
     s.max_download_gb = int("max_download_gb", i64::from(s.max_download_gb)) as u32;
     s.models_dir = text(values, "models_dir");
+    if let Some(b) = text(values, "inference_build") {
+        s.inference_build = b;
+    }
+    s.llama_server_path = text(values, "llama_server_path");
     s.web_search.provider = match values.text("web_search.provider") {
         Some("searxng") => WebProvider::Searxng,
         Some("brave") => WebProvider::Brave,
@@ -160,7 +197,7 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
 
 impl Configurable for AiSettingsSection {
     fn settings_section(&self) -> SettingsSection {
-        section()
+        section_with_builds(&self.core.installed_build_ids())
     }
 
     fn apply_settings(&self, values: &ValidValues) -> anyhow::Result<()> {
@@ -208,13 +245,20 @@ mod tests {
 
     #[test]
     fn values_become_settings() {
+        // Absolute on every platform (`/models` is not absolute on Windows).
+        let (models, server) = if cfg!(windows) {
+            (r"C:\models", r"C:\llama\llama-server.exe")
+        } else {
+            ("/models", "/opt/llama/llama-server")
+        };
         let s = section();
         let (values, errors) = sanitize(
             &s,
             &json!({
                 "autoload": false, "idle_unload_minutes": 0, "gpu_offload": "all", "context_length": 4096,
                 "max_tokens": 512, "temperature": 0.5, "threads": 4, "hf_endpoint": "https://mirror.example",
-                "download_proxy": "http://p:3128", "max_download_gb": 9, "models_dir": "/models",
+                "download_proxy": "http://p:3128", "max_download_gb": 9, "models_dir": models,
+                "inference_build": "vulkan", "llama_server_path": server,
                 "web_search.provider": "searxng", "web_search.searxng_url": " https://s.example ",
                 "web_search.max_results": 3, "web_search.allow_fetch": false
             }),
@@ -235,7 +279,11 @@ mod tests {
         assert!((a.temperature - 0.5).abs() < 1e-6);
         assert_eq!(a.hf_endpoint, "https://mirror.example");
         assert_eq!(a.download_proxy.as_deref(), Some("http://p:3128"));
-        assert_eq!(a.models_dir.as_deref(), Some("/models"));
+        assert_eq!(a.models_dir.as_deref(), Some(models));
+        assert_eq!(
+            (a.inference_build.as_str(), a.llama_server_path.as_deref()),
+            ("vulkan", Some(server))
+        );
         assert_eq!(a.web_search.provider, WebProvider::Searxng);
         assert_eq!(a.web_search.searxng_url, "https://s.example");
         assert_eq!(a.web_search.max_results, 3);

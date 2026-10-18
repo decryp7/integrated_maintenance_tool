@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { HeapSummary } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
@@ -22,16 +23,16 @@ import { HeapTypes } from './heap-types';
   template: `
     @if (active.heap(); as h) {
       <div class="bar">
-        <span class="section-title">Memory</span>
-        <label class="inline">Snapshot
-          <select aria-label="Heap snapshot" (change)="pick($event)">
+        <span class="section-title" i18n="@@profiling.heap.title">Memory</span>
+        <label class="inline"><ng-container i18n="@@profiling.heap.snapshot">Snapshot</ng-container>&ngsp;
+          <select aria-label="Heap snapshot" i18n-aria-label="@@profiling.heap.snapshotLabel" (change)="pick($event)">
             @for (c of captures.heaps(); track c.id) { <option [value]="c.id" [selected]="c.id === h.id">{{ c.name }}</option> }
           </select>
         </label>
-        <span class="muted">{{ count(h.objectCount) }} objects · {{ count(h.typeCount) }} types · {{ bytes(h.totalBytes) }}{{ h.hasGraph ? '' : ' · no object graph (types only)' }}</span>
+        <span class="muted">{{ summary(h) }}</span>
       </div>
       <imt-capture-notes [notes]="h.notes" [name]="h.name" />
-      <div class="tabs" role="tablist" aria-label="Memory views" (keydown)="onTabKey($event)">
+      <div class="tabs" role="tablist" aria-label="Memory views" i18n-aria-label="@@profiling.heap.tabsLabel" (keydown)="onTabKey($event)">
         @for (t of tabs; track t.id) {
           <button type="button" role="tab" [id]="'heap-tab-' + t.id" [attr.aria-selected]="sel.tab() === t.id" [attr.aria-controls]="'heap-panel'" [attr.tabindex]="sel.tab() === t.id ? 0 : -1" [disabled]="needsGraph(t.id) && !h.hasGraph" (click)="sel.tab.set(t.id)">{{ t.label }}</button>
         }
@@ -46,7 +47,7 @@ import { HeapTypes } from './heap-types';
         }
       </div>
     } @else {
-      <imt-no-capture text="Open a heap snapshot (.heapsnapshot) to analyse memory." />
+      <imt-no-capture text="Open a heap snapshot (.heapsnapshot) to analyse memory." i18n-text="@@profiling.heap.noCapture" />
     }
   `,
   styles: [
@@ -79,6 +80,15 @@ export class HeapView {
     });
   }
 
+  protected summary(h: HeapSummary): string {
+    const objects = this.count(h.objectCount);
+    const types = this.count(h.typeCount);
+    const bytes = this.bytes(h.totalBytes);
+    return h.hasGraph
+      ? $localize`:@@profiling.heap.summaryGraph:${objects}:objects: objects · ${types}:types: types · ${bytes}:bytes:`
+      : $localize`:@@profiling.heap.summaryNoGraph:${objects}:objects: objects · ${types}:types: types · ${bytes}:bytes: · no object graph (types only)`;
+  }
+
   protected needsGraph(tab: HeapTab): boolean {
     return tab === 'dominators';
   }
@@ -95,6 +105,7 @@ export class HeapView {
     const ids = HEAP_TABS.map((t) => t.id).filter((id) => hasGraph || !this.needsGraph(id));
     const i = Math.max(0, ids.indexOf(this.sel.tab()));
     const next = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
+    if (next === undefined) return;
     this.sel.tab.set(next);
     const list = e.currentTarget as HTMLElement;
     queueMicrotask(() => list.querySelector<HTMLElement>(`#heap-tab-${next}`)?.focus());

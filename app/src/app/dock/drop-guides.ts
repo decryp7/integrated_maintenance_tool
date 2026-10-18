@@ -123,7 +123,7 @@ export class DropGuides {
     el.style.top = `${dy + c.rect.y}px`;
     el.style.width = `${c.rect.width}px`;
     el.style.height = `${c.rect.height}px`;
-    el.textContent = ARROWS[c.position];
+    el.textContent = ARROWS[c.position] ?? null;
     return el;
   }
 

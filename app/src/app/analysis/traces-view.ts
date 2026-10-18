@@ -31,47 +31,47 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <span class="section-title">Traces &amp; requests</span>
-      <div class="seg" role="group" aria-label="Show">
-        <button class="btn" type="button" [class.active]="mode() === 'traces'" [attr.aria-pressed]="mode() === 'traces'" (click)="mode.set('traces')">Traces</button>
-        <button class="btn" type="button" [class.active]="mode() === 'requests'" [attr.aria-pressed]="mode() === 'requests'" (click)="mode.set('requests')">Requests</button>
+      <span class="section-title" i18n="@@analysis.traces.title">Traces &amp; requests</span>
+      <div class="seg" role="group" aria-label="Show" i18n-aria-label="Show a kind of item|Group label@@analysis.traces.show">
+        <button class="btn" type="button" [class.active]="mode() === 'traces'" [attr.aria-pressed]="mode() === 'traces'" (click)="mode.set('traces')" i18n="@@analysis.traces.modeTraces">Traces</button>
+        <button class="btn" type="button" [class.active]="mode() === 'requests'" [attr.aria-pressed]="mode() === 'requests'" (click)="mode.set('requests')" i18n="@@analysis.traces.modeRequests">Requests</button>
       </div>
       @if (mode() === 'requests') {
-        <label class="lbl">Id field(s)
-          <input class="input mono" aria-label="Request id field" [value]="idField()" (change)="idField.set($any($event.target).value.trim() || defaultField)" />
+        <label class="lbl"><ng-container i18n="@@analysis.traces.idFields">Id field(s)</ng-container>
+          <input class="input mono" aria-label="Request id field" i18n-aria-label="@@analysis.traces.idFieldLabel" [value]="idField()" (change)="idField.set($any($event.target).value.trim() || defaultField)" />
         </label>
       }
       <span class="spacer"></span>
-      <button class="btn" type="button" (click)="refresh()">Refresh</button>
+      <button class="btn" type="button" (click)="refresh()" i18n="@@analysis.traces.refresh">Refresh</button>
     </div>
 
     @if (mode() === 'traces') {
-      <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." suggest (retry)="traces.retry()">
+      <imt-analysis-state [loading]="traces.loading()" [error]="traces.error()" [hasData]="!!traces.data()" [empty]="traces.data()?.traces?.length === 0" emptyText="No traces: no events carry trace and span ids." i18n-emptyText="@@analysis.traces.no.emptyText" emptyHint="Traces need events with trace and span id fields (such as TraceId and SpanId). If your logs name them differently, rename the fields in the profile." i18n-emptyHint="@@analysis.traces.no.emptyHint" suggest (retry)="traces.retry()">
         <div class="split">
-          <ul class="list tlist" aria-label="Traces">
+          <ul class="list tlist" aria-label="Traces" i18n-aria-label="@@analysis.traces.listLabel">
             @for (t of traces.data()?.traces ?? []; track t.traceId) {
               <li>
                 <button class="row" type="button" [class.sel]="t.traceId === selected()" [attr.aria-pressed]="t.traceId === selected()" (click)="selected.set(t.traceId)">
                   <span class="mono id" [title]="t.traceId">{{ short(t.traceId) }}</span>
                   <span class="grow ellipsis" [title]="t.root">{{ t.root }}</span>
                   <span class="num">{{ duration(t.durationMs) }}</span>
-                  <span class="num">{{ t.spans }} spans</span>
-                  @if (t.errors) { <span class="lvl Error">{{ t.errors }} err</span> }
+                  <span class="num" i18n="@@analysis.traces.spans">{t.spans, plural, =1 {1 span} other {{{ t.spans }} spans}}</span>
+                  @if (t.errors) { <span class="lvl Error" i18n="@@analysis.traces.err">{{ t.errors }} err</span> }
                 </button>
               </li>
             }
           </ul>
-          <div class="wf" role="region" aria-label="Waterfall" tabindex="0">
+          <div class="wf" role="region" aria-label="Waterfall" i18n-aria-label="@@analysis.traces.waterfall" tabindex="0">
             @if (!selected()) {
-              <p class="muted pad">Select a trace to see its waterfall.</p>
+              <p class="muted pad" i18n="@@analysis.traces.select">Select a trace to see its waterfall.</p>
             } @else {
-              <imt-analysis-state [loading]="waterfall.loading()" [error]="waterfall.error()" [hasData]="!!waterfall.data()" [empty]="!rows().length" emptyText="This trace has no spans." (retry)="waterfall.retry()">
-                <p class="muted pad">Total {{ duration(total()) }}</p>
+              <imt-analysis-state [loading]="waterfall.loading()" [error]="waterfall.error()" [hasData]="!!waterfall.data()" [empty]="!rows().length" emptyText="This trace has no spans." i18n-emptyText="@@analysis.traces.noSpans" (retry)="waterfall.retry()">
+                <p class="muted pad" i18n="@@analysis.traces.total">Total {{ duration(total()) }}</p>
                 <ul class="list">
                   @for (r of rows(); track r.spanId) {
                     <li class="wrow">
                       <span class="wname ellipsis" [style.padding-left.px]="r.depth * 14" [title]="r.name">{{ r.name }}</span>
-                      <span class="wtrack" role="img" [attr.aria-label]="r.name + ': starts at ' + duration(r.startOffsetMs) + ', lasts ' + duration(r.durationMs) + (r.errors ? ', ' + r.errors + ' errors' : '')">
+                      <span class="wtrack" role="img" [attr.aria-label]="spanLabel(r)">
                         <span class="wbar" [class.bad]="r.errors > 0" [style.left.%]="geo(r).left" [style.width.%]="geo(r).width"></span>
                       </span>
                       <span class="num wdur">{{ duration(r.durationMs) }}</span>
@@ -84,16 +84,16 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.data()" [empty]="requests.data()?.length === 0" emptyText="No requests found for these id fields." (retry)="requests.retry()">
-        <div class="body" tabindex="0" role="region" aria-label="Requests">
+      <imt-analysis-state [loading]="requests.loading()" [error]="requests.error()" [hasData]="!!requests.data()" [empty]="requests.data()?.length === 0" emptyText="No requests found for these id fields." i18n-emptyText="@@analysis.traces.noRequests" (retry)="requests.retry()">
+        <div class="body" tabindex="0" role="region" aria-label="Requests" i18n-aria-label="@@analysis.traces.requests">
           <ul class="list">
             @for (r of requests.data() ?? []; track r.id) {
               <li>
-                <button class="row" type="button" (click)="filter(r)" [title]="'Show only the events of ' + r.id">
+                <button class="row" type="button" (click)="filter(r)" title="Show only the events of {{ r.id }}" i18n-title="@@analysis.traces.showOnly">
                   <span class="mono id" [title]="r.id">{{ short(r.id) }}</span>
                   <span class="num">{{ duration(r.last - r.first) }}</span>
-                  <span class="num">{{ count(r.events) }} events</span>
-                  <span class="num" [class.bad]="r.errors">{{ r.errors }} errors</span>
+                  <span class="num" i18n="@@analysis.traces.events">{{ count(r.events) }} events</span>
+                  <span class="num" [class.bad]="r.errors" i18n="@@analysis.traces.errors">{{ r.errors }} errors</span>
                   <span class="grow ellipsis muted">{{ r.instance }}</span>
                   <span class="mono muted">{{ time.format(r.first) }}</span>
                 </button>
@@ -128,6 +128,17 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
 })
 export class TracesView {
   protected readonly time = inject(AnalysisTime);
+
+  /** Screen-reader description of one waterfall bar. */
+  protected spanLabel(r: WaterfallRow): string {
+    const name = r.name;
+    const start = formatDuration(r.startOffsetMs);
+    const lasts = formatDuration(r.durationMs);
+    return r.errors
+      ? $localize`:@@analysis.traces.spanLabelErrors:${name}:name:: starts at ${start}:start:, lasts ${lasts}:lasts:, ${r.errors}:errors: errors`
+      : $localize`:@@analysis.traces.spanLabel:${name}:name:: starts at ${start}:start:, lasts ${lasts}:lasts:`;
+  }
+
   protected readonly mode = signal<'traces' | 'requests'>('traces');
   protected readonly selected = signal<string | null>(null);
   protected readonly idField = signal(DEFAULT_ID_FIELD);

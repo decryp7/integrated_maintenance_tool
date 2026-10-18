@@ -4,12 +4,12 @@ import { qlQuote } from './ql-text';
 /** Display-only helpers. */
 
 export const ANOMALY_LABELS: Record<AnomalyKind, string> = {
-  errorSpike: 'Error spike',
-  silence: 'Silence',
-  crash: 'Crash',
-  slowOutlier: 'Slow outliers',
-  rateChange: 'Rate change',
-  memoryGrowth: 'Memory growth',
+  errorSpike: $localize`:@@analysis.format.anomaly.errorSpike:Error spike`,
+  silence: $localize`:@@analysis.format.anomaly.silence:Silence`,
+  crash: $localize`:@@analysis.format.anomaly.crash:Crash`,
+  slowOutlier: $localize`:@@analysis.format.anomaly.slowOutlier:Slow outliers`,
+  rateChange: $localize`:@@analysis.format.anomaly.rateChange:Rate change`,
+  memoryGrowth: $localize`:@@analysis.format.anomaly.memoryGrowth:Memory growth`,
 };
 
 /** Glyph per kind (colour is never the only cue). */

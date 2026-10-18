@@ -8,21 +8,22 @@ import { fileStem, SVG_RASTERIZER, svgSize, VISUAL_ECHARTS, VisualExportService 
 import { setupVisuals } from './visual-testing';
 import { VisualCommands } from './visual.commands';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
+import { at } from '../../../testing/must';
 
 describe('VisualExportService', () => {
   it('renders charts off screen as SVG and PNG, without animation or brushing, and cleans up', async () => {
     const { charts, service } = setupVisuals();
     const svg = await service.chartSvg({ animation: true, brush: { x: 1 }, toolbox: {}, series: [] });
     expect(svg).toContain('<text>chart</text>');
-    expect(charts[0].opts).toEqual({ renderer: 'svg', ssr: true, width: 1000, height: 360 });
-    expect(charts[0].option).toEqual({ animation: false, series: [] });
-    expect(charts[0].disposed).toBe(true);
+    expect(charts[0]?.opts).toEqual({ renderer: 'svg', ssr: true, width: 1000, height: 360 });
+    expect(charts[0]?.option).toEqual({ animation: false, series: [] });
+    expect(charts[0]?.disposed).toBe(true);
     const before = document.body.children.length;
     const png = await service.chartPng({ series: [] }, { width: 300, height: 200 });
     expect(png.startsWith('data:image/png')).toBe(true);
-    expect(charts[1].opts.renderer).toBe('canvas');
-    expect(charts[1].host?.style.width).toBe('300px');
-    expect(charts[1].disposed).toBe(true);
+    expect(charts[1]?.opts.renderer).toBe('canvas');
+    expect(charts[1]?.host?.style.width).toBe('300px');
+    expect(charts[1]?.disposed).toBe(true);
     expect(document.body.children.length).toBe(before);
   });
 
@@ -79,8 +80,8 @@ describe('VisualExportService', () => {
     await loadWorkspace();
     await settle(undefined, 6);
     expect(commands.map((c) => c.when?.(ctx))).toEqual([true, true]);
-    await commands[0].run(ctx);
-    await commands[1].run(ctx);
+    await at(commands, 0).run(ctx);
+    await at(commands, 1).run(ctx);
     expect((TestBed.inject(ShareBackend) as MockShareBackend).written.map((w) => w.path)).toEqual(['/out/timeline.png', '/out/timeline.svg']);
   });
 

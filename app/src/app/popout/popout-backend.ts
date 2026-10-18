@@ -310,7 +310,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
     const b = request.bounds;
     const features = b ? `popup,left=${Math.round(b.x)},top=${Math.round(b.y)},width=${Math.round(b.width)},height=${Math.round(b.height)}` : 'popup,width=560,height=420';
     const win = this.win.open(url, label, features);
-    if (!win) throw new Error('The browser blocked the pop-out window; allow pop-ups for IMT');
+    if (!win) throw new Error($localize`:@@popout.backend.blocked:The browser blocked the pop-out window; allow pop-ups for IMT`);
     const info: PopoutInfo = { label, host, viewId: request.viewId, title: request.title ?? request.viewId, params: request.params, bounds: b ?? null, monitor: null, alwaysOnTop: false };
     this.windows.set(label, { win, info });
     this.watch();
@@ -320,7 +320,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
 
   async dock(label: string): Promise<void> {
     const p = this.windows.get(label);
-    if (!p) throw new Error('the pop-out was already closed');
+    if (!p) throw new Error($localize`:@@popout.backend.alreadyClosed:the pop-out was already closed`);
     p.win.close();
     this.poll();
   }

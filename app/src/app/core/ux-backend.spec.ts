@@ -5,6 +5,7 @@ import { MockBackend } from './mock/mock-backend';
 import { MOCK_DEMO_PATHS } from './mock/mock-import';
 import { MockUxBackend } from './mock/mock-ux-backend';
 import { TauriUxBackend, UxBackend } from './ux-backend';
+import { at } from '../../testing/must';
 
 describe('UxBackend', () => {
   it('maps every method to its Tauri command', async () => {
@@ -41,7 +42,7 @@ describe('UxBackend', () => {
     await ux.cancelImport();
     const before = (await imt.getProfile()).toml;
     await imt.saveProfile('name = "Second"\n');
-    const [v] = await ux.profileHistory();
+    const v = at(await ux.profileHistory(), 0);
     expect((await ux.profileVersion(v.file)).toml).toBe(before);
     expect((await ux.profileTemplates()).length).toBeGreaterThan(0);
   });
@@ -56,8 +57,8 @@ describe('UxBackend', () => {
 
   it('the mock templates are fresh copies', async () => {
     const ux = new MockUxBackend(new MockBackend({ latency: false }));
-    const [a] = await ux.profileTemplates();
+    const a = at(await ux.profileTemplates(), 0);
     a.name = 'changed';
-    expect((await ux.profileTemplates())[0].name).not.toBe('changed');
+    expect(at((await ux.profileTemplates()), 0).name).not.toBe('changed');
   });
 });

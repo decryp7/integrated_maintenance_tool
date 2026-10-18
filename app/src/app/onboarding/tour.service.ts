@@ -97,6 +97,7 @@ export class TourService {
     let at = i;
     while (at >= 0 && at < this.steps.length) {
       const step = this.steps[at];
+      if (!step) break;
       this.indexSignal.set(at);
       this.spot.set(null);
       this.target = null;

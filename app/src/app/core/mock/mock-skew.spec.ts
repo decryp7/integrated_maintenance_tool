@@ -2,6 +2,7 @@ import { T0, tinyDataset } from '../../../testing/helpers';
 import { MockBackend } from './mock-backend';
 import { MockDataset, MockRecord } from './mock-data';
 import { checkOffset, firstChanged, MOCK_MAX_OFFSET_MS, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
+import { at, must } from '../../../testing/must';
 
 const r = (source: number, line: number, ts: number | null, fields: Record<string, unknown> = {}): MockRecord => ({
   id: 0,
@@ -49,7 +50,7 @@ describe('mock clock skew', () => {
     expect(() => resolveOffset({ kind: 'align', reference: 0, target: shown.length - 1 }, shown, d.sources)).toThrow(/no timestamp/);
     expect(() => resolveOffset({ kind: 'align', reference: 0, target: 2 }, shown, d.sources)).toThrow(/same source/);
     // An already shifted target aligns from its original time.
-    d.sources[1].offsetMs = 500;
+    at(d.sources, 1).offsetMs = 500;
     expect(resolveOffset({ kind: 'align', reference: 0, target: 1 }, shown, d.sources).offsetMs).toBe(2500);
   });
 
@@ -63,7 +64,7 @@ describe('mock clock skew', () => {
     expect(firstChanged(before, d.records)).toBe(1);
     expect(firstChanged(before, before)).toBeNull();
     expect(firstChanged(before, before.slice(1))).toBe(0);
-    expect(recordKey(before[0])).toBe('0:1');
+    expect(recordKey(at(before, 0))).toBe('0:1');
   });
 
   it('suggests the median delta with a confidence, lower for noisy ids', () => {
@@ -73,7 +74,7 @@ describe('mock clock skew', () => {
     expect(s.fields).toEqual(['CorrelationId', 'TraceId', 'RequestId']);
     expect(s.suggestions).toEqual([expect.objectContaining({ source: 1, suggestedMs: 2500, pairs: 12, agreeing: 12, confidence: 1, spreadMs: 0 })]);
     const noisy = correlated(12, 2500, 3);
-    const n = mockSuggest(noisy.records, noisy.sources, { reference: 0 }).suggestions[0];
+    const n = at(mockSuggest(noisy.records, noisy.sources, { reference: 0 }).suggestions, 0);
     expect(n.confidence).toBeLessThan(1);
     expect(n.agreeing).toBe(8);
     const few = correlated(2, 100);
@@ -92,7 +93,7 @@ describe('mock clock skew', () => {
     expect(change).toMatchObject({ source: 1, offsetMs: 100_000, previousMs: 0 });
     expect(change.idsChangedFrom).not.toBeNull();
     expect(change.tracked[1]).toBeNull();
-    const moved = (await page())[change.tracked[0]!];
+    const moved = at(await page(), must(at(change.tracked, 0)));
     expect(moved.message).toBe('Application starting — Worker');
     expect(moved.ts).toBe(worker.ts! + 100_000);
     expect(moved.skewMs).toBe(100_000);

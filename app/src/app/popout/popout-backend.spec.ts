@@ -1,5 +1,6 @@
 import { BrowserPopoutBackend, CLOSE_POLL_MS, POPOUT_CLOSED_EVENT, POPOUTS_CHANGED_EVENT, PopoutClosed, TauriPopoutBackend } from './popout-backend';
 import { BroadcastChannelPort } from './sync-port';
+import { at } from '../../testing/must';
 
 describe('TauriPopoutBackend', () => {
   function make() {
@@ -128,7 +129,7 @@ describe('BrowserPopoutBackend', () => {
   it('uses default features and the view id as title without bounds', async () => {
     const { backend, win } = make();
     const info = await backend.open({ viewId: 'v' });
-    expect(win.open.mock.calls[0][2]).toBe('popup,width=560,height=420');
+    expect(win.open.mock.calls[0]?.[2]).toBe('popup,width=560,height=420');
     expect(info.title).toBe('v');
     expect(info.bounds).toBeNull();
   });
@@ -146,7 +147,7 @@ describe('BrowserPopoutBackend', () => {
     const b = await backend.open({ viewId: 'v' });
     expect(b).toBe(a);
     expect(win.open).toHaveBeenCalledTimes(1);
-    expect(children[0].focus).toHaveBeenCalled();
+    expect(children[0]?.focus).toHaveBeenCalled();
     const c = await backend.open({ viewId: 'other' });
     expect(c.label).toBe(`p-${OWN}-2`);
   });
@@ -154,7 +155,7 @@ describe('BrowserPopoutBackend', () => {
   it('opens a new window when the previous one for the view was closed', async () => {
     const { backend, win, children } = make();
     await backend.open({ viewId: 'v' });
-    children[0].closed = true;
+    at(children, 0).closed = true;
     await backend.open({ viewId: 'v' });
     expect(win.open).toHaveBeenCalledTimes(2);
   });
@@ -163,10 +164,10 @@ describe('BrowserPopoutBackend', () => {
     const { backend, children } = make();
     await backend.open({ viewId: 'a' });
     await backend.open({ viewId: 'b' });
-    children[1].closed = true;
+    at(children, 1).closed = true;
     const list = await backend.list();
     expect(list.map((p) => p.viewId)).toEqual(['a']);
-    expect(list[0].bounds).toEqual({ x: 10, y: 20, width: 300, height: 200 });
+    expect(list[0]?.bounds).toEqual({ x: 10, y: 20, width: 300, height: 200 });
   });
 
   it('keeps the stored bounds when the child window cannot be read', async () => {
@@ -177,7 +178,7 @@ describe('BrowserPopoutBackend', () => {
         throw new Error('cross-origin');
       },
     });
-    expect((await backend.list())[0].bounds).toEqual({ x: 1, y: 2, width: 3, height: 4 });
+    expect((await backend.list())[0]?.bounds).toEqual({ x: 1, y: 2, width: 3, height: 4 });
   });
 
   it('dock closes the child and reports it closed', async () => {
@@ -186,7 +187,7 @@ describe('BrowserPopoutBackend', () => {
     await backend.onClosed((e) => closed.push(e));
     const info = await backend.open({ viewId: 'v' });
     await backend.dock(info.label);
-    expect(children[0].close).toHaveBeenCalled();
+    expect(children[0]?.close).toHaveBeenCalled();
     expect(closed).toEqual([{ label: info.label, viewId: 'v' }]);
     expect(await backend.list()).toEqual([]);
   });
@@ -201,7 +202,7 @@ describe('BrowserPopoutBackend', () => {
     const closed: PopoutClosed[] = [];
     await backend.onClosed((e) => closed.push(e));
     const info = await backend.open({ viewId: 'v' });
-    children[0].closed = true;
+    at(children, 0).closed = true;
     vi.advanceTimersByTime(CLOSE_POLL_MS);
     expect(closed).toEqual([{ label: info.label, viewId: 'v' }]);
     expect(vi.getTimerCount()).toBe(0);
@@ -215,7 +216,7 @@ describe('BrowserPopoutBackend', () => {
     const off = await backend.onChanged(fn);
     await backend.open({ viewId: 'v' });
     expect(fn).toHaveBeenCalledTimes(1);
-    children[0].closed = true;
+    at(children, 0).closed = true;
     backend.poll();
     expect(fn).toHaveBeenCalledTimes(2);
     off();
@@ -229,7 +230,7 @@ describe('BrowserPopoutBackend', () => {
     const off = await backend.onClosed(fn);
     await backend.open({ viewId: 'v' });
     off();
-    children[0].closed = true;
+    at(children, 0).closed = true;
     backend.poll();
     expect(fn).not.toHaveBeenCalled();
   });

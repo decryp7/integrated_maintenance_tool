@@ -16,6 +16,7 @@ imt-core = { path = "../crates/imt-core" }
 imt-plugin-registry = { path = "../crates/imt-plugin-registry" }
 imt-plugin-windows = { path = "../crates/imt-plugin-windows" }
 imt-plugin-web = { path = "../crates/imt-plugin-web" }
+imt-plugin-formats = { path = "../crates/imt-plugin-formats" }
 imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
 imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
 imt-profile = { path = "../crates/imt-profile" }
@@ -169,6 +170,55 @@ bench = false
 [[bin]]
 name = "fuzz_prof_heapsnapshot"
 path = "fuzz_targets/fuzz_prof_heapsnapshot.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_procmon_csv"
+path = "fuzz_targets/fuzz_procmon_csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_log4j_xml"
+path = "fuzz_targets/fuzz_log4j_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_sql_errorlog"
+path = "fuzz_targets/fuzz_sql_errorlog.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_docker_json"
+path = "fuzz_targets/fuzz_docker_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_cri"
+path = "fuzz_targets/fuzz_cri.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_minidump"
+path = "fuzz_targets/fuzz_minidump.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_eventlog"
+path = "fuzz_targets/fuzz_eventlog.rs"
 test = false
 doc = false
 bench = false

@@ -140,6 +140,10 @@ function FIXED_PATTERN(): Pattern {
 export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (...a: never[]) => unknown>> = {}): AnalysisBackend {
   const base = {
     runQuery: async () => ({ result: { kind: 'events', ids: [1, 2], fields: null } }),
+    runQueryStreaming(this: AnalysisBackend, query: never) {
+      return this.runQuery(query);
+    },
+    cancelQuery: async () => false,
     checkQuery: async () => null,
     completeQuery: async () => [],
     queryPatterns: async () => FIX.patterns,

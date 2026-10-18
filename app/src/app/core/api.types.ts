@@ -192,6 +192,8 @@ export interface PipelineStat {
   step: string;
   input: number;
   output: number;
+  /** Events the step failed on and left unchanged (`script` runtime errors and limits); absent means 0. */
+  errors?: number;
 }
 
 export type PluginStatus = 'active' | 'disabled' | 'quarantined' | 'inactive';
@@ -324,6 +326,8 @@ export interface Query {
   ql?: string;
   /** A sliding time window the engine resolves into `from` (live tail); absent = none. */
   window?: TimeWindow | null;
+  /** Only events from these source ids (`SourceInfo.id`); absent or empty = all sources. Unknown ids match nothing. */
+  sources?: number[];
 }
 
 /**
@@ -2245,3 +2249,24 @@ export interface ProfileTemplate {
   /** A few lines in the format, for a preview when no file of the user's is chosen. */
   sampleText: string;
 }
+
+// ---- Cancellable queries -------------------------------------------------------------------
+
+/**
+ * Query-language runs with progress and cancellation. Mirrors `app/src-tauri/src/query_cancel.rs` and
+ * `crates/imt-core/src/ql/control.rs`. `queryId` is chosen by the UI (1-64 of `[A-Za-z0-9-]`, unique per window
+ * while running); `onProgress` is a Tauri `Channel<QueryProgress>`, sampled every ~150 ms.
+ *
+ *   run_query_stream { request: { query }, queryId, onProgress } -> StreamedQueryOutcome
+ *   cancel_query     { queryId }                                 -> boolean (false: not running any more)
+ */
+
+/** What a running query is doing: `done` of `total` records of the current `stage`. */
+export interface QueryProgress {
+  stage: 'matching' | 'evaluating';
+  done: number;
+  total: number;
+}
+
+/** Like `QueryOutcome`, or `{ cancelled: true }` after `cancel_query` (a normal outcome, not an error). */
+export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };

@@ -1,11 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
+import { WCAG_TAGS } from './axe';
 import { showProfileEditor } from './menu-support';
 
-/** Fails on any serious or critical WCAG 2.1 A/AA violation. */
+/** Fails on any serious or critical WCAG 2.2 A/AA violation. */
 async function expectNoSeriousViolations(page: Page, label: string): Promise<void> {
-  const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const { violations } = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   const blocking = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
     .map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 6).map((n) => n.target.join(' ')) }));

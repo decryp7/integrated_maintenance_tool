@@ -22,7 +22,7 @@ export function intersection(a: Rect, b: Rect): Rect {
 }
 
 function primaryOf(areas: readonly WorkArea[]): WorkArea {
-  return areas.find((a) => a.primary) ?? areas[0];
+  return areas.find((a) => a.primary) ?? areas[0] ?? { x: 0, y: 0, width: 0, height: 0, name: null, primary: true };
 }
 
 /** Fits `b` inside `a`: no larger than it, moved in from the edges. */

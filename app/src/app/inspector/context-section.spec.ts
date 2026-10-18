@@ -4,6 +4,7 @@ import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { ContextSection } from './context-section';
+import { at } from '../../testing/must';
 
 describe('ContextSection', () => {
   async function render(index = 3, backend = tinyBackend()) {
@@ -34,15 +35,15 @@ describe('ContextSection', () => {
     const spy = vi.spyOn(backend, 'sourceContext');
     const { fixture, rows } = await render(3, backend);
     await open(fixture);
-    const rec = rows[3];
+    const rec = at(rows, 3);
     expect(spy).toHaveBeenCalledWith({ recordId: rec.id, before: 10, after: 10 });
     const lines = all(fixture, '.line');
     expect(lines.length).toBeGreaterThan(1);
     const hit = all(fixture, '.line.hit');
     expect(hit).toHaveLength(1);
-    expect(hit[0].getAttribute('aria-current')).toBe('true');
-    expect(hit[0].textContent).toContain(String(rec.line));
-    expect(hit[0].textContent).toContain(rec.message);
+    expect(at(hit, 0).getAttribute('aria-current')).toBe('true');
+    expect(at(hit, 0).textContent).toContain(String(rec.line));
+    expect(at(hit, 0).textContent).toContain(rec.message);
     expect(text(fixture)).toContain(rec.sourceName);
     expect(el(fixture, '.lines').classList.contains('mono')).toBe(true);
   });
@@ -55,7 +56,7 @@ describe('ContextSection', () => {
     for (const radius of [50, 200, 500]) {
       buttonByText(fixture, 'More').click();
       await settle(fixture);
-      expect(spy).toHaveBeenLastCalledWith({ recordId: rows[3].id, before: radius, after: radius });
+      expect(spy).toHaveBeenLastCalledWith({ recordId: at(rows, 3).id, before: radius, after: radius });
     }
     expect(buttonByText(fixture, 'More').disabled).toBe(true);
     expect(text(fixture)).toContain('±500 lines');
@@ -70,8 +71,8 @@ describe('ContextSection', () => {
     await settle(fixture);
     fixture.componentRef.setInput('record', rows[5]);
     await settle(fixture);
-    expect(spy).toHaveBeenLastCalledWith({ recordId: rows[5].id, before: 10, after: 10 });
-    expect(spy.mock.calls.filter((c) => c[0].recordId === rows[5].id && c[0].before !== 10)).toHaveLength(0);
+    expect(spy).toHaveBeenLastCalledWith({ recordId: at(rows, 5).id, before: 10, after: 10 });
+    expect(spy.mock.calls.filter((c) => c[0].recordId === at(rows, 5).id && c[0].before !== 10)).toHaveLength(0);
     expect(text(fixture)).toContain('±10 lines');
   });
 
@@ -80,7 +81,7 @@ describe('ContextSection', () => {
     await open(fixture);
     fixture.componentRef.setInput('record', rows[4]);
     await settle(fixture);
-    expect(all(fixture, '.line.hit')[0].textContent).toContain(String(rows[4].line));
+    expect(at(all(fixture, '.line.hit'), 0).textContent).toContain(String(at(rows, 4).line));
   });
 
   it('copies the lines as text', async () => {
@@ -90,7 +91,7 @@ describe('ContextSection', () => {
     await open(fixture);
     buttonByText(fixture, 'Copy').click();
     await settle(fixture);
-    const copied = writeText.mock.calls[0][0] as string;
+    const copied = at(writeText.mock.calls, 0)[0] as string;
     expect(copied.split('\n')).toHaveLength(all(fixture, '.line').length);
     expect(buttonByText(fixture, 'Copied')).toBeDefined();
     writeText.mockRejectedValueOnce(new Error('denied'));

@@ -12,26 +12,26 @@ import { BookmarkStore } from './bookmark.store';
   imports: [Icon],
   template: `
     <div class="bar">
-      <button type="button" class="btn" [disabled]="!workspace.selected()" (click)="bookmarks.addSelected()">Bookmark selected event</button>
-      <button type="button" class="btn" [disabled]="!workspace.hasRange()" (click)="bookmarks.addRange()">Bookmark time range</button>
+      <button type="button" class="btn" [disabled]="!workspace.selected()" (click)="bookmarks.addSelected()" i18n="@@projects.bookmarkList.addSelected">Bookmark selected event</button>
+      <button type="button" class="btn" [disabled]="!workspace.hasRange()" (click)="bookmarks.addRange()" i18n="@@projects.bookmarkList.addRange">Bookmark time range</button>
     </div>
     @if (bookmarks.items().length) {
-      <ul class="list" aria-label="Bookmarks">
+      <ul class="list" aria-label="Bookmarks" i18n-aria-label="@@projects.bookmarkList.list">
         @for (b of bookmarks.items(); track b.id) {
           <li class="item">
             <div class="top">
-              <span class="badge">{{ b.kind === 'record' ? 'event' : 'range' }}</span>
+              <span class="badge">@if (b.kind === 'record') { <ng-container i18n="@@projects.bookmarkList.kindEvent">event</ng-container> } @else { <ng-container i18n="@@projects.bookmarkList.kindRange">range</ng-container> }</span>
               <span class="label ellipsis" [title]="b.label">{{ b.label }}</span>
               <span class="faint when">{{ when(b) }}</span>
-              <button type="button" class="btn" [attr.aria-label]="'Jump to bookmark ' + b.label" (click)="bookmarks.jump(b)">Jump to</button>
-              <button type="button" class="icon-btn" [attr.aria-label]="'Delete bookmark ' + b.label" title="Delete" (click)="bookmarks.remove(b.id)"><imt-icon name="trash" [size]="13" /></button>
+              <button type="button" class="btn" [attr.aria-label]="jumpLabel(b.label)" (click)="bookmarks.jump(b)" i18n="@@projects.bookmarkList.jump">Jump to</button>
+              <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(b.label)" title="Delete" i18n-title="@@projects.bookmarkList.delete" (click)="bookmarks.remove(b.id)"><imt-icon name="trash" [size]="13" /></button>
             </div>
-            <input class="input note" [attr.aria-label]="'Note for ' + b.label" placeholder="Add a note…" [value]="b.note" (change)="bookmarks.setNote(b.id, val($event))" />
+            <input class="input note" [attr.aria-label]="noteLabel(b.label)" placeholder="Add a note…" i18n-placeholder="@@projects.bookmarkList.notePlaceholder" [value]="b.note" (change)="bookmarks.setNote(b.id, val($event))" />
           </li>
         }
       </ul>
     } @else {
-      <p class="faint">No bookmarks yet. Select an event or a time range, then bookmark it to come back later.</p>
+      <p class="faint" i18n="@@projects.bookmarkList.empty">No bookmarks yet. Select an event or a time range, then bookmark it to come back later.</p>
     }
   `,
   styles: `
@@ -49,6 +49,16 @@ import { BookmarkStore } from './bookmark.store';
 export class BookmarkList {
   protected readonly bookmarks = inject(BookmarkStore);
   protected readonly workspace = inject(WorkspaceStore);
+
+  protected jumpLabel(label: string): string {
+    return $localize`:@@projects.bookmarkList.jumpAria:Jump to bookmark ${label}:label:`;
+  }
+  protected deleteLabel(label: string): string {
+    return $localize`:@@projects.bookmarkList.deleteAria:Delete bookmark ${label}:label:`;
+  }
+  protected noteLabel(label: string): string {
+    return $localize`:@@projects.bookmarkList.noteAria:Note for ${label}:label:`;
+  }
 
   protected when(b: Bookmark): string {
     const tz = this.workspace.timezone();

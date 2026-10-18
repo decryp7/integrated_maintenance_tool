@@ -13,6 +13,7 @@ import { EventsGrid } from './events-grid';
 import { GridSelection } from './grid-selection';
 import { RecordActions } from '../context/record-actions';
 import { HighlightRules } from '../projects/bookmarks/highlight';
+import { at } from '../../testing/must';
 
 const VIEWPORT_H = 260;
 
@@ -66,7 +67,7 @@ describe('EventsGrid', () => {
     expect(el(fixture, '.total').textContent).toBe('11');
     expect(text(fixture)).toContain('of 11');
     expect(store.matchTotal()).toBe(11);
-    expect(rows(fixture)[0].textContent).toContain('Application starting');
+    expect(at(rows(fixture), 0).textContent).toContain('Application starting');
     expect(all(fixture, '.row imt-marker-icon').length).toBeGreaterThan(0);
   });
 
@@ -74,20 +75,20 @@ describe('EventsGrid', () => {
     const { fixture } = await render();
     const settings = TestBed.inject(SettingsStore);
     expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('26px');
-    expect(rows(fixture)[0].querySelector('.time')?.textContent).toMatch(/^\d+ \w{3} /);
+    expect(at(rows(fixture), 0).querySelector('.time')?.textContent).toMatch(/^\d+ \w{3} /);
     settings.setDensity('compact');
     settings.setDateFormat('iso');
     await settle(fixture);
     expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('22px');
-    expect(rows(fixture)[0].querySelector('.time')?.textContent).toMatch(/^\d{4}-\d{2}-\d{2} /);
+    expect(at(rows(fixture), 0).querySelector('.time')?.textContent).toMatch(/^\d{4}-\d{2}-\d{2} /);
   });
 
   it('selects rows by click and keyboard', async () => {
     const { fixture, store } = await render();
-    rows(fixture)[2].click();
+    at(rows(fixture), 2).click();
     await settle(fixture);
     expect(store.selected()?.id).toBe(2);
-    expect(rows(fixture)[2].classList.contains('sel')).toBe(true);
+    expect(at(rows(fixture), 2).classList.contains('sel')).toBe(true);
     const vp = el(fixture, '.viewport');
     const key = (k: string) => vp.dispatchEvent(new KeyboardEvent('keydown', { key: k, cancelable: true }));
     key('ArrowDown');
@@ -122,33 +123,33 @@ describe('EventsGrid', () => {
 
     it('shift+click selects a range, ctrl/cmd+click toggles, a plain click selects one row', async () => {
       const { fixture, store } = await render();
-      click(rows(fixture)[2]);
+      click(at(rows(fixture), 2));
       await settle(fixture);
-      click(rows(fixture)[5], { shiftKey: true });
+      click(at(rows(fixture), 5), { shiftKey: true });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([2, 3, 4, 5]);
       expect(store.selected()?.id).toBe(5);
-      click(rows(fixture)[0], { shiftKey: true });
+      click(at(rows(fixture), 0), { shiftKey: true });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([0, 1, 2]);
-      click(rows(fixture)[1], { ctrlKey: true });
+      click(at(rows(fixture), 1), { ctrlKey: true });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([0, 2]);
       expect(store.selected()?.id).toBe(1);
-      click(rows(fixture)[8], { metaKey: true });
+      click(at(rows(fixture), 8), { metaKey: true });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([0, 2, 8]);
-      click(rows(fixture)[6]);
+      click(at(rows(fixture), 6));
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([6]);
-      expect(rows(fixture)[6].classList.contains('sel')).toBe(true);
+      expect(at(rows(fixture), 6).classList.contains('sel')).toBe(true);
     });
 
     it('prevents text selection only for modified clicks', async () => {
       const { fixture } = await render();
       const down = (init: MouseEventInit) => {
         const e = new MouseEvent('mousedown', { bubbles: true, cancelable: true, ...init });
-        rows(fixture)[1].dispatchEvent(e);
+        at(rows(fixture), 1).dispatchEvent(e);
         return e.defaultPrevented;
       };
       expect(down({})).toBe(false);
@@ -161,7 +162,7 @@ describe('EventsGrid', () => {
       const { fixture, store } = await render();
       const vp = el(fixture, '.viewport');
       const key = (k: string, shiftKey = false) => vp.dispatchEvent(new KeyboardEvent('keydown', { key: k, shiftKey, cancelable: true }));
-      click(rows(fixture)[3]);
+      click(at(rows(fixture), 3));
       key('ArrowDown', true);
       key('ArrowDown', true);
       await settle(fixture);
@@ -182,43 +183,43 @@ describe('EventsGrid', () => {
       const actions = TestBed.inject(RecordActions);
       const open = vi.spyOn(actions, 'openFor').mockImplementation(() => undefined);
       const openAt = vi.spyOn(actions, 'openAtElement').mockImplementation(() => undefined);
-      click(rows(fixture)[1]);
-      click(rows(fixture)[3], { shiftKey: true });
+      click(at(rows(fixture), 1));
+      click(at(rows(fixture), 3), { shiftKey: true });
       await settle(fixture);
-      rows(fixture)[2].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
+      at(rows(fixture), 2).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
       await settle(fixture);
-      expect(open.mock.calls[0][1].id).toBe(2);
-      expect(open.mock.calls[0][2]?.records?.map((r) => r.id)).toEqual([1, 2, 3]);
+      expect(at(open.mock.calls, 0)[1].id).toBe(2);
+      expect(at(open.mock.calls, 0)[2]?.records?.map((r) => r.id)).toEqual([1, 2, 3]);
       expect(selectedIndexes(fixture)).toEqual([1, 2, 3]);
       expect(store.selected()?.id).toBe(2);
 
       el(fixture, '.viewport').dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', cancelable: true }));
-      expect(openAt.mock.calls[0][1].id).toBe(2);
-      expect(openAt.mock.calls[0][2]?.records?.map((r) => r.id)).toEqual([1, 2, 3]);
-      expect(openAt.mock.calls[0][0]).toBe(rows(fixture)[2]);
+      expect(at(openAt.mock.calls, 0)[1].id).toBe(2);
+      expect(at(openAt.mock.calls, 0)[2]?.records?.map((r) => r.id)).toEqual([1, 2, 3]);
+      expect(at(openAt.mock.calls, 0)[0]).toBe(rows(fixture)[2]);
 
-      rows(fixture)[7].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
+      at(rows(fixture), 7).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
       await settle(fixture);
-      expect(open.mock.calls[1][2]?.records?.map((r) => r.id)).toEqual([7]);
+      expect(at(open.mock.calls, 1)[2]?.records?.map((r) => r.id)).toEqual([7]);
       expect(selectedIndexes(fixture)).toEqual([7]);
     });
 
     it('collapses to the record selected elsewhere (timeline, bookmark) and clears on new data', async () => {
       const { fixture, store } = await render();
-      click(rows(fixture)[1]);
-      click(rows(fixture)[4], { shiftKey: true });
+      click(at(rows(fixture), 1));
+      click(at(rows(fixture), 4), { shiftKey: true });
       await settle(fixture);
       store.jumpTo(8);
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([8]);
-      click(rows(fixture)[9], { shiftKey: true });
+      click(at(rows(fixture), 9), { shiftKey: true });
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([8, 9]);
       store.select(null);
       await settle(fixture);
       expect(selectedIndexes(fixture)).toEqual([]);
-      click(rows(fixture)[0]);
-      click(rows(fixture)[2], { shiftKey: true });
+      click(at(rows(fixture), 0));
+      click(at(rows(fixture), 2), { shiftKey: true });
       await settle(fixture);
       store.select(store.selected() && { ...store.selected()!, id: 10 });
       await settle(fixture);
@@ -229,19 +230,19 @@ describe('EventsGrid', () => {
       const { fixture, store } = await render();
       const published = TestBed.inject(GridSelection);
       expect(published.records()).toEqual([]);
-      click(rows(fixture)[1]);
-      click(rows(fixture)[3], { shiftKey: true });
-      click(rows(fixture)[6], { ctrlKey: true });
+      click(at(rows(fixture), 1));
+      click(at(rows(fixture), 3), { shiftKey: true });
+      click(at(rows(fixture), 6), { ctrlKey: true });
       await settle(fixture);
       expect(published.records().map((r) => r.id)).toEqual([1, 2, 3, 6]);
-      expect(published.records().map((r) => r.message)).toEqual([1, 2, 3, 6].map((i) => rows(fixture)[i].querySelector('.msg')!.textContent!.trim()));
-      click(rows(fixture)[4]);
+      expect(published.records().map((r) => r.message)).toEqual([1, 2, 3, 6].map((i) => at(rows(fixture), i).querySelector('.msg')!.textContent!.trim()));
+      click(at(rows(fixture), 4));
       await settle(fixture);
       expect(published.records().map((r) => r.id)).toEqual([4]);
       store.select(null);
       await settle(fixture);
       expect(published.records()).toEqual([]);
-      click(rows(fixture)[2]);
+      click(at(rows(fixture), 2));
       await settle(fixture);
       fixture.destroy();
       expect(published.records()).toEqual([]);
@@ -256,12 +257,12 @@ describe('EventsGrid', () => {
     await settle(fixture);
     const painted = all<HTMLElement>(fixture, '.row.hl');
     expect(painted).toHaveLength(1);
-    expect(painted[0].style.getPropertyValue('--hl')).toBe('#f2545b');
-    expect(painted[0].textContent).toContain('ERR');
-    painted[0].click();
+    expect(at(painted, 0).style.getPropertyValue('--hl')).toBe('#f2545b');
+    expect(at(painted, 0).textContent).toContain('ERR');
+    at(painted, 0).click();
     await settle(fixture);
-    expect(painted[0].classList.contains('sel')).toBe(true);
-    highlights.update(highlights.items()[0].id, { enabled: false });
+    expect(at(painted, 0).classList.contains('sel')).toBe(true);
+    highlights.update(at(highlights.items(), 0).id, { enabled: false });
     await settle(fixture);
     expect(all(fixture, '.row.hl')).toHaveLength(0);
     expect(rows(fixture).every((r) => !r.style.getPropertyValue('--hl'))).toBe(true);
@@ -276,7 +277,7 @@ describe('EventsGrid', () => {
     buttonByText(fixture, /Oldest first/).click();
     await settle(fixture);
     expect(store.descending()).toBe(true);
-    expect(rows(fixture)[0].textContent).toContain('line without a timestamp');
+    expect(at(rows(fixture), 0).textContent).toContain('line without a timestamp');
     el<HTMLButtonElement>(fixture, '.hcell .sort').click();
     await settle(fixture);
     expect(store.descending()).toBe(false);
@@ -308,17 +309,17 @@ describe('EventsGrid', () => {
     await settle(fixture);
     const boxes = all<HTMLInputElement>(fixture, '.col-opt input');
     expect(boxes).toHaveLength(1);
-    boxes[0].click();
+    at(boxes, 0).click();
     await settle(fixture);
     expect(store.extraColumns()).toEqual(['MachineName']);
-    expect(all(fixture, '.row .extra')[0].textContent).toBe('WEB01');
-    all<HTMLInputElement>(fixture, '.col-opt input')[0].click();
+    expect(at(all(fixture, '.row .extra'), 0).textContent).toBe('WEB01');
+    at(all<HTMLInputElement>(fixture, '.col-opt input'), 0).click();
     expect(store.extraColumns()).toEqual([]);
     store.addColumn('@source');
     store.addColumn('@line');
     store.addColumn('@template');
     await settle(fixture);
-    const cells = all(fixture, '.row')[0].querySelectorAll('.extra');
+    const cells = at(all(fixture, '.row'), 0).querySelectorAll('.extra');
     expect([...cells].map((c) => c.textContent)).toEqual(['app.clef', '1', 'Application starting — {Application} {Version} ({Framework})']);
     el<HTMLButtonElement>(fixture, '.hcell.extra .x').click();
     expect(store.extraColumns()).toEqual(['@line', '@template']);
@@ -443,7 +444,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     await flush(fixture);
     expect(store.selected()?.id).toBe(id);
     expect(visibleIds(fixture)).toContain(id);
-    const row = all(fixture, '.row.sel')[0];
+    const row = at(all(fixture, '.row.sel'), 0);
     expect(row).toBeDefined();
     const top = parseFloat(row.style.top);
     expect(top).toBeGreaterThan(0);
@@ -488,7 +489,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     await flush(fixture);
     expect(store.selected()?.id).toBe(50);
     // The selection stays on screen as the rows scroll under it.
-    const sel = all(fixture, '.row.sel')[0];
+    const sel = at(all(fixture, '.row.sel'), 0);
     expect(parseFloat(sel.style.top) + ROW).toBeLessThanOrEqual(VIEWPORT_H + 0.5);
   });
 
@@ -623,7 +624,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     it('follows new events at the top in descending order', async () => {
       const { grid, fixture, before } = await live(true, 0);
       expect(grid.virtualTop()).toBe(0);
-      expect(visibleIds(fixture)[0]).toBeGreaterThan(before.ids[0]);
+      expect(visibleIds(fixture)[0]).toBeGreaterThan(at(before.ids, 0));
     });
 
     it('follows new events at the end in ascending order', async () => {
@@ -668,8 +669,8 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
       vp.dispatchEvent(new Event('scroll'));
       await flush(fixture);
       const visible = all<HTMLElement>(fixture, '.row:not(.placeholder)');
-      visible[3].click();
-      visible[5].dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+      at(visible, 3).click();
+      at(visible, 5).dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
       await flush(fixture);
       const selectedIds = () =>
         all(fixture, '.row[aria-selected=true]').map((r) => Number(/Synthetic event (\d+)/.exec(r.textContent ?? '')?.[1]));

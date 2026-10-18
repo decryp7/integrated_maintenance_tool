@@ -25,22 +25,22 @@ import { TreeStore } from './tree.store';
       <imt-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
         <span class="section-title">{{ title() }}</span>
-        <button class="btn" type="button" [disabled]="store.busy()" (click)="hotPath()">Expand hottest path</button>
-        <button class="btn" type="button" [disabled]="!store.expanded().length" (click)="collapseAll()">Collapse all</button>
+        <button class="btn" type="button" [disabled]="store.busy()" (click)="hotPath()" i18n="@@profiling.tree.hotPath">Expand hottest path</button>
+        <button class="btn" type="button" [disabled]="!store.expanded().length" (click)="collapseAll()" i18n="@@profiling.tree.collapseAll">Collapse all</button>
         @if (store.notice(); as n) { <span class="muted" role="status">{{ n }}</span> }
         <span class="spacer"></span>
         <imt-measurement-legend />
       </div>
-      <imt-analysis-state [loading]="store.root().loading" [error]="store.root().error" [hasData]="store.root().children !== null" [empty]="store.root().children?.length === 0" emptyText="No samples match this view." (retry)="store.retry('')">
-        <div class="body tight" tabindex="0" role="region" aria-label="Call tree rows">
+      <imt-analysis-state [loading]="store.root().loading" [error]="store.root().error" [hasData]="store.root().children !== null" [empty]="store.root().children?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.tree.empty" (retry)="store.retry('')">
+        <div class="body tight" tabindex="0" role="region" aria-label="Call tree rows" i18n-aria-label="@@profiling.tree.rowsRegion">
           <table class="grid" role="treegrid" [attr.aria-label]="title()" (keydown)="onKey($event)" #grid>
             <thead>
               <tr role="row">
-                <th role="columnheader" scope="col">Function</th>
-                <th role="columnheader" scope="col" class="num">Total % @if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num">Total @if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num">Self % @if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
-                <th role="columnheader" scope="col" class="num">Self @if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" i18n="@@profiling.tree.col.function">Function</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.totalPct">Total %</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.total">Total</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.selfPct">Self %</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
+                <th role="columnheader" scope="col" class="num"><ng-container i18n="@@profiling.tree.col.self">Self</ng-container>&ngsp;@if (store.measurement(); as m) { <imt-measurement [m]="m" /> }</th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +67,7 @@ import { TreeStore } from './tree.store';
                         <span class="tw" aria-hidden="true"></span>
                       }
                       <span class="ellipsis" [title]="r.entry.node.frame.name + (r.entry.node.frame.module ? ' (' + r.entry.node.frame.module + ')' : '')">{{ r.entry.node.frame.name }}</span>
-                      @if (r.entry.node.frame.isFramework) { <span class="tag">framework</span> }
+                      @if (r.entry.node.frame.isFramework) { <span class="tag" i18n="@@profiling.tree.framework">framework</span> }
                     </span></td>
                     <td role="gridcell" class="num"><span class="bar-cell"><span class="meter" aria-hidden="true"><span [style.width.%]="r.entry.node.totalPct"></span></span>{{ pct(r.entry.node.totalPct) }}</span></td>
                     <td role="gridcell" class="num">{{ value(r.entry.node.total) }}</td>
@@ -76,15 +76,15 @@ import { TreeStore } from './tree.store';
                   </tr>
                 } @else if (r.kind === 'more') {
                   <tr role="row" [attr.aria-level]="r.level" [attr.tabindex]="focusIndex() === i ? 0 : -1" (click)="focusRow(i); store.loadMore(r.parent)">
-                    <td role="gridcell" colspan="5" [style.padding-left.px]="22 + (r.level - 1) * 14"><span class="link">Load {{ r.remaining }} more…</span></td>
+                    <td role="gridcell" colspan="5" [style.padding-left.px]="22 + (r.level - 1) * 14"><span class="link" i18n="@@profiling.tree.loadMore">Load {{ r.remaining }} more…</span></td>
                   </tr>
                 } @else {
                   <tr role="row" [attr.aria-level]="r.level" [attr.tabindex]="focusIndex() === i ? 0 : -1">
                     <td role="gridcell" colspan="5" [style.padding-left.px]="22 + (r.level - 1) * 14">
                       @if (r.error) {
-                        <span class="err" role="alert">{{ r.error }}</span> <button class="mini" type="button" (click)="store.retry(r.parent)">Retry</button>
+                        <span class="err" role="alert">{{ r.error }}</span> <button class="mini" type="button" (click)="store.retry(r.parent)" i18n="@@profiling.tree.retry">Retry</button>
                       } @else {
-                        <span class="muted">Loading…</span>
+                        <span class="muted" i18n="@@profiling.tree.loading">Loading…</span>
                       }
                     </td>
                   </tr>
@@ -95,7 +95,7 @@ import { TreeStore } from './tree.store';
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its call tree." />
+      <imt-no-capture text="Open a profile to see its call tree." i18n-text="@@profiling.tree.noCapture" />
     }
   `,
   styles: [
@@ -121,7 +121,7 @@ export class ProfileTree {
   private readonly grid = viewChild<ElementRef<HTMLTableElement>>('grid');
   protected readonly focusIndex = signal(0);
   protected readonly pct = formatPct;
-  protected readonly title = computed(() => (this.direction() === 'bottomUp' ? 'Inverted tree (bottom-up)' : 'Call tree (top-down)'));
+  protected readonly title = computed(() => (this.direction() === 'bottomUp' ? $localize`:@@profiling.tree.titleInverted:Inverted tree (bottom-up)` : $localize`:@@profiling.tree.titleTopDown:Call tree (top-down)`));
 
   constructor() {
     effect(() => {
@@ -189,7 +189,7 @@ export class ProfileTree {
       case 'focus': {
         this.focusRow(action.index);
         const r = rows[action.index];
-        if (r.kind === 'node') this.store.select(r.key);
+        if (r?.kind === 'node') this.store.select(r.key);
         break;
       }
       case 'expand':
@@ -204,6 +204,7 @@ export class ProfileTree {
         break;
       case 'activate': {
         const r = rows[action.index];
+        if (!r) break;
         if (r.kind === 'more') void this.store.loadMore(r.parent);
         else this.activate(r);
         break;

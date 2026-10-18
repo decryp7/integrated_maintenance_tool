@@ -11,12 +11,13 @@ import { UndoStack } from '../undo/undo-stack';
 import { bestTemplate, groupTemplates, ratioLabel, readRatio } from './templates';
 import { TemplatesGallery } from './templates-gallery';
 import { TemplatesService } from './templates.service';
+import { at } from '../../testing/must';
 
 const preview = (patch: Partial<ParsePreview>): ParsePreview => ({ importer: 'text', records: [], total: 0, skipped: 0, dropped: 0, error: null, ...patch });
 
 describe('template helpers', () => {
   it('groups by category in order', () => {
-    const t = (id: string, category: string) => ({ ...MOCK_TEMPLATES[0], id, category });
+    const t = (id: string, category: string) => ({ ...at(MOCK_TEMPLATES, 0), id, category });
     expect(groupTemplates([t('a', 'X'), t('b', 'Y'), t('c', 'X')]).map((g) => [g.category, g.templates.map((x) => x.id)])).toEqual([
       ['X', ['a', 'c']],
       ['Y', ['b']],
@@ -159,14 +160,14 @@ describe('TemplatesService', () => {
     const dialogs = TestBed.inject(DialogService);
     const done = TestBed.inject(TemplatesService).open({ path: '/a.log', name: 'a.log' });
     await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
-    const top = dialogs.stack()[0];
+    const top = at(dialogs.stack(), 0);
     expect(top.component).toBe(TemplatesGallery);
     expect(top.options.inputs).toEqual({ path: '/a.log', name: 'a.log' });
     top.ref.close(true);
     expect(await done).toBe(true);
     const again = TestBed.inject(TemplatesService).open();
     await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
-    expect(dialogs.stack()[0].options.inputs).toEqual({ path: null, name: null });
+    expect(dialogs.stack()[0]?.options.inputs).toEqual({ path: null, name: null });
     dialogs.dismissTop();
     expect(await again).toBe(false);
   });

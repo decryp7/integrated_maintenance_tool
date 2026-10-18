@@ -63,7 +63,7 @@ export function firstChanged(before: readonly MockRecord[], after: readonly Mock
 
 function median(values: number[]): number {
   const v = [...values].sort((a, b) => a - b);
-  return v[Math.floor((v.length - 1) / 2)];
+  return v[Math.floor((v.length - 1) / 2)] ?? 0;
 }
 
 /** Median of paired correlation-id deltas against a reference source, like the engine. */

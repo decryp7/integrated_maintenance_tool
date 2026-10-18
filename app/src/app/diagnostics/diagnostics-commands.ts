@@ -12,7 +12,7 @@ export { ACTIVITY_LOG_COMMAND, REPORT_PROBLEM_COMMAND };
 export const DIAGNOSTICS_VIEWS: ImtView[] = [
   {
     id: 'error-snapshots',
-    title: 'Error snapshots',
+    title: $localize`:@@diagnostics.commands.view.title:Error snapshots`,
     category: 'Diagnostics',
     icon: 'file',
     defaultPosition: 'center',
@@ -32,31 +32,31 @@ export class DiagnosticsCommands {
   readonly commands: ImtCommand[] = [
     {
       id: 'diagnostics.capture',
-      title: 'Capture diagnostic screenshot',
-      category: 'Tools',
+      title: $localize`:@@diagnostics.commands.capture:Capture diagnostic screenshot`,
+      category: $localize`:@@diagnostics.commands.category.tools:Tools`,
       keybinding: CAPTURE_KEYBINDING,
       run: async () => void (await this.snapshots.manual()),
     },
-    { id: 'diagnostics.snapshots.show', title: 'Show error snapshots', category: 'Tools', run: (ctx) => ctx.showView('error-snapshots') },
+    { id: 'diagnostics.snapshots.show', title: $localize`:@@diagnostics.commands.showSnapshots:Show error snapshots`, category: $localize`:@@diagnostics.commands.category.tools:Tools`, run: (ctx) => ctx.showView('error-snapshots') },
     {
       id: REPORT_PROBLEM_COMMAND,
-      title: 'Report a problem…',
-      category: 'Help',
+      title: $localize`:@@diagnostics.commands.report:Report a problem…`,
+      category: $localize`:@@diagnostics.commands.category.help:Help`,
       run: async () => {
         // Loaded on demand: the dialog is not part of the first paint.
         const { ReportProblemDialog } = await import('./report-problem-dialog');
-        this.dialogs.open(ReportProblemDialog, { title: 'Report a problem', width: 680 });
+        this.dialogs.open(ReportProblemDialog, { title: $localize`:@@diagnostics.commands.report.dialogTitle:Report a problem`, width: 680 });
       },
     },
     {
       id: ACTIVITY_LOG_COMMAND,
-      title: 'Show activity log',
-      category: 'Help',
+      title: $localize`:@@diagnostics.commands.activityLog:Show activity log`,
+      category: $localize`:@@diagnostics.commands.category.help:Help`,
       run: async (ctx) => {
         try {
           await this.injector.get(SnapshotBackend).openActivityLog();
         } catch (e) {
-          ctx.notifyError(`Could not open the activity log: ${describeError(e)}`);
+          ctx.notifyError($localize`:@@diagnostics.commands.activityLogFailed:Could not open the activity log: ${describeError(e)}:error:`);
         }
       },
     },

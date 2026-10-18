@@ -12,7 +12,7 @@ import { selected, selectId } from './switcher';
   template: `
     @if (dock.switcher()) {
       <div class="imt-switcher-backdrop" (pointerdown)="dock.cancelSwitch()"></div>
-      <div class="imt-switcher" role="dialog" aria-label="Switch to panel" (pointerdown)="$event.stopPropagation()">
+      <div class="imt-switcher" role="dialog" aria-label="Switch to panel" i18n-aria-label="@@dock.switcher.label" (pointerdown)="$event.stopPropagation()">
         <div class="cols">
           @for (col of columns(); track col.title) {
             <div class="col">
@@ -30,20 +30,20 @@ import { selected, selectId } from './switcher';
                     {{ item.title }}
                   </li>
                 } @empty {
-                  <li class="none" role="presentation">None</li>
+                  <li class="none" role="presentation" i18n="@@dock.switcher.none">None</li>
                 }
               </ul>
             </div>
           }
         </div>
-        <p class="hint">Hold Ctrl and press Tab to move; release Ctrl to switch.</p>
+        <p class="hint" i18n="@@dock.switcher.hint">Hold Ctrl and press Tab to move; release Ctrl to switch.</p>
       </div>
     }
   `,
   styles: `
     .imt-switcher-backdrop { position: fixed; inset: 0; z-index: 200; }
     .imt-switcher {
-      position: fixed; z-index: 201; left: 50%; top: 22%; transform: translateX(-50%); min-width: 460px; max-width: 80vw;
+      position: fixed; z-index: 201; inset-inline-start: 50%; top: 22%; transform: translateX(-50%); min-width: 460px; max-width: 80vw;
       background: var(--tooltip-bg); color: var(--text); border: 1px solid var(--border-3); border-radius: 8px;
       box-shadow: var(--shadow); padding: 12px 14px;
     }
@@ -66,8 +66,8 @@ export class DockSwitcher {
   protected readonly columns = computed(() => {
     const items = this.dock.switcher()?.items ?? [];
     return [
-      { kind: 'tool', title: 'Active tool windows', items: items.filter((i) => i.kind === 'tool') },
-      { kind: 'document', title: 'Active documents', items: items.filter((i) => i.kind === 'document') },
+      { kind: 'tool', title: $localize`:@@dock.switcher.tools:Active tool windows`, items: items.filter((i) => i.kind === 'tool') },
+      { kind: 'document', title: $localize`:@@dock.switcher.documents:Active documents`, items: items.filter((i) => i.kind === 'document') },
     ];
   });
 

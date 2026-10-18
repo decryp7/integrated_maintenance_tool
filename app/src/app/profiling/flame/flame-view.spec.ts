@@ -4,7 +4,6 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../../testing/helpers';
 import { FlameRequest } from '../../core/api.types';
 import { ProfileViewState } from '../profile-view-state';
-import { ProfilingBackend } from '../profiling-backend';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
 import { MockProfilingOptions } from '../../core/mock/mock-profiling';
 import { FlameChart } from './flame-chart';
@@ -225,6 +224,6 @@ describe('FlameView', () => {
 
 function f(fixture: ComponentFixture<unknown>, selectorOrText: string): boolean {
   const root = fixture.nativeElement as HTMLElement;
-  if (/^[.\[#]/.test(selectorOrText)) return !!root.querySelector(selectorOrText);
+  if (/^[.[#]/.test(selectorOrText)) return !!root.querySelector(selectorOrText);
   return [...root.querySelectorAll('button')].some((b) => b.textContent?.trim() === selectorOrText);
 }

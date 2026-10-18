@@ -41,6 +41,11 @@ export interface ImtView {
    * view is offered only while this returns true, but it is never opened or closed automatically. Defaults to always.
    */
   enabled?: () => boolean;
+  /**
+   * The view can be open several times: panels `<id>#<key>` render it too, and the component tells them apart by
+   * `DOCK_PANEL_ID`. Defaults to a single panel.
+   */
+  instances?: boolean;
 }
 
 /** The only handle plugins get on the app; deliberately small (see `ImtEvents` for reading state). */

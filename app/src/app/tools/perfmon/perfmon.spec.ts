@@ -9,6 +9,7 @@ import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { MockToolsOptions } from '../mock/mock-tools-backend';
 import { PerfmonStore } from './perfmon.store';
 import { PerfmonView } from './perfmon-view';
+import { at } from '../../../testing/must';
 
 async function setup(options: Partial<MockToolsOptions> = {}, picker: string | null = '/x/IMT.xml') {
   TestBed.configureTestingModule({
@@ -67,13 +68,13 @@ describe('PerfmonStore', () => {
     // The same file again (the browser build's dialog does not ask): the app asks, and "Keep" saves nothing.
     let saving = store.saveXml();
     await vi.waitFor(() => expect(dialogs.stack()[0]?.options.title).toBe('Replace file?'));
-    dialogs.stack()[0].ref.close(false);
+    at(dialogs.stack(), 0).ref.close(false);
     await saving;
     expect(store.generated()).toBeNull();
     expect(store.error()).toBeNull();
     saving = store.saveXml();
     await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     await saving;
     expect(store.notice()).toBe('Saved /x/IMT.xml');
     expect(store.generated()?.xml).toContain('<DataCollectorSet>');
@@ -179,7 +180,7 @@ describe('PerfmonView', () => {
     disk.click();
     await settle(fixture);
     expect(store.draft().counters).toContain('\\PhysicalDisk(_Total)\\Avg. Disk sec/Read');
-    const counter = all<HTMLInputElement>(fixture, '.counters input')[0];
+    const counter = at(all<HTMLInputElement>(fixture, '.counters input'), 0);
     counter.click();
     await settle(fixture);
     expect(store.draft().counters).not.toContain('\\Process({process})\\% Processor Time');
@@ -190,12 +191,12 @@ describe('PerfmonView', () => {
 
     // Options.
     typeInto(el(fixture, 'input[aria-label="Collector name"]'), 'Repro');
-    typeInto(all<HTMLInputElement>(fixture, 'input[type=number]')[0], '30');
+    typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 0), '30');
     const sel = el<HTMLSelectElement>(fixture, 'select');
     typeInto(sel, 'blg', 'change');
     await settle(fixture);
-    typeInto(all<HTMLInputElement>(fixture, 'input[type=number]')[1], '256');
-    typeInto(all<HTMLInputElement>(fixture, 'input[type=number]')[2], '10');
+    typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 1), '256');
+    typeInto(at(all<HTMLInputElement>(fixture, 'input[type=number]'), 2), '10');
     typeInto(el(fixture, 'input.mono'), 'D:\\Perf\\');
     expect(store.draft()).toMatchObject({ name: 'Repro', intervalSecs: 30, format: 'blg', maxSizeMb: 256, durationMinutes: 10, outputDir: 'D:\\Perf\\' });
 

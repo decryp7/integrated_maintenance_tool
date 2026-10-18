@@ -19,6 +19,7 @@ import { RecentProjectsDialog, RecentProjectsDialogService } from './recent-dial
 import { UnsavedChangesDialog, UnsavedChangesGuard } from './unsaved-changes';
 import { LocalStorageRecentProjects, RECENT_PROJECTS, RECENT_PROJECTS_KEY, RECENT_PROJECTS_VERSION } from './recent-projects';
 import { BookmarkCommands } from './bookmark-commands';
+import { at } from '../../testing/must';
 
 async function setup() {
   TestBed.configureTestingModule({
@@ -155,13 +156,13 @@ describe('ProjectService', () => {
     tools.calls.length = 0;
     let saving = projects.saveAs();
     await settle();
-    expect(dialogs.stack()[0].options.title).toBe('Replace file?');
-    dialogs.stack()[0].ref.close();
+    expect(dialogs.stack()[0]?.options.title).toBe('Replace file?');
+    at(dialogs.stack(), 0).ref.close();
     expect(await saving).toBe(false);
     expect(tools.calls).toEqual([]);
     saving = projects.saveAs();
     await settle();
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     expect(await saving).toBe(true);
     expect(tools.calls).toEqual(['saveProject:/p/saved.imtproj']);
   });
@@ -266,7 +267,7 @@ describe('ProjectCommands, BookmarkCommands and the recent dialog', () => {
     await commands.run('project.new');
     expect(projects.name()).toBe('Untitled');
     await commands.run('project.recent');
-    expect(TestBed.inject(DialogService).stack()[0].options.title).toBe('Recent projects');
+    expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Recent projects');
     expect(commands.find('project.save')?.keybinding).toBe('Mod+S');
   });
 
@@ -287,14 +288,14 @@ describe('ProjectCommands, BookmarkCommands and the recent dialog', () => {
     await projects.saveAs();
     TestBed.inject(RecentProjectsDialogService).open();
     const dialogs = TestBed.inject(DialogService);
-    const d = dialogs.stack()[0];
+    const d = at(dialogs.stack(), 0);
     expect(d.options.title).toBe('Recent projects');
     const f = TestBed.createComponent(RecentProjectsDialog);
     await settle(f);
     expect(text(f)).toContain('saved');
-    expect(all(f, '.item .ellipsis')[0].textContent).toBe('/p/');
+    expect(all(f, '.item .ellipsis')[0]?.textContent).toBe('/p/');
     tools.calls.length = 0;
-    all<HTMLButtonElement>(f, '.item')[0].click();
+    at(all<HTMLButtonElement>(f, '.item'), 0).click();
     await settle(f);
     expect(projects.name()).toBe('saved');
     buttonByText(f, 'Clear list').click();
@@ -316,7 +317,7 @@ describe('UnsavedChangesGuard', () => {
   /** Runs a command without waiting, answers the dialog it opens, then waits for the command. */
   async function answer(dialogs: DialogService, run: Promise<unknown>, choice: string | undefined) {
     await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
-    const d = dialogs.stack()[0];
+    const d = at(dialogs.stack(), 0);
     expect(d.options.title).toBe('Unsaved changes');
     d.ref.close(choice);
     await run;
@@ -370,10 +371,10 @@ describe('UnsavedChangesGuard', () => {
     const f = TestBed.createComponent(RecentProjectsDialog);
     await settle(f);
     const open = vi.spyOn(projects, 'open');
-    all<HTMLButtonElement>(f, '.item')[0].click();
+    at(all<HTMLButtonElement>(f, '.item'), 0).click();
     await answer(dialogs, settle(f), 'cancel');
     expect(open).not.toHaveBeenCalled();
-    all<HTMLButtonElement>(f, '.item')[0].click();
+    at(all<HTMLButtonElement>(f, '.item'), 0).click();
     await answer(dialogs, settle(f), 'discard');
     await vi.waitFor(() => expect(open).toHaveBeenCalledWith('/p/saved.imtproj'));
   });
@@ -387,7 +388,7 @@ describe('UnsavedChangesGuard', () => {
     await settle(f);
     expect(text(f)).toContain('Save the changes to Incident 42 before you start a new project?');
     expect(all<HTMLButtonElement>(f, 'button').map((b) => b.textContent?.trim())).toEqual(['Cancel', 'Discard', 'Save']);
-    for (const [label, value] of [['Save', 'save'], ['Discard', 'discard'], ['Cancel', 'cancel']]) {
+    for (const [label, value] of [['Save', 'save'], ['Discard', 'discard'], ['Cancel', 'cancel']] as const) {
       buttonByText(f, label).click();
       expect(result).toBe(value);
     }

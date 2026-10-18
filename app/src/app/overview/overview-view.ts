@@ -20,25 +20,25 @@ import { OverviewPrefs } from './overview-prefs';
   imports: [AnalysisState, Icon, HelpHint, AiButton],
   template: `
     <div class="bar">
-      <h2 class="section-title">Overview</h2>
-      <imt-help label="Overview" text="A health check of everything you opened: what went wrong and where to look first. It is computed by the engine; your files are never changed." />
+      <h2 class="section-title" i18n="@@overview.view.title">Overview</h2>
+      <imt-help label="Overview" i18n-label="@@overview.view.helpLabel" text="A health check of everything you opened: what went wrong and where to look first. It is computed by the engine; your files are never changed." i18n-text="@@overview.view.helpText" />
       <span class="spacer"></span>
-      <button class="btn" type="button" (click)="res.retry()" [disabled]="res.loading()">Refresh</button>
-      <imt-ai-button label="Root causes" hint="The local model reads the findings and exceptions and lists the likely root causes" testId="ai-root-causes" (pressed)="ai.rootCauses()" />
+      <button class="btn" type="button" (click)="res.retry()" [disabled]="res.loading()" i18n="@@overview.view.refresh">Refresh</button>
+      <imt-ai-button label="Root causes" i18n-label="@@overview.view.rootCauses" hint="The local model reads the findings and exceptions and lists the likely root causes" i18n-hint="@@overview.view.rootCausesHint" testId="ai-root-causes" (pressed)="ai.rootCauses()" />
     </div>
-    <div class="scroll" tabindex="0" role="region" aria-label="Health check">
+    <div class="scroll" tabindex="0" role="region" aria-label="Health check" i18n-aria-label="@@overview.view.healthCheck">
       @if (stats(); as s) {
-        <dl class="stats" aria-label="Summary">
-          <div><dt>Sources</dt><dd>{{ count(s.sources) }}</dd></div>
-          <div><dt>Events</dt><dd>{{ count(s.events) }}</dd></div>
-          <div><dt>Instances</dt><dd>{{ count(s.instances) }}</dd></div>
-          <div class="wide"><dt>Time span</dt><dd>{{ span() }}</dd></div>
-          <div [class.bad]="s.errors > 0"><dt>Errors</dt><dd>{{ count(s.errors) }}</dd></div>
-          <div [class.bad]="s.crashes > 0"><dt>Crashes</dt><dd>{{ count(s.crashes) }}</dd></div>
+        <dl class="stats" aria-label="Summary" i18n-aria-label="@@overview.view.summary">
+          <div><dt i18n="@@overview.view.sources">Sources</dt><dd>{{ count(s.sources) }}</dd></div>
+          <div><dt i18n="@@overview.view.events">Events</dt><dd>{{ count(s.events) }}</dd></div>
+          <div><dt i18n="@@overview.view.instances">Instances</dt><dd>{{ count(s.instances) }}</dd></div>
+          <div class="wide"><dt i18n="@@overview.view.timeSpan">Time span</dt><dd>{{ span() }}</dd></div>
+          <div [class.bad]="s.errors > 0"><dt i18n="@@overview.view.errors">Errors</dt><dd>{{ count(s.errors) }}</dd></div>
+          <div [class.bad]="s.crashes > 0"><dt i18n="@@overview.view.crashes">Crashes</dt><dd>{{ count(s.crashes) }}</dd></div>
         </dl>
         @if (s.unrecognized.length) {
           <section class="sub" aria-labelledby="ov-unrec">
-            <h3 id="ov-unrec">{{ s.unrecognized.length }} file{{ s.unrecognized.length === 1 ? '' : 's' }} not opened</h3>
+            <h3 id="ov-unrec" i18n="@@overview.view.unrecognized">{s.unrecognized.length, plural, =1 {{{ s.unrecognized.length }} file not opened} other {{{ s.unrecognized.length }} files not opened}}</h3>
             <ul>
               @for (u of s.unrecognized; track u.path) {
                 <li><span class="mono name" [title]="u.path">{{ u.name }}</span><span class="muted"> — {{ u.reason }}</span></li>
@@ -48,7 +48,7 @@ import { OverviewPrefs } from './overview-prefs';
         }
         @if (s.plugins.length) {
           <section class="sub" aria-labelledby="ov-plugins">
-            <h3 id="ov-plugins">{{ s.plugins.length }} plugin{{ s.plugins.length === 1 ? '' : 's' }} with problems</h3>
+            <h3 id="ov-plugins" i18n="@@overview.view.pluginProblems">{s.plugins.length, plural, =1 {{{ s.plugins.length }} plugin with problems} other {{{ s.plugins.length }} plugins with problems}}</h3>
             <ul>
               @for (p of s.plugins; track p.id) {
                 <li><strong>{{ p.name }}</strong><span class="muted"> — {{ p.problem }}</span></li>
@@ -57,7 +57,7 @@ import { OverviewPrefs } from './overview-prefs';
           </section>
         }
       } @else {
-        <p class="muted pad">Open files or a folder to see a health check here.</p>
+        <p class="muted pad" i18n="@@overview.view.empty">Open files or a folder to see a health check here.</p>
       }
 
       <imt-analysis-state
@@ -72,8 +72,8 @@ import { OverviewPrefs } from './overview-prefs';
             <div class="none" role="status">
               <imt-icon name="check" [size]="16" />
               <div>
-                <strong>Nothing alarming found</strong>
-                <p class="muted">No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</p>
+                <strong i18n="@@overview.view.none">Nothing alarming found</strong>
+                <p class="muted" i18n="@@overview.view.noneDetail">No crashes, error spikes or unreadable files. Explore the timeline, or search the events for what you are after.</p>
               </div>
             </div>
           }
@@ -85,7 +85,7 @@ import { OverviewPrefs } from './overview-prefs';
               <ul class="findings">
                 @for (f of g.findings; track $index) {
                   <li class="finding">
-                    <div class="title"><span class="tag">{{ f.severity }}</span> {{ f.title }}</div>
+                    <div class="title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
                     <p class="detail">{{ f.detail }}</p>
                     @if (buttons(f); as bs) {
                       @if (bs.length) {
@@ -104,7 +104,7 @@ import { OverviewPrefs } from './overview-prefs';
         }
       </imt-analysis-state>
 
-      <label class="auto">
+      <label class="auto" i18n="@@overview.view.autoOpen">
         <input type="checkbox" [checked]="prefs.autoOpen()" (change)="prefs.setAutoOpen($any($event.target).checked)" />
         Show the overview after opening files
       </label>
@@ -161,9 +161,12 @@ export class OverviewView {
   });
   protected readonly span = computed(() => {
     const s = this.stats();
-    if (!s || s.from === null || s.to === null) return 'No timestamps';
+    if (!s || s.from === null || s.to === null) return $localize`:@@overview.view.noTimestamps:No timestamps`;
     const tz = this.store.timezone();
-    return `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)} (${formatDuration(s.to - s.from)})`;
+    const from = formatDateTime(s.from, tz);
+    const to = formatDateTime(s.to, tz);
+    const duration = formatDuration(s.to - s.from);
+    return $localize`:@@overview.view.span:${from}:from: → ${to}:to: (${duration}:duration:)`;
   });
 
   constructor() {
@@ -175,6 +178,17 @@ export class OverviewView {
       // The health check covers everything opened, not the current filters.
       untracked(() => void this.res.load(() => this.share.overview({ ...EMPTY_QUERY, groupBy })));
     });
+  }
+
+  protected severityText(f: Finding): string {
+    switch (f.severity) {
+      case 'critical':
+        return $localize`:@@overview.view.tag.critical:critical`;
+      case 'warning':
+        return $localize`:@@overview.view.tag.warning:warning`;
+      default:
+        return $localize`:@@overview.view.tag.info:info`;
+    }
   }
 
   protected buttons(f: Finding): ActionButton[] {

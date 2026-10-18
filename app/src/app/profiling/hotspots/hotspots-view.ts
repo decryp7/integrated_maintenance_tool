@@ -1,12 +1,13 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { HotspotRow, ProfileGroupBy } from '../../core/api.types';
 import { formatCount } from '../../core/format';
+import { plural } from '../../i18n/locale';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { ProfileViewState } from '../profile-view-state';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';
 import { CaptureNotes, MeasurementLegend, MeasurementTag, NoCapture, ProfileBar } from '../profiling-shared';
 import { PROFILING_STYLES } from '../profiling-styles';
-import { GROUP_LABELS, HotspotColumn, hotspotColumns, sameSort } from './hotspot-columns';
+import { GROUP_LABELS, GROUP_NOUNS, HotspotColumn, hotspotColumns, sameSort } from './hotspot-columns';
 import { HotspotsStore } from './hotspots.store';
 
 export const ROW_H = 26;
@@ -35,26 +36,26 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
       <imt-profile-bar />
       <imt-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
-        <span class="section-title">Hotspots</span>
-        <label class="inline">Group by
-          <select aria-label="Group by" (change)="setGroupBy($event)">
+        <span class="section-title" i18n="@@profiling.hotspots.title">Hotspots</span>
+        <label class="inline"><ng-container i18n="@@profiling.hotspots.groupBy">Group by</ng-container>&ngsp;
+          <select aria-label="Group by" i18n-aria-label="@@profiling.hotspots.groupByLabel" (change)="setGroupBy($event)">
             @for (g of groups; track g) { <option [value]="g" [selected]="g === store.groupBy()">{{ groupLabel(g) }}</option> }
           </select>
         </label>
-        <input type="search" placeholder="Search…" aria-label="Search hotspots" [value]="store.search()" (input)="onSearch($event)" />
+        <input type="search" placeholder="Search…" i18n-placeholder="@@profiling.hotspots.searchPlaceholder" aria-label="Search hotspots" i18n-aria-label="@@profiling.hotspots.searchLabel" [value]="store.search()" (input)="onSearch($event)" />
         @if (store.meta(); as m) {
-          <span class="muted" data-testid="hotspots-count">{{ count(m.totalRows) }} {{ groupLabel(store.groupBy()).toLowerCase() }}{{ m.totalRows === 1 ? '' : 's' }} · {{ count(m.samplesInView) }} samples in view</span>
+          <span class="muted" data-testid="hotspots-count">{{ countText(m.totalRows, m.samplesInView) }}</span>
         }
         <span class="spacer"></span>
         <imt-measurement-legend />
       </div>
-      <imt-analysis-state [loading]="store.loading()" [error]="store.error()" [hasData]="!!store.meta()" [empty]="store.meta()?.totalRows === 0" emptyText="No samples match this view (range, threads or search)." (retry)="store.retry()">
-        <div class="viewport" #viewport tabindex="0" role="region" aria-label="Hotspot rows" (scroll)="onScroll($event)">
-          <table class="grid" [attr.aria-rowcount]="(store.meta()?.totalRows ?? 0) + 1" aria-label="Hotspots">
+      <imt-analysis-state [loading]="store.loading()" [error]="store.error()" [hasData]="!!store.meta()" [empty]="store.meta()?.totalRows === 0" emptyText="No samples match this view (range, threads or search)." i18n-emptyText="@@profiling.hotspots.empty" (retry)="store.retry()">
+        <div class="viewport" #viewport tabindex="0" role="region" aria-label="Hotspot rows" i18n-aria-label="@@profiling.hotspots.rowsRegion" (scroll)="onScroll($event)">
+          <table class="grid" [attr.aria-rowcount]="(store.meta()?.totalRows ?? 0) + 1" aria-label="Hotspots" i18n-aria-label="@@profiling.hotspots.tableLabel">
             <thead>
               <tr aria-rowindex="1">
                 @for (c of columns(); track c.id) {
-                  <th scope="col" [class.num]="c.numeric" [attr.aria-sort]="ariaSort(c)" [title]="c.help + (c.measurement ? ' — ' + measurementText(c) : '')">
+                  <th scope="col" [class.num]="c.numeric" [attr.aria-sort]="ariaSort(c)" [title]="headerTitle(c)">
                     @if (c.sort) {
                       <button type="button" (click)="store.sortBy(c.sort)">{{ c.label }}<span aria-hidden="true">{{ sortArrow(c) }}</span></button>
                     } @else {
@@ -63,7 +64,7 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
                     @if (c.measurement; as m) { <imt-measurement [m]="m" /> }
                   </th>
                 }
-                <th scope="col"><span class="sr">Actions</span></th>
+                <th scope="col"><span class="sr" i18n="@@profiling.hotspots.actions">Actions</span></th>
               </tr>
             </thead>
             <tbody (keydown)="onKey($event)">
@@ -84,15 +85,15 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
                     <td>
                       @if (r.frame) {
                         <span class="actions">
-                          <button class="mini" type="button" [attr.aria-label]="'Show ' + r.name + ' in the call tree'" (click)="nav.showInTree(r, metric())">Tree</button>
-                          <button class="mini" type="button" [attr.aria-label]="'Callers and callees of ' + r.name" (click)="nav.butterfly(r.frame)">Butterfly</button>
-                          <button class="mini" type="button" [attr.aria-label]="'Show ' + r.name + ' in the flame graph'" (click)="nav.showInFlame(r.frame)">Flame</button>
-                          <button class="mini" type="button" [attr.aria-label]="'Zoom the flame graph to ' + r.name" (click)="nav.focusInFlame(r.frame, metric())">Focus</button>
+                          <button class="mini" type="button" [attr.aria-label]="treeLabel(r.name)" (click)="nav.showInTree(r, metric())" i18n="@@profiling.hotspots.tree">Tree</button>
+                          <button class="mini" type="button" [attr.aria-label]="butterflyLabel(r.name)" (click)="nav.butterfly(r.frame)" i18n="@@profiling.hotspots.butterfly">Butterfly</button>
+                          <button class="mini" type="button" [attr.aria-label]="flameLabel(r.name)" (click)="nav.showInFlame(r.frame)" i18n="@@profiling.hotspots.flame">Flame</button>
+                          <button class="mini" type="button" [attr.aria-label]="focusLabel(r.name)" (click)="nav.focusInFlame(r.frame, metric())" i18n="@@profiling.hotspots.focus">Focus</button>
                         </span>
                       }
                     </td>
                   } @else {
-                    <td class="muted" [attr.colspan]="columns().length + 1">Loading…</td>
+                    <td class="muted" [attr.colspan]="columns().length + 1" i18n="@@profiling.hotspots.loading">Loading…</td>
                   }
                 </tr>
               }
@@ -102,7 +103,7 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
         </div>
       </imt-analysis-state>
     } @else {
-      <imt-no-capture text="Open a profile to see its hotspots." />
+      <imt-no-capture text="Open a profile to see its hotspots." i18n-text="@@profiling.hotspots.noCapture" />
     }
   `,
   styles: [
@@ -179,7 +180,40 @@ export class HotspotsView {
   }
 
   protected measurementText(c: HotspotColumn): string {
-    return c.measurement === 'sampled' ? 'sampled (≈): a statistical estimate' : 'exact (=): every occurrence recorded';
+    return c.measurement === 'sampled'
+      ? $localize`:@@profiling.hotspots.measurement.sampled:sampled (≈): a statistical estimate`
+      : $localize`:@@profiling.hotspots.measurement.exact:exact (=): every occurrence recorded`;
+  }
+
+  protected headerTitle(c: HotspotColumn): string {
+    if (!c.measurement) return c.help;
+    const help = c.help;
+    const measurement = this.measurementText(c);
+    return $localize`:@@profiling.hotspots.headerTitle:${help}:help: — ${measurement}:measurement:`;
+  }
+
+  protected countText(rows: number, samples: number): string {
+    const nouns = GROUP_NOUNS[this.store.groupBy()];
+    const count = this.count(rows);
+    const noun = plural(rows, { one: nouns.one, other: nouns.other });
+    const inView = this.count(samples);
+    return $localize`:@@profiling.hotspots.count:${count}:count: ${noun}:noun: · ${inView}:samples: samples in view`;
+  }
+
+  protected treeLabel(name: string): string {
+    return $localize`:@@profiling.hotspots.treeLabel:Show ${name}:name: in the call tree`;
+  }
+
+  protected butterflyLabel(name: string): string {
+    return $localize`:@@profiling.hotspots.butterflyLabel:Callers and callees of ${name}:name:`;
+  }
+
+  protected flameLabel(name: string): string {
+    return $localize`:@@profiling.hotspots.flameLabel:Show ${name}:name: in the flame graph`;
+  }
+
+  protected focusLabel(name: string): string {
+    return $localize`:@@profiling.hotspots.focusLabel:Zoom the flame graph to ${name}:name:`;
   }
 
   protected ariaSort(c: HotspotColumn): 'ascending' | 'descending' | null {

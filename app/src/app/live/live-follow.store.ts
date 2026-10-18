@@ -8,12 +8,12 @@ import { LiveTail } from '../workspace/live-tail';
 export type WindowPreset = '1m' | '5m' | '15m' | '60m' | 'custom' | 'all';
 
 export const WINDOW_PRESETS: readonly { id: WindowPreset; label: string; ms: number | null }[] = [
-  { id: '1m', label: 'Last 1 min', ms: 60_000 },
-  { id: '5m', label: 'Last 5 min', ms: 5 * 60_000 },
-  { id: '15m', label: 'Last 15 min', ms: 15 * 60_000 },
-  { id: '60m', label: 'Last 60 min', ms: 60 * 60_000 },
-  { id: 'custom', label: 'Custom…', ms: null },
-  { id: 'all', label: 'All', ms: null },
+  { id: '1m', label: $localize`:@@live.follow.preset.1m:Last 1 min`, ms: 60_000 },
+  { id: '5m', label: $localize`:@@live.follow.preset.5m:Last 5 min`, ms: 5 * 60_000 },
+  { id: '15m', label: $localize`:@@live.follow.preset.15m:Last 15 min`, ms: 15 * 60_000 },
+  { id: '60m', label: $localize`:@@live.follow.preset.60m:Last 60 min`, ms: 60 * 60_000 },
+  { id: 'custom', label: $localize`:@@live.follow.preset.custom:Custom…`, ms: null },
+  { id: 'all', label: $localize`:@@live.follow.preset.all:All`, ms: null },
 ];
 
 /** Bounds of the custom window, minutes. */

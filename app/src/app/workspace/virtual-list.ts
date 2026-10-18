@@ -54,7 +54,7 @@ export class VirtualList<T> {
     const { first, last } = visibleWindow(g, this.scrollTop(), OVERSCAN);
     const items = this.items();
     const out: { index: number; item: T }[] = [];
-    for (let i = first; i < last; i++) out.push({ index: i, item: items[i] });
+    for (const [k, item] of items.slice(first, last).entries()) out.push({ index: first + k, item });
     return out;
   });
 

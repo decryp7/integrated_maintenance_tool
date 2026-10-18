@@ -18,7 +18,7 @@ export function aiViews(status: InstanceType<typeof AiStatusStore>): ImtView[] {
   return [
     {
       id: AI_CHAT_VIEW,
-      title: 'AI assistant',
+      title: $localize`:@@ai.provide.view.title:AI assistant`,
       category: 'AI',
       icon: 'puzzle',
       defaultPosition: 'right',
@@ -49,13 +49,13 @@ export function aiCommands(
   const withData = () => status.available() && !!store.summary()?.total;
   const selected = (): RecordView | null => store.selected();
   return [
-    { id: 'ai.chat.show', title: 'AI: Open the assistant chat', category: 'AI', when: available, run: (ctx) => ctx.showView(AI_CHAT_VIEW) },
-    { id: 'ai.setup', title: 'Set up AI assistant', category: 'AI', when: available, run: () => launcher.openSetup() },
-    { id: 'ai.models', title: 'AI: Manage models…', category: 'AI', when: available, run: () => launcher.openModels() },
+    { id: 'ai.chat.show', title: $localize`:@@ai.provide.cmd.chat:AI: Open the assistant chat`, category: $localize`:@@ai.provide.category:AI`, when: available, run: (ctx) => ctx.showView(AI_CHAT_VIEW) },
+    { id: 'ai.setup', title: $localize`:@@ai.provide.cmd.setup:Set up AI assistant`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openSetup() },
+    { id: 'ai.models', title: $localize`:@@ai.provide.cmd.models:AI: Manage models…`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openModels() },
     {
       id: 'ai.explain',
-      title: 'AI: Explain the selected event',
-      category: 'AI',
+      title: $localize`:@@ai.provide.cmd.explain:AI: Explain the selected event`,
+      category: $localize`:@@ai.provide.category:AI`,
       when: () => available() && !!selected(),
       run: () => {
         const r = selected();
@@ -64,34 +64,34 @@ export function aiCommands(
     },
     {
       id: 'ai.summarize',
-      title: 'AI: Summarize this range',
-      category: 'AI',
+      title: $localize`:@@ai.provide.cmd.summarize:AI: Summarize this range`,
+      category: $localize`:@@ai.provide.category:AI`,
       when: () => withData() && !!rangeToSummarize(cursor, store),
       run: () => {
         const r = rangeToSummarize(cursor, store);
         if (r) void launcher.summarize(r.from, r.to);
       },
     },
-    { id: 'ai.query', title: 'AI: Ask AI to write a query…', category: 'AI', when: withData, run: () => launcher.askQuery() },
-    { id: 'ai.rootCauses', title: 'AI: Find likely root causes', category: 'AI', when: withData, run: () => launcher.rootCauses() },
+    { id: 'ai.query', title: $localize`:@@ai.provide.cmd.query:AI: Ask AI to write a query…`, category: $localize`:@@ai.provide.category:AI`, when: withData, run: () => launcher.askQuery() },
+    { id: 'ai.rootCauses', title: $localize`:@@ai.provide.cmd.rootCauses:AI: Find likely root causes`, category: $localize`:@@ai.provide.category:AI`, when: withData, run: () => launcher.rootCauses() },
     {
       id: 'ai.propose.pipeline',
-      title: 'AI: Propose pipeline steps…',
-      category: 'AI',
+      title: $localize`:@@ai.provide.cmd.pipeline:AI: Propose pipeline steps…`,
+      category: $localize`:@@ai.provide.category:AI`,
       when: () => available() && !!selected(),
       run: () => launcher.propose('pipeline', { recordId: selected()?.id ?? null }),
     },
     {
       id: 'ai.propose.markers',
-      title: 'AI: Propose markers…',
-      category: 'AI',
+      title: $localize`:@@ai.provide.cmd.markers:AI: Propose markers…`,
+      category: $localize`:@@ai.provide.category:AI`,
       when: () => available() && !!selected(),
       run: () => launcher.propose('markers', { recordId: selected()?.id ?? null }),
     },
     {
       id: 'ai.propose.extractors',
-      title: 'AI: Propose extractors…',
-      category: 'AI',
+      title: $localize`:@@ai.provide.cmd.extractors:AI: Propose extractors…`,
+      category: $localize`:@@ai.provide.category:AI`,
       when: () => available() && !!selected(),
       run: () => launcher.propose('extractors', { recordId: selected()?.id ?? null }),
     },
@@ -104,8 +104,8 @@ export function aiRecordMenu(launcher: AiLauncher, status: InstanceType<typeof A
     if (!status.available()) return [];
     const lines = (target.records?.length ? target.records : [record]).map((r) => r.message);
     return [
-      { label: 'Explain this event (AI)…', run: () => void launcher.explainEvent(record.id) },
-      { label: 'Suggest a regex for these lines (AI)…', run: () => void launcher.suggestRegex(lines, { highlight: true }) },
+      { label: $localize`:@@ai.provide.menu.explain:Explain this event (AI)…`, run: () => void launcher.explainEvent(record.id) },
+      { label: $localize`:@@ai.provide.menu.regex:Suggest a regex for these lines (AI)…`, run: () => void launcher.suggestRegex(lines, { highlight: true }) },
     ];
   };
 }
@@ -118,7 +118,7 @@ const FIRST_RUN_KEY = 'imt.ai.setupOffered.v1';
  */
 export function offerSetupOnFirstRun(status: InstanceType<typeof AiStatusStore>, launcher: AiLauncher, injector: Injector, desktop = isTauri()): void {
   if (!desktop) return;
-  let offered = false;
+  let offered: boolean;
   try {
     offered = localStorage.getItem(FIRST_RUN_KEY) === '1';
   } catch {

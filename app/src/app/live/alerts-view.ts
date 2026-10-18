@@ -8,6 +8,7 @@ import { AlertRulesEditor } from './alert-rules-editor';
 import { AlertsStore, kindLabel, muteLabel, SeverityFilter, severityLabel } from './alerts.store';
 import { LiveAlerts } from './live-alerts';
 import { SeverityBadge } from './severity-badge';
+import { activeLocale } from '../i18n/locale';
 
 /** Dock view: the live alerts with their evidence, a severity filter, mutes and the rules editor. */
 @Component({
@@ -16,9 +17,9 @@ import { SeverityBadge } from './severity-badge';
   imports: [SeverityBadge],
   template: `
     <div class="bar">
-      <span class="section-title">Alerts</span>
-      <div class="filters" role="group" aria-label="Filter by severity">
-        <button type="button" class="chip" [attr.aria-pressed]="store.filter() === 'all'" (click)="store.setFilter('all')">All {{ store.alerts().length }}</button>
+      <span class="section-title" i18n="@@live.alertsView.title">Alerts</span>
+      <div class="filters" role="group" aria-label="Filter by severity" i18n-aria-label="@@live.alertsView.filterAria">
+        <button type="button" class="chip" [attr.aria-pressed]="store.filter() === 'all'" (click)="store.setFilter('all')" i18n="@@live.alertsView.all">All {{ store.alerts().length }}</button>
         @for (s of severities; track s) {
           <button type="button" class="chip" [attr.aria-pressed]="store.filter() === s" (click)="store.setFilter(s)">
             <imt-severity-badge [severity]="s" [size]="12" [showLabel]="false" />{{ sevLabel(s) }} {{ store.counts()[s] }}
@@ -26,39 +27,39 @@ import { SeverityBadge } from './severity-badge';
         }
       </div>
       <span class="spacer"></span>
-      @if (!live.enabled()) { <span class="faint small">Alerts are raised while live tail is on.</span> }
-      <button type="button" class="btn" (click)="editRules()">Alert rules…</button>
-      <button type="button" class="btn ghost" [disabled]="!store.alerts().length" (click)="store.clear()">Clear</button>
+      @if (!live.enabled()) { <span class="faint small" i18n="@@live.alertsView.whileLive">Alerts are raised while live tail is on.</span> }
+      <button type="button" class="btn" (click)="editRules()" i18n="@@live.alertsView.rules">Alert rules…</button>
+      <button type="button" class="btn ghost" [disabled]="!store.alerts().length" (click)="store.clear()" i18n="alert list|Empties the alert list@@live.alertsView.clear">Clear</button>
     </div>
 
     @if (mutes().length) {
-      <div class="mutes" role="group" aria-label="Muted alert kinds">
-        <span class="faint small">Muted:</span>
+      <div class="mutes" role="group" aria-label="Muted alert kinds" i18n-aria-label="@@live.alertsView.mutedAria">
+        <span class="faint small" i18n="@@live.alertsView.muted">Muted:</span>
         @for (m of mutes(); track m.key) {
-          <span class="mute">{{ muteName(m.key) }} until {{ clock(m.until) }}
-            <button type="button" class="link" [attr.aria-label]="'Unmute ' + muteName(m.key)" (click)="store.unmute(m.key)">Unmute</button></span>
+          <span class="mute" i18n="@@live.alertsView.muteUntil">{{ muteName(m.key) }} until {{ clock(m.until) }}
+            <button type="button" class="link" [attr.aria-label]="unmuteLabel(m.key)" (click)="store.unmute(m.key)">Unmute</button></span>
         }
       </div>
     }
 
-    <div class="list" tabindex="0" role="region" aria-label="Alert list">
+    <div class="list" tabindex="0" role="region" aria-label="Alert list" i18n-aria-label="@@live.alertsView.listAria">
       @if (store.visible().length) {
         <table>
           <thead>
-            <tr><th scope="col">Severity</th><th scope="col">Kind</th><th scope="col">Instance</th><th scope="col">Time</th><th scope="col">Message</th><th scope="col"><span class="sr">Actions</span></th></tr>
+            <tr><th scope="col" i18n="@@live.alertsView.colSeverity">Severity</th><th scope="col" i18n="@@live.alertsView.colKind">Kind</th><th scope="col" i18n="@@live.alertsView.colInstance">Instance</th><th scope="col" i18n="@@live.alertsView.colTime">Time</th><th scope="col" i18n="@@live.alertsView.colMessage">Message</th><th scope="col"><span class="sr" i18n="@@live.alertsView.colActions">Actions</span></th></tr>
           </thead>
           <tbody>
             @for (e of store.visible(); track e.id) {
               <tr [class.muted-row]="e.muted" data-testid="alert-row">
                 <td><imt-severity-badge [severity]="e.alert.severity" /></td>
-                <td>{{ kind(e.alert) }}@if (e.muted) { <span class="faint small"> (muted)</span> }</td>
+                <td>{{ kind(e.alert) }}@if (e.muted) { <span class="faint small" i18n="@@live.alertsView.mutedRow"> (muted)</span> }</td>
                 <td class="mono">{{ e.alert.instance ?? '—' }}</td>
                 <td class="mono nowrap" [title]="range(e.alert)">{{ time(e.alert.to) }}</td>
                 <td class="msg">{{ e.alert.message }}</td>
                 <td class="actions nowrap">
-                  <button type="button" class="btn" [attr.aria-label]="'Show evidence: ' + kind(e.alert)" (click)="actions.show(e.alert)">Show</button>
-                  <button type="button" class="btn ghost" [attr.aria-label]="'Mute 15 min: ' + kind(e.alert)" (click)="store.mute(e.alert)">Mute 15 min</button>
-                  <button type="button" class="icon-btn" [attr.aria-label]="'Remove alert ' + kind(e.alert)" title="Remove" (click)="store.remove(e.id)">×</button>
+                  <button type="button" class="btn" [attr.aria-label]="showLabel(e.alert)" (click)="actions.show(e.alert)" i18n="@@live.alertsView.show">Show</button>
+                  <button type="button" class="btn ghost" [attr.aria-label]="muteLabel(e.alert)" (click)="store.mute(e.alert)" i18n="@@live.alertsView.mute15">Mute 15 min</button>
+                  <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(e.alert)" title="Remove" i18n-title="@@live.alertsView.remove" (click)="store.remove(e.id)">×</button>
                 </td>
               </tr>
             }
@@ -67,12 +68,12 @@ import { SeverityBadge } from './severity-badge';
       } @else {
         <div class="empty-state">
           @if (store.alerts().length) {
-            <div>No {{ filterName() }} alerts.</div>
+            <div i18n="@@live.alertsView.noFiltered">No {{ filterName() }} alerts.</div>
           } @else {
-            <div>No alerts yet.</div>
-            <div class="faint">While live tail is on, error spikes, silences, crashes and your alert rules appear here.</div>
+            <div i18n="@@live.alertsView.none">No alerts yet.</div>
+            <div class="faint" i18n="@@live.alertsView.noneHelp">While live tail is on, error spikes, silences, crashes and your alert rules appear here.</div>
             @if (!live.enabled() && live.available()) {
-              <button type="button" class="btn" (click)="live.toggle()">Turn on live tail</button>
+              <button type="button" class="btn" (click)="live.toggle()" i18n="@@live.alertsView.turnOn">Turn on live tail</button>
             }
           }
         </div>
@@ -121,12 +122,28 @@ export class AlertsView {
     return f === 'all' ? '' : severityLabel(f).toLowerCase();
   });
 
+  protected unmuteLabel(key: string): string {
+    return $localize`:@@live.alertsView.unmuteAria:Unmute ${muteLabel(key)}:name:`;
+  }
+
+  protected showLabel(a: LiveAlert): string {
+    return $localize`:@@live.alertsView.showAria:Show evidence: ${kindLabel(a)}:kind:`;
+  }
+
+  protected muteLabel(a: LiveAlert): string {
+    return $localize`:@@live.alertsView.muteAria:Mute 15 min: ${kindLabel(a)}:kind:`;
+  }
+
+  protected removeLabel(a: LiveAlert): string {
+    return $localize`:@@live.alertsView.removeAria:Remove alert ${kindLabel(a)}:kind:`;
+  }
+
   protected time(ts: number): string {
     return formatTime(ts, this.ws.timezone()).slice(0, 8);
   }
 
   protected clock(ts: number): string {
-    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts).toLocaleTimeString(activeLocale(), { hour: '2-digit', minute: '2-digit' });
   }
 
   protected range(a: LiveAlert): string {
@@ -135,6 +152,6 @@ export class AlertsView {
   }
 
   protected editRules(): void {
-    this.dialogs.open(AlertRulesEditor, { title: 'Live alert rules', width: 760 });
+    this.dialogs.open(AlertRulesEditor, { title: $localize`:@@live.alertsView.dialogTitle:Live alert rules`, width: 760 });
   }
 }

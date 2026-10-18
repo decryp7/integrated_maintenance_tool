@@ -14,17 +14,17 @@ import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
     @if (service.toast(); as t) {
       <div class="toast" role="status" aria-live="polite" data-testid="snapshot-toast">
         @if (t.kind === 'captured') {
-          <span class="line"><strong>Error captured</strong> — <button type="button" class="link" (click)="view()">View</button> ·
-            <button type="button" class="link" (click)="report()" data-testid="toast-report-problem">Report a problem…</button></span>
+          <span class="line"><strong i18n="@@diagnostics.toast.captured">Error captured</strong> — <button type="button" class="link" (click)="view()" i18n="Open the captured snapshot|Button@@diagnostics.toast.view">View</button> ·
+            <button type="button" class="link" (click)="report()" data-testid="toast-report-problem" i18n="@@diagnostics.toast.report">Report a problem…</button></span>
           @if (t.firstTime) {
             <span class="note" data-testid="snapshot-notice">{{ notice }}
-              <button type="button" class="link" (click)="folder()">Open folder</button> ·
-              <button type="button" class="link" (click)="settings()">Settings…</button></span>
+              <button type="button" class="link" (click)="folder()" i18n="@@diagnostics.toast.openFolder">Open folder</button> ·
+              <button type="button" class="link" (click)="settings()" i18n="@@diagnostics.toast.settings">Settings…</button></span>
           }
         } @else {
-          <span class="line">The screenshot could not be captured.</span>
+          <span class="line" i18n="@@diagnostics.toast.failed">The screenshot could not be captured.</span>
         }
-        <button type="button" class="x" aria-label="Dismiss" (click)="service.dismissToast()">×</button>
+        <button type="button" class="x" aria-label="Dismiss" i18n-aria-label="@@diagnostics.toast.dismiss" (click)="service.dismissToast()">×</button>
       </div>
     }
   `,

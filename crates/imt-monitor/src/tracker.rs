@@ -8,6 +8,8 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
 pub const SOURCE_CONTEXT: &str = "IMT.Monitor";
+/// Message template of the periodic per-process `Process stats` event.
+pub const STATS_TEMPLATE: &str = "Process stats {ProcessName} CPU {CpuPercent}% · WorkingSet {WorkingSetMb} MB";
 /// An exit followed by a start of the same name within this window counts as a restart.
 const RESTART_WINDOW_MS: i64 = 10_000;
 /// Processes that die younger than this are reported as warnings.
@@ -226,14 +228,7 @@ impl Tracker {
         let cpu = (cpu * 10.0).round() / 10.0;
         let ws = (s.working_set as f64 / MB * 10.0).round() / 10.0;
         let msg = format!("Process stats {} CPU {cpu:.1}% · WorkingSet {ws:.1} MB", s.name);
-        let mut r = self.proc_record(
-            Level::Information,
-            now,
-            &s.name,
-            s.pid,
-            msg,
-            "Process stats {ProcessName} CPU {CpuPercent}% · WorkingSet {WorkingSetMb} MB",
-        );
+        let mut r = self.proc_record(Level::Information, now, &s.name, s.pid, msg, STATS_TEMPLATE);
         if let Some(e) = &s.exe {
             r.fields.insert("Exe".into(), e.as_str().into());
         }

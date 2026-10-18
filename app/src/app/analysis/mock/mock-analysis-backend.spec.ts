@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { RecordView } from '../../core/api.types';
 import { AnalysisBackend, TauriAnalysisBackend } from '../../core/analysis-backend';
-import { QlQuery } from '../../core/api.types';
+import { QlQuery, QueryProgress } from '../../core/api.types';
+import { MockAnalysisBackend } from './mock-analysis-backend';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { DEMO_START } from '../../core/mock/mock-data';
 import { allRecords, provideAnalysisTesting } from '../test-setup';
 import { filterRecords, mockCompare, mockFieldStats, mockMoment, mockRequests, mockTraces } from './mock-insights';
+import { at } from '../../../testing/must';
 
 const q = (patch: Partial<QlQuery> = {}): QlQuery => ({ ...EMPTY_QUERY, ...patch });
 const HOUR = 3_600_000;
@@ -35,7 +37,7 @@ describe('MockAnalysisBackend (demo data)', () => {
 
   it('applies the structured query before ql', async () => {
     const out = await backend.runQuery(q({ levels: ['Fatal'], ql: '| stats count()' }));
-    expect('result' in out && out.result.kind === 'table' && out.result.rows[0][0]).toBe(all.filter((r) => r.level === 'Fatal').length);
+    expect('result' in out && out.result.kind === 'table' && at(at(out.result.rows, 0), 0)).toBe(all.filter((r) => r.level === 'Fatal').length);
     expect(filterRecords(all, q({ text: 'timed out', from: DEMO_START, to: DEMO_START + HOUR * 4 })).length).toBeGreaterThan(0);
     expect(filterRecords(all, q({ ql: 'level = fatal' })).every((r) => r.level === 'Fatal')).toBe(true);
     expect(filterRecords(all, q({ ql: '| stats count()' })).length).toBe(all.length);
@@ -56,7 +58,7 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(lastHour.length).toBeLessThan(all.length);
     const windowed = q({ window: { kind: 'live', lastMs: HOUR }, ql: '| stats count()' });
     const out = await backend.runQuery(windowed);
-    expect('result' in out && out.result.kind === 'table' && out.result.rows[0][0]).toBe(lastHour.length);
+    expect('result' in out && out.result.kind === 'table' && at(at(out.result.rows, 0), 0)).toBe(lastHour.length);
     // Every analysis sees the same window.
     const fieldStats = await backend.fieldStats(q({ window: { kind: 'live', lastMs: HOUR } }), 'level', 10);
     const unwindowed = await backend.fieldStats(q(), 'level', 10);
@@ -64,7 +66,7 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(unwindowed.count).toBe(all.length);
     // A later `from` is kept.
     const later = await backend.runQuery(q({ window: { kind: 'live', lastMs: HOUR }, from: newest - 60_000, ql: '| stats count()' }));
-    expect('result' in later && later.result.kind === 'table' && later.result.rows[0][0]).toBe(all.filter((r) => r.ts !== null && r.ts >= newest - 60_000).length);
+    expect('result' in later && later.result.kind === 'table' && at(at(later.result.rows, 0), 0)).toBe(all.filter((r) => r.ts !== null && r.ts >= newest - 60_000).length);
     const moment = await backend.queryMoment(q({ window: { kind: 'live', lastMs: HOUR } }), newest - HOUR, newest);
     expect(moment).toBeTruthy();
   });
@@ -72,20 +74,20 @@ describe('MockAnalysisBackend (demo data)', () => {
   it('mines patterns, exceptions and anomalies', async () => {
     const patterns = await backend.queryPatterns(q());
     expect(patterns.length).toBeGreaterThan(3);
-    expect(patterns[0].count).toBeGreaterThanOrEqual(patterns[1].count);
+    expect(at(patterns, 0).count).toBeGreaterThanOrEqual(at(patterns, 1).count);
     expect(patterns.reduce((s, p) => s + p.count, 0)).toBe(all.length);
-    expect(patterns[0].levels).toHaveLength(6);
+    expect(patterns[0]?.levels).toHaveLength(6);
     expect(patterns.some((p) => p.source === 'Mined')).toBe(true);
 
     const groups = await backend.queryExceptions(q());
     expect(groups.length).toBeGreaterThan(0);
     expect(groups[0]).toMatchObject({ typeName: expect.stringContaining('Exception'), count: expect.any(Number) });
-    expect(groups[0].instances[0]).toEqual([expect.any(String), expect.any(Number)]);
+    expect(groups[0]?.instances[0]).toEqual([expect.any(String), expect.any(Number)]);
 
     const anomalies = await backend.queryAnomalies(q());
     expect(anomalies.length).toBeGreaterThan(0);
     expect(anomalies.map((a) => a.kind)).toContain('crash');
-    expect(anomalies[0].score).toBeGreaterThanOrEqual(anomalies[anomalies.length - 1].score);
+    expect(at(anomalies, 0).score).toBeGreaterThanOrEqual(at(anomalies, -1).score);
     expect(anomalies.every((a) => a.sampleIds.length > 0)).toBe(true);
   });
 
@@ -109,10 +111,10 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(numeric.numeric!.p99).toBeGreaterThanOrEqual(numeric.numeric!.p50);
     const text = await backend.fieldStats(q(), 'MachineName', 5);
     expect(text.numeric).toBeNull();
-    expect(text.top[0].count).toBeGreaterThanOrEqual(text.top[text.top.length - 1].count);
+    expect(at(text.top, 0).count).toBeGreaterThanOrEqual(at(text.top, -1).count);
     const none = await backend.fieldStats(q(), 'NoSuchField', 5);
     expect(none).toMatchObject({ count: 0, distinct: 0, numeric: null, top: [] });
-    const flat = mockFieldStats([{ ...all[0], fields: { n: 5 } }, { ...all[1], fields: { n: 5 } }], 'n', 4);
+    const flat = mockFieldStats([{ ...at(all, 0), fields: { n: 5 } }, { ...at(all, 1), fields: { n: 5 } }], 'n', 4);
     expect(flat.numeric?.histogram.reduce((s, b) => s + b.count, 0)).toBe(2);
   });
 
@@ -125,8 +127,8 @@ describe('MockAnalysisBackend (demo data)', () => {
     const list = await backend.queryTraces(q(), '');
     expect(list.traces.length).toBeGreaterThan(0);
     expect(list.waterfall).toEqual([]);
-    expect(list.traces[0].durationMs).toBeGreaterThanOrEqual(list.traces[list.traces.length - 1].durationMs);
-    const multi = list.traces.find((t) => t.spans > 1) ?? list.traces[0];
+    expect(at(list.traces, 0).durationMs).toBeGreaterThanOrEqual(at(list.traces, -1).durationMs);
+    const multi = list.traces.find((t) => t.spans > 1) ?? at(list.traces, 0);
     const one = await backend.queryTraces(q(), multi.traceId);
     expect(one.waterfall.length).toBe(multi.spans);
     expect(one.waterfall[0]).toMatchObject({ depth: 0, parent: null, startOffsetMs: 0 });
@@ -134,7 +136,8 @@ describe('MockAnalysisBackend (demo data)', () => {
 
     const requests = await backend.queryRequests(q(), 'RequestId|CorrelationId');
     expect(requests.length).toBeGreaterThan(0);
-    expect(requests[0].last - requests[0].first).toBeGreaterThanOrEqual(requests[requests.length - 1].last - requests[requests.length - 1].first);
+    const span = (r: { first: number; last: number }) => r.last - r.first;
+    expect(span(at(requests, 0))).toBeGreaterThanOrEqual(span(at(requests, -1)));
     expect(await backend.queryRequests(q(), 'NoSuch')).toEqual([]);
     expect(mockRequests(all.map((r) => ({ ...r, ts: null })), 'CorrelationId')).toEqual([]);
     expect(mockTraces([], '')).toEqual({ traces: [], waterfall: [] });
@@ -146,7 +149,7 @@ describe('MockAnalysisBackend (demo data)', () => {
     expect(m.total).toBeGreaterThan(0);
     expect(Object.values(m.levels).reduce((s, n) => s + (n ?? 0), 0)).toBe(m.total);
     expect(m.instances.length).toBeGreaterThan(0);
-    expect(m.instances[0].patterns.length).toBeGreaterThan(0);
+    expect(m.instances[0]?.patterns.length).toBeGreaterThan(0);
     expect(m.instances.some((i) => i.firstError !== null)).toBe(true);
     expect(m.metrics.length).toBeGreaterThan(0);
     expect(m.metrics.some((x) => x.previousAvg !== null && x.changePct !== null)).toBe(true);
@@ -189,5 +192,52 @@ describe('TauriAnalysisBackend', () => {
       ['query_requests', { request: { query, idField: 'id' } }],
       ['query_moment', { request: { query, from: 1, to: 2 } }],
     ]);
+  });
+
+  it('streams a run through a channel and cancels it by id', async () => {
+    const calls: [string, unknown][] = [];
+    const made: unknown[] = [];
+    const channel = <T>(onMessage: (m: T) => void) => (made.push(onMessage), { channel: 'fake' });
+    const t = new TauriAnalysisBackend((async (cmd: string, args?: unknown) => (calls.push([cmd, args]), cmd === 'cancel_query' ? true : { cancelled: true })) as never, channel);
+    const query = q({ ql: 'x' });
+    const onProgress = vi.fn();
+    expect(await t.runQueryStreaming(query, 'q-1', onProgress)).toEqual({ cancelled: true });
+    expect(await t.cancelQuery('q-1')).toBe(true);
+    expect(calls).toEqual([
+      ['run_query_stream', { request: { query }, queryId: 'q-1', onProgress: { channel: 'fake' } }],
+      ['cancel_query', { queryId: 'q-1' }],
+    ]);
+    expect(made).toEqual([onProgress]);
+  });
+});
+
+describe('MockAnalysisBackend streaming', () => {
+  it('reports progress, answers like runQuery, and honours a cancel before the run gets going', async () => {
+    const backend = new MockAnalysisBackend(async () => [] as never[]);
+    const seen: unknown[] = [];
+    const out = await backend.runQueryStreaming(q({ ql: '| stats count()' }), 'a', (p) => seen.push(p));
+    expect(out).toEqual(await backend.runQuery(q({ ql: '| stats count()' })));
+    expect(seen).toEqual([
+      { stage: 'matching', done: 0, total: 1 },
+      { stage: 'evaluating', done: 1, total: 1 },
+    ]);
+    const running = backend.runQueryStreaming(q({ ql: 'x' }), 'b', () => undefined);
+    expect(await backend.cancelQuery('b')).toBe(true);
+    expect(await running).toEqual({ cancelled: true });
+    expect(await backend.cancelQuery('b')).toBe(false);
+  });
+
+  it('the base class runs to completion without cancellation', async () => {
+    class Plain extends MockAnalysisBackend {
+      override runQueryStreaming(query: QlQuery, id: string, onProgress: (p: QueryProgress) => void) {
+        return AnalysisBackend.prototype.runQueryStreaming.call(this, query, id, onProgress);
+      }
+      override cancelQuery(id: string) {
+        return AnalysisBackend.prototype.cancelQuery.call(this, id);
+      }
+    }
+    const b = new Plain(async () => [] as never[]);
+    expect(await b.runQueryStreaming(q({ ql: '| stats count()' }), 'c', () => undefined)).toMatchObject({ result: { kind: 'table' } });
+    expect(await b.cancelQuery('c')).toBe(false);
   });
 });

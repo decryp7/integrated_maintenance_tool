@@ -18,7 +18,7 @@ export const TAIL_STATUS_VIEW = 'tail-status';
 export const LIVE_VIEWS: ImtView[] = [
   {
     id: ALERTS_VIEW,
-    title: 'Alerts',
+    title: $localize`:@@live.views.alerts:Alerts`,
     category: 'Live',
     icon: 'alert',
     defaultPosition: 'bottom',
@@ -26,7 +26,7 @@ export const LIVE_VIEWS: ImtView[] = [
   },
   {
     id: TAIL_STATUS_VIEW,
-    title: 'Tail status',
+    title: $localize`:@@live.views.tailStatus:Tail status`,
     category: 'Live',
     icon: 'refresh',
     defaultPosition: 'bottom',
@@ -36,7 +36,7 @@ export const LIVE_VIEWS: ImtView[] = [
 
 /** Title of the alerts tab: "Alerts", or "Alerts (3)" with the number of alerts listed. */
 export function alertsTitle(count: number): string {
-  return count ? `Alerts (${count > 999 ? '999+' : count})` : 'Alerts';
+  return count ? $localize`:@@live.views.alertsCount:Alerts (${count > 999 ? '999+' : count}:count:)` : $localize`:@@live.views.alerts:Alerts`;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,26 +46,26 @@ export class LiveCommands {
   private readonly dialogs = inject(DialogService);
 
   readonly commands: ImtCommand[] = [
-    { id: 'live.toggle', title: 'Toggle live tail', category: 'File', when: () => this.live.available(), run: () => this.live.toggle() },
+    { id: 'live.toggle', title: $localize`:@@live.commands.toggle:Toggle live tail`, category: $localize`:@@live.commands.categoryFile:File`, when: () => this.live.available(), run: () => this.live.toggle() },
     {
       id: 'live.open',
-      title: 'Open for live tail…',
-      category: 'File',
+      title: $localize`:@@live.commands.open:Open for live tail…`,
+      category: $localize`:@@live.commands.categoryFile:File`,
       run: async () => {
         const { OpenLiveDialog } = await import('./open-live-dialog');
-        this.dialogs.open(OpenLiveDialog, { title: 'Open for live tail', width: 480 });
+        this.dialogs.open(OpenLiveDialog, { title: $localize`:@@live.commands.openTitle:Open for live tail`, width: 480 });
       },
     },
-    { id: 'live.resume', title: 'Resume following', category: 'Analyze', when: () => this.live.enabled(), run: () => this.follow.resume() },
-    { id: 'live.alerts', title: 'Show live alerts', category: 'View', run: (ctx) => ctx.showView(ALERTS_VIEW) },
-    { id: 'live.status', title: 'Show tail status', category: 'View', run: (ctx) => ctx.showView(TAIL_STATUS_VIEW) },
+    { id: 'live.resume', title: $localize`:@@live.commands.resume:Resume following`, category: $localize`:@@live.commands.categoryAnalyze:Analyze`, when: () => this.live.enabled(), run: () => this.follow.resume() },
+    { id: 'live.alerts', title: $localize`:@@live.commands.showAlerts:Show live alerts`, category: $localize`:@@live.commands.categoryView:View`, run: (ctx) => ctx.showView(ALERTS_VIEW) },
+    { id: 'live.status', title: $localize`:@@live.commands.showStatus:Show tail status`, category: $localize`:@@live.commands.categoryView:View`, run: (ctx) => ctx.showView(TAIL_STATUS_VIEW) },
     {
       id: 'live.rules',
-      title: 'Edit live alert rules…',
-      category: 'Analyze',
+      title: $localize`:@@live.commands.rules:Edit live alert rules…`,
+      category: $localize`:@@live.commands.categoryAnalyze:Analyze`,
       run: async () => {
         const { AlertRulesEditor } = await import('./alert-rules-editor');
-        this.dialogs.open(AlertRulesEditor, { title: 'Live alert rules', width: 760 });
+        this.dialogs.open(AlertRulesEditor, { title: $localize`:@@live.alertsView.dialogTitle:Live alert rules`, width: 760 });
       },
     },
   ];

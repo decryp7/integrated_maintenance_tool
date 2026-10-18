@@ -7,6 +7,7 @@ import { parseProfile } from '../profile/toml';
 import { IconFilePicker } from './icon-import';
 import { MarkerEditor } from './marker-editor';
 import { MarkerRuleX } from './markers.types';
+import { at } from '../../testing/must';
 
 const slow = [{ field: '@message', op: 'matches' as const, value: 'Slow request' }];
 
@@ -35,8 +36,8 @@ describe('MarkerEditor', () => {
     expect(el<HTMLInputElement>(fixture, 'input[maxlength="3"]').value).toBe('1');
     expect(el<HTMLInputElement>(fixture, 'input.mono').value).toBe('slow-requests');
     typeInto(el<HTMLInputElement>(fixture, 'input[placeholder="What does this marker mean?"]'), 'Requests over the SLA');
-    all<HTMLButtonElement>(fixture, '.shapes .pick')[3].click();
-    all<HTMLButtonElement>(fixture, '.swatch')[3].click();
+    at(all<HTMLButtonElement>(fixture, '.shapes .pick'), 3).click();
+    at(all<HTMLButtonElement>(fixture, '.swatch'), 3).click();
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
@@ -64,7 +65,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
-    const rule = (await rules(backend))[0];
+    const rule = at((await rules(backend)), 0);
     expect(rule.icon).toBe('rocket');
     expect(rule).not.toHaveProperty('badge');
     expect(rule).not.toHaveProperty('shape');
@@ -98,10 +99,10 @@ describe('MarkerEditor', () => {
     await settle(fixture, 8);
     const model = parseProfile((await backend.getProfile()).toml);
     expect(model['icon']).toEqual([{ name: 'Acme-Logo', svg }]);
-    expect((model.marker as MarkerRuleX[])[0].icon).toBe('Acme-Logo');
+    expect(at(model.marker as MarkerRuleX[], 0).icon).toBe('Acme-Logo');
     const stored = TestBed.inject(WorkspaceStore).summary() as unknown as { icons: { name: string; svg: string }[] };
-    expect(stored.icons[0].svg).not.toContain('script');
-    expect(stored.icons[0].svg).toContain('<path');
+    expect(at(stored.icons, 0).svg).not.toContain('script');
+    expect(at(stored.icons, 0).svg).toContain('<path');
   });
 
   it('shows import errors and lets an existing custom icon be reused', async () => {
@@ -159,7 +160,7 @@ describe('MarkerEditor', () => {
     const existing = (await rules(backend)).find((r) => r.kind === 'error')!;
     const { fixture } = await mount({ rule: { ...existing, extra_key: 'keep' }, submitLabel: 'Save marker' }, backend);
     expect(el<HTMLInputElement>(fixture, 'input.mono').value).toBe('error');
-    all<HTMLButtonElement>(fixture, '.shapes .pick')[1].click();
+    at(all<HTMLButtonElement>(fixture, '.shapes .pick'), 1).click();
     typeInto(el<HTMLInputElement>(fixture, 'input[maxlength="3"]'), 'E');
     await settle(fixture);
     buttonByText(fixture, 'Save marker').click();
@@ -210,7 +211,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
-    expect((await rules(backend))[0].when).toEqual([{ field: '@level', op: 'eq', value: 'Error' }]);
+    expect(at((await rules(backend)), 0).when).toEqual([{ field: '@level', op: 'eq', value: 'Error' }]);
   });
 
   it('shows a preview error when the count fails and offers a regex explanation', async () => {

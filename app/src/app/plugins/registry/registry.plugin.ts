@@ -8,8 +8,8 @@ export const REGISTRY_PLUGIN: ImtPlugin = {
   views: [
     {
       id: 'registry',
-      title: 'Registry',
-      plugin: 'Windows registry',
+      title: $localize`:@@plugins.registry.view.title:Registry`,
+      plugin: $localize`:@@plugins.registry.view.plugin:Windows registry`,
       icon: 'folder',
       defaultPosition: 'center',
       component: () => import('./registry-view').then((m) => m.RegistryView),
@@ -21,8 +21,8 @@ export const REGISTRY_PLUGIN: ImtPlugin = {
   commands: [
     {
       id: 'registry.show',
-      title: 'Show registry viewer',
-      category: 'Registry',
+      title: $localize`:@@plugins.registry.cmd.show:Show registry viewer`,
+      category: $localize`:@@plugins.registry.cmd.category:Registry`,
       when: (ctx) => !!ctx.summary?.sources.some((s) => s.importer === 'registry'),
       run: (ctx) => ctx.showView('registry'),
     },

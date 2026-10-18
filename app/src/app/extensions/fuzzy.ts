@@ -15,7 +15,7 @@ export function fuzzyScore(query: string, text: string): number | null {
     if (found < 0) return null;
     score += 1;
     if (found === prev + 1) score += 3;
-    if (found === 0 || /[\s:._\-/]/.test(t[found - 1])) score += 2;
+    if (found === 0 || /[\s:._\-/]/.test(t[found - 1] ?? '')) score += 2;
     prev = found;
     ti = found + 1;
   }

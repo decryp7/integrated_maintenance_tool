@@ -35,36 +35,36 @@ export interface FacetFilterEvent {
       <span class="faint" data-testid="facet-summary">{{ summary() }}</span>
     </div>
     <div class="facet-actions">
-      <button class="btn" (click)="groupBy.emit(false)">Group by</button>
-      <button class="btn" (click)="groupBy.emit(true)">Add to group</button>
-      <button class="btn" (click)="addColumn.emit()">Add column</button>
+      <button class="btn" (click)="groupBy.emit(false)" i18n="@@workspace.facet.groupBy">Group by</button>
+      <button class="btn" (click)="groupBy.emit(true)" i18n="@@workspace.facet.addToGroup">Add to group</button>
+      <button class="btn" (click)="addColumn.emit()" i18n="@@workspace.facet.addColumn">Add column</button>
       @if (numeric()) {
-        <button class="btn" (click)="chart.emit()">Chart this field</button>
+        <button class="btn" (click)="chart.emit()" i18n="@@workspace.facet.chart">Chart this field</button>
       }
     </div>
     @if (error(); as e) {
       <div class="err" role="alert">
-        <span>Could not load the values: {{ e }}</span>
-        <button class="btn" (click)="load()">Retry</button>
+        <span i18n="@@workspace.facet.loadFailed">Could not load the values: {{ e }}</span>
+        <button class="btn" (click)="load()" i18n="@@workspace.facet.retry">Retry</button>
       </div>
     } @else if (!facet()) {
-      <div class="faint" role="status">Loading…</div>
+      <div class="faint" role="status" i18n="@@workspace.facet.loading">Loading…</div>
     } @else {
-      <input class="input" type="search" placeholder="Search values" aria-label="Search values" [value]="search()" (input)="search.set($any($event.target).value)" />
+      <input class="input" type="search" placeholder="Search values" i18n-placeholder="@@workspace.facet.searchPlaceholder" aria-label="Search values" i18n-aria-label="@@workspace.facet.search" [value]="search()" (input)="search.set($any($event.target).value)" />
       @if (shown().length) {
-        <imt-virtual-list [items]="shown()" [itemHeight]="26" [maxHeight]="260" label="Values">
+        <imt-virtual-list [items]="shown()" [itemHeight]="26" [maxHeight]="260" label="Values" i18n-label="@@workspace.facet.values">
           <ng-template let-v>
             <div class="value">
-              <span class="mono ellipsis" [title]="v.value">{{ v.value || '(empty)' }}</span>
+              <span class="mono ellipsis" [title]="v.value">{{ v.value || emptyValue }}</span>
               <span class="bar"><span [style.width.%]="share(v.count)"></span></span>
               <span class="mono faint">{{ count(v.count) }}</span>
-              <button class="icon-btn" title="Only this value" [attr.aria-label]="'Filter ' + field() + ' equals ' + v.value" (click)="filter.emit({ op: 'eq', value: v.value })"><imt-icon name="plus" [size]="12" /></button>
-              <button class="icon-btn" title="Exclude this value" [attr.aria-label]="'Filter ' + field() + ' not equal ' + v.value" (click)="filter.emit({ op: 'ne', value: v.value })"><imt-icon name="minus" [size]="12" /></button>
+              <button class="icon-btn" title="Only this value" i18n-title="@@workspace.facet.only" [attr.aria-label]="filterLabel('eq', v.value)" (click)="filter.emit({ op: 'eq', value: v.value })"><imt-icon name="plus" [size]="12" /></button>
+              <button class="icon-btn" title="Exclude this value" i18n-title="@@workspace.facet.exclude" [attr.aria-label]="filterLabel('ne', v.value)" (click)="filter.emit({ op: 'ne', value: v.value })"><imt-icon name="minus" [size]="12" /></button>
             </div>
           </ng-template>
         </imt-virtual-list>
       } @else {
-        <div class="faint">{{ search() ? 'No value matches the search.' : 'No values in the current results.' }}</div>
+        <div class="faint">@if (search()) { <ng-container i18n="@@workspace.facet.noMatch">No value matches the search.</ng-container> } @else { <ng-container i18n="@@workspace.facet.noValues">No values in the current results.</ng-container> }</div>
       }
     }
   `,
@@ -94,6 +94,7 @@ export class FacetPopover {
   readonly filter = output<FacetFilterEvent>();
 
   protected readonly count = formatCount;
+  protected readonly emptyValue = $localize`:@@workspace.facet.empty:(empty)`;
   protected readonly facet = signal<Facet | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly search = signal('');
@@ -107,13 +108,13 @@ export class FacetPopover {
 
   protected readonly summary = computed(() => {
     const f = this.facet();
-    if (this.error()) return 'unavailable';
+    if (this.error()) return $localize`:@@workspace.facet.unavailable:unavailable`;
     if (!f) return '…';
     const loaded = f.values.length;
     const distinct = f.distinct >= 10000 ? '10,000+' : formatCount(f.distinct);
-    const parts = [`${distinct} values in current results`];
-    if (this.search().trim()) parts.push(`${formatCount(this.shown().length)} match`);
-    else if (loaded < f.distinct) parts.push(`top ${formatCount(loaded)} shown`);
+    const parts = [$localize`:@@workspace.facet.summary:${distinct}:count: values in current results`];
+    if (this.search().trim()) parts.push($localize`:@@workspace.facet.matches:${formatCount(this.shown().length)}:count: match`);
+    else if (loaded < f.distinct) parts.push($localize`:@@workspace.facet.topShown:top ${formatCount(loaded)}:count: shown`);
     return parts.join(' · ');
   });
 
@@ -131,6 +132,13 @@ export class FacetPopover {
         if (version > 0 && this.facet()) void this.load(true);
       });
     });
+  }
+
+  protected filterLabel(op: 'eq' | 'ne', value: string): string {
+    const field = this.field();
+    return op === 'eq'
+      ? $localize`:@@workspace.facet.filterEq:Filter ${field}:field: equals ${value}:value:`
+      : $localize`:@@workspace.facet.filterNe:Filter ${field}:field: not equal ${value}:value:`;
   }
 
   protected share(n: number): number {

@@ -122,13 +122,13 @@ describe('ProfileBar', () => {
     typeInto(select, '2', 'change');
     fixture.detectChanges();
     expect(state.profileId()).toBe(2);
-    expect(sel(fixture, 'Active profile').selectedOptions[0].textContent).toContain('regression');
+    expect(sel(fixture, 'Active profile').selectedOptions[0]?.textContent).toContain('regression');
   });
 
   it('picks the metric and shows its measurement tag', async () => {
     const { fixture, state } = await mountBar();
     const metric = sel(fixture, 'Metric');
-    expect(metric.selectedOptions[0].textContent).toMatch(/\((sampled|exact)\)/);
+    expect(metric.selectedOptions[0]?.textContent).toMatch(/\((sampled|exact)\)/);
     expect(all(fixture, '[data-measurement]').length).toBe(1);
     typeInto(metric, 'samples', 'change');
     fixture.detectChanges();

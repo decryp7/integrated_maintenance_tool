@@ -596,6 +596,7 @@ impl Workspace {
             .extractors
             .iter()
             .flat_map(|e| e.fields.iter().map(|(n, _)| n.as_str()))
+            .chain(self.profile.pipeline.calc_fields())
             .collect();
         self.fields = self.field_index.infos(&derived);
     }
@@ -644,6 +645,12 @@ impl Workspace {
     /// Ids (ascending) of every record matching the query, cached for paging
     /// and kept up to date on append (only new records are evaluated).
     pub fn matching(&self, q: &Query) -> Result<Arc<Vec<u32>>> {
+        self.matching_with(q, &crate::ql::QueryControl::new())
+    }
+
+    /// Like [`matching`](Self::matching), checking `control` between batches of records (stage
+    /// `Matching` of its progress). A cancelled run fails with [`crate::ql::Cancelled`] and is not cached.
+    pub fn matching_with(&self, q: &Query, control: &crate::ql::QueryControl) -> Result<Arc<Vec<u32>>> {
         let key = serde_json::to_string(q)?;
         let resolved = self.resolve_window(q).into_owned();
         if let Some(ids) = self
@@ -655,12 +662,21 @@ impl Workspace {
             return Ok(ids);
         }
         let cq = CompiledQuery::new(&resolved, &self.default_group_by, &self.marker_kinds)?;
+        control.begin(crate::ql::QueryStage::Matching, self.records.len());
         let ids: Vec<u32> = self
             .records
-            .par_iter()
-            .filter(|r| cq.matches(r, self.source_name(r.source)))
-            .map(|r| r.id)
+            .par_chunks(crate::ql::BATCH)
+            .flat_map_iter(|chunk| {
+                let skip = control.is_cancelled();
+                control.advance(chunk.len());
+                let cq = &cq;
+                chunk
+                    .iter()
+                    .filter(move |r| !skip && cq.matches(r, self.source_name(r.source)))
+                    .map(|r| r.id)
+            })
             .collect();
+        control.check()?;
         let ids = Arc::new(ids);
         self.cache
             .lock()
@@ -738,16 +754,17 @@ impl Workspace {
             .iter()
             .enumerate()
             .map(|(index, cfg)| {
-                let (input, output) = self
+                let (input, output, errors) = self
                     .sources
                     .iter()
                     .filter_map(|s| s.step_stats.get(index))
-                    .fold((0, 0), |(i, o), s| (i + s.input, o + s.output));
+                    .fold((0, 0, 0), |(i, o, e), s| (i + s.input, o + s.output, e + s.errors));
                 PipelineStepInfo {
                     index,
                     step: cfg.step.clone(),
                     input,
                     output,
+                    errors,
                 }
             })
             .collect()

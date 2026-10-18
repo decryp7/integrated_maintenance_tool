@@ -8,6 +8,7 @@ import { SnapshotBackend } from '../diagnostics/snapshot-backend';
 import { MemoryLogger } from '../../testing/helpers';
 import { ShareBackend } from './share-backend';
 import { snapshotRedaction, UNREDACTED_PLACEHOLDER } from './snapshot-redaction';
+import { at } from '../../testing/must';
 
 class Screen extends ScreenCapture {
   async capture() {
@@ -36,7 +37,8 @@ describe('error snapshots and the redacted view', () => {
     const preview = vi.fn(async () => ({ after: 'masked' }));
     const { backend, service } = setup(true, preview);
     await service.capture('unhandled-error', { error: new Error('mail a@b.io') });
-    const [saved] = await backend.list();
+    const saves = await backend.list();
+    const saved = at(saves, 0);
     expect(saved.message).toBe('masked');
     expect(saved.stack).toBe('masked');
     expect(preview).toHaveBeenCalledTimes(2);
@@ -46,14 +48,15 @@ describe('error snapshots and the redacted view', () => {
     const preview = vi.fn(async () => ({ after: 'masked' }));
     const plain = setup(false, preview);
     await plain.service.capture('manual');
-    expect((await plain.backend.list())[0].message).toBe('manual');
+    expect((await plain.backend.list())[0]?.message).toBe('manual');
     expect(preview).not.toHaveBeenCalled();
     TestBed.resetTestingModule();
     const failing = setup(true, async () => {
       throw new Error('no engine');
     });
     await failing.service.capture('manual');
-    const [saved] = await failing.backend.list();
+    const saves = await failing.backend.list();
+    const saved = at(saves, 0);
     expect(saved.message).toBe(UNREDACTED_PLACEHOLDER);
     expect(saved.stack ?? null).toBeNull();
   });

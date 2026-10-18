@@ -1,9 +1,14 @@
-//! Smoke test of the real worker (llama.cpp) with a real model. Ignored by default:
+//! Smoke test of the real worker (which runs a prebuilt llama-server, ADR 0009) with a real model.
+//! Ignored by default:
 //!
-//!   cargo build -p imt-ai-worker --features metal        # or vulkan; no feature = CPU
-//!   IMT_TEST_GGUF=/path/model.gguf cargo test -p imt-ai --test real_worker -- --ignored --nocapture
+//!   cargo build -p imt-ai-worker
+//!   IMT_LLAMA_SERVER=/path/llama-server IMT_TEST_GGUF=/path/model.gguf \
+//!     cargo test -p imt-ai --test real_worker -- --ignored --nocapture
 //!
-//! `IMT_AI_WORKER` may point at the worker binary; otherwise the one next to the test target is used.
+//! Instead of `IMT_LLAMA_SERVER`, `IMT_LLAMA_DIR` may point at a runtimes folder (`<data>/ai/runtimes/<tag>/`,
+//! holding `<id>/llama-server`) with `IMT_LLAMA_BUILD` choosing a build (`auto` by default); the worker
+//! inherits these from the test. `IMT_AI_WORKER` may point at the worker binary; otherwise the one next to
+//! the test target is used.
 
 mod common;
 use imt_ai::assistant::{Assistant, AssistantConfig};
@@ -52,7 +57,7 @@ fn the_real_worker_loads_a_model_and_answers() {
     let mut cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
         exe: worker_exe(),
         args: vec![],
-        env: vec![],
+        env: imt_ai::worker::fixed_env(vec![]),
     }));
     cfg.stall_timeout = Duration::from_secs(120);
     let rt = WorkerRuntime::new(cfg, Box::new(|| SystemProbe::new(Sys).probe()));

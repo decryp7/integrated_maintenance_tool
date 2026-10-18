@@ -114,11 +114,66 @@ metrics = ["CpuPercent", "WorkingSetMb", "PrivateMb", "Handles", "Threads", "Ela
 #   step = "lookup"         field, table = { KEY = { Field = value } } and/or
 #                           file = "lookup.csv" (key = column, default the first)
 #   step = "shift_time"     by = "+2.4s" | "-150ms": correct clock skew
-#   step = "plugin"         id: a transform contributed by an installed plugin
+#   step = "calc"           field, expr: compute a field from other fields (below)
+#   step = "script"         script: a Rhai script run on every event (below)
+#   step = "plugin"       id: a transform contributed by an installed plugin
 #
 # [[pipeline]]
 # step = "drop"
 # when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
+#
+# Calculated fields. `expr` is checked when the profile loads (an error names the
+# column); `field` is the field written (not an @pseudo-field). The result is a
+# field like any other: usable in queries, facets, charts and later steps.
+#   values     1.5  2e3  "text"  'text'  true  false  null
+#   fields     ElapsedMs  log.level  @line @message @level @source  `odd name`
+#              (names with spaces, dashes or operators go in backticks)
+#   operators  * / %  then  + -  then  = == != < <= > >=  then  not, and, or
+#              (parentheses group; "+" joins text when either side is text)
+#   functions  round(x[, digits])  floor(x)  ceil(x)  abs(x)  min(a, ...)
+#              max(a, ...)  len(s)  lower(s)  upper(s)  coalesce(a, b, ...)
+#              if(cond, then, else)  substr(s, start[, len])  to_number(s)
+#              (substr counts characters from 0; a negative start counts from the end;
+#              if() takes the else branch when the condition is null)
+# A missing field, a type mismatch or a division by zero makes the result null,
+# and a null result writes nothing (an existing value is kept). Text that reads
+# as a number counts as one in arithmetic and comparisons; to_number() also turns
+# it into a number for "+". Expressions are at most 4096 bytes and 64 levels deep.
+#
+# [[pipeline]]
+# step = "calc"
+# field = "ElapsedSec"
+# expr = "round(ElapsedMs / 1000, 2)"
+#
+# [[pipeline]]
+# step = "calc"
+# field = "Outcome"
+# expr = "if(StatusCode >= 500, 'server error', if(StatusCode >= 400, 'client error', 'ok'))"
+#
+# Scripts, for transforms the other steps cannot express (https://rhai.rs). The
+# script runs once per event and sees:
+#   message    the message (string)            level   "Warning", "Error", ... (string)
+#   timestamp  ms since 1970, or () if none    source  the file name (read-only)
+#   fields     map of the event's fields: fields.ElapsedMs, fields["odd name"]
+# It may change message, level, timestamp and fields (add, change, or remove with
+# fields.remove("Name")), or call drop() to drop the event; otherwise it is kept.
+# A missing field reads as (). Functions besides Rhai's own (s.contains(x),
+# s.replace(a, b) in place, s.to_upper(), ...):
+#   drop()  regex_match(s, re)  regex_replace(s, re, with)  regex_capture(s, re, group)
+# The script is compiled when the profile loads (an error names line and column;
+# unknown variables are errors). It has no file, network, process, module or eval
+# access. Per event it may run 100,000 operations, 16 nested calls and build
+# strings up to 4 MiB and arrays/maps up to 10,000 entries; a runtime error or an
+# exceeded limit leaves that event unchanged and counts as an error in the
+# pipeline statistics. Scripts are at most 64 KiB.
+#
+# [[pipeline]]
+# step = "script"
+# script = '''
+# if fields.ElapsedMs > 5000 { fields.Slow = true; level = "Warning"; }
+# message = regex_replace(message, "password=\\S+", "password=***");
+# if fields.SourceContext == "HealthChecks" { drop(); }
+# '''
 
 # Markers: first matching rule (in this order) is the event's primary marker.
 # Optional `icon` shows on the timeline instead of the built-in shape: alert, bug, flag,

@@ -1,0 +1,62 @@
+---
+source: crates/imt-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: kubernetes/pods/shop_order-events-7c9d8b5f4-x2k4p_1d2ee59b-03c2-8ba5-2786-5799c6b578de/consumer/1.log
+importer: text
+records: 933
+skipped: 0
+levels:
+  2-Information: 933
+with_timestamp: 933
+first_timestamp: "2026-10-14T10:42:13.412Z"
+last_timestamp: "2026-10-14T11:59:53.308Z"
+fields:
+  - count
+  - error
+  - group
+  - lagMs
+  - level
+  - msg
+  - topic
+  - ts
+first:
+  - line: 1
+    timestamp: "2026-10-14T10:42:13.412Z"
+    level: Information
+    message: stdout F
+    fields:
+      group: order-events
+      level: info
+      msg: consumer started
+      ts: "2026-10-14T10:42:13.412000Z"
+  - line: 2
+    timestamp: "2026-10-14T10:42:13.424Z"
+    level: Information
+    message: "stderr F I1014 10:42:13.412000       1 leaderelection.go:250] attempting to acquire leader lease shop/order-events"
+    fields: {}
+  - line: 3
+    timestamp: "2026-10-14T10:42:14.885Z"
+    level: Information
+    message: stdout F
+    fields:
+      count: 27
+      lagMs: 4020
+      level: info
+      msg: consumed batch
+      ts: "2026-10-14T10:42:14.885216Z"
+  - line: 4
+    timestamp: "2026-10-14T10:42:16.789Z"
+    level: Information
+    message: "stderr F W1014 10:42:16.789110       1 reflector.go:424] watch of *v1.ConfigMap ended with: too old resource version"
+    fields: {}
+  - line: 5
+    timestamp: "2026-10-14T10:42:26.097Z"
+    level: Information
+    message: stdout F
+    fields:
+      count: 27
+      lagMs: 4020
+      level: info
+      msg: consumed batch
+      ts: "2026-10-14T10:42:26.097013Z"

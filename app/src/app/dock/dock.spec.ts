@@ -1,4 +1,4 @@
-import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, signal } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, OnDestroy, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { DockviewApi, SerializedDockview } from 'dockview';
 import { MemoryLogger, provideDockTesting, settle, testLogger, tinyDataset } from '../../testing/helpers';
@@ -16,6 +16,7 @@ import { GroupActions } from './group-actions';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
 import { loadDockview } from './dockview-loader';
+import { at, must } from '../../testing/must';
 
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
@@ -98,7 +99,7 @@ describe('LocalStorageLayoutStore', () => {
 
 describe('AngularContentRenderer', () => {
   @Component({ selector: 'imt-probe', template: 'probe-content' })
-  class Probe {
+  class Probe implements OnDestroy {
     static destroyed = 0;
     ngOnDestroy() {
       Probe.destroyed++;
@@ -294,7 +295,7 @@ describe('Panel error boundary', () => {
       'probe',
     );
     await failed(r, 'constructor boom');
-    card(r)!.querySelectorAll('button')[0].click();
+    at(card(r)!.querySelectorAll('button'), 0).click();
     await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
     expect(card(r)).toBeNull();
     expect(attempts).toBe(2);
@@ -306,10 +307,10 @@ describe('Panel error boundary', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const r = renderer(BoomCtor, 'events');
     await failed(r, 'constructor boom');
-    const copy = card(r)!.querySelectorAll('button')[1];
+    const copy = at(card(r)!.querySelectorAll('button'), 1);
     copy.click();
     await vi.waitFor(() => expect(copy.textContent).toBe('Copied'));
-    expect(writeText.mock.calls[0][0]).toContain('Panel: events\nError: constructor boom');
+    expect(at(writeText.mock.calls, 0)[0]).toContain('Panel: events\nError: constructor boom');
     writeText.mockRejectedValueOnce(new Error('denied'));
     copy.click();
     await vi.waitFor(() => expect(copy.textContent).toBe('Copy failed'));
@@ -332,9 +333,9 @@ describe('Panel error boundary', () => {
     r = renderer(BoomCtor, 'broken');
     await failed(r, 'constructor boom');
     expect(seen).toHaveLength(1);
-    expect(seen[0][0]).toBe('broken');
-    expect((seen[0][1] as Error).message).toBe('constructor boom');
-    expect(seen[0][2]).toBe(true);
+    expect(at(seen, 0)[0]).toBe('broken');
+    expect((at(seen, 0)[1] as Error).message).toBe('constructor boom');
+    expect(at(seen, 0)[2]).toBe(true);
     expect(reporter.backendFailed).not.toHaveBeenCalled();
     r.dispose();
   });
@@ -570,7 +571,7 @@ describe('DockService with dockview', () => {
     first.dock.attach(container);
     const layout = JSON.parse(JSON.stringify(first.dock['api']!.toJSON())) as SerializedDockview;
     first.dock.detach();
-    layout.panels['timeline'].contentComponent = 'ghost';
+    must(layout.panels['timeline']).contentComponent = 'ghost';
     saved = layout;
     first.dock.attach(container);
     expect(container.textContent).toContain('"ghost" is not available');
@@ -641,7 +642,7 @@ describe('DockService with dockview', () => {
     expect(dock.isOpen('registry')).toBe(false); // the mock opens extra files as plain text
     // Make the summary contain a registry source.
     const summary = structuredClone(store.summary()!);
-    summary.sources.push({ ...summary.sources[0], id: 77, importer: 'registry', name: 'r.reg' });
+    summary.sources.push({ ...at(summary.sources, 0), id: 77, importer: 'registry', name: 'r.reg' });
     store.applySummary(summary);
     await settle();
     expect(dock.isOpen('registry')).toBe(true);
@@ -670,7 +671,7 @@ describe('DockService with dockview', () => {
     dock.attach(container);
     await settle();
     const summary = structuredClone(store.summary()!);
-    summary.sources.push({ ...summary.sources[0], id: 77, importer: 'registry', name: 'r.reg' });
+    summary.sources.push({ ...at(summary.sources, 0), id: 77, importer: 'registry', name: 'r.reg' });
     store.applySummary(summary);
     await settle();
     expect(dock.isOpen('registry')).toBe(true);

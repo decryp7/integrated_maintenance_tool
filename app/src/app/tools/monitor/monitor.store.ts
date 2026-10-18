@@ -61,26 +61,26 @@ export const MonitorStore = signalStore(
 
       /** Reads whether a run is in progress (the monitor outlives the panel). */
       refresh: () =>
-        run('Checking…', async () => {
+        run($localize`:@@tools.monitor.busy.checking:Checking…`, async () => {
           const status = await backend.monitorStatus();
           patchState(store, { running: status.running, dir: status.dir ?? store.dir() });
         }),
 
       /** Starts sampling, opens the output folder and follows it live. */
       start: () =>
-        run('Starting…', async () => {
+        run($localize`:@@tools.monitor.busy.starting:Starting…`, async () => {
           const d = store.draft();
           const dir = await backend.monitorStart(toMonitorConfig(d), d.dir.trim() || undefined);
           patchState(store, { running: true, dir });
           await workspace.openPaths([dir]);
           await live.start();
-          patchState(store, { notice: 'Monitoring started. The results appear in the workspace as they are written.' });
+          patchState(store, { notice: $localize`:@@tools.monitor.notice.started:Monitoring started. The results appear in the workspace as they are written.` });
         }),
 
       stop: () =>
-        run('Stopping…', async () => {
+        run($localize`:@@tools.monitor.busy.stopping:Stopping…`, async () => {
           const dir = await backend.monitorStop();
-          patchState(store, { running: false, dir: dir ?? store.dir(), notice: 'Monitoring stopped.' });
+          patchState(store, { running: false, dir: dir ?? store.dir(), notice: $localize`:@@tools.monitor.notice.stopped:Monitoring stopped.` });
         }),
     };
   }),

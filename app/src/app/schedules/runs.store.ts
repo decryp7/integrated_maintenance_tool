@@ -53,7 +53,7 @@ export const RunsStore = signalStore(
         patchState(store, { error: null, notice: null });
         try {
           await backend.openRun(id, path());
-          patchState(store, { notice: `Opened ${id} in a new window.` });
+          patchState(store, { notice: $localize`:@@schedules.runs.opened:Opened ${id}:id: in a new window.` });
         } catch (e) {
           patchState(store, { error: errorMessage(e) });
         }

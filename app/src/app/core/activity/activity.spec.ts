@@ -10,6 +10,7 @@ import { classifyKey, classifyTarget, TriggerTracker } from './trigger';
 import { Breadcrumb } from './types';
 import { withOpHeader } from './ipc';
 
+import { at } from '../../../testing/must';
 /** A clock the test moves by hand. */
 export class FakeClock implements Clock {
   t = 1_000_000;
@@ -100,7 +101,7 @@ describe('ActivityRuntime', () => {
     });
     expect(result).toBe(7);
     expect(out).toHaveLength(1);
-    const { level, message, props } = out[0];
+    const { level, message, props } = at(out, 0);
     expect(level).toBe('info');
     expect(message).toBe('User export.csv via menu');
     expect(props).toMatchObject({
@@ -124,13 +125,13 @@ describe('ActivityRuntime', () => {
     await expect(rt.track('export.csv', 'button', {}, () => Promise.reject(boom))).rejects.toBe(boom);
     expect(out[0]).toMatchObject({ level: 'warn', props: { Outcome: 'error', ErrorCode: 'E_IO' } });
     await expect(rt.track('file.open', 'dialog', {}, () => Promise.reject(new DOMException('x', 'AbortError')))).rejects.toBeTruthy();
-    expect(out[1].props['Outcome']).toBe('cancelled');
+    expect(out[1]?.props['Outcome']).toBe('cancelled');
     await expect(
       rt.track('sync', 'shortcut', {}, () => {
         throw new TypeError('bad');
       }),
     ).rejects.toBeInstanceOf(TypeError);
-    expect(out[2].props).toMatchObject({ Outcome: 'error', ErrorCode: 'TypeError' });
+    expect(out[2]?.props).toMatchObject({ Outcome: 'error', ErrorCode: 'TypeError' });
   });
 
   it('describes errors', () => {
@@ -166,11 +167,11 @@ describe('ActivityRuntime', () => {
     expect(out).toHaveLength(0);
     clock.advance(400);
     expect(out).toHaveLength(1);
-    expect(out[0].props).toMatchObject({ Operation: 'query.change', QueryLength: '2', Count: '2', OperationId: id });
+    expect(out[0]?.props).toMatchObject({ Operation: 'query.change', QueryLength: '2', Count: '2', OperationId: id });
     rt.coalesce('t', 'timeRange.change', 'pointer', {}, 800);
     rt.flushCoalesced();
-    expect(out[1].props['Operation']).toBe('timeRange.change');
-    expect(out[1].props['Count']).toBeUndefined();
+    expect(out[1]?.props['Operation']).toBe('timeRange.change');
+    expect(out[1]?.props['Count']).toBeUndefined();
     // Bounded number of pending keys.
     for (let i = 0; i < 40; i++) rt.coalesce(`k${i}`, 'x', 'program', {}, 800);
     expect(out.length).toBeGreaterThan(2);
@@ -213,7 +214,7 @@ describe('ActivityRuntime', () => {
     rt.triggers.noteNativeMenu('file.open');
     clock.advance(5);
     rt.end(op, 'ok');
-    expect(out[0].props['Trigger']).toBe('native-menu');
+    expect(out[0]?.props['Trigger']).toBe('native-menu');
   });
 });
 
@@ -421,8 +422,8 @@ describe('fault injection (test hook)', () => {
     const views = [{ id: 'a', title: 'A', icon: 'x', component: async () => Object }, { id: 'b', title: 'B', icon: 'x', component: async () => Object }];
     expect(withInjectedFaults(views, null)).toBe(views);
     const one = withInjectedFaults(views, 'b');
-    expect(await one[0].component()).toBe(Object);
-    expect(await one[1].component()).toBe(InjectedFault);
+    expect(await one[0]?.component()).toBe(Object);
+    expect(await one[1]?.component()).toBe(InjectedFault);
     expect(withInjectedFaults(views, '*').length).toBe(2);
     expect(() => new InjectedFault()).toThrow('Injected fault');
   });

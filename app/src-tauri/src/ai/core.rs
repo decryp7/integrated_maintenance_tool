@@ -4,6 +4,7 @@
 
 use super::approvals::Approvals;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
+use super::runtimes::{RuntimeDeps, RuntimeJobs};
 use imt_ai::assistant::{Assistant, AssistantConfig};
 use imt_ai::catalog::Catalog;
 use imt_ai::gguf::{self, GgufInfo};
@@ -47,17 +48,26 @@ pub struct AiDeps {
     /// The worker binary; when it is missing the AI is unavailable. `None` skips the check (tests).
     pub worker_path: Option<PathBuf>,
     pub download_backoff: Duration,
+    /// The inference runtimes (llama-server builds) and how to download and check them.
+    pub runtimes: RuntimeDeps,
+    /// The current settings, shared with the worker launcher (its environment names the chosen build and is
+    /// evaluated at every launch). [`AiCore`] keeps it up to date.
+    pub settings: Arc<RwLock<AiSettings>>,
 }
 
 impl AiDeps {
-    /// The real adapters: the llama.cpp worker at `worker`, the system's hardware, Hugging Face, the keychain.
-    pub fn system(worker: PathBuf) -> AiDeps {
+    /// The real adapters: the worker at `worker` (running the llama-server builds kept in
+    /// `<data_dir>/ai/runtimes`), the system's hardware, Hugging Face and GitHub releases, the keychain.
+    pub fn system(worker: PathBuf, data_dir: &Path) -> AiDeps {
         let probe = Arc::new(SystemProbe::new(imt_collect::SystemRunner));
         let p = probe.clone();
+        let settings = Arc::new(RwLock::new(AiSettings::default()));
+        let runtimes = RuntimeDeps::system(data_dir.join("ai").join("runtimes"), worker.clone());
+        let env = runtimes.worker_env_source(settings.clone());
         let cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
             exe: worker.clone(),
             args: vec![],
-            env: vec![],
+            env,
         }));
         let runtime = Arc::new(WorkerRuntime::new(cfg, Box::new(move || p.probe())));
         AiDeps {
@@ -74,6 +84,8 @@ impl AiDeps {
             secrets: Arc::new(KeyringSecretStore::new(KEYCHAIN_SERVICE)),
             worker_path: Some(worker),
             download_backoff: Duration::from_secs(2),
+            runtimes,
+            settings,
         }
     }
 }
@@ -239,13 +251,16 @@ pub struct AiCore {
     dir: Option<PathBuf>,
     default_models_dir: PathBuf,
     safe_mode: bool,
-    deps: AiDeps,
-    settings: RwLock<AiSettings>,
+    pub(super) deps: AiDeps,
+    /// Shared with the worker launcher (see [`AiDeps::settings`]).
+    settings: Arc<RwLock<AiSettings>>,
     warnings: Vec<String>,
     catalog: Catalog,
     active: Mutex<Active>,
     info: Arc<Mutex<EngineInfo>>,
     setup: Mutex<Option<Arc<Progress>>>,
+    /// Runtime installs and the cached build report.
+    pub(super) jobs: RuntimeJobs,
     pub approvals: Arc<Approvals>,
 }
 
@@ -262,6 +277,7 @@ impl AiCore {
             None => (Catalog::embedded(), vec![]),
         };
         warnings.extend(settings_warning);
+        *deps.settings.write().unwrap_or_else(|p| p.into_inner()) = settings;
         for w in &warnings {
             log::warn!("AI: {w}");
         }
@@ -269,13 +285,14 @@ impl AiCore {
             dir,
             default_models_dir: models_dir,
             safe_mode,
+            settings: deps.settings.clone(),
             deps,
-            settings: RwLock::new(settings),
             warnings,
             catalog,
             active: Mutex::new(Active::None),
             info: Arc::default(),
             setup: Mutex::default(),
+            jobs: RuntimeJobs::default(),
             approvals: Arc::default(),
         };
         core.install_active(None);
@@ -347,7 +364,7 @@ impl AiCore {
     }
 
     /// Makes the active model the one named in the settings (or `primed`, already loaded by the set-up).
-    fn install_active(&self, primed: Option<Primed>) {
+    pub(super) fn install_active(&self, primed: Option<Primed>) {
         let settings = self.settings();
         let store = self.store();
         let preload = primed.is_some();
@@ -371,6 +388,8 @@ impl AiCore {
         let old = std::mem::replace(&mut *lock(&self.active), next);
         if let Active::Lazy { lazy, .. } = old {
             lazy.shutdown();
+            // Free the worker now (it may hold files a caller is about to delete); a busy one ends with its call.
+            lazy.unload();
         }
         *lock(&self.info) = EngineInfo::default();
         if preload {
@@ -499,6 +518,24 @@ impl AiCore {
         if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
             if matches!(lazy.state(), LoadState::Failed(_)) {
                 lazy.unload();
+            }
+        }
+    }
+
+    /// Whether a model is loaded or loading: its worker (and llama-server) may be using a runtime's files.
+    pub(super) fn engine_running(&self) -> bool {
+        matches!(&*lock(&self.active), Active::Lazy { lazy, .. } if matches!(lazy.state(), LoadState::Ready | LoadState::Loading))
+    }
+
+    /// Starts the engine afresh with the current settings, e.g. after the inference build changed: the old
+    /// worker exits and a new one starts (with the new environment) at once when a model was loaded,
+    /// otherwise on first use.
+    pub(super) fn restart_engine(&self) {
+        let was_running = self.engine_running();
+        self.install_active(None);
+        if was_running && self.availability().is_ok() {
+            if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
+                lazy.preload();
             }
         }
     }
@@ -718,9 +755,13 @@ impl AiCore {
             || before.context_length != next.context_length
             || before.threads != next.threads
             || before.models_dir != next.models_dir;
+        // Another llama-server build needs a new worker process (its environment names the build).
+        let runtime_changed = before.inference_build != next.inference_build || before.llama_server_path != next.llama_server_path;
         let idle_changed = before.idle_unload_minutes != next.idle_unload_minutes;
         self.update_settings(|s| *s = next.clone())?;
-        if reload {
+        if runtime_changed {
+            self.restart_engine();
+        } else if reload {
             self.install_active(None);
         } else if idle_changed {
             if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
@@ -755,15 +796,41 @@ impl Drop for AiCore {
     }
 }
 
-/// Resident memory of this process's inference workers.
+/// One process as [`tree_rss_bytes`] sees it: pid, parent pid, name, resident bytes.
+pub(super) type ProcessRow = (u32, Option<u32>, String, u64);
+
+/// Resident memory of `me`'s inference workers and their children (the worker runs the model in a
+/// llama-server child, ADR 0009, so the worker alone is only a few MB). Pure.
+pub(super) fn tree_rss_bytes(me: u32, procs: &[ProcessRow]) -> u64 {
+    let workers: Vec<u32> = procs
+        .iter()
+        .filter(|(_, parent, name, _)| *parent == Some(me) && name.starts_with("imt-ai-worker"))
+        .map(|(pid, ..)| *pid)
+        .collect();
+    procs
+        .iter()
+        .filter(|(pid, parent, ..)| workers.contains(pid) || parent.is_some_and(|p| workers.contains(&p)))
+        .map(|(.., mem)| *mem)
+        .sum()
+}
+
+/// Resident memory of this process's inference workers, including their llama-server children.
 pub fn worker_rss_bytes() -> u64 {
     use sysinfo::{ProcessesToUpdate, System};
     let Ok(me) = sysinfo::get_current_pid() else { return 0 };
     let mut sys = System::new();
     sys.refresh_processes(ProcessesToUpdate::All, true);
-    sys.processes()
+    let rows: Vec<ProcessRow> = sys
+        .processes()
         .values()
-        .filter(|p| p.parent() == Some(me) && p.name().to_string_lossy().starts_with("imt-ai-worker"))
-        .map(|p| p.memory())
-        .sum()
+        .map(|p| {
+            (
+                p.pid().as_u32(),
+                p.parent().map(|q| q.as_u32()),
+                p.name().to_string_lossy().into_owned(),
+                p.memory(),
+            )
+        })
+        .collect();
+    tree_rss_bytes(me.as_u32(), &rows)
 }

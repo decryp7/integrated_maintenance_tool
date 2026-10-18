@@ -29,6 +29,7 @@ fn fake_plugin(runner: Arc<FakeRunner>, windows: bool) -> ToolsPlugin {
     ToolsPlugin::with_env(ToolsEnv {
         runner,
         monitor: Arc::new(IdleMonitor),
+        event_log: Arc::new(crate::eventlog_tool::NoEventLog),
         windows,
     })
 }
@@ -56,6 +57,7 @@ fn registers_its_tools_service_and_settings() {
             "tool:perfmon.templates",
             "tool:perfmon.sets",
             "tool:process-monitor",
+            "tool:event-log-follower",
             "tool:diagnostics",
             "tool:elevation",
             "service:net.decryptology.perf.counters",
@@ -97,11 +99,18 @@ fn platform_gating_and_dispatch_through_the_host() {
     let r = registry(&fake_plugin(fake.clone(), false));
     let mac = r.tools().on_platform(Platform::Macos);
     let listed = mac.list();
+    for windows_only in [ids::PERFMON_SETS, ids::EVENT_LOG] {
+        let t = listed.iter().find(|t| t.info.id == windows_only).unwrap();
+        assert!(matches!(&t.availability, Availability::Unsupported { .. }), "{windows_only}");
+    }
     let sets = listed.iter().find(|t| t.info.id == ids::PERFMON_SETS).unwrap();
     assert!(
         matches!(&sets.availability, Availability::Unsupported { reason } if reason.contains("only available on Windows (this is macOS)"))
     );
-    let others: Vec<_> = listed.iter().filter(|t| t.info.id != ids::PERFMON_SETS).collect();
+    let others: Vec<_> = listed
+        .iter()
+        .filter(|t| t.info.id != ids::PERFMON_SETS && t.info.id != ids::EVENT_LOG)
+        .collect();
     assert!(others.iter().all(|t| t.availability == Availability::Available), "{others:?}");
     assert!(mac.invoke(ids::PERFMON_SETS, "outputs", json!({ "name": "IMT" }), &ctx()).is_err());
     let presets = mac.invoke(ids::PERFMON_TEMPLATES, "presets", json!({}), &ctx()).unwrap();

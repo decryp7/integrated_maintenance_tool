@@ -1,4 +1,5 @@
 import { CollectPlan, LogSpec, Manifest } from '../../core/tools.types';
+import { localizeDecimal } from '../../i18n/locale';
 
 /** Mirrors the engine's defaults; used by the mock and as the base when a pasted plan omits keys. */
 export const DEFAULT_PLAN: CollectPlan = {
@@ -37,9 +38,9 @@ export function parsePlan(json: string): PlanParse {
   try {
     raw = JSON.parse(json);
   } catch (e) {
-    return { ok: false, error: `Not valid JSON: ${e instanceof Error ? e.message : String(e)}` };
+    return { ok: false, error: $localize`:@@tools.planModel.notJson:Not valid JSON: ${e instanceof Error ? e.message : String(e)}:detail:` };
   }
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'The plan must be a JSON object.' };
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: $localize`:@@tools.planModel.notObject:The plan must be a JSON object.` };
   const given = raw as Partial<CollectPlan>;
   const redact = { ...DEFAULT_PLAN.redact, ...(given.redact ?? {}) };
   const logs = (given.logs ?? []).map((l) => ({ ...newLogSpec(), ...l }));
@@ -101,5 +102,5 @@ export function formatBytes(n: number): string {
     v /= 1024;
     i++;
   }
-  return `${i === 0 ? v : v.toFixed(1)} ${UNITS[i]}`;
+  return `${localizeDecimal(i === 0 ? v : v.toFixed(1))} ${UNITS[i]}`;
 }

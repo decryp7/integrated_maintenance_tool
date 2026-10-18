@@ -20,9 +20,12 @@ import { provideUndo } from './undo/provide-undo';
 import { provideOverview } from './overview/overview.plugin';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
 import { provideDocking } from './dock/provide-docking';
+import { provideTimelines } from './timeline/provide-timelines';
 import { providePopout } from './popout/provide-popout';
 import { provideAi } from './ai/provide-ai';
 import { provideActivity } from './core/activity/provide-activity';
+import { provideImtIcons } from './shared/material/imt-icons';
+import { provideUpdates } from './updates/provide-updates';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -48,8 +51,11 @@ export const appConfig: ApplicationConfig = {
     provideOverview(),
     provideOnboarding(),
     provideDocking(),
+    provideTimelines(),
     providePopout(),
     provideAi(),
     provideActivity(),
+    provideImtIcons(),
+    provideUpdates(),
   ],
 };

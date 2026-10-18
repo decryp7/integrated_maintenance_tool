@@ -58,7 +58,7 @@ describe('activity coverage guard', () => {
       const before = logger.entries.filter((e) => e.category === 'IMT.Activity').length;
       await registry.run(id);
       const after = logger.entries.filter((e) => e.category === 'IMT.Activity');
-      if (after.length !== before + 1 || after[after.length - 1].props?.['Operation'] !== id) missing.push(id);
+      if (after.length !== before + 1 || at(after, after.length - 1).props?.['Operation'] !== id) missing.push(id);
     }
     expect(missing).toEqual([]);
     expect(ran.length).toBe(ids.length);
@@ -76,7 +76,7 @@ describe('activity coverage guard', () => {
   it('every backend of the app is behind the shared proxy', async () => {
     // All backend ports: `export abstract class XxxBackend` anywhere in the app.
     const ports = sources()
-      .flatMap((f) => [...f.text.matchAll(/export abstract class (\w+Backend)\b/g)].map((m) => ({ name: m[1], path: f.path })))
+      .flatMap((f) => [...f.text.matchAll(/export abstract class (\w+Backend)\b/g)].map((m) => ({ name: m[1] ?? '', path: f.path })))
       .sort((a, b) => a.name.localeCompare(b.name));
     expect(ports.length).toBeGreaterThan(10);
     TestBed.configureTestingModule({ providers: [...appConfig.providers, { provide: Logger, useFactory: () => new MemoryLogger() }] });
@@ -101,7 +101,8 @@ describe('activity coverage guard', () => {
     const names = new Set<string>();
     for (const f of sources().filter((s) => /(backend|Backend)/.test(s.path))) {
       for (const m of f.text.matchAll(/^\s{2}(?:async\s+)?(\w+)(?:<[^>]*>)?\([^)]*\)\s*(?::[^{=]+)?\{/gm)) {
-        if (!['constructor', 'if', 'for', 'while', 'switch', 'catch', 'function'].includes(m[1])) names.add(m[1]);
+        const name = m[1];
+        if (name !== undefined && !['constructor', 'if', 'for', 'while', 'switch', 'catch', 'function'].includes(name)) names.add(name);
       }
     }
     expect(names.size).toBeGreaterThan(100);
@@ -118,12 +119,12 @@ describe('activity coverage guard', () => {
       logger.entries.length = 0;
       // Outside any operation: a change is an operation of its own; anything else is not a user operation.
       activity.triggers.note('button');
-      await (proxied as Record<string, () => Promise<unknown>>)[name]();
+      await must((proxied as Record<string, () => Promise<unknown>>)[name])();
       const logged = logger.entries.filter((e) => e.category === 'IMT.Activity').length;
       if (kind === 'mutation' && logged !== 1) silent.push(`${name}: mutation without an entry`);
       if (kind !== 'mutation' && logged !== 0) silent.push(`${name}: ${kind} logged as an operation`);
       // Inside an operation: attributed to it, no extra entry.
-      await activity.track('outer', 'menu', {}, () => (proxied as Record<string, () => Promise<unknown>>)[name]());
+      await activity.track('outer', 'menu', {}, () => must((proxied as Record<string, () => Promise<unknown>>)[name])());
       const inside = logger.entries.filter((e) => e.category === 'IMT.Activity').length - logged;
       if (inside !== 1) silent.push(`${name}: not attributed to the running operation`);
     }
@@ -143,23 +144,27 @@ describe('activity coverage guard', () => {
 import { AiBackend } from '../../ai/ai-backend';
 import { AnalysisBackend } from '../analysis-backend';
 import { ImtBackend } from '../backend';
-import { CollectBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
+import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, ProjectBackend, ToolCatalogBackend, ToolsBackend } from '../tools-backend';
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
 import { PopoutBackend } from '../../popout/popout-backend';
 import { ProfilingBackend } from '../../profiling/profiling-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
+import { StorageBackend } from '../../settings/storage/storage-backend';
 import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
 import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
+import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
 import { WindowingBackend } from '../../windowing/windowing-backend';
+import { at, must } from '../../../testing/must';
 
 const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   AiBackend,
   AnalysisBackend,
   ImtBackend,
   CollectBackend,
+  EventLogBackend,
   LifecycleBackend,
   PerfmonBackend,
   ProjectBackend,
@@ -170,9 +175,11 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ProfilingBackend,
   SchedulesBackend,
   SettingsBackend,
+  StorageBackend,
   ShareBackend,
   SkewBackend,
   SnapshotBackend,
   UxBackend,
+  UpdatesBackend,
   WindowingBackend,
 };

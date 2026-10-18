@@ -25,33 +25,33 @@ import { AiRichText } from './rich-text';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiRichText, AiProposalCard, AiApprovalPrompt],
   template: `
-    <div class="bar" role="toolbar" aria-label="Chat">
-      <label class="sr-only" for="ai-chat-session">Chat</label>
+    <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
+      <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
       <select id="ai-chat-session" class="select" [value]="store.activeId() ?? ''" (change)="store.select(asValue($event))" data-testid="ai-chat-sessions">
         @for (s of store.sessions(); track s.id) {
-          <option [value]="s.id">{{ s.title || 'New chat' }}{{ s.running ? ' (answering…)' : '' }}</option>
+          <option [value]="s.id">{{ sessionLabel(s) }}</option>
         }
       </select>
-      <button type="button" class="btn ghost" (click)="store.newChat()">New chat</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeTurns().length" (click)="exportMarkdown()">Export…</button>
-      <button type="button" class="btn ghost" [disabled]="!store.activeId()" aria-label="Delete this chat" title="Delete this chat" (click)="deleteChat()">Delete</button>
+      <button type="button" class="btn ghost" (click)="store.newChat()" i18n="@@ai.chat.newChat">New chat</button>
+      <button type="button" class="btn ghost" [disabled]="!store.activeTurns().length" (click)="exportMarkdown()" i18n="@@ai.chat.export">Export…</button>
+      <button type="button" class="btn ghost" [disabled]="!store.activeId()" aria-label="Delete this chat" i18n-aria-label="@@ai.chat.delete.label" title="Delete this chat" i18n-title="@@ai.chat.delete.title" (click)="deleteChat()" i18n="@@ai.chat.delete">Delete</button>
       <span class="spacer"></span>
       <span class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</span>
     </div>
 
     @if (status.needsSetup()) {
       <div class="setup" role="note">
-        <p>The assistant needs a local model first. It runs fully on this computer; only the model file is downloaded.</p>
-        <button type="button" class="btn primary" (click)="launcher.openSetup()">Set up AI assistant…</button>
+        <p i18n="@@ai.chat.setup.note">The assistant needs a local model first. It runs fully on this computer; only the model file is downloaded.</p>
+        <button type="button" class="btn primary" (click)="launcher.openSetup()" i18n="@@ai.chat.setup.button">Set up AI assistant…</button>
       </div>
     }
 
-    <div class="log" role="log" aria-live="polite" aria-label="Conversation" #log>
+    <div class="log" role="log" aria-live="polite" aria-label="Conversation" i18n-aria-label="@@ai.chat.log.label" #log>
       @if (!store.activeTurns().length && !store.loading()) {
         <div class="empty">
-          <p class="muted">Ask about the loaded logs. Answers cite events and queries you can open.</p>
+          <p class="muted" i18n="@@ai.chat.empty">Ask about the loaded logs. Answers cite events and queries you can open.</p>
           @if (store.prompts().length) {
-            <ul class="starters" aria-label="Suggested questions">
+            <ul class="starters" aria-label="Suggested questions" i18n-aria-label="@@ai.chat.starters.label">
               @for (p of store.prompts(); track p) {
                 <li><button type="button" class="btn ghost starter" (click)="ask(p)">{{ p }}</button></li>
               }
@@ -61,10 +61,10 @@ import { AiRichText } from './rich-text';
       }
       @for (t of store.activeTurns(); track $index; let ti = $index) {
         <div class="turn">
-          <p class="user"><span class="sr-only">You: </span>{{ t.user }}</p>
+          <p class="user"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
           <div class="answer" [class.neutral]="notFound(t)" [attr.data-testid]="'ai-answer-' + ti">
             @if (t.tools.length) {
-              <ul class="tools" aria-label="Assistant activity">
+              <ul class="tools" aria-label="Assistant activity" i18n-aria-label="@@ai.chat.tools.label">
                 @for (c of t.tools; track $index) {
                   <li class="tool chip" [class.running]="c.running" [class.err]="c.error" data-testid="ai-tool-chip">
                     {{ label(c.name) }}@if (c.running) {<span class="dots" aria-hidden="true">…</span>}@if (c.summary) {<span class="sum">: {{ c.summary }}</span>}
@@ -76,19 +76,19 @@ import { AiRichText } from './rich-text';
               <imt-ai-approval [approval]="a" (decide)="respond(a.requestId, $event)" />
             }
             @for (s of t.suggestions; track s.openUrl) {
-              <p class="suggest">Suggested web search (nothing was sent): <code class="mono">{{ s.query }}</code>
-                <button type="button" class="link" (click)="openWeb(s.openUrl, 'the search')">Search in my browser…</button></p>
+              <p class="suggest"><ng-container i18n="@@ai.chat.suggest.text">Suggested web search (nothing was sent): </ng-container><code class="mono">{{ s.query }}</code>
+                <button type="button" class="link" (click)="openWeb(s.openUrl, theSearch)" i18n="@@ai.chat.suggest.open">Search in my browser…</button></p>
             }
             @if (t.text) {
               <imt-ai-rich-text [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
             } @else if (t.running && !t.approvals.length) {
-              <p class="muted thinking" aria-label="Thinking">Thinking…</p>
+              <p class="muted thinking" aria-label="Thinking" i18n-aria-label="@@ai.chat.thinking.label" i18n="@@ai.chat.thinking">Thinking…</p>
             }
             @for (pv of t.proposals; track $index; let pi = $index) {
               <imt-ai-proposal-card [proposal]="pv.proposal" [state]="pv.state" (applied)="store.setProposalState(ti, pi, 'applied')" (dismissed)="store.setProposalState(ti, pi, 'dismissed')" />
             }
             @if (webSources(t).length) {
-              <p class="sources muted">Web sources:
+              <p class="sources muted"><ng-container i18n="@@ai.chat.sources">Web sources: </ng-container>
                 @for (w of webSources(t); track w.url) {<button type="button" class="link" (click)="openWeb(w.url, w.title)">{{ w.title }}</button>}
               </p>
             }
@@ -96,10 +96,10 @@ import { AiRichText } from './rich-text';
               <p class="note muted">{{ n }}</p>
             }
             @if (t.cancelled) {
-              <p class="note muted">Stopped.</p>
+              <p class="note muted" i18n="@@ai.chat.stopped">Stopped.</p>
             }
             @if (t.error) {
-              <p class="err" role="alert">{{ t.error }} <button type="button" class="link" (click)="ask(t.user)">Ask again</button></p>
+              <p class="err" role="alert">{{ t.error }} <button type="button" class="link" (click)="ask(t.user)" i18n="@@ai.chat.askAgain">Ask again</button></p>
             }
           </div>
         </div>
@@ -107,47 +107,48 @@ import { AiRichText } from './rich-text';
     </div>
 
     @if (store.error(); as e) {
-      <p class="err banner" role="alert">{{ e }} <button type="button" class="link" (click)="store.dismissError()">Dismiss</button></p>
+      <p class="err banner" role="alert">{{ e }} <button type="button" class="link" (click)="store.dismissError()" i18n="@@ai.chat.dismiss">Dismiss</button></p>
     }
     @if (notice(); as n) {
       <p class="ok banner" role="status">{{ n }}</p>
     }
 
     <div class="context">
-      <button type="button" class="chip ctx" [attr.aria-expanded]="contextOpen()" aria-controls="ai-chat-context" (click)="contextOpen.set(!contextOpen())" data-testid="ai-context-chip">
+      <button type="button" class="chip ctx" [attr.aria-expanded]="contextOpen()" aria-controls="ai-chat-context" (click)="contextOpen.set(!contextOpen())" data-testid="ai-context-chip" i18n="@@ai.chat.context.chip">
         Context: {{ contextSummary() }}
       </button>
       @if (contextOpen()) {
         <fieldset id="ai-chat-context" class="ctx-list">
-          <legend class="sr-only">What is sent with your question</legend>
+          <legend class="sr-only" i18n="@@ai.chat.context.legend">What is sent with your question</legend>
           @for (c of contextLines(); track c.key) {
             <label class="ctx-item" [class.off]="!c.available">
               <input type="checkbox" [checked]="store.toggles()[c.key] && c.available" [disabled]="!c.available" (change)="store.toggle(c.key)" />
               {{ c.label }}
             </label>
           }
-          <p class="muted small">The engine checks these and reads the events itself. Nothing leaves this computer.</p>
+          <p class="muted small" i18n="@@ai.chat.context.note">The engine checks these and reads the events itself. Nothing leaves this computer.</p>
         </fieldset>
       }
     </div>
 
     <form class="composer" (submit)="$event.preventDefault(); submit()">
-      <label class="sr-only" for="ai-chat-input">Ask about the logs</label>
+      <label class="sr-only" for="ai-chat-input" i18n="@@ai.chat.input.label">Ask about the logs</label>
       <textarea
         id="ai-chat-input"
         class="input"
         rows="2"
         maxlength="8000"
         placeholder="Ask about the logs…"
+        i18n-placeholder="@@ai.chat.input.placeholder"
         [value]="draft()"
         [disabled]="!status.hasModel()"
         (input)="draft.set(asValue($event))"
         (keydown.enter)="onEnter($event)"
       ></textarea>
       @if (store.running()) {
-        <button type="button" class="btn" (click)="store.cancel()">Stop</button>
+        <button type="button" class="btn" (click)="store.cancel()" i18n="@@ai.chat.stop">Stop</button>
       } @else {
-        <button type="submit" class="btn primary" [disabled]="!draft().trim() || !status.hasModel()">Send</button>
+        <button type="submit" class="btn primary" [disabled]="!draft().trim() || !status.hasModel()" i18n="@@ai.chat.send">Send</button>
       }
     </form>
   `,
@@ -209,14 +210,14 @@ export class AiChatPanel {
     const on = this.store.toggles();
     const parts = this.contextLines()
       .filter((c) => c.available && on[c.key])
-      .map((c) => c.label.split(':')[0].toLowerCase());
-    return parts.length ? parts.join(', ') : 'nothing selected';
+      .map((c) => (c.label.split(':')[0] ?? '').toLowerCase());
+    return parts.length ? parts.join(', ') : $localize`:@@ai.chat.context.none:nothing selected`;
   });
   protected readonly engineLine = computed(() => {
     const s = this.status.status();
     if (!s) return '';
-    if (!s.available) return 'AI unavailable';
-    const model = s.model ? s.model.replace(/\.gguf$/i, '') : 'no model';
+    if (!s.available) return $localize`:@@ai.chat.engine.unavailable:AI unavailable`;
+    const model = s.model ? s.model.replace(/\.gguf$/i, '') : $localize`:@@ai.chat.engine.noModel:no model`;
     return `${model} · ${s.state}${s.backend ? ` · ${s.backend}` : ''}`;
   });
 
@@ -241,6 +242,13 @@ export class AiChatPanel {
 
   protected asValue(e: Event): string {
     return (e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
+  }
+
+  protected readonly theSearch = $localize`:@@ai.chat.theSearch:the search`;
+
+  protected sessionLabel(s: { title: string; running: boolean }): string {
+    const title = s.title || $localize`:@@ai.chat.session.untitled:New chat`;
+    return s.running ? $localize`:@@ai.chat.session.answering:${title}:title: (answering…)` : title;
   }
 
   protected label(name: string): string {
@@ -280,7 +288,9 @@ export class AiChatPanel {
 
   protected async applyQuery(ql: string): Promise<void> {
     const err = await this.citations.query(ql);
-    this.notice.set(err ? `Not applied: ${err}` : `Applied ${ql}`);
+    this.notice.set(
+      err ? $localize`:@@ai.chat.notice.notApplied:Not applied: ${err}:error:` : $localize`:@@ai.chat.notice.applied:Applied ${ql}:query:`,
+    );
   }
 
   protected async openWeb(url: string, title: string): Promise<void> {
@@ -297,13 +307,14 @@ export class AiChatPanel {
     const id = this.store.activeId();
     if (!id) return;
     const name = (this.store.active()?.title || 'chat').replace(/[^\w.-]+/g, '-').slice(0, 60) || 'chat';
-    const path = await this.platform.pickSavePath('Export chat', `${name}.md`, [{ name: 'Markdown', extensions: ['md'] }]);
+    const path = await this.platform.pickSavePath($localize`:@@ai.chat.export.dialogTitle:Export chat`, `${name}.md`, [{ name: 'Markdown', extensions: ['md'] }]);
     if (!path) return;
     try {
       const written = await this.overwrite.write(path, (o) => this.backend.chatExportMarkdown(id, path, o));
-      if (written !== null) this.notice.set(`Exported to ${written}`);
+      if (written !== null) this.notice.set($localize`:@@ai.chat.notice.exported:Exported to ${written}:path:`);
     } catch (e) {
-      this.notice.set(`Not exported: ${toAiError(e).message}`);
+      this.notice.set($localize`:@@ai.chat.notice.notExported:Not exported: ${toAiError(e).message}:error:`);
+
     }
   }
 }

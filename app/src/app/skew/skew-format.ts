@@ -1,3 +1,4 @@
+import { localizeDecimal } from '../i18n/locale';
 /** Display formatting and input parsing of clock offsets (the engine validates and applies them). */
 
 const UNITS: Record<string, number> = { ms: 1, s: 1000, sec: 1000, m: 60_000, min: 60_000, h: 3_600_000, d: 86_400_000 };
@@ -14,7 +15,7 @@ export function formatOffset(ms: number): string {
       rest %= size;
     }
   }
-  if (rest > 0 || !parts.length) parts.push(`${String(Number((rest / 1000).toFixed(3)))} s`);
+  if (rest > 0 || !parts.length) parts.push(`${localizeDecimal(String(Number((rest / 1000).toFixed(3))))} s`);
   return `${sign}${parts.join(' ')}`;
 }
 
@@ -32,7 +33,7 @@ export function parseOffset(text: string): number | null {
   let total = 0;
   let consumed = '';
   for (const m of body.matchAll(re)) {
-    total += Number(m[1]) * UNITS[m[2]];
+    total += Number(m[1]) * (UNITS[m[2] ?? ''] ?? 0);
     consumed += m[0];
   }
   if (!consumed || consumed.replace(/\s/g, '') !== body.replace(/\s/g, '')) return null;

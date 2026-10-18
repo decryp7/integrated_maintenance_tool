@@ -17,8 +17,14 @@ export class ViewRegistry {
     return this.all.filter((v) => isViewAvailable(v, summary));
   });
 
+  /** The view by id; `<view id>#<key>` (one more panel of a view that allows several) finds that view. */
   find(id: string): ImtView | undefined {
-    return this.all.find((v) => v.id === id);
+    const exact = this.all.find((v) => v.id === id);
+    if (exact) return exact;
+    const at = id.indexOf('#');
+    if (at <= 0 || at === id.length - 1) return undefined;
+    const base = id.slice(0, at);
+    return this.all.find((v) => v.id === base && v.instances === true);
   }
 }
 

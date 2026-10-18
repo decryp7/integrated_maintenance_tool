@@ -103,7 +103,7 @@ export class MockEngine {
   /** Newest timestamp of any record, or null. */
   newestTs(): number | null {
     for (let i = this.records.length - 1; i >= 0; i--) {
-      const ts = this.records[i].ts;
+      const ts = this.records[i]?.ts ?? null;
       if (ts !== null) return ts;
     }
     return null;
@@ -207,6 +207,7 @@ export class MockEngine {
   compile(q: Query) {
     const groupBy = this.effectiveGroupBy(q);
     const groups = q.groups.length ? new Set(q.groups) : null;
+    const sources = q.sources?.length ? new Set(q.sources) : null;
     const levels = q.levels.length ? new Set<Level>(q.levels) : null;
     const markers = q.markers.length ? new Set(q.markers) : null;
     const filters = q.filters.map((f) => compileFilter(f));
@@ -224,6 +225,7 @@ export class MockEngine {
     const from = q.from ?? null;
     const to = q.to ?? null;
     const structural = (r: MockRecord): boolean => {
+      if (sources && !sources.has(r.source)) return false;
       if (from !== null && (r.ts === null || r.ts < from)) return false;
       if (to !== null && (r.ts === null || r.ts > to)) return false;
       if (groups && !groups.has(this.groupKey(r, groupBy))) return false;
@@ -290,7 +292,11 @@ export class MockEngine {
     }
     offset = Math.max(0, Math.min(offset, Math.max(0, total - 1)));
     const rows: RecordView[] = [];
-    for (let p = offset; p < Math.min(total, offset + req.limit); p++) rows.push(this.view(this.records[at(p)], groupBy));
+    for (let p = offset; p < Math.min(total, offset + req.limit); p++) {
+      const id = at(p);
+      const rec = id === undefined ? undefined : this.records[id];
+      if (rec) rows.push(this.view(rec, groupBy));
+    }
     return { total, offset, rows, anchorIndex };
   }
 
@@ -332,8 +338,10 @@ export class MockEngine {
       const pass = c.content(r);
       if (pass) {
         lane.matched++;
-        lane.density[b]++;
-        histogram[b][LEVELS.indexOf(r.level)]++;
+        lane.density[b] = (lane.density[b] ?? 0) + 1;
+        const bins = histogram[b];
+        const li = LEVELS.indexOf(r.level);
+        if (bins) bins[li] = (bins[li] ?? 0) + 1;
       }
       const kind = r.markers[0];
       if (kind && (pass || (req.alwaysShowLifecycle && lifecycle.has(kind)))) {
@@ -359,7 +367,9 @@ export class MockEngine {
     const ids = this.matching(req.query);
     const counts = new Map<string, number>();
     for (const id of ids) {
-      const v = this.fieldText(this.records[id], req.field);
+      const rec = this.records[id];
+      if (!rec) continue;
+      const v = this.fieldText(rec, req.field);
       if (v === null) continue;
       counts.set(v, (counts.get(v) ?? 0) + 1);
     }
@@ -372,8 +382,8 @@ export class MockEngine {
     if (!def) throw new Error(`Unknown chart '${req.chartId}'`);
     const m = /^(count|avg|min|max|sum|last)\(\s*([^)]*)\s*\)$/.exec(def.y.trim());
     if (!m) throw new Error(`Invalid y expression '${def.y}'`);
-    const agg = m[1];
-    const field = m[2];
+    const agg = m[1] ?? '';
+    const field = m[2] ?? '';
     const c = this.compile(req.query);
     const ids = this.matching(req.query);
     let from = req.query.from ?? null;
@@ -392,7 +402,7 @@ export class MockEngine {
     const series = new Map<string, { acc: Acc[]; total: number }>();
     for (const id of ids) {
       const r = this.records[id];
-      if (r.ts === null || r.ts < from || r.ts > to) continue;
+      if (!r || r.ts === null || r.ts < from || r.ts > to) continue;
       let value = 1;
       if (agg !== 'count') {
         const raw = r.fields[field];
@@ -422,14 +432,15 @@ export class MockEngine {
           const start = from! + b * bucketMs;
           if (!a) return [start, agg === 'count' ? 0 : null];
           const byAgg: Record<string, number> = { count: a.count, sum: a.sum, avg: a.sum / a.count, min: a.min, max: a.max, last: a.last };
-          return [start, byAgg[agg]];
+          return [start, byAgg[agg] ?? null];
         }),
       }));
     const kinds = new Set(this.markerKinds.filter((k) => k.lifecycle || k.kind === 'fatal').map((k) => k.kind));
     const lifecycle: LifecycleEvent[] = [];
     for (const r of this.records) {
-      if (r.ts === null || r.ts < from || r.ts > to || !r.markers.length || !kinds.has(r.markers[0]) || !c.structural(r)) continue;
-      lifecycle.push({ kind: r.markers[0], ts: r.ts, group: this.groupKey(r, c.groupBy), id: r.id });
+      const kind = r.markers[0];
+      if (r.ts === null || r.ts < from || r.ts > to || kind === undefined || !kinds.has(kind) || !c.structural(r)) continue;
+      lifecycle.push({ kind, ts: r.ts, group: this.groupKey(r, c.groupBy), id: r.id });
     }
     return { def, from, to, bucketMs, series: out, lifecycle };
   }
@@ -443,6 +454,7 @@ export class MockEngine {
     const samples: ExtractPreview['samples'] = [];
     for (const id of this.matching(q)) {
       const r = this.records[id];
+      if (!r) continue;
       if (!when((f) => this.fieldText(r, f))) continue;
       const text = this.fieldText(r, rule.from ?? '@message');
       if (text === null) continue;
@@ -474,7 +486,7 @@ function compileQl(text: string): ReturnType<typeof mockQlFilter> {
   try {
     return mockQlFilter(text);
   } catch (e) {
-    throw new Error(`query: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`query: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
   }
 }
 
@@ -483,8 +495,10 @@ function binarySearch(xs: number[], v: number): number {
   let hi = xs.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    if (xs[mid] === v) return mid;
-    if (xs[mid] < v) lo = mid + 1;
+    const x = xs[mid];
+    if (x === undefined) return -1;
+    if (x === v) return mid;
+    if (x < v) lo = mid + 1;
     else hi = mid - 1;
   }
   return -1;
@@ -575,7 +589,7 @@ function convertValue(raw: string, spec: ExtractField, groups: Record<string, st
     case 'duration': {
       const ts = /^(?:(\d+)\.)?(\d{1,2}):(\d{2}):(\d{2}(?:\.\d+)?)$/.exec(raw);
       let ms: number;
-      if (ts) ms = ((+(ts[1] ?? 0) * 24 + +ts[2]) * 60 + +ts[3]) * 60000 + +ts[4] * 1000;
+      if (ts) ms = ((+(ts[1] ?? 0) * 24 + Number(ts[2])) * 60 + Number(ts[3])) * 60000 + Number(ts[4]) * 1000;
       else ms = Number(raw) * (DURATION_UNITS[spec.unit ?? 'ms'] ?? 1);
       return spec.to === 's' ? ms / 1000 : ms;
     }

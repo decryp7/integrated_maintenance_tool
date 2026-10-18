@@ -63,9 +63,16 @@ fn the_documented_example_is_valid() {
 
 #[test]
 fn starter_document_validates() {
-    let file = AgentConfigFile::starter("/tmp/runs");
+    // An absolute path on this platform ("/tmp/runs" is relative to the current drive on Windows).
+    let runs = if cfg!(windows) { "D:\\runs" } else { "/tmp/runs" };
+    let file = AgentConfigFile::starter(runs);
     let cfg = file.validate(&base()).unwrap();
-    assert_eq!(cfg.output_dir, PathBuf::from("/tmp/runs"));
+    assert_eq!(cfg.output_dir, PathBuf::from(runs));
+    if cfg!(windows) {
+        // A rooted path without a drive is on the drive of the config file's folder.
+        let cfg = AgentConfigFile::starter("/tmp/runs").validate(&base()).unwrap();
+        assert_eq!(cfg.output_dir, PathBuf::from("C:\\tmp\\runs"));
+    }
     assert_eq!(cfg.schedules[0].name, "nightly");
 }
 
@@ -278,6 +285,18 @@ every = "1h"
     assert_eq!(settings["targets"][0]["pid"], 1234);
     assert_eq!(settings["targets"][1]["path"], "/opt/app/bin/*");
     assert_eq!(settings["targets"][2]["name"], "svc*");
+    // The .NET runtime counters are opt-in and reach the monitor's settings.
+    assert_eq!(settings["dotnet"], false);
+    let with_dotnet = text.replace(
+        "duration = \"1m\"",
+        "duration = \"1m\"
+  dotnet = true",
+    );
+    let cfg = AgentConfigFile::parse(&with_dotnet).unwrap().validate(dir.path()).unwrap();
+    let Action::Monitor { settings, .. } = &cfg.schedules[0].actions[1] else {
+        panic!()
+    };
+    assert_eq!(settings["dotnet"], true);
 
     for (file, needle) in [
         ("bad.toml", "unknown field"),

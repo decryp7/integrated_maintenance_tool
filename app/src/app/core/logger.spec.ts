@@ -1,4 +1,5 @@
-import { ErrorHandler } from '@angular/core';
+
+import { at } from '../../testing/must';import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MemoryLogger } from '../../testing/helpers';
 import { activity } from './activity/runtime';
@@ -156,13 +157,13 @@ describe('withFailureLogging', () => {
       l.info('ui.export', 'Exporting');
       l.error('ui.export', 'Export failed');
     });
-    const id = activity.breadcrumbs(1)[0].operationId;
+    const id = at(activity.breadcrumbs(1), 0).operationId;
     expect(info).toHaveBeenCalledWith('[ui.export] Exporting', { OperationId: id, Window: 'main' });
-    const props = spy.mock.calls[0][1] as Record<string, string>;
+    const props = at(at(spy.mock.calls, 0), 1) as Record<string, string>;
     expect(props['OperationId']).toBe(id);
     activity.record('later', 'button');
     l.error('ui.x', 'boom');
-    expect(JSON.parse((spy.mock.calls[1][1] as Record<string, string>)['Breadcrumbs'])[1].operation).toBe('later');
+    expect(JSON.parse((at(at(spy.mock.calls, 1), 1) as Record<string, string>)['Breadcrumbs'] ?? '')[1].operation).toBe('later');
     spy.mockRestore();
     info.mockRestore();
     activity.reset();

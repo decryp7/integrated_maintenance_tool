@@ -20,6 +20,10 @@ quick-xml = "0.42"
 rayon = "1.12"
 regex = "1.13"
 regex-syntax = "0.8"
+# `script` pipeline step: sandboxed embedded language (MIT/Apache-2.0). `sync` so compiled
+# scripts are shared across import threads; `no_module` removes `import` and module resolution;
+# `no_time` keeps scripts deterministic; `only_i64` matches JSON integers.
+rhai = { version = "1.26", features = ["sync", "no_module", "no_custom_syntax", "no_time", "only_i64"] }
 semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -32,4 +36,12 @@ yaml-rust2 = { version = "0.13", default-features = false }
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
+# Benchmarks (benches/engine.rs) with HTML reports under target/criterion.
+criterion = { version = "0.8", features = ["html_reports"] }
+# Snapshot tests of importer output (tests/importer_snapshots.rs, snapshots in tests/snapshots/).
+insta = { version = "1", features = ["yaml"] }
 proptest = "1"
+
+[[bench]]
+name = "engine"
+harness = false

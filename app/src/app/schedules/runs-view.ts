@@ -6,12 +6,12 @@ import { RunsStore } from './runs.store';
 import { formatBytes } from './schedule-model';
 
 const STATUS_LABEL: Record<RunStatus, string> = {
-  running: 'Running',
-  ok: 'OK',
-  partial: 'Partial',
-  failed: 'Failed',
-  stopped: 'Stopped',
-  incomplete: 'Incomplete',
+  running: $localize`:@@schedules.runs.status.running:Running`,
+  ok: $localize`:@@schedules.runs.status.ok:OK`,
+  partial: $localize`:@@schedules.runs.status.partial:Partial`,
+  failed: $localize`:@@schedules.runs.status.failed:Failed`,
+  stopped: $localize`:@@schedules.runs.status.stopped:Stopped`,
+  incomplete: $localize`:@@schedules.runs.status.incomplete:Incomplete`,
 };
 
 /** "Runs": the folders the headless agent wrote, newest first; open one in a new window. */
@@ -20,21 +20,21 @@ const STATUS_LABEL: Record<RunStatus, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
-    <div class="scroll" role="region" aria-label="Collection runs" tabindex="0">
+    <div class="scroll" role="region" aria-label="Collection runs" i18n-aria-label="@@schedules.runs.region" tabindex="0">
       <div class="inline">
         <span class="faint ellipsis">
-          @if (store.outputDir(); as dir) { Output: <span class="mono">{{ dir }}</span> } @else { Runs of the collection schedules. }
+          @if (store.outputDir(); as dir) { <ng-container i18n="@@schedules.runs.output">Output: <span class="mono">{{ dir }}</span></ng-container> } @else { <ng-container i18n="@@schedules.runs.runsOf">Runs of the collection schedules.</ng-container> }
         </span>
         <span class="spacer"></span>
-        <button type="button" class="btn" [disabled]="store.loading()" (click)="store.refresh()"><imt-icon name="refresh" [size]="12" />Refresh</button>
+        <button type="button" class="btn" [disabled]="store.loading()" (click)="store.refresh()" i18n="@@schedules.runs.refresh"><imt-icon name="refresh" [size]="12" />Refresh</button>
       </div>
       @if (store.error(); as e) { <div class="err" role="alert">{{ e }}</div> }
       @if (store.notice(); as n) { <div class="note" role="status">{{ n }}</div> }
 
       @if (store.runs().length) {
-        <table class="runs" aria-label="Runs">
+        <table class="runs" aria-label="Runs" i18n-aria-label="@@schedules.runs.table">
           <thead>
-            <tr><th scope="col">Started</th><th scope="col">Schedule</th><th scope="col">Status</th><th scope="col">Why</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+            <tr><th scope="col" i18n="@@schedules.runs.col.started">Started</th><th scope="col" i18n="@@schedules.runs.col.schedule">Schedule</th><th scope="col" i18n="@@schedules.runs.col.status">Status</th><th scope="col" i18n="@@schedules.runs.col.why">Why</th><th scope="col" i18n="@@schedules.runs.col.duration">Duration</th><th scope="col" i18n="@@schedules.runs.col.size">Size</th><th scope="col"><span class="sr-only" i18n="@@schedules.runs.col.actions">Actions</span></th></tr>
           </thead>
           <tbody>
             @for (r of store.runs(); track r.id) {
@@ -46,8 +46,8 @@ const STATUS_LABEL: Record<RunStatus, string> = {
                 <td>{{ duration(r.durationMs) }}</td>
                 <td>{{ bytes(r.totalBytes) }}</td>
                 <td class="acts">
-                  <button type="button" class="btn" [attr.aria-expanded]="store.selected() === r.id" [attr.aria-label]="'Details of ' + r.id" (click)="store.toggle(r.id)">Details</button>
-                  <button type="button" class="btn" [attr.aria-label]="'Open ' + r.id + ' in a new window'" (click)="store.open(r.id)">Open</button>
+                  <button type="button" class="btn" [attr.aria-expanded]="store.selected() === r.id" [attr.aria-label]="detailsLabel(r.id)" (click)="store.toggle(r.id)" i18n="@@schedules.runs.details">Details</button>
+                  <button type="button" class="btn" [attr.aria-label]="openLabel(r.id)" (click)="store.open(r.id)" i18n="open a run|@@schedules.runs.open">Open</button>
                 </td>
               </tr>
               @if (store.selected() === r.id) {
@@ -55,7 +55,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
                   <td colspan="7">
                     @if (store.manifest(); as m) {
                       <div class="manifest" data-testid="run-manifest">
-                        <div class="faint">Host {{ m.host }} · agent {{ m.agentVersion }} · {{ m.startedAt }}</div>
+                        <div class="faint" i18n="@@schedules.runs.manifestHead">Host {{ m.host }} · agent {{ m.agentVersion }} · {{ m.startedAt }}</div>
                         <ul>
                           @for (a of m.actions; track $index) {
                             <li>
@@ -68,7 +68,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
                         @for (e of m.errors; track e) { <div class="problem">{{ e }}</div> }
                       </div>
                     } @else {
-                      <span class="faint" role="status">Loading…</span>
+                      <span class="faint" role="status" i18n="@@schedules.runs.loading">Loading…</span>
                     }
                   </td>
                 </tr>
@@ -76,9 +76,9 @@ const STATUS_LABEL: Record<RunStatus, string> = {
             }
           </tbody>
         </table>
-        @if (store.truncated()) { <p class="faint">{{ store.truncated() }} older runs are not listed.</p> }
+        @if (store.truncated()) { <p class="faint" i18n="@@schedules.runs.truncated">{{ store.truncated() }} older runs are not listed.</p> }
       } @else if (!store.loading() && !store.error()) {
-        <p class="faint">No runs yet. They appear here once the agent has run a schedule (or after <span class="mono">imt-agent once</span>).</p>
+        <p class="faint" i18n="@@schedules.runs.none">No runs yet. They appear here once the agent has run a schedule (or after <span class="mono">imt-agent once</span>).</p>
       }
     </div>
   `,
@@ -107,6 +107,8 @@ const STATUS_LABEL: Record<RunStatus, string> = {
 export class RunsView implements OnInit {
   protected readonly store = inject(RunsStore);
   protected readonly label = STATUS_LABEL;
+  protected detailsLabel = (id: string) => $localize`:@@schedules.runs.detailsOf:Details of ${id}:id:`;
+  protected openLabel = (id: string) => $localize`:@@schedules.runs.openInWindow:Open ${id}:id: in a new window`;
 
   ngOnInit(): void {
     void this.store.refresh();

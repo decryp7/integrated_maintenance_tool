@@ -21,37 +21,37 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <label class="inline">Before
-        <select aria-label="Before snapshot" (change)="before.set(num($event))">
+      <label class="inline"><ng-container i18n="@@profiling.heapDiff.before">Before</ng-container>&ngsp;
+        <select aria-label="Before snapshot" i18n-aria-label="@@profiling.heapDiff.beforeLabel" (change)="before.set(num($event))">
           @for (h of heaps(); track h.id) { <option [value]="h.id" [selected]="h.id === pair()?.before">{{ h.name }}</option> }
         </select>
       </label>
-      <label class="inline">After
-        <select aria-label="After snapshot" (change)="after.set(num($event))">
+      <label class="inline"><ng-container i18n="@@profiling.heapDiff.after">After</ng-container>&ngsp;
+        <select aria-label="After snapshot" i18n-aria-label="@@profiling.heapDiff.afterLabel" (change)="after.set(num($event))">
           @for (h of heaps(); track h.id) { <option [value]="h.id" [selected]="h.id === pair()?.after">{{ h.name }}</option> }
         </select>
       </label>
-      <label class="inline">Sort
-        <select aria-label="Sort by" (change)="sort.set($any($event.target).value)">
-          <option value="bytesDelta" [selected]="sort() === 'bytesDelta'">Bytes growth</option>
-          <option value="countDelta" [selected]="sort() === 'countDelta'">Count growth</option>
-          <option value="name" [selected]="sort() === 'name'">Name</option>
+      <label class="inline"><ng-container i18n="@@profiling.heapDiff.sort">Sort</ng-container>&ngsp;
+        <select aria-label="Sort by" i18n-aria-label="@@profiling.heapDiff.sortLabel" (change)="sort.set($any($event.target).value)">
+          <option value="bytesDelta" [selected]="sort() === 'bytesDelta'" i18n="@@profiling.heapDiff.sort.bytes">Bytes growth</option>
+          <option value="countDelta" [selected]="sort() === 'countDelta'" i18n="@@profiling.heapDiff.sort.count">Count growth</option>
+          <option value="name" [selected]="sort() === 'name'" i18n="@@profiling.heapDiff.sort.name">Name</option>
         </select>
       </label>
       @if (res.data(); as d) { <span class="muted">{{ bytes(d.bytesBefore) }} → {{ bytes(d.bytesAfter) }} ({{ delta(d.bytesAfter - d.bytesBefore, 'bytes') }})</span> }
     </div>
     @if (heaps().length < 2) {
-      <div class="state" role="status">Open a second heap snapshot to compare.</div>
+      <div class="state" role="status" i18n="@@profiling.heapDiff.openSecond">Open a second heap snapshot to compare.</div>
     } @else {
       <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" (retry)="res.retry()">
-        <div class="body tight" tabindex="0" role="region" aria-label="Comparison rows">
-          <table class="grid" aria-label="Snapshot comparison, sorted by growth">
-            <thead><tr><th scope="col">Type</th><th scope="col">Status</th><th scope="col" class="num">Count</th><th scope="col" class="num">Δ count</th><th scope="col" class="num">Bytes</th><th scope="col" class="num">Δ bytes</th></tr></thead>
+        <div class="body tight" tabindex="0" role="region" aria-label="Comparison rows" i18n-aria-label="@@profiling.heapDiff.rowsRegion">
+          <table class="grid" aria-label="Snapshot comparison, sorted by growth" i18n-aria-label="@@profiling.heapDiff.tableLabel">
+            <thead><tr><th scope="col" i18n="@@profiling.heapDiff.col.type">Type</th><th scope="col" i18n="@@profiling.heapDiff.col.status">Status</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.count">Count</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.deltaCount">Δ count</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.bytes">Bytes</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.deltaBytes">Δ bytes</th></tr></thead>
             <tbody>
               @for (r of res.data()?.rows ?? []; track r.name) {
                 <tr>
                   <td class="ellipsis fn"><button class="link" type="button" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
-                  <td>@if (r.isNew) { <span class="tag new">new</span> } @else if (r.isGone) { <span class="tag gone">gone</span> }</td>
+                  <td>@if (r.isNew) { <span class="tag new" i18n="@@profiling.heapDiff.new">new</span> } @else if (r.isGone) { <span class="tag gone" i18n="@@profiling.heapDiff.gone">gone</span> }</td>
                   <td class="num">{{ count(r.countBefore) }} → {{ count(r.countAfter) }}</td>
                   <td class="num" [class.up]="r.countDelta > 0" [class.down]="r.countDelta < 0">{{ delta(r.countDelta, 'count') }}</td>
                   <td class="num">{{ bytes(r.bytesBefore) }} → {{ bytes(r.bytesAfter) }}</td>
@@ -82,10 +82,11 @@ export class HeapDiff {
   /** Defaults: the two newest snapshots. */
   protected readonly pair = computed(() => {
     const hs = this.heaps();
-    if (hs.length < 2) return null;
+    const [older, newer] = hs.slice(-2);
+    if (hs.length < 2 || !older || !newer) return null;
     const ids = hs.map((h) => h.id);
-    const before = this.before() !== null && ids.includes(this.before()!) ? this.before()! : hs[hs.length - 2].id;
-    const after = this.after() !== null && ids.includes(this.after()!) ? this.after()! : hs[hs.length - 1].id;
+    const before = this.before() !== null && ids.includes(this.before()!) ? this.before()! : older.id;
+    const after = this.after() !== null && ids.includes(this.after()!) ? this.after()! : newer.id;
     return { before, after };
   });
 

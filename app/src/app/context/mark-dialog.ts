@@ -34,6 +34,6 @@ export class MarkDialog {
   readonly suggestedLabel = input('Marked events');
   readonly suggestedDescription = input('');
   readonly rule = input<MarkerRuleX | null>(null);
-  readonly submitLabel = input('Add marker');
-  readonly hint = input('Show matching events as markers on the timeline and in the grid, and list them under "Marked events only".');
+  readonly submitLabel = input($localize`:@@context.markDialog.submit:Add marker`);
+  readonly hint = input($localize`:@@context.markDialog.hint:Show matching events as markers on the timeline and in the grid, and list them under "Marked events only".`);
 }

@@ -29,7 +29,7 @@ function model(id: string, name: string, paramsB: number, sizeGb: number, licens
   return {
     id,
     name,
-    family: id.split('-')[0],
+    family: id.split('-')[0] ?? id,
     paramsB,
     activeParamsB: null,
     quant: 'Q4_K_M',
@@ -56,6 +56,13 @@ export const MOCK_CATALOG: CatalogModel[] = [
   model('qwen3.5-32b-q4km', 'Qwen3.5 32B', 32, 19.8, 'apache-2.0', true, 'Needs a 24 GB GPU.'),
 ];
 
+/** The catalog entry at `index` (the mock catalog is fixed, so a missing one is a programming error). */
+export function catalogModel(index: number): CatalogModel {
+  const m = MOCK_CATALOG[index];
+  if (!m) throw new Error(`no mock catalog model at ${index}`);
+  return m;
+}
+
 export function mockRecommendations(installed: string[]): Recommendations {
   const assess = (m: CatalogModel): Recommendation => {
     const need = m.sizeBytes / GB + 1;
@@ -67,8 +74,8 @@ export function mockRecommendations(installed: string[]): Recommendations {
   return {
     hardware: '32 GB RAM, 16 cores, NVIDIA GeForce RTX 4060 Laptop GPU with 8 GB video memory',
     budget: { usableGb: 8, class: 'discreteGpu' },
-    best: ranked[0],
-    fastest: ranked[1],
+    best: ranked[0] ?? null,
+    fastest: ranked[1] ?? null,
     ranked,
     message: 'Qwen3.5 9B fits comfortably.',
   };

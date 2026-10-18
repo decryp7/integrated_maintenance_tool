@@ -55,7 +55,7 @@ export class CommandRegistry {
       return true;
     } catch (e) {
       this.logger.warn('ui.command', 'Command failed', { Command: id });
-      this.store.setError(`${command.title} failed: ${e instanceof Error ? e.message : String(e)}`);
+      this.store.setError($localize`:@@extensions.commandRegistry.failed:${command.title}:title: failed: ${e instanceof Error ? e.message : String(e)}:detail:`);
       return false;
     }
   }

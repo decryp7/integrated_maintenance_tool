@@ -18,25 +18,27 @@ import { AsyncResource } from './async-resource';
   imports: [AnalysisState],
   template: `
     <div class="bar">
-      <span class="section-title">Patterns</span>
-      @if (res.data(); as list) { <span class="faint">{{ list.length }} templates</span> }
+      <span class="section-title" i18n="@@analysis.patterns.title">Patterns</span>
+      @if (res.data(); as list) { <span class="faint" i18n="@@analysis.patterns.templates">{{ list.length }} templates</span> }
       <span class="spacer"></span>
-      <button class="btn" type="button" (click)="res.retry()">Refresh</button>
+      <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.patterns.refresh">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." emptyHint="Patterns group the matching events by message template, most frequent first." suggest (retry)="res.retry()">
-      <ul class="list body" aria-label="Patterns">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
+      <ul class="list body" aria-label="Patterns" i18n-aria-label="@@analysis.patterns.listLabel">
         @for (p of res.data() ?? []; track p.id) {
           <li>
-            <button class="row" type="button" (click)="filter(p)" [title]="'Filter by this pattern'">
+            <button class="row" type="button" (click)="filter(p)" title="Filter by this pattern" i18n-title="@@analysis.patterns.filter">
               <span class="num count">{{ count(p.count) }}</span>
-              <span class="bars" [style.width.px]="90" role="img" [attr.aria-label]="levelLabel(p)">
-                @for (l of levels(p); track l.level) { <span [style.width.%]="share(l.count, p.count)" [style.background]="color(l.level)"></span> }
+              <span class="bar-slot">
+                <span class="bars" [style.width.px]="barPx(p)" role="img" [attr.aria-label]="levelLabel(p)">
+                  @for (l of levels(p); track l.level) { <span [style.width.%]="share(l.count, p.count)" [style.background]="color(l.level)"></span> }
+                </span>
               </span>
               <span class="mono grow ellipsis" [title]="p.template">{{ p.template }}</span>
               <span class="mono muted range">{{ time.format(p.firstTs) }} → {{ time.format(p.lastTs) }}</span>
             </button>
             @if (p.sampleIds.length) {
-              <button class="btn ghost sample" type="button" (click)="showSample(p)" [attr.aria-label]="'Show an example event of ' + p.template">Example</button>
+              <button class="btn ghost sample" type="button" (click)="showSample(p)" [attr.aria-label]="exampleLabel(p.template)" i18n="@@analysis.patterns.example">Example</button>
             }
           </li>
         }
@@ -48,7 +50,8 @@ import { AsyncResource } from './async-resource';
     `
       .list.body { padding: 0; }
       .count { width: 56px; flex: none; color: var(--text); }
-      .bars { flex: none; }
+      .bars { flex: none; min-width: 0; }
+      .bar-slot { width: 90px; flex: none; display: flex; }
       .range { flex: none; font-size: 11px; }
       li { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
       li > .row { flex: 1; min-width: 0; border-bottom: 0; }
@@ -57,6 +60,9 @@ import { AsyncResource } from './async-resource';
   ],
 })
 export class PatternsView {
+  protected exampleLabel(template: string): string {
+    return $localize`:@@analysis.patterns.exampleLabel:Show an example event of ${template}:template:`;
+  }
   protected readonly res = new AsyncResource<Pattern[]>();
   protected readonly time = inject(AnalysisTime);
   protected readonly count = formatCount;
@@ -75,6 +81,12 @@ export class PatternsView {
     return levelCounts(p.levels);
   }
 
+  /** Bar length relative to the most frequent pattern (90px), at least 4px so rare patterns stay visible. */
+  protected barPx(p: Pattern): number {
+    const max = Math.max(0, ...(this.res.data() ?? []).map((x) => x.count));
+    return max > 0 ? Math.max(4, Math.round((90 * p.count) / max)) : 4;
+  }
+
   protected share(n: number, total: number): number {
     return barWidth(n, total);
   }
@@ -84,7 +96,7 @@ export class PatternsView {
   }
 
   protected levelLabel(p: Pattern): string {
-    return levelCounts(p.levels).map((l) => `${l.level} ${l.count}`).join(', ') || 'no events';
+    return levelCounts(p.levels).map((l) => `${l.level} ${l.count}`).join(', ') || $localize`:@@analysis.patterns.noEvents:no events`;
   }
 
   protected filter(p: Pattern): void {

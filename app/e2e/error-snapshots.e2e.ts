@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { openApp } from './app';
+import { CAPTURE_TIMEOUT, openApp } from './app';
 import { openAppWith } from './mock-url';
 
 // Error snapshots: the window is rendered to an image inside the webview (html-to-image), so this runs
@@ -58,7 +58,7 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
   await openApp(page);
   await throwUncaught(page, 'e2e boom');
 
-  await expect(toast(page)).toContainText('Error captured');
+  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   await expect(page.locator('[data-testid=snapshot-notice]')).toContainText('IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
   await toast(page).getByRole('button', { name: 'View', exact: true }).click();
 
@@ -95,7 +95,7 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
 test('a second automatic error within 10 seconds does not take another snapshot', async ({ page }) => {
   await openApp(page);
   await throwUncaught(page, 'first');
-  await expect(toast(page)).toContainText('Error captured');
+  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   // The app logs the error and decides about a snapshot in the same task: once it is logged, it was decided.
   const handled = page.waitForEvent('console', (m) => m.type() === 'error' && m.text().includes('second'));
   await throwUncaught(page, 'second');
@@ -123,7 +123,7 @@ test('Ctrl/Cmd+Shift+F12 captures a diagnostic screenshot that includes the char
   const box = (await chart.boundingBox())!;
 
   await page.keyboard.press('ControlOrMeta+Shift+F12');
-  await expect(toast(page)).toContainText('Error captured');
+  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   await toast(page).getByRole('button', { name: 'View', exact: true }).click();
   const view = page.locator('imt-error-snapshots-view');
   await expect(view).toContainText('manual');
@@ -144,7 +144,7 @@ test('a panel that fails takes a snapshot of its error card', async ({ page }) =
   // Rows without `markers` make the events grid throw while rendering.
   await openAppWith(page, '?mockCorrupt=markers', { grid: false });
   await expect(page.locator('.imt-panel-failed')).toBeVisible();
-  await expect(toast(page)).toContainText('Error captured');
+  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   await openSnapshotsView(page);
   const view = page.locator('imt-error-snapshots-view');
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(1);
@@ -153,7 +153,7 @@ test('a panel that fails takes a snapshot of its error card', async ({ page }) =
 
 test('an unexpected backend failure takes a snapshot naming the command', async ({ page }) => {
   await openAppWith(page, '?mockFail=queryTimeline:1');
-  await expect(toast(page)).toContainText('Error captured');
+  await expect(toast(page)).toContainText('Error captured', { timeout: CAPTURE_TIMEOUT });
   await openSnapshotsView(page);
   const view = page.locator('imt-error-snapshots-view');
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(1);

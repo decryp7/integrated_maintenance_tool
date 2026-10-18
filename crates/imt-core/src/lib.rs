@@ -31,6 +31,7 @@ pub mod query;
 pub mod redact;
 pub mod regex_assist;
 pub mod report;
+pub mod script;
 pub mod settings;
 pub mod skew;
 pub mod store;

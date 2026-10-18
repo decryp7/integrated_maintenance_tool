@@ -597,12 +597,12 @@ impl Configurable for DiagnosticsSection {
             )
             .field(
                 SettingField::new("logMaxFileMb", "Log file size", int(1, 100, Some("MB")), d.log.max_file_mb)
-                    .describe("A new log file is started when the current one reaches this size.")
+                    .describe("IMT starts a new log file every day. Past this size in one day, only errors are written until the next day.")
                     .needs_restart(),
             )
             .field(
                 SettingField::new("logKeepFiles", "Old log files kept", int(1, 50, None), d.log.keep_files)
-                    .describe("How many rotated log files are kept besides the current one.")
+                    .describe("How many older daily log files are kept besides the current one.")
                     .needs_restart(),
             )
             .field(
@@ -678,7 +678,7 @@ impl Configurable for DiagnosticsSection {
             .ok_or_else(|| anyhow::anyhow!("there is no configuration folder"))?;
         let s = diagnostics_from(values)?;
         diagnostics::save(dir, &s)?;
-        log::set_max_level(s.log.level.filter());
+        crate::logging::set_level(s.log.level);
         crate::activity::set_config(s.activity);
         Ok(())
     }

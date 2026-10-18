@@ -12,6 +12,7 @@ use imt_ipc::process::{launch, ChildProcess, SpawnSpec};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
@@ -312,17 +313,26 @@ impl Drop for GrpcTransport {
     }
 }
 
+/// The worker's extra environment, evaluated at every launch, so a changed setting (such as the inference
+/// build) reaches the next worker without rebuilding the launcher.
+pub type WorkerEnv = Arc<dyn Fn() -> Vec<(String, String)> + Send + Sync>;
+
+/// An environment that never changes.
+pub fn fixed_env(env: Vec<(String, String)>) -> WorkerEnv {
+    Arc::new(move || env.clone())
+}
+
 /// Starts workers as child processes speaking gRPC.
 pub struct GrpcLauncher {
     pub exe: PathBuf,
     pub args: Vec<String>,
-    /// Extra environment for the worker.
-    pub env: Vec<(String, String)>,
+    /// Extra environment for the worker, evaluated at each launch.
+    pub env: WorkerEnv,
 }
 
 impl WorkerLauncher for GrpcLauncher {
     fn launch(&self) -> Result<Box<dyn WorkerTransport>, TransportError> {
-        Ok(Box::new(GrpcTransport::spawn(&self.exe, &self.args, &self.env)?))
+        Ok(Box::new(GrpcTransport::spawn(&self.exe, &self.args, &(self.env)())?))
     }
 }
 

@@ -90,6 +90,8 @@ export type PipelineStepKind =
   | 'parse_kv'
   | 'lookup'
   | 'shift_time'
+  | 'calc'
+  | 'script'
   | 'plugin';
 export const PIPELINE_STEP_KINDS: PipelineStepKind[] = [
   'drop',
@@ -105,6 +107,8 @@ export const PIPELINE_STEP_KINDS: PipelineStepKind[] = [
   'parse_kv',
   'lookup',
   'shift_time',
+  'calc',
+  'script',
   'plugin',
 ];
 
@@ -131,6 +135,10 @@ export interface PipelineStep {
   key?: string;
   /** shift_time: "+2.4s", "-150ms", "1m". */
   by?: string;
+  /** calc: expression computing `field`, e.g. "ElapsedMs / 1000" (parsed and evaluated by the engine). */
+  expr?: string;
+  /** script: Rhai source run on every event (compiled, sandboxed and evaluated only by the engine). */
+  script?: string;
   /** The engine skips the step (kept in the TOML so it can be re-enabled). */
   disabled?: boolean;
   [key: string]: unknown;
@@ -183,7 +191,7 @@ export function toJsRegex(pattern: string, extraFlags = ''): RegExp {
   const inline = /^\(\?([a-z]+)\)/.exec(src);
   if (inline) {
     src = src.slice(inline[0].length);
-    for (const f of inline[1]) if ('ims'.includes(f) && !flags.includes(f)) flags += f;
+    for (const f of inline[1] ?? '') if ('ims'.includes(f) && !flags.includes(f)) flags += f;
   }
   return new RegExp(src, flags);
 }

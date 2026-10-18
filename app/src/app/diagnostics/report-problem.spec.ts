@@ -17,6 +17,7 @@ import { formatBytes, REPORT_FILE_NAME, ReportProblemDialog } from './report-pro
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
 import { ACTIVITY_LOG_COMMAND, CapturedImage, REPORT_PROBLEM_COMMAND } from './snapshot.types';
+import { at } from '../../testing/must';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
@@ -156,12 +157,12 @@ describe('snapshots with breadcrumbs', () => {
   it('the mock attaches the latest activity and the steps ending in the error', async () => {
     const m = new MockSnapshotBackend(() => CRUMBS);
     await m.save(IMAGE, { reason: 'panel-failed', message: 'boom', manual: false });
-    const [info] = await m.list();
+    const info = at(await m.list(), 0);
     expect(info.breadcrumbs.map((b) => b.operation)).toEqual(['file.open', 'export.csv']);
     expect(info.steps.at(-1)).toBe('3. Error: boom');
     const quiet = new MockSnapshotBackend(() => []);
     await quiet.save(IMAGE, { reason: 'manual', message: 'x', manual: true });
-    expect((await quiet.list())[0].steps).toEqual([]);
+    expect(at((await quiet.list()), 0).steps).toEqual([]);
     // The default reads the UI's own activity ring.
     expect(Array.isArray((await new MockSnapshotBackend().reportPreview('')).steps)).toBe(true);
   });

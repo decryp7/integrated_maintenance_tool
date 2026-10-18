@@ -29,7 +29,11 @@ function setup(options: MockAiOptions = { mode: 'setup' }, modelId: string | nul
   return { backend, ctx, ref, fixture, el, q };
 }
 
-async function until(fixture: { detectChanges(): void }, cond: () => boolean, rounds = 200): Promise<void> {
+async function until(
+  fixture: { detectChanges(): void },
+  cond: () => boolean,
+  rounds = 200,
+): Promise<void> {
   for (let i = 0; i < rounds && !cond(); i++) {
     await settle();
     fixture.detectChanges();
@@ -74,7 +78,9 @@ describe('AiSetupWizard', () => {
     q('ai-setup-start')!.click();
     await until(fixture, () => !!q('ai-setup-bytes'));
     expect(q('ai-setup-stage')!.textContent).toContain('Step 2 of 5');
-    expect(fixture.nativeElement.querySelector('[role=progressbar]').getAttribute('aria-valuenow')).toMatch(/^\d+$/);
+    expect(
+      fixture.nativeElement.querySelector('[role=progressbar]').getAttribute('aria-valuenow'),
+    ).toMatch(/^\d+$/);
     expect(q('ai-setup-bytes')!.textContent).toMatch(/of 5\.6 GB/);
     await until(fixture, () => !!q('ai-setup-ready'));
     expect(stages).toContain('verifying');
@@ -148,7 +154,10 @@ describe('AiSetupWizard', () => {
     q('ai-setup-start')!.click();
     await until(fixture, () => !!q('ai-setup-cancel'));
     const cmp = fixture.componentInstance;
-    cmp.dispatch({ type: 'setup', event: { stage: 'fellBackToCpu', reason: 'The GPU could not be used' } });
+    cmp.dispatch({
+      type: 'setup',
+      event: { stage: 'fellBackToCpu', reason: 'The GPU could not be used' },
+    });
     fixture.detectChanges();
     expect(q('ai-setup-fallback')!.textContent).toContain('GPU could not be used');
     vi.spyOn(backend, 'setupCancel').mockRejectedValue(new Error('x'));
@@ -157,10 +166,44 @@ describe('AiSetupWizard', () => {
     fixture.destroy();
   });
 
+  it('asks for an inference runtime first when none is installed, then continues to the models', async () => {
+    const { fixture, q } = setup({ mode: 'setup', runtime: 'none' });
+    await until(fixture, () => !!q('ai-setup-runtime'));
+    expect(q('ai-setup-runtime')!.textContent).toContain('Inference runtime');
+    expect(q('ai-hardware')).toBeNull();
+    const go = q('ai-runtime-continue') as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    await until(fixture, () => !!q('ai-runtime-download-suggested'));
+    q('ai-runtime-download-suggested')!.click();
+    await until(fixture, () => !!q('ai-runtime-ready'));
+    await until(fixture, () => !(q('ai-runtime-continue') as HTMLButtonElement).disabled);
+    q('ai-runtime-continue')!.click();
+    await until(fixture, () => !!q('ai-hardware'));
+    q('ai-setup-start')!.click();
+    await until(fixture, () => !!q('ai-setup-ready'));
+    expect(q('ai-setup-ready')!.textContent).toContain('CUDA');
+  });
+
+  it('offers the runtime download when a set-up fails for want of one', async () => {
+    // The runtime was deleted after the wizard checked (or the check failed): the load reports it.
+    const { fixture, q } = setup({ mode: 'setup', runtime: 'none' });
+    await until(fixture, () => !!q('ai-setup-runtime'));
+    fixture.componentInstance.dispatch({ type: 'runtimeReady' });
+    fixture.detectChanges();
+    q('ai-setup-start')!.click();
+    await until(fixture, () => !!q('ai-setup-error'));
+    expect(q('ai-setup-error')!.textContent).toContain('no inference runtime is installed');
+    await until(fixture, () => !!q('ai-runtime-download-suggested'));
+    expect(q('ai-setup-runtime')).not.toBeNull();
+  });
+
   it('shows plan notes, the fallback note when ready, and survives a failed event subscription', async () => {
     const backend = new MockAiBackend({ stepMs: 0, mode: 'setup' });
     const plan = await backend.setupPlan();
-    vi.spyOn(backend as AiBackend, 'setupPlan').mockResolvedValue({ ...plan, note: 'Could not reach the model host to confirm the licence' } as SetupPlan);
+    vi.spyOn(backend as AiBackend, 'setupPlan').mockResolvedValue({
+      ...plan,
+      note: 'Could not reach the model host to confirm the licence',
+    } as SetupPlan);
     vi.spyOn(backend, 'onSetup').mockRejectedValue(new Error('no events'));
     TestBed.configureTestingModule({
       providers: [

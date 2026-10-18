@@ -10,17 +10,17 @@ import { LiveTail } from '../workspace/live-tail';
   selector: 'imt-open-live-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p>Open log files or a folder and follow them as they grow. Live tail turns on.</p>
-    <label class="check">
+    <p i18n="@@live.openLive.intro">Open log files or a folder and follow them as they grow. Live tail turns on.</p>
+    <label class="check" i18n="@@live.openLive.startAtEnd">
       <input type="checkbox" data-testid="start-at-end" [checked]="startAtEnd()" (change)="startAtEnd.set($any($event.target).checked)" />
       Live: start at end (only new lines)
     </label>
-    <p class="faint small">Without it, the files' existing lines are imported too.</p>
+    <p class="faint small" i18n="@@live.openLive.startAtEndHelp">Without it, the files' existing lines are imported too.</p>
     @if (error(); as e) { <p class="err" role="alert">{{ e }}</p> }
     <div class="foot">
-      <button type="button" class="btn ghost" (click)="ref.close()">Cancel</button>
-      <button type="button" class="btn" [disabled]="busy()" (click)="open(false)">Open files…</button>
-      <button type="button" class="btn primary" [disabled]="busy()" (click)="open(true)">Open folder…</button>
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@live.openLive.cancel">Cancel</button>
+      <button type="button" class="btn" [disabled]="busy()" (click)="open(false)" i18n="@@live.openLive.files">Open files…</button>
+      <button type="button" class="btn primary" [disabled]="busy()" (click)="open(true)" i18n="@@live.openLive.folder">Open folder…</button>
     </div>
   `,
   styles: [DIALOG_FORM_STYLES, `.small { font-size: 11px; }`],

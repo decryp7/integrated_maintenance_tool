@@ -63,7 +63,7 @@ export class AnalysisActions {
         return ids.length;
       }
     }
-    this.ctx.notifyError(`No events carry the id ${id}.`);
+    this.ctx.notifyError($localize`:@@analysis.actions.noEventsForId:No events carry the id ${id}:id:.`);
     return 0;
   }
 }

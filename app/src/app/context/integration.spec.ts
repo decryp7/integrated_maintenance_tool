@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Type } from '@angular/core';
-import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
+import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle } from '../../testing/helpers';
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { EventsGrid } from '../grid/events-grid';
@@ -9,10 +8,11 @@ import { Inspector } from '../inspector/inspector';
 import { AdhocCharts } from '../metrics/adhoc-charts';
 import { Sidebar } from '../shell/sidebar';
 import { ContextMenuService } from '../ui/context-menu.service';
-import { DIALOG_REF, DialogService } from '../ui/dialog.service';
+import { DialogService } from '../ui/dialog.service';
 import { DropDialog } from './drop-dialog';
 import { ExtractDialog } from './extract-dialog';
 import { MaskDialog } from './mask-dialog';
+import { at } from '../../testing/must';
 
 /** Selects `needle` inside the element's text, like a user dragging over it. */
 function selectText(root: HTMLElement, needle: string): void {
@@ -51,7 +51,7 @@ describe('Inspector context actions', () => {
     mask.click();
     extract.click();
     expect(dialogs.stack().map((d) => d.component)).toEqual([MaskDialog, ExtractDialog]);
-    expect(dialogs.stack()[1].options.inputs).toMatchObject({ start: 23, end: 27 });
+    expect(dialogs.stack()[1]?.options.inputs).toMatchObject({ start: 23, end: 27 });
     // A selection outside the message is ignored; collapsing inside it clears the buttons.
     document.getSelection()!.removeAllRanges();
     document.dispatchEvent(new Event('selectionchange'));
@@ -67,8 +67,8 @@ describe('Inspector context actions', () => {
     menu.close();
     const prop = el(fixture, '.prop');
     prop.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
-    expect(menu.menu()?.items[0].label).toMatch(/^Filter: only this /);
-    menu.menu()!.items[0].run();
+    expect(menu.menu()?.items[0]?.label).toMatch(/^Filter: only this /);
+    at(menu.menu()!.items, 0).run();
     expect(store.query().filters).toHaveLength(1);
     menu.close();
     prop.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true }));
@@ -118,7 +118,7 @@ describe('EventsGrid context menu', () => {
     await settle(fixture);
     const menu = TestBed.inject(ContextMenuService);
     const store = TestBed.inject(WorkspaceStore);
-    const row = all(fixture, '.row')[1];
+    const row = at(all(fixture, '.row'), 1);
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
     expect(store.selected()).not.toBeNull();
     expect(menu.menu()?.items.map((i) => i.label)).toContain('Mark events like this…');
@@ -153,7 +153,7 @@ describe('Explorer additions', () => {
     await settle(fixture);
     buttonByText(fixture, 'Chart this field').click();
     expect(adhoc.charts().map((c) => c.y)).toEqual(['avg(ProcessId)']);
-    expect(adhoc.charts()[0].splitBy).toEqual(store.effectiveGroupBy());
+    expect(adhoc.charts()[0]?.splitBy).toEqual(store.effectiveGroupBy());
     expect(dock.calls).toContain('show:metrics');
   });
 
@@ -167,8 +167,8 @@ describe('Explorer additions', () => {
   it('opens the format wizard for an unrecognised file', async () => {
     const { fixture, dialogs } = await render();
     el<HTMLButtonElement>(fixture, '[aria-label="Set up format for export.reg"]').click();
-    expect(dialogs.stack()[0].component).toBe(FormatWizard);
-    expect(dialogs.stack()[0].options.inputs).toEqual({ path: '/logs/system/export.reg', name: 'export.reg' });
+    expect(dialogs.stack()[0]?.component).toBe(FormatWizard);
+    expect(dialogs.stack()[0]?.options.inputs).toEqual({ path: '/logs/system/export.reg', name: 'export.reg' });
   });
 });
 

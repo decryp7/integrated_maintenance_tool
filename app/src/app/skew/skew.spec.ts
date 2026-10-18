@@ -17,6 +17,7 @@ import { ClockDialogService, ClockSection } from './clock-section';
 import { ClockSkewStore } from './clock-skew.store';
 import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './skew-format';
 import { CLOCK_SECTION, provideClockSkew } from './skew.plugin';
+import { at } from '../../testing/must';
 
 /** The tiny dataset where source 1 shares correlation ids with source 0, 2.5 s behind. */
 function correlatedDataset(): MockDataset {
@@ -92,7 +93,7 @@ describe('ClockSkewStore', () => {
     expect(store.summary()?.sources.find((s) => s.id === 1)?.offsetMs).toBe(200_000);
     const moved = (await rows(backend)).find((r) => r.message === 'Application starting — Worker')!;
     expect(jump).toHaveBeenCalledWith(moved.id);
-    expect(bookmarks.items()[0].recordId).toBe(moved.id);
+    expect(bookmarks.items()[0]?.recordId).toBe(moved.id);
     expect(skew.reference()?.id).toBe((await rows(backend)).find((r) => r.message === web01.message)!.id);
     expect(store.notice()).toContain('+3 min 20 s');
 
@@ -216,22 +217,22 @@ describe('clock section, commands, sidebar and inspector', () => {
     buttonByText(fixture, 'Use as clock reference').click();
     await settle(fixture);
     expect(el(fixture, '[data-testid=is-reference]')).toBeTruthy();
-    expect(skew.reference()?.id).toBe(r[0].id);
-    const other = r.find((x) => x.source !== r[0].source && x.ts !== null)!;
+    expect(skew.reference()?.id).toBe(at(r, 0).id);
+    const other = r.find((x) => x.source !== at(r, 0).source && x.ts !== null)!;
     fixture.componentRef.setInput('record', other);
     await settle(fixture);
     const dialogs = TestBed.inject(DialogService);
     buttonByText(fixture, /Align app\.log on reference/).click();
-    expect(dialogs.stack()[0].options.inputs).toEqual({ sourceId: other.source });
-    expect(dialogs.stack()[0].options.title).toBe('Adjust clock — app.log');
+    expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: other.source });
+    expect(dialogs.stack()[0]?.options.title).toBe('Adjust clock — app.log');
     fixture.componentRef.setInput('record', r[0]);
     await settle(fixture);
     buttonByText(fixture, 'Clear').click();
     expect(skew.reference()).toBeNull();
-    expect(CLOCK_SECTION.when!(r[0])).toBe(true);
+    expect(CLOCK_SECTION.when!(at(r, 0))).toBe(true);
     expect(CLOCK_SECTION.when!(r.find((x) => x.ts === null)!)).toBe(false);
     TestBed.inject(ClockDialogService).open(3);
-    expect(dialogs.stack()[1].options.title).toBe('Adjust clock');
+    expect(dialogs.stack()[1]?.options.title).toBe('Adjust clock');
   });
 
   it('offers palette commands for the selected event', async () => {
@@ -241,10 +242,10 @@ describe('clock section, commands, sidebar and inspector', () => {
     const find = (id: string) => registry.all().find((c) => c.id === id)!;
     expect(registry.available().some((c) => c.id === 'skew.adjust')).toBe(false);
     const r = await rows(backend);
-    store.select(r[1]);
+    store.select(at(r, 1));
     expect(registry.available().map((c) => c.id)).toEqual(expect.arrayContaining(['skew.adjust', 'skew.reference']));
     await registry.run(find('skew.reference').id);
-    expect(skew.reference()?.id).toBe(r[1].id);
+    expect(skew.reference()?.id).toBe(at(r, 1).id);
     await registry.run(find('skew.adjust').id);
     expect(TestBed.inject(DialogService).stack()).toHaveLength(1);
     store.select(null);
@@ -267,12 +268,12 @@ describe('clock section, commands, sidebar and inspector', () => {
     const menu = TestBed.inject(ContextMenuService);
     row.dispatchEvent(new MouseEvent('contextmenu', { clientX: 10, clientY: 20, bubbles: true }));
     expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Adjust clock…', 'Remove']);
-    menu.menu()!.items[0].run();
+    at(menu.menu()!.items, 0).run();
     const dialogs = TestBed.inject(DialogService);
-    expect(dialogs.stack()[0].options.inputs).toEqual({ sourceId: 1 });
+    expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: 1 });
     el(fixture, '[aria-label="Adjust clock of app.clef"]').click();
     expect(dialogs.stack()).toHaveLength(2);
-    menu.menu()!.items[1].run();
+    at(menu.menu()!.items, 1).run();
     await settle(fixture);
     expect(store.summary()?.sources.some((s) => s.id === 1)).toBe(false);
   });

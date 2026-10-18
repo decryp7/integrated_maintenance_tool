@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, Injectable, input, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
+import { plural } from '../i18n/locale';
 import { errorMessage } from '../tools/tool-errors';
 import { DIALOG_REF, DialogRef, DialogService } from '../ui/dialog.service';
 import { WindowingBackend } from './windowing-backend';
@@ -7,7 +8,10 @@ import { OpenAsk, OpenChoice } from './windowing.types';
 
 /** "Open N file(s)" as the dialog title. */
 export function openAskTitle(count: number): string {
-  return `Open ${count} file${count === 1 ? '' : 's'}`;
+  return plural(count, {
+    one: $localize`:@@windowing.openAsk.title.one:Open ${count}:count: file`,
+    other: $localize`:@@windowing.openAsk.title.other:Open ${count}:count: files`,
+  });
 }
 
 /** Asks whether files sent by another app open in this window or a new one. */
@@ -31,7 +35,7 @@ export class OpenAskService {
     try {
       await this.backend.resolveOpen('cancel');
     } catch (e) {
-      this.store.setError(`Could not cancel opening the files: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@windowing.openAsk.cancelFailed:Could not cancel opening the files: ${errorMessage(e)}:error:`);
     }
   }
 }
@@ -43,17 +47,17 @@ export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
   selector: 'imt-open-ask-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p>Where should IMT open {{ ask().count === 1 ? 'this file' : 'these files' }}?</p>
+    <p i18n="@@windowing.openAsk.question">Where should IMT open {ask().count, plural, =1 {this file} other {these files}}?</p>
     @if (ask().names.length) {
-      <ul class="names mono" aria-label="Files to open">
+      <ul class="names mono" aria-label="Files to open" i18n-aria-label="@@windowing.openAsk.files">
         @for (name of ask().names; track $index) {
           <li class="ellipsis" [title]="name">{{ name }}</li>
         }
       </ul>
     }
     <div class="foot">
-      <button type="button" class="btn" [disabled]="busy()" (click)="choose('here')">This window</button>
-      <button type="button" class="btn primary" [disabled]="busy()" (click)="choose('newWindow')">New window</button>
+      <button type="button" class="btn" [disabled]="busy()" (click)="choose('here')" i18n="@@windowing.openAsk.here">This window</button>
+      <button type="button" class="btn primary" [disabled]="busy()" (click)="choose('newWindow')" i18n="@@windowing.openAsk.newWindow">New window</button>
     </div>
   `,
   styles: `
@@ -76,7 +80,7 @@ export class OpenAskDialog {
       await this.backend.resolveOpen(target);
       this.ref.close(target);
     } catch (e) {
-      this.store.setError(`Could not open the files: ${errorMessage(e)}`);
+      this.store.setError($localize`:@@windowing.openAsk.failed:Could not open the files: ${errorMessage(e)}:error:`);
     } finally {
       this.busy.set(false);
     }

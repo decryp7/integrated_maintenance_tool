@@ -86,7 +86,7 @@ export class LiveTail {
   /** Turns live tail on for a feature that needs it; rejects with the reason when it could not start. */
   async start(): Promise<void> {
     await this.set(true);
-    if (!this.enabled()) throw new Error(this.error() ?? 'Live tail could not start');
+    if (!this.enabled()) throw new Error(this.error() ?? $localize`:@@workspace.liveTail.cannotStart:Live tail could not start`);
   }
 
   /**

@@ -2,6 +2,7 @@
 //! tolerates corruption, and a JSON description of the fields for the Settings screen.
 //! The Hugging Face access token is deliberately not a setting: it is never written to disk.
 
+use crate::runtimes::builds::is_build_id;
 use crate::web::{WebProvider, WebSearchSettings};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -78,6 +79,11 @@ pub struct AiSettings {
     pub models_dir: Option<String>,
     /// Web search for error codes and messages. Off by default; every search and page fetch is approved by the user.
     pub web_search: WebSearchSettings,
+    /// Inference build of llama-server: `auto` (the best one that works here) or a build id such as
+    /// `cpu`, `vulkan`, `cuda-13`, `metal` (see `imt-ai-worker --list-builds`).
+    pub inference_build: String,
+    /// A llama-server executable to use instead of the bundled builds (advanced).
+    pub llama_server_path: Option<String>,
 }
 
 impl Default for AiSettings {
@@ -97,9 +103,14 @@ impl Default for AiSettings {
             max_download_gb: 20,
             models_dir: None,
             web_search: WebSearchSettings::default(),
+            inference_build: AUTO_BUILD.into(),
+            llama_server_path: None,
         }
     }
 }
+
+/// The automatic choice of inference build.
+pub const AUTO_BUILD: &str = "auto";
 
 impl AiSettings {
     /// Brings every value into its allowed range (called after loading and before saving).
@@ -132,7 +143,28 @@ impl AiSettings {
             self.hf_endpoint = crate::models::hf::DEFAULT_ENDPOINT.into();
         }
         self.web_search = self.web_search.clone().clamp();
+        self.inference_build = self.inference_build.trim().to_ascii_lowercase();
+        if !is_build_id(&self.inference_build) {
+            self.inference_build = AUTO_BUILD.into();
+        }
+        if blank(&self.llama_server_path) {
+            self.llama_server_path = None;
+        }
         self
+    }
+
+    /// The environment the inference worker needs to find and choose llama-server (ADR 0009):
+    /// `builds_dir` holds the downloaded builds of the pinned release (`RuntimeStore::builds_dir`).
+    /// Changing these takes effect when the worker restarts.
+    pub fn worker_env(&self, builds_dir: &Path) -> Vec<(String, String)> {
+        let mut env = vec![
+            ("IMT_LLAMA_DIR".to_string(), builds_dir.to_string_lossy().into_owned()),
+            ("IMT_LLAMA_BUILD".to_string(), self.inference_build.clone()),
+        ];
+        if let Some(p) = &self.llama_server_path {
+            env.push(("IMT_LLAMA_SERVER".to_string(), p.trim().to_string()));
+        }
+        env
     }
 
     /// Problems the user should fix (clamping cannot repair them).
@@ -157,6 +189,14 @@ impl AiSettings {
         if let Some(m) = &self.active_model {
             if !crate::catalog::is_safe_file_name(m) {
                 p.push("The active model must be a .gguf file name".to_string());
+            }
+        }
+        if !is_build_id(&self.inference_build) {
+            p.push("The inference build must be auto or a build name such as cpu, vulkan or cuda-13".to_string());
+        }
+        if let Some(path) = &self.llama_server_path {
+            if !Path::new(path.trim()).is_absolute() {
+                p.push("The llama-server path must be a full path to the executable".to_string());
             }
         }
         p
@@ -224,6 +264,8 @@ pub fn schema() -> Value {
         f("download_proxy", "Download proxy", "Optional http://host:port proxy, used for model downloads only.", "string", Value::Null, json!({}), false),
         f("max_download_gb", "Largest download (GB)", "Refuse model files larger than this.", "int", json!(d.max_download_gb), json!({"min": 1, "max": 200}), false),
         f("models_dir", "Models folder", "Where downloaded models are stored. Empty uses the app data folder.", "path", Value::Null, json!({}), true),
+        f("inference_build", "Inference build", "Which llama-server build runs the model. Automatic picks the best one that works on this computer: CUDA with an NVIDIA GPU, else Vulkan, else the CPU (Metal on Apple Silicon). If the chosen build cannot start, IMT falls back to the next one and says so.", "enum", json!(AUTO_BUILD), json!({"options": ["auto", "cpu", "vulkan", "cuda-13", "cuda-12", "rocm", "sycl", "sycl-fp32", "openvino", "metal"], "optionsSource": "aiInferenceBuilds"}), true),
+        f("llama_server_path", "Custom llama-server", "Advanced: a llama-server executable to use instead of the inference runtimes IMT downloads. Empty uses the downloaded builds.", "file", Value::Null, json!({}), true),
         f("web_search.provider", "Web search", "Look up error codes and messages on the web. Off by default. Only a cleaned-up query leaves this computer, and only after you approve it. Manual shows the query and lets you search yourself.", "enum", json!("none"), json!({"options": ["none", "searxng", "brave", "manual"]}), false),
         f("web_search.searxng_url", "SearXNG address", "Your SearXNG instance, for example https://search.example.org. It must allow the JSON format.", "string", json!(""), json!({}), false),
         f("web_search.brave_key", "Brave Search API key", "Stored in the system keychain, never in a file. Write-only: it cannot be read back.", "secret", Value::Null, json!({"writeOnly": true, "storage": "keychain"}), false),
@@ -267,9 +309,13 @@ mod tests {
             models_dir: Some("".into()),
             active_model: Some(" ".into()),
             hf_endpoint: " ".into(),
+            inference_build: "../x".into(),
+            llama_server_path: Some(" ".into()),
             ..AiSettings::default()
         }
         .clamp();
+        assert_eq!(s.inference_build, "auto");
+        assert!(s.llama_server_path.is_none());
         assert_eq!(
             (s.context_length, s.max_tokens, s.threads, s.idle_unload_minutes, s.max_download_gb),
             (1024, 512, 256, 1440, 1)
@@ -287,6 +333,45 @@ mod tests {
             .temperature,
             2.0
         );
+    }
+
+    #[test]
+    fn inference_build_settings_reach_the_worker() {
+        let d = AiSettings::default();
+        assert_eq!(d.inference_build, "auto");
+        let dir = Path::new("/data/ai/runtimes/b1");
+        assert_eq!(
+            d.worker_env(dir),
+            vec![
+                ("IMT_LLAMA_DIR".to_string(), dir.to_string_lossy().into_owned()),
+                ("IMT_LLAMA_BUILD".to_string(), "auto".to_string())
+            ]
+        );
+        let server = if cfg!(windows) {
+            r"C:\llama\llama-server.exe"
+        } else {
+            "/opt/llama/llama-server"
+        };
+        let s = AiSettings {
+            inference_build: " Vulkan ".into(),
+            llama_server_path: Some(server.into()),
+            ..AiSettings::default()
+        }
+        .clamp();
+        assert_eq!(s.inference_build, "vulkan");
+        assert!(s.validate().is_empty());
+        let env = s.worker_env(dir);
+        assert_eq!(env[1], ("IMT_LLAMA_BUILD".to_string(), "vulkan".to_string()));
+        assert_eq!(env[2], ("IMT_LLAMA_SERVER".to_string(), server.to_string()));
+        let bad = AiSettings {
+            inference_build: "Not Valid!".into(),
+            llama_server_path: Some("relative/llama-server".into()),
+            ..AiSettings::default()
+        };
+        assert_eq!(bad.validate().len(), 2);
+        // older settings files without the keys load with the defaults
+        let old: AiSettings = serde_json::from_str("{\"autoload\": true}").unwrap();
+        assert_eq!((old.inference_build.as_str(), old.llama_server_path), ("auto", None));
     }
 
     #[test]

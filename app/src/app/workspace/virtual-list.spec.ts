@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { all, el, settle } from '../../testing/helpers';
 import { VirtualList } from './virtual-list';
+import { at } from '../../testing/must';
 
 @Component({
   imports: [VirtualList],
@@ -26,7 +27,7 @@ describe('VirtualList', () => {
     const fixture = await render();
     const cells = all(fixture, '.cell');
     expect(cells.length).toBeLessThan(25);
-    expect(cells[0].textContent).toBe('0:v0');
+    expect(cells[0]?.textContent).toBe('0:v0');
     expect(el(fixture, '.sizer').style.height).toBe('240000px');
     expect(el(fixture, '.vl').style.height).toBe('240px');
   });
@@ -34,7 +35,7 @@ describe('VirtualList', () => {
   it('exposes list semantics with position and size', async () => {
     const fixture = await render();
     expect(el(fixture, '[role=list]').getAttribute('aria-label')).toBe('Things');
-    const first = all(fixture, '[role=listitem]')[0];
+    const first = at(all(fixture, '[role=listitem]'), 0);
     expect(first.getAttribute('aria-posinset')).toBe('1');
     expect(first.getAttribute('aria-setsize')).toBe('10000');
   });

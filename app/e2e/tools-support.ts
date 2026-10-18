@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import { APP_LOAD_TIMEOUT } from './app';
 import { showView } from './menu-support';
 
 /**
@@ -8,7 +9,7 @@ import { showView } from './menu-support';
  */
 export async function openAppWith(page: Page, search = ''): Promise<void> {
   await page.goto(`/${search}`);
-  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
+  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');
   await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
   // The lifecycle extras are mounted into the title bar after start-up.

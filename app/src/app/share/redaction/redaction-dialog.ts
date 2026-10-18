@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { RedactDetector, REDACT_DETECTORS, RedactionPreview, RedactMode } from '../../core/api.types';
+import { RedactDetector, REDACT_DETECTORS, RedactionPreview } from '../../core/api.types';
 import { ProfileModel } from '../../core/profile.model';
 import { ProfileEdits } from '../../profile/profile-edits';
 import { errorMessage } from '../../tools/tool-errors';
@@ -18,10 +18,10 @@ const PREVIEW_MS = 250;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!form()) {
-      <p role="status">Loading the profile…</p>
+      <p role="status" i18n="@@share.redactionDialog.loading">Loading the profile…</p>
     } @else {
       <fieldset class="group">
-        <legend>Detectors</legend>
+        <legend i18n="@@share.redactionDialog.detectors">Detectors</legend>
         <div class="grid">
           @for (d of detectors; track d) {
             <label class="check" [title]="desc[d]">
@@ -34,45 +34,45 @@ const PREVIEW_MS = 250;
       </fieldset>
 
       <div class="row">
-        <label class="lbl">Replace values by
-          <select class="select" [value]="form()!.mode" (change)="patch({ mode: $any($event.target).value })" aria-label="Replace values by">
-            <option value="mask">mask (&lt;email&gt;)</option>
-            <option value="hash">hash (&lt;email:1a2b…&gt;, equal values match within an export)</option>
-            <option value="drop">drop (removed)</option>
+        <label class="lbl"><ng-container i18n="@@share.redactionDialog.replaceBy">Replace values by</ng-container>
+          <select class="select" [value]="form()!.mode" (change)="patch({ mode: $any($event.target).value })" aria-label="Replace values by" i18n-aria-label="@@share.redactionDialog.replaceByAria">
+            <option value="mask" i18n="@@share.redactionDialog.modeMask">mask (&lt;email&gt;)</option>
+            <option value="hash" i18n="@@share.redactionDialog.modeHash">hash (&lt;email:1a2b…&gt;, equal values match within an export)</option>
+            <option value="drop" i18n="@@share.redactionDialog.modeDrop">drop (removed)</option>
           </select>
         </label>
       </div>
 
       <fieldset class="group">
-        <legend>Where</legend>
+        <legend i18n="@@share.redactionDialog.where">Where</legend>
         <div class="inline">
-          <label class="check"><input type="checkbox" [checked]="allFields()" (change)="setAll($any($event.target).checked)" /> All fields (*)</label>
+          <label class="check"><input type="checkbox" [checked]="allFields()" (change)="setAll($any($event.target).checked)" />&ngsp;<ng-container i18n="@@share.redactionDialog.allFields">All fields (*)</ng-container></label>
           @for (p of pseudo; track p) {
             <label class="check"><input type="checkbox" [disabled]="allFields()" [checked]="allFields() || form()!.fields.includes(p)" (change)="togglePseudo(p, $any($event.target).checked)" /> <span class="mono">{{ p }}</span></label>
           }
         </div>
-        <label class="lbl">Other fields (comma-separated)
+        <label class="lbl"><ng-container i18n="@@share.redactionDialog.otherFields">Other fields (comma-separated)</ng-container>
           <input class="input" [disabled]="allFields()" [value]="otherFields()" (change)="setOther($any($event.target).value)" placeholder="User, ClientIp" />
         </label>
       </fieldset>
 
-      <label class="check"><input type="checkbox" [checked]="form()!.onExport" (change)="patch({ onExport: $any($event.target).checked })" /> Redact exports, reports and bundles by default</label>
+      <label class="check"><input type="checkbox" [checked]="form()!.onExport" (change)="patch({ onExport: $any($event.target).checked })" />&ngsp;<ng-container i18n="@@share.redactionDialog.onExport">Redact exports, reports and bundles by default</ng-container></label>
 
       <fieldset class="group">
-        <legend>Custom rules</legend>
+        <legend i18n="@@share.redactionDialog.customRules">Custom rules</legend>
         @for (r of form()!.rules; track $index; let i = $index) {
           <div class="rule">
-            <label class="lbl">Name <input class="input" [value]="r.name" (input)="setRule(i, { name: $any($event.target).value })" /></label>
-            <label class="lbl grow">Regex (a <span class="mono">value</span> group is the part replaced) <input class="input mono" [value]="r.regex" (input)="setRule(i, { regex: $any($event.target).value })" /></label>
-            <label class="lbl">Replace (optional) <input class="input mono" [value]="r.replace" (input)="setRule(i, { replace: $any($event.target).value })" /></label>
-            <button type="button" class="btn ghost" [attr.aria-label]="'Remove rule ' + (r.name || i + 1)" (click)="removeRule(i)">Remove</button>
+            <label class="lbl"><ng-container i18n="@@share.redactionDialog.ruleName">Name</ng-container>&ngsp;<input class="input" [value]="r.name" (input)="setRule(i, { name: $any($event.target).value })" /></label>
+            <label class="lbl grow"><ng-container i18n="@@share.redactionDialog.ruleRegex">Regex (a <span class="mono">value</span> group is the part replaced)</ng-container>&ngsp;<input class="input mono" [value]="r.regex" (input)="setRule(i, { regex: $any($event.target).value })" /></label>
+            <label class="lbl"><ng-container i18n="@@share.redactionDialog.ruleReplace">Replace (optional)</ng-container>&ngsp;<input class="input mono" [value]="r.replace" (input)="setRule(i, { replace: $any($event.target).value })" /></label>
+            <button type="button" class="btn ghost" [attr.aria-label]="removeLabel(r.name, i)" (click)="removeRule(i)" i18n="@@share.redactionDialog.removeRule">Remove</button>
           </div>
         }
-        <div><button type="button" class="btn" (click)="addRule()">Add rule</button></div>
+        <div><button type="button" class="btn" (click)="addRule()" i18n="@@share.redactionDialog.addRule">Add rule</button></div>
       </fieldset>
 
-      <label class="lbl">Sample text
-        <textarea class="input mono" rows="2" [value]="sample()" (input)="sample.set($any($event.target).value)" aria-label="Sample text"></textarea>
+      <label class="lbl"><ng-container i18n="@@share.redactionDialog.sample">Sample text</ng-container>
+        <textarea class="input mono" rows="2" [value]="sample()" (input)="sample.set($any($event.target).value)" aria-label="Sample text" i18n-aria-label="@@share.redactionDialog.sampleAria"></textarea>
       </label>
       <div class="preview" aria-live="polite">
         @if (preview(); as p) {
@@ -87,14 +87,14 @@ const PREVIEW_MS = 250;
             </p>
           }
         } @else {
-          <p class="status">Previewing…</p>
+          <p class="status" i18n="@@share.redactionDialog.previewing">Previewing…</p>
         }
       </div>
     }
     @if (error(); as e) { <p class="err" role="alert">{{ e }}</p> }
     <div class="foot">
-      <button class="btn" type="button" (click)="ref.close()">Cancel</button>
-      <button class="btn primary" type="button" [disabled]="!form() || busy() || !!preview()?.error" (click)="save()">{{ busy() ? 'Saving…' : 'Save' }}</button>
+      <button class="btn" type="button" (click)="ref.close()" i18n="@@share.redactionDialog.cancel">Cancel</button>
+      <button class="btn primary" type="button" [disabled]="!form() || busy() || !!preview()?.error" (click)="save()">{{ saveLabel() }}</button>
     </div>
   `,
   styles: `
@@ -125,6 +125,7 @@ export class RedactionDialog {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  protected readonly saveLabel = computed(() => (this.busy() ? $localize`:@@share.redactionDialog.saving:Saving…` : $localize`:@@share.redactionDialog.save:Save`));
   protected readonly allFields = computed(() => !!this.form()?.fields.includes('*'));
   protected readonly otherFields = computed(() => (this.form()?.fields ?? []).filter((f) => f !== '*' && !(PSEUDO as readonly string[]).includes(f)).join(', '));
 
@@ -147,7 +148,7 @@ export class RedactionDialog {
       this.model = model;
       this.form.set(readRedact(model));
     } catch (e) {
-      this.error.set(`Could not read the profile: ${errorMessage(e)}`);
+      this.error.set($localize`:@@share.redactionDialog.readFailed:Could not read the profile: ${errorMessage(e)}:error:`);
     }
   }
 
@@ -170,6 +171,10 @@ export class RedactionDialog {
     } catch (e) {
       if (mine === this.seq) this.preview.set({ before: sample, after: sample, hits: [], error: errorMessage(e) });
     }
+  }
+
+  protected removeLabel(name: string, i: number): string {
+    return $localize`:@@share.redactionDialog.removeRuleAria:Remove rule ${name || i + 1}:rule:`;
   }
 
   protected has(d: RedactDetector): boolean {

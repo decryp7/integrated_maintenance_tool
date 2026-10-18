@@ -1,5 +1,6 @@
 import { RecordView } from '../core/api.types';
 import { generalizeText, proposeHighlight, qlToConditions } from './highlight';
+import { at } from '../../testing/must';
 
 const rec = (p: Partial<RecordView>) => ({ message: 'Slow request /api took 1500 ms', template: null, ...p }) as RecordView;
 
@@ -22,7 +23,7 @@ describe('proposeHighlight', () => {
     expect(proposeHighlight(rec({ template: 'Slow {Path}' }))).toMatchObject({ basis: 'template', conditions: [{ field: '@template', op: 'eq', value: 'Slow {Path}' }] });
     const m = proposeHighlight(rec({}), '   ');
     expect(m).toMatchObject({ basis: 'message' });
-    expect(m.conditions[0].value).toBe('^Slow request /api took \\d+ ms$');
+    expect(at(m.conditions, 0).value).toBe('^Slow request /api took \\d+ ms$');
   });
   it('shortens long labels', () => {
     expect(proposeHighlight(rec({ message: 'x'.repeat(80) })).label).toHaveLength(41);

@@ -96,7 +96,7 @@ export class MockProfilingBackend implements ProfilingBackend {
     const fail: Partial<Record<ProfilingFailable, number>> = {};
     for (const part of (p.get('mockProfilingFail') ?? '').split(',')) {
       const [name, count] = part.split(':');
-      if ((PROFILING_FAILABLE as readonly string[]).includes(name)) fail[name as ProfilingFailable] = Math.max(1, Number(count) || 1);
+      if (name !== undefined && (PROFILING_FAILABLE as readonly string[]).includes(name)) fail[name as ProfilingFailable] = Math.max(1, Number(count) || 1);
     }
     if (Object.keys(fail).length) options.fail = fail;
     return options;

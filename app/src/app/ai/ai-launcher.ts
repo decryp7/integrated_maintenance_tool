@@ -7,10 +7,10 @@ import { ProfileChangeKind, SampleSource } from './ai.types';
 export type ProposeKind = ProfileChangeKind | 'profile';
 
 const TITLES: Record<ProposeKind, string> = {
-  pipeline: 'Propose pipeline steps',
-  markers: 'Propose markers',
-  extractors: 'Propose extractors',
-  profile: 'Propose a parsing profile',
+  pipeline: $localize`:@@ai.launcher.title.proposePipeline:Propose pipeline steps`,
+  markers: $localize`:@@ai.launcher.title.proposeMarkers:Propose markers`,
+  extractors: $localize`:@@ai.launcher.title.proposeExtractors:Propose extractors`,
+  profile: $localize`:@@ai.launcher.title.proposeProfile:Propose a parsing profile`,
 };
 
 /**
@@ -37,37 +37,37 @@ export class AiLauncher {
   /** The set-up wizard; `modelId` preselects a catalog model instead of the recommended one. */
   async openSetup(modelId?: string): Promise<void> {
     const m = await this.lazy();
-    this.dialogs.open(m.AiSetupWizard, { title: 'Set up the AI assistant', width: 760, inputs: modelId ? { modelId } : {} });
+    this.dialogs.open(m.AiSetupWizard, { title: $localize`:@@ai.launcher.title.setup:Set up the AI assistant`, width: 760, inputs: modelId ? { modelId } : {} });
   }
 
   async openModels(): Promise<void> {
     const m = await this.lazy();
-    this.dialogs.open(m.AiModelManager, { title: 'AI models', width: 820 });
+    this.dialogs.open(m.AiModelManager, { title: $localize`:@@ai.launcher.title.models:AI models`, width: 820 });
   }
 
   async explainEvent(recordId: number): Promise<void> {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: `Explain event ${recordId}`, width: 680, inputs: { kind: 'explain', recordId } });
+    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.explainEvent:Explain event ${recordId}:id:`, width: 680, inputs: { kind: 'explain', recordId } });
   }
 
   async summarize(from: number, to: number): Promise<void> {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: 'Summarize this range', width: 680, inputs: { kind: 'summarize', from, to } });
+    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.summarize:Summarize this range`, width: 680, inputs: { kind: 'summarize', from, to } });
   }
 
   async rootCauses(): Promise<void> {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: 'Likely root causes', width: 680, inputs: { kind: 'rootCauses' } });
+    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.rootCauses:Likely root causes`, width: 680, inputs: { kind: 'rootCauses' } });
   }
 
   /** "Ask AI to write a query": a question in plain words becomes a query the user can apply. */
   async askQuery(question = ''): Promise<void> {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
-    this.dialogs.open(m.AiQueryDialog, { title: 'Ask AI to write a query', width: 640, inputs: { initial: question } });
+    this.dialogs.open(m.AiQueryDialog, { title: $localize`:@@ai.launcher.title.askQuery:Ask AI to write a query`, width: 640, inputs: { initial: question } });
   }
 
   /**
@@ -78,7 +78,7 @@ export class AiLauncher {
     if (!(await this.ensureModel())) return null;
     const m = await this.lazy();
     const ref = this.dialogs.open<string>(m.AiRegexDialog, {
-      title: 'Suggest a regex',
+      title: $localize`:@@ai.launcher.title.suggestRegex:Suggest a regex`,
       width: 720,
       inputs: { lines: [...lines], intent: options.intent ?? '', highlight: !!options.highlight },
     });
@@ -92,7 +92,7 @@ export class AiLauncher {
   async propose(kind: ProposeKind, source: SampleSource, goal = '', options: { chooseKind?: boolean } = {}): Promise<void> {
     if (!(await this.ensureModel())) return;
     const m = await this.lazy();
-    const title = options.chooseKind ? 'Propose profile changes' : TITLES[kind];
+    const title = options.chooseKind ? $localize`:@@ai.launcher.title.proposeChanges:Propose profile changes` : TITLES[kind];
     this.dialogs.open(m.AiProposeDialog, { title, width: 760, inputs: { kind, source, initialGoal: goal, chooseKind: !!options.chooseKind } });
   }
 }

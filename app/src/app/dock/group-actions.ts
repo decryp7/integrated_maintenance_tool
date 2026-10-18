@@ -58,9 +58,9 @@ export class GroupActions implements IHeaderActionsRenderer {
   constructor(private readonly host: GroupActionsHost) {
     this.element.className = 'imt-dock-actions';
     this.menu.setAttribute('aria-haspopup', 'menu');
-    this.set(this.menu, 'Panel menu', ICONS.menu);
-    this.set(this.autoHide, 'Auto hide', ICONS.autoHide);
-    this.set(this.popout, 'Pop out to window', ICONS.popout);
+    this.set(this.menu, $localize`:@@dock.groupActions.panelMenu:Panel menu`, ICONS.menu);
+    this.set(this.autoHide, $localize`:@@dock.groupActions.autoHide:Auto hide`, ICONS.autoHide);
+    this.set(this.popout, $localize`:@@dock.groupActions.popOut:Pop out to window`, ICONS.popout);
     this.element.append(this.menu, this.autoHide, this.popout, this.float, this.maximize);
   }
 
@@ -94,9 +94,9 @@ export class GroupActions implements IHeaderActionsRenderer {
   private refresh(): void {
     const group = this.group!;
     const maximized = group.api.isMaximized();
-    this.set(this.maximize, maximized ? 'Restore panel size' : 'Maximize panel', maximized ? ICONS.restore : ICONS.maximize);
+    this.set(this.maximize, maximized ? $localize`:@@dock.groupActions.restore:Restore panel size` : $localize`:@@dock.groupActions.maximize:Maximize panel`, maximized ? ICONS.restore : ICONS.maximize);
     const floating = group.api.location.type === 'floating';
-    this.set(this.float, floating ? 'Dock panel back into the window' : 'Float panel', floating ? ICONS.dock : ICONS.float);
+    this.set(this.float, floating ? $localize`:@@dock.groupActions.dockBack:Dock panel back into the window` : $localize`:@@dock.groupActions.float:Float panel`, floating ? ICONS.dock : ICONS.float);
     this.autoHide.hidden = floating || !this.host.isTool(group);
     this.popout.hidden = !this.host.canPopOut();
   }

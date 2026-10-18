@@ -24,10 +24,10 @@ export const PALETTE_TOKENS = { slots: ['--s1', '--s2', '--s3', '--s4'], other: 
 
 /** Fallbacks (the dark theme's values) when tokens are unavailable, e.g. in tests. */
 export const FALLBACK_PALETTE: FlamePalette = {
-  slots: ['#3987e5', '#d95926', '#199e70', '#9085e9'],
+  slots: ['#1795fa', '#db551d', '#0a9068', '#b16ec0'],
   other: '#5b6478',
   more: '#f2545b',
-  less: '#3987e5',
+  less: '#1795fa',
   neutral: '#5b6478',
   inkDark: '#0b0d12',
   inkLight: '#ffffff',
@@ -37,7 +37,7 @@ export const FALLBACK_PALETTE: FlamePalette = {
 export function resolvePalette(read: (token: string) => string): FlamePalette {
   const get = (token: string, fallback: string) => read(token).trim() || fallback;
   return {
-    slots: PALETTE_TOKENS.slots.map((t, i) => get(t, FALLBACK_PALETTE.slots[i])),
+    slots: PALETTE_TOKENS.slots.map((t, i) => get(t, FALLBACK_PALETTE.slots[i] ?? '')),
     other: get(PALETTE_TOKENS.other, FALLBACK_PALETTE.other),
     more: get(PALETTE_TOKENS.more, FALLBACK_PALETTE.more),
     less: get(PALETTE_TOKENS.less, FALLBACK_PALETTE.less),
@@ -50,7 +50,12 @@ export function resolvePalette(read: (token: string) => string): FlamePalette {
 
 /** Frame kinds in slot order: managed, native, kernel; unknown is "other". */
 export const KIND_SLOT: Record<FrameKind, number | null> = { managed: 0, native: 1, kernel: 3, unknown: null };
-export const KIND_LABEL: Record<FrameKind, string> = { managed: 'Managed', native: 'Native', kernel: 'Kernel', unknown: 'Unknown' };
+export const KIND_LABEL: Record<FrameKind, string> = {
+  managed: $localize`:@@profiling.flame.kind.managed:Managed`,
+  native: $localize`:@@profiling.flame.kind.native:Native`,
+  kernel: $localize`:@@profiling.flame.kind.kernel:Kernel`,
+  unknown: $localize`:@@profiling.flame.kind.unknown:Unknown`,
+};
 
 /**
  * Sticky module → slot assignment: modules keep the slot they got (colour follows the entity, not
@@ -83,13 +88,13 @@ export function modulesByValue(model: FlameModel): string[] {
 export function frameColor(frame: FrameDto | undefined, by: ColorBy, slots: ReadonlyMap<string, number>, p: FlamePalette): string {
   if (!frame) return p.other;
   const slot = by === 'kind' ? KIND_SLOT[frame.kind] : frame.module !== null ? (slots.get(frame.module) ?? null) : null;
-  return slot === null ? p.other : p.slots[slot];
+  return slot === null ? p.other : p.slots[slot] ?? p.other;
 }
 
 function parseHex(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
-  const n = parseInt(m[1], 16);
+  const n = parseInt(m[1] ?? '', 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
@@ -100,7 +105,7 @@ export function mix(a: string, b: string, t: number): string {
   const x = parseHex(a);
   const y = parseHex(b);
   if (!x || !y) return t >= 0.5 ? b : a;
-  return toHex(x.map((v, i) => v + (y[i] - v) * Math.max(0, Math.min(1, t))));
+  return toHex(x.map((v, i) => v + ((y[i] ?? v) - v) * Math.max(0, Math.min(1, t))));
 }
 
 /**
@@ -116,7 +121,7 @@ export function diffColor(delta: number | undefined, maxAbs: number, p: FlamePal
 export function inkFor(bg: string, p: FlamePalette): string {
   const c = parseHex(bg);
   if (!c) return p.inkLight;
-  const [r, g, b] = c.map((v) => {
+  const [r = 0, g = 0, b = 0] = c.map((v) => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });

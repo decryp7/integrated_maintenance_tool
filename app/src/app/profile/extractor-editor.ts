@@ -37,49 +37,49 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
   template: `
     @if (rule(); as r) {
       <div class="grid2">
-        <label class="lbl">Name<input class="input mono" [value]="r.name" (input)="rename($any($event.target).value)" /></label>
-        <label class="lbl">Read from
+        <label class="lbl"><ng-container i18n="@@profile.extractor.name">Name</ng-container><input class="input mono" [value]="r.name" (input)="rename($any($event.target).value)" /></label>
+        <label class="lbl"><ng-container i18n="@@profile.extractor.readFrom">Read from</ng-container>
           <input class="input mono" list="imt-profile-fields" [value]="r.from ?? '@message'" (input)="patch({ from: $any($event.target).value })" />
         </label>
       </div>
 
-      <div class="lbl">Only when</div>
+      <div class="lbl" i18n="@@profile.extractor.onlyWhen">Only when</div>
       <imt-conditions-editor [conditions]="r.when ?? []" (changed)="patch({ when: $event.length ? $event : undefined })" />
 
-      <label class="lbl"><span>Pattern — named groups become fields: <span class="mono">(?P&lt;name&gt;…)</span></span>
+      <label class="lbl"><span i18n="@@profile.extractor.pattern">Pattern — named groups become fields: <span class="mono">(?P&lt;name&gt;…)</span></span>
         <textarea class="input mono pattern" rows="3" spellcheck="false" [value]="r.regex" (input)="patch({ regex: $any($event.target).value })"></textarea>
       </label>
 
       <div class="outputs-head">
-        <span class="lbl">Outputs</span>
-        <button class="btn ghost" (click)="detectOutputs()" title="Add an output for every named group in the pattern">Detect from pattern</button>
+        <span class="lbl" i18n="@@profile.extractor.outputs">Outputs</span>
+        <button class="btn ghost" (click)="detectOutputs()" title="Add an output for every named group in the pattern" i18n-title="@@profile.extractor.detectTitle" i18n="@@profile.extractor.detect">Detect from pattern</button>
       </div>
       <div class="outputs">
-        <span class="th">Field</span><span class="th">Type</span><span class="th">Unit</span><span class="th">Unit from group</span><span class="th">Convert to</span><span></span>
+        <span class="th" i18n="@@profile.extractor.col.field">Field</span><span class="th" i18n="@@profile.extractor.col.type">Type</span><span class="th" i18n="@@profile.extractor.col.unit">Unit</span><span class="th" i18n="@@profile.extractor.col.unitFrom">Unit from group</span><span class="th" i18n="@@profile.extractor.col.convert">Convert to</span><span></span>
         @for (o of outputs(); track o.name) {
           <span class="mono cap" [style.background]="captureBg(o.name)">{{ o.name }}</span>
-          <select class="select" [value]="o.spec.type" [attr.aria-label]="o.name + ' type'" (change)="patchOutput(o.name, { type: $any($event.target).value })">
+          <select class="select" [value]="o.spec.type" [attr.aria-label]="outputLabel('type', o.name)" (change)="patchOutput(o.name, { type: $any($event.target).value })">
             @for (t of types; track t) { <option [value]="t" [selected]="t === o.spec.type">{{ t }}</option> }
           </select>
-          <input class="input mono" [value]="o.spec.unit ?? ''" placeholder="%, ms, MB" [attr.aria-label]="o.name + ' unit'" (input)="patchOutput(o.name, { unit: $any($event.target).value || undefined })" />
-          <input class="input mono" [value]="o.spec.unit_from ?? ''" placeholder="group" [attr.aria-label]="o.name + ' unit from'" (input)="patchOutput(o.name, { unit_from: $any($event.target).value || undefined })" />
-          <input class="input mono" [value]="o.spec.to ?? ''" placeholder="MB, ms, s" [attr.aria-label]="o.name + ' convert to'" (input)="patchOutput(o.name, { to: $any($event.target).value || undefined })" />
-          <button class="icon-btn" [attr.aria-label]="'Remove output ' + o.name" (click)="removeOutput(o.name)" [attr.title]="'Remove output ' + o.name"><imt-icon name="close" [size]="12" /></button>
+          <input class="input mono" [value]="o.spec.unit ?? ''" placeholder="%, ms, MB" [attr.aria-label]="outputLabel('unit', o.name)" (input)="patchOutput(o.name, { unit: $any($event.target).value || undefined })" />
+          <input class="input mono" [value]="o.spec.unit_from ?? ''" placeholder="group" i18n-placeholder="@@profile.extractor.groupPlaceholder" [attr.aria-label]="outputLabel('unitFrom', o.name)" (input)="patchOutput(o.name, { unit_from: $any($event.target).value || undefined })" />
+          <input class="input mono" [value]="o.spec.to ?? ''" placeholder="MB, ms, s" [attr.aria-label]="outputLabel('convert', o.name)" (input)="patchOutput(o.name, { to: $any($event.target).value || undefined })" />
+          <button class="icon-btn" [attr.aria-label]="removeLabel(o.name)" (click)="removeOutput(o.name)" [attr.title]="removeLabel(o.name)"><imt-icon name="close" [size]="12" /></button>
         } @empty {
-          <span class="faint span-all">No outputs yet. Add named groups to the pattern, then "Detect from pattern".</span>
+          <span class="faint span-all" i18n="@@profile.extractor.noOutputs">No outputs yet. Add named groups to the pattern, then "Detect from pattern".</span>
         }
       </div>
 
       <div class="preview-head">
-        <span class="lbl">Live preview · current filters</span>
+        <span class="lbl" i18n="@@profile.extractor.livePreview">Live preview · current filters</span>
         @if (preview(); as p) {
           @if (p.error) {
             <span class="err">{{ p.error }}</span>
           } @else {
-            <span class="stat" [class.ok]="p.failed === 0">{{ p.matches }} matches · {{ p.failed }} failed · {{ p.candidates }} candidates</span>
+            <span class="stat" [class.ok]="p.failed === 0" i18n="@@profile.extractor.stats">{{ p.matches }} matches · {{ p.failed }} failed · {{ p.candidates }} candidates</span>
           }
         }
-        @if (loading()) { <span class="spinner" role="status" aria-label="Loading"></span> }
+        @if (loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@profile.extractor.loading"></span> }
       </div>
       <div class="samples mono">
         @for (s of samples(); track s.recordId) {
@@ -89,7 +89,7 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
             }
           </div>
         } @empty {
-          <div class="faint">{{ preview() ? 'No matching events in the current results.' : 'Waiting for preview…' }}</div>
+          <div class="faint">@if (preview()) { <ng-container i18n="@@profile.extractor.noMatches">No matching events in the current results.</ng-container> } @else { <ng-container i18n="@@profile.extractor.waiting">Waiting for preview…</ng-container> }</div>
         }
       </div>
       @if (firstValues().length) {
@@ -136,7 +136,7 @@ export class ExtractorEditor {
   protected readonly rule = computed<ExtractRule | null>(() => this.draft.model().extract?.[this.index()] ?? null);
   protected readonly outputs = computed(() => Object.entries(this.rule()?.fields ?? {}).map(([name, spec]) => ({ name, spec })));
   private readonly captureNames = computed(() => {
-    const names = [...(this.rule()?.regex ?? '').matchAll(/\(\?P?<([A-Za-z_][A-Za-z0-9_]*)>/g)].map((m) => m[1]);
+    const names = [...(this.rule()?.regex ?? '').matchAll(/\(\?P?<([A-Za-z_][A-Za-z0-9_]*)>/g)].flatMap((m) => (m[1] ? [m[1]] : []));
     return [...new Set(names)];
   });
   protected readonly samples = computed(() =>
@@ -175,6 +175,23 @@ export class ExtractorEditor {
         }
       }, 350);
     });
+  }
+
+  protected outputLabel(kind: 'type' | 'unit' | 'unitFrom' | 'convert', name: string): string {
+    switch (kind) {
+      case 'type':
+        return $localize`:@@profile.extractor.typeAria:${name}:name: type`;
+      case 'unit':
+        return $localize`:@@profile.extractor.unitAria:${name}:name: unit`;
+      case 'unitFrom':
+        return $localize`:@@profile.extractor.unitFromAria:${name}:name: unit from`;
+      case 'convert':
+        return $localize`:@@profile.extractor.convertAria:${name}:name: convert to`;
+    }
+  }
+
+  protected removeLabel(name: string): string {
+    return $localize`:@@profile.extractor.removeAria:Remove output ${name}:name:`;
   }
 
   private captureColor(name: string): string {

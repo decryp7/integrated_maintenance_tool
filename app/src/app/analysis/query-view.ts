@@ -1,17 +1,29 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { ClickOutside } from '../shared/click-outside';
-import { Completion } from '../core/api.types';
+import { Completion, QueryProgress } from '../core/api.types';
 import { formatKeybinding } from '../extensions/keybinding';
 import { applyCompletion, applySuggestion, charToByte, errorSpan, highlight } from './ql-text';
 import { QlSuggestions } from './ql-suggestions';
 import { QuerySession } from './query-session';
 import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
+import { groupedNumber } from '../i18n/locale';
 
 /** Focuses the element, retrying while its tab is still being shown (the panel may be hidden or not yet laid out). */
 export function focusSoon(el: HTMLElement, attempts = 20): void {
   el.focus();
   if (document.activeElement !== el && attempts > 0) setTimeout(() => focusSoon(el, attempts - 1), 50);
+}
+
+/** "Matching 1,200 of 50,000 events (2%)" for the status line; null before the engine reports anything. */
+export function progressText(p: QueryProgress | null): string | null {
+  if (!p || p.total <= 0) return null;
+  const pct = Math.min(100, Math.floor((p.done / p.total) * 100));
+  const done = groupedNumber(p.done);
+  const total = groupedNumber(p.total);
+  return p.stage === 'matching'
+    ? $localize`:@@analysis.queryView.progress.matching:Matching ${done}:done: of ${total}:total: events (${pct}:pct:%)`
+    : $localize`:@@analysis.queryView.progress.evaluating:Evaluating ${done}:done: of ${total}:total: events (${pct}:pct:%)`;
 }
 
 /**
@@ -31,7 +43,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
           class="qinput mono"
           type="text"
           role="combobox"
-          aria-label="Query"
+          aria-label="Query" i18n-aria-label="@@analysis.queryView.query"
           aria-autocomplete="list"
           aria-haspopup="listbox"
           autocomplete="off"
@@ -51,7 +63,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
           (blur)="focused.set(false)"
         />
         @if (popupOpen()) {
-          <ul class="popup" id="ql-completions" role="listbox" aria-label="Completions">
+          <ul class="popup" id="ql-completions" role="listbox" aria-label="Completions" i18n-aria-label="@@analysis.queryView.completions">
             @for (c of session.completions(); track c.label + $index; let i = $index) {
               <li [id]="'ql-opt-' + i" role="option" [attr.aria-selected]="i === active()" [class.active]="i === active()" (mousedown)="$event.preventDefault()" (click)="accept(c)">
                 <span class="kind">{{ c.kind }}</span><span class="mono">{{ c.label }}</span>
@@ -60,31 +72,42 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
           </ul>
         }
       </div>
-      <button class="btn primary" type="button" (click)="run()" [disabled]="session.running()" [title]="'Run (' + runKey + ')'">Run</button>
-      <imt-ai-button label="Ask AI" hint="Describe what you want in plain words; the local model writes the query" testId="ai-ask-query" (pressed)="ai.askQuery()" />
+      <button class="btn primary" type="button" (click)="run()" [disabled]="session.running()" [title]="runTitle" i18n="Run a query|Button@@analysis.queryView.run">Run</button>
+      @if (session.running()) {
+        <button class="btn" type="button" data-testid="query-cancel" title="Cancel the running query (Esc)" i18n-title="@@analysis.queryView.cancelTitle" [disabled]="session.cancelling()" (click)="cancel()" i18n="@@analysis.queryView.cancel">Cancel</button>
+      }
+      <imt-ai-button label="Ask AI" i18n-label="@@analysis.queryView.askAi" hint="Describe what you want in plain words; the local model writes the query" i18n-hint="@@analysis.queryView.askAiHint" testId="ai-ask-query" (pressed)="ai.askQuery()" />
       <div class="anchor" (imtClickOutside)="historyOpen.set(false)">
-        <button class="btn" type="button" (click)="historyOpen.set(!historyOpen())" [attr.aria-expanded]="historyOpen()" aria-haspopup="true" [disabled]="!session.history.entries().length">History</button>
+        <button class="btn" type="button" (click)="historyOpen.set(!historyOpen())" [attr.aria-expanded]="historyOpen()" aria-haspopup="true" [disabled]="!session.history.entries().length" i18n="@@analysis.queryView.history">History</button>
         @if (historyOpen()) {
-          <ul class="popup history" aria-label="Query history">
+          <ul class="popup history" aria-label="Query history" i18n-aria-label="@@analysis.queryView.historyLabel">
             @for (h of session.history.entries(); track h) {
               <li><button class="item mono" type="button" (click)="useHistory(h)">{{ h }}</button></li>
             }
-            <li class="clear"><button class="item" type="button" (click)="session.history.clear(); historyOpen.set(false)">Clear history</button></li>
+            <li class="clear"><button class="item" type="button" (click)="session.history.clear(); historyOpen.set(false)" i18n="@@analysis.queryView.clearHistory">Clear history</button></li>
           </ul>
         }
       </div>
     </div>
     <div class="status" role="status">
-      @if (session.error(); as e) {
-        <span id="ql-error" class="err-msg">⚠ {{ e.message }}@if (e.len || e.offset) { <span class="muted"> (at column {{ column() }})</span> }</span>
+      @if (session.running()) {
+        <span class="muted running">{{ session.cancelling() ? cancellingText : runningText }}
+          @if (progress(); as t) {
+            <progress [value]="session.progress()!.done" [max]="session.progress()!.total" aria-label="Query progress" i18n-aria-label="@@analysis.queryView.progress"></progress> {{ t }}
+          }
+        </span>
+      } @else if (session.error(); as e) {
+        <span id="ql-error" class="err-msg">⚠ {{ e.message }}@if (e.len || e.offset) { <span class="muted" i18n="@@analysis.queryView.at">(at column {{ column() }})</span> }</span>
         <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" />
       } @else if (session.runError(); as r) {
         <span class="err-msg">⚠ {{ r }}</span>
+      } @else if (session.cancelled()) {
+        <span class="muted" data-testid="query-cancelled" i18n="@@analysis.queryView.cancelled">Query cancelled.</span>
       } @else if (session.applied(); as ql) {
-        <span class="applied">Filtering with <code class="mono">{{ ql }}</code>@if (session.matched() !== null) { · {{ session.matched() }} events }
-          <button class="link" type="button" (click)="session.clearApplied()">Clear</button></span>
+        <span class="applied"><ng-container i18n="@@analysis.queryView.filtering">Filtering with <code class="mono">{{ ql }}</code></ng-container>@if (session.matched() !== null) { <ng-container i18n="@@analysis.queryView.matched"> · {{ session.matched() }} events </ng-container> }
+          <button class="link" type="button" (click)="session.clearApplied()" i18n="Remove the applied query|Button@@analysis.queryView.clear">Clear</button></span>
       } @else {
-        <span class="muted">{{ runKey }} to run. Without <code class="mono">stats</code> the query filters the grid, timeline and charts; with it the table opens in Query results.</span>
+        <span class="muted" i18n="@@analysis.queryView.hint">{{ runKey }} to run. Without <code class="mono">stats</code> the query filters the grid, timeline and charts; with it the table opens in Query results.</span>
       }
     </div>
   `,
@@ -123,6 +146,8 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     .err-msg { color: var(--danger-text); }
     .muted { color: var(--muted); }
     .applied code, .muted code { color: var(--text); }
+    .running { display: inline-flex; gap: 8px; align-items: center; }
+    .running progress { width: 140px; height: 6px; accent-color: var(--accent); }
     .link { background: none; border: 0; padding: 0 0 0 6px; font: inherit; color: var(--chip-text); cursor: pointer; text-decoration: underline; }
   `,
 })
@@ -136,6 +161,9 @@ export class QueryView {
   }
 
   protected readonly runKey = formatKeybinding('Mod+Enter');
+  protected readonly runTitle = $localize`:@@analysis.queryView.runTitle:Run (${this.runKey}:key:)`;
+  protected readonly cancellingText = $localize`:@@analysis.queryView.cancelling:Cancelling…`;
+  protected readonly runningText = $localize`:@@analysis.queryView.running:Running…`;
   protected readonly focused = signal(false);
   protected readonly dismissed = signal(false);
   protected readonly active = signal(0);
@@ -150,6 +178,7 @@ export class QueryView {
   });
   protected readonly column = computed(() => (errorSpan(this.session.text(), this.session.error())?.start ?? 0) + 1);
   protected readonly popupOpen = computed(() => this.focused() && !this.dismissed() && this.session.completions().length > 0);
+  protected readonly progress = computed(() => progressText(this.session.progress()));
 
   constructor() {
     // The "focus query bar" command may run before this view exists (it is created lazily).
@@ -192,11 +221,16 @@ export class QueryView {
       this.active.set((this.active() - 1 + completions.length) % completions.length);
     } else if (open && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
-      this.accept(completions[Math.min(this.active(), completions.length - 1)]);
+      const picked = completions[Math.min(this.active(), completions.length - 1)];
+      if (picked) this.accept(picked);
     } else if (e.key === 'Escape' && open) {
       e.preventDefault();
       e.stopPropagation();
       this.dismissed.set(true);
+    } else if (e.key === 'Escape' && this.session.running()) {
+      e.preventDefault();
+      e.stopPropagation();
+      void this.cancel();
     } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
       this.step(e.key === 'ArrowUp' ? 1 : -1);
@@ -249,13 +283,18 @@ export class QueryView {
     return this.session.run();
   }
 
+  protected cancel(): Promise<void> {
+    return this.session.cancel();
+  }
+
   /** Alt+Up / Alt+Down walk through the history. */
   private step(delta: 1 | -1): void {
     const list = this.session.history.entries();
     if (!list.length) return;
     const at = list.indexOf(this.session.text().trim());
     const next = at < 0 ? (delta === 1 ? 0 : -1) : at + delta;
-    if (next >= 0 && next < list.length) this.useHistory(list[next]);
+    const entry = list[next];
+    if (next >= 0 && entry !== undefined) this.useHistory(entry);
   }
 
   private cursorBytes(): number {

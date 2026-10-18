@@ -28,11 +28,11 @@ export const SavedQueryStore = signalStore(
     return {
       /** Saves the current query under a name (blank names become "Query N"). Uses the search box text, which may not be applied yet (debounce). */
       saveCurrent(name: string): void {
-        const label = name.trim() || `Query ${store.items().length + 1}`;
-        edit('saved query', () => patchState(store, (s) => ({ items: [...s.items, { id: newId('sq'), name: label, query: { ...structuredClone(workspace.query()), text: workspace.textInput() } }] })));
+        const label = name.trim() || $localize`:Default name of a saved query|@@projects.savedQueries.defaultName:Query ${store.items().length + 1}:number:`;
+        edit($localize`:Undo history entry|@@projects.savedQueries.undoSave:saved query`, () => patchState(store, (s) => ({ items: [...s.items, { id: newId('sq'), name: label, query: { ...structuredClone(workspace.query()), text: workspace.textInput() } }] })));
       },
-      rename: (id: string, name: string) => edit('saved query rename', () => patchState(store, (s) => ({ items: s.items.map((q) => (q.id === id ? { ...q, name: name.trim() || q.name } : q)) })), `saved-query:${id}`),
-      remove: (id: string) => edit('saved query removal', () => patchState(store, (s) => ({ items: s.items.filter((q) => q.id !== id) }))),
+      rename: (id: string, name: string) => edit($localize`:Undo history entry|@@projects.savedQueries.undoRename:saved query rename`, () => patchState(store, (s) => ({ items: s.items.map((q) => (q.id === id ? { ...q, name: name.trim() || q.name } : q)) })), `saved-query:${id}`),
+      remove: (id: string) => edit($localize`:Undo history entry|@@projects.savedQueries.undoRemove:saved query removal`, () => patchState(store, (s) => ({ items: s.items.filter((q) => q.id !== id) }))),
       replace: (items: SavedQuery[]) => patchState(store, { items }),
       apply(id: string): void {
         const saved = store.items().find((q) => q.id === id);

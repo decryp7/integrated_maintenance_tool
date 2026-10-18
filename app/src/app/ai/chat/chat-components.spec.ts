@@ -12,6 +12,7 @@ import { AiApprovalPrompt } from './approval-prompt';
 import { ApprovalView } from './chat-model';
 import { AiCitations } from './citation-actions';
 import { AiRichText } from './rich-text';
+import { at } from '../../../testing/must';
 
 function configure(ctx = new FakeContext(), backend = new MockAiBackend({ stepMs: 0 })) {
   TestBed.configureTestingModule({ providers: [...provideAnalysisTesting({ context: ctx }), { provide: AiBackend, useValue: backend }] });
@@ -59,7 +60,7 @@ describe('AiRichText', () => {
     expect(root.querySelector('em')?.textContent).toBe('i');
     const cites = all<HTMLButtonElement>(f, 'button.cite');
     expect(cites.map((b) => b.textContent)).toEqual(['12', '13', 'level >= error', 'https://d.example/x']);
-    expect(cites[1].classList).toContain('unverified');
+    expect(cites[1]?.classList).toContain('unverified');
     cites.forEach((b) => b.click());
     expect(f.componentInstance.got).toEqual([
       ['record', 12],
@@ -157,19 +158,19 @@ describe('AiCitations', () => {
     const dialogs = TestBed.inject(DialogService);
     let p = c.web('https://a.example', 'A');
     await settle();
-    dialogs.stack()[0].ref.close();
+    at(dialogs.stack(), 0).ref.close();
     expect(await p).toBeNull();
     expect(backend.opened).toEqual([]);
     p = c.web('https://a.example', 'A');
     await settle();
-    expect(dialogs.stack()[0].options.inputs).toMatchObject({ detail: 'https://a.example' });
-    dialogs.stack()[0].ref.close(true);
+    expect(dialogs.stack()[0]?.options.inputs).toMatchObject({ detail: 'https://a.example' });
+    at(dialogs.stack(), 0).ref.close(true);
     expect(await p).toBeNull();
     expect(backend.opened).toEqual(['https://a.example']);
     vi.spyOn(backend, 'openLink').mockRejectedValueOnce(new AiError('refused', 'refused: not part of an answer'));
     p = c.web('https://b.example', 'B');
     await settle();
-    dialogs.stack()[0].ref.close(true);
+    at(dialogs.stack(), 0).ref.close(true);
     expect(await p).toBe('refused: not part of an answer');
   });
 });

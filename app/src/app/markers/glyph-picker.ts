@@ -9,9 +9,9 @@ import { GlyphStyle, PendingIcon } from './markers.types';
 
 export type GlyphMode = 'badge' | 'icon' | 'custom';
 const MODES: { id: GlyphMode; label: string }[] = [
-  { id: 'badge', label: 'Badge' },
-  { id: 'icon', label: 'Icon' },
-  { id: 'custom', label: 'Custom' },
+  { id: 'badge', label: $localize`:@@markers.glyphPicker.mode.badge:Badge` },
+  { id: 'icon', label: $localize`:@@markers.glyphPicker.mode.icon:Icon` },
+  { id: 'custom', label: $localize`:@@markers.glyphPicker.mode.custom:Custom` },
 ];
 
 /** Chooses how a marker looks: a generated badge, a built-in icon or imported artwork. */
@@ -20,7 +20,7 @@ const MODES: { id: GlyphMode; label: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph],
   template: `
-    <div class="tabs" role="tablist" aria-label="Marker look">
+    <div class="tabs" role="tablist" aria-label="Marker look" i18n-aria-label="@@markers.glyphPicker.look">
       @for (m of modes; track m.id) {
         <button type="button" role="tab" class="tab" [id]="'gp-tab-' + m.id" [attr.aria-selected]="mode() === m.id" [attr.aria-controls]="'gp-panel-' + m.id" [tabindex]="mode() === m.id ? 0 : -1" (click)="mode.set(m.id)" (keydown)="tabKey($event)">{{ m.label }}</button>
       }
@@ -29,46 +29,46 @@ const MODES: { id: GlyphMode; label: string }[] = [
       @switch (mode()) {
         @case ('badge') {
           <div class="row">
-            <label class="lbl">Badge text (1 to 3 characters)
+            <label class="lbl"><ng-container i18n="@@markers.glyphPicker.badgeText">Badge text (1 to 3 characters)</ng-container>
               <input class="input mono" maxlength="3" [value]="badge()" (input)="badge.set($any($event.target).value)" />
             </label>
             @if (suggestion()) {
-              <button type="button" class="btn" (click)="badge.set(suggestion())">Use next free: {{ suggestion() }}</button>
+              <button type="button" class="btn" (click)="badge.set(suggestion())" i18n="@@markers.glyphPicker.useNextFree">Use next free: {{ suggestion() }}</button>
             }
           </div>
-          <div class="shapes" role="group" aria-label="Badge shape">
+          <div class="shapes" role="group" aria-label="Badge shape" i18n-aria-label="@@markers.glyphPicker.badgeShape">
             @for (s of shapes; track s) {
-              <button type="button" class="pick" [attr.aria-pressed]="shape() === s" [attr.aria-label]="s + ' badge ' + sample()" [title]="s" (click)="shape.set(s)">
+              <button type="button" class="pick" [attr.aria-pressed]="shape() === s" [attr.aria-label]="shapeLabel(s)" [title]="s" (click)="shape.set(s)">
                 <imt-marker-glyph [glyph]="shapeStyle(s)" [size]="22" />
               </button>
             }
           </div>
         }
         @case ('icon') {
-          <label class="lbl">Search icons
-            <input class="input" type="search" [value]="query()" placeholder="e.g. database, timeout" (input)="query.set($any($event.target).value)" />
+          <label class="lbl"><ng-container i18n="@@markers.glyphPicker.searchIcons">Search icons</ng-container>
+            <input class="input" type="search" [value]="query()" placeholder="e.g. database, timeout" i18n-placeholder="@@markers.glyphPicker.searchPlaceholder" (input)="query.set($any($event.target).value)" />
           </label>
-          <div class="grid" role="group" aria-label="Built-in icons">
+          <div class="grid" role="group" aria-label="Built-in icons" i18n-aria-label="@@markers.glyphPicker.builtinIcons">
             @for (i of results(); track i.name) {
               <button type="button" class="pick" [attr.aria-pressed]="icon() === i.name" [attr.aria-label]="i.name" [title]="i.name" (click)="icon.set(i.name)">
                 <imt-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
               </button>
             } @empty {
-              <span class="faint">No icon matches "{{ query() }}".</span>
+              <span class="faint" i18n="@@markers.glyphPicker.noMatch">No icon matches "{{ query() }}".</span>
             }
           </div>
         }
         @case ('custom') {
           <div class="row">
-            <button type="button" class="btn" (click)="importFile()">Import SVG or PNG…</button>
-            <span class="faint">Up to 16 KB. The engine sanitises SVG and checks PNG when you save.</span>
+            <button type="button" class="btn" (click)="importFile()" i18n="@@markers.glyphPicker.import">Import SVG or PNG…</button>
+            <span class="faint" i18n="@@markers.glyphPicker.importHint">Up to 16 KB. The engine sanitises SVG and checks PNG when you save.</span>
           </div>
           @if (importError(); as e) { <div class="err" role="alert">{{ e }}</div> }
           @if (pending(); as p) {
-            <div class="current"><imt-marker-glyph [glyph]="pendingStyle(p)" [size]="28" /> <span>New icon <span class="mono">{{ p.name }}</span> (saved with the marker)</span></div>
+            <div class="current"><imt-marker-glyph [glyph]="pendingStyle(p)" [size]="28" /> <span i18n="@@markers.glyphPicker.newIcon">New icon <span class="mono">{{ p.name }}</span> (saved with the marker)</span></div>
           }
           @if (existing().length) {
-            <div class="grid" role="group" aria-label="Custom icons in this profile">
+            <div class="grid" role="group" aria-label="Custom icons in this profile" i18n-aria-label="@@markers.glyphPicker.customIcons">
               @for (i of existing(); track i.name) {
                 <button type="button" class="pick" [attr.aria-pressed]="!pending() && icon() === i.name" [attr.aria-label]="i.name" [title]="i.name" (click)="useExisting(i.name)">
                   <imt-marker-glyph [glyph]="iconStyle(i.name)" [size]="20" />
@@ -118,6 +118,9 @@ export class GlyphPicker {
   protected readonly results = computed(() => searchIcons(this.query()));
   protected readonly existing = computed(() => this.styles.icons());
 
+  protected shapeLabel(shape: string): string {
+    return $localize`:@@markers.glyphPicker.shapeAria:${shape}:shape: badge ${this.sample()}:text:`;
+  }
   protected shapeStyle(shape: string): GlyphStyle {
     return { color: this.color(), badge: this.sample(), shape };
   }
@@ -138,7 +141,8 @@ export class GlyphPicker {
     const next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
     if (next === null) return;
     e.preventDefault();
-    const id = MODES[(next + MODES.length) % MODES.length].id;
+    const id = MODES[(next + MODES.length) % MODES.length]?.id;
+    if (id === undefined) return;
     this.mode.set(id);
     queueMicrotask(() => document.getElementById('gp-tab-' + id)?.focus());
   }

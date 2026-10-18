@@ -10,21 +10,21 @@ import { provideProfilingBackend } from './profiling-backend';
 import { PROFILING_VIEW_IDS as V } from './profiling-navigator';
 import { isHeap, isProfile } from './profiling-format';
 
+const CATEGORY = $localize`:@@profiling.category:Profiling`;
+
 /** The profiling views. Same extension point as plugin views; none opens until a capture is. */
 export const PROFILING_VIEWS: ImtView[] = [
-  { id: V.captures, category: 'Profiling', title: 'Profiles', icon: 'files', defaultPosition: 'right', component: () => import('./captures/captures-view').then((m) => m.CapturesView) },
-  { id: V.hotspots, category: 'Profiling', title: 'Hotspots', icon: 'columns', defaultPosition: 'center', component: () => import('./hotspots/hotspots-view').then((m) => m.HotspotsView) },
-  { id: V.tree, category: 'Profiling', title: 'Call tree', icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.CallTreeView) },
-  { id: V.inverted, category: 'Profiling', menu: 'palette', title: 'Inverted tree', icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.InvertedTreeView) },
-  { id: V.butterfly, category: 'Profiling', menu: 'palette', title: 'Callers and callees', icon: 'selector', defaultPosition: 'right', component: () => import('./butterfly/butterfly-view').then((m) => m.ButterflyView) },
-  { id: V.flame, category: 'Profiling', title: 'Flame graph', icon: 'chart', defaultPosition: 'center', component: () => import('./flame/flame-view').then((m) => m.FlameView) },
-  { id: V.compare, category: 'Profiling', title: 'Compare profiles', icon: 'columns', defaultPosition: 'center', component: () => import('./compare/compare-view').then((m) => m.CompareView) },
-  { id: V.threads, category: 'Profiling', title: 'Thread timeline', icon: 'timeline', defaultPosition: 'bottom', component: () => import('./threads/thread-timeline-view').then((m) => m.ThreadTimelineView) },
-  { id: V.findings, category: 'Profiling', title: 'Profile findings', icon: 'alert', defaultPosition: 'right', component: () => import('./findings/findings-view').then((m) => m.FindingsView) },
-  { id: V.heap, category: 'Profiling', title: 'Memory', icon: 'metrics', defaultPosition: 'center', component: () => import('./heap/heap-view').then((m) => m.HeapView) },
+  { id: V.captures, category: 'Profiling', title: $localize`:@@profiling.views.captures:Profiles`, icon: 'files', defaultPosition: 'right', component: () => import('./captures/captures-view').then((m) => m.CapturesView) },
+  { id: V.hotspots, category: 'Profiling', title: $localize`:@@profiling.views.hotspots:Hotspots`, icon: 'columns', defaultPosition: 'center', component: () => import('./hotspots/hotspots-view').then((m) => m.HotspotsView) },
+  { id: V.tree, category: 'Profiling', title: $localize`:@@profiling.views.tree:Call tree`, icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.CallTreeView) },
+  { id: V.inverted, category: 'Profiling', menu: 'palette', title: $localize`:@@profiling.views.inverted:Inverted tree`, icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.InvertedTreeView) },
+  { id: V.butterfly, category: 'Profiling', menu: 'palette', title: $localize`:@@profiling.views.butterfly:Callers and callees`, icon: 'selector', defaultPosition: 'right', component: () => import('./butterfly/butterfly-view').then((m) => m.ButterflyView) },
+  { id: V.flame, category: 'Profiling', title: $localize`:@@profiling.views.flame:Flame graph`, icon: 'chart', defaultPosition: 'center', component: () => import('./flame/flame-view').then((m) => m.FlameView) },
+  { id: V.compare, category: 'Profiling', title: $localize`:@@profiling.views.compare:Compare profiles`, icon: 'columns', defaultPosition: 'center', component: () => import('./compare/compare-view').then((m) => m.CompareView) },
+  { id: V.threads, category: 'Profiling', title: $localize`:@@profiling.views.threads:Thread timeline`, icon: 'timeline', defaultPosition: 'bottom', component: () => import('./threads/thread-timeline-view').then((m) => m.ThreadTimelineView) },
+  { id: V.findings, category: 'Profiling', title: $localize`:@@profiling.views.findings:Profile findings`, icon: 'alert', defaultPosition: 'right', component: () => import('./findings/findings-view').then((m) => m.FindingsView) },
+  { id: V.heap, category: 'Profiling', title: $localize`:@@profiling.views.heap:Memory`, icon: 'metrics', defaultPosition: 'center', component: () => import('./heap/heap-view').then((m) => m.HeapView) },
 ];
-
-const CATEGORY = 'Profiling';
 
 /** Palette commands (and the File menu's "Open profile…"). */
 @Injectable({ providedIn: 'root' })
@@ -36,17 +36,17 @@ export class ProfilingCommands {
   }
 
   readonly commands: ImtCommand[] = [
-    { id: 'profiling.open', title: 'Open profile…', category: 'File', run: (ctx) => this.open(ctx) },
-    this.show('profiling.captures', 'Profiling: show profiles', V.captures),
-    this.show('profiling.hotspots', 'Profiling: hotspots', V.hotspots),
-    this.show('profiling.tree', 'Profiling: call tree', V.tree),
-    this.show('profiling.inverted', 'Profiling: inverted tree (bottom-up)', V.inverted),
-    this.show('profiling.butterfly', 'Profiling: callers and callees', V.butterfly),
-    this.show('profiling.flame', 'Profiling: flame graph', V.flame),
-    this.show('profiling.compare', 'Profiling: compare with a baseline (differential flame graph)', V.compare),
-    this.show('profiling.threads', 'Profiling: thread timeline', V.threads),
-    this.show('profiling.findings', 'Profiling: findings', V.findings),
-    this.show('profiling.heap', 'Profiling: memory (heap snapshots)', V.heap),
+    { id: 'profiling.open', title: $localize`:@@profiling.cmd.open:Open profile…`, category: 'File', run: (ctx) => this.open(ctx) },
+    this.show('profiling.captures', $localize`:@@profiling.cmd.captures:Profiling: show profiles`, V.captures),
+    this.show('profiling.hotspots', $localize`:@@profiling.cmd.hotspots:Profiling: hotspots`, V.hotspots),
+    this.show('profiling.tree', $localize`:@@profiling.cmd.tree:Profiling: call tree`, V.tree),
+    this.show('profiling.inverted', $localize`:@@profiling.cmd.inverted:Profiling: inverted tree (bottom-up)`, V.inverted),
+    this.show('profiling.butterfly', $localize`:@@profiling.cmd.butterfly:Profiling: callers and callees`, V.butterfly),
+    this.show('profiling.flame', $localize`:@@profiling.cmd.flame:Profiling: flame graph`, V.flame),
+    this.show('profiling.compare', $localize`:@@profiling.cmd.compare:Profiling: compare with a baseline (differential flame graph)`, V.compare),
+    this.show('profiling.threads', $localize`:@@profiling.cmd.threads:Profiling: thread timeline`, V.threads),
+    this.show('profiling.findings', $localize`:@@profiling.cmd.findings:Profiling: findings`, V.findings),
+    this.show('profiling.heap', $localize`:@@profiling.cmd.heap:Profiling: memory (heap snapshots)`, V.heap),
   ];
 
   /** Opens captures and shows the most useful view for what was opened. */
