@@ -121,7 +121,8 @@ function shortPath(path: string): string {
     .sources { padding: 0 8px 4px; max-height: 40%; overflow: auto; flex: none; }
     .src { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
-    .src .name { flex: 1; min-width: 0; }
+    /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
+    .src .name { flex: 1; min-width: 6ch; }
     .src .count { font-size: 11px; color: var(--faint); width: 38px; text-align: end; }
     .src .rm { width: 20px; height: 20px; visibility: hidden; }
     .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
