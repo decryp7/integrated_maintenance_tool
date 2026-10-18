@@ -16,6 +16,10 @@ module.exports = defineConfig(
       'src-tauri/**',
       'test-results/**',
       'playwright-report/**',
+      // Smoke-test runtime data (WebView2 profiles, IMT data), drivers and failure artifacts.
+      'e2e-tauri/.tmp/**',
+      'e2e-tauri/.drivers/**',
+      'e2e-tauri/.artifacts/**',
     ],
   },
   {

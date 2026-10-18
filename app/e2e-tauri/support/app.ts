@@ -38,6 +38,12 @@ export async function waitForShell(): Promise<void> {
   await $('[role=menubar][aria-label="Application menu"]').waitForDisplayed({ timeout: 60_000 });
   // The lifecycle extras are mounted into the title bar after start-up (the crash check has run by then).
   await $('imt-title-extras').waitForExist({ timeout: 30_000 });
+  // A build that includes the AI worker offers its set-up on a fresh profile; close it so it doesn't cover the app.
+  const aiSetup = dialog('Set up the AI assistant');
+  if (await aiSetup.waitForExist({ timeout: 3_000 }).then(() => true, () => false)) {
+    await browser.keys('Escape');
+    await aiSetup.waitForExist({ reverse: true, timeout: 10_000 });
+  }
 }
 
 /** Waits until the workspace shows events: grid rows, an event count and at least one timeline lane. */
