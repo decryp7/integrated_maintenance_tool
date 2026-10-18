@@ -215,7 +215,7 @@ pub struct Sidecar {
     pub mime: String,
     pub bytes: u64,
     pub log_refs: Vec<LogRef>,
-    /// The operations leading up to the error (absent in sidecars written before the activity log).
+    /// The operations leading up to the error (a sidecar without them, e.g. cut short, still lists).
     #[serde(default)]
     pub breadcrumbs: Vec<Breadcrumb>,
     /// Human-readable steps to reproduce, generated from `breadcrumbs`.
@@ -1237,8 +1237,8 @@ mod tests {
     }
 
     #[test]
-    fn old_sidecars_without_breadcrumbs_still_list() {
-        let d = temp("old");
+    fn a_sidecar_without_breadcrumbs_or_steps_still_lists() {
+        let d = temp("partial");
         let store = store_in(&d, Limits::default());
         let id = store.save(ImageFormat::Png, &png(1), &ctx("x"), &env()).unwrap();
         let path = store.sidecar_path(&id);

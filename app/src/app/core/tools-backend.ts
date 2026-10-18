@@ -197,41 +197,39 @@ export class TauriToolsBackend extends ToolsBackend {
   toolInvoke<T = unknown>(tool: string, op: string, args: unknown = {}) {
     return this.call<T>('tool_invoke', { tool, op, args });
   }
-  // The specific commands below are deprecated wrappers over `tool_invoke` in the shell; kept so
-  // the UI and its tests work unchanged.
   perfmonPresets() {
-    return this.call<CounterPreset[]>('perfmon_presets');
+    return this.toolInvoke<CounterPreset[]>(TOOL_IDS.perfmonTemplates, 'presets');
   }
   perfmonGenerate(template: CollectorTemplate, xmlPath?: string, overwrite = false) {
-    return this.call<GeneratedCollector>('perfmon_generate', {
+    return this.toolInvoke<GeneratedCollector>(TOOL_IDS.perfmonTemplates, 'generate', {
       template,
-      xmlPath,
+      ...(xmlPath === undefined ? {} : { xmlPath }),
       ...(overwrite ? { overwrite } : {}),
     });
   }
   perfmonInstall(template: CollectorTemplate) {
-    return this.call<CollectorStatus>('perfmon_install', { template });
+    return this.toolInvoke<CollectorStatus>(TOOL_IDS.perfmonSets, 'install', { template });
   }
   perfmonControl(name: string, action: CollectorAction) {
-    return this.call<CollectorStatus | null>('perfmon_control', { name, action });
+    return this.toolInvoke<CollectorStatus | null>(TOOL_IDS.perfmonSets, 'control', { name, action });
   }
   perfmonOutputs(name: string) {
-    return this.call<string[]>('perfmon_outputs', { name });
+    return this.toolInvoke<string[]>(TOOL_IDS.perfmonSets, 'outputs', { name });
   }
   monitorStart(config: MonitorConfig, dir?: string) {
-    return this.call<string>('monitor_start', { config, dir });
+    return this.toolInvoke<string>(TOOL_IDS.processMonitor, 'start', { config, ...(dir === undefined ? {} : { dir }) });
   }
   monitorStop() {
-    return this.call<string | null>('monitor_stop');
+    return this.toolInvoke<string | null>(TOOL_IDS.processMonitor, 'stop');
   }
   monitorStatus() {
-    return this.call<MonitorStatus>('monitor_status');
+    return this.toolInvoke<MonitorStatus>(TOOL_IDS.processMonitor, 'status');
   }
   collectDefaultPlan() {
-    return this.call<string>('collect_default_plan');
+    return this.toolInvoke<string>(TOOL_IDS.diagnostics, 'default-plan');
   }
   collectDiagnostics(plan: string, outDir: string, overwrite = false) {
-    return this.call<CollectResult>('collect_diagnostics', {
+    return this.toolInvoke<CollectResult>(TOOL_IDS.diagnostics, 'collect', {
       plan,
       outDir,
       ...(overwrite ? { overwrite } : {}),

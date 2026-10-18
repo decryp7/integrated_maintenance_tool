@@ -61,9 +61,6 @@ describe('LocalStorageLayoutStore', () => {
     store.save({ layout: LAYOUT, extras: EMPTY_EXTRAS });
     expect(JSON.parse(localStorage.getItem(LAYOUT_KEY)!).version).toBe(ENVELOPE_VERSION);
     expect(store.load()).toEqual({ layout: LAYOUT, extras: EMPTY_EXTRAS });
-    // Layouts saved by older versions (v1: the dockview layout alone) migrate.
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify({ version: 1, layout: LAYOUT }));
-    expect(store.load()).toEqual({ layout: LAYOUT, extras: EMPTY_EXTRAS });
     store.clear();
     expect(store.load()).toBeNull();
   });

@@ -4,16 +4,9 @@
  * imt-collect `plan`/`manifest`, imt-monitor `config` and imt-core `project`/`plugin`.
  *
  * Commands (invoke name -> args -> result):
- *   perfmon_presets   {}                          -> CounterPreset[]
- *   perfmon_generate  { template, xmlPath? }      -> GeneratedCollector
- *   perfmon_install   { template }                -> CollectorStatus
- *   perfmon_control   { name, action }            -> CollectorStatus | null
- *   perfmon_outputs   { name }                    -> string[]
- *   monitor_start     { config, dir? }            -> string (folder)
- *   monitor_stop      {}                          -> string | null
- *   monitor_status    {}                          -> MonitorStatus
- *   collect_default_plan {}                       -> string (JSON of CollectPlan)
- *   collect_diagnostics { plan, outDir }          -> CollectResult
+ *   tool_invoke       { tool, op, args }          -> the op's result (perfmon.templates presets/generate,
+ *                                                    perfmon.sets install/control/outputs, process-monitor
+ *                                                    start/stop/status, diagnostics default-plan/collect)
  *   elevation         {}                          -> ElevationInfo
  *   restart_elevated  { reopen }                  -> void
  *   app_status        {}                          -> AppStatus
@@ -53,7 +46,7 @@ export interface CounterPreset {
 
 export type LogFormat = 'blg' | 'csv' | 'tsv';
 
-/** Input of `perfmon_generate` / `perfmon_install` (`CollectorTemplate` in imt-plugin-windows). */
+/** Input of `perfmon.templates generate` / `perfmon.sets install` (`CollectorTemplate` in imt-plugin-windows). */
 export interface CollectorTemplate {
   name: string;
   processes: string[];

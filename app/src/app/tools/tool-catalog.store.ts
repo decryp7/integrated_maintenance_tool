@@ -8,7 +8,7 @@ import { errorMessage } from './tool-errors';
 
 interface CatalogState {
   entries: ToolEntry[];
-  /** `tools_list` answered at least once. Until then every tool counts as there (no flicker, old shells). */
+  /** `tools_list` answered at least once. Until then every tool counts as there (no flicker). */
   loaded: boolean;
   error: string | null;
 }

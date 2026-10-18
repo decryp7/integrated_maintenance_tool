@@ -1,5 +1,5 @@
 import { InjectionToken, signal } from '@angular/core';
-import { migrateLayout, SavedLayout, toEnvelope } from './layout-store';
+import { readLayout, SavedLayout, toEnvelope } from './layout-store';
 
 /** A window layout the user saved by name (VS "Save Window Layout"), separate from project layouts. */
 export interface NamedLayout {
@@ -62,7 +62,7 @@ export function parseNamedLayouts(raw: unknown): NamedLayout[] {
   for (const l of v.layouts as unknown[]) {
     const e = l as { name?: unknown; savedAt?: unknown; envelope?: unknown } | null;
     const name = typeof e?.name === 'string' ? cleanLayoutName(e.name) : null;
-    const saved = migrateLayout(e?.envelope);
+    const saved = readLayout(e?.envelope);
     if (name && saved && !out.some((o) => o.name.toLowerCase() === name.toLowerCase())) {
       out.push({ name, savedAt: typeof e?.savedAt === 'number' ? e.savedAt : 0, saved });
     }

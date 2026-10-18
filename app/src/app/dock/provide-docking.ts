@@ -3,7 +3,7 @@ import { IMT_COMMANDS } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { DockCommands } from './dock-commands';
 import { DockService } from './dock.service';
-import { migrateLayout, toEnvelope } from './layout-store';
+import { readLayout, toEnvelope } from './layout-store';
 
 /**
  * The whole dock arrangement in projects and sessions (grid, auto-hidden tool windows, pinned tabs and pop-out
@@ -22,7 +22,7 @@ export function dockLayoutContribution(dock: DockService): UiStateContribution {
       return now ? toEnvelope(now) : null;
     },
     restore: (value) => {
-      const saved = migrateLayout(value);
+      const saved = readLayout(value);
       if (saved) dock.applyLayout(saved);
     },
   };

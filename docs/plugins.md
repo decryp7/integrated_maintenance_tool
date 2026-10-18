@@ -611,8 +611,7 @@ impl Tool for Sets {
 
 The UI reads `tools_list` (`ToolCatalog`): panels and commands of tools that are not listed are
 hidden (safe mode, plugin disabled), and a listed tool whose plugin cannot serve it shows the
-reason (`imt-tool-unavailable`). The older specific commands (`perfmon_*`, `monitor_*`,
-`collect_*`) are deprecated wrappers over `tool_invoke` (`app/src-tauri/src/tools_compat.rs`).
+reason (`imt-tool-unavailable`).
 
 ### Time budgets, the watchdog and isolation tiers
 

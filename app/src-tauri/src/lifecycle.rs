@@ -6,9 +6,8 @@
 //! `sessions/<window>/last-session.imtproj`, and `sessions/manifest.json`
 //! (`{ "version": 2, "windows": [...] }`) lists the windows of the current run.
 //! At start the previous run's sessions are copied to `recovered/` (what a
-//! crash restore offers) and the manifest is reset. A version 1 install had a
-//! single `last-session.imtproj` next to them; it is recovered as the main
-//! window's session. Missing or corrupt files fall back to "no session".
+//! crash restore offers) and the manifest is reset. Missing or corrupt files
+//! fall back to "no session".
 //!
 //! Unclean shutdowns: `running.marker` (`{ "version": 1, "pid": .., "startedAt": .. }`)
 //! names the process that is running. At start a marker left behind is a
@@ -17,8 +16,8 @@
 //! (e.g. the previous instance is still exiting after "Restart") is taken over
 //! without reporting a crash, and [`Lifecycle::end`] removes the marker only
 //! while it is still this process's, so the old process cannot erase the new
-//! one's. A version 0 marker (a bare PID) has no start time: a live PID counts
-//! as running. An unreadable marker counts as a crash.
+//! one's. A marker without a start time (the OS did not tell) counts as running
+//! while its PID is alive. An unreadable marker counts as a crash.
 //!
 //! Instances: the single (main) instance keeps its marker and sessions in the
 //! data folder. A separate process (`--new-instance`, safe mode) uses
@@ -83,7 +82,7 @@ pub type Probe<'a> = &'a dyn Fn(u32) -> Option<u64>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Marker {
     pub pid: u32,
-    /// `None` for a version 0 marker (a bare PID) or when the OS did not tell.
+    /// `None` when the OS did not tell.
     pub started_at: Option<u64>,
 }
 
@@ -107,12 +106,9 @@ pub enum MarkerFile {
 
 impl MarkerFile {
     /// Parses a marker's text: version 1 JSON (later versions too, when they
-    /// still carry a `pid`) or a version 0 bare PID.
+    /// still carry a `pid`).
     pub fn parse(text: &str) -> MarkerFile {
         let text = text.trim();
-        if let Ok(pid) = text.parse::<u32>() {
-            return MarkerFile::Found(Marker { pid, started_at: None });
-        }
         match serde_json::from_str::<MarkerJson>(text) {
             Ok(m) if m.version >= 1 => MarkerFile::Found(Marker {
                 pid: m.pid,
@@ -382,10 +378,7 @@ impl SessionStore {
     /// current run starts with an empty manifest. Session files themselves stay
     /// (a restart reopens them by path). Never fails.
     pub fn rotate(&self) {
-        let sessions = self.dir.join(SESSIONS_DIR);
-        let has_manifest = sessions.join(MANIFEST).exists();
         let mut previous = self.listed(SESSIONS_DIR);
-        let legacy = self.dir.join(SESSION_FILE);
         let recovered = self.dir.join(RECOVERED_DIR);
         let _ = std::fs::remove_dir_all(&recovered);
         let mut copied = Vec::new();
@@ -393,14 +386,6 @@ impl SessionStore {
             if let (Some(from), Some(to)) = (self.file(SESSIONS_DIR, &label), self.file(RECOVERED_DIR, &label)) {
                 if to.parent().is_some_and(|p| std::fs::create_dir_all(p).is_ok()) && std::fs::copy(from, to).is_ok() {
                     copied.push(label);
-                }
-            }
-        }
-        // Version 1: one session, the main window's.
-        if !has_manifest && copied.is_empty() && legacy.is_file() {
-            if let Some(to) = self.file(RECOVERED_DIR, MAIN) {
-                if to.parent().is_some_and(|p| std::fs::create_dir_all(p).is_ok()) && std::fs::copy(&legacy, to).is_ok() {
-                    copied.push(MAIN.to_string());
                 }
             }
         }
@@ -935,15 +920,14 @@ mod tests {
             "this process's PID"
         );
         assert_eq!(previous_run(marker(own, None), own, &probe), PreviousRun::Crashed);
-        // Version 0 (bare PID): a live PID cannot be told from reuse; no false crash.
+        // No start time recorded: a live PID cannot be told from reuse; no false crash.
         assert_eq!(previous_run(marker(10, None), own, &probe), PreviousRun::StillRunning);
         assert_eq!(previous_run(marker(30, None), own, &probe), PreviousRun::Crashed);
         assert_eq!(previous_run(MarkerFile::Unreadable, own, &probe), PreviousRun::Crashed);
     }
 
     #[test]
-    fn markers_parse_old_new_and_corrupt_text() {
-        assert_eq!(MarkerFile::parse("1234\n"), marker(1234, None), "version 0");
+    fn markers_parse_newer_and_corrupt_text() {
         assert_eq!(MarkerFile::parse(r#"{"version":1,"pid":7,"startedAt":9}"#), marker(7, Some(9)));
         assert_eq!(MarkerFile::parse(r#"{"version":1,"pid":7}"#), marker(7, None));
         assert_eq!(
@@ -954,6 +938,7 @@ mod tests {
         for bad in [
             "",
             "{",
+            "1234",
             "-1",
             "99999999999",
             r#"{"version":0,"pid":7}"#,
@@ -1201,18 +1186,10 @@ mod tests {
     }
 
     #[test]
-    fn sessions_tolerate_old_and_corrupt_files() {
-        // Version 1: a single last-session.imtproj is the main window's.
-        let d = temp("legacy");
+    fn sessions_tolerate_corrupt_files() {
+        let d = temp("corrupt");
         std::fs::create_dir_all(&d).unwrap();
-        project("old single session").save(&d.join(SESSION_FILE)).unwrap();
         let store = SessionStore::new(d.clone());
-        store.rotate();
-        let recovered = store.recovered();
-        assert_eq!(recovered.len(), 1);
-        assert_eq!(recovered[0].0, MAIN);
-        assert_eq!(name_of(&store.last_session(MAIN).unwrap()), "old single session");
-        // Once the new layout exists, the legacy file is not recovered again.
         store.rotate();
         assert!(store.recovered().is_empty());
 

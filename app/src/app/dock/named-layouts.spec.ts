@@ -142,11 +142,6 @@ describe('parseNamedLayouts', () => {
     expect(l.savedAt).toBe(0);
   });
 
-  it('migrates v1 layout envelopes', () => {
-    const l = at(parseNamedLayouts(wrap([entry('old', { envelope: { version: 1, layout: grid } })])), 0);
-    expect(l.saved).toEqual({ layout: grid, extras: EMPTY_EXTRAS });
-  });
-
   it('keeps at most the cap', () => {
     const many = Array.from({ length: MAX_NAMED_LAYOUTS + 5 }, (_, i) => entry(`l${i}`));
     expect(parseNamedLayouts(wrap(many))).toHaveLength(MAX_NAMED_LAYOUTS);

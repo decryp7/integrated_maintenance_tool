@@ -8,9 +8,6 @@
 //! collector set, a diagnostics collection) is listed in
 //! [`BackgroundTasks`] (tray, status bar) through [`ShellTasks`]; stopping it
 //! there calls the tool back through the same host.
-//!
-//! The specific commands of earlier versions are thin, deprecated wrappers
-//! in [`crate::tools_compat`].
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::windows::CurrentWindow;
@@ -389,6 +386,88 @@ pub(crate) mod tests {
         assert_eq!(task_kind("collect"), TaskKind::Other);
     }
 
+    /// `tool_invoke` for `tool`'s `op`.
+    fn call(w: &tauri::WebviewWindow<MockRuntime>, tool: &str, op: &str, args: Value) -> Result<Value, Value> {
+        ipc(w, "tool_invoke", json!({ "tool": tool, "op": op, "args": args }))
+    }
+
+    #[test]
+    fn collector_templates_and_diagnostics_replace_files_only_when_confirmed() {
+        use crate::test_support::TempDir;
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let presets = call(&main, "perfmon.templates", "presets", json!({})).unwrap();
+        assert!(presets[0]["counters"][0]["guidance"].is_string());
+        let dir = TempDir::new("tool-perfmon");
+        let path = dir.0.join("t.xml").to_string_lossy().into_owned();
+        let template = json!({ "name": "IMT-test", "processes": ["OrderService"] });
+        let gen = |args: Value| call(&main, "perfmon.templates", "generate", args);
+        let out = gen(json!({ "template": template, "xmlPath": path })).unwrap();
+        assert!(out["xml"].as_str().unwrap().contains("<DataCollectorSet>"));
+        assert!(std::fs::read_to_string(&path).unwrap().contains("OrderService"));
+        // The file exists now: replaced only when confirmed.
+        let again = gen(json!({ "template": template, "xmlPath": path })).unwrap_err();
+        assert_eq!(again, json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX)));
+        assert!(gen(json!({ "template": template, "xmlPath": path, "overwrite": true })).is_ok());
+        let bad = gen(json!({ "template": { "name": "", "sampleIntervalSecs": 0 } })).unwrap_err();
+        assert!(bad.as_str().unwrap().contains("collector name"), "{bad}");
+
+        let plan = call(&main, "diagnostics", "default-plan", json!({})).unwrap();
+        assert!(plan.as_str().unwrap().contains("redact"));
+        let e = call(&main, "diagnostics", "collect", json!({ "plan": "{ nope", "outDir": dir.0 })).unwrap_err();
+        assert!(e.is_string());
+        // A bundle of the same name is replaced only when confirmed (the name has a one-second stamp).
+        let out = dir.0.join("bundles");
+        let plan = json!({ "name": "tool", "eventLogs": [], "environment": false }).to_string();
+        let first = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap();
+        let bundle = first["bundle"].as_str().unwrap().to_string();
+        let prefix = &bundle[..bundle.len() - "yyyyMMdd-HHmmss.imtz".len()];
+        let now = chrono::Local::now();
+        for s in 0..10 {
+            let at = now + chrono::Duration::seconds(s);
+            let _ = std::fs::write(format!("{prefix}{}.imtz", at.format("%Y%m%d-%H%M%S")), "mine");
+        }
+        let refused = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap_err();
+        assert!(
+            refused.as_str().unwrap().ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
+            "{refused}"
+        );
+        assert!(call(
+            &main,
+            "diagnostics",
+            "collect",
+            json!({ "plan": plan, "outDir": out, "overwrite": true })
+        )
+        .is_ok());
+        #[cfg(not(windows))]
+        for (tool, op, args) in [
+            ("perfmon.sets", "install", json!({ "template": template })),
+            ("perfmon.sets", "control", json!({ "name": "IMT-test", "action": "query" })),
+            ("perfmon.sets", "outputs", json!({ "name": "IMT-test" })),
+        ] {
+            let e = call(&main, tool, op, args).unwrap_err();
+            assert!(e.as_str().unwrap().contains("only available on Windows"), "{op}: {e}");
+        }
+    }
+
+    #[test]
+    fn the_monitor_is_app_wide_and_listed_as_background_work() {
+        let app = test_app_with_commands(None);
+        let (a, b) = (window(&app, "main"), window(&app, "w-2"));
+        let dir = crate::test_support::TempDir::new("tool-monitor-shared");
+        let config = json!({ "targets": [{ "pid": std::process::id() }] });
+        let started = call(&a, "process-monitor", "start", json!({ "config": config, "dir": dir.0 })).unwrap();
+        assert_eq!(call(&b, "process-monitor", "status", json!({})).unwrap()["running"], true);
+        let again = call(&b, "process-monitor", "start", json!({ "config": config })).unwrap_err();
+        assert_eq!(again, json!("the process monitor is already running"));
+        let listed = app.state::<BackgroundTasks>().list();
+        assert_eq!((listed[0].id.as_str(), listed[0].kind), ("monitor", TaskKind::ProcessMonitor));
+        assert_eq!(call(&b, "process-monitor", "stop", json!({})).unwrap(), started);
+        assert!(app.state::<BackgroundTasks>().list().is_empty());
+        let bad = call(&a, "process-monitor", "start", json!({ "config": { "targets": [] } })).unwrap_err();
+        assert!(bad.as_str().unwrap().contains("at least one entry"), "{bad}");
+    }
+
     #[test]
     fn tool_failures_are_logged_with_severity() {
         let _g = crate::activity::test_capture();
@@ -440,8 +519,6 @@ pub(crate) mod tests {
         let main = window(&app, "main");
         assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
         let e = ipc(&main, "tool_invoke", json!({ "tool": "process-monitor", "op": "status" })).unwrap_err();
-        assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
-        let e = ipc(&main, "monitor_status", json!({})).unwrap_err();
         assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
         // Elevation falls back to the shell's own token check (not a blanket "not elevated").
         let info = ipc(&main, "elevation", json!({})).unwrap();

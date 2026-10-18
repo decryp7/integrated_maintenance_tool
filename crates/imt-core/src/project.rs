@@ -5,8 +5,7 @@
 //! Paths inside the project's folder are stored relative to it, so a project
 //! folder can be moved or shared with its logs.
 //!
-//! Versions: 1 = sources, removed, profile, ui; 2 adds per-source clock
-//! offsets (`clock`). Version 1 files load with no offsets.
+//! Version 2 is the only one written; newer files are refused.
 
 use crate::skew::ClockOffsets;
 use anyhow::{anyhow, Context, Result};
@@ -14,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 
-/// Current project format version. Older files are read; newer ones are refused.
+/// Current project format version. Newer files are refused.
 pub const PROJECT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -32,7 +31,7 @@ pub struct ProjectFile {
     /// UI state, opaque to the engine.
     #[serde(default)]
     pub ui: Value,
-    /// Clock-skew offsets (ms) by source path (since version 2).
+    /// Clock-skew offsets (ms) by source path.
     #[serde(default, skip_serializing_if = "ClockOffsets::is_empty")]
     pub clock: ClockOffsets,
     /// Incident reports; one that cannot be read is skipped, not fatal.
@@ -178,13 +177,9 @@ mod tests {
     }
 
     #[test]
-    fn reads_version_1_and_drops_bad_offsets() {
-        let dir = std::env::temp_dir().join(format!("imt-project-v1-{}", std::process::id()));
+    fn drops_bad_offsets() {
+        let dir = std::env::temp_dir().join(format!("imt-project-offsets-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let old = dir.join("old.imtproj");
-        std::fs::write(&old, r#"{"version": 1, "name": "x", "sources": ["a.log"], "profile": ""}"#).unwrap();
-        let p = ProjectFile::load(&old).unwrap();
-        assert!(p.clock.is_empty());
         let v2 = dir.join("v2.imtproj");
         std::fs::write(
             &v2,

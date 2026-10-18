@@ -7,8 +7,8 @@ import { DockSlot, Rect } from './dock-geometry';
 export const LAYOUT_VERSION = 1;
 
 /**
- * Version of the stored envelope. v1 was the dockview layout alone; v2 adds what dockview does not know about
- * (auto-hidden tool windows, pinned tabs, panels popped out to OS windows). v1 envelopes migrate.
+ * Version of the stored envelope: the dockview layout plus what dockview does not know about
+ * (auto-hidden tool windows, pinned tabs, panels popped out to OS windows). Other versions are ignored.
  */
 export const ENVELOPE_VERSION = 2;
 
@@ -91,11 +91,10 @@ export function sanitizeExtras(raw: unknown): DockExtras {
   return { autoHidden: sanitizeAutoHide(raw['autoHidden']), pinnedTabs: ids(raw['pinnedTabs']), poppedOut: popped };
 }
 
-/** Reads any known envelope version into the current shape (v1: no extras); null for unknown versions. */
-export function migrateLayout(raw: unknown): SavedLayout | null {
+/** Reads a stored envelope; null for unknown versions and anything malformed. */
+export function readLayout(raw: unknown): SavedLayout | null {
   if (!isRecord(raw) || !isRecord(raw['layout'])) return null;
   const layout = raw['layout'] as unknown as SerializedDockview;
-  if (raw['version'] === 1) return { layout, extras: { ...EMPTY_EXTRAS } };
   if (raw['version'] === ENVELOPE_VERSION) return { layout, extras: sanitizeExtras(raw['extras']) };
   return null;
 }
@@ -111,7 +110,7 @@ export class LocalStorageLayoutStore implements LayoutStore {
   load(): SavedLayout | null {
     try {
       const raw = localStorage.getItem(this.key);
-      return raw ? migrateLayout(JSON.parse(raw)) : null;
+      return raw ? readLayout(JSON.parse(raw)) : null;
     } catch {
       return null;
     }

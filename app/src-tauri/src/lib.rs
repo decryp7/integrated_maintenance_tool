@@ -47,7 +47,6 @@ mod snapshots;
 mod storage;
 mod system;
 mod tools;
-mod tools_compat;
 mod tray;
 mod updater;
 mod window_manager;
@@ -182,17 +181,6 @@ macro_rules! commands {
             system::read_file_head,
             tools::tools_list,
             tools::tool_invoke,
-            // Deprecated wrappers over tool_invoke (see tools_compat)
-            tools_compat::perfmon_presets,
-            tools_compat::perfmon_generate,
-            tools_compat::perfmon_install,
-            tools_compat::perfmon_control,
-            tools_compat::perfmon_outputs,
-            tools_compat::monitor_start,
-            tools_compat::monitor_stop,
-            tools_compat::monitor_status,
-            tools_compat::collect_default_plan,
-            tools_compat::collect_diagnostics,
             // Scheduled collection (imt-agent)
             agent_commands::agent_schema,
             agent_commands::agent_config_load,

@@ -1,4 +1,4 @@
-import { EMPTY_EXTRAS, ENVELOPE_VERSION, migrateLayout, sanitizeExtras, toEnvelope } from './layout-store';
+import { EMPTY_EXTRAS, ENVELOPE_VERSION, readLayout, sanitizeExtras, toEnvelope } from './layout-store';
 import { at } from '../../testing/must';
 
 const layout = { grid: { root: { type: 'leaf', data: { views: [], id: '1' } }, height: 1, width: 1, orientation: 'HORIZONTAL' }, panels: {} } as never;
@@ -53,33 +53,27 @@ describe('sanitizeExtras', () => {
   });
 });
 
-describe('migrateLayout', () => {
-  it('reads v1 as a layout without extras', () => {
-    const saved = migrateLayout({ version: 1, layout, extras: { pinnedTabs: ['ignored'] } });
-    expect(saved).toEqual({ layout, extras: EMPTY_EXTRAS });
-    expect(saved?.extras).not.toBe(EMPTY_EXTRAS);
-  });
-
+describe('readLayout', () => {
   it('reads v2 with sanitized extras', () => {
-    const saved = migrateLayout({ version: 2, layout, extras: { pinnedTabs: ['a', 'a'] } });
+    const saved = readLayout({ version: 2, layout, extras: { pinnedTabs: ['a', 'a'] } });
     expect(saved?.layout).toBe(layout);
     expect(saved?.extras).toEqual({ autoHidden: [], pinnedTabs: ['a'], poppedOut: [] });
-    expect(migrateLayout({ version: 2, layout })?.extras).toEqual(EMPTY_EXTRAS);
+    expect(readLayout({ version: 2, layout })?.extras).toEqual(EMPTY_EXTRAS);
   });
 
   it('is null for unknown versions and non-objects', () => {
-    for (const version of [0, 3, '2', null, undefined]) expect(migrateLayout({ version, layout })).toBeNull();
+    for (const version of [0, 3, '2', null, undefined]) expect(readLayout({ version, layout })).toBeNull();
     for (const raw of [null, undefined, 'x', 2, [], { version: 2 }, { version: 2, layout: 'x' }, { version: 2, layout: [] }]) {
-      expect(migrateLayout(raw)).toBeNull();
+      expect(readLayout(raw)).toBeNull();
     }
   });
 });
 
 describe('toEnvelope', () => {
-  it('stamps the current version and round-trips through migrateLayout', () => {
+  it('stamps the current version and round-trips through readLayout', () => {
     const saved = { layout, extras: { autoHidden: [], pinnedTabs: ['a'], poppedOut: [] } };
     const env = toEnvelope(saved);
     expect(env).toEqual({ version: ENVELOPE_VERSION, layout, extras: saved.extras });
-    expect(migrateLayout(JSON.parse(JSON.stringify(env)))).toEqual(saved);
+    expect(readLayout(JSON.parse(JSON.stringify(env)))).toEqual(saved);
   });
 });
