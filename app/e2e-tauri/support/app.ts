@@ -110,8 +110,18 @@ export async function isRunning(): Promise<boolean> {
  * "Remember my choice" cleared so the user's setting is not changed). Resolves once the process is gone and
  * its running marker removed: a clean exit.
  */
+/** Runs a click that may end the app: WebKitWebDriver reports "Session terminated without a reply" when the app
+ *  exits before it answers the click (msedgedriver answers first). Whether IMT really quit is checked afterwards. */
+async function mayEndApp(click: () => Promise<unknown>): Promise<void> {
+  try {
+    await click();
+  } catch (e) {
+    if (!/session terminated|invalid session id|browser has closed|disconnected/i.test(String(e))) throw e;
+  }
+}
+
 export async function quitApp(): Promise<void> {
-  await chooseMenu('File', 'Close window');
+  await mayEndApp(() => chooseMenu('File', 'Close window'));
   const prompt = dialog('Close IMT?');
   // A remembered "quit" choice closes without asking.
   const asked = await prompt.waitForDisplayed({ timeout: 10_000 }).then(
@@ -121,7 +131,7 @@ export async function quitApp(): Promise<void> {
   if (asked) {
     const remember = prompt.$('.remember input[type=checkbox]');
     if (await remember.isSelected()) await remember.click();
-    await prompt.$(`.//button[normalize-space()='Quit']`).click();
+    await mayEndApp(() => prompt.$(`.//button[normalize-space()='Quit']`).click());
   }
   await browser.waitUntil(async () => !(await isRunning()), {
     timeout: 30_000,
