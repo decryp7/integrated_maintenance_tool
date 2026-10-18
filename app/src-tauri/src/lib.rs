@@ -21,6 +21,7 @@ mod ai;
 mod app_dirs;
 mod app_state;
 mod background;
+mod browser;
 mod clef;
 mod config_diff;
 mod demo;
@@ -260,6 +261,23 @@ macro_rules! commands {
             ai::commands::ai_chat_export_markdown,
             ai::commands::ai_suggested_prompts,
             ai::commands::ai_open_link,
+            // The internal web browser (per window)
+            browser::commands::browser_state,
+            browser::commands::browser_open,
+            browser::commands::browser_event_query,
+            browser::commands::browser_nav,
+            browser::commands::browser_close,
+            browser::commands::browser_open_external,
+            browser::commands::browser_capture,
+            browser::commands::browser_sources,
+            browser::commands::browser_discard_sources,
+            browser::commands::browser_chat_status,
+            browser::commands::browser_set_read_along,
+            browser::commands::browser_set_agent,
+            browser::commands::browser_agent_stop,
+            browser::commands::browser_agent_continue,
+            browser::commands::browser_agent_respond,
+            browser::commands::browser_open_suggested,
             ai::runtime_commands::ai_runtimes,
             ai::runtime_commands::ai_runtime_install,
             ai::runtime_commands::ai_runtime_cancel,
@@ -293,7 +311,7 @@ fn window_state_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     use tauri_plugin_window_state::StateFlags;
     let builder = tauri_plugin_window_state::Builder::default()
         .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
-        .with_filter(|label| !panel_windows::is_popout(label));
+        .with_filter(|label| !window_manager::is_auxiliary(label));
     match app_dirs::window_state_file(dev_overrides::current().data_dir.as_deref()) {
         Some(file) => builder.with_filename(file.to_string_lossy()),
         None => builder,
@@ -339,8 +357,9 @@ pub fn run() {
         .plugin(updater::plugin())
         .setup(move |app| setup(app, &launch, safe_mode, single))
         .on_window_event(window_manager::on_window_event)
-        // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`.
-        .invoke_handler(activity::logged(commands!()))
+        // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page
+        // in the internal browser gets no command at all: see `browser::guard`.
+        .invoke_handler(browser::guard(activity::logged(commands!())))
         .build(tauri::generate_context!())
         .expect("error while building IMT")
         .run(on_run_event);
@@ -393,6 +412,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     window_prefs::register(app.handle())?;
     updater::init(app.handle());
     ai::init(app.handle(), safe_mode);
+    browser::init(app.handle());
     snapshots::prune_on_startup(app.handle());
 
     // ---- background work, tray and the first window ----
@@ -510,6 +530,7 @@ pub(crate) mod test_support {
         app.manage(tray::TrayState::default());
         app.manage(query_cancel::QueryJobs::default());
         app.manage(ai::folder_setup::SurveyJobs::default());
+        browser::manage_state(app.handle(), std::sync::Arc::default());
         app
     }
 
@@ -526,7 +547,7 @@ pub(crate) mod test_support {
     pub fn test_app_with_commands(profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(activity::logged(commands!()))
+            .invoke_handler(browser::guard(activity::logged(commands!())))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage(app, profile_dir)
@@ -536,7 +557,7 @@ pub(crate) mod test_support {
     pub fn test_app_safe_mode() -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(activity::logged(commands!()))
+            .invoke_handler(browser::guard(activity::logged(commands!())))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage_in(app, None, true)

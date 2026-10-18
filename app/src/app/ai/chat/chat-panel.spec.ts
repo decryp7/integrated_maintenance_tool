@@ -13,6 +13,8 @@ import { AiChatPanel } from './chat-panel';
 import { ChatStore } from './chat.store';
 import { AiCitations } from './citation-actions';
 import { at } from '../../../testing/must';
+import { resetMockWeb } from '../../browser/mock-browser-backend';
+import { ChatBrowserStore } from '../../browser/chat-browser.store';
 
 function setup(options: MockAiOptions = {}, path: string | null = '/tmp/chat.md') {
   const backend = new MockAiBackend({ stepMs: 0, ...options });
@@ -200,5 +202,71 @@ describe('AiChatPanel', () => {
     // Without a chat, delete and export do nothing.
     await f.componentInstance.deleteChat();
     await f.componentInstance.exportMarkdown();
+  });
+});
+
+describe('AiChatPanel and the browser', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('cites a page the user added, and runs agent mode with approvals, progress and Stop', { timeout: 30000 }, async () => {
+    const web = resetMockWeb();
+    const { f, root, store } = setup();
+    f.detectChanges();
+    await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
+    const id = store.activeId()!;
+    // A page added from the Web panel is cited in the next answer.
+    web.show('https://learn.example.com/timeouts');
+    web.sources.set(id, [{ title: 'Timeouts', url: 'https://learn.example.com/timeouts', chars: 10, truncated: false, removed: [] }]);
+    await ask(f, 'what does it say?');
+    await until(f, () => !store.running());
+    expect(root.textContent).toContain('untrusted web content');
+    expect(store.activeTurns()[0]?.citations).toContainEqual({ kind: 'web', title: 'Timeouts', url: 'https://learn.example.com/timeouts' });
+    // Agent mode: the search asks for a new site, the next page carries a name from the logs.
+    await until(f, () => !!root.querySelector('[data-testid=chat-agent]'));
+    el<HTMLInputElement>(f, '[data-testid=chat-agent]').click();
+    await until(f, () => !!root.querySelector('[data-testid=chat-agent-stop]'));
+    await ask(f, 'find out on the web why the gateway times out');
+    await until(f, () => all(f, '[data-testid=agent-approval]').length === 1);
+    buttonByText(f, 'Allow this site for this chat').click();
+    await until(f, () => all(f, '[data-testid=agent-approval]').length === 2);
+    expect(el(f, '[data-testid=agent-step]').textContent).toContain('Step 1 of 25');
+    expect(all(f, '[data-testid=agent-approval]').at(-1)!.querySelector('mark')?.textContent).toContain('WEB02');
+    all<HTMLButtonElement>(f, '[data-testid=agent-approval] button').filter((b) => b.textContent?.trim() === 'Allow').at(-1)!.click();
+    await until(f, () => !store.running());
+    expect(store.activeTurns()[1]?.approvals.map((a) => a.state)).toEqual(['allowSite', 'allow']);
+    expect(web.status(id).sites).toEqual(['duckduckgo.com']);
+    // Stop while a step waits: the card is denied and agent mode ends.
+    await ask(f, 'look up the error again');
+    await until(f, () => all(f, '[data-testid=agent-approval]').length === 3);
+    el<HTMLButtonElement>(f, '[data-testid=chat-agent-stop]').click();
+    await until(f, () => !store.running());
+    expect(el(f, '[data-testid=agent-paused]').textContent).toContain('You stopped the AI');
+    expect(web.status(id).agent).toBe(false);
+  });
+
+  it('shows suggested links as cards that open only on click, and continues after the step cap', { timeout: 30000 }, async () => {
+    const web = resetMockWeb();
+    const { f, root, store } = setup();
+    f.detectChanges();
+    await until(f, () => !!store.activeId() && !el<HTMLTextAreaElement>(f, 'textarea').disabled);
+    const id = store.activeId()!;
+    await ask(f, 'suggest a link for this');
+    await until(f, () => !store.running() && !!root.querySelector('[data-testid=link-card]'));
+    expect(web.page.open).toBe(false);
+    buttonByText(f, /^Open$/).click();
+    await until(f, () => web.page.open);
+    expect(web.page.url).toContain('duckduckgo.com');
+    // A step cap notice offers Continue, which grants more steps and goes on.
+    await TestBed.inject(ChatBrowserStore).setAgent(id, true);
+    store.onEvent({ sessionId: id, seq: 0, type: 'agentPaused', reason: 'stepCap', steps: 25, handOff: null });
+    f.detectChanges();
+    expect(root.querySelector('[data-testid=agent-continue]')).toBeNull();
+    await ask(f, 'anything');
+    store.onEvent({ sessionId: id, seq: 0, type: 'agentPaused', reason: 'stepCap', steps: 25, handOff: null });
+    await until(f, () => !store.running());
+    el<HTMLButtonElement>(f, '[data-testid=agent-continue]').click();
+    await until(f, () => store.activeTurns().length === 3);
+    expect(store.activeTurns().at(-1)?.user).toBe('Continue.');
+    expect(web.status(id)).toMatchObject({ agent: true, paused: false });
   });
 });

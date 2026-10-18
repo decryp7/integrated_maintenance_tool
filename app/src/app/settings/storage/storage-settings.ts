@@ -12,6 +12,8 @@ export function categoryLabel(c: { id: StorageCategoryId; label: string }): stri
       return $localize`:Storage category@@settings.storage.category.bundleExtracts:Opened bundles (temporary copies)`;
     case 'webview-cache':
       return $localize`:Storage category@@settings.storage.category.webviewCache:Web view cache`;
+    case 'web-profile':
+      return $localize`:Storage category@@settings.storage.category.webProfile:Internal browser data (cookies, history, cache)`;
     case 'ai-runtimes-outdated':
       return $localize`:Storage category@@settings.storage.category.aiRuntimesOutdated:Outdated AI runtimes`;
     case 'ai-runtimes':

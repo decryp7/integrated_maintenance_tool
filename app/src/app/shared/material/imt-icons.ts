@@ -24,6 +24,8 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   file: 'M6 3h8l4 4v14H6zM14 3v4h4',
   chevronDown: 'M6 9l6 6l6-6',
   chevronRight: 'M9 6l6 6l-6 6',
+  chevronLeft: 'M15 6l-6 6l6 6',
+  globe: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M3 12h18M12 3c-3 3.2-3 14.8 0 18M12 3c3 3.2 3 14.8 0 18',
   group: 'M8 12a3 3 0 1 0 0 .1M14 7h7M14 12h7M14 17h7',
   trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13',
   copy: 'M9 9h11v11H9zM5 15V4h11',

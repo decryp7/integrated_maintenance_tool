@@ -6,7 +6,11 @@ use super::context::{resolve, ChatContext};
 use super::host::{propose_specs, ChatHost};
 use super::persist::{ChatRecord, TurnRecord};
 use crate::access::StoreRef;
-use crate::assistant::{parse_citations, truncate_chars, Assistant, Citation, EngineTools, Evidence, LoopEvent, Proposal, ANALYST_SYSTEM};
+use crate::assistant::{
+    parse_citations, truncate_chars, Assistant, Citation, EngineTools, Evidence, LoopEvent, Proposal, ToolHost, ANALYST_SYSTEM,
+};
+use crate::browser::tools::{browser_specs, AGENT_RULES, BROWSER_RULES, READ_RULES};
+use crate::browser::{ApprovalRequest, BrowserEnv, BrowserTools, HandOff, PageCapture, PauseReason, Segment};
 use crate::error::{AiError, Result};
 use crate::llm::{ChatMessage, LlmProvider, Usage};
 use serde::Serialize;
@@ -54,6 +58,34 @@ pub enum ChatEvent {
     Proposal {
         proposal: Proposal,
     },
+    /// A search or a page the model suggests; it opens only when the user clicks it.
+    LinkSuggestion {
+        /// `search` or `link`.
+        kind: String,
+        url: String,
+        title: String,
+        /// The (redacted) search text, for a search.
+        query: Option<String>,
+        /// The address, split where the leak guard found workspace data.
+        segments: Vec<Segment>,
+    },
+    /// An agent step waits for the user's approval.
+    AgentApproval {
+        request: ApprovalRequest,
+    },
+    /// An agent step starts (one model call each: the UI shows the progress).
+    AgentStep {
+        step: u32,
+        limit: u32,
+        action: String,
+        site: Option<String>,
+    },
+    /// Agent mode stopped and handed the browser back (step cap, a CAPTCHA, login or payment, Stop).
+    AgentPaused {
+        reason: PauseReason,
+        steps: u32,
+        hand_off: Option<HandOff>,
+    },
     Done {
         text: String,
         citations: Vec<Citation>,
@@ -96,11 +128,30 @@ pub struct ChatEnv<'a, P: LlmProvider> {
     pub assistant: &'a Assistant<P>,
     /// The workspace, borrowed per tool call (never across generation); `&dyn LogStore` converts with `.into()`.
     pub store: StoreRef<'a>,
+    /// The internal browser, when the app has one (suggested links, read-along, agent mode).
+    pub browser: Option<&'a BrowserEnv<'a>>,
+    /// Pages the user added to this question ("Add page to AI context"): quoted as untrusted, always cited.
+    pub pages: Vec<PageCapture>,
 }
 
 impl<'a, P: LlmProvider> ChatEnv<'a, P> {
     pub fn new(assistant: &'a Assistant<P>, store: StoreRef<'a>) -> Self {
-        ChatEnv { assistant, store }
+        ChatEnv {
+            assistant,
+            store,
+            browser: None,
+            pages: vec![],
+        }
+    }
+
+    pub fn with_browser(mut self, browser: &'a BrowserEnv<'a>) -> Self {
+        self.browser = Some(browser);
+        self
+    }
+
+    pub fn with_pages(mut self, pages: Vec<PageCapture>) -> Self {
+        self.pages = pages;
+        self
     }
 }
 
@@ -263,8 +314,14 @@ impl ChatSession {
     ) -> Result<TurnOutcome> {
         let a = env.assistant;
         let ctx_tokens = a.provider.context_length();
+        let (read, agent) = env
+            .browser
+            .map_or((false, false), |b| (b.control.read_along(), b.control.may_act()));
         let probe_chars = serde_json::to_string(&EngineTools::tool_specs()).map(|s| s.len()).unwrap_or(3000)
-            + serde_json::to_string(&propose_specs()).map(|s| s.len()).unwrap_or(2000);
+            + serde_json::to_string(&propose_specs()).map(|s| s.len()).unwrap_or(2000)
+            + env.browser.map_or(0, |_| {
+                serde_json::to_string(&browser_specs(read, agent)).map(|s| s.len()).unwrap_or(1500)
+            });
         let mut budget = ChatBudget::new(ctx_tokens, a.cfg.max_tokens, probe_chars);
         if tight {
             budget = budget.tightened();
@@ -273,11 +330,23 @@ impl ChatSession {
         let resolved = resolve(ctx, env.store, &engine, budget.context_chars);
         let emit = |e: ChatEvent| em.borrow_mut().emit(e);
         let mut host = ChatHost::new(a, env.store, engine, resolved.selected.first().copied(), budget.compact_tools);
+        if let Some(b) = env.browser {
+            host = host.with_extra(Box::new(BrowserTools::new(b, &emit, env.store, budget.tool_limits)) as Box<dyn ToolHost + '_>);
+        }
         let history: Vec<Turn> = self.turns.iter().map(TurnRecord::as_turn).collect();
         let kept = kept_turns(&history, budget.history_chars);
         let split = history.len() - kept;
         let summary = running_summary(&history[..split], budget.summary_chars);
         let mut system = format!("{ANALYST_SYSTEM}{CHAT_RULES}");
+        if env.browser.is_some() {
+            system.push_str(BROWSER_RULES);
+            if read && !agent {
+                system.push_str(READ_RULES);
+            }
+            if agent {
+                system.push_str(AGENT_RULES);
+            }
+        }
         if !summary.is_empty() {
             system.push_str(&format!("\nEarlier in this conversation:\n{summary}"));
         }
@@ -293,6 +362,15 @@ impl ChatSession {
         }
         for n in &resolved.notes {
             block.push_str(&format!("(note: {n})\n"));
+        }
+        if !env.pages.is_empty() {
+            // Each page gets an equal share of the room, at most what a capture holds.
+            let each = (budget.context_chars * 2 / env.pages.len()).clamp(400, crate::browser::capture::MAX_CAPTURE_CHARS);
+            block.push_str("The user added these web pages for this question:\n");
+            for p in &env.pages {
+                block.push_str(&p.quoted(each));
+                block.push_str("\n\n");
+            }
         }
         block.push_str(&format!("Question: {user}"));
         messages.push(ChatMessage::user(block));
@@ -327,7 +405,20 @@ impl ChatSession {
                 "Some cited events changed while the answer was written (the files were updated); they are marked unverified.".into(),
             );
         }
-        for w in r.web.iter().filter(|w| r.text.contains(&w.url) || r.text.contains(&w.title)) {
+        // Pages the user added and pages the model read are always cited: the user sees what the answer used.
+        let mut web = r.web;
+        for p in env.pages.iter().rev() {
+            web.insert(
+                0,
+                crate::assistant::WebSource {
+                    title: p.title.clone(),
+                    url: p.url.clone(),
+                },
+            );
+        }
+        let mut seen = std::collections::HashSet::new();
+        web.retain(|w| seen.insert(w.url.clone()));
+        for w in &web {
             citations.push(Citation::Web {
                 title: w.title.clone(),
                 url: w.url.clone(),
@@ -337,7 +428,7 @@ impl ChatSession {
             text: r.text,
             citations,
             proposals: r.proposals,
-            web: r.web,
+            web,
             usage: r.usage,
             notes,
         })

@@ -41,6 +41,8 @@ import {
 } from './mock-ai-data';
 import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
+import { mockWeb } from '../../browser/mock-browser-backend';
+import { mockBrowserTurn } from './mock-ai-browser';
 
 /** Operations `mockAiFail` may name: their calls reject with an engine error. */
 export const AI_FAILABLE = [
@@ -541,6 +543,7 @@ export class MockAiBackend extends AiBackend {
     return this.later(() => {
       const c = this.chats.get(sessionId);
       if (c) c.cancel = true;
+      mockWeb().forget(sessionId);
       return this.chats.delete(sessionId);
     }, 0);
   }
@@ -634,7 +637,19 @@ export class MockAiBackend extends AiBackend {
     };
     try {
       await sleep(this.stepMs);
-      if (q.includes('regex')) {
+      const browsed = await mockBrowserTurn({
+        sessionId: c.record.id,
+        question: text,
+        web: mockWeb(),
+        emit: (e) => this.emitChat(c, e),
+        tool: (name, args, summary, error = false) => tool(name, args, summary, [], [], error),
+        cancelled: () => c.cancel,
+        citations,
+        sources: web,
+      });
+      if (browsed !== null) {
+        answer = browsed;
+      } else if (q.includes('regex')) {
         await tool(
           'propose_regex',
           '{"example_lines":["…"]}',
@@ -725,6 +740,7 @@ export class MockAiBackend extends AiBackend {
       const c = this.chats.get(sessionId);
       if (!c?.running) return false;
       c.cancel = true;
+      mockWeb().denyAll(sessionId);
       return true;
     }, 0);
   }

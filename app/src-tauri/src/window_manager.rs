@@ -77,13 +77,18 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
+/// Pop-out panels and browser windows belong to an IMT window; they are not windows of their own.
+pub fn is_auxiliary(label: &str) -> bool {
+    panel_windows::is_popout(label) || crate::browser::is_browser_label(label)
+}
+
 /// The open windows, `main` first.
 pub fn list<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowInfo> {
     let windows = app.try_state::<Windows>();
     let mut out: Vec<WindowInfo> = app
         .webview_windows()
         .into_iter()
-        .filter(|(label, _)| !panel_windows::is_popout(label))
+        .filter(|(label, _)| !is_auxiliary(label))
         .map(|(label, w)| {
             let title = windows
                 .as_ref()
@@ -113,7 +118,7 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 /// its UI on startup. Returns the window's label.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
     let windows = app.try_state::<Windows>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
-    if app.webview_windows().keys().filter(|l| !panel_windows::is_popout(l)).count() >= MAX_WINDOWS {
+    if app.webview_windows().keys().filter(|l| !is_auxiliary(l)).count() >= MAX_WINDOWS {
         anyhow::bail!("IMT already has {MAX_WINDOWS} windows open; close one first");
     }
     let label = windows.next_label();
@@ -277,7 +282,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
                 api.prevent_close();
             }
         }
-        WindowEvent::Focused(true) => {
+        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) => {
             if let Some(windows) = app.try_state::<Windows>() {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
@@ -300,14 +305,14 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
     let Some(windows) = app.try_state::<Windows>() else {
         return CloseDecision::Close;
     };
-    // Closing a pop-out panel window docks the panel back; the app is not affected.
-    if windows.exiting() || panel_windows::is_popout(label) {
+    // Closing a pop-out panel window docks the panel back, closing a browser just closes it; the app is not affected.
+    if windows.exiting() || is_auxiliary(label) {
         return CloseDecision::Close;
     }
     let other_visible = app
         .webview_windows()
         .iter()
-        .filter(|(l, w)| l.as_str() != label && !panel_windows::is_popout(l) && w.is_visible().unwrap_or(false))
+        .filter(|(l, w)| l.as_str() != label && !is_auxiliary(l) && w.is_visible().unwrap_or(false))
         .count();
     let pref = app.try_state::<SharedPrefs>().map(|p| p.get().on_close).unwrap_or_default();
     let state = windows.get(label);
@@ -339,7 +344,12 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
         panel_windows::on_destroyed(app, label);
         return;
     }
+    if crate::browser::is_browser_label(label) {
+        crate::browser::destroyed(app, label);
+        return;
+    }
     panel_windows::close_all_of(app, label);
+    crate::browser::owner_destroyed(app, label);
     let Some(windows) = app.try_state::<Windows>() else { return };
     let exiting = windows.exiting();
     // Dropping the state stops its live tail and frees the workspace.

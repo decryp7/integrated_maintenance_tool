@@ -5,6 +5,7 @@
  * `imt://ai-runtime` (`AiRuntimeEvent`, all windows).
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
+import { AgentApprovalRequest, HandOff, PauseReason, Segment } from '../browser/browser.types';
 import { ExplainNode, InferredGroup, ParsedPreview } from '../core/api.types';
 
 export const AI_SETUP_EVENT = 'imt://ai-setup';
@@ -369,6 +370,14 @@ export type ChatEvent =
   | { type: 'toolStarted'; name: string; args: string }
   | { type: 'toolFinished'; name: string; summary: string; error: boolean; evidence: Evidence }
   | { type: 'proposal'; proposal: Proposal }
+  /** A search or page the model suggests; nothing loads until the user opens it. */
+  | { type: 'linkSuggestion'; kind: 'search' | 'link'; url: string; title: string; query: string | null; segments: Segment[] }
+  /** An agent step waits for the user's approval. */
+  | { type: 'agentApproval'; request: AgentApprovalRequest }
+  /** An agent step starts (one model call each). */
+  | { type: 'agentStep'; step: number; limit: number; action: string; site: string | null }
+  /** Agent mode stopped and handed the browser back. */
+  | { type: 'agentPaused'; reason: PauseReason; steps: number; handOff: HandOff | null }
   | { type: 'done'; text: string; citations: Citation[]; usage: Usage; notes: string[] }
   | { type: 'error'; message: string; cancelled: boolean };
 

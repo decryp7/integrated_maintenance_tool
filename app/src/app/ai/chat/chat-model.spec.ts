@@ -34,6 +34,30 @@ describe('reduceTurn', () => {
   });
 });
 
+describe('reduceTurn and the browser', () => {
+  it('folds suggested links, approvals, steps and pauses; a waiting card expires with the turn', () => {
+    const ask = { kind: 'newSite' as const, site: 'e.org', url: 'https://e.org/', element: null, text: null, submit: false, canAllowSite: true };
+    const request = { requestId: 1, ask, urlSegments: [{ text: 'https://e.org/', leak: null }], textSegments: [] };
+    let t = startTurn('go');
+    const link = { type: 'linkSuggestion' as const, kind: 'search' as const, url: 'https://duckduckgo.com/?q=x', title: 'x', query: 'x', segments: [] };
+    t = reduceTurn(t, link);
+    t = reduceTurn(t, link);
+    expect(t.links).toHaveLength(1);
+    t = reduceTurn(t, { type: 'agentApproval', request });
+    t = reduceTurn(t, { type: 'agentApproval', request: { ...request, requestId: 2 } });
+    t = { ...t, approvals: t.approvals.map((a) => (a.request.requestId === 1 ? { ...a, state: 'allow' as const } : a)) };
+    t = reduceTurn(t, { type: 'agentStep', step: 2, limit: 25, action: 'navigate', site: 'e.org' });
+    expect(t.step).toEqual({ step: 2, limit: 25, action: 'navigate', site: 'e.org' });
+    t = reduceTurn(t, { type: 'agentPaused', reason: 'stepCap', steps: 25, handOff: null });
+    expect([t.step, t.paused?.reason]).toEqual([null, 'stepCap']);
+    const done = reduceTurn(t, { type: 'done', text: 'ok', citations: [], usage: { inputTokens: 1, outputTokens: 1 }, notes: [] });
+    expect(done.approvals.map((a) => a.state)).toEqual(['allow', 'expired']);
+    const failed = reduceTurn({ ...t, step: { step: 1, limit: 2, action: 'read', site: null } }, { type: 'error', message: 'x', cancelled: true });
+    expect([failed.step, failed.approvals[1]?.state]).toEqual([null, 'expired']);
+    expect(toolLabel('browser_navigate')).toBe('Open a page');
+  });
+});
+
 describe('turnFromRecord', () => {
   it('rebuilds a saved turn, with web sources as citations and bad proposals skipped', () => {
     const r: TurnRecord = {

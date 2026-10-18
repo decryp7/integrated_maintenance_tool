@@ -2706,6 +2706,7 @@ dependencies = [
  "imt-core",
  "imt-ipc",
  "log",
+ "percent-encoding",
  "proptest",
  "prost",
  "protox",
@@ -2725,6 +2726,7 @@ dependencies = [
  "tonic-prost-build",
  "tower",
  "ureq",
+ "url",
  "windows 0.62.2",
  "zip",
 ]

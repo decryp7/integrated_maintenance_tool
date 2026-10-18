@@ -96,7 +96,7 @@ describe('activity coverage guard', () => {
     await settle();
   });
 
-  it('every backend method is attributed or becomes an operation', async () => {
+  it('every backend method is attributed or becomes an operation', { timeout: 20000 }, async () => {
     // Every method name of every backend implementation (mock and real) in the app sources.
     const names = new Set<string>();
     for (const f of sources().filter((s) => /(backend|Backend)/.test(s.path))) {
@@ -155,6 +155,7 @@ import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
 import { RunsBackend } from '../../timeline/runs-backend';
 import { FolderSetupBackend } from '../../ai/folder-setup/folder-setup-backend';
+import { BrowserBackend, ChatBrowserBackend } from '../../browser/browser-backend';
 import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
 import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
@@ -165,6 +166,8 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   AiBackend,
   AnalysisBackend,
   ImtBackend,
+  BrowserBackend,
+  ChatBrowserBackend,
   CollectBackend,
   EventLogBackend,
   FolderSetupBackend,

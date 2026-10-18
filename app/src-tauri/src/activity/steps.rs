@@ -82,6 +82,14 @@ fn describe(b: &Breadcrumb) -> String {
         "live.off" => "Turned live tail off".into(),
         "ai.ask" => "Asked the AI assistant".into(),
         "ai.applyProposal" => "Applied an AI proposal".into(),
+        "browser.agent" => format!(
+            "AI agent {} {} ({})",
+            param(b, "Action").unwrap_or("acted"),
+            param(b, "Site").filter(|s| !s.is_empty()).unwrap_or("in the browser"),
+            param(b, "Outcome").unwrap_or("done")
+        ),
+        "browser.agent.stop" => "Stopped the AI agent".into(),
+        "browser.capture" => "Added a web page to the AI chat".into(),
         "edit.undo" => "Undid the last change".into(),
         "edit.redo" => "Redid the last change".into(),
         _ if op.starts_with("ipc.") => format!("Ran {}", param(b, "Command").unwrap_or(&op[4..])),
@@ -155,6 +163,31 @@ mod tests {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect::<BTreeMap<_, _>>(),
         }
+    }
+
+    #[test]
+    fn agent_steps_say_what_the_ai_did() {
+        let crumbs = vec![
+            b(
+                "browser.agent",
+                "engine",
+                &[("Action", "navigate"), ("Site", "learn.example.org"), ("Outcome", "approved")],
+            ),
+            b(
+                "browser.agent",
+                "engine",
+                &[("Action", "click"), ("Site", ""), ("Outcome", "denied")],
+            ),
+            b("browser.agent.stop", "button", &[]),
+            b("browser.capture", "button", &[]),
+        ];
+        let s = steps(&crumbs, None);
+        assert!(s[0].starts_with("1. AI agent navigate learn.example.org (approved)"), "{s:?}");
+        assert!(s[1].starts_with("2. AI agent click in the browser (denied)"), "{s:?}");
+        assert!(
+            s[2].starts_with("3. Stopped the AI agent") && s[3].starts_with("4. Added a web page to the AI chat"),
+            "{s:?}"
+        );
     }
 
     #[test]

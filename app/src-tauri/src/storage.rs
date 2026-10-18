@@ -2,8 +2,9 @@
 //!
 //! Categories ([`model::CategoryId`]): temporary copies of opened bundles, the webview's caches and
 //! runtime builds of releases IMT no longer pins are `cache` (rebuilt when needed, cleared together by
-//! "Clear cache"); the AI runtimes and models, IMT's logs, error snapshots, session backups and (once
-//! they exist) persistent stores are `data` (each cleared on its own, after a confirmation in the UI).
+//! "Clear cache"); the internal browser's profile, the AI runtimes and models, IMT's logs, error
+//! snapshots, session backups and (once they exist) persistent stores are `data` (each cleared on its own,
+//! after a confirmation in the UI).
 //!
 //! Folders come from [`crate::app_dirs`] (and `share::bundles_root` for the bundles); the UI only ever
 //! names category ids, never paths. Sizes are computed off the UI thread with a bounded traversal
@@ -107,6 +108,7 @@ fn folders<'a, R: Runtime>(app: &AppHandle<R>, ai: Option<&'a dyn AiPort>) -> Fo
         main_instance: app.try_state::<crate::instance::SingleInstance>().is_some_and(|s| s.0),
         // Without the lifecycle (tests) assume the worst: keep the previous run's sessions.
         previous_crash: app.try_state::<crate::lifecycle::Lifecycle>().is_none_or(|l| l.previous_crash),
+        browser_open: app.webview_windows().keys().any(|l| crate::browser::is_browser_label(l)),
         ai,
     }
 }

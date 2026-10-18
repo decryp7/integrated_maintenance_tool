@@ -5,6 +5,7 @@
 
 pub mod access;
 pub mod assistant;
+pub mod browser;
 pub mod catalog;
 pub mod chat;
 #[cfg(windows)]

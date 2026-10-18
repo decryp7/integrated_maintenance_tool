@@ -37,6 +37,10 @@ fn kinds(events: &[Envelope]) -> Vec<&'static str> {
             ChatEvent::ToolStarted { .. } => "toolStarted",
             ChatEvent::ToolFinished { .. } => "toolFinished",
             ChatEvent::Proposal { .. } => "proposal",
+            ChatEvent::LinkSuggestion { .. } => "link",
+            ChatEvent::AgentApproval { .. } => "approval",
+            ChatEvent::AgentStep { .. } => "step",
+            ChatEvent::AgentPaused { .. } => "paused",
             ChatEvent::Done { .. } => "done",
             ChatEvent::Error { .. } => "error",
         })

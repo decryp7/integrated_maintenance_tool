@@ -8,6 +8,10 @@ import { AiChatPersistence } from '../ai-chat-persistence';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
 import { AiProposalCard } from '../proposals/proposal-card';
+import { AgentDecision } from '../../browser/browser.types';
+import { AgentApprovalCard, AgentPaused, LinkCard } from '../../browser/chat-cards';
+import { ChatBrowserBar } from '../../browser/chat-browser-bar';
+import { ChatBrowserStore } from '../../browser/chat-browser.store';
 import { describeContext, toolLabel, TurnView } from './chat-model';
 import { ChatStore } from './chat.store';
 import { AiCitations } from './citation-actions';
@@ -16,12 +20,13 @@ import { AiRichText } from './rich-text';
 
 /**
  * The AI assistant chat (a dock view). Answers stream in with the tools the model used, proposals to
- * review and apply, and evidence links into the grid and query bar.
+ * review and apply, evidence links into the grid and query bar, and the browser: pages added as untrusted
+ * sources, suggested links, and agent mode's steps, approval cards and Stop.
  */
 @Component({
   selector: 'imt-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiRichText, AiProposalCard],
+  imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -70,9 +75,21 @@ import { AiRichText } from './rich-text';
                 }
               </ul>
             }
+            @if (t.step; as st) {
+              <p class="step muted" role="status" data-testid="agent-step">{{ stepText(st.step, st.limit, st.action, st.site) }}</p>
+            }
+            @for (ap of t.approvals; track ap.request.requestId) {
+              <imt-agent-approval [approval]="ap" (decide)="respond(ap.request.requestId, $event)" />
+            }
+            @for (l of t.links; track l.url) {
+              <imt-link-card [link]="l" (open)="openSuggested($event)" />
+            }
+            @if (t.paused; as p) {
+              <imt-agent-paused [paused]="p" [canContinue]="!t.running && $last" (continue)="continueTask()" />
+            }
             @if (t.text) {
               <imt-ai-rich-text [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
-            } @else if (t.running) {
+            } @else if (t.running && !hasPendingApproval(t)) {
               <p class="muted thinking" aria-label="Thinking" i18n-aria-label="@@ai.chat.thinking.label" i18n="@@ai.chat.thinking">Thinking…</p>
             }
             @for (pv of t.proposals; track $index; let pi = $index) {
@@ -102,6 +119,10 @@ import { AiRichText } from './rich-text';
     }
     @if (notice(); as n) {
       <p class="ok banner" role="status">{{ n }}</p>
+    }
+
+    @if (store.activeId(); as sid) {
+      <imt-chat-browser-bar [sessionId]="sid" />
     }
 
     <div class="context">
@@ -164,7 +185,7 @@ import { AiRichText } from './rich-text';
     .tool.err { border-color: var(--lvl-error); }
     .sum { color: var(--text-2); }
     .thinking { margin: 0; }
-    .sources, .note { margin: 0; font-size: 12px; }
+    .sources, .note, .step { margin: 0; font-size: 12px; }
     .sources .link { margin-left: 6px; }
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
@@ -190,6 +211,7 @@ export class AiChatPanel {
   private readonly overwrite = inject(OverwriteGuard);
   private readonly persistence = inject(AiChatPersistence);
   private readonly workspace = inject(WorkspaceStore);
+  private readonly browser = inject(ChatBrowserStore);
   private readonly logEl = viewChild<ElementRef<HTMLElement>>('log');
 
   protected readonly draft = signal('');
@@ -250,6 +272,35 @@ export class AiChatPanel {
 
   protected webSources(t: TurnView): { url: string; title: string }[] {
     return t.running ? [] : t.citations.flatMap((c) => (c.kind === 'web' ? [{ url: c.url, title: c.title }] : []));
+  }
+
+  protected hasPendingApproval(t: TurnView): boolean {
+    return t.approvals.some((a) => a.state === 'pending');
+  }
+
+  protected stepText(step: number, limit: number, action: string, site: string | null): string {
+    const where = site ?? '';
+    return $localize`:@@ai.chat.agentStep:Step ${step}:step: of ${limit}:limit:: ${toolLabel('browser_' + action)}:action: ${where}:site:…`;
+  }
+
+  protected async respond(requestId: number, d: AgentDecision): Promise<void> {
+    const id = this.store.activeId();
+    if (!id) return;
+    this.store.setApprovalState(requestId, 'sending');
+    const delivered = await this.browser.respond(id, requestId, d);
+    this.store.setApprovalState(requestId, delivered ? d : 'expired');
+  }
+
+  protected async openSuggested(url: string): Promise<void> {
+    const id = this.store.activeId();
+    if (id) await this.browser.openSuggested(id, url);
+  }
+
+  /** "Continue" after the step cap: another batch of steps, and the task goes on. */
+  protected async continueTask(): Promise<void> {
+    const id = this.store.activeId();
+    if (!id) return;
+    if (await this.browser.continueTask(id)) await this.store.send($localize`:@@ai.chat.continueTask:Continue.`);
   }
 
   protected onEnter(e: Event): void {

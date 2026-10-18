@@ -15,6 +15,7 @@ fn log_folders(d: &std::path::Path) -> Folders<'static> {
         session_start: None,
         main_instance: true,
         previous_crash: false,
+        browser_open: false,
         ai: None,
     }
 }

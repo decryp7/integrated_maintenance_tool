@@ -440,6 +440,8 @@ pub fn ai_chat_get<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id
 #[tauri::command]
 pub fn ai_chat_delete<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
     core(&app)?;
+    // The chat's browser access, pages and waiting approvals end with it.
+    crate::browser::forget_chat(&app, win.label(), &session_id);
     Ok(win.ai.chats.delete(&session_id))
 }
 
@@ -477,9 +479,18 @@ pub fn ai_chat_send<R: Runtime>(
         )
     });
     let w = win.arc().clone();
-    let spawned = std::thread::Builder::new()
-        .name("imt-ai-chat".into())
-        .spawn(move || run_turn(&core, &w, &sid, &text, &context.unwrap_or_default(), turn, &emit));
+    let browser = crate::browser::TurnBrowser::begin(&app, win.label(), &sid);
+    let spawned = std::thread::Builder::new().name("imt-ai-chat".into()).spawn(move || {
+        run_turn(
+            &core,
+            &w,
+            &sid,
+            (&text, &context.unwrap_or_default()),
+            turn,
+            &emit,
+            browser.as_ref(),
+        )
+    });
     spawned
         .map(|_| ())
         .map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot start the chat: {e}")))
@@ -492,21 +503,29 @@ pub(crate) fn run_turn(
     core: &AiCore,
     win: &Arc<WindowState>,
     sid: &str,
-    text: &str,
-    ctx: &ChatContext,
+    (text, ctx): (&str, &ChatContext),
     turn: super::chats::TurnHandle,
     emit: &Emit,
+    browser: Option<&crate::browser::TurnBrowser>,
 ) {
     let chats = &win.ai.chats;
     let session = turn.session.clone();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Ai<()> {
-        let assistant = core.assistant(turn.cancel.clone())?;
+        let rounds = browser.map_or(6, |b| b.rounds());
+        let assistant = core.assistant_with_rounds(turn.cancel.clone(), rounds)?;
         // Each tool call takes a short read lock; live tail and imports never wait for the model.
         let access = WindowStore(win.clone());
-        let env = ChatEnv::new(&assistant, (&access as &dyn StoreAccess).into());
+        let browser_env = browser.map(|b| b.env());
+        let mut env = ChatEnv::new(&assistant, (&access as &dyn StoreAccess).into());
+        if let (Some(b), Some(e)) = (browser, browser_env.as_ref()) {
+            env = env.with_browser(e).with_pages(b.pages.clone());
+        }
         let mut s = session.lock().unwrap_or_else(|p| p.into_inner());
         // Failures and cancellation were streamed as an `error` event by the session itself.
         let _ = s.send(&env, text, ctx, &mut |e| {
+            if let (Some(b), ChatEvent::LinkSuggestion { url, .. }) = (browser, &e.event) {
+                b.note_suggested(url);
+            }
             chats.push_event(sid, e);
             emit(sid, e);
         });
@@ -531,6 +550,8 @@ pub(crate) fn run_turn(
 #[tauri::command]
 pub fn ai_chat_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
     core(&app)?;
+    // A browser step waiting for approval is denied: nothing runs after Stop.
+    crate::browser::deny_waiting(&app, win.label(), &session_id);
     Ok(win.ai.chats.cancel(&session_id))
 }
 

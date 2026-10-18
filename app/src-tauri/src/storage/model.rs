@@ -10,6 +10,8 @@ pub enum CategoryId {
     BundleExtracts,
     /// The webview's HTTP, code and GPU caches.
     WebviewCache,
+    /// The internal browser's own profile: cookies, history, cache and site data (never IMT's).
+    WebProfile,
     /// Inference runtime builds of releases IMT no longer pins.
     AiRuntimesOutdated,
     /// Inference runtime builds of the pinned release.
@@ -25,9 +27,10 @@ pub enum CategoryId {
 }
 
 impl CategoryId {
-    pub const ALL: [CategoryId; 9] = [
+    pub const ALL: [CategoryId; 10] = [
         CategoryId::BundleExtracts,
         CategoryId::WebviewCache,
+        CategoryId::WebProfile,
         CategoryId::AiRuntimesOutdated,
         CategoryId::AiRuntimes,
         CategoryId::AiModels,
@@ -41,6 +44,7 @@ impl CategoryId {
         match self {
             CategoryId::BundleExtracts => "bundle-extracts",
             CategoryId::WebviewCache => "webview-cache",
+            CategoryId::WebProfile => "web-profile",
             CategoryId::AiRuntimesOutdated => "ai-runtimes-outdated",
             CategoryId::AiRuntimes => "ai-runtimes",
             CategoryId::AiModels => "ai-models",
@@ -68,6 +72,7 @@ impl CategoryId {
         match self {
             CategoryId::BundleExtracts => "Opened bundles (temporary copies)",
             CategoryId::WebviewCache => "Web view cache",
+            CategoryId::WebProfile => "Internal browser data (cookies, history, cache)",
             CategoryId::AiRuntimesOutdated => "Outdated AI runtimes",
             CategoryId::AiRuntimes => "AI runtimes",
             CategoryId::AiModels => "AI models",

@@ -1,5 +1,6 @@
 /** Pure view model of a chat: turns built from saved records and from the streamed events of a running turn. */
 import { plural } from '../../i18n/locale';
+import { AgentApprovalRequest, AgentDecision, HandOff, PauseReason, Segment } from '../../browser/browser.types';
 import { ChatContext, ChatEvent, Citation, Proposal, TurnRecord, Usage } from '../ai.types';
 
 export interface ToolChip {
@@ -15,12 +16,47 @@ export interface ProposalView {
   state: 'open' | 'applied' | 'dismissed';
 }
 
+/** An agent step's approval card: waiting, being sent, or answered (`expired`: the turn ended first). */
+export type AgentApprovalState = 'pending' | 'sending' | AgentDecision | 'expired';
+
+export interface AgentApprovalView {
+  request: AgentApprovalRequest;
+  state: AgentApprovalState;
+}
+
+/** A search or page the model suggested, shown as a card with the full address. */
+export interface LinkView {
+  kind: 'search' | 'link';
+  url: string;
+  title: string;
+  query: string | null;
+  segments: Segment[];
+}
+
+/** The agent step running now (one model call each, so the UI shows the progress). */
+export interface AgentStepView {
+  step: number;
+  limit: number;
+  action: string;
+  site: string | null;
+}
+
+export interface PauseView {
+  reason: PauseReason;
+  steps: number;
+  handOff: HandOff | null;
+}
+
 export interface TurnView {
   user: string;
   text: string;
   citations: Citation[];
   proposals: ProposalView[];
   tools: ToolChip[];
+  approvals: AgentApprovalView[];
+  links: LinkView[];
+  step: AgentStepView | null;
+  paused: PauseView | null;
   notes: string[];
   error: string | null;
   cancelled: boolean;
@@ -29,7 +65,7 @@ export interface TurnView {
 }
 
 export function startTurn(user: string): TurnView {
-  return { user, text: '', citations: [], proposals: [], tools: [], notes: [], error: null, cancelled: false, running: true, usage: null };
+  return { user, text: '', citations: [], proposals: [], tools: [], approvals: [], links: [], step: null, paused: null, notes: [], error: null, cancelled: false, running: true, usage: null };
 }
 
 export function turnFromRecord(r: TurnRecord): TurnView {
@@ -43,6 +79,17 @@ export function turnFromRecord(r: TurnRecord): TurnView {
     cancelled: r.cancelled,
     running: false,
     usage: r.usage ?? null,
+  };
+}
+
+/** A turn that ended: nothing runs, and a card still waiting can no longer be answered. */
+function ended(t: TurnView): TurnView {
+  return {
+    ...t,
+    running: false,
+    step: null,
+    tools: t.tools.map((c) => ({ ...c, running: false })),
+    approvals: t.approvals.map((a) => (a.state === 'pending' || a.state === 'sending' ? { ...a, state: 'expired' } : a)),
   };
 }
 
@@ -62,23 +109,27 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
     }
     case 'proposal':
       return { ...t, proposals: [...t.proposals, { proposal: e.proposal, state: 'open' }] };
+    case 'linkSuggestion':
+      return t.links.some((l) => l.url === e.url) ? t : { ...t, links: [...t.links, { kind: e.kind, url: e.url, title: e.title, query: e.query, segments: e.segments }] };
+    case 'agentApproval':
+      return { ...t, approvals: [...t.approvals, { request: e.request, state: 'pending' }] };
+    case 'agentStep':
+      return { ...t, step: { step: e.step, limit: e.limit, action: e.action, site: e.site } };
+    case 'agentPaused':
+      return { ...t, paused: { reason: e.reason, steps: e.steps, handOff: e.handOff }, step: null };
     case 'done':
       return {
-        ...t,
+        ...ended(t),
         text: e.text,
         citations: e.citations,
         notes: e.notes,
         usage: e.usage,
-        running: false,
-        tools: t.tools.map((c) => ({ ...c, running: false })),
       };
     case 'error':
       return {
-        ...t,
+        ...ended(t),
         error: e.cancelled ? null : e.message,
         cancelled: e.cancelled,
-        running: false,
-        tools: t.tools.map((c) => ({ ...c, running: false })),
       };
   }
 }
@@ -162,6 +213,14 @@ export function toolLabel(name: string): string {
     patterns: $localize`:@@ai.chatModel.tool.patterns:Patterns`,
     moment: $localize`:@@ai.chatModel.tool.moment:Moment`,
     anomalies: $localize`:@@ai.chatModel.tool.anomalies:Anomalies`,
+    suggest_link: $localize`:@@ai.chatModel.tool.suggestLink:Suggest a link`,
+    browser_read: $localize`:@@ai.chatModel.tool.browserRead:Read the browser page`,
+    browser_search: $localize`:@@ai.chatModel.tool.browserSearch:Search in the browser`,
+    browser_navigate: $localize`:@@ai.chatModel.tool.browserNavigate:Open a page`,
+    browser_click: $localize`:@@ai.chatModel.tool.browserClick:Click`,
+    browser_type: $localize`:@@ai.chatModel.tool.browserType:Type`,
+    browser_scroll: $localize`:@@ai.chatModel.tool.browserScroll:Scroll`,
+    browser_back: $localize`:@@ai.chatModel.tool.browserBack:Go back`,
     propose_regex: $localize`:@@ai.chatModel.tool.proposeRegex:Propose regex`,
     propose_query: $localize`:@@ai.chatModel.tool.proposeQuery:Propose query`,
     propose_profile: $localize`:@@ai.chatModel.tool.proposeProfile:Propose profile`,

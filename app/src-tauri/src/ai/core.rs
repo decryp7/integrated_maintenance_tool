@@ -413,6 +413,11 @@ impl AiCore {
 
     /// An assistant on the active model with the current settings and its own cancel flag.
     pub fn assistant(&self, cancel: Arc<AtomicBool>) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
+        self.assistant_with_rounds(cancel, MAX_TOOL_ROUNDS)
+    }
+
+    /// Like [`Self::assistant`] with more tool rounds (agent mode takes a round per browser step).
+    pub fn assistant_with_rounds(&self, cancel: Arc<AtomicBool>, rounds: usize) -> AiResult<Assistant<Arc<dyn LlmProvider>>> {
         let provider = self.provider()?;
         let s = self.settings();
         Ok(Assistant::new(
@@ -420,7 +425,7 @@ impl AiCore {
             AssistantConfig {
                 max_tokens: s.max_tokens,
                 temperature: s.temperature,
-                max_tool_rounds: MAX_TOOL_ROUNDS,
+                max_tool_rounds: rounds.clamp(1, 120),
                 cancel,
             },
         ))

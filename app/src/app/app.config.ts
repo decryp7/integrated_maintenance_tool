@@ -25,6 +25,7 @@ import { provideTimelines } from './timeline/provide-timelines';
 import { providePopout } from './popout/provide-popout';
 import { provideAi } from './ai/provide-ai';
 import { provideFolderSetup } from './ai/folder-setup/provide-folder-setup';
+import { provideBrowser } from './browser/provide-browser';
 import { provideActivity } from './core/activity/provide-activity';
 import { provideImtIcons } from './shared/material/imt-icons';
 import { provideUpdates } from './updates/provide-updates';
@@ -58,6 +59,7 @@ export const appConfig: ApplicationConfig = {
     providePopout(),
     provideAi(),
     provideFolderSetup(),
+    provideBrowser(),
     provideActivity(),
     provideImtIcons(),
     provideUpdates(),

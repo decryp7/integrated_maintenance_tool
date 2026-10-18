@@ -22,7 +22,7 @@ export async function ask(panel: Locator, question: string): Promise<void> {
 }
 
 export async function waitAnswered(panel: Locator): Promise<void> {
-  await expect(panel.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
   await expect(panel.locator('.thinking')).toHaveCount(0);
 }
 

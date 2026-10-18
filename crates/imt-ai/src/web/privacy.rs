@@ -110,6 +110,74 @@ fn strip_paths(re: &Regex, s: &str, kind: &'static str, removed: &mut Vec<(&'sta
 
 /// Redacts free text. Returns the cleaned text and what was removed.
 pub fn redact(text: &str) -> (String, Vec<String>) {
+    let (s, removed) = redact_parts(text);
+    let s = rules().placeholder.replace_all(&s, " ").replace('@', " ");
+    let cleaned = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    let cleaned = cleaned
+        .trim_matches(|c: char| c.is_whitespace() || matches!(c, ',' | ';' | ':' | '=' | '-'))
+        .to_string();
+    (cleaned, removed)
+}
+
+/// Redacts text that keeps its shape (web page text, code): line breaks, indentation and punctuation stay;
+/// only what is removed collapses into one space.
+pub fn redact_text(text: &str) -> (String, Vec<String>) {
+    let (s, removed) = redact_parts(text);
+    let s = rules().placeholder.replace_all(&s, " ");
+    let lines: Vec<String> = s
+        .lines()
+        .map(|line| {
+            let body = line.trim_start();
+            let indent = &line[..line.len() - body.len()];
+            let mut out = String::with_capacity(line.len());
+            out.push_str(indent);
+            let mut space = false;
+            for c in body.chars() {
+                if c == ' ' {
+                    space = true;
+                    continue;
+                }
+                if space && !out.ends_with(' ') && out.len() > indent.len() {
+                    out.push(' ');
+                }
+                space = false;
+                out.push(c);
+            }
+            out
+        })
+        .collect();
+    (lines.join("\n"), removed)
+}
+
+/// Byte ranges of `text` that look private (addresses, e-mails, GUIDs, paths, user names, keys and tokens),
+/// for highlighting. Host names are left out: every web address has one.
+pub fn private_spans(text: &str) -> Vec<(std::ops::Range<usize>, &'static str)> {
+    let r = rules();
+    let mut out: Vec<(std::ops::Range<usize>, &'static str)> = Vec::new();
+    let plain: [(&Regex, &'static str); 10] = [
+        (&r.email, "e-mail address"),
+        (&r.guid, "GUID"),
+        (&r.ipv4, "IP address"),
+        (&r.ipv6_full, "IP address"),
+        (&r.win_path, "file path"),
+        (&r.unc, "file path"),
+        (&r.domain_user, "user name"),
+        (&r.user_kv, "user name"),
+        (&r.long_hex, "key or hash"),
+        (&r.long_token, "key or hash"),
+    ];
+    for (re, kind) in plain {
+        out.extend(re.find_iter(text).map(|m| (m.range(), kind)));
+    }
+    for re in [&r.unix_path, &r.unix_file] {
+        out.extend(re.captures_iter(text).filter_map(|c| c.get(2)).map(|m| (m.range(), "file path")));
+    }
+    out.sort_by_key(|(r, _)| (r.start, std::cmp::Reverse(r.end)));
+    out
+}
+
+/// The redaction rules applied in order; removed parts become a space. Returns the text and what was removed.
+fn redact_parts(text: &str) -> (String, Vec<String>) {
     let r = rules();
     let mut removed: Vec<(&'static str, usize)> = Vec::new();
     // Secrets first, with the same rules that protect diagnostic bundles.
@@ -179,12 +247,7 @@ pub fn redact(text: &str) -> (String, Vec<String>) {
     s = strip(&r.long_hex, &s, "keys and hashes", &mut removed);
     s = strip(&r.long_token, &s, "keys and hashes", &mut removed);
     s = strip(&r.long_number, &s, "long numbers", &mut removed);
-    s = r.placeholder.replace_all(&s, " ").replace('@', " ");
-    let cleaned = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    let cleaned = cleaned
-        .trim_matches(|c: char| c.is_whitespace() || matches!(c, ',' | ';' | ':' | '=' | '-'))
-        .to_string();
-    (cleaned, removed.into_iter().map(|(k, n)| format!("{n} {k}")).collect())
+    (s, removed.into_iter().map(|(k, n)| format!("{n} {k}")).collect())
 }
 
 /// Removes names that the logs themselves identify as private (host names, user names, file and folder names),
@@ -703,6 +766,17 @@ mod tests {
         assert!(!q.query.contains("clef") || q.query == "serilog-clef", "{}", q.query);
         assert!(!q.query.contains("web02") && !q.query.contains("2026"));
         assert_eq!(sanitize_edited("timeout WEB02", &terms).unwrap().query, "timeout");
+    }
+
+    #[test]
+    fn page_text_keeps_its_shape() {
+        let (t, removed) = redact_text("Mail alice@contoso.com now;\n    ip = 10.20.30.40; port 80\n\n- item");
+        assert_eq!(t, "Mail now;\n    ip = ; port 80\n\n- item");
+        assert_eq!(removed, ["2 masked values"]);
+        let spans = private_spans("send 10.0.0.5 to bob@contoso.com from /var/log/app/x.log at https://e.org");
+        let kinds: Vec<&str> = spans.iter().map(|(_, k)| *k).collect();
+        assert_eq!(kinds, ["IP address", "e-mail address", "file path"]);
+        assert_eq!(&"send 10.0.0.5"[spans[0].0.clone()], "10.0.0.5");
     }
 
     #[test]

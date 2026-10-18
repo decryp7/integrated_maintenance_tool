@@ -6,7 +6,7 @@ import { GridSelection } from '../../grid/grid-selection';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { ChatEventEnvelope, SessionInfo } from '../ai.types';
-import { ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
+import { AgentApprovalState, ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
 
 interface ChatState {
   sessions: SessionInfo[];
@@ -173,6 +173,15 @@ export const ChatStore = signalStore(
       async cancel(): Promise<void> {
         const id = store.activeId();
         if (id) await backend.chatCancel(id).catch(fail);
+      },
+
+      /** Shows the user's answer on an agent approval card of the running turn. */
+      setApprovalState(requestId: number, state: AgentApprovalState): void {
+        const id = store.activeId();
+        if (!id) return;
+        setTurns(id, (turns) =>
+          turns.map((t) => (t.running ? { ...t, approvals: t.approvals.map((a) => (a.request.requestId === requestId ? { ...a, state } : a)) } : t)),
+        );
       },
 
       setProposalState(turnIndex: number, proposalIndex: number, state: 'applied' | 'dismissed'): void {

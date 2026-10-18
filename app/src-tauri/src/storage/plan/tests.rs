@@ -86,6 +86,7 @@ fn folders<'a>(d: &Path, ai: Option<&'a dyn AiPort>, start: Option<SystemTime>) 
         session_start: start,
         main_instance: true,
         previous_crash: false,
+        browser_open: false,
         ai,
     }
 }
@@ -109,10 +110,11 @@ fn every_category_resolves_from_the_app_folders() {
     let f = folders(&d.0, Some(&ai), Some(SystemTime::now()));
     let cats = categories(&f);
     let ids: Vec<_> = cats.iter().map(|c| c.id).collect();
-    assert_eq!(ids, CategoryId::ALL[..8], "stores are listed only once their folder exists");
+    assert_eq!(ids, CategoryId::ALL[..9], "stores are listed only once their folder exists");
     let shown = |id| find(&cats, id).shown.clone().unwrap();
     assert_eq!(shown(CategoryId::BundleExtracts), d.0.join("tmp").join("imt-bundles"));
     assert_eq!(shown(CategoryId::WebviewCache), d.0.join("local"));
+    assert_eq!(shown(CategoryId::WebProfile), d.0.join("data").join("web-profile"));
     assert_eq!(shown(CategoryId::AiRuntimesOutdated), d.0.join("data").join("ai").join("runtimes"));
     assert_eq!(
         shown(CategoryId::AiRuntimes),
@@ -144,10 +146,11 @@ fn unresolved_folders_are_listed_but_not_clearable() {
         session_start: None,
         main_instance: true,
         previous_crash: false,
+        browser_open: false,
         ai: None,
     };
     let cats = categories(&f);
-    assert_eq!(cats.len(), 8);
+    assert_eq!(cats.len(), 9);
     for c in &cats {
         assert!(c.shown.is_none() || c.id == CategoryId::AiModels, "{:?}", c.id);
         assert!(c.clearable.is_err(), "{:?}", c.id);
@@ -487,4 +490,27 @@ fn ids_from_the_ui_are_parsed_and_unknown_ones_refused() {
         .unwrap_err()
         .contains("unknown storage category"));
     assert!(parse_ids(&vec!["logs".to_string(); 100]).is_err());
+}
+
+#[test]
+fn the_browser_profile_is_cleared_unless_the_browser_is_open() {
+    let d = TempDir::new("storage-plan-web-profile");
+    let profile = d.0.join("data").join("web-profile");
+    write(&profile.join("EBWebView").join("Default").join("Cookies"), 30);
+    write(&profile.join("Local State"), 5);
+    let mut f = folders(&d.0, None, Some(SystemTime::now()));
+    f.browser_open = true;
+    let cats = categories(&f);
+    let c = find(&cats, CategoryId::WebProfile);
+    assert_eq!(c.items.len(), 2);
+    if cfg!(target_os = "macos") {
+        assert!(c.clearable.is_err());
+        return;
+    }
+    assert!(c.clearable.as_ref().unwrap_err().contains("close the internal browser"));
+    f.browser_open = false;
+    let r = clear_one(&f, CategoryId::WebProfile);
+    assert_eq!(r.freed_bytes, 35);
+    assert!(!profile.join("Local State").exists() && !profile.join("EBWebView").exists());
+    assert!(d.0.join("data").exists(), "only the profile goes");
 }
