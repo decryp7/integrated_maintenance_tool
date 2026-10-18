@@ -6,7 +6,8 @@ use super::SECTION;
 use imt_ai::browser::pace::{
     DEFAULT_ACTIONS_PER_MINUTE, DEFAULT_STEP_LIMIT, MAX_ACTIONS_PER_MINUTE, MAX_STEP_LIMIT, MIN_ACTIONS_PER_MINUTE, MIN_STEP_LIMIT,
 };
-use imt_ai::browser::{AgentLimits, SearchEngine, SearchSettings, SearchTemplate};
+use imt_ai::browser::research::{DEFAULT_RESULTS, MAX_RESULTS, MIN_RESULTS};
+use imt_ai::browser::{clamp_results, AgentLimits, ResearchSettings, SearchEngine, SearchSettings, SearchTemplate};
 use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::Arc;
 
@@ -41,6 +42,10 @@ pub fn to_settings(values: &ValidValues) -> anyhow::Result<BrowserSettings> {
         agent: AgentLimits {
             step_limit: num("agentStepLimit", DEFAULT_STEP_LIMIT),
             actions_per_minute: num("agentActionsPerMinute", DEFAULT_ACTIONS_PER_MINUTE),
+        },
+        research: ResearchSettings {
+            auto: values.bool("autoResearch").unwrap_or(true),
+            max_results: clamp_results(values.int("researchResults")),
         },
     })
 }
@@ -80,6 +85,20 @@ impl Configurable for BrowserSection {
                     DEFAULT_ACTIONS_PER_MINUTE,
                 )
                 .describe("Agent mode browses at a human pace: at most this many actions in a minute."),
+            )
+            .field(
+                SettingField::new("autoResearch", "Let the AI research the web automatically", FieldKind::Bool, true).describe(
+                    "The AI searches and reads the top results by itself (read-only) when a question needs outside information. Off: it offers a Research this button instead.",
+                ),
+            )
+            .field(
+                SettingField::new(
+                    "researchResults",
+                    "Results to read per search",
+                    int(u32::from(MIN_RESULTS), u32::from(MAX_RESULTS)),
+                    u32::from(DEFAULT_RESULTS),
+                )
+                .describe("How many result pages research opens and reads (a request can ask for another number, up to 10)."),
             )
     }
 

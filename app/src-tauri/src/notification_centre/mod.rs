@@ -528,6 +528,9 @@ mod tests {
         let titles: Vec<&str> = list.notices.iter().map(|n| n.title.as_str()).collect();
         assert_eq!(titles.len(), 2, "one per session: {titles:?}");
         assert!(titles.contains(&"IMT did not close properly") && titles.contains(&"IMT runs in safe mode"));
-        assert!(list.notices.iter().all(|n| n.scope == NoticeScope::App && n.source == NoticeSource::Session));
+        assert!(list
+            .notices
+            .iter()
+            .all(|n| n.scope == NoticeScope::App && n.source == NoticeSource::Session));
     }
 }

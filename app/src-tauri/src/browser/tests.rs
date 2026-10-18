@@ -193,3 +193,44 @@ fn agent_actions_reach_the_activity_log_without_page_or_typed_text() {
     );
     assert_eq!(p["SourceContext"], crate::activity::SOURCE_CONTEXT);
 }
+
+#[test]
+fn research_settings_default_to_automatic_with_five_results_and_are_validated() {
+    use imt_core::settings::{sanitize, Configurable};
+    let hub = std::sync::Arc::new(BrowserHub::default());
+    let section = super::settings_section::BrowserSection { hub: hub.clone() };
+    let schema = section.settings_section();
+    let values = |v: Value| sanitize(&schema, &v).0;
+    section.apply_settings(&values(json!({}))).unwrap();
+    let r = hub.settings().research;
+    assert_eq!((r.auto, r.max_results), (true, 5));
+    section
+        .apply_settings(&values(json!({"autoResearch": false, "researchResults": 3})))
+        .unwrap();
+    let r = hub.settings().research;
+    assert_eq!((r.auto, r.max_results), (false, 3));
+    // Out of range: the settings service refuses the value and the default applies.
+    section.apply_settings(&values(json!({"researchResults": 30}))).unwrap();
+    assert_eq!(hub.settings().research.max_results, 5);
+    let field = schema.fields.iter().find(|f| f.key == "researchResults").expect("the field");
+    assert!(matches!(field.kind, imt_core::settings::FieldKind::Int { min: 1, max: 10, .. }));
+}
+
+#[test]
+fn research_stop_and_retry_need_a_research_to_act_on() {
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    assert_eq!(ipc(&main, "browser_research_stop", json!({})).unwrap(), 0);
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Research, "Research: x")
+        .window("main")
+        .retry_with(json!({"op": "research"}));
+    // A request without a question cannot run again.
+    let job = crate::jobs::model::Job::finished_for_test(spec, crate::jobs::JobState::Failed);
+    assert!(super::research::retry(app.handle(), &job)
+        .unwrap_err()
+        .contains("cannot be run again"));
+    let mut closed = job.clone();
+    closed.source.window = Some("w-9".into());
+    assert!(super::research::retry(app.handle(), &closed).unwrap_err().contains("closed"));
+    assert_eq!(super::research::settings(app.handle()).max_results, 5);
+}

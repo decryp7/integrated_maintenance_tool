@@ -2,7 +2,7 @@
 //! them: the page shown, popups waiting for the user's decision, pages handed to a chat, links a chat
 //! suggested, and each chat's hold on the browser (`imt_ai::browser::ChatBrowser`). Plain Rust, no Tauri.
 
-use imt_ai::browser::{AgentLimits, ChatBrowser, PageCapture, SearchSettings};
+use imt_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, RwLock};
@@ -20,6 +20,8 @@ const MAX_SUGGESTED: usize = 50;
 pub struct BrowserSettings {
     pub search: SearchSettings,
     pub agent: AgentLimits,
+    /// Research mode: automatic or offered, and how many results it reads.
+    pub research: ResearchSettings,
 }
 
 /// The page a window's browser shows, for the Web panel.

@@ -1542,3 +1542,41 @@ fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
     assert!(r.is_ok(), "{r:?}");
     assert!(ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn research_with_workspace_data_in_the_search_asks_to_confirm_first() {
+    let f = Fixture::new("research-confirm");
+    let core = f.core();
+    core.set_fixed_provider(scripted(vec![]));
+    let app = f.app(core);
+    let main = window(&app, "main");
+    open_samples(&main);
+    // The samples' MachineName is WEB01: a name the logs mark as private.
+    let r = ipc(
+        &main,
+        "ai_research",
+        json!({"args": {"question": "why does WEB01 time out on checkout?"}}),
+    )
+    .unwrap();
+    assert_eq!(r["status"], "confirm", "{r}");
+    let segments = r["checked"]["segments"].as_array().unwrap();
+    assert!(segments.iter().any(|s| s["text"] == "WEB01" && !s["leak"].is_null()), "{r}");
+    assert!(
+        jobs_of(&app).find_active(|j| j.kind == crate::jobs::JobKind::Research).is_empty(),
+        "nothing searched yet"
+    );
+    // Bad arguments are refused before anything runs.
+    assert_eq!(code(ipc(&main, "ai_research", json!({"args": {}})).unwrap_err()), "invalid");
+    assert_eq!(
+        code(ipc(&main, "ai_research", json!({"args": {"question": "  "}})).unwrap_err()),
+        "invalid"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_research", json!({"args": {"question": "q", "sessionId": "nope"}})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_research", json!({"args": {"recordId": u32::MAX}})).unwrap_err()),
+        "notFound"
+    );
+}

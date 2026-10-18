@@ -41,6 +41,7 @@ fn kinds(events: &[Envelope]) -> Vec<&'static str> {
             ChatEvent::AgentApproval { .. } => "approval",
             ChatEvent::AgentStep { .. } => "step",
             ChatEvent::AgentPaused { .. } => "paused",
+            ChatEvent::ResearchOffer { .. } => "researchOffer",
             ChatEvent::Done { .. } => "done",
             ChatEvent::Error { .. } => "error",
         })

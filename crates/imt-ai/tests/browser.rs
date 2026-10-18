@@ -142,6 +142,7 @@ fn env<'a>(b: &'a FakeBrowser, control: &'a ChatBrowser, approver: &'a dyn Agent
         search: SearchSettings::default(),
         chat: "chat-1".into(),
         sleep: &NO_SLEEP,
+        research: None,
     }
 }
 
@@ -503,4 +504,148 @@ fn an_event_becomes_a_redacted_search() {
         assert!(!q.query.contains(private), "{private} in {q:?}");
     }
     assert!(query::search_for_event(store(), u32::MAX).is_err());
+}
+
+/// A researcher that answers from a fixed report and records what it was asked.
+struct FakeResearcher {
+    auto: bool,
+    asked: Mutex<Vec<(String, String, u8)>>,
+}
+
+impl Researcher for FakeResearcher {
+    fn settings(&self) -> ResearchSettings {
+        ResearchSettings {
+            auto: self.auto,
+            max_results: 5,
+        }
+    }
+    fn research(&self, question: &str, query: &str, max_results: u8) -> imt_ai::Result<ResearchReport> {
+        self.asked.lock().unwrap().push((question.into(), query.into(), max_results));
+        Ok(ResearchReport {
+            query: query.into(),
+            answer: "0x80070005 is E_ACCESSDENIED [1].".into(),
+            read: vec![research::ReadPage {
+                n: 1,
+                title: "Access denied in IIS".into(),
+                url: "https://learn.microsoft.com/iis/access-denied".into(),
+            }],
+            skipped: vec![],
+        })
+    }
+}
+
+fn with_research<'a>(e: BrowserEnv<'a>, r: &'a FakeResearcher) -> BrowserEnv<'a> {
+    BrowserEnv { research: Some(r), ..e }
+}
+
+#[test]
+fn the_model_researches_by_itself_and_the_answer_cites_the_pages() {
+    let a = assistant(vec![
+        tool(
+            "web_research",
+            json!({"question": "what does HRESULT 0x80070005 mean for IIS?", "query": "HRESULT 0x80070005 IIS", "max_results": 30}),
+        ),
+        text("It means access denied [1]."),
+    ]);
+    let b = FakeBrowser::new(docs_page());
+    let c = ChatBrowser::new(AgentLimits::default());
+    let log = MemoryLog::default();
+    let r = FakeResearcher {
+        auto: true,
+        asked: Mutex::new(vec![]),
+    };
+    let events = run(
+        &a,
+        &with_research(env(&b, &c, &DenyAll, &log), &r),
+        vec![],
+        "what does HRESULT 0x80070005 mean for IIS?",
+    );
+    assert_eq!(r.asked.lock().unwrap()[0].2, 10, "the model's max_results is clamped to 10");
+    let system = &a.provider().requests()[0].system;
+    assert!(
+        system.contains("call web_research instead of guessing"),
+        "research is on by default"
+    );
+    let requests = a.provider().requests();
+    let tool_result = &requests[1].messages.last().unwrap().content;
+    assert!(tool_result.contains("untrusted web pages") && tool_result.contains("E_ACCESSDENIED"));
+    let Some(ChatEvent::Done { citations, .. }) = events.last().map(|e| &e.event) else {
+        panic!()
+    };
+    assert!(citations
+        .iter()
+        .any(|c| matches!(c, Citation::Web { url, .. } if url == "https://learn.microsoft.com/iis/access-denied")));
+}
+
+#[test]
+fn research_with_workspace_data_or_turned_off_offers_a_button_instead() {
+    // The search text names a host from the logs: the user confirms first; nothing is searched.
+    let a = assistant(vec![
+        tool(
+            "web_research",
+            json!({"question": "why does WEB01 time out?", "query": "WEB01 timeout"}),
+        ),
+        text("Please confirm the search."),
+    ]);
+    let b = FakeBrowser::new(docs_page());
+    let c = ChatBrowser::new(AgentLimits::default());
+    let log = MemoryLog::default();
+    let r = FakeResearcher {
+        auto: true,
+        asked: Mutex::new(vec![]),
+    };
+    let events = run(
+        &a,
+        &with_research(env(&b, &c, &DenyAll, &log), &r),
+        vec![],
+        "why does WEB01 time out?",
+    );
+    assert!(r.asked.lock().unwrap().is_empty());
+    let offer = events
+        .iter()
+        .find_map(|e| match &e.event {
+            ChatEvent::ResearchOffer {
+                needs_confirm, segments, ..
+            } => Some((*needs_confirm, segments.clone())),
+            _ => None,
+        })
+        .expect("an offer card");
+    assert!(offer.0 && offer.1.iter().any(|s| s.leak.is_some()));
+    // Automatic research off: only offer_research is there, and it shows the buttons.
+    let a = assistant(vec![
+        tool("offer_research", json!({"question": "what is 0x80070005?"})),
+        text("Use the Research button."),
+    ]);
+    let off = FakeResearcher {
+        auto: false,
+        asked: Mutex::new(vec![]),
+    };
+    let events = run(
+        &a,
+        &with_research(env(&b, &c, &DenyAll, &log), &off),
+        vec![],
+        "search for 0x80070005",
+    );
+    let system = &a.provider().requests()[0].system;
+    assert!(system.contains("offer_research") && !system.contains("call web_research"));
+    assert!(events
+        .iter()
+        .any(|e| matches!(&e.event, ChatEvent::ResearchOffer { needs_confirm: false, .. })));
+    assert!(off.asked.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_research_answer_from_a_button_becomes_a_turn_of_the_chat() {
+    let mut s = ChatSession::new("chat-1");
+    let mut events = Vec::new();
+    let web = vec![imt_ai::assistant::WebSource {
+        title: "Access denied in IIS".into(),
+        url: "https://learn.microsoft.com/iis/access-denied".into(),
+    }];
+    s.record_answer("Research: 0x80070005", "It means access denied [1].", web, &mut |e| {
+        events.push(e.clone())
+    });
+    assert!(matches!(&events[0].event, ChatEvent::Done { citations, .. } if citations.len() == 1));
+    assert_eq!(s.turns().len(), 1);
+    assert_eq!(s.title(), "Research: 0x80070005");
 }

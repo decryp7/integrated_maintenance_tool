@@ -355,7 +355,7 @@ pub(super) async fn run<R: Runtime>(app: &AppHandle<R>, win: &Arc<WindowState>, 
 }
 
 /// Starts a chat turn as a job; the answer streams as `imt://ai-chat` events. Returns the job.
-pub(super) fn start_turn<R: Runtime>(
+pub(crate) fn start_turn<R: Runtime>(
     app: &AppHandle<R>,
     win: &Arc<WindowState>,
     sid: &str,

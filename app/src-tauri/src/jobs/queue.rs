@@ -154,7 +154,10 @@ fn clean(s: &str, max: usize) -> String {
 /// about (a quick analysis failure is shown by its own view).
 pub fn needs_attention(job: &Job) -> bool {
     match job.state() {
-        JobState::Done => job.run_ms(i64::MIN) >= ATTENTION_AFTER_MS || job.age_ms(i64::MIN) >= ATTENTION_AFTER_MS,
+        // A research answer is always news ("Research finished · View answer").
+        JobState::Done => {
+            job.kind == JobKind::Research || job.run_ms(i64::MIN) >= ATTENTION_AFTER_MS || job.age_ms(i64::MIN) >= ATTENTION_AFTER_MS
+        }
         JobState::Failed => job.kind != JobKind::Analysis || job.age_ms(i64::MIN) >= VISIBLE_AFTER_MS,
         _ => false,
     }

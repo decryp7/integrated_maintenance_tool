@@ -11,13 +11,14 @@
 //! `browser_reload`, `browser_stop`, `browser_close`, `browser_open_external`, `browser_capture`,
 //! `browser_sources`, `browser_discard_sources`, `browser_chat_status`, `browser_set_read_along`,
 //! `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`, `browser_agent_respond`,
-//! `browser_open_suggested`. Events: `imt://browser` (to the owner window and its pop-out panels).
+//! `browser_open_suggested`, `browser_open_and_read`, `ai_research`, `browser_research_stop`. Events: `imt://browser` (to the owner window and its pop-out panels).
 //! Wire contract: `app/src/app/browser/browser.types.ts`.
 
 mod approvals;
 pub(crate) mod commands;
 mod hub;
 mod page;
+pub(crate) mod research;
 mod settings_section;
 #[cfg(test)]
 mod tests;
@@ -87,6 +88,8 @@ pub struct ChatStatusDto {
     pub small_model: bool,
     /// Parameters of the active model in billions, when known.
     pub model_params_b: Option<f64>,
+    /// The model researches the web by itself (Settings ▸ Web browser); off: it offers a button.
+    pub research_auto: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

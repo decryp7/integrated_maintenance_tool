@@ -22,6 +22,7 @@ pub mod policy;
 pub mod port;
 pub mod protocol;
 pub mod query;
+pub mod research;
 pub mod scripts;
 pub mod snapshot;
 pub mod tools;
@@ -38,7 +39,9 @@ pub use port::{
 };
 pub use protocol::{Nonce, ReplyError, ReplyGate};
 pub use query::{event_query, EventText};
+pub use research::{check_store_query, clamp_results, CheckedQuery, ResearchReport, ResearchRequest, ResearchSettings, Researcher};
 pub use snapshot::{snapshot_from, DomSnapshot, Element, ElementKind, HandOff};
+pub use tools::ResearchTool;
 pub use tools::{browser_specs, BrowserEnv, BrowserTools, PauseReason};
 pub use url::{check_navigation, Navigation, Site, UrlError, WebUrl};
 

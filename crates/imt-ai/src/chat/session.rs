@@ -69,6 +69,16 @@ pub enum ChatEvent {
         /// The address, split where the leak guard found workspace data.
         segments: Vec<Segment>,
     },
+    /// The model offers web research (or asks to confirm a search text with workspace data in it): the chat
+    /// shows "Research this" and "Let the AI drive the browser".
+    ResearchOffer {
+        question: String,
+        query: String,
+        /// The search text, with what the leak guard flagged.
+        segments: Vec<Segment>,
+        #[serde(rename = "needsConfirm")]
+        needs_confirm: bool,
+    },
     /// An agent step waits for the user's approval.
     AgentApproval {
         request: ApprovalRequest,
@@ -224,6 +234,44 @@ impl ChatSession {
 
     /// Runs one turn. Events stream through `on_event`; the same events are kept for `events_since`.
     /// Returns an error when the turn failed or was cancelled (an `Error` event was emitted too).
+    /// Adds an answer IMT produced outside a model turn (a research run from a "Research this" button) as a
+    /// turn of its own, streamed like one (`done`) so an open chat shows it. Its web pages are cited.
+    pub fn record_answer(&mut self, user: &str, text: &str, web: Vec<crate::assistant::WebSource>, on_event: &mut dyn FnMut(&Envelope)) {
+        let user = truncate_chars(user.trim(), MAX_USER_CHARS);
+        let citations: Vec<Citation> = web
+            .iter()
+            .map(|w| Citation::Web {
+                title: w.title.clone(),
+                url: w.url.clone(),
+            })
+            .collect();
+        let mut em = Emitter {
+            next_seq: self.next_seq,
+            replay: std::mem::take(&mut self.replay),
+            sink: on_event,
+        };
+        em.emit(ChatEvent::Done {
+            text: text.to_string(),
+            citations: citations.clone(),
+            usage: Usage::default(),
+            notes: vec![],
+        });
+        self.next_seq = em.next_seq;
+        self.replay = em.replay;
+        if self.title.is_empty() {
+            self.title = truncate_chars(&user, 60);
+        }
+        self.turns.push(TurnRecord {
+            user,
+            assistant: text.to_string(),
+            citations,
+            proposals: vec![],
+            web,
+            cancelled: false,
+            usage: Usage::default(),
+        });
+    }
+
     pub fn send<P: LlmProvider>(
         &mut self,
         env: &ChatEnv<'_, P>,
@@ -320,7 +368,9 @@ impl ChatSession {
         let probe_chars = serde_json::to_string(&EngineTools::tool_specs()).map(|s| s.len()).unwrap_or(3000)
             + serde_json::to_string(&propose_specs()).map(|s| s.len()).unwrap_or(2000)
             + env.browser.map_or(0, |_| {
-                serde_json::to_string(&browser_specs(read, agent)).map(|s| s.len()).unwrap_or(1500)
+                serde_json::to_string(&browser_specs(read, agent, crate::browser::tools::ResearchTool::Auto))
+                    .map(|s| s.len())
+                    .unwrap_or(1500)
             });
         let mut budget = ChatBudget::new(ctx_tokens, a.cfg.max_tokens, probe_chars);
         if tight {
@@ -345,6 +395,11 @@ impl ChatSession {
             }
             if agent {
                 system.push_str(AGENT_RULES);
+            }
+            match env.browser.map(|b| b.research_tool()) {
+                Some(crate::browser::tools::ResearchTool::Auto) => system.push_str(crate::browser::tools::RESEARCH_RULES),
+                Some(crate::browser::tools::ResearchTool::Offer) => system.push_str(crate::browser::tools::OFFER_RULES),
+                _ => {}
             }
         }
         if !summary.is_empty() {

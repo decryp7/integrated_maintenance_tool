@@ -13,7 +13,7 @@
 mod chats;
 pub(crate) mod commands;
 mod core;
-mod error;
+pub(crate) mod error;
 pub(crate) mod folder_setup;
 pub(crate) mod requests;
 pub(crate) mod runtime_commands;

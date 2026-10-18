@@ -231,6 +231,7 @@ pub fn chat_status<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str, hub:
         status: hub.chat(owner, chat).status(),
         small_model: small_for_agent(params),
         model_params_b: params,
+        research_auto: hub.settings().research.auto,
     }
 }
 
@@ -322,6 +323,44 @@ pub fn browser_agent_respond<R: Runtime>(
 ) -> CmdResult<bool> {
     let chat = chat_of(&win, &session_id)?;
     Ok(approvals(&app)?.respond(win.label(), &chat, request_id, decision.into()))
+}
+
+/// "Open and let AI read it" on a suggested link: opens it, waits for the page, adds it to the chat as an
+/// untrusted source and lets the chat go on with it at once (a new turn). Returns that turn's job.
+#[tauri::command]
+pub async fn browser_open_and_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String, url: String) -> CmdResult<u64> {
+    let chat = chat_of(&win, &session_id)?;
+    let u = WebUrl::parse(&url).map_err(err)?;
+    let h = hub(&app)?;
+    if !h.was_suggested(win.label(), &chat, u.as_str()) {
+        return Err("refused: this link was not suggested in this chat".into());
+    }
+    let (a, w) = (app.clone(), win.arc().clone());
+    tauri::async_runtime::spawn_blocking(move || {
+        let owner = w.label().to_string();
+        let before = h.page(&owner).loads;
+        open(&a, &owner, &u, true)?;
+        h.wait_loaded(&owner, before, std::time::Duration::from_secs(15));
+        let page = super::page::TauriPage {
+            app: a.clone(),
+            owner: owner.clone(),
+            chat: None,
+        };
+        let capture = imt_ai::browser::PageReader::capture(&page).map_err(err)?;
+        let title = capture.title.clone();
+        h.attach(&owner, &chat, capture);
+        crate::activity::domain_event("browser.openAndRead", None, &[("Site", u.site().as_str())]);
+        let emit = crate::ai::commands::chat_emitter(&a, &owner);
+        let text = format!(
+            "I opened \"{}\" for you: read it and go on with my question.",
+            title.chars().take(120).collect::<String>()
+        );
+        crate::ai::requests::start_turn(&a, &w, &chat, text, Default::default(), emit)
+            .map(|id| id.0)
+            .map_err(|e| e.message)
+    })
+    .await
+    .map_err(err)?
 }
 
 /// Opens a link a chat suggested, in the internal browser. Only links that chat suggested are opened.

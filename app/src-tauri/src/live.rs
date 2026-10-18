@@ -686,7 +686,10 @@ mod tests {
         assert_eq!(n.dedupe_key.as_deref(), Some("live:errorSpike:WEB02"));
         assert_eq!(n.severity, crate::notification_centre::centre::NoticeSeverity::Error);
         let r = alert_notice(&alert("rule", None, Some("payment errors")));
-        assert_eq!((r.title.as_str(), r.dedupe_key.as_deref()), ("payment errors", Some("live:rule:payment errors")));
+        assert_eq!(
+            (r.title.as_str(), r.dedupe_key.as_deref()),
+            ("payment errors", Some("live:rule:payment errors"))
+        );
         for k in ["silence", "crash", "slowOutlier", "rateChange", "memoryGrowth", "other"] {
             assert!(!alert_notice(&alert(k, None, None)).title.is_empty());
         }
@@ -698,6 +701,10 @@ mod tests {
         };
         emit_report(app.handle(), "main", &report);
         let list = app.state::<crate::notification_centre::NotificationCentre>().snapshot("main");
-        assert_eq!((list.notices.len(), list.notices[0].count), (1, 2), "merged: ERROR spike on WEB02 (×2)");
+        assert_eq!(
+            (list.notices.len(), list.notices[0].count),
+            (1, 2),
+            "merged: ERROR spike on WEB02 (×2)"
+        );
     }
 }

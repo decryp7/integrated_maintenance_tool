@@ -7,7 +7,7 @@ use super::hub::BrowserHub;
 use super::page::TauriPage;
 use super::ActivityLog;
 use super::{emit, BrowserEvent, BrowserState};
-use imt_ai::browser::{BrowserEnv, ChatBrowser, PageCapture, PageDriver, PageReader, SearchSettings};
+use imt_ai::browser::{BrowserEnv, ChatBrowser, PageCapture, PageDriver, PageReader, Researcher, SearchSettings};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
@@ -32,6 +32,8 @@ pub struct TurnBrowser {
     owner: String,
     chat: String,
     driving: bool,
+    /// Research mode for the turn's `web_research` (a research job the turn waits for).
+    researcher: Box<dyn Researcher>,
 }
 
 impl TurnBrowser {
@@ -76,6 +78,11 @@ impl TurnBrowser {
             owner: owner.to_string(),
             chat: chat.to_string(),
             driving,
+            researcher: Box::new(super::research::TurnResearcher {
+                app: app.clone(),
+                owner: owner.to_string(),
+                chat: chat.to_string(),
+            }),
         })
     }
 
@@ -90,6 +97,7 @@ impl TurnBrowser {
             search: self.search.clone(),
             chat: self.chat.clone(),
             sleep: &SLEEP,
+            research: Some(self.researcher.as_ref()),
         }
     }
 

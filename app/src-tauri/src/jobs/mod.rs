@@ -55,6 +55,8 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
     let service = jobs.clone();
     let h = app.clone();
     jobs.set_retry(JobKind::Import, move |job| crate::workspace_commands::retry_import(&h, job));
+    let h = app.clone();
+    jobs.set_retry(JobKind::Research, move |job| crate::browser::research::retry(&h, job));
     let mirrored = Mutex::new(HashSet::<String>::new());
     jobs.subscribe(move |event| match event {
         JobsEvent::Changed => {
@@ -105,6 +107,7 @@ fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mutex<HashSet<
 
 fn job_title(kind: JobKind, state: JobState, title: &str) -> String {
     match (kind, state) {
+        (JobKind::Research, JobState::Done) => format!("Research finished: {}", title.strip_prefix("Research: ").unwrap_or(title)),
         (_, JobState::Done) => format!("Finished: {title}"),
         (_, JobState::Failed) => format!("Failed: {title}"),
         (_, _) => format!("Interrupted: {title}"),

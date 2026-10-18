@@ -25,6 +25,8 @@ impl std::fmt::Display for JobId {
 pub enum JobKind {
     /// A request to the local model (one at a time: there is one model in memory).
     Ai,
+    /// Web research: search, read the result pages, answer with citations (one at a time: one browser).
+    Research,
     /// Long queries and analyses (patterns, anomalies, compare, Moment, profiler findings, folder survey).
     Analysis,
     /// Opening or reloading files (one per window: a window has one workspace).
@@ -41,8 +43,9 @@ pub enum JobKind {
 
 impl JobKind {
     #[cfg(test)]
-    pub const ALL: [JobKind; 7] = [
+    pub const ALL: [JobKind; 8] = [
         JobKind::Ai,
+        JobKind::Research,
         JobKind::Analysis,
         JobKind::Import,
         JobKind::Export,
@@ -54,7 +57,7 @@ impl JobKind {
     /// How many jobs of this kind run at once (for [`JobKind::Import`]: per window).
     pub fn limit(self, cores: usize) -> usize {
         match self {
-            JobKind::Ai | JobKind::Import | JobKind::Collection | JobKind::Maintenance => 1,
+            JobKind::Ai | JobKind::Research | JobKind::Import | JobKind::Collection | JobKind::Maintenance => 1,
             JobKind::Analysis => cores.saturating_sub(1).max(1),
             JobKind::Export | JobKind::Download => 2,
         }
@@ -73,6 +76,7 @@ impl JobKind {
     pub fn as_str(self) -> &'static str {
         match self {
             JobKind::Ai => "ai",
+            JobKind::Research => "research",
             JobKind::Analysis => "analysis",
             JobKind::Import => "import",
             JobKind::Export => "export",
@@ -347,6 +351,29 @@ impl Job {
     pub fn window(&self) -> Option<&str> {
         self.source.window.as_deref()
     }
+
+    /// A finished job as other modules' tests need it (Retry handlers).
+    #[cfg(test)]
+    pub(crate) fn finished_for_test(spec: JobSpec, state: JobState) -> Job {
+        Job {
+            id: JobId(1),
+            kind: spec.kind,
+            title: spec.title,
+            source: spec.source,
+            state,
+            progress: JobProgress::default(),
+            message: None,
+            queued_at: 0,
+            started_at: None,
+            finished_at: Some(0),
+            cancellable: spec.cancellable,
+            result: None,
+            error: None,
+            seen: false,
+            request: spec.request,
+            retry_of: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -391,8 +418,18 @@ mod tests {
         let names: Vec<_> = JobKind::ALL.iter().map(|k| k.as_str()).collect();
         assert_eq!(
             names,
-            ["ai", "analysis", "import", "export", "download", "collection", "maintenance"]
+            [
+                "ai",
+                "research",
+                "analysis",
+                "import",
+                "export",
+                "download",
+                "collection",
+                "maintenance"
+            ]
         );
+        assert_eq!(JobKind::Research.limit(8), 1);
         for k in JobKind::ALL {
             assert_eq!(serde_json::to_value(k).unwrap(), k.as_str());
         }

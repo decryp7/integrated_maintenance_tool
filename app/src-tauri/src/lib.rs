@@ -242,6 +242,9 @@ macro_rules! commands {
             notification_centre::notifications_dismiss,
             notification_centre::notifications_record,
             notification_centre::notifications_restore,
+            browser::research::ai_research,
+            browser::research::browser_research_stop,
+            browser::commands::browser_open_and_read,
             // Local AI assistant (set-up, models, use cases, chat; see ai.rs)
             ai::commands::ai_status,
             ai::commands::ai_hardware,
