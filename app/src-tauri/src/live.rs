@@ -435,9 +435,17 @@ mod tests {
         )
         .unwrap();
         let report = apply_changes(&st(), &[dir.0.join("a.log")]);
-        assert_eq!((report.appended, report.sources_changed.len()), (1, 1));
+        // The running watcher may pick the change up first; then this refresh finds nothing new.
+        assert!(
+            [(1, 1), (0, 0)].contains(&(report.appended, report.sources_changed.len())),
+            "{report:?}"
+        );
         emit_report(app.handle(), "main", &report);
         emit_report(app.handle(), "main", &TailReport::default());
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while st().store_read().summary().total < 2 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
         assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "events");

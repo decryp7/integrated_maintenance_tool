@@ -101,8 +101,12 @@ impl EventStream for Stream {
         let end = self.end.unwrap_or(all.len()).min(all.len());
         if self.pos >= end {
             if self.end.is_some() {
-                // The query is done; events written meanwhile go to the log.
-                let during = std::mem::take(&mut l.during_backfill);
+                // The query is done; events written meanwhile go to its channel. Only this channel's: the channels'
+                // queries run in any order, and another channel finishing first must not write them early.
+                let (during, rest) = std::mem::take(&mut l.during_backfill)
+                    .into_iter()
+                    .partition(|(c, _)| *c == self.channel);
+                l.during_backfill = rest;
                 drop(l);
                 for (c, n) in during {
                     for _ in 0..n {
