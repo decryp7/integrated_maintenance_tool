@@ -63,8 +63,8 @@ The app reads untrusted, possibly huge files and renders their content:
 - All code that ships inside IMT is Rust (engine, shell, plugins, workers, profiler agent) plus the
   Angular UI. Don't add C#, C++, Python or other runtimes to the app itself.
 - Other languages are supported for plugins through the stable contracts (docs/adr/0004): any
-  language that speaks gRPC (`imt.plugin.v1`) or compiles to a WebAssembly component
-  (`imt:plugin@1`). The Rust and C#/.NET (`sdk/dotnet`) SDKs are official; SDKs for further languages are added to
+  language that speaks gRPC (`imt.plugin.v1`); the WebAssembly route was dropped (ADR 0004
+  amendment, 2026-10-18). The Rust and C#/.NET (`sdk/dotnet`) SDKs are official; SDKs for further languages are added to
   `sdk/<language>/` only when a real plugin needs one, are conformance-tested in CI, and are never bundled into the app.
 
 ## Where logic lives

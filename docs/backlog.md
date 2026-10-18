@@ -1,72 +1,41 @@
 # Engineering backlog
 
-Follow-ups from the 2026-10-17 practices review, by priority. P0 items are done
-(user-regex limits, line-size cap, cargo-deny, npm audit, fmt check in CI, action digest
-pinning via Renovate, least-privilege capabilities and strict CSP).
+What is left after the 2026-10-18 pass. Product features are in [roadmap.md](roadmap.md).
 
-## Next features (agreed order)
+## Done (for reference)
 
-1. **Projects, export and import**
-   - `.imtproj` (versioned JSON): opened paths relative to the project file, removed files,
-     embedded or referenced profile, filters/search/group-by/time range/zoom history,
-     columns, tabs, selection, bookmarks and notes on events. New / Open / Save / Save As /
-     Recent, unsaved-changes prompt, file association.
-   - Exports via an `Exporter` port: filtered events to CSV and CLEF (re-importable), charts
-     and timeline to PNG/SVG, incident report (HTML/PDF), shareable `.imtz` bundle (project +
-     profile + logs, optionally only the filtered range). Streamed with progress and cancel.
-   - Import: open project, open bundle, import/export profile, drag-and-drop.
-   - Persistence behind a `ProjectStore` port.
-2. **Process monitor plugin (system tray)**
-   - `imt-monitor` crate behind a `Collector` port; tracks processes by name pattern, path
-     or PID; writes CLEF "Process stats" (CpuPercent, WorkingSetMb, PrivateMb, Threads,
-     Handles, IO) and "Process started/exited" events to rotating files that IMT opens
-     directly (no extractors needed; start/stop markers show crashes and restarts).
-   - Sources: Win32 process APIs / macOS libproc (default, via `sysinfo` or `windows`);
-     optional PDH performance counters listed in config (use `PdhAddEnglishCounter`, map
-     `name#n` instances to PIDs); later .NET EventPipe runtime counters (GC, exceptions/sec,
-     thread-pool); optional ETW for exact process start/exit when elevated.
-   - Tauri tray icon (start/pause recording, choose processes, interval, open IMT, quit),
-     close-to-tray, optional autostart. CPU% normalised to the whole machine by default.
-   - Later: headless CLI / Windows service mode for servers.
-   - **Elevation, least privilege:** never require admin for the whole app (parsers handle
-     untrusted input; UIPI blocks drag-and-drop into elevated windows). The monitor runs as a
-     separate helper that is started elevated only when tracking protected processes or
-     using ETW (UAC `runas` on Windows, administrator prompt on macOS). Windows menu item
-     "Restart as administrator" for admin-only log folders, with an "Administrator" badge and
-     a drag-and-drop hint while elevated. "Access denied" states offer "Retry as administrator".
+- Security and supply chain: user-regex and line-size limits, cargo-deny (licences, bans,
+  advisories, sources), npm audit, least-privilege capabilities, strict CSP, Renovate with pinned
+  action digests, CycloneDX SBOMs and git-cliff release notes on tagged releases, signed
+  auto-update (off by default).
+- Tests: fuzzing (cargo-fuzz, nightly, every parser), proptest "never panics" and paging
+  invariants, insta snapshots of the importers on the samples, criterion benchmarks (main pushes),
+  cargo-mutants (weekly, `--in-diff` on pull requests), Playwright e2e (mock backend), WebdriverIO
+  + tauri-driver smoke tests of the real app (Windows/Linux), app unit tests running on Windows
+  (embedded app manifest for test binaries).
+- Robustness: typed errors at the command boundary, non-blocking startup, cancellable queries with
+  progress, import progress/cancel, `tracing` with daily rolling logs (no file contents or query
+  text in normal mode), byte-exact test inputs on every platform (`.gitattributes`).
+- Process: Conventional Commits check on pull requests, lefthook pre-commit (rustfmt, clippy,
+  eslint, commit-msg), `.editorconfig`, PR template, angular-eslint, TypeScript `strict` +
+  `noUncheckedIndexedAccess`.
 
-## P1: soon
+## Open
 
-- **Fuzzing:** `cargo-fuzz` target per importer (json, text, csv) and for `Profile::from_toml`;
-  run on a nightly schedule with a short time budget; commit the corpus.
-- **Property tests:** `proptest` "never panics" for importers and timestamp parsing;
-  invariants for query paging (pages partition the result) and chart bucketing.
-- **Snapshot tests:** `insta` for importer output on the samples.
-- **Mutation testing:** `cargo-mutants` on `imt-core` (scheduled, `--in-diff` on PRs).
-- **Benchmarks:** `criterion` on the samples scaled up (10M events); store results as CI
-  artifacts and compare.
-- **Non-blocking startup:** paths passed on the command line are opened before the window
-  shows; open them in the background after startup, emit a `workspace-changed` event the UI
-  listens to, and show progress.
-- **Streaming and cancellation:** import progress and cancellable long queries via Tauri
-  `Channel` + cancel token.
-- **Typed errors:** `thiserror` error enums in `imt-core`; serializable `{ code, message }`
-  errors at the command boundary.
-- **Logging:** `tracing` with rotating files; no file contents in logs by default.
-- **UI end-to-end:** Playwright flows against the mock backend; WebdriverIO + `tauri-driver`
-  smoke test on Windows/Linux CI.
-- **Lint:** angular-eslint flat config, TypeScript `strict` + `noUncheckedIndexedAccess`.
-- **Process:** Conventional Commits check, `git-cliff` changelog, lefthook pre-commit
-  (fmt, clippy, eslint), `.editorconfig`, Gitea PR template.
-- **Signing:** Windows Authenticode, macOS Developer ID + notarization (needs a self-hosted
-  Mac runner with credentials).
-- **Updates:** `tauri-plugin-updater` with signed manifests; keep the signing key backed up.
-  Check current Tauri security advisories for the updater before enabling it.
-
-## P2: later
-
-- Persistent store (DuckDB) behind `LogStore`; SQL console tab.
-- Importer plugins: registry exports, msinfo `.nfo`, Windows event logs.
-- SBOMs (`cargo-cyclonedx`, `@cyclonedx/cyclonedx-npm`) attached to releases.
-- Opt-in crash reports and an "export diagnostics" action.
-- WCAG 2.2 AA review (grid keyboard model, chart table alternatives), i18n readiness.
+- **Signing:** Windows Authenticode and macOS Developer ID + notarisation (needs certificates
+  and a self-hosted Mac runner). The auto-update key pair and secrets: see
+  [releasing.md](releasing.md).
+- **WCAG 2.2 AA review:** axe runs WCAG 2.2 A/AA rules in every e2e check and passes, target
+  size (2.5.8) included (dense timeline markers share one target; annotation bands are reached
+  through the "Evidence…" menu). Still to do by hand: focus-not-obscured (2.4.11) with docked and
+  auto-hidden panels, chart table alternatives everywhere, a screen-reader pass (NVDA, VoiceOver).
+- **Opt-in crash reports:** local capture exists (crash marker and restore, error snapshots,
+  "Report a problem" bundle). Uploading needs a server and a privacy review; not planned.
+- **i18n of engine text:** settings schema labels, error messages, analysis sentences and AI
+  text come from Rust in English; they need message ids (the UI already parses one of them, the
+  `pipeline step N (kind):` prefix, which first needs a structured error code).
+- **Linux/macOS checks:** code paths that were only reviewed on Windows in this pass (llama-server
+  child lifetime on Linux/macOS, macOS runtime signing, non-Windows stubs of the Windows plugins)
+  are covered by the Linux and macOS CI runners only.
+- **Batch queries:** the monitor live charts (11 charts) and multiple timelines send one request
+  each; a batched `query_charts` / `query_timelines` would save round-trips if they show up as slow.

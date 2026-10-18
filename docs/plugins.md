@@ -7,9 +7,12 @@ IMT can be extended at three levels. Pick the lowest one that does the job:
 | 1. Profiles | TOML configuration | nothing | new text/JSON/CSV layouts, extracting values, cleaning (pipeline), markers, charts |
 | 2. Engine plugins | Rust crates implementing `imt_core` traits | a rebuild of IMT | new file formats (text or binary), custom pipeline steps, exporters, collectors, reacting to workspace events |
 | 3. UI plugins | Angular providers | a rebuild of the UI | new views (panels), commands, inspector sections, field formatters |
+| Process plugins | gRPC `imt.plugin.v1`, Rust or C#/.NET SDK or any gRPC language | nothing (no rebuild of IMT) | third-party importers, transforms, exporters, marker kinds and annotators with crash isolation |
 
-Runtime-loaded plugins (no rebuild) are planned as WASM modules implementing the same interfaces;
-see [Roadmap](roadmap.md), phase 6.
+Plugins that need no rebuild of IMT run as separate processes over gRPC (`imt.plugin.v1`), written in Rust or
+C#/.NET with the official SDKs, or in any language that speaks gRPC; see
+[Level 3: process plugins](#level-3-process-plugins-imtpluginv1). WebAssembly plugins were considered and
+dropped on 2026-10-18.
 
 ## How data flows
 
@@ -633,8 +636,7 @@ isolation (ADR 0002):
 |---|---|---|---|
 | In-process, guarded (today) | first-party safe Rust plugins | panic → error, quarantine | watchdog: hung, fail fast, abandon where possible |
 | Plugin host process (`imt-plugin-host`) | any built-in Rust plugin, opt-in, after a quarantine, or all in isolated mode; third-party process plugins | process dies, restarted with backoff, counted towards quarantine | call fails at its deadline (90% of the budget), process killed and replaced |
-| Worker process (`imt-ai-worker`) | native code (llama.cpp, PDH, profilers) | as above | as above |
-| WebAssembly (planned) | third-party plugins | trapped | fuel/epoch interruption |
+| Worker process (`imt-ai-worker`, which runs `llama-server`) | native code (llama.cpp, PDH, profilers) | as above | as above |
 
 ## Level 3: process plugins (`imt.plugin.v1`)
 
@@ -721,8 +723,8 @@ working directory; it receives only the bytes IMT read from the files the user o
 name, never its path, unless "read the files you open" is granted; it cannot reach IMT's memory, and
 every call needs the per-launch token. **Not enforced by the operating system:** a native plugin
 process runs with the user's rights, so it *could* open files or the network on its own. The
-permission model is a declaration the user approves and the host honours, not a sandbox; untrusted
-third-party code belongs in the WebAssembly tier (ADR 0004), where WASI capabilities do enforce it.
+permission model is a declaration the user approves and the host honours, not a sandbox, so run only
+third-party plugins you trust (WebAssembly, which would have enforced capabilities, was dropped on 2026-10-18).
 OS sandboxing of plugin processes (AppContainer on Windows, a network namespace or seccomp on Linux,
 the App Sandbox on macOS) is future work.
 

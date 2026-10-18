@@ -17,9 +17,18 @@ profile, and it never leaves your machine.
 > The screenshots in this README are captured automatically from the UI running against the
 > built-in demo data. See [Regenerating the screenshots](#regenerating-the-screenshots).
 
+## At a glance
+
+![IMT at a glance: many sources and collectors feed importers contributed by plugins in Rust, C# or any gRPC language; the Rust engine imports, transforms, stores, queries and analyses; the Angular and Tauri workbench investigates and shares](docs/diagrams/imt-overview.svg)
+
+Many inputs, one engine, any plugin language: logs, Windows diagnostics, profiler captures and
+built-in collectors flow through importers (built in, or plugins in Rust, C#/.NET or any gRPC
+language) into one Rust engine that parses, cleans, stores, queries and analyses them. The
+workbench only shows and shares what the engine computes. Details: [Architecture](#architecture).
+
 ## Contents
 
-[Why IMT](#why-imt) · [Features](#features) · [Quick start](#quick-start) · [Supported inputs](#supported-inputs) ·
+[At a glance](#at-a-glance) · [Why IMT](#why-imt) · [Features](#features) · [Quick start](#quick-start) · [Supported inputs](#supported-inputs) ·
 [Profiles](#profiles) · [Query language](#query-language) · [Keyboard shortcuts](#keyboard-shortcuts) ·
 [Command line](#command-line) · [Architecture](#architecture) · [Plugins](#plugins) ·
 [Building from source](#building-from-source) · [Testing](#testing-and-quality-gates) · [CI/CD](#cicd) ·
@@ -53,6 +62,10 @@ scale to that. IMT is built for exactly this job:
 - Drag to zoom, `Zoom in`/`Zoom out`/`Fit`, and previous/next range history (`Alt+←` / `Alt+→`).
 - Lifecycle markers (start/stop) can be kept visible at any zoom level.
 - Time can be shown in UTC or local time.
+- **Several timelines.** *New timeline* adds more timeline panels, each with its own query and
+  instance selection. While a panel is linked (*Sync time*) it zooms, pans and shares the time cursor
+  with the main timeline; unlinked, it keeps its own range and cursor (and is marked *Unlinked*).
+  Extra timelines are kept in projects and sessions.
 - **Annotations** from plugins (for example reboots and service uptime found in Windows event logs)
   are drawn over the lanes: a span is a translucent band on the lane it concerns, on every lane of a
   machine when it is about the machine (and the machine is part of the lane key), or across the full
@@ -106,15 +119,18 @@ actions show the surrounding ±2 minutes, the same correlation id, or copy the e
   only", and a **facets sidebar** listing every field with its coverage and number of distinct values.
 - A small query language in the spirit of KQL/LogQL with completions and history: filters, `stats`,
   `sort`, `head` and percentiles. See the [cheat sheet](#query-language).
+- Queries run in the engine off the UI thread, report progress and can be cancelled; a superseded
+  query is dropped instead of overwriting a newer result.
 
 ![Query results table](docs/screenshots/query-results.png)
 
 ### Many formats, extensible by plugins
 
 Serilog (CLEF, JSON and text), log4net/NLog layouts, generic JSON and CSV, plus plugins for
-Windows Event Logs, registry exports, `msinfo32`, Performance Monitor, IIS/Apache/Nginx logs, HAR,
-OpenTelemetry and syslog/journald. Gzip and zip archives are read transparently. See
-[Supported inputs](#supported-inputs).
+Windows Event Logs, registry exports, `msinfo32`, Performance Monitor, Process Monitor CSV exports,
+minidump summaries, IIS/Apache/Nginx logs, HAR, OpenTelemetry, syslog/journald, log4j/log4net/NLog
+XML events, SQL Server `ERRORLOG` and Docker and Kubernetes container logs. Gzip and zip archives
+are read transparently. See [Supported inputs](#supported-inputs).
 
 ![Setting up a format for a file IMT did not recognise](docs/screenshots/format-wizard.png)
 
@@ -133,6 +149,14 @@ previous versions are kept. Extractors turn text into typed fields (numbers, byt
 that then work everywhere: columns, filters, group-by, marker rules and charts. Pipeline steps clean
 and enrich events during import (drop, keep, mask, dedupe, rename, parse JSON/key-value, lookup,
 shift time, ...). See [Profiles](#profiles).
+
+Two pipeline steps cover transforms the others cannot express. **Calculated fields** (`step = "calc"`)
+compute a new field from others with a small expression (arithmetic, comparisons, `if`, `round`,
+`coalesce`, string functions) and the result works like any extracted field. A **Rhai `script`**
+step runs a short [Rhai](https://rhai.rs) script on every event to change its message, level, time
+or fields, or to drop it. Both are compiled when the profile loads, so an error names its place;
+scripts have no file, network or process access and run under operation, depth and size limits, and a
+failing event is left unchanged and counted in the pipeline statistics.
 
 ![The markers manager with rules, descriptions and event counts](docs/screenshots/markers.png)
 
@@ -238,7 +262,15 @@ are kept in projects and sessions. Details, limits and how to regenerate the sam
   with `logman`, then open the `.csv`/`.blg` result next to your logs. Counter rows become metrics.
 - **Process monitor**: samples CPU, memory and other counters of the processes you pick and writes
   them as rolling CLEF files that open live in IMT; process start/exit events give start/stop markers
-  and show crashes and restarts. Also available headless as `imt-monitor`.
+  and show crashes and restarts. Also available headless as `imt-monitor`. For .NET Framework
+  processes (Windows) it can add the runtime counters (GC collections and heap sizes per generation,
+  Large Object Heap and more, as `Dotnet*` fields); .NET Core and .NET 5+ processes are marked
+  `DotnetRuntime = "core"` with a notice because their counters need EventPipe. The monitor shows
+  live charts of the sampled counters.
+- **Event Log follower** (Windows): follows chosen Windows event log channels live, with a level
+  filter and an optional backfill window, and writes the events as rolling CLEF files that open live
+  in IMT. It resumes where it stopped (positions are saved), retries after a cleared log or stopped
+  service, and reports the state of each channel.
 - **Diagnostics collector**: gathers app logs, Windows event logs, `msinfo32`, registry keys, a
   performance-counter sample and environment info into one `.imtz` bundle, with redaction. Run it
   from the app (*Collect diagnostics bundle…*) or on a customer machine with `imt-collect`.
@@ -266,6 +298,18 @@ generated systemd unit or launchd plist). In IMT, *Open collection schedules* ed
 runs* browses and opens the output. See [ADR 0005](docs/adr/0005-headless-agent.md) and
 [`imt-agent.example.toml`](crates/imt-agent/imt-agent.example.toml). The Windows service has been
 type-checked but only exercised on the Windows CI runner.
+
+### Local AI assistant
+
+An optional assistant helps to set IMT up for a format: it proposes a regex, a parsing profile,
+pipeline steps, markers or extractors from sample lines. It only proposes; the engine validates and
+previews every proposal and you apply it. The model runs on your machine in a separate worker process
+(`imt-ai-worker`), so a native crash cannot take IMT down, and nothing about your logs leaves it.
+The set-up wizard checks your hardware and, only when you ask, downloads a model and a prebuilt
+llama.cpp `llama-server` build for your platform (CPU, Vulkan, CUDA, Metal and others); downloads
+are resumable and checked against pinned SHA-256 hashes. Builds are not bundled and nothing needs
+compiling ([ADR 0009](docs/adr/0009-prebuilt-llama-server-runtimes.md)). Settings ▸ AI chooses the
+build, or a `llama-server` of your own.
 
 ### Projects, sessions and export
 
@@ -328,6 +372,22 @@ reset the layout from the command palette. Layouts are remembered.
 
 The tray and notifications use the platform's own facilities; they are covered by unit tests of
 their pure logic but have not been checked on every desktop environment.
+
+### Updates, storage, language and accessibility
+
+- **Updates are opt-in and signed.** IMT checks for a new version only when you choose *Check for
+  updates…* or turn on *Check for updates automatically* in Settings ▸ Updates (off by default). The
+  check is one HTTPS request for `latest.json` that carries no identifier; every update is verified
+  with the key built into the app before it is installed. See [docs/releasing.md](docs/releasing.md).
+- **Storage.** Settings ▸ Storage lists what IMT keeps on disk (opened-bundle copies, the web view
+  cache, AI runtimes and models, logs, error snapshots, session backups) with sizes. *Clear cache…*
+  says what goes and how much, then removes it.
+- **Language.** All UI text is marked for translation and extracted to an XLF file; a generated
+  pseudo-locale checks for hard-coded text and overflow. Settings ▸ General ▸ Language offers system
+  default, English and the pseudo-locale (used after a restart); only English ships today. Log text and
+  file contents are never translated, and messages produced by the Rust engine are not translated yet.
+- **Accessibility.** The Playwright suite runs axe against WCAG 2.0, 2.1 and 2.2 level A and AA and
+  fails on serious violations; severity and state are never shown by colour alone.
 
 ### Light and dark themes
 
@@ -438,11 +498,16 @@ are detected by magic bytes and expanded (with size caps against zip bombs).
 | Windows Event Logs | `.evtx` | `imt-plugin-windows` | Binary importer; message is `Provider EventId: key=value, ...` (offline, no message DLLs) |
 | System information | `.nfo` (msinfo32) | `imt-plugin-windows` | One record per row with `Category`, `Item`, `Value` |
 | Performance Monitor logs | `.csv`/`.tsv` (PDH), `.blg` | `imt-plugin-windows` | `.blg` is converted with `relog` (Windows only) |
+| Process Monitor exports | `.csv` (Sysinternals ProcMon) | `imt-plugin-windows` | One record per row; the level follows `Result`; optional columns are kept |
+| Windows minidumps | `.dmp` | `imt-plugin-windows` | A short summary: system, process, exception (code, address, module), the crashing thread's stack (scanned, not a verified unwind) and loaded modules |
 | Windows registry exports | `.reg` | `imt-plugin-registry` | One record per key/value, shown as a tree in the Registry panel |
 | IIS / W3C extended, Apache / Nginx common and combined | `.log` | `imt-plugin-web` | |
 | HAR captures | `.har` | `imt-plugin-web` | One record per request |
 | OpenTelemetry OTLP/JSON logs and traces | `.json`, `.jsonl` | `imt-plugin-otel` | Spans and span events linked by `TraceId` / `SpanId` |
 | syslog (RFC 5424, RFC 3164) and journald (`journalctl -o json`) | `syslog`, `.log`, `.json` | `imt-plugin-syslog` | Severity is mapped to IMT levels |
+| log4j / log4net / NLog XML events | `.xml`, `.log` | `imt-plugin-formats` | `XMLLayout` and `Log4JXmlEventLayout`; one malformed event costs only that event |
+| SQL Server `ERRORLOG` | `ERRORLOG` | `imt-plugin-formats` | UTF-16 or UTF-8; error number, severity and state become fields |
+| Docker `json-file` and Kubernetes CRI container logs | `*-json.log`, `*.log` | `imt-plugin-formats` | Partial lines are joined; `Stream`, pod, namespace and container are fields |
 | CBS / DISM text logs | `CBS.log` | built-in text importer | Needs a one-line profile regex, no plugin |
 
 Timestamps: ISO 8601/RFC 3339, Serilog defaults, `/` and `.` dates (day-first or month-first, detected
@@ -493,7 +558,7 @@ split_by = ["MachineName", "ProcessId"]
 - **Condition operators:** `eq ne contains notContains matches exists missing gt lt in`.
 - **Extractor field types:** `string number integer bool bytes duration`.
 - **Pipeline steps:** `drop keep mask dedupe remove_fields rename set set_level truncate parse_json
-  parse_kv lookup shift_time plugin`.
+  parse_kv lookup shift_time calc script plugin`.
 - Profiles are checked by the engine (user regexes are length- and size-limited); an invalid profile
   is rejected with a message that says what to fix.
 
@@ -631,7 +696,10 @@ Read more in [docs/architecture.md](docs/architecture.md) (crates, C4 and UML di
 [0004 stable plugin ABI](docs/adr/0004-stable-plugin-abi.md) ·
 [0005 headless agent](docs/adr/0005-headless-agent.md) ·
 [0006 clock skew applied on load](docs/adr/0006-clock-skew-applied-on-load.md) ·
-[0007 reports, PDF and redaction](docs/adr/0007-reports-pdf-and-redaction.md).
+[0007 reports, PDF and redaction](docs/adr/0007-reports-pdf-and-redaction.md) ·
+[0008 menus](docs/adr/0008-menus-one-model-native-on-macos.md) ·
+[0009 prebuilt llama-server runtimes](docs/adr/0009-prebuilt-llama-server-runtimes.md) ·
+[0010 persistent store](docs/adr/0010-persistent-store.md).
 
 ## Plugins
 
@@ -666,10 +734,16 @@ Plugins can build on each other ([ADR 0003](docs/adr/0003-plugin-dependencies-se
   yet been checked against event logs from a range of real Windows machines.
 - **Time budgets**: every guarded call has a budget; a watchdog marks an overrunning plugin *hung*.
 
-See [docs/plugins.md](docs/plugins.md). The stable contract for third-party plugins (WebAssembly
-components with WIT, or plugin processes over protobuf; no native dynamic libraries) is decided in
-[ADR 0004](docs/adr/0004-stable-plugin-abi.md) and on the [roadmap](docs/roadmap.md); it is not
-implemented yet.
+- **Out-of-process plugins.** The stable contract for third-party plugins is the gRPC protocol
+  `imt.plugin.v1` (Arrow record batches over a private socket or named pipe). There are no native
+  dynamic-library plugins and, since 2026-10-18, no WebAssembly tier. A plugin runs in its own process,
+  so a crash or hang cannot take IMT down. The official SDKs are Rust (`imt-plugin-sdk`) and C#/.NET
+  (`sdk/dotnet`); any language that speaks gRPC works. `imt-plugin-host` serves built-in plugins
+  isolated on request or after a quarantine, and `imt-plugin-check` runs the conformance kit. Plugins
+  declare the permissions they need and you grant them in Settings ▸ Plugin isolation; this is a
+  declaration the host honours, not an operating-system sandbox.
+
+See [docs/plugins.md](docs/plugins.md) and [ADR 0004](docs/adr/0004-stable-plugin-abi.md).
 
 ## Building from source
 
@@ -769,21 +843,39 @@ cargo deny --workspace check
 - **UI tests** are layered: Vitest + TestBed unit and component tests, and Playwright end-to-end flows
   against the browser build (Chromium and WebKit, with accessibility checks and a production-CSP check):
   `cd app && npm run e2e`.
+- **Lint and i18n:** `cd app && npm run lint` (angular-eslint); `npm run i18n` extracts the
+  translations and regenerates the pseudo-locale, and CI fails on duplicate message ids or an
+  out-of-date pseudo-locale.
+- **Commit messages** are checked against Conventional Commits (`node scripts/commit-lint.mjs`).
+- **Real-app smoke tests** drive the built Tauri app with WebdriverIO and `tauri-driver`
+  (`cd app && npm run e2e:tauri:build && npm run e2e:tauri`; Windows and Linux). Checks that need a
+  real desktop are in [docs/testing-manual.md](docs/testing-manual.md).
+- **Snapshot tests (insta)** pin the records each importer produces for the sample files
+  (`crates/imt-core/tests/snapshots`).
 - **Property tests (proptest)** assert that parsers never panic and that invariants hold;
   **fuzzers (cargo-fuzz)** cover every parser and run nightly in CI. See [docs/fuzzing.md](docs/fuzzing.md).
+- **Benchmarks (criterion)** for the engine live in `crates/imt-core/benches` (`cargo bench -p imt-core`);
+  `crates/imt-plugin-host` compares in-process and out-of-process work.
+- **Mutation testing (cargo-mutants)** measures how many injected bugs the engine tests catch.
 
 ## CI/CD
 
 Gitea Actions workflows live in [`.gitea/workflows/`](.gitea/workflows/):
 
 - **`build.yml`** runs on pushes to `main`, pull requests and `v*` tags:
-  1. *check* (Linux): `cargo test`, `fmt`, `clippy -D warnings`, `cargo-deny`, the Angular build with
-     `npm audit`, unit tests with coverage, the Playwright end-to-end tests, and a check that the
-     generated third-party notices are up to date.
-  2. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, `.msi`/NSIS `.exe` on `windows-latest` and
+  1. *check* (Linux): `cargo test`, `fmt`, `clippy -D warnings`, `cargo-deny`, the commit-message
+     check (pull requests), the Angular build with `npm audit`, the i18n extraction check, `ng lint`,
+     unit tests with coverage, the Playwright end-to-end tests, and a check that the generated
+     third-party notices are up to date.
+  2. *real-app smoke* (Windows and Linux): builds the debug app and runs the `tauri-driver` tests.
+  3. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, `.msi`/NSIS `.exe` on `windows-latest` and
      `.dmg` on `macos-latest`, uploaded as run artifacts.
-  3. *release*: on a `v*` tag, creates a Gitea release with all installers attached.
+  4. *release*: on a `v*` tag, creates a Gitea release with all installers, release notes
+     (git-cliff), CycloneDX SBOMs for the Rust and UI dependencies and the signed updater manifest
+     `latest.json` ([docs/releasing.md](docs/releasing.md)).
 - **`fuzz.yml`** fuzzes every parser nightly (and on demand) and uploads reproducers on failure.
+- **`bench.yml`** runs the engine benchmarks on pushes to `main` and uploads the criterion report.
+- **`mutants.yml`** runs cargo-mutants weekly over `imt-core` and, on pull requests, over the changed lines.
 
 Runners are expected to carry the labels `ubuntu-latest`, `windows-latest` and `macos-latest`. Creating
 a release needs a repository secret **`RELEASE_TOKEN`** (a Gitea access token with `write:repository`
@@ -803,32 +895,40 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   │                              manager, tray, background tasks, single instance, notifications,
 │   │                              lifecycle (safe mode, crash detection, sessions)
 │   ├── e2e/                       Playwright end-to-end tests (mock backend)
-│   └── scripts/                   README screenshot generator, build info for the About dialog
+│   ├── e2e-tauri/                 WebdriverIO + tauri-driver smoke tests of the real app
+│   └── scripts/                   README screenshot generator, build info for the About dialog,
+│                                  i18n/ (locale and pseudo-locale generator)
 ├── crates/
 │   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
 │   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
 │   │                              templates, plugin runtime, event bus
 │   ├── imt-api-perf/              plugin service API: performance counter sources (+ contract tests)
 │   ├── imt-plugin-registry/       .reg importer
-│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg) import,
-│   │                              Windows marker kinds and annotators (reboots, service uptime)
+│   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg), Process Monitor CSV and
+│   │                              minidump import, Event Log follower, Windows marker kinds and annotators
 │   ├── imt-plugin-tools/          tools plugin: Performance Monitor templates and logman control, process
 │   │                              monitor, diagnostics collector, elevation, live counter source
 │   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
 │   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
 │   │                              heapsnapshot
 │   ├── imt-plugin-web/            IIS/W3C, Apache/Nginx, HAR
+│   ├── imt-plugin-formats/        log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
-│   ├── imt-monitor/               process monitor (library and `imt-monitor` CLI)
+│   ├── imt-clr-format/            capture format and pipe protocol for the planned .NET profiler (pure library)
+│   ├── imt-monitor/               process monitor with .NET runtime counters (library and `imt-monitor` CLI)
 │   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
 │   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)
-│   └── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
+│   ├── imt-pdf/                   PDF output of incident reports (pdf-writer + svg2pdf, embedded fonts)
+│   └── imt-store-spike/           persistent-store spike (DuckDB, DataFusion); excluded from the workspace
 ├── docs/                          architecture, roadmap, backlog, plugins, fuzzing, ADRs, draw.io diagrams, screenshots
 ├── fuzz/                          cargo-fuzz targets
 ├── samples/                       generated sample logs, profiler captures (profiling/) and an example profile
-├── scripts/notices/               third-party notices generator (cargo-about + npm)
-└── .gitea/workflows/              CI (build, release, fuzz)
+├── scripts/
+│   ├── notices/                   third-party notices generator (cargo-about + npm)
+│   ├── release/                   updater manifest (latest.json) generator
+│   └── commit-lint.mjs            Conventional Commits check
+└── .gitea/workflows/              CI (build with release, fuzz, bench, mutants)
 ```
 
 ## Roadmap
@@ -840,12 +940,13 @@ Highlights; the full list is in [docs/roadmap.md](docs/roadmap.md) and engineeri
   Profiling API ("deep mode"), .NET Core/5+ through `dotnet-counters`/`dotnet-trace`/`dotnet-gcdump`,
   and C++ (UMDH, WPR, `perf`, `heaptrack`), feeding the profiling views that already analyse imported
   captures (see [Profiling](#profiling)).
-- **Local-only AI assistant (in progress):** an embedded GGUF model chosen from the machine's hardware
-  that proposes regexes, pipelines and markers, which the engine validates before they are used. It
-  runs locally and sends nothing off the machine.
-- **Persistent store:** a DuckDB/DataFusion spike behind the `LogStore` port for data larger than RAM.
-- **More sources:** remote sources (SSH, Seq, Elasticsearch, Loki), WASM plugins, auto-update and
-  signed releases.
+- **Persistent store (decided, not started):** DuckDB in a supervised worker process with a Tantivy
+  full-text index, for workspaces larger than RAM, instant reopen and a read-only SQL console;
+  moving to DuckDB 2.0's server mode once it is released and supported
+  ([ADR 0010](docs/adr/0010-persistent-store.md), [spike results](docs/store-spike.md)).
+- **Signed releases:** Windows Authenticode and macOS notarisation (needs certificates). Signed
+  auto-update is built in and needs only the release key pair ([releasing](docs/releasing.md)).
+- **i18n of engine text:** the UI is translation-ready; messages produced by the Rust engine are next.
 
 ## Contributing
 

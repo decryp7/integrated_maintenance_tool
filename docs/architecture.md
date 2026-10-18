@@ -6,15 +6,9 @@ planned work is in [roadmap.md](roadmap.md). In short: a Rust engine (`crates/im
 `LogStore` and `Importer` ports, a thin Tauri 2 shell (`app/src-tauri`), and an Angular UI
 (`app/src/app`) that only talks to the engine through the `ImtBackend` service.
 
-Parts that were not implemented when the diagrams were drawn (Moment, query bar, insights panels,
-project and live-tail UI, Tauri commands for ql/anomalies/moment, Performance Monitor controller UI,
-Seq/Elastic/Loki and Claude integrations) are drawn with a dashed border or labelled "in progress" /
-"planned". Several of them have landed since (for example Moment and the anomalies commands, the
-live-tail UI and alerts); where a diagram still marks those dashed, the code is ahead of the diagram.
-The sections below describe the plugin runtime, multiple windows, live tail and annotations in
-text. The C4 container and engine component diagrams show the new modules; the UI component diagram
-and the UML diagrams (for example `uml-seq-plugin-registration`, `uml-state-live-tail`) do not cover
-them yet.
+The diagrams follow [diagrams/STYLE.md](diagrams/STYLE.md): planned work (not built yet) is drawn
+with a dashed outline and "(planned)" after its name. The sections below describe the plugin runtime,
+multiple windows, live tail and annotations in text.
 
 ## Crates
 
@@ -29,7 +23,11 @@ them yet.
 | `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
 | `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
 | `imt-pdf` | adapter | PDF output for incident reports, implementing `imt-core`'s `ReportRenderer` port, with embedded font subsets ([ADR 0007](adr/0007-reports-pdf-and-redaction.md)). |
-| `imt-plugin-registry`, `-windows`, `-web`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. |
+| `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
+| `imt-plugin-sdk`, `imt-plugin-host`, `imt-ipc` | SDK, host, transport | Out-of-process plugins over gRPC `imt.plugin.v1`: the Rust SDK and conformance kit, the host that serves built-in plugins isolated, and the shared transport ([ADR 0004](adr/0004-stable-plugin-abi.md)). The C#/.NET SDK is in `sdk/dotnet`. |
+| `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
+| `imt-clr-format` | library | Capture format and pipe protocol prepared for the planned .NET profiler (not used yet). |
+| `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
 
 The engine modules added for sharing and analysis are `redact/` (one redactor for the redacted
@@ -48,10 +46,13 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0001](adr/0001-architecture.md) | Desktop architecture: Rust engine, Tauri shell, Angular UI. |
 | [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. |
 | [0003](adr/0003-plugin-dependencies-services-events.md) | Plugin dependencies, services, extension points and events. |
-| [0004](adr/0004-stable-plugin-abi.md) | Stable plugin ABI: WIT for WebAssembly, protobuf for processes. |
+| [0004](adr/0004-stable-plugin-abi.md) | Stable plugin ABI: protobuf and gRPC for plugin processes (the WebAssembly tier was dropped on 2026-10-18). |
 | [0005](adr/0005-headless-agent.md) | Headless collection agent (`imt-agent`). |
 | [0006](adr/0006-clock-skew-applied-on-load.md) | Clock-skew offsets are applied when records enter the workspace. |
 | [0007](adr/0007-reports-pdf-and-redaction.md) | Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor. |
+| [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
+| [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
+| [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
 
 ## Plugin runtime (ADR 0003)
 
@@ -85,8 +86,8 @@ timeline.
 
 The first real user is the Windows plugin: `crates/imt-plugin-windows/src/markers.rs` (marker kinds
 with the event-id sources) and `annotators.rs` (`windows.reboots`, `windows.services`). The stable
-contract for external plugins (WIT and protobuf) is decided in [ADR 0004](adr/0004-stable-plugin-abi.md)
-and not implemented yet.
+contract for external plugins is the gRPC protocol `imt.plugin.v1` ([ADR 0004](adr/0004-stable-plugin-abi.md));
+`imt-plugin-host` and the Rust and C# SDKs implement it (see [plugins.md](plugins.md)).
 
 ## Windows, instances and sessions (shell)
 
@@ -147,27 +148,27 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 
 | Diagram | What it shows |
 |---|---|
-| [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: log-producing applications, Windows Performance Monitor, Windows event log / msinfo32 / registry, Gitea, and the planned Seq/Elastic/Loki and opt-in Claude API. |
-| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units: Angular UI in the webview, the Tauri shell (one workspace per window, window manager, single instance, tray, background tasks, notifications, lifecycle), `imt-core`, the plugin crates, the `imt-monitor` and `imt-collect` CLIs, and the files they exchange (logs, `.imtproj`, `.imtz`, CLEF output, the app log). |
-| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators; the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`, templates / did-you-mean / overwrite); and the crates around the core: `imt-pdf`, `imt-agent`, `imt-profile` and the plugin crates (including the tools and profiling plugins). |
-| [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders of the Angular app: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views, extension tokens, docking, logger; plus the in-progress panels. |
+| [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: the file system, the OS webview, Windows Event Log and performance counters, third-party plugins (gRPC), and the only network hosts, used when the user starts an update or a download: Gitea releases, Hugging Face (models) and GitHub releases (llama-server). IMT runs offline otherwise. |
+| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units, the processes they run in and how they talk; libraries linked into the app process are drawn inside it. |
+| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators; the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`, templates / did-you-mean / overwrite); and the crates around the core: `imt-pdf`, `imt-agent`, `imt-profile` and the plugin crates (including the tools and profiling plugins). The engine is the single source of truth; the shell reaches it only through `LogStore`. |
+| [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders under `app/src/app`: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views, extension tokens, docking, logger. Angular presents what the engine returns; state lives in SignalStores. |
 
 ## UML
 
 | Diagram | What it shows |
 |---|---|
-| [uml-use-cases](diagrams/uml-use-cases.drawio) | Actors and use cases (open, analyse, query, anomalies, compare, Moment, export, live tail, monitor, Performance Monitor, collect, plugins, CI) with include / extend. |
+| [uml-use-cases](diagrams/uml-use-cases.drawio) | What each role does with IMT. A developer can do everything a support engineer does (generalisation); «include» marks a step that is always part of the base use case. |
 | [uml-class-domain](diagrams/uml-class-domain.drawio) | `Record`, `Level`, `Query`, `CompiledQuery`, `Profile` and its sections, `CompiledProfile`, `Pipeline`, `Condition`, `Workspace`, `ProjectFile`, `SourceInfo`, `WorkspaceSummary`. |
 | [uml-class-plugin-api](diagrams/uml-class-plugin-api.drawio) | The traits plugins implement (`Plugin`, `Importer`, `BinaryImporter`, `RecordTransform`, `WorkspaceHook`, `Exporter`, `Collector`, `EventSink`, `LogStore`), `PluginRegistry`, and the real plugin crates with their importers and collectors. |
-| [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths` to `LogStore::open`, parallel per-file import (archive, importer selection, ingest), rebuild, hooks, UI refresh. |
-| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change fanning out to `query_page` / `query_timeline` / `query_chart`, the matching cache and `CompiledQuery`, then a marker click with an anchored page and `source_context`. |
-| [uml-seq-moment](diagrams/uml-seq-moment.drawio) | `Workspace::moment`: matched records, per-instance patterns, current vs previous window metrics, activity, cached anomalies (engine done, Tauri/UI in progress). |
-| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | `plugins()` installing each plugin (API version, duplicate id, guarded `register`), then `Workspace::with_registry` compiling the profile against plugin transforms. |
-| [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file with its decisions (archive, binary importer, text decoding, importer found, empty result) and the pipeline step loop (drop, keep, dedupe). |
-| [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | Life cycle of a Performance Monitor collector set driven through `logman` by `PerfmonController`, with `AccessDenied` and `Unsupported`. |
-| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | Off, On and Refreshing for `set_live` and the `imt://workspace-changed` event. |
-| [uml-state-project](diagrams/uml-state-project.drawio) | Unsaved, Saved, Modified, Opening, Open with missing paths reported, Rejected. |
-| [uml-deployment](diagrams/uml-deployment.drawio) | Analyst machine, monitored server, and the Gitea server with `act_runner`s producing the installers. |
+| [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: files are imported in parallel (archive, importer selection, ingest), merged, indexed and announced to hooks; the UI polls progress and can cancel. |
+| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the query panel, which streams progress and can be cancelled. |
+| [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `MomentView` asks `query_moment` for the selected range; `Workspace::moment` summarises it against the window before it. |
+| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: isolated built-ins run out of process over gRPC `imt.plugin.v1`; every contribution is wrapped in a `Guarded*` adapter before the `Workspace` compiles the profile. |
+| [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file (`import_file`, `import_bytes`, `CompiledProfile::ingest`: extractors, pipeline, markers). Every failure lists the file as unrecognised with its reason; the rest of the import continues. |
+| [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as IMT drives it: `PerfmonController` (`imt-plugin-tools`) runs `logman`; the Performance Monitor view installs, starts, stops, queries, deletes and imports its output. |
+| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; `Workspace::refresh_tail` follows changed files and evaluates live alerts. |
+| [uml-state-project](diagrams/uml-state-project.drawio) | Left: the open project as `ProjectService` tracks it (`save_project` / `open_project`). Right: one app run with crash detection, recovery offer and session autosave (lifecycle). |
+| [uml-deployment](diagrams/uml-deployment.drawio) | Where IMT's parts run: the analyst workstation, monitored servers, the Gitea build farm that produces the installers, and the download hosts. |
 
 ## Opening and editing the diagrams
 
@@ -189,6 +190,7 @@ When saving from draw.io, keep *File > Properties > Compressed* turned off so th
   diagrams), a new Tauri command or event (containers, sequences), a new `LogStore` method or
   `api.rs` DTO (components, domain), a new profile section (domain), a new CI job or runner (deployment).
 - Treat a diagram that disagrees with the code as a bug in the diagram; fix the diagram, not the code.
-- Mark unfinished work with a dashed border and "(in progress)", and remove the marker when the code lands.
+- Follow [diagrams/STYLE.md](diagrams/STYLE.md) for notation, palette and layout. Planned work is drawn with a dashed
+  outline and "(planned)"; remove the marker when the code lands, and update the date in the diagram footer.
 - Contracts remain defined in code: `app/src/app/core/api.types.ts` and `crates/imt-core/src/api.rs` for
   the wire format, `crates/imt-core/src/default_profile.toml` for the profile schema.

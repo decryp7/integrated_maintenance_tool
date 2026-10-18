@@ -36,7 +36,7 @@ gated by its engine plugin's status; safe mode loads only the core UI.
 - *Safe Rust plugins* run in-process behind the guarded adapters (panics become errors;
   repeated crashes quarantine the plugin).
 - *Native or crash-prone code* runs in a **supervised worker process** (Tauri sidecar)
-  speaking versioned JSON-RPC over stdio: the first is `imt-ai-worker` (llama.cpp); profilers
+  speaking versioned JSON-RPC over stdio: the first is `imt-ai-worker` (llama.cpp; since ADR 0009 it runs the prebuilt `llama-server` as its own child); profilers
   and other native integrations follow the same pattern. The supervisor applies timeouts,
   restarts with backoff, quarantines after repeated crashes, kills workers on exit (Windows
   Job objects; stdin close on Unix) and runs them at reduced priority.

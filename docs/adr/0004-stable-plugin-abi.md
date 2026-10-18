@@ -1,7 +1,11 @@
 # 4. Stable plugin ABI: WIT for WebAssembly, protobuf for processes
 
-- Status: accepted
+- Status: accepted; amended 2026-10-18 (the WebAssembly part is dropped, see below)
 - Date: 2026-10-17
+
+> **Amendment (2026-10-18):** the WebAssembly component contract (WIT `imt:plugin@1`) is dropped.
+> Third-party plugins use the process contract only: `imt.plugin.v1` over local gRPC with Arrow
+> batches, with the Rust and C#/.NET SDKs and `imt-plugin-check`. The rest of this record stands.
 
 ## Context
 

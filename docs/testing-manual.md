@@ -94,3 +94,68 @@ when the feature was added.
 | 42 | Use the pop-out's "Drag to dock" handle to drag the window over a guide and release it. | Same as 41. On Windows the release docks it at once; on macOS it docks once the window has rested on the guide. |
 | 43 | Shift+Alt+Enter with the default "Full screen does" setting, then press Escape, then Shift+Alt+Enter again. | The window goes OS full screen with the chrome and tool windows hidden. Escape does not leave full screen. The shortcut restores both. |
 | 44 | Close the main window while two panels are popped out. | The pop-outs close with it. Start IMT again: they reopen where they were, or on the primary display when their monitor is gone. |
+
+
+## Smoke tests of the real app (WebdriverIO + tauri-driver)
+
+`app/e2e-tauri/` holds a few automated smoke tests of the real app: the Rust engine, the Tauri shell and the
+production UI build, no mock backend. WebdriverIO v9 (local runner, mocha) talks to `tauri-driver`, which starts
+`imt-app` with `samples/serilog-clef` on its command line and forwards to the platform's WebDriver: Microsoft
+Edge WebDriver (`msedgedriver`) for WebView2 on Windows, `WebKitWebDriver` for WebKitGTK on Linux. macOS has no
+WKWebView driver, so they do not run there. One app session per spec file, in order; each test has a two-minute
+budget and waits for conditions (no sleeps):
+
+1. `01-start`: the main window shows with no crash/safe-mode banner and no `role=alert`; Help ▸ About IMT shows the version from `tauri.conf.json`.
+2. `02-open-samples`: the samples import; the grid has rows, the status bar an event count, the timeline lanes.
+3. `03-query`: `level >= Error` narrows the grid to ERR/FTL rows; Clear restores the total.
+4. `04-settings-tools`: Settings switches the theme (and puts the user's theme back); View ▸ Tools ▸ Process Monitor opens the view.
+5. `05-quit`: File ▸ Close window ▸ Quit exits the process and removes `running.marker`; the next start shows no crash banner.
+
+Every spec ends with a clean quit (the config's `after` hook), so a later spec never starts after a "crash".
+
+One-time setup:
+
+```sh
+cargo install tauri-driver --locked
+cd app && npm ci
+node e2e-tauri/scripts/fetch-msedgedriver.mjs   # Windows: msedgedriver matching the installed WebView2
+sudo apt-get install webkit2gtk-driver xvfb      # Linux
+```
+
+The Edge driver must match the WebView2 runtime version exactly. The script reads it from the registry
+(EdgeUpdate client `{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`), downloads
+`https://msedgedriver.microsoft.com/<version>/edgedriver_win64.zip` into `app/e2e-tauri/.drivers/` and skips the
+download when that version is already there. Run it again after WebView2 updates (a mismatch fails the session
+with "session not created"); pass a version to pin one.
+
+Build and run (from `app/`):
+
+```sh
+npm run e2e:tauri:build      # tauri build --debug --no-bundle: frontend + debug binary in <target>/debug
+npm run e2e:tauri            # Windows
+xvfb-run -a npm run e2e:tauri   # Linux (CI also wraps it in dbus-run-session)
+```
+
+The binary is looked up in `$CARGO_TARGET_DIR/debug` (else `target/debug`); `IMT_E2E_APP`, `TAURI_DRIVER` and
+`IMT_E2E_NATIVE_DRIVER` override the binary, tauri-driver and the native driver. Don't run it while IMT is open:
+the single-instance lock would hand the launch to the running app.
+
+Debug-build overrides (read only when `debug_assertions` is on; release builds never look at them; a
+malformed value stops the app with exit code 2 naming the variable), see `app/src-tauri/src/dev_overrides.rs`:
+
+- `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`: merged into every window's WebView2 arguments through the API (wry's
+  defaults kept, `--disable-features` lists combined). msedgedriver uses it to turn on remote debugging; WebView2
+  ignores the variable itself for elevated hosts, so this is what lets the tests run from an elevated terminal
+  and on Windows CI runners.
+- `IMT_DATA_DIR=<absolute root>`: the app's data, config and log folders and the WebView2 user data folder
+  move under `<root>/data`, `/config`, `/logs` and `/local` (`app/src-tauri/src/app_dirs.rs`).
+- `IMT_OPEN_PATHS`: absolute paths (separated like `PATH`, at most 16) opened at start-up. msedgedriver turns
+  launch arguments into switches on Windows, so the samples path is passed this way there.
+
+Isolation: every run gets a fresh temporary folder as `IMT_DATA_DIR` (on Linux the XDG folders point into it
+too), removed when the run ends; `IMT_E2E_KEEP_DATA=1` keeps it for inspection. A failed test saves a screenshot
+and the page HTML to `app/e2e-tauri/.artifacts/`. The single-instance lock is not covered by `IMT_DATA_DIR`:
+close any running IMT first.
+
+CI: the `tauri-smoke` job in `.gitea/workflows/build.yml` runs this on `windows-latest` and `ubuntu-latest`;
+both legs are required, and failure artifacts are uploaded.

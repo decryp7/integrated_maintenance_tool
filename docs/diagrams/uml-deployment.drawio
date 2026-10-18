@@ -1,189 +1,187 @@
-<mxfile host="app.diagrams.net" agent="IMT docs" version="24.0.0">
-  <diagram id="UML-Deployment" name="UML Deployment">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1220" math="0" shadow="0">
+<mxfile host="drawio" agent="IMT diagram generator" version="24.7.17" compressed="false">
+  <diagram id="UML deployment" name="UML deployment">
+    <mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2500" pageHeight="1340" math="0" shadow="0" background="#FFFFFF">
       <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-        <mxCell id="title" value="UML deployment diagram" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#333333;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="40" y="10" width="1100" height="24" as="geometry"/>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="frame" value="" style="rounded=0;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="2500" height="1340" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Where IMT runs: analyst machine, monitored servers, and the Gitea build farm that produces the installers." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="40" y="34" width="1100" height="20" as="geometry"/>
+        <mxCell id="c1" value="&lt;b style=&quot;font-size:20px&quot;&gt;IMT — deployment&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+          <mxGeometry x="40" y="30" width="1000" height="28" as="geometry" />
         </mxCell>
-        <mxCell id="nA" value="&amp;laquo;device&amp;raquo; Developer / support machine (Windows or macOS)" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
-          <mxGeometry x="40" y="100" width="900" height="520" as="geometry"/>
+        <mxCell id="c2" value="&lt;span style=&quot;font-size:12px;color:#5A6375&quot;&gt;UML · Deployment diagram&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+          <mxGeometry x="40" y="62" width="1000" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="eeA" value="&amp;laquo;execution environment&amp;raquo; IMT desktop app (imt-app, Tauri 2)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6C8EBF;dashed=1;dashPattern=6 4;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=1;imtRole=bg;" vertex="1" parent="nA">
-          <mxGeometry x="30" y="50" width="580" height="440" as="geometry"/>
+        <mxCell id="c3" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;Where IMT's parts run: the analyst workstation, monitored servers, the Gitea build farm that produces the installers, and the download hosts.&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+          <mxGeometry x="40" y="82" width="1000" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="wv" value="&lt;b&gt;Angular UI&lt;/b&gt;&lt;br&gt;Angular 22, SignalStore, ECharts&lt;br&gt;&lt;br&gt;runs in the OS webview:&lt;br&gt;WebView2 (Windows)&lt;br&gt;WKWebView (macOS)&lt;br&gt;&lt;br&gt;ImtBackend = TauriBackend" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="eeA">
-          <mxGeometry x="20" y="40" width="220" height="380" as="geometry"/>
+        <mxCell id="c4" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;«device»&lt;/span&gt;&lt;br&gt;&lt;b style=&quot;font-size:14px&quot;&gt;Analyst workstation&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Windows 10/11, macOS, Linux]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;shape=cube;size=14;darkOpacity=0.04;darkOpacity2=0.08;strokeColor=#8A93A6;fillColor=#F7F8FA;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=14;spacingTop=18;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="40" y="130" width="1360" height="840" as="geometry" />
         </mxCell>
-        <mxCell id="rs" value="&lt;b&gt;Rust process&lt;/b&gt;&lt;br&gt;Tauri shell (commands, AppState, live-tail watcher)&lt;br&gt;imt-core engine&lt;br&gt;plugin crates: registry, windows, web, otel, syslog&lt;br&gt;&lt;br&gt;in-memory Workspace, rayon thread pool" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="eeA">
-          <mxGeometry x="340" y="40" width="220" height="380" as="geometry"/>
+        <mxCell id="c5" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;«execution environment» OS webview: WebView2 / WKWebView / WebKitGTK&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=#FFFFFF;strokeColor=#E65F2A;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="210" width="560" height="170" as="geometry" />
         </mxCell>
-        <mxCell id="e1" value="invoke / events&lt;br&gt;[Tauri IPC]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3684;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="wv" target="rs">
+        <mxCell id="c6" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Angular UI bundle&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«artifact» HTML, JS, CSS in the app bundle]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Strict CSP, no remote content; ImtBackend = TauriBackend.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#E65F2A;fillColor=#FCE9E1;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="100" y="250" width="520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;«execution environment» imt-app process&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=#FFFFFF;strokeColor=#3869BB;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;" parent="1" vertex="1">
+          <mxGeometry x="80" y="440" width="560" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-app&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» Rust, Tauri 2]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Tauri shell with imt-core, imt-profile, imt-ai, imt-pdf and the built-in plugins linked in; one in-memory Workspace per window; tray and single instance.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="100" y="480" width="520" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;App data folder&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«folder» per user]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;settings.json, sessions/ and recovered/, profiles, ai/models (GGUF), ai/runtimes (llama-server builds), app log (CLEF), plugin isolation grants.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="100" y="760" width="520" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;«execution environment» Child processes, supervised (restart with backoff, quarantine, killed with the app)&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=#FFFFFF;strokeColor=#3869BB;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;" parent="1" vertex="1">
+          <mxGeometry x="820" y="210" width="540" height="510" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-plugin-host&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» Rust]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Built-in plugins run isolated.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#A664FE;fillColor=#F2E8FF;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="840" y="270" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Third-party plugin&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» any language]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;imt.plugin.v1 over gRPC + Arrow.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#A664FE;fillColor=#F2E8FF;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="1100" y="270" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-ai-worker&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» Rust]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Inference worker (ADR 0009).&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="840" y="410" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;llama-server&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» prebuilt llama.cpp]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Downloaded build; runs the GGUF model.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="840" y="580" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-store-worker (planned)&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» Rust + libduckdb]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;ADR 0010.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;fillColor=#FFFFFF;" parent="1" vertex="1">
+          <mxGeometry x="1100" y="410" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="Invokes commands, events&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Tauri IPC]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;startArrow=block;startFill=1;startSize=7;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c6" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="Reads, writes&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[std::fs]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="Spawns, calls&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[gRPC over pipe / socket, token]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.6863;entryDx=0;entryDy=0;" parent="1" edge="1" source="c8" target="c10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="Starts, completes&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[HTTP on 127.0.0.1]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c13" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;«device»&lt;/span&gt;&lt;br&gt;&lt;b style=&quot;font-size:14px&quot;&gt;Monitored server&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Windows Server, Linux, macOS]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;shape=cube;size=14;darkOpacity=0.04;darkOpacity2=0.08;strokeColor=#8A93A6;fillColor=#F7F8FA;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=14;spacingTop=18;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="130" width="840" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-agent&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«service» Windows SCM, systemd, launchd]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Scheduled and triggered collection.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1640" y="210" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-collect&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» CLI]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Redacted diagnostics bundle.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1910" y="210" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;imt-monitor&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«executable» CLI]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Process and counter sampling.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="2180" y="210" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;OS sources&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Event Log, PDH, logman, logs]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;What the agent reads and runs.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="1640" y="400" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Output folder&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«folder» run folders, .imtz, rolling CLEF]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Versioned manifest.json per run; retention by count, age, size.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1910" y="400" width="510" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="Reads, runs tools&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[with timeouts]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c21" target="c24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="Writes&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[.imtz]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.235;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c22" target="c25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="Writes&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[CLEF]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.765;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c23" target="c25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;«device»&lt;/span&gt;&lt;br&gt;&lt;b style=&quot;font-size:14px&quot;&gt;Gitea server&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[dev.decryptology.net]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;shape=cube;size=14;darkOpacity=0.04;darkOpacity2=0.08;strokeColor=#8A93A6;fillColor=#F7F8FA;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=14;spacingTop=18;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="620" width="840" height="480" as="geometry" />
+        </mxCell>
+        <mxCell id="c30" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Gitea&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«application» git, Gitea Actions, releases]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Workflows build.yml, fuzz.yml, bench.yml, mutants.yml; releases on v* tags.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1640" y="700" width="380" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c31" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Release assets&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«artifact» installers and updater manifest]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;.msi, NSIS .exe, .dmg, .deb, .rpm, signed latest.json.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="2050" y="700" width="380" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c32" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;«execution environment» act_runners&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=#FFFFFF;strokeColor=#8A93A6;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=12;spacingTop=6;container=1;collapsible=0;recursiveResize=0;" parent="1" vertex="1">
+          <mxGeometry x="1620" y="880" width="800" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="c33" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;ubuntu-latest&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«node» act_runner]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;check, tauri-smoke, bundle deb/rpm, release, fuzz, bench, mutants.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1640" y="920" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c34" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;windows-latest&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«node» act_runner]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;tauri-smoke, bundle msi/NSIS.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="1910" y="920" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c35" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;macos-latest&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[«node» act_runner]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;bundle dmg (and .app updater archive).&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;" parent="1" vertex="1">
+          <mxGeometry x="2180" y="920" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c36" value="Dispatches jobs&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Gitea Actions]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.2625;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c30" target="c32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c37" value="Uploads&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[release job]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.775;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="c32" target="c31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c38" value="&lt;span style=&quot;font-size:11px;color:#5A6375&quot;&gt;«cloud»&lt;/span&gt;&lt;br&gt;&lt;b style=&quot;font-size:14px&quot;&gt;Download hosts&lt;/b&gt; &lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[Internet, HTTPS only]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;shape=cube;size=14;darkOpacity=0.04;darkOpacity2=0.08;strokeColor=#8A93A6;fillColor=#F7F8FA;strokeWidth=1.5;align=left;verticalAlign=top;spacingLeft=14;spacingTop=18;container=1;collapsible=0;recursiveResize=0;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="40" y="1040" width="1360" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="c39" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;Hugging Face&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[huggingface.co, hf.co]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;GGUF models for the AI assistant (opt-in).&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="100" y="1110" width="520" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c40" value="&lt;div style=&quot;line-height:1.35&quot;&gt;&lt;b style=&quot;font-size:13px&quot;&gt;GitHub releases&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[github.com/ggml-org/llama.cpp]&lt;/i&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;Pinned llama-server builds, SHA-256 checked.&lt;/span&gt;&lt;/div&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;spacing=8;align=center;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" vertex="1">
+          <mxGeometry x="840" y="1110" width="520" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c41" value="Downloads models and runtimes&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[HTTPS]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c4" target="c38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c42" value="Checks for updates&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[HTTPS, signed]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=1;exitY=0.88;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" parent="1" edge="1" source="c4" target="c29">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="360" y="330"/>
-              <mxPoint x="360" y="380"/>
+              <mxPoint x="1500" y="869.2" />
+              <mxPoint x="1500" y="764.0" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="a_prof" value="App data: profiles (TOML)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
-          <mxGeometry x="660" y="90" width="210" height="60" as="geometry"/>
+        <mxCell id="c43" value="Copies bundles and CLEF&lt;br&gt;&lt;i style=&quot;font-size:11px;color:#5A6375&quot;&gt;[file share, removable media]&lt;/i&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;fontColor=#1B2130;fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=1.5;strokeColor=#5A6375;endArrow=block;endFill=1;endSize=7;labelBackgroundColor=#FFFFFF;fontSize=11;align=center;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.15;entryDx=0;entryDy=0;" parent="1" edge="1" source="c20" target="c4">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a_log" value="App log dir: IMT log (CLEF)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
-          <mxGeometry x="660" y="190" width="210" height="60" as="geometry"/>
+        <mxCell id="c44" value="&lt;b style=&quot;font-size:12px;color:#5A6375&quot;&gt;Legend&lt;/b&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=8;absoluteArcSize=1;fillColor=#FFFFFF;strokeColor=#D5D9E0;strokeWidth=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;container=1;collapsible=0;" parent="1" vertex="1">
+          <mxGeometry x="1600" y="1150" width="420" height="142" as="geometry" />
         </mxCell>
-        <mxCell id="a_proj" value="Projects (.imtproj)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
-          <mxGeometry x="660" y="290" width="210" height="60" as="geometry"/>
+        <mxCell id="c45" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;shape=cube;size=6;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;" parent="c44" vertex="1">
+          <mxGeometry x="10" y="36" width="36" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="a_in" value="Opened logs, .clef and .imtz bundles" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nA">
-          <mxGeometry x="660" y="390" width="210" height="60" as="geometry"/>
+        <mxCell id="c46" value="&lt;span style=&quot;font-size:11px&quot;&gt;Node / device&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c44" vertex="1">
+          <mxGeometry x="56" y="38" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.0789;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_prof">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c47" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=6;absoluteArcSize=1;dashed=1;dashPattern=6 4;fillColor=none;strokeColor=#5A6375;strokeWidth=1.5;" parent="c44" vertex="1">
+          <mxGeometry x="210" y="36" width="36" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.3421;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_log">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c48" value="&lt;span style=&quot;font-size:11px&quot;&gt;Execution environment&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c44" vertex="1">
+          <mxGeometry x="256" y="38" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.6053;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_proj">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c49" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=6;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#3869BB;fillColor=#E3EAF6;" parent="c44" vertex="1">
+          <mxGeometry x="10" y="70" width="36" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8684;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="rs" target="a_in">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c50" value="&lt;span style=&quot;font-size:11px&quot;&gt;IMT executable&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c44" vertex="1">
+          <mxGeometry x="56" y="72" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="nB" value="&amp;laquo;device&amp;raquo; Server or customer machine (Windows, also Linux/macOS for some data)" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="100" width="900" height="520" as="geometry"/>
+        <mxCell id="c51" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;rounded=1;arcSize=6;absoluteArcSize=1;strokeWidth=1.5;strokeColor=#8A93A6;fillColor=#EEF0F3;dashed=1;dashPattern=6 4;" parent="c44" vertex="1">
+          <mxGeometry x="210" y="70" width="36" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="s0" value="Running processes&lt;br&gt;(sysinfo, PDH counters)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="30" y="80" width="230" height="80" as="geometry"/>
+        <mxCell id="c52" value="&lt;span style=&quot;font-size:11px&quot;&gt;External / downloaded&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c44" vertex="1">
+          <mxGeometry x="256" y="72" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="p0" value="imt-monitor CLI&lt;br&gt;(Collector ProcessMonitor)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="380" y="80" width="220" height="80" as="geometry"/>
+        <mxCell id="c53" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;" parent="c44" vertex="1">
+          <mxGeometry x="10" y="115" width="1" height="1" as="geometry" />
         </mxCell>
-        <mxCell id="c_clef" value="CLEF output&lt;br&gt;process-monitor.clef" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="700" y="80" width="170" height="80" as="geometry"/>
+        <mxCell id="c54" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;" parent="c44" vertex="1">
+          <mxGeometry x="46" y="115" width="1" height="1" as="geometry" />
         </mxCell>
-        <mxCell id="e6" value="reads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s0" target="p0">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c55" value="" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#5A6375;html=1;" parent="c44" edge="1" source="c53" target="c54">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p0" target="c_clef">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
+        <mxCell id="c56" value="&lt;span style=&quot;font-size:11px&quot;&gt;Communication path&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacing=0;" parent="c44" vertex="1">
+          <mxGeometry x="56" y="106" width="150" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="s1" value="Application logs, Windows event log, msinfo32, registry" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="30" y="190" width="230" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="p1" value="imt-collect CLI&lt;br&gt;(CollectPlan, Redactor)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="380" y="190" width="220" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="c_imtz" value="Diagnostics bundle&lt;br&gt;.imtz" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="700" y="190" width="170" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="e8" value="reads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s1" target="p1">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e9" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p1" target="c_imtz">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="s2" value="Performance Monitor&lt;br&gt;(logman collector sets)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="30" y="300" width="230" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="p2" value="logman (driven by&lt;br&gt;PerfmonController, planned)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;dashed=1;dashPattern=6 4;" vertex="1" parent="nB">
-          <mxGeometry x="380" y="300" width="220" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="c_perf" value="PerfMon output&lt;br&gt;CSV / BLG" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#E1E1E1;strokeColor=#9A9A9A;fontSize=11;" vertex="1" parent="nB">
-          <mxGeometry x="700" y="300" width="170" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="e10" value="drives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="s2" target="p2">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e11" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="p2" target="c_perf">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e12" value="copy / download&lt;br&gt;.imtz, .clef, logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.7381;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_imtz" target="a_in">
-          <mxGeometry x="0.3" relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1975" y="330"/>
-              <mxPoint x="1975" y="660"/>
-              <mxPoint x="855" y="660"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.5000;entryY=1.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="c_clef" target="a_in">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="1990" y="220"/>
-              <mxPoint x="1990" y="690"/>
-              <mxPoint x="805" y="690"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="nC" value="&amp;laquo;device&amp;raquo; Gitea server and build runners" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;size=14;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=14;spacingTop=4;fontStyle=1;fontSize=12;imtRole=bg;" vertex="1" parent="1">
-          <mxGeometry x="40" y="720" width="900" height="420" as="geometry"/>
-        </mxCell>
-        <mxCell id="gitea" value="&lt;b&gt;Gitea&lt;/b&gt;&lt;br&gt;git repository&lt;br&gt;Gitea Actions (.gitea/workflows/build.yml)&lt;br&gt;releases on v* tags (RELEASE_TOKEN)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="40" y="60" width="260" height="270" as="geometry"/>
-        </mxCell>
-        <mxCell id="r0" value="act_runner&lt;br&gt;ubuntu-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="420" y="60" width="220" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="i0" value=".deb / .rpm&lt;br&gt;(Linux bundle)" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="700" y="60" width="170" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="e14" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.1296;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r0">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e15" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r0" target="i0">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="r1" value="act_runner&lt;br&gt;windows-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="420" y="160" width="220" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="i1" value=".msi and NSIS .exe" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="700" y="160" width="170" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="e16" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r1">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e17" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r1" target="i1">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="r2" value="act_runner&lt;br&gt;macos-latest" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="420" y="260" width="220" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="i2" value=".dmg" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="nC">
-          <mxGeometry x="700" y="260" width="170" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="e18" value="job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.8704;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="gitea" target="r2">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e19" value="builds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1.0000;exitY=0.5000;exitDx=0;exitDy=0;entryX=0.0000;entryY=0.5000;entryDx=0;entryDy=0;" edge="1" parent="1" source="r2" target="i2">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="e20" value="git push/pull, download installers&lt;br&gt;[HTTPS]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;fontSize=11;jettySize=auto;labelBackgroundColor=#FFFFFF;startArrow=block;startFill=1;startSize=8;endArrow=block;endFill=1;endSize=8;exitX=0.2889;exitY=1.0000;exitDx=0;exitDy=0;entryX=0.2889;entryY=0.0000;entryDx=0;entryDy=0;" edge="1" parent="1" source="nA" target="nC">
-          <mxGeometry relative="1" as="geometry">
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="lg" value="&lt;b&gt;Reading this diagram&lt;/b&gt;&lt;br&gt;Cubes are devices; dashed boxes are execution environments; blue boxes are programs; yellow notes are build artifacts; grey notes are files.&lt;br&gt;&lt;br&gt;The desktop app runs fully offline on one machine. The CLIs run where the data is and produce files that are copied to the analyst machine and opened in IMT. The check job runs on ubuntu-latest; the bundle job runs on all three runner OSes; the release job (v* tags) uploads the installers to a Gitea release." style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=11;fontColor=#444444;fontStyle=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="720" width="880" height="200" as="geometry"/>
+        <mxCell id="c57" value="&lt;span style=&quot;font-size:10px;color:#5A6375&quot;&gt;IMT · updated 2026-10-18&lt;/span&gt;" style="fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss2%3Ffamily%3DIBM%2BPlex%2BSans%3Aital%2Cwght%400%2C400%3B0%2C700%3B1%2C400%26display%3Dblock;html=1;whiteSpace=wrap;fontColor=#1B2130;fontSize=11;text;strokeColor=none;fillColor=none;align=right;verticalAlign=top;spacing=0;" parent="1" vertex="1">
+          <mxGeometry x="2240" y="1300" width="220" height="18" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

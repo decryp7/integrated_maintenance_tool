@@ -19,7 +19,7 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
   events of the same instance. *(Done.)*
 - **Compressed and archived input:** read `.gz`, `.zip` and rotated log sets transparently. *(Done.)*
 
-## Phase 2: find the problem faster *(done, except calculated fields)*
+## Phase 2: find the problem faster *(done)*
 
 - **Query language** with autocomplete and syntax help (fields, operators, functions), e.g.
   `level >= Warning and RequestPath ~ "/capture" and ElapsedMs > 5000`, alongside the
@@ -35,8 +35,7 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 - **Compare windows:** "before vs. after deploy" or "good vs. bad instance": what patterns,
   errors and metrics changed.
 - **Field statistics:** histograms and percentiles for numeric fields, top values, value
-  over time; calculated fields from expressions. *(Done, except calculated
-  fields.)*
+  over time; calculated fields from expressions. *(Done: the `calc` pipeline step.)*
 - **Clock-skew correction:** shift a source's timestamps by an offset (or align on a
   shared event) so multi-machine timelines line up. *(Done: manual, aligned on an event, or
   suggested from shared correlation ids; ADR 0006.)*
@@ -46,13 +45,13 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 
 - Windows: **Event Logs** (`.evtx` and live), **registry exports** (`.reg`, tree view and
   diff), **msinfo32** (`.nfo`, tree view), Process Monitor CSV/PML, ETW `.etl`, IIS / W3C
-  logs, SQL Server ERRORLOG, minidump summaries. *(Done: `.evtx` files, `.reg`, `.nfo`, IIS / W3C;
-  the rest is planned.)*
+  logs, SQL Server ERRORLOG, minidump summaries. *(Done: `.evtx` files and the live Event Log
+  follower, `.reg`, `.nfo`, IIS / W3C, Process Monitor CSV, SQL Server ERRORLOG, minidump summaries.
+  Planned with profiling: ETW `.etl`, Process Monitor PML.)*
 - Cross-platform: syslog / journald, Apache/Nginx access logs, NLog/log4j XML layouts,
-  OpenTelemetry (OTLP JSON), Docker/Kubernetes logs, HAR files. *(Done: syslog / journald,
-  Apache/Nginx, OTLP JSON, HAR, and NLog through a built-in template; the rest is planned.)*
-- Remote: fetch from SSH/SFTP and SMB shares; query Seq, Elasticsearch/OpenSearch, Grafana
-  Loki and Azure Application Insights and treat results as sources.
+  OpenTelemetry (OTLP JSON), Docker/Kubernetes logs, HAR files. *(Done.)*
+- ~~Remote sources (SSH/SFTP, SMB, Seq, Elasticsearch, Loki, Application Insights)~~ *(dropped
+  2026-10-18: out of scope; copy logs locally or use the diagnostics collector.)*
 - **Diff view** for configuration-like data (registry exports, JSON/XML configs, msinfo of
   two machines). *(Done: JSON, XML, INI, TOML, YAML, `.reg`, `.nfo`, and folder snapshots.)*
 
@@ -61,7 +60,8 @@ follow-ups (fuzzing, signing, etc.) live in [backlog.md](backlog.md).
 - **Process monitor** with system-tray mode (see backlog): CPU, memory, handles and I/O per
   process; Windows performance counters; .NET runtime counters (GC, exceptions/sec, thread
   pool); process start/exit and crash detection; elevated helper only when needed. *(Done: process
-  monitor with tray mode and Windows counters via PDH; .NET runtime counters are still planned.)*
+  monitor with tray mode, live charts, Windows counters via PDH, and .NET Framework runtime counters.
+  .NET Core runtime counters need EventPipe and come with profiling.)*
 - **Diagnostics collector:** one action (or a small standalone/CLI collector to run on a
   customer machine) that gathers app logs, event logs, msinfo, selected registry keys, a
   performance-counter snapshot and environment info into an `.imtz` bundle, with redaction. *(Done.)*
@@ -156,8 +156,8 @@ planned.)*
 
 ## Phase 5: explain and share
 
-- **AI assistant (local only, in progress):** an embedded llama.cpp engine in a supervised worker
-  process runs a GGUF model chosen for the machine's hardware (one-click download from Hugging
+- **AI assistant (local only):** *(Done.)* the official prebuilt llama.cpp `llama-server`
+  (downloaded on demand like a model, ADR 0009), driven by a supervised worker process, runs a GGUF model chosen for the machine's hardware (one-click download from Hugging
   Face with checksum verification). It chats about the workspace with read-only engine tools and
   cited evidence, and proposes regexes, profiles, pipelines, markers, extractors and queries that
   the engine validates and previews before the user applies them. Optional web search for error
@@ -172,16 +172,23 @@ planned.)*
 ## Phase 6: scale and platform
 
 - **Persistent store** behind `LogStore`: data larger than RAM, instant reopen, background
-  indexing with progress and cancel, SQL console tab for power users. Spike first: DuckDB vs.
-  DataFusion + Parquet (pure Rust), each with Tantivy for full-text search, benchmarked on 10M+
-  events; the in-memory store stays for normal sizes. Frequently used fields are promoted to
-  typed columns.
-- **Very large UIs**: scaled scrolling in the events grid beyond ~1.2M rows (browser element
-  height limit), virtualized facet lists and trees.
-- **Plugin SDK:** WASM plugins (importers, collectors, views) with a manifest, sandboxed
-  and versioned; later a plugin catalogue.
-- **Scripting** for custom transforms (e.g. Rhai or JavaScript) where profiles aren't enough.
-- **Workbench UX:** dockable/split panes, multiple timelines, command palette with every
-  action, keyboard shortcut map, layouts per project.
-- **Distribution:** auto-update with signed releases, code signing/notarisation, settings
-  import/export, i18n, WCAG 2.2 AA, opt-in crash reports.
+  indexing with progress and cancel, SQL console tab for power users; the in-memory store stays
+  for normal sizes. *(Spike done: DuckDB vs. DataFusion + Parquet, each with Tantivy, on 10M events —
+  see [store-spike.md](store-spike.md). ADR 0010 (accepted): DuckDB in a supervised worker process with a
+  Tantivy index, moving to DuckDB 2.0's server mode once it is released and supported;
+  implementation not started.)*
+- **Very large UIs**: scaled grid scrolling (50M rows), virtualised facet lists and trees. *(Done.)*
+- **Plugin SDK:** out-of-process plugins over gRPC (`imt.plugin.v1`) with the Rust and C# SDKs.
+  *(Done.)* ~~WASM components and a plugin catalogue~~ *(dropped 2026-10-18).*
+- **Scripting** for custom transforms where profiles aren't enough. *(Done: Rhai `script` step,
+  sandboxed and bounded per record.)*
+- **Workbench UX:** dockable/split panes, multiple timelines, command palette with every action,
+  keyboard shortcut map, layouts. *(Done.)*
+- **Distribution:**
+  - Auto-update with signed releases. *(Done; needs the signing key pair and CI secrets, see
+    [releasing.md](releasing.md).)*
+  - Code signing / notarisation. *(Needs certificates and a macOS runner.)*
+  - Settings import/export. *(Done.)*
+  - i18n. *(Readiness done: every UI string marked, runtime locale loading, pseudo-locale, CI
+    check; engine-produced text still English.)*
+  - WCAG 2.2 AA review and opt-in crash reports: see [backlog.md](backlog.md).
