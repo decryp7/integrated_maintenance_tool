@@ -253,12 +253,11 @@ jobs:
       # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
       - name: Git bash on PATH (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
+        shell: cmd
         run: |
-          $bash = Join-Path $env:ProgramFiles "Git/bin"
-          if (-not (Test-Path (Join-Path $bash "bash.exe"))) { throw "Git for Windows is not installed on this runner (no bash.exe in $bash)" }
-          # ASCII: Windows PowerShell 5 would write a byte-order mark with utf8, corrupting the first entry.
-          Add-Content -Path $env:GITHUB_PATH -Value $bash -Encoding ascii
+          if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
+          echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -357,12 +356,11 @@ jobs:
       # Host-mode Windows runners may not have Git's bash on PATH; actions (rust-toolchain) and `shell: bash` need it.
       - name: Git bash on PATH (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        # cmd, not PowerShell: runners with a restricted execution policy refuse the .ps1 act writes for a step.
+        shell: cmd
         run: |
-          $bash = Join-Path $env:ProgramFiles "Git/bin"
-          if (-not (Test-Path (Join-Path $bash "bash.exe"))) { throw "Git for Windows is not installed on this runner (no bash.exe in $bash)" }
-          # ASCII: Windows PowerShell 5 would write a byte-order mark with utf8, corrupting the first entry.
-          Add-Content -Path $env:GITHUB_PATH -Value $bash -Encoding ascii
+          if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
+          echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
 
       - uses: dtolnay/rust-toolchain@stable
 
