@@ -13,6 +13,7 @@
 //! [`RunInfo`]; the workspace computes them lazily and feeds live-tail appends
 //! incrementally (`crate::workspace` `spans`).
 
+pub mod book;
 pub mod config;
 pub mod draft;
 pub mod dto;

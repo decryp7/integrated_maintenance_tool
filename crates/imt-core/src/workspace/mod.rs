@@ -11,6 +11,8 @@ mod insights;
 mod page;
 mod preview;
 mod redaction;
+pub use insights::preview_parse;
+pub use preview::{preview_profile, ExtractPreviewer};
 pub use redaction::{RedactionPreviewRequest, RedactionSample, RedactionSummary, RedactionSummaryRequest};
 mod report;
 mod skew;

@@ -197,60 +197,65 @@ impl Workspace {
     /// (importer selection, extractors, pipeline, markers) without touching
     /// the workspace. Powers the "teach a format" wizard and profile previews.
     pub fn preview_parse(&self, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
-        use crate::api::{ParsePreview, ParsedPreview};
-        let run = || -> Result<ParsePreview> {
-            let profile = crate::profile::Profile::from_toml(&req.toml).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let compiled = self.registry.compile_profile(profile)?;
-            let name = if req.file_name.is_empty() {
-                "sample.log"
-            } else {
-                req.file_name.as_str()
-            };
-            let path = std::path::Path::new(name);
-            let ctx = crate::importers::ImportCtx {
-                profile: &compiled,
-                path,
-                file_date: None,
-            };
-            let head: String = req.sample.chars().take(64 * 1024).collect();
-            let importer = self
-                .registry
-                .importers
-                .select(&ctx, &head)
-                .ok_or_else(|| anyhow::anyhow!("no importer recognises this sample; adjust the output template or regex"))?;
-            let imported = importer.import(&ctx, &req.sample)?;
-            let (records, stats) = compiled.ingest(imported.records, name);
-            let dropped = stats.first().map_or(0, |s| s.input) - stats.last().map_or(0, |s| s.output);
-            let kinds: Vec<&str> = compiled.markers.iter().map(|m| m.kind.as_str()).collect();
-            Ok(ParsePreview {
-                importer: Some(importer.id().to_string()),
-                total: records.len(),
-                skipped: imported.skipped,
-                dropped,
-                records: records
-                    .into_iter()
-                    .take(req.limit.clamp(1, 1000))
-                    .map(|r| ParsedPreview {
-                        markers: (0..kinds.len())
-                            .filter(|i| r.markers & (1 << i) != 0)
-                            .map(|i| kinds[i].to_string())
-                            .collect(),
-                        line: r.line,
-                        ts: r.ts,
-                        level: r.level,
-                        message: r.message,
-                        exception: r.exception,
-                        fields: r.fields,
-                    })
-                    .collect(),
-                error: None,
-            })
-        };
-        run().unwrap_or_else(|e| ParsePreview {
-            error: Some(format!("{e:#}")),
-            ..Default::default()
-        })
+        preview_parse(&self.registry, req)
     }
+}
+
+/// Parses sample text with a candidate profile exactly as an import would (importer selection,
+/// extractors, pipeline, markers), touching no store.
+pub fn preview_parse(registry: &crate::PluginRegistry, req: &crate::api::ParsePreviewRequest) -> crate::api::ParsePreview {
+    use crate::api::{ParsePreview, ParsedPreview};
+    let run = || -> Result<ParsePreview> {
+        let profile = crate::profile::Profile::from_toml(&req.toml).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let compiled = registry.compile_profile(profile)?;
+        let name = if req.file_name.is_empty() {
+            "sample.log"
+        } else {
+            req.file_name.as_str()
+        };
+        let path = std::path::Path::new(name);
+        let ctx = crate::importers::ImportCtx {
+            profile: &compiled,
+            path,
+            file_date: None,
+        };
+        let head: String = req.sample.chars().take(64 * 1024).collect();
+        let importer = registry
+            .importers
+            .select(&ctx, &head)
+            .ok_or_else(|| anyhow::anyhow!("no importer recognises this sample; adjust the output template or regex"))?;
+        let imported = importer.import(&ctx, &req.sample)?;
+        let (records, stats) = compiled.ingest(imported.records, name);
+        let dropped = stats.first().map_or(0, |s| s.input) - stats.last().map_or(0, |s| s.output);
+        let kinds: Vec<&str> = compiled.markers.iter().map(|m| m.kind.as_str()).collect();
+        Ok(ParsePreview {
+            importer: Some(importer.id().to_string()),
+            total: records.len(),
+            skipped: imported.skipped,
+            dropped,
+            records: records
+                .into_iter()
+                .take(req.limit.clamp(1, 1000))
+                .map(|r| ParsedPreview {
+                    markers: (0..kinds.len())
+                        .filter(|i| r.markers & (1 << i) != 0)
+                        .map(|i| kinds[i].to_string())
+                        .collect(),
+                    line: r.line,
+                    ts: r.ts,
+                    level: r.level,
+                    message: r.message,
+                    exception: r.exception,
+                    fields: r.fields,
+                })
+                .collect(),
+            error: None,
+        })
+    };
+    run().unwrap_or_else(|e| ParsePreview {
+        error: Some(format!("{e:#}")),
+        ..Default::default()
+    })
 }
 
 impl Workspace {

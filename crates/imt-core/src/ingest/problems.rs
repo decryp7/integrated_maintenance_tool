@@ -20,7 +20,30 @@ pub enum ProblemKind {
     LineNotParsed,
     /// Events without a readable timestamp (kept, marked untimed).
     TimestampUnparsed,
+    /// A field value that does not fit its declared type (kept as text).
+    FieldInvalid,
+    /// Bytes that are not valid in the file's encoding (replaced).
+    Encoding,
+    /// A file no importer recognises (not imported).
+    UnknownFormat,
+    /// An archive that ends early or is damaged (the readable part was imported).
+    TruncatedArchive,
+    /// An event split at a chunk boundary of a parallel import.
+    EventSplit,
 }
+
+/// Every kind.
+const ALL_KINDS: [ProblemKind; 9] = [
+    ProblemKind::LineTooLong,
+    ProblemKind::EventTooLarge,
+    ProblemKind::LineNotParsed,
+    ProblemKind::TimestampUnparsed,
+    ProblemKind::FieldInvalid,
+    ProblemKind::Encoding,
+    ProblemKind::UnknownFormat,
+    ProblemKind::TruncatedArchive,
+    ProblemKind::EventSplit,
+];
 
 impl ProblemKind {
     /// Stable id, as stored in the `diagnostics` table.
@@ -30,24 +53,26 @@ impl ProblemKind {
             ProblemKind::EventTooLarge => "eventTooLarge",
             ProblemKind::LineNotParsed => "lineNotParsed",
             ProblemKind::TimestampUnparsed => "timestampUnparsed",
+            ProblemKind::FieldInvalid => "fieldInvalid",
+            ProblemKind::Encoding => "encoding",
+            ProblemKind::UnknownFormat => "unknownFormat",
+            ProblemKind::TruncatedArchive => "truncatedArchive",
+            ProblemKind::EventSplit => "eventSplit",
         }
     }
 
     pub fn from_id(id: &str) -> Option<ProblemKind> {
-        [
-            ProblemKind::LineTooLong,
-            ProblemKind::EventTooLarge,
-            ProblemKind::LineNotParsed,
-            ProblemKind::TimestampUnparsed,
-        ]
-        .into_iter()
-        .find(|k| k.id() == id)
+        ALL_KINDS.into_iter().find(|k| k.id() == id)
     }
 
     pub fn severity(self) -> Severity {
         match self {
-            ProblemKind::LineTooLong | ProblemKind::EventTooLarge | ProblemKind::TimestampUnparsed => Severity::Warning,
-            ProblemKind::LineNotParsed => Severity::Info,
+            ProblemKind::LineTooLong
+            | ProblemKind::EventTooLarge
+            | ProblemKind::TimestampUnparsed
+            | ProblemKind::UnknownFormat
+            | ProblemKind::TruncatedArchive => Severity::Warning,
+            ProblemKind::LineNotParsed | ProblemKind::FieldInvalid | ProblemKind::Encoding | ProblemKind::EventSplit => Severity::Info,
         }
     }
 }

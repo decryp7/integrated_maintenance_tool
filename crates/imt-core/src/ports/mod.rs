@@ -14,8 +14,8 @@ mod dto;
 mod session;
 
 pub use dto::{
-    Analyzed, Coverage, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix, SearchReply,
-    SearchRequest, SummaryReply,
+    Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix,
+    SearchReply, SearchRequest, SummaryReply,
 };
 pub use session::ImportSession;
 
