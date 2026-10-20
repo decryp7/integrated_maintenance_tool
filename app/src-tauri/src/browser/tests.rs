@@ -37,10 +37,7 @@ fn the_panel_reads_the_browser_state_and_only_known_addresses_open_externally() 
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
     let s = ipc(&main, "browser_state", json!({})).unwrap();
-    assert_eq!(
-        (s["page"]["open"].as_bool(), s["engine"].as_str()),
-        (Some(false), Some("duckDuckGo"))
-    );
+    assert_eq!((s["page"]["open"].as_bool(), s["engine"].as_str()), (Some(false), Some("google")));
     assert_eq!(s["customEngine"], false);
     assert!(err(ipc(&main, "browser_open_external", json!({"url": "https://evil.example/"}))).contains("refused"));
     assert!(err(ipc(&main, "browser_open_external", json!({"url": "file:///etc/passwd"}))).contains("http and https"));

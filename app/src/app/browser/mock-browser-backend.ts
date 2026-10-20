@@ -20,15 +20,15 @@ import {
 } from './browser.types';
 
 const TEMPLATES: Record<Exclude<SearchEngine, 'custom'>, string> = {
-  duckDuckGo: 'https://duckduckgo.com/?q={q}',
   google: 'https://www.google.com/search?q={q}',
+  duckDuckGo: 'https://duckduckgo.com/?q={q}',
   bing: 'https://www.bing.com/search?q={q}',
   stackOverflow: 'https://stackoverflow.com/search?q={q}',
 };
 
 /** A mock search page address, like the engine builds it. */
 export function mockSearchUrl(engine: SearchEngine, query: string): string {
-  const t = engine === 'custom' ? TEMPLATES.duckDuckGo : TEMPLATES[engine];
+  const t = engine === 'custom' ? TEMPLATES.google : TEMPLATES[engine];
   return t.replace('{q}', encodeURIComponent(query.trim()).replace(/%20/g, '+'));
 }
 
@@ -45,7 +45,8 @@ function titleFor(url: string): string {
 /** The shared pretend world: one page, chats' pages and switches, and waiting approvals. */
 export class MockWeb {
   page: PageState = { open: false, url: '', title: '', loading: false };
-  engine: SearchEngine = 'duckDuckGo';
+  /** Settings ▸ Web browser ▸ Search engine (the engine's default: Google). */
+  engine: SearchEngine = 'google';
   readonly history: string[] = [];
   at = -1;
   readonly handlers = new Set<(e: BrowserEvent) => void>();

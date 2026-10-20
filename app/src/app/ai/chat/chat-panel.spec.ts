@@ -234,7 +234,7 @@ describe('AiChatPanel and the browser', () => {
     all<HTMLButtonElement>(f, '[data-testid=agent-approval] button').filter((b) => b.textContent?.trim() === 'Allow').at(-1)!.click();
     await until(f, () => !store.running());
     expect(store.activeTurns()[1]?.approvals.map((a) => a.state)).toEqual(['allowSite', 'allow']);
-    expect(web.status(id).sites).toEqual(['duckduckgo.com']);
+    expect(web.status(id).sites).toEqual(['google.com']);
     // Stop while a step waits: the card is denied and agent mode ends.
     await ask(f, 'look up the error again');
     await until(f, () => all(f, '[data-testid=agent-approval]').length === 3);
@@ -255,7 +255,7 @@ describe('AiChatPanel and the browser', () => {
     expect(web.page.open).toBe(false);
     buttonByText(f, /^Open$/).click();
     await until(f, () => web.page.open);
-    expect(web.page.url).toContain('duckduckgo.com');
+    expect(web.page.url).toContain('google.com/search');
     // A step cap notice offers Continue, which grants more steps and goes on.
     await TestBed.inject(ChatBrowserStore).setAgent(id, true);
     store.onEvent({ sessionId: id, seq: 0, type: 'agentPaused', reason: 'stepCap', steps: 25, handOff: null });

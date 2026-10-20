@@ -13,8 +13,8 @@ export interface BrowserNotice {
 
 interface BrowserStoreState {
   page: PageState;
-  /** The engine the panel searches with (starts at the one from Settings). */
-  engine: SearchEngine;
+  /** The engine the panel searches with: null until `browser_state` answers (the backend then uses Settings ▸ Web browser). */
+  engine: SearchEngine | null;
   customEngine: boolean;
   notices: BrowserNotice[];
   /** The last request that failed (shown inline with Retry). */
@@ -28,7 +28,7 @@ export const MAX_NOTICES = 5;
 
 const initial: BrowserStoreState = {
   page: { open: false, url: '', title: '', loading: false },
-  engine: 'duckDuckGo',
+  engine: null,
   customEngine: false,
   notices: [],
   error: null,
@@ -81,7 +81,7 @@ export const BrowserStore = signalStore(
 
       async load(): Promise<void> {
         const s = await remember(() => backend.state());
-        if (s) patchState(store, { page: s.page, engine: store.loaded() ? store.engine() : s.engine, customEngine: s.customEngine, loaded: true });
+        if (s) patchState(store, { page: s.page, engine: store.loaded() ? (store.engine() ?? s.engine) : s.engine, customEngine: s.customEngine, loaded: true });
       },
 
       setEngine(engine: SearchEngine): void {

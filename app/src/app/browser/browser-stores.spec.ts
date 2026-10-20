@@ -70,11 +70,13 @@ describe('BrowserStore', () => {
 
   it('opens pages and searches and follows the page shown', async () => {
     const { browser, web } = setup();
+    expect(browser.engine()).toBeNull();
     await browser.load();
     expect(browser.loaded() && !browser.page().open).toBe(true);
+    expect(browser.engine()).toBe(web.engine);
     expect(await browser.go('connection reset by peer')).toBe(true);
     await settle();
-    expect(browser.page().url).toBe(mockSearchUrl('duckDuckGo', 'connection reset by peer'));
+    expect(browser.page().url).toBe(mockSearchUrl('google', 'connection reset by peer'));
     browser.setEngine('bing');
     await browser.go('learn.microsoft.com/dotnet');
     await settle();

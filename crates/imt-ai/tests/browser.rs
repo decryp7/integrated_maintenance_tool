@@ -275,7 +275,7 @@ fn suggested_links_are_cards_with_redacted_searches() {
     assert_eq!(links.len(), 2, "{links:?}");
     assert_eq!(links[0].0, "search");
     assert!(
-        links[0].1.starts_with("https://duckduckgo.com/?q=TimeoutException") && !links[0].1.contains("WEB01"),
+        links[0].1.starts_with("https://www.google.com/search?q=TimeoutException") && !links[0].1.contains("WEB01"),
         "{links:?}"
     );
     assert_eq!(links[1], ("link".into(), "https://learn.example.org/x".into(), None));

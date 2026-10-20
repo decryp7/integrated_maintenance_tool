@@ -63,7 +63,8 @@ export class SearchWebDialog implements OnInit {
 
   protected readonly query = signal('');
   protected readonly removed = signal<string[]>([]);
-  protected readonly engine = signal<SearchEngine>('duckDuckGo');
+  /** Null until the browser state is known: the backend then searches with the engine from Settings. */
+  protected readonly engine = signal<SearchEngine | null>(null);
   protected readonly loading = signal(false);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -112,7 +113,8 @@ export class SearchWebDialog implements OnInit {
     this.busy.set(true);
     this.error.set(null);
     try {
-      this.store.setEngine(this.engine());
+      const engine = this.engine();
+      if (engine) this.store.setEngine(engine);
       if (await this.store.open({ kind: 'search', query: this.query(), engine: this.engine() })) this.ref.close(true);
       else {
         this.error.set(this.store.error());
