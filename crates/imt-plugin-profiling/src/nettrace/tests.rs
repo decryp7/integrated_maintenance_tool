@@ -339,16 +339,15 @@ fn versions_are_checked() {
     }
     let e = import(&minimal(&header(|h| h.min_version = 6))).unwrap_err();
     assert!(matches!(e, ProfileError::Unsupported { .. }));
-    // NetTrace V6 stream header.
-    let mut v6 = b"Nettrace".to_vec();
-    v6.extend_from_slice(&[0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0]);
-    let e = import(&v6).unwrap_err();
+    // A NetTrace V7 stream header (V6 is read: see `reads_nettrace_v6`).
+    let mut v7 = b"Nettrace".to_vec();
+    v7.extend_from_slice(&[0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0]);
+    let e = import(&v7).unwrap_err();
     assert!(
-        matches!(e, ProfileError::Unsupported { .. }) && e.to_string().contains("version 6"),
+        matches!(e, ProfileError::Unsupported { .. }) && e.to_string().contains("version 7"),
         "{e}"
     );
-    let e = import(b"Nettrace\0\0\0\0").unwrap_err();
-    assert!(e.to_string().contains("version 0"), "{e}");
+    assert!(import(b"Nettrace\0\0\0\0").is_err());
     // A block that needs a newer reader.
     let mut w = Writer::new(&TraceHeader::default());
     w.block("EventBlock", 3, &[20, 0, 0, 0]);
@@ -871,4 +870,84 @@ fn heap_walks_import_as_heap_snapshots() {
         assert_eq!(g.roots.len(), 1);
         assert!(s.types.iter().any(|t| t.name == "Shop.Order" && t.bytes == 32));
     }
+}
+
+#[test]
+fn reads_nettrace_v6() {
+    use super::writer::v6::{V6Writer, LABEL_LIST};
+    for (compressed, ptr) in [(true, 8u32), (false, 8), (true, 4)] {
+        let main = if ptr == 4 { 0x1000_1000 } else { MAIN };
+        let mut w = V6Writer::new(6, ptr, 4242, 2_000_000);
+        w.metadata(&[
+            (1, SAMPLE_PROFILER, ids::THREAD_SAMPLE, "ThreadSample"),
+            (2, RUNDOWN, ids::METHOD_DC_END_VERBOSE, "MethodDCEndVerbose"),
+            (3, RUNTIME, ids::EXCEPTION_THROWN, "ExceptionThrown"),
+        ]);
+        w.threads(&[(1, 7001, "Main"), (2, 7002, "")]);
+        w.block(LABEL_LIST, &[1, 0, 0, 0, 0, 0, 0, 0]);
+        w.block(99, &[1, 2, 3]);
+        w.stacks(1, &[vec![main + 4]]);
+        let exc = p::exception("System.TimeoutException", "late");
+        let sample = p::sample(true);
+        w.events(
+            compressed,
+            &[(1, 1, 1, at(1), &sample), (1, 2, 1, at(2), &sample), (3, 1, 1, at(3), &exc)],
+        );
+        w.sequence_point(at(4));
+        w.stacks(1, &[vec![main + 8, main]]);
+        let dc = p::method_verbose(1, 50, main, 0x100, "Shop.Program", "Main");
+        w.events(compressed, &[(1, 1, 1, at(5), &sample), (2, 1, 0, at(6), &dc)]);
+        let p = import(&w.finish()).unwrap();
+        assert_eq!(p.samples.len(), 4, "3 samples + the exception");
+        assert!(p.frames.iter().any(|f| f.function == "Shop.Program.Main"), "{compressed} {ptr}");
+        assert!(
+            p.threads.iter().any(|t| t.name == "Main" && t.os_id == Some(7001)),
+            "{:?}",
+            p.threads
+        );
+        assert!(p.threads.iter().any(|t| t.os_id == Some(7002)));
+        assert!(p.events.iter().any(|e| e.label == "System.TimeoutException"));
+        assert!(
+            p.notes.iter().any(|n| n.contains("unknown objects")),
+            "the unknown block is counted: {:?}",
+            p.notes
+        );
+    }
+}
+
+#[test]
+fn v6_errors_and_truncation() {
+    use super::writer::v6::V6Writer;
+    let err = |b: &[u8]| import(b).unwrap_err().to_string();
+    assert!(err(&V6Writer::new(7, 8, 1, 0).finish()).contains("version 7"));
+    assert!(err(&V6Writer::new(5, 8, 1, 0).finish()).contains("version 5"));
+    // Cut before any event: no samples or events.
+    let mut w = V6Writer::new(6, 8, 1, 0);
+    w.metadata(&[(1, SAMPLE_PROFILER, 0, "ThreadSample")]);
+    let sample = p::sample(true);
+    w.events(true, &[(1, 1, 0, at(1), &sample)]);
+    // A stream without EndOfStream keeps what it read.
+    let p = import(&w.unfinished()).unwrap();
+    assert_eq!(p.samples.len(), 1);
+    let mut w = V6Writer::new(6, 8, 1, 0);
+    w.metadata(&[(1, SAMPLE_PROFILER, 0, "ThreadSample")]);
+    let bytes = w.finish();
+    // A block longer than the file is an error, not a panic.
+    let mut cut = bytes.clone();
+    cut.truncate(bytes.len() - 6);
+    assert!(import(&cut).is_err());
+    // An event block before the Trace block.
+    let mut raw = b"Nettrace".to_vec();
+    for v in [0u32, 6, 0] {
+        raw.extend_from_slice(&v.to_le_bytes());
+    }
+    raw.extend_from_slice(&((2u32 << 24) | 4).to_le_bytes());
+    raw.extend_from_slice(&[4, 0, 0, 0]);
+    assert!(err(&raw).contains("Trace block must come first"));
+    // Only the header.
+    let mut head = b"Nettrace".to_vec();
+    for v in [0u32, 6, 0] {
+        head.extend_from_slice(&v.to_le_bytes());
+    }
+    assert!(err(&head).contains("Trace block"));
 }

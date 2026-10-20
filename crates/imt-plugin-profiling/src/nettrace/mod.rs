@@ -1,4 +1,4 @@
-//! .NET EventPipe `.nettrace` importer (format V4 and V5: .NET Core 3.0 to .NET 9,
+//! .NET EventPipe `.nettrace` importer (format V4 and V5: .NET Core 3.0 to .NET 9; V6: .NET 10;
 //! as written by `dotnet-trace`, `dotnet-monitor` and `DiagnosticsClient`).
 //!
 //! What it reads:
@@ -35,8 +35,8 @@
 //!
 //! Timestamps are QPC ticks; nanoseconds since the trace's sync time are
 //! `(ts - syncTimeQPC) * 1e9 / qpcFrequency` in 128-bit arithmetic. The start time is
-//! the Trace object's UTC SYSTEMTIME. NetTrace V6 (.NET 10) is reported as
-//! unsupported; gzip-wrapped files are inflated within [`Limits::max_input_bytes`].
+//! the Trace object's UTC SYSTEMTIME. NetTrace V6 (.NET 10, in `v6.rs`) is read too;
+//! gzip-wrapped files are inflated within [`Limits::max_input_bytes`].
 //!
 //! Sources (format and payload layouts):
 //! - PerfView `src/TraceEvent/EventPipe/NetTraceFormat_v5.md` and `NetTraceFormat.md` (V6),
@@ -52,6 +52,7 @@ pub mod ext;
 mod format;
 pub mod heap;
 mod runtime;
+mod v6;
 #[doc(hidden)]
 pub mod writer;
 
