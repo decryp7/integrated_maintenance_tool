@@ -306,6 +306,11 @@ macro_rules! commands {
             ai::runtime_commands::ai_runtime_cancel,
             ai::runtime_commands::ai_runtime_delete,
             ai::runtime_commands::ai_runtime_choose,
+            ai::update_commands::ai_updates_status,
+            ai::update_commands::ai_updates_check,
+            ai::update_commands::ai_updates_apply,
+            ai::update_commands::ai_updates_skip,
+            ai::update_commands::ai_updates_later,
             // Explain and share (per window)
             share::set_redacted_view,
             share::preview_redaction,
