@@ -20,7 +20,8 @@ Do not edit the samples by hand: `.gitattributes` keeps `samples/**` byte-exact 
 tests compare bytes.
 
 ```sh
-python3 samples/generate.py        # everything below except the crash dump and profiling/
+cargo xtask gen-samples            # everything: generate.py, then the Rust generators below
+python3 samples/generate.py        # only generate.py: everything below except the crash dump and profiling/
 ```
 
 The output is deterministic: each section of `generate.py` has its own `random.Random`

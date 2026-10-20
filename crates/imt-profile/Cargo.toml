@@ -1,17 +1,19 @@
 [package]
 name = "imt-profile"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "IMT profiling engine: the common profile model (CPU, allocation, wall clock, heap snapshots) and every analysis over it"
 
 [dependencies]
-regex = "1.13"
+regex.workspace = true
 rustc-hash = "2"
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "2.0"
+serde.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-proptest = "1"
-serde_json = "1.0"
+proptest.workspace = true
+serde_json.workspace = true

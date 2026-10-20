@@ -1,8 +1,10 @@
 [package]
 name = "imt-ai-worker"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "Inference worker for IMT: serves the gRPC worker contract on a private local socket (imt-ipc) and runs inference in a supervised child, the official prebuilt llama.cpp `llama-server` (ADR 0009)"
 
@@ -24,16 +26,16 @@ test = false
 [dependencies]
 imt-ai = { path = "../imt-ai" }
 imt-core = { path = "../imt-core" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-getrandom = "0.3"
-sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+serde.workspace = true
+serde_json.workspace = true
+getrandom.workspace = true
+sysinfo = { workspace = true, features = ["system"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows = { workspace = true, features = ["Win32_System_JobObjects"] }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true

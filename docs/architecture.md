@@ -61,8 +61,7 @@ flowchart LR
 | `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `LogStore`, `Importer`, `ReportRenderer`, `ConfigParser`, tools. |
 | `imt-profile` | library, pure (no I/O, no `imt-core`) | The profiling engine: profile and heap-snapshot model, builders with limits, the `CaptureImporter` and `ProfileStore` ports with the in-memory `Captures` store, and every profiling view (hotspots, trees, butterfly, flame, diff, threads, findings, moment, heap analysis). See [profiling.md](profiling.md). |
 | `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) contributed to the `profiling.importers` extension point. |
-| `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, diagnostics collector, elevation; the `CounterSource` service (PDH on Windows, `sysinfo` elsewhere). |
-| `imt-api-perf` | plugin API | The `CounterSource` service trait and its contract tests. |
+| `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, Event Log follower, diagnostics collector, elevation. |
 | `imt-monitor` | library + CLI | Process sampling (and Windows PDH counters) into rolling CLEF files. |
 | `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
 | `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
@@ -70,7 +69,6 @@ flowchart LR
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-sdk`, `imt-plugin-host`, `imt-ipc` | SDK, host, transport | Out-of-process plugins over gRPC `imt.plugin.v1`: the Rust SDK and conformance kit, the host that serves built-in plugins isolated, and the shared transport ([ADR 0004](adr/0004-stable-plugin-abi.md)). The C#/.NET SDK is in `sdk/dotnet`. |
 | `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
-| `imt-clr-format` | library | Capture format and pipe protocol prepared for the planned .NET profiler (not used yet). |
 | `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
 

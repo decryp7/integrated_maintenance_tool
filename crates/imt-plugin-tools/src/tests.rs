@@ -60,11 +60,10 @@ fn registers_its_tools_service_and_settings() {
             "tool:event-log-follower",
             "tool:diagnostics",
             "tool:elevation",
-            "service:net.decryptology.perf.counters",
             "settings"
         ]
     );
-    assert_eq!(info.provides[0].id, imt_api_perf::SERVICE_ID);
+    assert!(info.provides.is_empty());
     assert!(info.requires.iter().any(|d| d.id == "net.decryptology.windows" && d.optional));
     // Optional: missing Windows plugin is only a warning.
     assert!(
@@ -76,21 +75,6 @@ fn registers_its_tools_service_and_settings() {
     assert_eq!(plugin.version(), env!("CARGO_PKG_VERSION"));
     let section = r.plugin_settings()[0].configurable.settings_section();
     assert_eq!(section.id, PLUGIN_ID);
-}
-
-#[test]
-fn the_counter_service_passes_the_contract_through_the_registry() {
-    let r = registry(&ToolsPlugin::default());
-    let counters = r
-        .service::<dyn imt_api_perf::CounterSource>(imt_api_perf::SERVICE_ID, "^1")
-        .unwrap();
-    assert_eq!(counters.provider(), PLUGIN_ID);
-    let names = counters.try_call(|c| c.counters()).unwrap();
-    assert!(names.iter().all(|n| imt_api_perf::is_counter_path(n)));
-    counters
-        .call(imt_api_perf::contract_tests)
-        .unwrap()
-        .unwrap_or_else(|bad| panic!("{bad:?}"));
 }
 
 #[test]
@@ -176,9 +160,6 @@ fn a_quarantined_plugin_lists_its_tools_as_unavailable_with_the_reason() {
         .all(|t| matches!(&t.availability, Availability::PluginUnavailable { reason } if reason.contains("repeated crashes"))));
     let e = r.tools().invoke(ids::ELEVATION, "info", json!({}), &ctx()).unwrap_err();
     assert!(e.to_string().contains("repeated crashes"), "{e}");
-    assert!(r
-        .service::<dyn imt_api_perf::CounterSource>(imt_api_perf::SERVICE_ID, "^1")
-        .is_err());
 }
 
 #[test]

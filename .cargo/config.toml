@@ -1,0 +1,3 @@
+[alias]
+# Repository chores (xtask/): `cargo xtask gen-samples`, `cargo xtask help`.
+xtask = "run -p xtask --"
