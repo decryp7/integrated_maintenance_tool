@@ -303,10 +303,16 @@ jobs:
           echo TEMP=%TEMP%
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
-          rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
-          rem would otherwise wait for each other on the cargo lock.
-          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target-%GITHUB_JOB%") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target-%GITHUB_JOB%")
-          echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
+          rem Host folders that outlive the job (RUNNER_TOOL_CACHE is inside each job's work folder on this runner,
+          rem which is deleted afterwards). One build folder per job: the smoke (debug) and installer (release)
+          rem jobs run at the same time and would otherwise wait for each other on the cargo lock. The npm cache
+          rem is shared: npm ci then installs from disk instead of downloading every package again.
+          set "IMT_CI=%USERPROFILE%\.imt-ci"
+          echo CARGO_TARGET_DIR=%IMT_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
+          echo npm_config_cache=%IMT_CI%\npm-cache>>"%GITHUB_ENV%"
+          echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
+          echo npm_config_audit=false>>"%GITHUB_ENV%"
+          echo npm_config_fund=false>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -440,10 +446,16 @@ jobs:
           echo TEMP=%TEMP%
           if not exist "%ProgramFiles%\Git\bin\bash.exe" (echo Git for Windows is not installed on this runner: no bash.exe in "%ProgramFiles%\Git\bin" & exit /b 1)
           echo %ProgramFiles%\Git\bin>>"%GITHUB_PATH%"
-          rem One build folder per job: the smoke (debug) and installer (release) jobs run at the same time and
-          rem would otherwise wait for each other on the cargo lock.
-          if defined RUNNER_TOOL_CACHE (set "IMT_TARGET=%RUNNER_TOOL_CACHE%\imt-target-%GITHUB_JOB%") else (set "IMT_TARGET=%USERPROFILE%\.imt-ci-target-%GITHUB_JOB%")
-          echo CARGO_TARGET_DIR=%IMT_TARGET%>>"%GITHUB_ENV%"
+          rem Host folders that outlive the job (RUNNER_TOOL_CACHE is inside each job's work folder on this runner,
+          rem which is deleted afterwards). One build folder per job: the smoke (debug) and installer (release)
+          rem jobs run at the same time and would otherwise wait for each other on the cargo lock. The npm cache
+          rem is shared: npm ci then installs from disk instead of downloading every package again.
+          set "IMT_CI=%USERPROFILE%\.imt-ci"
+          echo CARGO_TARGET_DIR=%IMT_CI%\target-%GITHUB_JOB%>>"%GITHUB_ENV%"
+          echo npm_config_cache=%IMT_CI%\npm-cache>>"%GITHUB_ENV%"
+          echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
+          echo npm_config_audit=false>>"%GITHUB_ENV%"
+          echo npm_config_fund=false>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
