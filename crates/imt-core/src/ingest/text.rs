@@ -214,6 +214,31 @@ mod tests {
     }
 
     #[test]
+    fn a_file_without_events_is_one_untimed_event_and_sinks_may_drop_aggregated_problems() {
+        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
+        let ctx = ImportCtx {
+            profile: &p,
+            path: Path::new("x.log"),
+            file_date: None,
+        };
+        let content = "just text
+Oct 14 10:00:00 host app: no format reads this
+";
+        let mut src = ReaderChunks::with_limits(content.as_bytes(), Encoding::Utf8, 0, 64, crate::importers::MAX_LINE_LEN);
+        let mut lines = LineReader::new(&mut src);
+        let mut out = Events::default();
+        import_text(&ctx, LineFormat::Text(0), None, &mut lines, &mut out).unwrap();
+        assert_eq!(out.events.len(), 1);
+        assert_eq!(out.events[0].record.ts, None);
+        assert_eq!(out.problems.count(ProblemKind::UnmatchedLine), 1);
+        // The default `problems` of a sink drops what a non-streaming importer aggregated.
+        let mut more = Problems::default();
+        more.add(ProblemKind::RouteLimit, 1);
+        out.problems(more);
+        assert_eq!(out.problems.count(ProblemKind::RouteLimit), 0);
+    }
+
+    #[test]
     fn leading_text_becomes_one_untimed_event() {
         let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
         let (out, skipped) = stream(&p, "banner line\n\nsecond banner\n2026-10-14 10:00:00 INFO a\n", 1 << 20);

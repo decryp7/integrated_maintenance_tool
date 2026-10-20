@@ -203,8 +203,11 @@ tell products apart (or `@source` after routing); there are no per-product profi
   get one lane per process id, so the anomaly detector reports each plugin crash separately.
 - Throughput: per-line matching costs one `is_match` per earlier format for event lines when the dominant format
   is not the first one, and nothing extra for continuation lines that do not look like events. Measured with
-  `cargo bench -p imt-core --bench engine -- import` (250k lines, release, the shared Windows VM): see the
-  implementation notes.
+  `cargo bench -p imt-core --bench engine -- import` (250k lines, release, the shared Windows VM, other builds
+  running): before → after, MiB/s: Serilog text 32.2 → 28.6–29.2, log4net 28.3 → 25.5–29.6 (three runs; criterion
+  calls the differences noise, p > 0.05, except one log4net run), CSV and CLEF (code unchanged) moved −34 % to
+  +2 % between runs, which bounds the noise. New case `logserver` (three formats line by line): 26.2 MiB/s, in
+  line with single-format text.
 - New samples (`cargo xtask gen-samples`): `linux/logserver01/apps-20261014.log` (Checkout in Serilog text,
   Inventory in log4net, Payments as CLEF lines, haproxy lines no default format reads, five process ids) with
   `profiles/logserver.imtprofile.toml` (an extractor and two routes), and `linux/logserver01/syslog-20261014.log`

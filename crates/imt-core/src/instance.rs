@@ -210,5 +210,10 @@ mod tests {
         assert_eq!(instance_key_from_totals(&c, &[info("MachineName", 4, 2)], 10, 1), ["@source"]);
         assert_eq!(instance_key_from_totals(&c, &fields, 10, 1), ["MachineName"]);
         assert_eq!(instance_key_from_totals(&c, &fields, 10, 3), ["@source"]);
+        assert_eq!(
+            crate::query::default_group_by(&c, &fields, 10, 1),
+            ["MachineName"],
+            "the totals-only entry point"
+        );
     }
 }

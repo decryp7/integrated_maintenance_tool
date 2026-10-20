@@ -308,3 +308,61 @@ fn the_streaming_import_reads_the_file_the_same_way() {
     assert_eq!(problem.sample_lines, unmatched);
     assert!(Path::new(&report.path).ends_with("apps-20261014.log"));
 }
+
+/// An importer declaring identity fields its events carry under names no profile candidate lists.
+struct Tagged;
+
+impl imt_core::importers::Importer for Tagged {
+    fn id(&self) -> &'static str {
+        "tagged"
+    }
+    fn sniff(&self, _ctx: &imt_core::importers::ImportCtx, head: &str) -> u8 {
+        if head.starts_with("tagged") {
+            100
+        } else {
+            0
+        }
+    }
+    fn import(&self, _ctx: &imt_core::importers::ImportCtx, content: &str) -> anyhow::Result<imt_core::importers::Imported> {
+        let records = content
+            .lines()
+            .skip(1)
+            .enumerate()
+            .map(|(i, l)| {
+                let mut r = Record::new(i as u32 + 2);
+                r.ts = Some(1_791_968_400_000 + i as i64);
+                r.fields.insert("Worker".into(), l.into());
+                r
+            })
+            .collect();
+        Ok(imt_core::importers::Imported {
+            records,
+            ..Default::default()
+        })
+    }
+    fn identity_fields(&self) -> Vec<String> {
+        vec!["Worker".into()]
+    }
+}
+
+#[test]
+fn identity_fields_of_importers_join_the_candidates() {
+    let dir = tempdir().join("tagged");
+    std::fs::create_dir_all(&dir).unwrap();
+    let p = dir.join("w.tagged");
+    std::fs::write(
+        &p,
+        "tagged
+a
+b
+a
+",
+    )
+    .unwrap();
+    let mut importers = Importers::new();
+    importers.register(Box::new(Tagged));
+    let mut ws = Workspace::with_importers(Profile::default_profile(), importers).unwrap();
+    ws.open(&[p]).unwrap();
+    assert_eq!(ws.summary().default_group_by, ["Worker"]);
+    std::fs::remove_dir_all(dir).ok();
+}
