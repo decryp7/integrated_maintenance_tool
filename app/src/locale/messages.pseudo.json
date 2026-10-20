@@ -569,6 +569,7 @@
     "analysis.compare.windowLength": "⟦Ŵîîñðööŵ ļééñĝţĥ ƒöŕ ƀééƒööŕéé áñð ááƒţééŕ⟧",
     "analysis.compare.windowN": "⟦Ŵîîñðööŵ {$name}⟧",
     "analysis.compare.windowN.title": "⟦Ŵîîñðööŵ {$INTERPOLATION}⟧",
+    "analysis.coverage.partial": "⟦ÅÅñááļýšééð ţĥé ƒîîŕšţ {$INTERPOLATION} ööƒ {$INTERPOLATION_1} ɱááţçĥîîñĝ ééṽéñţš. Ñááŕŕööŵ ţĥéé ǫûééŕý ţöö ááñáļýšéé ááļļ ööƒ ţĥéɱ.⟧",
     "analysis.exceptions.emptyHint": "⟦ÉÉṽééñţš ţĥááţ çáŕŕý ááñ ééẋçééþţîööñ (áá šţááçķ ţŕáçéé) ááŕéé ĝŕöûûþééð ĥééŕé ƀý ţýþéé ááñð ţööþ ƒŕáɱéé.⟧",
     "analysis.exceptions.emptyText": "⟦Ñöö ééẋçééþţîööñš îîñ ţĥéé çûŕŕééñţ ǫûûééŕý.⟧",
     "analysis.exceptions.event": "⟦ÉÉṽééñţ {$INTERPOLATION}⟧",
