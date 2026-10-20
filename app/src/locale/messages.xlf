@@ -3707,7 +3707,7 @@
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/updates/ai-updates-panel.ts</context>
-          <context context-type="linenumber">75,78</context>
+          <context context-type="linenumber">75,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.updates.manual" datatype="html">
@@ -3756,7 +3756,7 @@
         <source>Up to date.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/updates/ai-updates-panel.ts</context>
-          <context context-type="linenumber">119,122</context>
+          <context context-type="linenumber">119,121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.updates.updateLabel" datatype="html">
@@ -7780,57 +7780,57 @@
       <trans-unit id="core.workspace.busy.openingOne" datatype="html">
         <source>Opening <x id="count" equiv-text="n"/> item…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.openingMany" datatype="html">
         <source>Opening <x id="count" equiv-text="n"/> items…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.applyingProfile" datatype="html">
         <source>Applying the profile…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">202</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.profileFailed" datatype="html">
         <source>The profile could not be applied.</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.loading" datatype="html">
         <source>Loading workspace…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">216</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.removing" datatype="html">
         <source>Removing source…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">248</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.clearing" datatype="html">
         <source>Clearing workspace…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">249</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="core.workspace.busy.reimporting" datatype="html">
         <source>Re-importing…</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/core/workspace.store.ts</context>
-          <context context-type="linenumber">250</context>
+          <context context-type="sourcefile">src/app/core/workspace/workspace-data.store.ts</context>
+          <context context-type="linenumber">160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.commands.view.title" datatype="html">
@@ -10178,7 +10178,7 @@
         <source>Could not cancel the import: <x id="error" equiv-text="reason"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/import/import-progress.service.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">60</context>
         </context-group>
       </trans-unit>
       <trans-unit id="import.ui.progress" datatype="html">
@@ -26764,7 +26764,7 @@
         <source>Indexed · <x id="INTERPOLATION" equiv-text="{{ seconds(s.loadMs) }}"/> s</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/title-bar.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">37,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="skew.dialog.intro" datatype="html">

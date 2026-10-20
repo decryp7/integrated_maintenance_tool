@@ -9,6 +9,7 @@ import { EMPTY_QUERY } from '../app/core/workspace.store';
 import { provideImtBuiltins } from '../app/builtin/provide-builtins';
 import { BUILTIN_VIEWS } from '../app/builtin/builtin-views';
 import { DockService } from '../app/dock/dock.service';
+import { provideWorkspace } from '../app/core/workspace/provide-workspace';
 import { ConsumerGate } from '../app/core/panel-visibility';
 
 export const T0 = DEMO_START;
@@ -106,11 +107,11 @@ class StubPanel {}
 /** The built-in views with the heavy panels (charts, profile editor) replaced by a stub, for dock tests in jsdom. */
 export function provideDockTesting(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
   const views = BUILTIN_VIEWS.map((v) => (v.id === 'metrics' || v.id === 'profile' ? { ...v, component: async () => StubPanel } : v));
-  return [provideImtBuiltins(views), ...provideTinyBackendBare(backend)];
+  return [provideImtBuiltins(views), provideWorkspace(), ...provideTinyBackendBare(backend)];
 }
 
 export function provideTinyBackend(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
-  return [provideImtBuiltins(), ...provideTinyBackendBare(backend)];
+  return [provideImtBuiltins(), provideWorkspace(), ...provideTinyBackendBare(backend)];
 }
 
 /** The MemoryLogger provided by provideTinyBackend. */

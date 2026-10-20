@@ -30,7 +30,7 @@ import { localizeDecimal } from '../i18n/locale';
       </button>
     </div>
     <div class="state">
-      @if (store.busy(); as busy) {
+      @if (store.busyLabel(); as busy) {
         <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
       } @else if (store.summary(); as s) {
         <span class="dot" style="background: var(--mk-start)"></span>
