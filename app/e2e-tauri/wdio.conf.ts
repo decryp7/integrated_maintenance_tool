@@ -135,8 +135,11 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1,
   capabilities: [
     {
-      // The samples come from IMT_OPEN_PATHS (above), not the command line.
-      'tauri:options': { application: app, args: [] },
+      // The samples come from IMT_OPEN_PATHS (above), not the command line. On Windows the one argument is the
+      // webview's data folder: without it msedgedriver makes one in its temp folder, which is
+      // C:\Windows\SystemTemp (not writable) when the runner's service starts jobs in session 0. It is the folder
+      // the debug build gives WebView2 anyway (`app_dirs::webview_data_dir`), and IMT ignores the switch itself.
+      'tauri:options': { application: app, args: WINDOWS ? [`--user-data-dir=${join(layout.imt, 'local')}`] : [] },
     } as WebdriverIO.Capabilities,
   ],
   logLevel: 'warn',
