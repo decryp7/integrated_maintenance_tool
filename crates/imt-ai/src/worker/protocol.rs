@@ -118,7 +118,7 @@ pub fn context_overflow(prompt: usize, limit: usize) -> RpcError {
     RpcError {
         code: code::CONTEXT_OVERFLOW,
         message: format!("the prompt ({prompt} tokens) does not fit the context ({limit})"),
-        data: Some(json!({"prompt": prompt, "limit": limit})),
+        data: Some(json!({"prompt": prompt, "limit": limit}).into()),
     }
 }
 

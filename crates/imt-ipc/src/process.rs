@@ -69,6 +69,9 @@ pub struct SpawnSpec {
     /// Committed-memory cap of the child in bytes (a job object limit on Windows; not enforced elsewhere
     /// yet). `None`: no cap.
     pub memory_limit: Option<u64>,
+    /// The child's sandbox: the launcher applies its job limits (Windows), the child the rest
+    /// ([`crate::sandbox`]).
+    pub sandbox: crate::sandbox::SandboxSpec,
 }
 
 impl SpawnSpec {
@@ -85,6 +88,7 @@ impl SpawnSpec {
             below_normal_priority: true,
             log: None,
             memory_limit: None,
+            sandbox: crate::sandbox::SandboxSpec::unrestricted(),
         }
     }
 }
@@ -205,7 +209,7 @@ impl ChildProcess {
             }
         }
         #[cfg(windows)]
-        let job = crate::job::JobGuard::assign(&child, spec.memory_limit);
+        let job = crate::job::JobGuard::assign(&child, &crate::job::JobLimits::of(spec));
         let stdin = child.stdin.take();
         let stderr = child.stderr.take();
         let child = Arc::new(Mutex::new(Some(child)));
@@ -258,7 +262,12 @@ impl ChildProcess {
 
     /// Writes the handshake line to the child's stdin.
     pub fn send_handshake(&self, hs: &Handshake) -> Result<(), IpcError> {
-        let line = serde_json::to_string(hs).map_err(|e| IpcError::Protocol(e.to_string()))?;
+        self.send_line(hs)
+    }
+
+    /// Writes `value` as one JSON line to the child's stdin (its bootstrap).
+    pub fn send_line<T: serde::Serialize>(&self, value: &T) -> Result<(), IpcError> {
+        let line = serde_json::to_string(value).map_err(|e| IpcError::Protocol(e.to_string()))?;
         let wrote = lock(&self.stdin)
             .as_mut()
             .map(|s| s.write_all(format!("{line}\n").as_bytes()).and_then(|_| s.flush()));

@@ -210,6 +210,7 @@ impl Supervisor {
             TransportError::Timeout => "it stopped responding".into(),
             TransportError::Protocol(m) => format!("it sent an invalid response ({m})"),
             TransportError::Remote(r) => r.message.clone(),
+            TransportError::Denied(m) => m.clone(),
         };
         let disabled = self.health.record_failure(&what);
         self.health.ledger.count_restart();
@@ -224,6 +225,7 @@ impl Supervisor {
                 AiError::Engine("The AI engine sent an invalid response and was restarted. Ask again to continue.".into())
             }
             TransportError::Remote(r) => AiError::Engine(r.message),
+            TransportError::Denied(m) => AiError::Engine(m),
         }
     }
 
@@ -527,13 +529,13 @@ mod tests {
         let nr = RpcError {
             code: code::LOAD_FAILED,
             message: "no llama-server".into(),
-            data: Some(json!({"reason": NO_RUNTIME_REASON})),
+            data: Some(json!({"reason": NO_RUNTIME_REASON}).into()),
         };
         assert_eq!(Supervisor::map_remote(nr), AiError::NoRuntime);
         let other = RpcError {
             code: code::LOAD_FAILED,
             message: "bad file".into(),
-            data: Some(json!({"reason": "other"})),
+            data: Some(json!({"reason": "other"}).into()),
         };
         assert_eq!(
             Supervisor::map_remote(other),

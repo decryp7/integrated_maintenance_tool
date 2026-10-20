@@ -37,7 +37,7 @@ pub fn not_found() -> RpcError {
     RpcError {
         code: code::LOAD_FAILED,
         message: "no inference runtime (llama-server) is installed; download one in the AI set-up, or set a custom llama-server path in Settings → AI".into(),
-        data: Some(serde_json::json!({ "reason": NO_RUNTIME })),
+        data: Some(serde_json::json!({ "reason": NO_RUNTIME }).into()),
     }
 }
 

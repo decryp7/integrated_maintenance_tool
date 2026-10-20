@@ -14,10 +14,17 @@ name = "imt-ipc-fake-child"
 path = "src/bin/fake_child.rs"
 test = false
 
+# The fake child of the launcher tests (frames). Never bundled.
+[[bin]]
+name = "imt-ipc-frame-child"
+path = "src/bin/frame_child.rs"
+test = false
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
 getrandom.workspace = true
+postcard.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
 tokio-stream = { workspace = true, features = ["net"] }
 tonic.workspace = true
@@ -30,8 +37,12 @@ sysinfo = { workspace = true, features = ["system"] }
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Landlock (file-system sandbox of children, ADR 0017 §6), MIT/Apache-2.0.
+landlock = "0.4"
+
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory"] }
+windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory", "Win32_System_Pipes", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile.workspace = true

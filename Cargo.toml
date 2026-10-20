@@ -31,6 +31,8 @@ hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 insta = { version = "1", features = ["yaml"] }
 libc = "0.2"
 log = "0.4"
+# The frame codec of every IPC connection (ADR 0017): serde, compact, no schema compiler.
+postcard = { version = "1.1", default-features = false, features = ["use-std"] }
 proptest = "1.12"
 prost = "0.14"
 protox = "0.9"

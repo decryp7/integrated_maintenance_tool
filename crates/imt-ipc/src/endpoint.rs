@@ -90,6 +90,13 @@ impl PrivateEndpoint {
     }
 }
 
+impl PrivateEndpoint {
+    /// The private directory holding the socket (Unix); `None` for a named pipe.
+    pub fn dir(&self) -> Option<&std::path::Path> {
+        self.dir.as_deref()
+    }
+}
+
 impl Drop for PrivateEndpoint {
     fn drop(&mut self) {
         if let Some(d) = self.dir.take() {

@@ -158,14 +158,14 @@ impl From<WireError> for StoreError {
 /// A store error as the typed error of a failed call.
 pub fn to_remote(e: &StoreError) -> RemoteError {
     let mut r = RemoteError::new(STORE_ERROR, e.to_string());
-    r.data = serde_json::to_value(WireError::from(e)).ok();
+    r.data = serde_json::to_value(WireError::from(e)).ok().map(Into::into);
     r
 }
 
 /// The store error a typed error carries (a malformed one is an engine error with its message).
 pub fn from_remote(r: RemoteError) -> StoreError {
     r.data
-        .and_then(|d| serde_json::from_value::<WireError>(d).ok())
+        .and_then(|d| serde_json::from_value::<WireError>(d.into_inner()).ok())
         .map(StoreError::from)
         .unwrap_or(StoreError::Engine(r.message))
 }

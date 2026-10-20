@@ -6,7 +6,6 @@
 //! deadline is a hang.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tonic::metadata::MetadataValue;
 use tonic::{Code, Status};
 
@@ -18,8 +17,9 @@ pub const ERROR_TRAILER: &str = "x-imt-error-bin";
 pub struct RemoteError {
     pub code: i32,
     pub message: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
+    /// Structured details (JSON), e.g. `{"reason": "no_runtime"}`.
+    #[serde(default)]
+    pub data: Option<crate::wire::Json>,
 }
 
 impl RemoteError {
@@ -51,12 +51,15 @@ pub enum IpcError {
     Protocol(String),
     /// The process answered with an error (not a failure of the process).
     Remote(RemoteError),
+    /// The process needs rights the user did not give (an administrator prompt was declined, or elevation is
+    /// not possible here). Not a failure of the process.
+    Denied(String),
 }
 
 impl IpcError {
     /// Whether the process itself failed (crash, hang, garbage), so it must be restarted.
     pub fn is_process_failure(&self) -> bool {
-        !matches!(self, IpcError::Remote(_))
+        !matches!(self, IpcError::Remote(_) | IpcError::Denied(_))
     }
 }
 
@@ -68,6 +71,7 @@ impl std::fmt::Display for IpcError {
             IpcError::Timeout => write!(f, "it stopped responding"),
             IpcError::Protocol(m) => write!(f, "it sent an invalid response ({m})"),
             IpcError::Remote(r) => write!(f, "{}", r.message),
+            IpcError::Denied(m) => write!(f, "{m}"),
         }
     }
 }
@@ -112,13 +116,16 @@ mod tests {
     #[test]
     fn typed_errors_travel_in_the_trailer() {
         let mut e = RemoteError::new(-32001, "no such model — café");
-        e.data = Some(serde_json::json!({"limit": 5}));
+        e.data = Some(serde_json::json!({"limit": 5}).into());
         let s = to_status(Code::FailedPrecondition, &e);
         assert_eq!(remote_error(&s), Some(e.clone()));
         assert_eq!(from_status(&s, "x", || unreachable!()), IpcError::Remote(e.clone()));
         assert_eq!(e.to_string(), "no such model — café");
         assert_eq!(serde_json::from_str::<RemoteError>(&serde_json::to_string(&e).unwrap()).unwrap(), e);
-        assert!(!serde_json::to_string(&RemoteError::new(1, "m")).unwrap().contains("data"));
+        assert_eq!(
+            serde_json::from_str::<RemoteError>(r#"{"code":1,"message":"m"}"#).unwrap(),
+            RemoteError::new(1, "m")
+        );
     }
 
     #[test]
