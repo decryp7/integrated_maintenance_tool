@@ -1,5 +1,5 @@
 //! The system tray icon: show a window or the window list, new window, recent
-//! projects (pushed by the UI, which owns that list), background work with
+//! projects ([`crate::recent`]), background work with
 //! Stop actions, capture a diagnostic screenshot, quit. The tooltip shows how
 //! many background tasks run.
 //!
@@ -7,13 +7,12 @@
 //! rebuilt only when that model changes. Without a tray (e.g. Linux without an
 //! app indicator) IMT degrades: closing the last window quits.
 //!
-//! Command: `set_recent_projects`. Event: `imt://capture` (to the target window).
+//! Recent projects come from [`crate::recent`]. Event: `imt://capture` (to the target window).
 
 use crate::background::{BackgroundTasks, TaskInfo};
 use crate::window_manager::{list, open_new, quit, reveal, target, WindowInfo};
 use crate::windows::emit_to_window;
 use crate::CmdResult;
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
@@ -21,20 +20,12 @@ use tauri::{AppHandle, Manager, Runtime};
 const TRAY_ID: &str = "imt";
 /// Event asking a window to capture a diagnostic screenshot.
 pub const CAPTURE_EVENT: &str = "imt://capture";
-const MAX_RECENTS: usize = 10;
 const MAX_TEXT: usize = 80;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecentProject {
-    pub path: String,
-    pub name: String,
-}
-
-/// Managed state: whether the tray exists, the recent projects and the last menu shown.
+/// Managed state: whether the tray exists, and the last menu shown.
 #[derive(Default)]
 pub struct TrayState {
     available: AtomicBool,
-    recents: Mutex<Vec<RecentProject>>,
     shown: Mutex<Option<(Vec<MenuEntry>, String)>>,
 }
 
@@ -71,7 +62,7 @@ fn short(text: &str) -> String {
 }
 
 /// The tray menu for the current windows, recent projects and background work.
-pub fn menu_model(windows: &[WindowInfo], recents: &[RecentProject], tasks: &[TaskInfo]) -> Vec<MenuEntry> {
+pub fn menu_model(windows: &[WindowInfo], recents: &[crate::recent::RecentProject], tasks: &[TaskInfo]) -> Vec<MenuEntry> {
     let mut menu = Vec::new();
     match windows {
         [] => menu.push(item("new-window", "Show IMT")),
@@ -263,7 +254,7 @@ fn refresh_now<R: Runtime>(app: &AppHandle<R>) {
         return;
     }
     let tasks = app.try_state::<BackgroundTasks>().map(|t| t.list()).unwrap_or_default();
-    let recents = state.recents.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let recents = crate::recent::recents(app).list().projects;
     let model = menu_model(&list(app), &recents, &tasks);
     let tip = tooltip(tasks.len());
     {
@@ -289,9 +280,7 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, action: TrayAction) {
         TrayAction::ShowWindow(label) => reveal(app, &label),
         TrayAction::NewWindow => open_new(app, Vec::new()).map(|_| ()).map_err(crate::err),
         TrayAction::Recent(i) => {
-            let recent = app
-                .try_state::<TrayState>()
-                .and_then(|t| t.recents.lock().unwrap_or_else(|p| p.into_inner()).get(i).cloned());
+            let recent = crate::recent::recents(app).list().projects.get(i).cloned();
             match recent {
                 Some(r) => {
                     crate::instance::open_files(app, crate::instance::existing(&[r.path.into()]), false);
@@ -330,32 +319,11 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, action: TrayAction) {
     }
 }
 
-/// The UI's recent projects (it owns that list), for the tray's Recent projects menu.
-/// Only absolute `.imtproj` paths are kept; at most ten.
-#[tauri::command]
-pub fn set_recent_projects<R: Runtime>(app: AppHandle<R>, projects: Vec<RecentProject>) -> CmdResult<()> {
-    let clean: Vec<RecentProject> = projects
-        .into_iter()
-        .filter(|p| {
-            let path = std::path::Path::new(&p.path);
-            p.path.len() <= 4096 && path.is_absolute() && path.extension().is_some_and(|e| e.eq_ignore_ascii_case("imtproj"))
-        })
-        .map(|p| RecentProject {
-            name: if p.name.trim().is_empty() { short(&p.path) } else { short(&p.name) },
-            path: p.path,
-        })
-        .take(MAX_RECENTS)
-        .collect();
-    let state = app.try_state::<TrayState>().ok_or("IMT is not ready yet")?;
-    *state.recents.lock().unwrap_or_else(|p| p.into_inner()) = clean;
-    refresh(&app);
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::background::TaskKind;
+    use crate::recent::RecentProject;
     use crate::test_support::{test_app, window};
     use tauri::Listener;
 
@@ -451,34 +419,18 @@ mod tests {
     }
 
     #[test]
-    fn recents_are_validated_and_actions_run() {
+    fn recents_are_listed_and_actions_run() {
         let app = test_app(None);
         let h = app.handle().clone();
         // An absolute folder on every platform (`/p` has no drive on Windows).
         let root = if cfg!(windows) { "C:/p" } else { "/p" };
         let main = window(&app, "main");
-        let mut list: Vec<RecentProject> = (0..20)
-            .map(|i| RecentProject {
-                path: format!("{root}/{i}.imtproj"),
-                name: if i == 0 { " ".into() } else { format!("P{i}") },
-            })
-            .collect();
-        list.push(RecentProject {
-            path: "relative.imtproj".into(),
-            name: "x".into(),
-        });
-        list.insert(
-            1,
-            RecentProject {
-                path: format!("{root}/not-a-project.txt"),
-                name: "x".into(),
-            },
-        );
-        set_recent_projects(h.clone(), list).unwrap();
-        let recents = app.state::<TrayState>().recents.lock().unwrap().clone();
-        assert_eq!(recents.len(), MAX_RECENTS);
-        assert_eq!(recents[0].name, format!("{root}/0.imtproj"), "an empty name shows the path");
-        assert_eq!(recents[1].name, "P1");
+        for i in (0..3).rev() {
+            crate::recent::recents(&h).record_project(&format!("{root}/{i}.imtproj"), &format!("P{i}"));
+        }
+        let recents = crate::recent::recents(&h).list().projects;
+        assert_eq!(recents.len(), 3);
+        assert_eq!(recents[0].name, "P0");
 
         let captured = std::sync::Arc::new(std::sync::Mutex::new(0));
         let c = captured.clone();

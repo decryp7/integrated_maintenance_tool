@@ -212,7 +212,8 @@ mod tests {
     fn opened() -> tauri::App<tauri::test::MockRuntime> {
         let app = test_app(None);
         main_window(&app).queue(crate::instance::existing(&[samples().join("serilog-clef")]));
-        let pending = crate::workspace_commands::take_pending_open(main_window(&app)).unwrap();
+        let pending =
+            crate::workspace_commands::take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap();
         block(crate::workspace_commands::open_paths(
             app.handle().clone(),
             main_window(&app),

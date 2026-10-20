@@ -20,10 +20,19 @@ pub(crate) fn demo_paths_in(resources: Option<&Path>) -> Vec<String> {
         .collect()
 }
 
-/// The demo's sample folders to open; empty when they are not installed with this build.
+/// The demo's sample folders to open (granted to the calling window: IMT's own files); empty when they
+/// are not installed with this build.
 #[tauri::command]
-pub(crate) fn demo_paths<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-    demo_paths_in(app.path().resource_dir().ok().as_deref())
+pub(crate) fn demo_paths<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants) -> Vec<String> {
+    let paths = demo_paths_in(app.path().resource_dir().ok().as_deref());
+    paths
+        .into_iter()
+        .filter(|p| {
+            grants
+                .grant(Path::new(p), crate::paths::Access::Read, crate::paths::GrantSource::Output)
+                .is_ok()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -45,7 +54,7 @@ mod tests {
         assert!(paths.iter().all(|p| Path::new(p).is_absolute()));
         // The command itself answers (whatever the test binary's resource folder holds).
         let app = test_app(None);
-        let _ = demo_paths(app.handle().clone());
+        let _ = demo_paths(app.handle().clone(), crate::paths::WindowGrants::of(app.handle(), "main"));
     }
 
     #[test]

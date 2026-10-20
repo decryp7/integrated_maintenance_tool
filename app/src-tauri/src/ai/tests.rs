@@ -525,6 +525,7 @@ fn local_models_are_added_activated_and_deleted() {
     let app = f.app(core.clone());
     let events = setup_events(&app);
     let main = window(&app, "main");
+    crate::paths::allow_under(app.handle(), "main", &f.tmp.0);
     let src = f.tmp.0.join("My Model.gguf");
     std::fs::write(&src, model_bytes()).unwrap();
     let added = ipc(&main, "ai_model_add_local", json!({"path": src.to_string_lossy()})).unwrap();
@@ -1658,6 +1659,7 @@ fn a_manual_download_is_checked_against_the_catalog_before_it_is_added() {
     let f = Fixture::new("manual-model");
     let app = f.app(f.core());
     let main = window(&app, "main");
+    crate::paths::allow_under(app.handle(), "main", &f.tmp.0);
     // Named like the catalog model, same size, other bytes: damaged or not the original.
     let mut bad = model_bytes();
     let last = bad.len() - 1;
@@ -1749,6 +1751,7 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
     let app = f.app(core.clone());
     let events = runtime_events(&app);
     let main = window(&app, "main");
+    crate::paths::allow_under(app.handle(), "main", &f.tmp.0);
     let dir = f.tmp.0.join("Downloads");
     std::fs::create_dir_all(&dir).unwrap();
     let (name, data) = runtime_assets().into_iter().next().unwrap();

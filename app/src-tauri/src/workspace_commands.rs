@@ -185,29 +185,43 @@ fn report_timestamp_issues<R: Runtime>(app: &AppHandle<R>, label: &str, sources:
 /// Most paths one open request may name (a folder opens everything in it).
 pub(crate) const MAX_OPEN_PATHS: usize = 1024;
 
-/// The paths of an open request, bounded and checked: absolute, canonicalised when they exist (a missing
-/// one keeps its spelling, so the import reports it as not found).
-pub(crate) fn open_request(paths: Vec<String>) -> CmdResult<Vec<PathBuf>> {
+/// The paths of an open request, bounded and checked: each one granted to the window (chosen in a
+/// dialog, dropped, from the command line or IMT's own output) or an entry of the recent list (granted
+/// again now), canonicalised. A recent entry that no longer exists keeps its spelling, so the import
+/// reports it as not found.
+pub(crate) fn open_request<R: Runtime>(app: &AppHandle<R>, window: &str, paths: Vec<String>) -> CmdResult<Vec<PathBuf>> {
     if paths.len() > MAX_OPEN_PATHS {
         return Err(format!(
             "{} files at once are too many: open at most {MAX_OPEN_PATHS}, or open their folder",
             paths.len()
         ));
     }
+    let grants = crate::paths::WindowGrants::of(app, window);
+    let recents = crate::recent::recents(app);
     paths
         .iter()
-        .map(|raw| {
-            let p = crate::paths::parse(raw)?;
-            Ok(std::fs::canonicalize(p)
-                .map(crate::paths::plain)
-                .unwrap_or_else(|_| p.to_path_buf()))
+        .map(|raw| match grants.read_or_listed(raw, &[], |p| recents.has_file(p)) {
+            Ok(g) => Ok(g.path().to_path_buf()),
+            Err(_) if recents.has_file(raw) => Ok(crate::paths::parse(raw)?.to_path_buf()),
+            Err(e) => Err(e),
         })
         .collect()
 }
 
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
-    let paths = open_request(paths)?.into_iter().map(|p| p.to_string_lossy().into_owned()).collect();
+    let paths: Vec<String> = open_request(&app, state.label(), paths)?
+        .into_iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    let summary = open_granted(&app, &state, paths.clone()).await?;
+    crate::recent::opened_files(&app, &paths);
+    Ok(summary)
+}
+
+/// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
+pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
+    let (app, state) = (app.clone(), state.clone());
     let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
     if paths.is_empty() {
         return write_reporting(&app, &state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await;
@@ -456,7 +470,8 @@ pub(crate) fn project_of(state: &CurrentWindow, name: String, ui: Value) -> Proj
 /// Saves the open files, the active profile and the UI's state to a `.imtproj`.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
-pub(crate) async fn save_project(
+pub(crate) async fn save_project<R: Runtime>(
+    app: AppHandle<R>,
     state: CurrentWindow,
     grants: crate::paths::WindowGrants,
     op: OpId,
@@ -468,24 +483,64 @@ pub(crate) async fn save_project(
 ) -> CmdResult<Value> {
     crate::share::refuse_bundle_folder(&path)?;
     let target = grants.write(&path, &["imtproj"])?;
-    // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
-    imt_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let mut project = project_of(&state, name, ui);
     project.reports = crate::share::parse_reports(reports.unwrap_or_default())?;
-    project.save(target.path()).map_err(err)?;
+    let (file, check) = (target.path().to_path_buf(), path.clone());
+    let project = tauri::async_runtime::spawn_blocking(move || -> CmdResult<ProjectFile> {
+        // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
+        imt_core::overwrite::check_overwrite(std::path::Path::new(&check), overwrite.unwrap_or(false)).map_err(err)?;
+        project.save(&file).map_err(err)?;
+        Ok(project)
+    })
+    .await
+    .map_err(err)??;
     // "Save" writes here again without a dialog.
     grants.grant(target.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project)?;
     state.set_project(Some(path.clone()));
+    crate::recent::opened_project(&app, &path, &project.name);
     log::info!(Sources = project.sources.len() as u64; "Project saved");
     let (safe, sources) = (privacy::safe_path(std::path::Path::new(&path)), project.sources.len().to_string());
     domain_event("project.saved", op.as_deref(), &[("Path", &safe), ("Sources", &sources)]);
     Ok(serde_json::json!({ "path": path, "name": project.name }))
 }
 
-/// Opens a `.imtproj`: applies its profile, reopens its files and returns the UI state.
+/// Opens a `.imtproj` the user chose (or one from the recent list): applies its profile, reopens its
+/// files and returns the UI state. The autosaved session opens the same way (it is IMT's own file).
 #[tauri::command]
-pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, path: String) -> CmdResult<Value> {
-    let project = ProjectFile::load(std::path::Path::new(&path)).map_err(err)?;
+pub(crate) async fn open_project<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    grants: crate::paths::WindowGrants,
+    op: OpId,
+    path: String,
+) -> CmdResult<Value> {
+    let recents = crate::recent::recents(&app);
+    let file = grants.read_or_listed(&path, &["imtproj"], |p| recents.has_project(p))?;
+    let session = crate::lifecycle::is_session_file(file.path());
+    let opened = open_project_file(&app, &state, op, file.path().to_path_buf(), path.clone()).await?;
+    if !session {
+        // The project's own file: "Save" writes it back without a dialog.
+        if let Err(e) = grants.grant(file.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project) {
+            log::debug!("the project file is not writable from this window: {e}");
+        }
+        state.set_project(Some(path.clone()));
+        crate::recent::opened_project(&app, &path, opened["name"].as_str().unwrap_or_default());
+    }
+    Ok(opened)
+}
+
+/// Opens a project file that was checked already (granted, or IMT's own: an unpacked bundle's). `shown`
+/// is the path as the UI names it. Grants the window the captures the project's UI state reopens.
+pub(crate) async fn open_project_file<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    op: OpId,
+    file: PathBuf,
+    shown: String,
+) -> CmdResult<Value> {
+    let project = tauri::async_runtime::spawn_blocking(move || ProjectFile::load(&file).map_err(err))
+        .await
+        .map_err(err)??;
     let profile = Profile::from_toml(&project.profile).map_err(err)?;
     let doc = ProfileDoc {
         name: profile.name.clone(),
@@ -497,9 +552,9 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
         removed: project.removed.clone(),
         offsets: project.clock.clone(),
     };
-    let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: path.clone() });
+    let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: shown.clone() });
     let (handle, label) = (app.clone(), state.label().to_string());
-    let (summary, missing) = import_job(&app, &state, spec, move |ws| {
+    let (summary, missing) = import_job(app, state, spec, move |ws| {
         let missing = ws.restore(profile, &ws_state)?;
         let summary = ws.summary();
         report_timestamp_issues(&handle, &label, &summary.sources);
@@ -507,28 +562,19 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
     })
     .await?;
     state.set_profile_doc(doc.clone());
-    // The project's own file: "Save" writes it back without a dialog.
-    if let Err(e) = crate::paths::grant(
-        &app,
-        state.label(),
-        std::path::Path::new(&path),
-        crate::paths::Access::Write,
-        crate::paths::GrantSource::Project,
-    ) {
-        log::debug!("the project file is not writable from this window: {e}");
-    }
-    state.set_project(Some(path.clone()));
+    let captures = project_captures(&project.ui);
+    crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
-    let safe = privacy::safe_path(std::path::Path::new(&path));
+    let safe = privacy::safe_path(std::path::Path::new(&shown));
     let (sources, missing_n) = (project.sources.len().to_string(), missing.len().to_string());
     domain_event(
         "project.opened",
         op.as_deref(),
         &[("Path", &safe), ("Sources", &sources), ("Missing", &missing_n)],
     );
-    crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::window_manager::import_finished(app, state.label(), &summary);
     Ok(serde_json::json!({
-        "path": path,
+        "path": shown,
         "name": project.name,
         "summary": summary,
         "profile": doc,
@@ -536,6 +582,23 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
         "reports": project.reports,
         "missing": missing,
     }))
+}
+
+/// Most captures a project reopens (the engine keeps at most 32 open).
+const MAX_PROJECT_CAPTURES: usize = 32;
+
+/// The profiling captures a project's UI state reopens: `ui.profiling.captures`, the one place the UI
+/// state names files (see `profiling-persistence.ts`). Opening the project is the user's choice of them.
+pub(crate) fn project_captures(ui: &Value) -> Vec<PathBuf> {
+    ui.pointer("/profiling/captures")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|p| crate::paths::parse(p).is_ok())
+        .take(MAX_PROJECT_CAPTURES)
+        .map(PathBuf::from)
+        .collect()
 }
 
 /// Turns live tail on or off for the calling window. While on, the opened
@@ -562,10 +625,19 @@ pub(crate) async fn set_live<R: Runtime>(
 
 /// Paths waiting to be opened in the calling window (launch arguments, files
 /// opened from the OS, a restored session). `.imtproj` files should be opened
-/// with `open_project`, others with `open_paths`.
+/// with `open_project`, others with `open_paths`. Only Rust queues them, so they are granted to the
+/// window as they are handed over.
 #[tauri::command]
-pub(crate) fn take_pending_open(state: CurrentWindow) -> CmdResult<Vec<String>> {
-    Ok(state.take_pending())
+pub(crate) fn take_pending_open(state: CurrentWindow, grants: crate::paths::WindowGrants) -> CmdResult<Vec<String>> {
+    let pending = state.take_pending();
+    for p in &pending {
+        let _ = grants.grant(
+            std::path::Path::new(p),
+            crate::paths::Access::Read,
+            crate::paths::GrantSource::CommandLine,
+        );
+    }
+    Ok(pending)
 }
 
 #[cfg(test)]
@@ -583,7 +655,7 @@ mod tests {
     fn opened(dir: Option<PathBuf>, paths: &[PathBuf]) -> tauri::App<MockRuntime> {
         let app = test_app(dir);
         main_window(&app).queue(crate::instance::existing(paths));
-        let pending = take_pending_open(main_window(&app)).unwrap();
+        let pending = take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap();
         block(open_paths(app.handle().clone(), main_window(&app), pending)).unwrap();
         app
     }
@@ -838,6 +910,7 @@ mod tests {
         );
         let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
         let saved = block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -851,6 +924,7 @@ mod tests {
         assert_eq!(saved["name"], "Incident");
         // "Save As" over an existing file is refused until confirmed; "Save" to it passes `overwrite`.
         let again = block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -862,6 +936,7 @@ mod tests {
         ));
         assert_eq!(again.unwrap_err(), format!("{file} already exists; confirm to replace it"));
         block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -883,7 +958,14 @@ mod tests {
             &app,
             crate::profile::save_profile(app.handle().clone(), shared(), st(), OpId::default(), "name = 'Other'".into()).unwrap(),
         );
-        let opened = block(open_project(app.handle().clone(), st(), OpId::default(), file.clone())).unwrap();
+        let opened = block(open_project(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            OpId::default(),
+            file.clone(),
+        ))
+        .unwrap();
         assert_eq!(opened["name"], "Incident");
         assert_eq!(opened["ui"]["bookmarks"][0], 3);
         assert_eq!(opened["reports"][0]["title"], "R");
@@ -893,15 +975,30 @@ mod tests {
         assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
         assert_eq!(crate::profile::get_profile(st()).unwrap().name, "Project profile");
         let missing = dir.0.join("nope.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(app.handle().clone(), st(), OpId::default(), missing)).is_err());
+        assert!(block(open_project(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            OpId::default(),
+            missing
+        ))
+        .is_err());
         std::fs::write(
             dir.0.join("bad.imtproj"),
             r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
         )
         .unwrap();
         let bad = dir.0.join("bad.imtproj").to_string_lossy().into_owned();
-        assert!(block(open_project(app.handle().clone(), st(), OpId::default(), bad)).is_err());
+        assert!(block(open_project(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            OpId::default(),
+            bad
+        ))
+        .is_err());
         assert!(block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -913,6 +1010,7 @@ mod tests {
         ))
         .is_err());
         assert!(block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -947,6 +1045,7 @@ mod tests {
         assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
         let file = dir.0.join("p.imtproj").to_string_lossy().into_owned();
         block(save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             op("op-save"),
@@ -958,7 +1057,14 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(crate::tools::tests::domain_event("project.saved", "op-save").props["Sources"], "1");
-        block(open_project(app.handle().clone(), st(), op("op-open"), file)).unwrap();
+        block(open_project(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            op("op-open"),
+            file,
+        ))
+        .unwrap();
         let opened = crate::tools::tests::domain_event("project.opened", "op-open");
         assert_eq!(
             (opened.props["Path"].starts_with("<dir#"), opened.props["Missing"].as_str()),
@@ -1098,14 +1204,23 @@ mod tests {
             PathBuf::from("/does/not/exist"),
         ]));
         assert_eq!(
-            take_pending_open(main_window(&app)).unwrap().len(),
+            take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+                .unwrap()
+                .len(),
             1,
             "missing paths are not queued"
         );
-        assert!(take_pending_open(main_window(&app)).unwrap().is_empty());
+        assert!(
+            take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+                .unwrap()
+                .is_empty()
+        );
         queue_open(app.handle(), "main", vec!["/a/b.imtproj".into()]);
         queue_open(app.handle(), "main", vec![]);
-        assert_eq!(take_pending_open(main_window(&app)).unwrap(), ["/a/b.imtproj"]);
+        assert_eq!(
+            take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap(),
+            ["/a/b.imtproj"]
+        );
         // A closed window's queue cannot be recreated.
         app.state::<Windows>().remove("w-9");
         queue_open(app.handle(), "w-9", vec!["/x".into()]);
@@ -1122,6 +1237,7 @@ mod tests {
 
         let app = crate::test_support::test_app_with_commands(None);
         let a = window(&app, "main");
+        crate::paths::allow_under(app.handle(), "w-2", &samples());
         let b = window(&app, "w-2");
         let invoke = |w: &tauri::WebviewWindow<MockRuntime>, cmd: &str, body: Value| {
             let res = get_ipc_response(
@@ -1158,5 +1274,83 @@ mod tests {
         assert_eq!(invoke(&b, "workspace_summary", json!({}))["total"], 0);
         let windows = app.state::<Windows>();
         assert_eq!(windows.all().len(), 2);
+    }
+
+    /// Only granted paths open; the recent lists (filled by Rust after a granted open or save) grant
+    /// their entries again; a project grants the captures its UI state reopens.
+    #[test]
+    fn opening_needs_a_grant_or_a_recent_entry() {
+        let dir = TempDir::new("open-grants");
+        let log = dir.0.join("a.log");
+        std::fs::write(&log, "2026-10-14 10:00:00 INFO one\n").unwrap();
+        let capture = dir.0.join("x.cpuprofile");
+        std::fs::write(&capture, "{}").unwrap();
+        let app = test_app(None);
+        let st = || main_window(&app);
+        let s = |p: &std::path::Path| p.to_string_lossy().into_owned();
+        let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
+        let e = block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap_err();
+        assert!(e.contains("only reads files you choose"), "{e}");
+        assert!(crate::recent::recents(app.handle()).list().files.is_empty());
+        // Chosen (dropped, picked): opens and becomes a recent file.
+        crate::paths::grant(
+            app.handle(),
+            "main",
+            &log,
+            crate::paths::Access::Read,
+            crate::paths::GrantSource::Drop,
+        )
+        .unwrap();
+        block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap();
+        let recent = crate::recent::recents(app.handle()).list().files;
+        assert_eq!(recent.len(), 1);
+        // Another window may reopen it from the recent list (granted again there); a file that is not
+        // listed stays refused.
+        let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+        block(open_paths(app.handle().clone(), w2.clone(), recent.clone())).unwrap();
+        assert!(crate::paths::WindowGrants::of(app.handle(), "w-2")
+            .read_file(&recent[0], &[])
+            .is_ok());
+        assert!(block(open_paths(app.handle().clone(), w2, vec![s(&capture)])).is_err());
+
+        // A project: saved where the user chose, listed, reopened from the list by another window.
+        let project = dir.0.join("p.imtproj");
+        crate::paths::grant(
+            app.handle(),
+            "main",
+            &project,
+            crate::paths::Access::Write,
+            crate::paths::GrantSource::Dialog,
+        )
+        .unwrap();
+        let ui = json!({ "profiling": { "captures": [s(&capture), "relative.cpuprofile"] } });
+        block(save_project(
+            app.handle().clone(),
+            st(),
+            grants(),
+            OpId::default(),
+            s(&project),
+            "P".into(),
+            ui,
+            None,
+            None,
+        ))
+        .unwrap();
+        let listed = crate::recent::recents(app.handle()).list().projects;
+        assert_eq!((listed[0].name.as_str(), listed.len()), ("P", 1));
+        let w3 = crate::windows::CurrentWindow::of(app.handle(), "w-3").unwrap();
+        let g3 = || crate::paths::WindowGrants::of(app.handle(), "w-3");
+        assert!(g3().read_file(&s(&capture), &[]).is_err());
+        let opened = block(open_project(app.handle().clone(), w3.clone(), g3(), OpId::default(), s(&project))).unwrap();
+        assert_eq!(opened["name"], "P");
+        assert!(g3().read_file(&s(&capture), &[]).is_ok(), "the project's captures may be reopened");
+        assert!(g3().write(&s(&project), &["imtproj"]).is_ok(), "Save writes the project back");
+        assert_eq!(w3.project().as_deref(), Some(s(&project).as_str()));
+        // A project nobody chose is refused.
+        let other = dir.0.join("other.imtproj");
+        std::fs::copy(&project, &other).unwrap();
+        let e = block(open_project(app.handle().clone(), w3, g3(), OpId::default(), s(&other))).unwrap_err();
+        assert!(e.contains("only reads files you choose"), "{e}");
+        assert_eq!(project_captures(&json!(null)), Vec::<PathBuf>::new());
     }
 }

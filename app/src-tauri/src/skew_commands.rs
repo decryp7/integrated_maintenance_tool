@@ -100,6 +100,7 @@ mod tests {
         crate::paths::allow_under(app.handle(), "main", &dir.0);
         let path = project.to_string_lossy().into_owned();
         block(crate::workspace_commands::save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -116,6 +117,7 @@ mod tests {
         let opened = block(crate::workspace_commands::open_project(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             path,
         ))

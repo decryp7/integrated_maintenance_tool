@@ -237,6 +237,7 @@ mod tests {
         let app = test_app_with_commands(None);
         let main = window(&app, crate::windows::MAIN);
         let dir = TempDir::new("open-source-file");
+        crate::paths::allow_under(app.handle(), crate::windows::MAIN, &dir.0);
         let folder = dir.0.clone();
         let archives = samples().join("archives").join("notify01");
         for f in ["app.log.3.gz", "notify01-logs-20261014.zip"] {

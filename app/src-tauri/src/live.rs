@@ -417,7 +417,8 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     let options = OpenOptions {
         start_at_end: start_at_end.unwrap_or(false),
     };
-    let paths = crate::workspace_commands::open_request(paths)?;
+    let paths = crate::workspace_commands::open_request(&app, state.label(), paths)?;
+    let recorded: Vec<String> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
     let summary = write_reporting(&app, &state, move |ws| {
         ws.open_with(&paths, &options)?;
         let summary = ws.summary();
@@ -426,6 +427,7 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     })
     .await?;
     crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::recent::opened_files(&app, &recorded);
     Ok(summary)
 }
 
@@ -476,6 +478,7 @@ mod tests {
     /// An app whose `label` window has `dir` opened.
     fn opened(app: &tauri::App<tauri::test::MockRuntime>, label: &str, dir: &Path) -> CurrentWindow {
         let win = CurrentWindow::of(app.handle(), label).unwrap();
+        crate::paths::allow_under(app.handle(), label, dir);
         block(open_paths(
             app.handle().clone(),
             win.clone(),
@@ -527,6 +530,7 @@ mod tests {
         // Start at end: history skipped, new lines shown.
         let other = TempDir::new("live-end");
         std::fs::write(other.0.join("b.log"), "2026-10-14 10:00:00 INFO old\n").unwrap();
+        crate::paths::allow_under(app.handle(), st().label(), &other.0);
         let summary = block(open_paths_live(
             app.handle().clone(),
             st(),

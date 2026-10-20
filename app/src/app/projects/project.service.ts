@@ -40,7 +40,7 @@ export class ProjectService {
   readonly busy = signal(false);
   /** Project paths that no longer exist, from the last open (shown as a notice). */
   readonly missing = signal<string[]>([]);
-  readonly recent = signal(this.recentStore.list());
+  readonly recent = computed(() => this.recentStore.list());
 
   /** Identity of what a project would save; compared with the key at the last save/open. */
   private readonly key = computed(() => `${(this.store.summary()?.sources ?? []).map((s) => s.path).join('|')}\n${this.registry.trackedSnapshot()}\n${this.reports.json()}`);
@@ -144,7 +144,6 @@ export class ProjectService {
 
   clearRecent(): void {
     this.recentStore.clear();
-    this.recent.set([]);
   }
 
   private async write(path: string, name: string, origin: 'own-file' | 'save-dialog'): Promise<boolean> {
@@ -174,7 +173,6 @@ export class ProjectService {
 
   private remember(path: string, name: string): void {
     this.recentStore.add({ path, name });
-    this.recent.set(this.recentStore.list());
   }
 
   private markClean(): void {

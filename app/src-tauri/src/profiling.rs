@@ -11,6 +11,7 @@
 //!
 //! Wire contract: `app/src/app/core/api.types.ts` (section "Profiling").
 
+use crate::paths::WindowGrants;
 use crate::windows::CurrentWindow;
 use imt_core::plugin::services::Service;
 use imt_profile::api::*;
@@ -212,9 +213,10 @@ fn read_head(path: &str) -> Option<(String, Vec<u8>)> {
 
 /// What each path is (profile, heap snapshot or neither), from its name and
 /// first 64 KiB, without opening it: dropped files are routed with it.
-/// Folders and unreadable paths are `none` (the log import reports them).
+/// Folders, unreadable paths and paths the user did not choose (dropped, picked) are `none` (the log
+/// import reports them).
 #[tauri::command]
-pub async fn profiling_sniff(state: CurrentWindow, paths: Vec<String>) -> ProfResult<Vec<SniffResult>> {
+pub async fn profiling_sniff(state: CurrentWindow, grants: WindowGrants, paths: Vec<String>) -> ProfResult<Vec<SniffResult>> {
     if paths.len() > MAX_SNIFF_PATHS {
         return Err(ProfilingErrorDto::new(
             ErrorCode::Limit,
@@ -222,9 +224,14 @@ pub async fn profiling_sniff(state: CurrentWindow, paths: Vec<String>) -> ProfRe
         ));
     }
     // Read the heads first, without holding the store.
-    let heads = tauri::async_runtime::spawn_blocking(move || paths.into_iter().map(|p| (read_head(&p), p)).collect::<Vec<_>>())
-        .await
-        .map_err(join_error)?;
+    let heads = tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .map(|p| (grants.read_file(&p, &[]).ok().and_then(|_| read_head(&p)), p))
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(join_error)?;
     read(&state, move |s| {
         Ok(heads
             .into_iter()
@@ -237,12 +244,19 @@ pub async fn profiling_sniff(state: CurrentWindow, paths: Vec<String>) -> ProfRe
     .await
 }
 
-/// Opens a profile or heap snapshot (any supported format, recognised by content).
+/// Opens a profile or heap snapshot the user chose (any supported format, recognised by content). A
+/// missing file is `notFound`; one nobody chose is `invalid`.
 #[tauri::command]
-pub async fn profiling_open(state: CurrentWindow, path: String) -> ProfResult<CaptureSummary> {
-    let (name, canonical, bytes) = tauri::async_runtime::spawn_blocking(move || read_capture(&path))
-        .await
-        .map_err(join_error)??;
+pub async fn profiling_open(state: CurrentWindow, grants: WindowGrants, path: String) -> ProfResult<CaptureSummary> {
+    let (name, canonical, bytes) = tauri::async_runtime::spawn_blocking(move || {
+        canonical_file(&path)?;
+        grants
+            .read_file(&path, &[])
+            .map_err(|e| ProfilingErrorDto::new(ErrorCode::Invalid, e))?;
+        read_capture(&path)
+    })
+    .await
+    .map_err(join_error)??;
     write(&state, move |s| s.open(&name, Some(&canonical), &bytes)).await
 }
 
@@ -560,6 +574,7 @@ mod tests {
         assert!(m[0]["samples"].as_u64().unwrap() > 0);
 
         let dir = TempDir::new("profiling");
+        crate::paths::allow_under(&w, "main", &dir.0);
         let e = invoke(&w, "profiling_open", json!({ "path": dir.0.to_string_lossy() })).unwrap_err();
         assert!(e["message"].as_str().unwrap().contains("not a file"), "{e}");
         assert_eq!(e["code"], "invalid");

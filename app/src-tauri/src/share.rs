@@ -278,8 +278,14 @@ fn bundle_line(m: &BundleManifest) -> String {
 /// limits, no path may leave it), checks it against its manifest and opens
 /// its project read-only. A bundle without a project (rare) opens its files.
 #[tauri::command]
-pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, path: String) -> CmdResult<Value> {
-    let source = PathBuf::from(&path);
+pub(crate) async fn open_bundle<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    grants: WindowGrants,
+    op: OpId,
+    path: String,
+) -> CmdResult<Value> {
+    let source = grants.read_file(&path, &["imtz"])?.path().to_path_buf();
     // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
     let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
         .window(state.label())
@@ -291,11 +297,16 @@ pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWin
             .map_err(err)
     })
     .await?;
+    // IMT's own folder: what the bundle holds may be opened from this window.
+    grants.grant(&extracted.dir, crate::paths::Access::Read, crate::paths::GrantSource::Output)?;
     let mut opened = match &extracted.project {
-        Some(project) => crate::workspace_commands::open_project(app, state.clone(), op, project.to_string_lossy().into_owned()).await?,
+        Some(project) => {
+            let shown = project.to_string_lossy().into_owned();
+            crate::workspace_commands::open_project_file(&app, &state, op, project.clone(), shown).await?
+        }
         None => {
             let dir = extracted.dir.to_string_lossy().into_owned();
-            let summary = crate::workspace_commands::open_paths(app, state.clone(), vec![dir]).await?;
+            let summary = crate::workspace_commands::open_granted(&app, &state, vec![dir]).await?;
             serde_json::json!({ "name": "", "summary": summary, "ui": Value::Null, "missing": [], "reports": [] })
         }
     };
@@ -639,7 +650,14 @@ mod tests {
         .is_err());
 
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap()["total"].clone();
-        let opened = block(open_bundle(app.handle().clone(), st(), OpId::default(), path.clone())).unwrap();
+        let opened = block(open_bundle(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            OpId::default(),
+            path.clone(),
+        ))
+        .unwrap();
         assert_eq!(opened["readOnly"], true);
         assert_eq!(opened["name"], "Case");
         assert_eq!(opened["ui"]["x"], 1);
@@ -650,6 +668,7 @@ mod tests {
         // Saving into the bundle's folder is refused.
         let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtproj");
         assert!(block(crate::workspace_commands::save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -674,6 +693,7 @@ mod tests {
         let opened = block(open_bundle(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             plain.to_string_lossy().into_owned(),
         ))
@@ -682,6 +702,7 @@ mod tests {
         assert!(block(open_bundle(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             d.0.join("missing.imtz").to_string_lossy().into_owned()
         ))

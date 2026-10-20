@@ -752,10 +752,20 @@ pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: V
     store.save(state.label(), &project).map(|_| ()).map_err(err)
 }
 
-/// Path of the calling window's autosaved session (open it with `open_project`), if any.
+/// Path of the calling window's autosaved session (open it with `open_project`, which it is granted to),
+/// if any.
 #[tauri::command]
-pub fn last_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> Option<String> {
-    lifecycle.session_path(state.label()).map(|p| p.to_string_lossy().into_owned())
+pub fn last_session(state: CurrentWindow, grants: crate::paths::WindowGrants, lifecycle: State<'_, Lifecycle>) -> Option<String> {
+    let path = lifecycle.session_path(state.label())?;
+    grants
+        .grant(&path, crate::paths::Access::Read, crate::paths::GrantSource::Output)
+        .ok()
+        .map(|g| g.path().to_string_lossy().into_owned())
+}
+
+/// Whether `path` is an autosaved session (IMT's own file: not a project of the recent list).
+pub fn is_session_file(path: &std::path::Path) -> bool {
+    path.file_name().is_some_and(|n| n == SESSION_FILE)
 }
 
 /// After a crash: reopens the previous run's other windows, each with its
@@ -817,6 +827,7 @@ mod tests {
         std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n").unwrap();
         let app = test_app_with_commands(None);
         let _main = window(&app, "main");
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let state = CurrentWindow::of(app.handle(), "main").unwrap();
         block(crate::workspace_commands::open_paths(
             app.handle().clone(),
@@ -1432,6 +1443,7 @@ mod tests {
         app.manage(Lifecycle::begin(Some(d.clone()), false));
         let h = app.handle().clone();
         window(&app, MAIN);
+        let grants = |label: &str| crate::paths::WindowGrants::of(&h, label);
         let life = || app.state::<Lifecycle>();
         let status = app_status(main_window(&app), life());
         assert!(status.previous_crash && status.session_available);
@@ -1439,8 +1451,10 @@ mod tests {
         let w2 = crate::windows::CurrentWindow::of(&h, "w-7").unwrap();
         let other = app_status(w2.clone(), life());
         assert!(!other.previous_crash && !other.session_available);
-        assert!(last_session(w2.clone(), life()).is_none());
-        assert!(last_session(main_window(&app), life()).unwrap().ends_with(SESSION_FILE));
+        assert!(last_session(w2.clone(), grants("w-7"), life()).is_none());
+        assert!(last_session(main_window(&app), grants(MAIN), life())
+            .unwrap()
+            .ends_with(SESSION_FILE));
 
         // Restoring reopens the other window with its session queued, once.
         assert_eq!(
@@ -1456,6 +1470,7 @@ mod tests {
         assert_eq!(name_of(Path::new(&restored[0])), "second");
 
         // Autosave of this run, per window.
+        crate::paths::allow_under(&h, MAIN, &samples());
         let csv = samples().join("csv").to_string_lossy().into_owned();
         block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv])).unwrap();
         save_session(
@@ -1466,10 +1481,10 @@ mod tests {
         )
         .unwrap();
         save_session(w2.clone(), life(), Value::Null, None).unwrap();
-        let saved = ProjectFile::load(&last_session(main_window(&app), life()).map(PathBuf::from).unwrap()).unwrap();
+        let saved = ProjectFile::load(&last_session(main_window(&app), grants(MAIN), life()).map(PathBuf::from).unwrap()).unwrap();
         assert_eq!((saved.sources.len(), saved.ui["k"].as_i64()), (1, Some(1)));
         assert_eq!(saved.reports.len(), 1, "an unreadable report is left out of the autosave");
-        assert!(last_session(w2, life()).is_some());
+        assert!(last_session(w2, grants("w-7"), life()).is_some());
         life().forget_session("w-7");
         // Without a data folder sessions are off.
         let app2 = test_app(None);

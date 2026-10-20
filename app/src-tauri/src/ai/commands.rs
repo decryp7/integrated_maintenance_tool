@@ -252,9 +252,16 @@ pub async fn ai_model_delete<R: Runtime>(app: AppHandle<R>, file_name: String) -
 /// Adds a `.gguf` the user picked in the open dialog to the models folder. A catalog model (a manual
 /// download) is checked against its SHA-256 first, as a download job with progress that Cancel stops.
 #[tauri::command]
-pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, path: String) -> Ai<ModelDto> {
+pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> Ai<ModelDto> {
     let core = core(&app)?;
     core.availability()?;
+    // Only a file the user chose in the dialog.
+    let path = grants
+        .read_file(&path, &["gguf"])
+        .map_err(AiCmdError::invalid)?
+        .path()
+        .to_string_lossy()
+        .into_owned();
     let name = Path::new(&path)
         .file_name()
         .map(|n| n.to_string_lossy().chars().take(120).collect::<String>())

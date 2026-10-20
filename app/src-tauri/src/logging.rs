@@ -489,6 +489,7 @@ mod tests {
         )
         .unwrap();
         let app = crate::test_support::test_app_with_commands(None);
+        crate::paths::allow_under(app.handle(), crate::windows::MAIN, &data.0);
         let w = crate::test_support::window(&app, crate::windows::MAIN);
         let call = |cmd: &str, body: Value| {
             let mut headers = tauri::http::HeaderMap::new();

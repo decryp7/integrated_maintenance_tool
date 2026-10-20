@@ -5,6 +5,7 @@
 //! plain functions over explicit folders so it is testable without Tauri;
 //! the commands only resolve the app's default folders.
 
+use crate::paths::WindowGrants;
 use crate::{err, CmdResult};
 use imt_agent::config::{describe, MAX_CONFIG_BYTES};
 use imt_agent::run::{is_run_name, list_runs, read_manifest, RunManifest, RunSummary};
@@ -178,22 +179,47 @@ pub fn manifest(path: Option<&str>, run_id: &str, dirs: &Dirs) -> CmdResult<RunM
     read_manifest(&run_dir(path, run_id, dirs)?)
 }
 
+/// The user's config path checked against the window's grants (`None`: the default in IMT's config
+/// folder, which needs none). Reading accepts a file chosen to open or to save (a new one).
+fn granted(grants: &WindowGrants, path: Option<String>, access: crate::paths::Access) -> CmdResult<Option<String>> {
+    let Some(p) = path.filter(|p| !p.trim().is_empty()) else {
+        return Ok(None);
+    };
+    let g = match access {
+        crate::paths::Access::Read => grants.read_or_write(&p, &["toml"]),
+        crate::paths::Access::Write => grants.write(&p, &["toml"]),
+    }
+    .map_err(|e| format!("agent config: {e}"))?;
+    Ok(Some(g.path().to_string_lossy().into_owned()))
+}
+
 #[tauri::command]
 pub fn agent_schema() -> AgentSchema {
     schema()
 }
 
+/// Loads the config the user opened; the editor may save it back to the same file.
 #[tauri::command]
-pub async fn agent_config_load<R: Runtime>(app: AppHandle<R>, path: Option<String>) -> CmdResult<AgentConfigDoc> {
+pub async fn agent_config_load<R: Runtime>(app: AppHandle<R>, grants: WindowGrants, path: Option<String>) -> CmdResult<AgentConfigDoc> {
     let d = dirs(&app)?;
+    let path = granted(&grants, path, crate::paths::Access::Read)?;
+    if let Some(p) = &path {
+        let _ = grants.grant(Path::new(p), crate::paths::Access::Write, crate::paths::GrantSource::Dialog);
+    }
     tauri::async_runtime::spawn_blocking(move || load_doc(path.as_deref(), &d))
         .await
         .map_err(err)?
 }
 
 #[tauri::command]
-pub async fn agent_config_validate<R: Runtime>(app: AppHandle<R>, path: Option<String>, config: AgentConfigFile) -> CmdResult<Vec<Issue>> {
+pub async fn agent_config_validate<R: Runtime>(
+    app: AppHandle<R>,
+    grants: WindowGrants,
+    path: Option<String>,
+    config: AgentConfigFile,
+) -> CmdResult<Vec<Issue>> {
     let d = dirs(&app)?;
+    let path = granted(&grants, path, crate::paths::Access::Read)?;
     tauri::async_runtime::spawn_blocking(move || validate_doc(path.as_deref(), &config, &d))
         .await
         .map_err(err)?
@@ -203,11 +229,13 @@ pub async fn agent_config_validate<R: Runtime>(app: AppHandle<R>, path: Option<S
 #[tauri::command]
 pub async fn agent_config_save<R: Runtime>(
     app: AppHandle<R>,
+    grants: WindowGrants,
     path: Option<String>,
     config: AgentConfigFile,
     overwrite: Option<bool>,
 ) -> CmdResult<Vec<Issue>> {
     let d = dirs(&app)?;
+    let path = granted(&grants, path, crate::paths::Access::Write)?;
     let overwrite = overwrite.unwrap_or(false);
     tauri::async_runtime::spawn_blocking(move || save_doc(path.as_deref(), &config, overwrite, &d))
         .await
@@ -215,16 +243,23 @@ pub async fn agent_config_save<R: Runtime>(
 }
 
 #[tauri::command]
-pub async fn agent_runs<R: Runtime>(app: AppHandle<R>, path: Option<String>) -> CmdResult<RunsListing> {
+pub async fn agent_runs<R: Runtime>(app: AppHandle<R>, grants: WindowGrants, path: Option<String>) -> CmdResult<RunsListing> {
     let d = dirs(&app)?;
+    let path = granted(&grants, path, crate::paths::Access::Read)?;
     tauri::async_runtime::spawn_blocking(move || runs(path.as_deref(), &d))
         .await
         .map_err(err)?
 }
 
 #[tauri::command]
-pub async fn agent_run_manifest<R: Runtime>(app: AppHandle<R>, path: Option<String>, run_id: String) -> CmdResult<RunManifest> {
+pub async fn agent_run_manifest<R: Runtime>(
+    app: AppHandle<R>,
+    grants: WindowGrants,
+    path: Option<String>,
+    run_id: String,
+) -> CmdResult<RunManifest> {
     let d = dirs(&app)?;
+    let path = granted(&grants, path, crate::paths::Access::Read)?;
     tauri::async_runtime::spawn_blocking(move || manifest(path.as_deref(), &run_id, &d))
         .await
         .map_err(err)?
@@ -232,7 +267,13 @@ pub async fn agent_run_manifest<R: Runtime>(app: AppHandle<R>, path: Option<Stri
 
 /// Opens a run's folder in a new IMT window (the window manager's usual path).
 #[tauri::command]
-pub async fn agent_open_run<R: Runtime>(app: AppHandle<R>, path: Option<String>, run_id: String) -> CmdResult<String> {
+pub async fn agent_open_run<R: Runtime>(
+    app: AppHandle<R>,
+    grants: WindowGrants,
+    path: Option<String>,
+    run_id: String,
+) -> CmdResult<String> {
+    let path = granted(&grants, path, crate::paths::Access::Read)?;
     let dir = run_dir(path.as_deref(), &run_id, &dirs(&app)?)?;
     crate::window_manager::open_new(&app, vec![dir.to_string_lossy().into_owned()]).map_err(err)
 }

@@ -37,6 +37,7 @@ pub enum CommandKind {
 /// Commands that only read. Every command of `commands!` must be in exactly one of these lists or
 /// [`MUTATIONS`] (a test enforces it), so a new command is classified on purpose.
 const QUERIES: &[&str] = &[
+    "recent_list",
     "workspace_summary",
     "query_page",
     "query_timeline",
@@ -232,7 +233,8 @@ const MUTATIONS: &[&str] = &[
     "popout_panel",
     "dock_panel",
     "set_popout_on_top",
-    "set_recent_projects",
+    "recent_remove",
+    "recent_clear",
     "stop_background_task",
     "jobs_cancel",
     "jobs_retry",

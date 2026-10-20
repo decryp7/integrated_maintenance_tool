@@ -46,6 +46,11 @@ pub enum GrantSource {
     CommandLine,
     /// The window's project file (opened or saved): kept while the window lives.
     Project,
+    /// An entry of the recent lists ([`crate::recent`]): recorded only after a granted open or save.
+    Recent,
+    /// A file or folder IMT itself produced or chose (an unpacked bundle, a tool's output, the demo
+    /// samples, the autosaved session, a capture named by an opened project).
+    Output,
 }
 
 /// A path the user chose, checked: canonical (for a write, its folder is) and granted for `access`.
@@ -266,6 +271,24 @@ impl WindowGrants {
         Ok(g)
     }
 
+    /// An existing file or folder the user chose, or one the caller vouches for (`listed`: an entry of
+    /// the recent lists), which is granted again now.
+    pub fn read_or_listed(&self, raw: &str, extensions: &[&str], listed: impl FnOnce(&str) -> bool) -> CmdResult<GrantedPath> {
+        match self.read(raw, extensions) {
+            Ok(g) => Ok(g),
+            Err(e) if listed(raw) => {
+                self.grant(parse(raw)?, Access::Read, GrantSource::Recent).map_err(|_| e)?;
+                self.read(raw, extensions)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// A file the user chose to read, or to write (a new file that does not exist yet).
+    pub fn read_or_write(&self, raw: &str, extensions: &[&str]) -> CmdResult<GrantedPath> {
+        self.read(raw, extensions).or_else(|e| self.write(raw, extensions).map_err(|_| e))
+    }
+
     /// A file the user chose to write (it may not exist yet).
     pub fn write(&self, raw: &str, extensions: &[&str]) -> CmdResult<GrantedPath> {
         self.grants.check(&self.window, raw, Access::Write, extensions)
@@ -365,6 +388,16 @@ pub fn output_file(raw: &str, extensions: &[&str]) -> CmdResult<PathBuf> {
     let target = output_target(parse(raw)?)?;
     has_extension(&target, extensions)?;
     Ok(target)
+}
+
+/// `name` (from the webview) as a file directly in `root`: one plain name (no separators, `.`, `..` or
+/// NUL), not too long.
+pub fn child(root: &Path, name: &str) -> CmdResult<PathBuf> {
+    let mut parts = Path::new(name).components();
+    match (parts.next(), parts.next()) {
+        (Some(Component::Normal(n)), None) if name.len() <= 255 && !name.contains(['\0', '/', '\\']) => Ok(root.join(n)),
+        _ => Err(format!("{} is not a file name", name.chars().take(80).collect::<String>())),
+    }
 }
 
 /// `item` as it may be removed: its parent must resolve (canonically) inside `root`, which is itself
@@ -633,6 +666,10 @@ mod tests {
         assert!(output_file(&s(&t.0.join("dir.png")), &["png"]).unwrap_err().contains("is a folder"));
         assert!(output_file("/", &["png"]).is_err());
         assert!(output_file(&s(&t.0.join("..")), &[]).is_err());
+        assert_eq!(child(&t.0, "v1.toml").unwrap(), t.0.join("v1.toml"));
+        for bad in ["..", ".", "a/b", r"a\b", "", "/abs", "x\0y"] {
+            assert!(child(&t.0, bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

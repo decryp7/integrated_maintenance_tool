@@ -19,3 +19,4 @@ export { MockMonitorCharts, mockMonitorChartsOptions } from './tools/monitor/moc
 export { MockToolsBackend } from './tools/mock/mock-tools-backend';
 export { MockUpdatesBackend } from './updates/mock-updates-backend';
 export { MockWindowingBackend } from './windowing/mock-windowing-backend';
+export { MockRecentBackend } from './core/recent/mock-recent-backend';

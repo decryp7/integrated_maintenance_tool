@@ -172,11 +172,9 @@ pub(crate) fn profile_history(app_state: State<'_, AppState>) -> Vec<Value> {
 /// One previous version's text (not applied until saved again).
 #[tauri::command]
 pub(crate) fn profile_version(app_state: State<'_, AppState>, file: String) -> CmdResult<ProfileDoc> {
-    if file.contains(['/', '\\']) || file.contains("..") {
-        return Err("invalid version".into());
-    }
     let dir = app_state.profile_dir.as_ref().ok_or("no profile folder")?.join("history");
-    let toml = std::fs::read_to_string(dir.join(&file)).map_err(err)?;
+    let version = crate::paths::child(&dir, &file).map_err(|_| "invalid version".to_string())?;
+    let toml = std::fs::read_to_string(version).map_err(err)?;
     let name = Profile::from_toml(&toml).map_err(err)?.name;
     Ok(ProfileDoc { name, path: None, toml })
 }

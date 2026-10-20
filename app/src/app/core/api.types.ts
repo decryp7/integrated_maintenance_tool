@@ -2500,3 +2500,20 @@ export interface AnalysisCoverage {
   analysed: number;
   total: number;
 }
+
+// ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
+
+/** A project of the recent list. Mirrors `recent::RecentProject`. */
+export interface RecentProject {
+  path: string;
+  name: string;
+}
+
+/** Both recent lists, newest first. Rust records an entry after a granted open or save. Mirrors `recent::RecentLists`. */
+export interface RecentLists {
+  files: string[];
+  projects: RecentProject[];
+}
+
+/** Which recent list a command means. Mirrors `recent::RecentKind`. */
+export type RecentKind = 'files' | 'projects';

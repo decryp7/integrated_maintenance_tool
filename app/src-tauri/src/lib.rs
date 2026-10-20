@@ -48,6 +48,7 @@ mod pointer;
 mod profile;
 mod profiling;
 mod query_cancel;
+mod recent;
 mod settings;
 mod share;
 mod skew_commands;
@@ -229,7 +230,9 @@ macro_rules! commands {
             panel_windows::dock_panel,
             panel_windows::list_popouts,
             panel_windows::set_popout_on_top,
-            tray::set_recent_projects,
+            recent::recent_list,
+            recent::recent_remove,
+            recent::recent_clear,
             menu::set_app_menu,
             background::background_tasks,
             background::stop_background_task,
@@ -430,6 +433,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(notify::Notifier::default());
     app.manage(tray::TrayState::default());
     app.manage(instance::SingleInstance(single));
+    app.manage(recent::Recents::load(app_dirs::config(app.handle()).ok().as_deref()));
     app.manage(query_cancel::QueryJobs::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
@@ -603,6 +607,7 @@ pub(crate) mod test_support {
         app.manage(window_prefs::SharedPrefs::default());
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
+        app.manage(recent::Recents::load(None));
         app.manage(query_cancel::QueryJobs::default()); // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
                                                         // and attention thresholds by accident.
         let clock = std::sync::Arc::new(jobs::ManualClock::default());
@@ -611,6 +616,8 @@ pub(crate) mod test_support {
         jobs::wire(app.handle(), &jobs);
         app.manage(jobs);
         app.manage(notification_centre::NotificationCentre::new(None, clock));
+        // The repository samples count as chosen in the main window (files in a test's own folder do not).
+        paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());
         app
     }

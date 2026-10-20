@@ -34,7 +34,6 @@ describe('TauriWindowingBackend', () => {
       [() => b.resolveOpen('cancel'), 'resolve_open', { choice: 'cancel' }],
       [() => b.backgroundTasks(), 'background_tasks'],
       [() => b.stopBackgroundTask('t'), 'stop_background_task', { id: 't' }],
-      [() => b.setRecentProjects([{ path: '/p', name: 'P' }]), 'set_recent_projects', { projects: [{ path: '/p', name: 'P' }] }],
     ];
     for (const [call, name, args] of calls) {
       invoke.mockClear();

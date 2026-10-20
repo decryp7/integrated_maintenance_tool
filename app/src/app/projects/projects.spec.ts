@@ -17,7 +17,7 @@ import { isProjectPath, ProjectService, projectNameFor } from './project.service
 import { ProjectUiState } from './project-ui-state';
 import { RecentProjectsDialog, RecentProjectsDialogService } from './recent-dialog';
 import { UnsavedChangesDialog, UnsavedChangesGuard } from './unsaved-changes';
-import { LocalStorageRecentProjects, RECENT_PROJECTS, RECENT_PROJECTS_KEY, RECENT_PROJECTS_VERSION } from './recent-projects';
+import { RECENT_PROJECTS } from './recent-projects';
 import { BookmarkCommands } from './bookmark-commands';
 import { at } from '../../testing/must';
 
@@ -43,40 +43,6 @@ async function setup() {
     commands: TestBed.inject(CommandRegistry),
   };
 }
-
-describe('LocalStorageRecentProjects', () => {
-  beforeEach(() => localStorage.clear());
-
-  it('keeps newest first, deduplicated and capped', () => {
-    const r = new LocalStorageRecentProjects('k', 2);
-    expect(r.list()).toEqual([]);
-    r.add({ path: '/a', name: 'A' });
-    r.add({ path: '/b', name: 'B' });
-    r.add({ path: '/a', name: 'A2' });
-    expect(r.list()).toEqual([{ path: '/a', name: 'A2' }, { path: '/b', name: 'B' }]);
-    r.add({ path: '/c', name: 'C' });
-    expect(r.list().map((p) => p.path)).toEqual(['/c', '/a']);
-    r.remove('/c');
-    expect(r.list().map((p) => p.path)).toEqual(['/a']);
-    r.clear();
-    expect(r.list()).toEqual([]);
-  });
-
-  it('treats corrupt or foreign data as empty and never throws', () => {
-    const r = new LocalStorageRecentProjects();
-    localStorage.setItem(RECENT_PROJECTS_KEY, 'not json');
-    expect(r.list()).toEqual([]);
-    localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify({ version: 99, projects: [] }));
-    expect(r.list()).toEqual([]);
-    localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify({ version: RECENT_PROJECTS_VERSION, projects: [{ path: 1 }, null, { path: '/ok', name: 'ok' }] }));
-    expect(r.list()).toEqual([{ path: '/ok', name: 'ok' }]);
-    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('quota');
-    });
-    expect(() => r.add({ path: '/x', name: 'x' })).not.toThrow();
-    spy.mockRestore();
-  });
-});
 
 describe('project helpers', () => {
   it('recognises project files and names them', () => {

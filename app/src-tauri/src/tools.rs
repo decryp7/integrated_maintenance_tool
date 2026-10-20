@@ -293,7 +293,21 @@ pub async fn tool_invoke<R: Runtime>(
     op: String,
     args: Option<Value>,
 ) -> CmdResult<Value> {
-    invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await
+    let result = invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await?;
+    // What a tool wrote (a collected bundle, an event-log capture folder) may be opened from this window.
+    crate::paths::grant_read_all(&app, window.label(), &tool_outputs(&result), crate::paths::GrantSource::Output);
+    Ok(result)
+}
+
+/// The files and folders a tool reports it wrote: the top-level `bundle` and `dir` of its result (the
+/// tool output contract; plugin code, not the webview, names them).
+pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
+    ["bundle", "dir"]
+        .iter()
+        .filter_map(|k| result.get(*k).and_then(Value::as_str))
+        .filter(|p| crate::paths::parse(p).is_ok())
+        .map(PathBuf::from)
+        .collect()
 }
 
 /// The tools of the calling window's plugins, with their availability
@@ -652,5 +666,13 @@ pub(crate) mod tests {
         assert_eq!(info["canRestartElevated"], cfg!(windows));
         assert_eq!(info["elevated"], crate::system::process_elevated());
         assert!(missing(ToolError::Failed("x".into()), true) == "x");
+    }
+
+    #[test]
+    fn tool_outputs_are_the_reported_bundle_and_folder() {
+        let abs = std::env::temp_dir().join("out").to_string_lossy().into_owned();
+        let found = tool_outputs(&json!({ "bundle": abs, "dir": "relative", "other": abs, "manifest": {} }));
+        assert_eq!(found, vec![PathBuf::from(&abs)]);
+        assert!(tool_outputs(&json!(null)).is_empty());
     }
 }
