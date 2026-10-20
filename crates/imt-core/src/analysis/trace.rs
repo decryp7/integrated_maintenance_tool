@@ -17,6 +17,25 @@ fn sid(r: &dyn RowRef) -> u32 {
 
 const DURATION_FIELDS: [&str; 4] = ["ElapsedMs", "Elapsed", "DurationMs", "Duration"];
 
+/// Every field [`spans`] reads (a store reads only these).
+pub const SPAN_INPUT_FIELDS: [&str; 15] = [
+    "TraceId",
+    "trace_id",
+    "@tr",
+    "SpanId",
+    "span_id",
+    "@sp",
+    "ParentSpanId",
+    "ParentId",
+    "parent_span_id",
+    "ElapsedMs",
+    "Elapsed",
+    "DurationMs",
+    "Duration",
+    "RequestPath",
+    "SourceContext",
+];
+
 /// First non-empty value among `names`.
 fn first_text(r: &dyn RowRef, names: &[&str]) -> Option<String> {
     names
@@ -56,42 +75,61 @@ pub struct Span {
 
 #[derive(Default)]
 struct SpanBuilder {
-    parent: Option<String>,
+    /// Each with the time of the event it came from: the earliest event that has one wins.
+    parent: Option<(i64, String)>,
     start: i64,
     end: i64,
     explicit: Option<f64>,
     events: u32,
     errors: u32,
     first_id: u32,
-    request_path: Option<String>,
-    context: Option<String>,
+    request_path: Option<(i64, String)>,
+    context: Option<(i64, String)>,
     text: String,
+}
+
+/// Keeps the value of the earliest event (the first one seen among events at the same time).
+fn earliest(slot: &mut Option<(i64, String)>, ts: i64, value: impl FnOnce() -> Option<String>) {
+    if slot.as_ref().is_none_or(|(t, _)| ts < *t) {
+        if let Some(v) = value() {
+            *slot = Some((ts, v));
+        }
+    }
 }
 
 /// Builds spans from events carrying a trace id and a span id. The name is the
 /// request path, else the logger, else the first message. The duration is the
 /// largest `Elapsed`-style value logged in the span, else last minus first event.
+///
+/// Events stream through (nothing is kept per event); their order does not matter: each span takes what it
+/// reports from its earliest events, as if they were sorted by time.
 pub fn spans<R: RowRef>(records: impl IntoIterator<Item = R>) -> Vec<Span> {
-    let mut events: Vec<(i64, R)> = records.into_iter().filter_map(|r| r.ts().map(|t| (t, r))).collect();
-    events.sort_by_key(|e| e.0);
     let mut builders: BTreeMap<(String, String), SpanBuilder> = BTreeMap::new();
-    for (ts, r) in &events {
-        let (ts, r): (i64, &dyn RowRef) = (*ts, r);
+    for r in records {
+        let Some(ts) = r.ts() else { continue };
+        let r: &dyn RowRef = &r;
         let (Some(trace), Some(span)) = (first_text(r, &TRACE_FIELDS), first_text(r, &SPAN_FIELDS)) else {
             continue;
         };
+        let text = || truncate(r.template().unwrap_or(r.message()), 80);
         let b = builders.entry((trace, span)).or_insert_with(|| SpanBuilder {
             start: ts,
+            end: ts,
             first_id: sid(r),
-            text: truncate(r.template().unwrap_or(r.message()), 80),
+            text: text(),
             ..SpanBuilder::default()
         });
-        b.end = ts;
+        if ts < b.start {
+            b.start = ts;
+            b.first_id = sid(r);
+            b.text = text();
+        }
+        b.end = b.end.max(ts);
         b.events += 1;
         b.errors += u32::from(r.level() >= Level::Error);
-        b.parent = b.parent.take().or_else(|| first_text(r, &PARENT_FIELDS));
-        b.request_path = b.request_path.take().or_else(|| first_text(r, &["RequestPath"]));
-        b.context = b.context.take().or_else(|| first_text(r, &["SourceContext"]));
+        earliest(&mut b.parent, ts, || first_text(r, &PARENT_FIELDS));
+        earliest(&mut b.request_path, ts, || first_text(r, &["RequestPath"]));
+        earliest(&mut b.context, ts, || first_text(r, &["SourceContext"]));
         for f in DURATION_FIELDS {
             if let Some(d) = r.number_of(f) {
                 b.explicit = Some(b.explicit.map_or(d, |e| e.max(d)));
@@ -103,8 +141,8 @@ pub fn spans<R: RowRef>(records: impl IntoIterator<Item = R>) -> Vec<Span> {
         .map(|((trace_id, span_id), b)| Span {
             trace_id,
             span_id,
-            parent: b.parent,
-            name: b.request_path.or(b.context).unwrap_or(b.text),
+            parent: b.parent.map(|(_, p)| p),
+            name: b.request_path.or(b.context).map_or(b.text, |(_, n)| n),
             start: b.start,
             duration_ms: b.explicit.unwrap_or((b.end - b.start) as f64),
             events: b.events,

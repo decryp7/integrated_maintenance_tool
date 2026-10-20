@@ -4,7 +4,7 @@
 //! [`QueryControl`] interrupts the running DuckDB statement.
 
 use crate::analysis::{EventStream, MAX_ANALYSED};
-use crate::sql::{order_by, FROM, ROWS};
+use crate::sql::{order_by, Columns, FROM};
 use crate::Inner;
 use imt_core::api::{CompletionRequest, QueryRequest};
 use imt_core::ports::{StoreError, StoreResult};
@@ -32,7 +32,18 @@ impl Inner {
         let (sf, cq) = self.compile(&ctx, &req.query)?;
         let handle = conn.interrupt_handle();
         let _hook = control.on_cancel(Box::new(move || handle.interrupt()));
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", sf.all_sql(), order_by(false));
+        // Only the fields the program names, and the message (full text); in time order, which also
+        // gives `stats` its first-seen group order.
+        let names: Vec<String> = program.keys.names().iter().map(|n| n.to_string()).collect();
+        let filters = std::iter::once(&program.filter).chain(program.stages.iter().filter_map(|s| match s {
+            ql::Stage::Where(f) => Some(f),
+            _ => None,
+        }));
+        let message =
+            program.field_refs.iter().any(|(_, f)| f.name == "@message") || filters.filter_map(|f| f.expr.as_ref()).any(full_text);
+        let select = self.select_list(&sf, &cq, &Columns::only(message, names));
+        let order = order_by(false);
+        let sql = format!("SELECT {select} FROM {FROM} WHERE {} {order}", sf.all_sql());
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?.controlled(control);
         let result = ql::run_rows(&program, &mut stream, control);
         let coverage = stream.finish()?;
@@ -58,5 +69,26 @@ impl Inner {
 
     pub(crate) fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
         Ok(ql::completions(&req.text, req.cursor, &self.field_names()?))
+    }
+}
+
+/// Whether `e` reads the message (full text, or a comparison on `@message`).
+fn full_text(e: &ql::Expr) -> bool {
+    use imt_core::row::{FieldKey, Pseudo};
+    let message = |k: &FieldKey| *k == FieldKey::Pseudo(Pseudo::Message);
+    match e {
+        ql::Expr::And(v) | ql::Expr::Or(v) => v.iter().any(full_text),
+        ql::Expr::Not(x) => full_text(x),
+        ql::Expr::Text(_) | ql::Expr::Search(_) => true,
+        ql::Expr::Cmp { field, .. }
+        | ql::Expr::Contains { field, .. }
+        | ql::Expr::Regex { field, .. }
+        | ql::Expr::In { field, .. }
+        | ql::Expr::TextEq { field, .. }
+        | ql::Expr::TextIn { field, .. }
+        | ql::Expr::NumCmp { field, .. } => message(field),
+        ql::Expr::Exists(field) | ql::Expr::Missing(field) => message(field),
+        ql::Expr::Group { by, .. } => by.iter().any(message),
+        _ => false,
     }
 }

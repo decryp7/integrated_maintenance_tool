@@ -169,6 +169,9 @@ fn check_analyses(p: &Pair) {
         for def in [
             json!({"id": "c", "title": "Events", "y": "count()", "splitBy": ["@level"]}),
             json!({"id": "d", "title": "Elapsed", "y": "avg(ElapsedMs)", "splitBy": ["MachineName"], "bucket": "1m"}),
+            json!({"id": "e", "title": "Slowest", "y": "max(ElapsedMs)", "splitBy": ["MachineName"]}),
+            json!({"id": "f", "title": "Fastest", "y": "min(ElapsedMs)"}),
+            json!({"id": "g", "title": "Latest", "y": "last(ElapsedMs)", "bucket": "5m"}),
         ] {
             let cr = req(json!({"query": q, "def": def, "buckets": 100}));
             same(

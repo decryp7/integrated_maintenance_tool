@@ -169,6 +169,17 @@ impl Inner {
             }
         }
         let profile = self.profile();
+        // Computed once per data version and profile, and kept in the database (a reopened project does
+        // not scan its fields again).
+        let cache_key =
+            serde_json::to_string(&(&profile.profile.instance, &profile.profile.extract, &profile.profile.pipeline)).unwrap_or_default();
+        if let Some(value) = self.cache_get(conn, "fields", &cache_key)? {
+            if let Ok((fields, default_group_by)) = serde_json::from_str::<(Vec<FieldInfo>, Vec<String>)>(&value) {
+                let d = Arc::new(Derived { fields, default_group_by });
+                *crate::lock(&self.derived) = Some((generation, d.clone()));
+                return Ok(d);
+            }
+        }
         let isnum = |x: &str| format!("coalesce(isfinite(TRY_CAST(trim({x}) AS DOUBLE)), false)");
         let mut fields = Vec::new();
         let declared_names: HashSet<&str> = self.schema.declared().iter().map(|c| c.name.as_str()).collect();
@@ -237,6 +248,9 @@ impl Inner {
             fields: infos,
             default_group_by,
         });
+        if let Ok(value) = serde_json::to_string(&(&d.fields, &d.default_group_by)) {
+            self.cache_put(conn, "fields", &cache_key, &value)?;
+        }
         *crate::lock(&self.derived) = Some((generation, d.clone()));
         Ok(d)
     }
@@ -456,25 +470,31 @@ impl Inner {
                 "SELECT {expr} AS v FROM events e JOIN sources s ON s.id = e.source WHERE {}",
                 f.all_sql()
             );
-            let (total, distinct) = conn
-                .query_row(&format!("SELECT count(v), count(DISTINCT v) FROM ({inner})"), [], |r| {
-                    Ok((r.get::<_, u64>(0)?, r.get::<_, u64>(1)?))
-                })
-                .map_err(engine)?;
+            // One scan: the groups, with the totals over all groups alongside the top ones.
             let mut stmt = conn
                 .prepare(&format!(
-                    "SELECT v, count(*) AS n FROM ({inner}) WHERE v IS NOT NULL GROUP BY v ORDER BY n DESC, v LIMIT {limit}"
+                    "SELECT v, n, CAST(sum(n) OVER () AS UBIGINT) AS total, count(*) OVER () AS distinct_values FROM (SELECT v, count(*) AS n FROM ({inner}) WHERE v IS NOT NULL GROUP BY v) ORDER BY n DESC, v LIMIT {limit}"
                 ))
                 .map_err(engine)?;
+            let (mut total, mut distinct) = (0u64, 0u64);
             let rows = stmt
                 .query_map([], |r| {
-                    Ok(FacetValue {
-                        value: r.get(0)?,
-                        count: r.get::<_, u64>(1)? as usize,
-                    })
+                    Ok((
+                        FacetValue {
+                            value: r.get(0)?,
+                            count: r.get::<_, u64>(1)? as usize,
+                        },
+                        r.get::<_, u64>(2)?,
+                        r.get::<_, u64>(3)?,
+                    ))
                 })
                 .map_err(engine)?;
-            let values = rows.collect::<Result<Vec<_>, _>>().map_err(engine)?;
+            let mut values = Vec::new();
+            for row in rows {
+                let (v, t, d) = row.map_err(engine)?;
+                (total, distinct) = (t, d);
+                values.push(v);
+            }
             return Ok(Facet {
                 field: req.field.clone(),
                 values,
@@ -659,123 +679,117 @@ impl Inner {
         buckets: usize,
         lifecycle: u64,
     ) -> StoreResult<Timeline> {
-        let base = format!(
-            "SELECT {key} AS k, e.ts, e.level, e.source, e.line, e.id, e.markers, e.message, ({}) AS m FROM events e JOIN sources s ON s.id = e.source WHERE e.ts IS NOT NULL AND {}",
-            f.content_sql(),
-            f.structural_sql()
-        );
+        // No window functions and no wide columns: one pass for the bounds, one GROUP BY for lanes, density,
+        // histogram and first sources, and one over the (few) marked events for the clusters.
+        let filter = format!("e.ts IS NOT NULL AND {}", f.structural_sql());
         let (min, max) = conn
-            .query_row(&format!("SELECT min(ts), max(ts) FROM ({base})"), [], |r| {
+            .query_row(&format!("SELECT min(e.ts), max(e.ts) FROM {FROM} WHERE {filter}"), [], |r| {
                 Ok((r.get::<_, Option<i64>>(0)?, r.get::<_, Option<i64>>(1)?))
             })
             .map_err(engine)?;
         let (from, to, bucket_ms) = Self::bounds(req, min, max, buckets);
         let bucket = format!(
-            "least(greatest(CAST(trunc(CAST(ts - {from} AS DOUBLE) / CAST('{bucket_ms:?}' AS DOUBLE)) AS BIGINT), 0), {})",
+            "least(greatest(CAST(trunc(CAST(e.ts - {from} AS DOUBLE) / CAST('{bucket_ms:?}' AS DOUBLE)) AS BIGINT), 0), {})",
             buckets - 1
         );
+        let content = f.content_sql();
         let mut lanes: Vec<Lane> = Vec::new();
         let mut index: HashMap<String, usize> = HashMap::new();
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, min(ts), max(ts), count(*), count(*) FILTER (WHERE m) FROM ({base}) GROUP BY k"
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok(Lane {
-                    key: r.get(0)?,
-                    first: r.get(1)?,
-                    last: r.get(2)?,
-                    total: r.get::<_, u64>(3)? as usize,
-                    matched: r.get::<_, u64>(4)? as usize,
-                    density: vec![0; buckets],
-                    markers: Vec::new(),
-                    sources: Vec::new(),
-                })
-            })
-            .map_err(engine)?;
-        for lane in rows {
-            let lane = lane.map_err(engine)?;
-            index.insert(lane.key.clone(), lanes.len());
-            lanes.push(lane);
-        }
         let mut histogram = vec![[0u32; 6]; buckets];
+        // The first event of each (lane, source), to order the lane's sources.
+        let mut firsts: HashMap<(usize, u32), OrderKey> = HashMap::new();
         let mut stmt = conn
             .prepare(&format!(
-                "SELECT k, {bucket} AS b, level, count(*) FROM ({base}) WHERE m GROUP BY ALL"
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, u8>(2)?, r.get::<_, u64>(3)?))
-            })
-            .map_err(engine)?;
-        for row in rows {
-            let (k, b, level, n) = row.map_err(engine)?;
-            let b = (b.max(0) as usize).min(buckets - 1);
-            histogram[b][(level as usize).min(5)] += n as u32;
-            if let Some(&i) = index.get(&k) {
-                lanes[i].density[b] += n as u32;
-            }
-        }
-        // The first sources of each lane, in the order their first events appear.
-        let mut firsts: Vec<Vec<(OrderKey, u32)>> = vec![Vec::new(); lanes.len()];
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, source, ts, line, id FROM (SELECT k, source, ts, line, id, row_number() OVER (PARTITION BY k, source ORDER BY ts, line, id) AS rn FROM ({base})) WHERE rn = 1"
+                "SELECT k, b, level, m, source, n, tmin, tmax, struct_extract(f, 'ts'), struct_extract(f, 'line'), struct_extract(f, 'id') FROM (
+                   SELECT {key} AS k, {bucket} AS b, e.level AS level, ({content}) AS m, e.source AS source, count(*) AS n,
+                          min(e.ts) AS tmin, max(e.ts) AS tmax, min(struct_pack(ts := e.ts, line := e.line, id := e.id)) AS f
+                   FROM {FROM} WHERE {filter} GROUP BY ALL)"
             ))
             .map_err(engine)?;
         let rows = stmt
             .query_map([], |r| {
                 Ok((
                     r.get::<_, String>(0)?,
-                    r.get::<_, u32>(1)?,
-                    r.get::<_, i64>(2)?,
-                    r.get::<_, u32>(3)?,
-                    r.get::<_, u64>(4)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, u8>(2)?,
+                    r.get::<_, bool>(3)?,
+                    r.get::<_, u32>(4)?,
+                    r.get::<_, u64>(5)?,
+                    r.get::<_, i64>(6)?,
+                    r.get::<_, i64>(7)?,
+                    (r.get::<_, i64>(8)?, r.get::<_, u32>(9)?, r.get::<_, u64>(10)?),
                 ))
             })
             .map_err(engine)?;
         for row in rows {
-            let (k, source, ts, line, id) = row.map_err(engine)?;
-            if let Some(&i) = index.get(&k) {
-                firsts[i].push(((ts, source, line, id), source));
+            let (k, b, level, m, source, n, tmin, tmax, (fts, fline, fid)) = row.map_err(engine)?;
+            let i = *index.entry(k).or_insert_with_key(|k| {
+                lanes.push(Lane {
+                    key: k.clone(),
+                    first: i64::MAX,
+                    last: i64::MIN,
+                    total: 0,
+                    matched: 0,
+                    density: vec![0; buckets],
+                    markers: Vec::new(),
+                    sources: Vec::new(),
+                });
+                lanes.len() - 1
+            });
+            let lane = &mut lanes[i];
+            let b = (b.max(0) as usize).min(buckets - 1);
+            lane.first = lane.first.min(tmin);
+            lane.last = lane.last.max(tmax);
+            lane.total += n as usize;
+            if m {
+                lane.matched += n as usize;
+                lane.density[b] += n as u32;
+                histogram[b][(level as usize).min(5)] += n as u32;
             }
+            let key = (fts, source, fline, fid);
+            firsts.entry((i, source)).and_modify(|k| *k = (*k).min(key)).or_insert(key);
         }
-        for (lane, mut f) in lanes.iter_mut().zip(firsts) {
+        let mut by_lane: Vec<Vec<(OrderKey, u32)>> = vec![Vec::new(); lanes.len()];
+        for ((i, source), k) in firsts {
+            by_lane[i].push((k, source));
+        }
+        for (lane, mut f) in lanes.iter_mut().zip(by_lane) {
             f.sort_unstable();
             lane.sources = f.into_iter().take(MAX_LANE_SOURCES).map(|(_, s)| s).collect();
         }
         let mut clusters: Vec<HashMap<(usize, usize), Cluster>> = (0..lanes.len()).map(|_| HashMap::new()).collect();
         let visible = ctx.visible;
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, mask, b, n, ts, source, line, id, message FROM (
-                   SELECT k, mask, b, ts, source, line, id, message, count(*) OVER (PARTITION BY k, mask, b) AS n,
-                          row_number() OVER (PARTITION BY k, mask, b ORDER BY ts, source, line, id) AS rn
-                   FROM (SELECT *, CASE WHEN m THEN markers & {visible}::UBIGINT ELSE markers & {lifecycle}::UBIGINT END AS mask, {bucket} AS b FROM ({base}))
-                   WHERE mask <> 0)
-                 WHERE rn = 1"
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, u64>(1)?,
-                    r.get::<_, i64>(2)?,
-                    r.get::<_, u64>(3)?,
-                    (r.get::<_, i64>(4)?, r.get::<_, u32>(5)?, r.get::<_, u32>(6)?, r.get::<_, u64>(7)?),
-                    r.get::<_, String>(8)?,
+        let any = visible | lifecycle;
+        if any != 0 {
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT k, mask, b, n, struct_extract(f, 'ts'), struct_extract(f, 'source'), struct_extract(f, 'line'), struct_extract(f, 'id'), msg FROM (
+                       SELECT k, mask, b, count(*) AS n, min(o) AS f, arg_min(message, o) AS msg FROM (
+                         SELECT {key} AS k, {bucket} AS b, e.message AS message,
+                                struct_pack(ts := e.ts, source := e.source, line := e.line, id := e.id) AS o,
+                                CASE WHEN ({content}) THEN e.markers & {visible}::UBIGINT ELSE e.markers & {lifecycle}::UBIGINT END AS mask
+                         FROM {FROM} WHERE {filter} AND (e.markers & {any}::UBIGINT) <> 0)
+                       WHERE mask <> 0 GROUP BY k, mask, b)"
                 ))
-            })
-            .map_err(engine)?;
-        for row in rows {
-            let (k, mask, b, n, first, message) = row.map_err(engine)?;
-            if let Some(&i) = index.get(&k) {
-                let b = (b.max(0) as usize).min(buckets - 1);
-                add_cluster(&mut clusters[i], &ctx.marker_kinds, mask, b, n as u32, first, &message);
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, u64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, u64>(3)?,
+                        (r.get::<_, i64>(4)?, r.get::<_, u32>(5)?, r.get::<_, u32>(6)?, r.get::<_, u64>(7)?),
+                        r.get::<_, String>(8)?,
+                    ))
+                })
+                .map_err(engine)?;
+            for row in rows {
+                let (k, mask, b, n, first, message) = row.map_err(engine)?;
+                if let Some(&i) = index.get(&k) {
+                    let b = (b.max(0) as usize).min(buckets - 1);
+                    add_cluster(&mut clusters[i], &ctx.marker_kinds, mask, b, n as u32, first, &message);
+                }
             }
         }
         let (lanes, truncated_lanes) = finish_lanes(lanes, clusters);

@@ -371,6 +371,37 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 - **Compare reads numeric text as numbers** (stores keep undeclared fields as text), so JSON strings such as
   `"500"` count as numbers too.
 
+### Read performance (R2c, after the R2b measurement at 10M events)
+
+- **Pages are two-phase**: the page's ids by an id-only sort of the matching events (`ORDER BY` time key, `LIMIT`
+  over ids, never wide rows), then `rows_by_id`. The R2b primitives (`ord`/positions for unfiltered pages and
+  anchors, `rows(ids)`) slot in behind `Inner::page` without a port change.
+- **Narrow reads**: `sql::Columns` says which wide columns a read needs (the message, which fields; others read
+  as empty, `extra` filtered to the named keys with `list_filter`); every analysis states its columns, reads in
+  time order only when its result depends on order (charts, field stats, compare and the Moment's previous
+  window read unordered), and anomaly detection reads the message only of errors and stop messages. Analyses no
+  longer keep whole events: spans stream (earliest event wins, as if sorted) and anomalies keep a few dozen bytes
+  per event (`Slim`).
+- **Timeline**: no window functions: one GROUP BY (lane, bucket, level, matched, source) with `min(struct)`
+  for the first events, and one GROUP BY over marked events for the clusters (`arg_min` for the message).
+- **Facets** are one scan (`sum`/`count` over the groups). **Charts** of `count()`, `min()` and `max()` are one
+  GROUP BY (sums and averages stay in Rust so they add up as the engine does). The field list and instance
+  key are cached in the database per data version and profile (a reopened project does not rescan `extra`).
+- **For R2b to plug in** (shapes to agree in the ports): the per-segment field catalog replaces `Inner::derived`
+  (fields with count, distinct (capped), numeric); per-segment minute × level × source histograms answer
+  `timeline_sql` for buckets of a minute or more without content filters other than levels (the GROUP BY stays
+  for the rest); the Search port answers plain text (`Expr::Search` with a literal, `Expr::Text`) with ids,
+  `ILIKE` only verifying phrases.
+- **Benchmark**: `tests/bench_reads.rs` (`IMT_BENCH_READS=<copies>` or `IMT_BENCH_STORE=<folder>`,
+  `IMT_BENCH_STRICT=1` to enforce) times every `Query` and `Analysis` method and the RSS per operation. On this
+  machine (release, R2a's native-table store, 563,220 events = 20 copies of the samples, a fresh process): summary
+  6 ms, pages 85–145 ms (text 240 ms), timeline 200 ms, facets 7–40 ms, chart 60 ms, correlate 63 ms, field stats
+  540 ms, QL stats 810 ms, Moment 1.1 s, patterns 1.0 s, anomalies 2.3 s, compare 2.0 s, traces 1.2 s, runs 1.0 s
+  (cached analyses 1–2 ms); peak RSS 486 MB (anomalies; patterns, traces, runs and QL stats 320–360 MB). At 10M
+  the time-ordered analyses (patterns, anomalies, traces, runs, Moment, QL sorts) and field stats/QL `stats`
+  (still in Rust) will miss the 0.5 s budget; they need SQL pre-aggregation (field stats, `stats`), the
+  position order of R2b instead of a sort, or to run as jobs with cached results.
+
 ### For 6c (`api.types.ts`)
 
 - `Analysis` results: `{ result, coverage: { matched, analysed, limits } }`.

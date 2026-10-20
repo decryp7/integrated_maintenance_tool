@@ -111,13 +111,109 @@ impl<R> Ctx<R> {
     }
 }
 
+/// What the detectors read of an event, kept per event instead of the event (a few dozen bytes): its
+/// id, level, whether it has an exception, the message only where a detector reads it (errors, and
+/// messages that say the instance stopped) and the few fields the latency and growth detectors use.
+struct Slim<'n> {
+    id: u64,
+    ts: i64,
+    level: Level,
+    exception: bool,
+    message: Box<str>,
+    numbers: Box<[Option<f64>]>,
+    texts: Box<[Option<Box<str>>]>,
+    names: &'n SlimNames,
+}
+
+/// The fields a [`Slim`] keeps: numbers and texts, by position.
+struct SlimNames {
+    numbers: Vec<String>,
+    texts: Vec<String>,
+}
+
+impl SlimNames {
+    fn of(cfg: &AnomalyConfig) -> SlimNames {
+        let mut numbers: Vec<String> = cfg.latency_fields.iter().chain(&cfg.growth.fields).cloned().collect();
+        numbers.extend(["Value", "InstanceIndex"].map(String::from));
+        numbers.dedup();
+        SlimNames {
+            numbers,
+            texts: ["Counter", "MachineName", "ProcessName", "Instance"].map(String::from).to_vec(),
+        }
+    }
+
+    fn slim<'n>(&'n self, r: &dyn RowRef, ts: i64) -> Slim<'n> {
+        let m = r.message();
+        let lower = m.to_ascii_lowercase();
+        let keep = r.level() >= Level::Error || lower.contains("stop") || lower.contains("shutting down");
+        Slim {
+            id: r.id(),
+            ts,
+            level: r.level(),
+            exception: r.exception().is_some(),
+            message: if keep { m.into() } else { "".into() },
+            numbers: self.numbers.iter().map(|n| r.number_of(n)).collect(),
+            texts: self.texts.iter().map(|n| r.text_of(n).map(|t| t.into())).collect(),
+            names: self,
+        }
+    }
+}
+
+impl RowRef for Slim<'_> {
+    fn id(&self) -> u64 {
+        self.id
+    }
+    fn ts(&self) -> Option<i64> {
+        Some(self.ts)
+    }
+    fn level(&self) -> Level {
+        self.level
+    }
+    fn source(&self) -> u32 {
+        0
+    }
+    fn source_name(&self) -> &str {
+        ""
+    }
+    fn line(&self) -> u32 {
+        0
+    }
+    fn markers(&self) -> crate::model::MarkerMask {
+        0
+    }
+    fn message(&self) -> &str {
+        &self.message
+    }
+    fn template(&self) -> Option<&str> {
+        None
+    }
+    fn exception(&self) -> Option<&str> {
+        self.exception.then_some("")
+    }
+    fn named_text(&self, _sym: crate::row::Sym, name: &str) -> Option<std::borrow::Cow<'_, str>> {
+        let i = self.names.texts.iter().position(|n| n == name)?;
+        self.texts[i].as_deref().map(std::borrow::Cow::Borrowed)
+    }
+    fn named_number(&self, _sym: crate::row::Sym, name: &str) -> Option<f64> {
+        let i = self.names.numbers.iter().position(|n| n == name)?;
+        self.numbers[i]
+    }
+    fn named_value(&self, _sym: crate::row::Sym, _name: &str) -> Option<serde_json::Value> {
+        None
+    }
+    fn for_each_field(&self, _f: &mut dyn FnMut(&str, std::borrow::Cow<'_, serde_json::Value>)) {}
+}
+
 /// Runs every detector over `(event, instance key)` pairs. Events without a
-/// timestamp are ignored. Results are ordered by start time, then score.
+/// timestamp are ignored. Results are ordered by start time, then score. Only a few fields of each event
+/// are kept while detecting.
 pub fn detect<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
-    let mut instances: BTreeMap<String, Events<R>> = BTreeMap::new();
+    let names = SlimNames::of(cfg);
+    let mut instances: BTreeMap<String, Events<Slim<'_>>> = BTreeMap::new();
     for (rec, key) in records {
         let key = key.as_ref();
         let Some(ts) = rec.ts() else { continue };
+        let rec = names.slim(&rec, ts);
         match instances.get_mut(key) {
             Some(v) => v.push((ts, rec)),
             None => {

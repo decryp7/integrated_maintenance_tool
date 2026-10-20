@@ -23,6 +23,72 @@ pub const FROM: &str = "events e JOIN sources s ON s.id = e.source";
 /// memory limit).
 pub const ROWS: &str = "e.* REPLACE ('' AS raw)";
 
+/// The wide columns a read needs: the message, and which named fields (`None`: all). The rest read
+/// as empty, so sorts and scans carry only what the analysis uses (a sort of whole rows exceeds the
+/// memory limit at 10M events).
+#[derive(Debug, Clone, Default)]
+pub struct Columns {
+    pub message: bool,
+    /// When set, the message is read only where this SQL condition holds (empty elsewhere).
+    pub message_when: Option<String>,
+    pub fields: Option<Vec<String>>,
+}
+
+impl Columns {
+    /// Everything but `raw`.
+    pub fn all() -> Columns {
+        Columns {
+            message: true,
+            message_when: None,
+            fields: None,
+        }
+    }
+
+    pub fn only(message: bool, fields: impl IntoIterator<Item = impl Into<String>>) -> Columns {
+        Columns {
+            message,
+            message_when: None,
+            fields: Some(fields.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+fn sql_type(t: ColumnType) -> &'static str {
+    match t {
+        ColumnType::Utf8 => "VARCHAR",
+        ColumnType::Int64 => "BIGINT",
+        ColumnType::Float64 => "DOUBLE",
+        ColumnType::Boolean => "BOOLEAN",
+    }
+}
+
+/// The select list of event rows with `cols` (see [`ROWS`]).
+pub fn row_columns(schema: &EventSchema, cols: &Columns) -> String {
+    let mut replace = vec!["'' AS raw".to_string()];
+    if !cols.message {
+        replace.push("'' AS message".into());
+    } else if let Some(cond) = &cols.message_when {
+        replace.push(format!("CASE WHEN {cond} THEN e.message ELSE '' END AS message"));
+    }
+    if let Some(fields) = &cols.fields {
+        for c in schema.declared() {
+            if !fields.contains(&c.name) {
+                replace.push(format!("CAST(NULL AS {}) AS {}", sql_type(c.ty), ident(&c.column)));
+            }
+        }
+        let keys: Vec<String> = fields.iter().filter(|f| !f.starts_with('@')).filter_map(|f| lit(f)).collect();
+        replace.push(if keys.is_empty() {
+            "CAST(map() AS MAP(VARCHAR, VARCHAR)) AS extra".into()
+        } else {
+            format!(
+                "map_from_entries(list_filter(map_entries(e.extra), lambda x: list_contains([{}], x.key))) AS extra",
+                keys.join(", ")
+            )
+        });
+    }
+    format!("e.* REPLACE ({})", replace.join(", "))
+}
+
 /// Sort key of time order: untimed events last.
 pub const TIME_KEY: &str = "coalesce(e.ts, 9223372036854775807)";
 

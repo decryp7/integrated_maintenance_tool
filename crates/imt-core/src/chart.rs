@@ -226,6 +226,16 @@ impl SeriesBuilder {
         self.totals.entry(key).or_default().add(value);
     }
 
+    /// Merges an aggregate computed elsewhere (e.g. by SQL) into bucket `bucket` of series `key`.
+    pub fn add_acc(&mut self, bucket: usize, key: String, acc: &Acc) {
+        if bucket >= self.buckets.n {
+            return;
+        }
+        let n = self.buckets.n;
+        self.series.entry(key.clone()).or_insert_with(|| vec![Acc::default(); n])[bucket].merge(acc);
+        self.totals.entry(key).or_default().merge(acc);
+    }
+
     /// The biggest series (levels in severity order when split by `@level`), the rest as "Other".
     pub fn finish(mut self, def: &ChartDef, agg: Agg) -> Vec<crate::api::ChartSeries> {
         let n = self.buckets.n;

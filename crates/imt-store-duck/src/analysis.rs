@@ -4,7 +4,7 @@
 //! database per data version and canonical query (engine review finding 18).
 
 use crate::read::{count, Ctx};
-use crate::sql::{expr_sql, order_by, SqlFilter, FROM, ROWS};
+use crate::sql::{expr_sql, group_key_expr, lit, number_expr, order_by, row_columns, Columns, SqlFilter, FROM, ROWS};
 use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{RecordBatch, StructArray};
 use duckdb::{params, Connection, Statement};
@@ -15,7 +15,7 @@ use imt_core::api::{
     QueryRequest, RequestsRequest, TraceRequest, TraceSummary,
 };
 use imt_core::batch::{EventBatch, EventId, EventSchema, BATCH_ROWS};
-use imt_core::chart::{chart_defs, chart_value, parse_y, Buckets, SeriesBuilder};
+use imt_core::chart::{chart_defs, chart_value, parse_y, Agg, Buckets, SeriesBuilder};
 use imt_core::exceptions::{self, ExceptionGroup};
 use imt_core::patterns::{MinerConfig, Pattern, PatternMiner, MAX_CLUSTERS};
 use imt_core::ports::{Analysis, Analyzed, Coverage, Filter, StoreError, StoreResult};
@@ -29,6 +29,33 @@ use std::sync::Arc;
 
 /// Most events one analysis looks at; the coverage says when it stopped early.
 pub const MAX_ANALYSED: usize = 2_000_000;
+
+/// How an analysis reads its events.
+pub(crate) struct Read<'a> {
+    /// An extra SQL condition.
+    pub extra: Option<&'a str>,
+    /// In time order (else in storage order: cheaper, for analyses that do not depend on order).
+    pub ordered: bool,
+    pub columns: Columns,
+}
+
+impl Read<'_> {
+    fn ordered(columns: Columns) -> Read<'static> {
+        Read {
+            extra: None,
+            ordered: true,
+            columns,
+        }
+    }
+
+    fn unordered(columns: Columns) -> Read<'static> {
+        Read {
+            extra: None,
+            ordered: false,
+            columns,
+        }
+    }
+}
 
 /// Most events a correlation lists.
 const MAX_CORRELATED: usize = 10_000;
@@ -236,7 +263,36 @@ impl Inner {
         Ok(v.and_then(|v| v.parse().ok()).unwrap_or(0))
     }
 
-    /// A cached analysis result, or `compute`'s (stored for next time unless an import is running).
+    /// The cached value of `kind` for the canonical text `key` in the current data version.
+    pub(crate) fn cache_get(&self, conn: &Connection, kind: &str, key: &str) -> StoreResult<Option<String>> {
+        let version = self.data_version(conn)?;
+        let hit: Option<(String, String)> = conn
+            .query_row(
+                "SELECT query, value FROM analysis_cache WHERE version = ? AND kind = ? AND hash = ?",
+                params![version, kind, fnv1a(key)],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .ok();
+        Ok(hit.filter(|(query, _)| query == key).map(|(_, value)| value))
+    }
+
+    /// Stores `value` for `kind` and `key` in the current data version (not while an import runs; a
+    /// failed write only costs a recomputation later).
+    pub(crate) fn cache_put(&self, conn: &Connection, kind: &str, key: &str, value: &str) -> StoreResult<()> {
+        if self.is_importing() {
+            return Ok(());
+        }
+        let version = self.data_version(conn)?;
+        if let Err(e) = conn.execute(
+            "INSERT OR REPLACE INTO analysis_cache VALUES (?, ?, ?, ?, ?)",
+            params![version, kind, fnv1a(key), key, value],
+        ) {
+            log::warn!("caching {kind} failed: {e}");
+        }
+        Ok(())
+    }
+
+    /// A cached analysis result, or `compute`'s (stored for next time).
     fn cached<T: Serialize + DeserializeOwned>(
         &self,
         kind: &str,
@@ -244,18 +300,8 @@ impl Inner {
         compute: impl FnOnce() -> StoreResult<Analyzed<T>>,
     ) -> StoreResult<Analyzed<T>> {
         let conn = self.conn()?;
-        let version = self.data_version(&conn)?;
         let text = canonical(q);
-        let hash = fnv1a(&text);
-        let hit: Option<(String, String)> = conn
-            .query_row(
-                "SELECT query, value FROM analysis_cache WHERE version = ? AND kind = ? AND hash = ?",
-                params![version, kind, hash],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .ok();
-        if let Some((query, value)) = hit.filter(|(query, _)| *query == text) {
-            let _ = query;
+        if let Some(value) = self.cache_get(&conn, kind, &text)? {
             if let Ok((result, matched, analysed, limits)) = serde_json::from_str::<(T, u64, u64, Vec<String>)>(&value) {
                 return Ok(Analyzed {
                     result,
@@ -264,36 +310,42 @@ impl Inner {
             }
         }
         let out = compute()?;
-        if !self.is_importing() {
-            let value = serde_json::to_string(&(&out.result, out.coverage.matched, out.coverage.analysed, &out.coverage.limits))
-                .map_err(|e| StoreError::Engine(e.to_string()))?;
-            // A failed cache write only costs the next request a recomputation.
-            if let Err(e) = conn.execute(
-                "INSERT OR REPLACE INTO analysis_cache VALUES (?, ?, ?, ?, ?)",
-                params![version, kind, hash, text, value],
-            ) {
-                log::warn!("caching the {kind} analysis failed: {e}");
-            }
-        }
+        let value = serde_json::to_string(&(&out.result, out.coverage.matched, out.coverage.analysed, &out.coverage.limits))
+            .map_err(|e| StoreError::Engine(e.to_string()))?;
+        self.cache_put(&conn, kind, &text, &value)?;
         Ok(out)
     }
 
-    /// Streams the events matching `q` (and `extra`, an SQL condition) in time order to `f`, at most
-    /// [`MAX_ANALYSED`] of them.
+    /// The select list of a read over `q`: `cols` plus the instance key's fields, everything when part of
+    /// the filter is decided on the scan (it may need any field).
+    pub(crate) fn select_list(&self, sf: &SqlFilter, cq: &CompiledQuery, cols: &Columns) -> String {
+        if !sf.exact {
+            return row_columns(&self.schema, &Columns::all());
+        }
+        let mut cols = cols.clone();
+        if let Some(f) = &mut cols.fields {
+            f.extend(cq.group_by.iter().cloned());
+        }
+        row_columns(&self.schema, &cols)
+    }
+
+    /// Streams the events matching `q` (and `read.extra`, an SQL condition) to `f`, in time order when
+    /// `read.ordered`, at most [`MAX_ANALYSED`] of them, with the columns `read.columns`.
     fn analyse<T>(
         &self,
         q: &Filter,
-        extra: Option<&str>,
+        read: Read<'_>,
         f: impl FnOnce(&mut EventStream<'_>, &CompiledQuery) -> T,
     ) -> StoreResult<Analyzed<T>> {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
         let sql = format!(
-            "SELECT {ROWS} FROM {FROM} WHERE {} AND {} {}",
+            "SELECT {} FROM {FROM} WHERE {} AND {} {}",
+            self.select_list(&sf, &cq, &read.columns),
             sf.all_sql(),
-            extra.unwrap_or("TRUE"),
-            order_by(false)
+            read.extra.unwrap_or("TRUE"),
+            if read.ordered { order_by(false) } else { String::new() }
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?;
         let result = f(&mut stream, &cq);
@@ -317,7 +369,7 @@ impl Inner {
     fn patterns(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Pattern>>> {
         self.cached("patterns", &req.query, || {
             let mut overflow = 0;
-            let mut out = self.analyse(&req.query, None, |rows, _| {
+            let mut out = self.analyse(&req.query, Read::ordered(Columns::only(true, Vec::<String>::new())), |rows, _| {
                 let mut miner = PatternMiner::new(MinerConfig::default());
                 for r in rows {
                     miner.add(&r);
@@ -336,7 +388,11 @@ impl Inner {
 
     fn exception_groups(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<ExceptionGroup>>> {
         self.cached("exceptions", &req.query, || {
-            self.analyse(&req.query, Some("e.exception IS NOT NULL"), |rows, cq| {
+            let read = Read {
+                extra: Some("e.exception IS NOT NULL"),
+                ..Read::ordered(Columns::only(false, Vec::<String>::new()))
+            };
+            self.analyse(&req.query, read, |rows, cq| {
                 exceptions::group(rows.map(|r| {
                     let key = cq.group_key_of(&r);
                     (r, key)
@@ -347,7 +403,22 @@ impl Inner {
 
     fn anomalies(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Anomaly>>> {
         self.cached("anomalies", &req.query, || {
-            self.analyse(&req.query, None, |rows, cq| {
+            let cfg = AnomalyConfig::default();
+            let fields = cfg
+                .latency_fields
+                .iter()
+                .chain(&cfg.growth.fields)
+                .cloned()
+                .chain(["Counter", "Value", "MachineName", "ProcessName", "Instance", "InstanceIndex"].map(String::from));
+            // The detectors read the message of error events (crash triggers) and whether an instance's last
+            // event says it stopped: other messages are not read.
+            let cols = Columns {
+                message_when: Some(
+                    "e.level >= 4 OR contains(lower(e.message), 'stop') OR contains(lower(e.message), 'shutting down')".into(),
+                ),
+                ..Columns::only(true, fields)
+            };
+            self.analyse(&req.query, Read::ordered(cols), |rows, cq| {
                 analysis::detect(
                     rows.map(|r| {
                         let key = cq.group_key_of(&r);
@@ -365,9 +436,15 @@ impl Inner {
         let ctx = self.ctx(&conn_a)?;
         let (fa, qa) = self.compile(&ctx, &req.a)?;
         let (fb, qb) = self.compile(&ctx, &req.b)?;
-        let sql = |f: &SqlFilter| format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
-        let mut a = EventStream::new(&conn_a, &sql(&fa), self.schema.clone(), &ctx, &qa, fa.exact, MAX_ANALYSED)?;
-        let mut b = EventStream::new(&conn_b, &sql(&fb), self.schema.clone(), &ctx, &qb, fb.exact, MAX_ANALYSED)?;
+        // Every field is compared, the message is not; the order does not matter.
+        let cols = Columns {
+            message: false,
+            message_when: None,
+            fields: None,
+        };
+        let sql = |f: &SqlFilter, q: &CompiledQuery| format!("SELECT {} FROM {FROM} WHERE {}", self.select_list(f, q, &cols), f.all_sql());
+        let mut a = EventStream::new(&conn_a, &sql(&fa, &qa), self.schema.clone(), &ctx, &qa, fa.exact, MAX_ANALYSED)?;
+        let mut b = EventStream::new(&conn_b, &sql(&fb, &qb), self.schema.clone(), &ctx, &qb, fb.exact, MAX_ANALYSED)?;
         let result = analysis::compare_windows(&mut a, &mut b, &CompareConfig::default());
         let coverage = a.finish()?.and(b.finish()?);
         Ok(Analyzed { result, coverage })
@@ -409,7 +486,8 @@ impl Inner {
     }
 
     fn traces(&self, req: &TraceRequest) -> StoreResult<Analyzed<(Vec<TraceSummary>, Vec<WaterfallRow>)>> {
-        self.analyse(&req.query, None, |rows, _| {
+        let fields = analysis::trace::SPAN_INPUT_FIELDS.map(String::from);
+        self.analyse(&req.query, Read::ordered(Columns::only(true, fields)), |rows, _| {
             let spans = analysis::spans(rows);
             if req.trace_id.is_empty() {
                 (trace_summaries(&spans), Vec::new())
@@ -420,7 +498,8 @@ impl Inner {
     }
 
     fn requests(&self, req: &RequestsRequest) -> StoreResult<Analyzed<Vec<RequestSpan>>> {
-        self.analyse(&req.query, None, |rows, cq| {
+        let fields: Vec<String> = req.id_field.split('|').map(|f| f.trim().to_string()).collect();
+        self.analyse(&req.query, Read::ordered(Columns::only(false, fields)), |rows, cq| {
             let mut out = analysis::request_durations(
                 rows.map(|r| {
                     let key = cq.group_key_of(&r);
@@ -441,14 +520,21 @@ impl Inner {
         let [window, previous, all] = moment_queries(&req.query, from, to);
         let profile = self.profile();
         let cfg = &profile.profile.activity;
-        let builder = self.analyse(&window, None, |rows, cq| {
+        let metric_fields = || {
+            cfg.metrics
+                .iter()
+                .cloned()
+                .chain(["Counter", "Value", "MachineName", "Instance"].map(String::from))
+        };
+        let fields = cfg.user.iter().chain(&cfg.action).cloned().chain(metric_fields());
+        let builder = self.analyse(&window, Read::ordered(Columns::only(true, fields)), |rows, cq| {
             let mut b = MomentBuilder::new(cfg, from);
             for r in rows {
                 b.add(&r, &cq.group_key_of(&r));
             }
             b
         })?;
-        let before = self.analyse(&previous, None, |rows, cq| {
+        let before = self.analyse(&previous, Read::unordered(Columns::only(false, metric_fields())), |rows, cq| {
             let mut m = MetricCollector::new(&cfg.metrics);
             for r in rows {
                 m.add(&r, &cq.group_key_of(&r));
@@ -496,7 +582,13 @@ impl Inner {
         if !rules.is_empty() {
             let cq = CompiledQuery::new(&Filter::default(), &ctx.default_group_by, &ctx.marker_kinds)
                 .map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
-            let sql = format!("SELECT {ROWS} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
+            // The message (for regex rules and run texts), the per-field rules' fields and the lanes' fields.
+            let per = rules.iter().filter_map(|(r, _)| match &r.per {
+                imt_core::spans::Per::Field(f) => Some(f.clone()),
+                imt_core::spans::Per::Instance => None,
+            });
+            let select = row_columns(&self.schema, &Columns::only(true, per.chain(ctx.default_group_by.iter().cloned())));
+            let sql = format!("SELECT {select} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
             let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
             for r in stream.by_ref() {
                 let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
@@ -510,10 +602,35 @@ impl Inner {
 
     pub(crate) fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
         Ok(self
-            .analyse(&req.query, None, |rows, _| {
-                analysis::field_stats(rows, &req.field, req.buckets.clamp(1, 200))
-            })?
+            .analyse(
+                &req.query,
+                Read::unordered(Columns::only(req.field == "@message", [req.field.clone()])),
+                |rows, _| analysis::field_stats(rows, &req.field, req.buckets.clamp(1, 200)),
+            )?
             .result)
+    }
+
+    /// Streams a chart's events (`select` columns matching `filter`), in time order when `ordered`.
+    #[allow(clippy::too_many_arguments)]
+    fn chart_rows(
+        &self,
+        conn: &Connection,
+        ctx: &Ctx,
+        exact: bool,
+        cq: &CompiledQuery,
+        select: &str,
+        filter: &str,
+        ordered: bool,
+        f: &mut dyn FnMut(OwnedRow),
+    ) -> StoreResult<()> {
+        let order = if ordered { order_by(false) } else { String::new() };
+        let sql = format!("SELECT {select} FROM {FROM} WHERE {filter} {order}");
+        let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, exact, usize::MAX)?;
+        for r in stream.by_ref() {
+            f(r);
+        }
+        stream.finish()?;
+        Ok(())
     }
 
     pub(crate) fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData> {
@@ -549,6 +666,12 @@ impl Inner {
         }
         let filter = format!("{} AND {}", sf.all_sql(), when_sql.join(" AND "));
         let keep = |r: &OwnedRow| when.iter().all(|c| c.eval_row(r));
+        // Only the value, the split and the conditions' fields; in time order only for `last()`.
+        let mut names: Vec<String> = def.split_by.iter().cloned().chain(field.clone()).collect();
+        names.extend(when.iter().map(|c| c.check().field().to_string()));
+        let cols = Columns::only(names.iter().any(|n| n == "@message"), names);
+        let select = self.select_list(&sf, &cq, &cols);
+        let ordered = agg == Agg::Last;
         let (from, to) = match (req.query.from, req.query.to) {
             (Some(f), Some(t)) => (f, t),
             (qf, qt) => {
@@ -558,12 +681,12 @@ impl Inner {
                     })
                     .map_err(engine)?
                 } else {
-                    let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {filter} {}", order_by(false));
+                    let sql = format!("SELECT {select} FROM {FROM} WHERE {filter}");
                     let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, usize::MAX)?;
-                    let (mut min, mut max) = (None, None);
-                    for r in stream.by_ref().filter(|r| keep(r)) {
-                        min = min.or(r.ts());
-                        max = r.ts().or(max);
+                    let (mut min, mut max): (Option<i64>, Option<i64>) = (None, None);
+                    for ts in stream.by_ref().filter(|r| keep(r)).filter_map(|r| r.ts()) {
+                        min = Some(min.map_or(ts, |m| m.min(ts)));
+                        max = Some(max.map_or(ts, |m| m.max(ts)));
                     }
                     stream.finish()?;
                     (min, max)
@@ -574,18 +697,62 @@ impl Inner {
         };
         let buckets = Buckets::of(&def, from, to, req.buckets).map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
         let mut builder = SeriesBuilder::new(buckets);
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {filter} {}", order_by(false));
-        let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, usize::MAX)?;
-        for r in stream.by_ref().filter(|r| exact || keep(r)) {
-            let Some(value) = chart_value(&r, field.as_deref()) else { continue };
-            let key = if def.split_by.is_empty() {
-                def.title.clone()
-            } else {
-                imt_core::query::group_key(&def.split_by, &r.rec, &r.source)
-            };
-            builder.add(r.ts().unwrap_or_default(), value, key);
+        // count(), min() and max() of a filter SQL expresses are one GROUP BY (sums and averages stay in Rust,
+        // so they add up exactly as the engine does).
+        let key_sql = if def.split_by.is_empty() {
+            lit(&def.title)
+        } else {
+            group_key_expr(&def.split_by, &self.schema)
+        };
+        let value_sql = match &field {
+            None => Some("CAST(1 AS DOUBLE)".to_string()),
+            Some(f) => number_expr(f, &self.schema),
+        };
+        if let (true, Agg::Count | Agg::Min | Agg::Max, Some(key_sql), Some(value_sql)) = (exact, agg, key_sql, value_sql) {
+            let Buckets { start, bucket_ms, n } = buckets;
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT k, b, count(*), min(v), max(v) FROM (
+                       SELECT {key_sql} AS k, (e.ts - {start}) // {bucket_ms} AS b, {value_sql} AS v FROM {FROM} WHERE {filter} AND e.ts >= {start})
+                     WHERE v IS NOT NULL AND b < {n} GROUP BY k, b"
+                ))
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, u64>(2)?,
+                        r.get::<_, f64>(3)?,
+                        r.get::<_, f64>(4)?,
+                    ))
+                })
+                .map_err(engine)?;
+            for row in rows {
+                let (k, b, count, min, max) = row.map_err(engine)?;
+                let acc = imt_core::chart::Acc {
+                    count,
+                    sum: 0.0,
+                    min,
+                    max,
+                    last: max,
+                };
+                builder.add_acc(b as usize, k, &acc);
+            }
+        } else {
+            self.chart_rows(&conn, &ctx, sf.exact, &cq, &select, &filter, ordered, &mut |r| {
+                if !exact && !keep(&r) {
+                    return;
+                }
+                let Some(value) = chart_value(&r, field.as_deref()) else { return };
+                let key = if def.split_by.is_empty() {
+                    def.title.clone()
+                } else {
+                    imt_core::query::group_key(&def.split_by, &r.rec, &r.source)
+                };
+                builder.add(r.ts().unwrap_or_default(), value, key);
+            })?;
         }
-        stream.finish()?;
         let series = builder.finish(&def, agg);
         let fatal = ctx
             .marker_kinds
@@ -597,7 +764,8 @@ impl Inner {
         let mut lifecycle = Vec::new();
         if mask != 0 {
             let sql = format!(
-                "SELECT {ROWS} FROM {FROM} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
+                "SELECT {} FROM {FROM} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
+                self.select_list(&sf, &cq, &Columns::only(false, Vec::<String>::new())),
                 sf.structural_sql(),
                 order_by(false)
             );

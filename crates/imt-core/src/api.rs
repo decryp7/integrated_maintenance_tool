@@ -92,7 +92,7 @@ pub struct UnrecognizedFile {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldInfo {
     pub name: String,
