@@ -6,9 +6,9 @@ import { SourceSwatch } from '../sources/source-swatch';
 import { AnnotationVm } from './annotation-layout';
 import { AnnotationHover, AnnotationTrack } from './annotation-track';
 import { LaidMarker } from './marker-layout';
-import { RunBandVm } from './run-layout';
+import { RunBandVm, runRowCount } from './run-layout';
 import { RunHover, RunTrack } from './run-track';
-import { LABEL_W, LaneVm, TargetVm } from './timeline-lane-vm';
+import { LaneVm, TargetVm } from './timeline-lane-vm';
 
 /** The marker under the pointer, for the tooltip. */
 export interface MarkerHover {
@@ -30,65 +30,80 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkerGlyph, SourceSwatch, AnnotationTrack, RunTrack],
   template: `
-    @for (l of lanes(); track l.lane.key) {
-      <div class="row lane">
+    @for (l of lanes(); track l.lane.key; let odd = $odd) {
+      @let runs = runLayout().get(l.lane.key);
+      <!-- A lane: the band (volume, annotations, markers), then its runs on stacked sub-tracks. -->
+      <div class="row lane" [class.odd]="odd" [class.colored]="!!l.color" [class.sparse]="l.sparse" [style.--run-rows]="rowsOf(runs)" [style.--lane-c]="l.color">
         <button class="label lane-label" [class.filtered]="l.filtered" (click)="toggleGroup.emit(l.lane.key)" [title]="l.title">
-          <span class="key-row">
-            @for (m of l.marks; track m.swatch.slot) {
-              <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="8" />
-            }
-            @if (l.moreSources > 0) {
-              <span class="faint more-src">+{{ l.moreSources }}</span>
-            }
-            <span class="mono key ellipsis">{{ l.lane.key }}</span>
+          <span class="label-body">
+            <span class="key-row">
+              @for (m of l.marks; track m.swatch.slot) {
+                <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="8" />
+              }
+              @if (l.moreSources > 0) {
+                <span class="faint more-src">+{{ l.moreSources }}</span>
+              }
+              <span class="key ellipsis">{{ l.lane.key }}</span>
+            </span>
+            <span class="meta ellipsis">{{ l.meta }}</span>
           </span>
-          <span class="faint meta ellipsis">{{ l.meta }}</span>
         </button>
         <div class="plot track">
-          <div class="baseline"></div>
-          <div class="bar" [style.left.%]="l.left" [style.width.%]="l.width"></div>
-          @if (runLayout().get(l.lane.key); as runs) {
-            <imt-run-track [items]="runs" (hovered)="runHover.emit($event)" (activated)="showRun.emit($event.ann)" />
-          }
-          @if (annLanes().get(l.lane.key); as items) {
-            <imt-annotation-track [items]="items" (hovered)="annHover.emit($event)" (activated)="showEvidence.emit($event.ann)" />
-          }
-          <svg class="density" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="l.densityPath" /></svg>
-          @if (l.tickCount) {
-            <svg class="ticks" viewBox="0 0 1000 6" preserveAspectRatio="none" role="img" [attr.aria-label]="tickAria(l.tickCount)">
-              <title>{{ tickTitle(l.tickCount) }}</title>
-              <path [attr.d]="l.ticksPath" />
+          <div class="band">
+            <div class="bar" [style.left.%]="l.left" [style.width.%]="l.width"></div>
+            @if (annLanes().get(l.lane.key); as items) {
+              <imt-annotation-track [items]="items" (hovered)="annHover.emit($event)" (activated)="showEvidence.emit($event.ann)" />
+            }
+            <!-- The theme's lane fill decides which of these shows (data-lane-fill). -->
+            <svg class="density" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true">
+              <path class="area" [attr.d]="l.densityArea" />
+              <path class="edge" [attr.d]="l.densityEdge" />
+              <path class="bars" [attr.d]="l.densityPath" />
             </svg>
-          }
-          @for (t of l.targets; track t.primary.cluster.kind + t.primary.cluster.bucket; let j = $index) {
-            <!-- A 24px hit area (WCAG 2.5.8) around 16px glyphs; close markers share one (see layoutTargets). One tab stop per lane: arrows move between its markers. -->
-            <button
-              type="button"
-              class="marker"
-              [attr.tabindex]="j === tabStops().get(l.lane.key) ? 0 : -1"
-              (keydown)="markerKey($event, l, j)"
-              (focus)="setStop(l.lane.key, j)"
-              [style.left.%]="t.leftPct"
-              [style.width.px]="t.width"
-              [attr.aria-label]="t.aria"
-              (pointerdown)="$event.stopPropagation()"
-              (click)="activate($event, t)"
-              (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: t.primary })"
-              (pointerleave)="markerHover.emit(null)"
-            >
-              @for (g of t.members; track g.marker.cluster.kind + g.marker.cluster.bucket) {
-                <span
-                  class="glyph"
-                  [class.primary]="g.marker === t.primary"
-                  [style.left.px]="g.offset"
-                  [attr.data-member]="$index"
-                  (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: g.marker })"
-                >
-                  <imt-marker-glyph [kind]="g.marker.cluster.kind" [size]="16" />
-                  @if (g.marker.showCount) { <span class="count mono">{{ g.marker.cluster.count }}</span> }
-                </span>
-              }
-            </button>
+            @if (l.sparse) {
+              <svg class="sparse-ticks" [attr.viewBox]="densityViewBox()" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="l.sparsePath" /></svg>
+            }
+            @if (l.tickCount) {
+              <svg class="ticks" viewBox="0 0 1000 6" preserveAspectRatio="none" role="img" [attr.aria-label]="tickAria(l.tickCount)">
+                <title>{{ tickTitle(l.tickCount) }}</title>
+                <path [attr.d]="l.ticksPath" />
+              </svg>
+            }
+            @for (t of l.targets; track t.primary.cluster.kind + t.primary.cluster.bucket; let j = $index) {
+              <!-- A 24px hit area (WCAG 2.5.8) around 14px glyphs; close markers share one (see layoutTargets). One tab stop per lane: arrows move between its markers. -->
+              <button
+                type="button"
+                class="marker"
+                [attr.tabindex]="j === tabStops().get(l.lane.key) ? 0 : -1"
+                (keydown)="markerKey($event, l, j)"
+                (focus)="setStop(l.lane.key, j)"
+                [style.left.%]="t.leftPct"
+                [style.width.px]="t.width"
+                [attr.aria-label]="t.aria"
+                (pointerdown)="$event.stopPropagation()"
+                (click)="activate($event, t)"
+                (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: t.primary })"
+                (pointerleave)="markerHover.emit(null)"
+              >
+                @for (g of t.members; track g.marker.cluster.kind + g.marker.cluster.bucket) {
+                  <span
+                    class="glyph"
+                    [class.primary]="g.marker === t.primary"
+                    [class.selected]="g.marker.cluster.id === selectedId()"
+                    [attr.data-kind]="g.marker.cluster.kind"
+                    [style.left.px]="g.offset"
+                    [attr.data-member]="$index"
+                    (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: g.marker })"
+                  >
+                    <imt-marker-glyph [kind]="g.marker.cluster.kind" [size]="14" />
+                    @if (g.marker.showCount) { <span class="count mono">{{ g.marker.cluster.count }}</span> }
+                  </span>
+                }
+              </button>
+            }
+          </div>
+          @if (runs) {
+            <imt-run-track [items]="runs" [laneColor]="l.color" (hovered)="runHover.emit($event)" (activated)="showRun.emit($event.ann)" />
           }
         </div>
       </div>
@@ -120,30 +135,54 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
   styles: `
     :host { display: block; }
     .row { display: flex; align-items: stretch; }
-    .label { width: ${LABEL_W}px; flex: none; }
-    .plot { flex: 1; min-width: 0; position: relative; margin-right: 14px; }
-    .lane { height: 32px; }
-    .lane-label { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 0 10px 0 12px; border: 0; border-left: 2px solid transparent; background: transparent; cursor: pointer; text-align: left; min-width: 0; }
-    .lane-label:hover { background: var(--bg-hover); }
-    .lane-label.filtered { border-left-color: var(--accent); background: var(--bg-active); }
-    .key { font-size: var(--fs-sm); color: var(--text); max-width: 100%; min-width: 0; }
+    .label { width: var(--tl-label-w); flex: none; }
+    .plot { flex: 1; min-width: 0; position: relative; margin-right: var(--s-5); }
+    /* A lane is its band plus one sub-track per row of runs (--run-rows, set per lane). */
+    .lane { --run-rows: 0; height: calc(var(--lane-h) + var(--run-rows) * var(--run-row-h)); transition: background-color var(--dur-fast) var(--ease); }
+    .lane:hover { background: var(--bg-hover); }
+    .lane-label { position: relative; display: block; padding: 0 var(--s-2) 0 var(--s-4); border: 0; background: transparent; cursor: pointer; text-align: left; min-width: 0; color: inherit; }
+    /* The source stripe: the lane's source colour (none when source colours are off). */
+    .lane-label::before { content: ''; position: absolute; left: 4px; top: 5px; height: calc(var(--lane-h) - 10px); width: 3px; border-radius: 2px; background: var(--lane-c, transparent); }
+    .label-body { height: var(--lane-h); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; }
+    .lane-label.filtered { background: var(--bg-sel); }
+    .lane-label.filtered .key { color: var(--accent-text); }
+    .key { font-size: var(--fs-sm); font-weight: 600; color: var(--text); max-width: 100%; min-width: 0; }
     .key-row { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
     .more-src { font-size: var(--fs-2xs); }
-    .meta { font-size: var(--fs-xs); max-width: 100%; }
-    .track { height: 32px; }
-    .baseline { position: absolute; left: 0; right: 0; top: 16px; height: 1px; background: var(--grid-line); }
-    .bar { position: absolute; top: 7px; height: 18px; min-width: 2px; background: var(--lane-bar); border: 1px solid var(--lane-border); border-radius: 4px; }
-    .density { position: absolute; left: 0; top: 8px; width: 100%; height: 16px; pointer-events: none; }
-    .density path { fill: var(--density); }
+    .meta { font-size: var(--fs-2xs); color: var(--muted); max-width: 100%; }
+    .track { height: 100%; }
+    .band { position: absolute; left: 0; right: 0; top: 0; height: var(--lane-h); }
+    /* The lane's extent: a hairline under its data (flat), or a rounded track (cards). */
+    .bar { position: absolute; bottom: 4px; height: 1px; min-width: 2px; background: var(--lane-border); }
+    :host-context([data-surface='cards']) .bar { top: 3px; bottom: 3px; height: auto; border-radius: var(--r-2); background: var(--lane-bar); }
+    :host-context([data-surface='flat']) .lane.odd { background: var(--lane-bar); }
+    :host-context([data-surface='flat']) .lane.odd:hover, :host-context([data-surface='flat']) .lane:hover { background: var(--bg-hover); }
+    .density, .sparse-ticks { position: absolute; left: 0; top: 6px; width: 100%; height: calc(var(--lane-h) - 11px); pointer-events: none; overflow: visible; }
+    .density .area { fill: var(--density); }
+    .density .edge { fill: none; stroke: none; }
+    .density .bars { display: none; fill: var(--muted); }
+    .sparse-ticks path { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    /* laneFill: bySource. The volume in the lane's source colour, with its top edge. */
+    :host-context([data-lane-fill='bySource']) .lane.colored .density .area { fill: color-mix(in srgb, var(--lane-c) 26%, transparent); }
+    :host-context([data-lane-fill='bySource']) .lane.colored .density .edge { stroke: var(--lane-c); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+    :host-context([data-lane-fill='bySource']) .lane.colored .sparse-ticks path { stroke: var(--lane-c); }
+    /* laneFill: barcode. One bar per bucket, scaled within the lane. */
+    :host-context([data-lane-fill='barcode']) .density .area { display: none; }
+    :host-context([data-lane-fill='barcode']) .density .bars { display: inline; }
     .ticks { position: absolute; left: 0; bottom: 1px; width: 100%; height: 6px; }
     .ticks path { stroke: var(--mk-warning); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .marker { position: absolute; top: 0; height: 32px; min-width: 24px; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1; }
+    .marker { position: absolute; top: 0; height: var(--lane-h); min-width: 24px; border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1; }
     /* The focus ring goes on the visible glyph, not the transparent hit area. */
     .marker:focus-visible { outline: none; }
-    .glyph { position: absolute; top: 0; height: 32px; width: 16px; margin-left: -8px; display: flex; align-items: center; justify-content: center; }
-    .marker:hover .glyph.primary imt-marker-glyph, .glyph:hover imt-marker-glyph { transform: scale(1.35); }
-    .marker:focus-visible .glyph.primary { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-    .count { position: absolute; left: 17px; top: 2px; font-size: var(--fs-2xs); padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
+    .glyph { position: absolute; top: 0; height: var(--lane-h); width: 14px; margin-left: -7px; display: flex; align-items: center; justify-content: center; }
+    .glyph imt-marker-glyph { transition: transform var(--dur-fast) var(--ease); }
+    .marker:hover .glyph.primary imt-marker-glyph, .glyph:hover imt-marker-glyph { transform: scale(1.3); }
+    .marker:focus-visible .glyph.primary imt-marker-glyph, .glyph.selected imt-marker-glyph { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 50%; }
+    /* crashBand: a soft halo around crashes. */
+    .glyph[data-kind='fatal']::before { content: ''; display: none; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--mk-fatal) 35%, transparent); pointer-events: none; }
+    :host-context([data-crash-band='on']) .glyph[data-kind='fatal']::before { display: block; }
+    .count { position: absolute; left: 12px; top: calc(var(--lane-h) / 2 - 14px); font-size: var(--fs-2xs); font-weight: 600; line-height: 12px; padding: 0 3px; border-radius: 3px; color: var(--text-2); background: var(--bg-1); box-shadow: 0 0 0 1px var(--border-2); pointer-events: none; }
+    :host-context([data-surface='cards']) .count { border-radius: 999px; background: var(--bg-3); box-shadow: 0 0 0 1px var(--border-3); }
     .truncated { padding: 6px 14px; font-size: var(--fs-sm); }
   `,
 })
@@ -152,6 +191,8 @@ export class TimelineLanes {
   readonly runLayout = input.required<ReadonlyMap<string, RunBandVm[]>>();
   readonly annLanes = input.required<ReadonlyMap<string, AnnotationVm[]>>();
   readonly densityViewBox = input.required<string>();
+  /** The selected event: its marker gets a ring. */
+  readonly selectedId = input<number | null>(null);
   readonly main = input.required<boolean>();
   /** What to say when there are no lanes. */
   readonly empty = input<LanesEmpty>(null);
@@ -208,6 +249,11 @@ export class TimelineLanes {
     this.setStop(lane.lane.key, next);
     const buttons = (e.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLElement>(':scope > .marker');
     buttons?.[next]?.focus();
+  }
+
+  /** Sub-tracks of a lane's runs (0 without runs). */
+  protected rowsOf(runs: readonly RunBandVm[] | undefined): number {
+    return runRowCount(runs);
   }
 
   protected tickAria(n: number): string {

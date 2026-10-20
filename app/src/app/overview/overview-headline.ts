@@ -112,6 +112,12 @@ export class OverviewHeadlineStore {
     .review { color: var(--chip-text); text-decoration: underline; }
     .count:hover, .review:hover { background: var(--bg-hover); }
     .count:focus-visible, .review:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    /* findings: chips. Each count is a tinted chip (its text and the warning glyph say what it is, not the tint alone). */
+    :host-context([data-findings='chips']) .headline { gap: 6px; }
+    :host-context([data-findings='chips']) .count { min-height: 22px; padding: 0 9px; border-radius: 999px; font-weight: 600; background: color-mix(in srgb, var(--warn-text) 14%, transparent); }
+    :host-context([data-findings='chips']) .count.bad { background: color-mix(in srgb, var(--danger-text) 14%, transparent); }
+    :host-context([data-findings='chips']) .count + .count::before { content: none; }
+    :host-context([data-findings='chips']) .review { padding: 0 10px; min-height: 22px; border-radius: 999px; text-decoration: none; color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
   `,
 })
 export class OverviewHeadline {

@@ -81,7 +81,8 @@ import { MarkerHover } from './timeline-lanes';
   styles: `
     .spacer { flex: 1; }
     .small { font-size: var(--fs-xs); }
-    .tip { position: fixed; width: 340px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; line-height: 1.45; }
+    .tip { position: fixed; width: 340px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; line-height: 1.45; box-shadow: var(--shadow-pop); animation: tip-in var(--dur-fast) var(--ease); }
+    @keyframes tip-in { from { opacity: 0; transform: translateY(2px); } }
     .tip-head { display: flex; align-items: center; gap: 8px; }
     .tip-desc { color: var(--text); }
     .tip-msg { color: var(--text-2); }

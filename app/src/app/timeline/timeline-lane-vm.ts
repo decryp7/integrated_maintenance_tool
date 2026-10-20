@@ -3,10 +3,12 @@ import { clamp, formatCount, formatTime } from '../core/format';
 import { SourceMark } from '../sources/source-colors.store';
 import { LaidMarker, layoutLane, MarkerTarget, MarkerVm } from './marker-layout';
 
-/** Width of the lane labels (px). */
-export const LABEL_W = 250;
-/** Height of the events-per-bucket histogram (px). */
-export const HIST_H = 30;
+/** Width of the lane labels (px) until the plot is measured; the theme's `--tl-label-w` sets the real one. */
+export const LABEL_W = 232;
+/** Height of a lane's density drawing space in viewBox units (CSS scales it to the lane). */
+export const DENSITY_VB = 16;
+/** A lane with fewer events than the plot is wide / this draws one tick per busy bucket instead of an area. */
+export const SPARSE_PX_PER_EVENT = 6;
 /** Kinds drawn as a thin tick strip when a lane is too busy for full shapes. */
 const COMPACT_KINDS: ReadonlySet<string> = new Set(['warning']);
 
@@ -23,7 +25,17 @@ export interface LaneVm {
   lane: Lane;
   left: number;
   width: number;
+  /** Density bars per bucket, scaled to the lane's own busiest bucket (laneFill: barcode). */
   densityPath: string;
+  /** Density as an area, scaled to the busiest bucket of all lanes so volumes compare (laneFill: neutral, bySource). */
+  densityArea: string;
+  /** The top edge of `densityArea` (stroked in the lane's colour when lanes are coloured by source). */
+  densityEdge: string;
+  /** Too few events for an area: one tick per busy bucket instead (`sparsePath`). */
+  sparse: boolean;
+  sparsePath: string;
+  /** The lane's source colour (its first source), or null. */
+  color: string | null;
   markers: LaidMarker[];
   targets: TargetVm[];
   ticksPath: string;
@@ -71,6 +83,53 @@ export function laneTitle(key: string, filtered: boolean, main: boolean): string
     : $localize`:@@timeline.laneTitle.onlyLane:${key}:key: — click to show only this lane`;
 }
 
+/** The y of each bucket of a density area: √(count / max), so quiet lanes stay visible next to busy ones. */
+function areaYs(density: readonly number[], max: number): number[] {
+  const m = Math.max(1, max);
+  return density.map((v) => (v > 0 ? DENSITY_VB - Math.max(1, Math.sqrt(v / m) * DENSITY_VB) : DENSITY_VB));
+}
+
+/** A step outline over the buckets (`H` runs merged), from x = 0 to the last bucket. */
+function steps(ys: readonly number[]): string {
+  if (!ys.length) return '';
+  let d = `M0 ${(ys[0] ?? DENSITY_VB).toFixed(2)}`;
+  for (let x = 1; x < ys.length; x++) if (ys[x] !== ys[x - 1]) d += `H${x}V${(ys[x] ?? DENSITY_VB).toFixed(2)}`;
+  return `${d}H${ys.length}`;
+}
+
+/** The density of a lane as a closed area (empty when the lane has no events). */
+export function densityArea(density: readonly number[], max: number): string {
+  if (!density.some((v) => v > 0)) return '';
+  return `M0 ${DENSITY_VB}L${steps(areaYs(density, max)).slice(1)}V${DENSITY_VB}Z`;
+}
+
+/** The top edge of `densityArea`, only over buckets with events (never along the empty baseline). */
+export function densityEdge(density: readonly number[], max: number): string {
+  const ys = areaYs(density, max);
+  let d = '';
+  for (let x = 0; x < ys.length; ) {
+    if (!((density[x] ?? 0) > 0)) {
+      x++;
+      continue;
+    }
+    // One sub-path per run of busy buckets.
+    let end = x;
+    while (end < ys.length && (density[end] ?? 0) > 0) end++;
+    d += steps(ys.slice(x, end)).replace(/^M0 /, `M${x} `).replace(/H(\d+)/g, (_, n: string) => `H${Number(n) + x}`);
+    x = end;
+  }
+  return d;
+}
+
+/** One tick per bucket with events, for lanes too quiet for an area (viewBox `0 0 buckets 16`). */
+export function sparsePath(density: readonly number[]): string {
+  let d = '';
+  density.forEach((v, x) => {
+    if (v > 0) d += `M${(x + 0.5).toFixed(1)} 3.5V12.5`;
+  });
+  return d;
+}
+
 /** The SVG path of a lane's density bars (bucket x, height 2..16). */
 export function densityPath(density: readonly number[]): string {
   const max = Math.max(1, ...density);
@@ -87,6 +146,8 @@ export function densityPath(density: readonly number[]): string {
 export function buildLaneVms(lanes: readonly Lane[], t: Timeline, o: LaneVmOptions): LaneVm[] {
   const span = Math.max(1, t.to - t.from);
   const priority = [...o.kinds.keys()];
+  let busiest = 1;
+  for (const l of lanes) for (const v of l.density) busiest = Math.max(busiest, v);
   return lanes.map((lane) => {
     const layout = layoutLane(
       lane.markers.map((cluster): MarkerVm => {
@@ -96,11 +157,18 @@ export function buildLaneVms(lanes: readonly Lane[], t: Timeline, o: LaneVmOptio
       { plotWidth: o.plotWidth, priority, compactKinds: COMPACT_KINDS },
     );
     const filtered = o.groups.has(lane.key);
+    const marks = o.marks(lane);
+    const sparse = lane.matched > 0 && lane.matched < o.plotWidth / SPARSE_PX_PER_EVENT;
     return {
       lane,
       left: clamp(((lane.first - t.from) / span) * 100, 0, 100),
       width: Math.max(0.2, ((lane.last - lane.first) / span) * 100),
       densityPath: densityPath(lane.density),
+      densityArea: sparse ? '' : densityArea(lane.density, busiest),
+      densityEdge: sparse ? '' : densityEdge(lane.density, busiest),
+      sparse,
+      sparsePath: sparse ? sparsePath(lane.density) : '',
+      color: marks[0]?.swatch.color ?? null,
       markers: layout.shapes,
       targets: layout.targets.map((target) => ({
         ...target,
@@ -112,7 +180,7 @@ export function buildLaneVms(lanes: readonly Lane[], t: Timeline, o: LaneVmOptio
       filtered,
       meta: `${laneCount(lane)} · ${formatTime(lane.first, o.timezone).slice(0, 8)} → ${formatTime(lane.last, o.timezone).slice(0, 8)}`,
       title: laneTitle(lane.key, filtered, o.main),
-      marks: o.marks(lane),
+      marks,
       moreSources: o.moreSources(lane),
     };
   });
