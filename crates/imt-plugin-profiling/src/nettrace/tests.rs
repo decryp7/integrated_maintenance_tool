@@ -707,7 +707,8 @@ fn symbol_lookup_handles_edges() {
         size,
         name: String::new(),
     };
-    let s = Symbols::new(&[m(100, 10), m(100, 10), m(200, 0), m(u64::MAX - 1, 100)]);
+    let methods = [m(100, 10), m(100, 10), m(200, 0), m(u64::MAX - 1, 100)];
+    let s = Ranges::new(methods.iter().map(|m| (m.start, u64::from(m.size))));
     assert_eq!(s.ranges.len(), 3, "duplicates removed");
     assert_eq!(s.lookup(99), None);
     assert_eq!(s.lookup(100), Some(0));
@@ -716,4 +717,158 @@ fn symbol_lookup_handles_edges() {
     assert_eq!(s.lookup(200), Some(2), "size 0 covers its start");
     assert_eq!(s.lookup(201), None);
     assert_eq!(s.lookup(u64::MAX - 1), Some(3));
+}
+
+fn meta(id: u32, provider: &'static str, event_id: u32) -> Meta<'static> {
+    Meta {
+        id,
+        provider,
+        event_id,
+        name: "",
+    }
+}
+
+#[test]
+fn allocation_ticks_become_alloc_samples_with_the_type_as_leaf() {
+    for ptr in [4u32, 8] {
+        let mut w = Writer::new(&TraceHeader {
+            pointer_size: ptr,
+            ..TraceHeader::default()
+        });
+        w.metadata(
+            true,
+            &[
+                meta(1, RUNTIME, ids::GC_ALLOCATION_TICK),
+                meta(2, RUNDOWN, ids::METHOD_DC_END_VERBOSE),
+            ],
+        );
+        const MAIN32: u64 = 0x1000_1000;
+        w.stacks(1, &[vec![MAIN32 + 4]]);
+        w.events(
+            true,
+            &[
+                row(1, 10, 1, at(1), p::alloc_tick(100_000, 0, "System.String", ptr as usize)),
+                row(1, 10, 1, at(2), p::alloc_tick(200_000, 1, "System.Byte[]", ptr as usize)),
+                row(2, 10, 0, at(3), p::method_verbose(1, 50, MAIN32, 0x100, "Shop.Program", "Main")),
+            ],
+        );
+        let p = import(&w.finish()).unwrap();
+        assert_eq!(p.kind, ProfileKind::Alloc);
+        let bytes = p.metric_index(MetricId::AllocBytes).unwrap();
+        let n = p.metrics.len();
+        let total: u64 = (0..p.samples.len()).map(|i| p.samples.values[i * n + bytes]).sum();
+        assert_eq!(total, 300_000);
+        let leafs: Vec<Vec<String>> = (0..p.samples.len()).map(|i| names(&p, p.samples.stack[i])).collect();
+        assert!(
+            leafs.iter().any(|s| s.last().map(String::as_str) == Some("System.String")),
+            "{leafs:?}"
+        );
+        assert!(leafs
+            .iter()
+            .any(|s| s.last().map(String::as_str) == Some("System.Byte[] (large object heap)")));
+        assert!(leafs.iter().all(|s| s.first().map(String::as_str) == Some("Shop.Program.Main")));
+    }
+}
+
+#[test]
+fn etw_extension_events_and_pool_starvation() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(
+        true,
+        &[
+            meta(1, ext::PROVIDER, ext::ids::IMAGE_LOAD),
+            meta(2, ext::PROVIDER, ext::ids::THREAD_WAIT),
+            meta(3, ext::PROVIDER, ext::ids::THREAD_NAME),
+            meta(4, SAMPLE_PROFILER, ids::THREAD_SAMPLE),
+            meta(5, RUNTIME, ids::THREAD_POOL_ADJUSTMENT),
+            meta(6, RUNTIME, ids::THREAD_POOL_WORKER_START),
+        ],
+    );
+    w.stacks(1, &[vec![0x7ff0_0010, UNKNOWN]]);
+    let image = ext::image_load(&ext::ImageLoad {
+        base: 0x7ff0_0000,
+        size: 0x1000,
+        path: r"C:\Windows\System32\KERNELBASE.dll".into(),
+    });
+    let wait = ext::thread_wait(&ext::ThreadWait {
+        duration: 30_000,
+        reason: 4,
+        readied_by: 0,
+    });
+    w.events(
+        true,
+        &[
+            row(1, 10, 0, at(0), image),
+            row(3, 10, 0, at(0), ext::thread_name("UI thread")),
+            row(6, 11, 0, at(0), vec![0; 10]),
+            row(4, 10, 1, at(1), p::sample(false)),
+            row(2, 10, 1, at(2), wait),
+            row(5, 11, 0, at(3), p::pool_adjust(9, 6)),
+            row(5, 11, 0, at(4), p::pool_adjust(10, 3)),
+            row(2, 10, 0, at(5), vec![1]),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    let s = names(&p, p.samples.stack[0]);
+    assert!(s.contains(&"KERNELBASE.dll+0x10".to_string()), "{s:?}");
+    assert!(p.notes.iter().any(|n| n.contains("module+offset")), "{:?}", p.notes);
+    let wait = p.events.iter().find(|e| e.kind == EventKind::Wait).unwrap();
+    assert_eq!(wait.dur_ns, 3_000_000);
+    assert_eq!(wait.label, "Sleeping (delay)");
+    assert!(p.metrics.iter().any(|m| m.id == MetricId::WaitNs));
+    let starving: Vec<_> = p.events.iter().filter(|e| e.kind == EventKind::Marker).collect();
+    assert_eq!(starving.len(), 1, "only the starvation adjustment is a marker");
+    assert!(starving[0].label.contains("starvation"));
+    assert!(p.threads.iter().any(|t| t.name == "UI thread"));
+    assert!(p.threads.iter().any(|t| t.name == ".NET ThreadPool Worker"));
+    assert!(
+        p.notes.iter().any(|n| n.contains("damaged")),
+        "the short wait payload: {:?}",
+        p.notes
+    );
+}
+
+#[test]
+fn heap_walks_import_as_heap_snapshots() {
+    use super::heap::{ids as h, payload as hp};
+    for ptr in [4usize, 8] {
+        let mut w = Writer::new(&TraceHeader {
+            pointer_size: ptr as u32,
+            ..TraceHeader::default()
+        });
+        w.metadata(
+            true,
+            &[
+                meta(1, RUNTIME, h::BULK_TYPE),
+                meta(2, RUNTIME, h::BULK_NODE),
+                meta(3, RUNTIME, h::BULK_EDGE),
+                meta(4, RUNTIME, h::BULK_ROOT_EDGE),
+                meta(5, RUNTIME, ids::GC_START),
+                meta(6, RUNTIME, ids::GC_END),
+            ],
+        );
+        w.events(
+            true,
+            &[
+                row(5, 1, 0, at(0), p::gc_start(1, 2, 1)),
+                row(1, 1, 0, at(1), hp::bulk_type(&[(7, "Shop.Order", &[]), (8, "System.String", &[])])),
+                row(2, 1, 0, at(1), hp::bulk_node(0, &[(0x1000, 32, 7, 1), (0x2000, 20, 8, 0)], ptr)),
+                row(3, 1, 0, at(1), hp::bulk_edge(0, &[0x2000], ptr)),
+                row(4, 1, 0, at(1), hp::bulk_root_edge(0, &[(0x1000, 0, 0)], ptr)),
+                row(6, 1, 0, at(2), p::gc_end(1, 2)),
+            ],
+        );
+        let Capture::Heap(s) = NettraceImporter
+            .import("app.gcdump.nettrace", &w.finish(), &Limits::default())
+            .unwrap()
+        else {
+            panic!("a heap snapshot");
+        };
+        assert_eq!(s.name, "app");
+        assert!(s.taken_ms.is_some());
+        let g = s.graph.unwrap();
+        assert_eq!(g.len(), 3, "the stack-roots group and two objects");
+        assert_eq!(g.roots.len(), 1);
+        assert!(s.types.iter().any(|t| t.name == "Shop.Order" && t.bytes == 32));
+    }
 }
