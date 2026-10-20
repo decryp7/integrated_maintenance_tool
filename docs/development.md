@@ -117,6 +117,32 @@ npm run screenshots     # writes docs/screenshots/*.png
 The script is [`app/scripts/screenshots/capture.ts`](../app/scripts/screenshots/capture.ts); set
 `IMT_SHOT_PORT` to use another dev-server port.
 
+### App icon
+
+The icon is drawn as SVG in [`app/src-tauri/icons-src/`](../app/src-tauri/icons-src/): a blue tile
+(IMT's accent) with two log lines, a timeline pulse and an amber marker.
+
+| File | Used for |
+| --- | --- |
+| `imt-icon.svg` | Master, 1024×1024: every bundle icon from 44 px up (`.icns`, `.ico` 48–256 px, PNGs, Store logos) |
+| `imt-icon-small.svg` | The same motif snapped to a 16 px grid with heavier strokes: the 16/24/32 px `.ico` entries, `32x32.png`, `Square30x30Logo.png` and the in-app logo |
+| `imt-tray-template.svg` | Black-on-transparent glyph for the macOS menu bar (`tray-template.png`, 44×44); other platforms use the window icon |
+
+After editing an SVG, regenerate everything with:
+
+```sh
+cd app
+node scripts/app-icon.mjs
+```
+
+It runs `npx tauri icon src-tauri/icons-src/imt-icon.svg`, deletes the `android/` and `ios/` sets that
+command always writes (IMT has no mobile build), re-renders the small sizes from the small variant into
+`icon.ico` (copied to `app/public/favicon.ico`), `32x32.png` and `Square30x30Logo.png`, and renders
+`tray-template.png`. Check the result at 16 px on a light and a dark taskbar before committing. The
+in-app logo (title bar, About) is the inline component
+[`app/src/app/shared/app-logo.ts`](../app/src/app/shared/app-logo.ts), which copies the small variant's
+geometry: change both together.
+
 ## Testing and quality gates
 
 Every change ships with tests, and every bug fix starts with a failing regression test. Before

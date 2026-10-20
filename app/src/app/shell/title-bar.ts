@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
+import { AppLogo } from '../shared/app-logo';
 import { Icon } from '../shared/icon';
 import { CommandRegistry } from '../extensions/command-registry';
 import { PaletteService } from '../palette/palette.service';
@@ -12,12 +13,10 @@ import { localizeDecimal } from '../i18n/locale';
 @Component({
   selector: 'imt-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MenuBar, TitleExtras],
+  imports: [AppLogo, Icon, MenuBar, TitleExtras],
   template: `
     <div class="brand">
-      <span class="logo" aria-hidden="true">
-        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 9 L4 5 L7 7 L11 2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
-      </span>
+      <imt-app-logo [size]="20" />
       <span class="name">IMT</span>
     </div>
     @if (mode === 'in-app') {
@@ -44,7 +43,6 @@ import { localizeDecimal } from '../i18n/locale';
   styles: `
     :host { height: 36px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--bg-0); border-bottom: 1px solid var(--border); }
     .brand { display: flex; align-items: center; gap: 8px; }
-    .logo { width: 20px; height: 20px; border-radius: 5px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; }
     .name { font-weight: 600; letter-spacing: 0.04em; }
     .palette-wrap { flex: 1; display: flex; justify-content: center; min-width: 0; }
     .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: 12px; cursor: text; }
