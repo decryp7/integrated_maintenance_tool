@@ -17,6 +17,11 @@ impl Importer for SyslogImporter {
         "syslog"
     }
 
+    /// Syslog header fields: host, application (tag) and process id.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Host", "App", "ProcId"].map(String::from).to_vec()
+    }
+
     fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
         let (mut seen, mut hits) = (0usize, 0usize);
         for line in head

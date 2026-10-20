@@ -1,6 +1,7 @@
 //! The text importer, streaming: the same parsing as [`crate::importers::TextImporter`] (Serilog output
-//! templates and regexes, continuation lines, midnight rollover of time-only formats), fed line by line
-//! from a [`LineReader`] with the format and day order the [`FilePlan`](super::FilePlan) fixed.
+//! templates and regexes tried per line, JSON lines, continuation lines, midnight rollover of time-only
+//! formats; [`crate::importers::lines`]), fed line by line from a [`LineReader`] with the dominant format
+//! and day order the [`FilePlan`](super::FilePlan) fixed.
 //!
 //! Differences from the in-memory importer (ADR 0014 §5): text before the first event is one untimed
 //! event instead of skipped lines, and an event stops growing at [`MAX_EVENT_BYTES`] (the rest of its
@@ -10,12 +11,10 @@ use super::chunk::LineReader;
 use super::problems::ProblemKind;
 use super::sink::{EventSink, ParsedEvent};
 use super::MAX_EVENT_BYTES;
-use crate::importers::{split_trailing_properties, text_finish, ImportCtx};
-use crate::model::{auto_value, Level, Record};
-use crate::profile::TextFormat;
-use crate::template::PROPERTIES_GROUP;
+use crate::importers::lines::{Line, LineFormat, LineParser};
+use crate::importers::{text_finish, ImportCtx};
+use crate::model::Record;
 use anyhow::Result;
-use serde_json::Value;
 
 /// An event being collected: its record, original text and continuation lines.
 struct Open {
@@ -59,22 +58,20 @@ impl Open {
     }
 }
 
-/// Reads text events with format `fmt` and the plan's day order; returns the number of skipped lines.
+/// Reads text events trying format `fmt` first, with the plan's day order; returns the number of
+/// skipped lines.
 pub fn import_text(
     ctx: &ImportCtx,
-    fmt: &TextFormat,
+    fmt: LineFormat,
     day_first: Option<bool>,
     lines: &mut LineReader,
     sink: &mut dyn EventSink,
 ) -> Result<usize> {
-    let parser = ctx.profile.timestamps.with_day_first(day_first);
-    let names: Vec<&str> = fmt.regex.capture_names().flatten().collect();
+    let mut parser = LineParser::new(ctx.profile, fmt, day_first, ctx.file_date);
     let mut skipped = 0;
     let mut current: Option<Open> = None;
     // Text before the first event, kept as one untimed event.
     let mut orphan: Option<Open> = None;
-    let mut date = ctx.file_date;
-    let mut last_ts: Option<i64> = None;
 
     while let Some(l) = lines.next_line()? {
         if l.too_long {
@@ -83,69 +80,30 @@ pub fn import_text(
             continue;
         }
         let line = l.text.trim_end_matches('\r');
-        let Some(caps) = fmt.regex.captures(line) else {
-            let to_extra = current.is_some();
-            if let Some(open) = current.as_mut().or(orphan.as_mut()) {
-                if open.push(line, to_extra) {
-                    sink.problem(ProblemKind::EventTooLarge, l.number);
+        let rec = match parser.line(line, l.number) {
+            Line::Event(rec) => rec,
+            other => {
+                if matches!(other, Line::Unmatched) {
+                    sink.problem(ProblemKind::UnmatchedLine, l.number);
                 }
-            } else if !line.trim().is_empty() {
-                let mut rec = Record::new(l.number);
-                rec.message = line.to_string();
-                orphan = Some(Open::new(rec, line, l.byte_offset));
+                let to_extra = current.is_some();
+                if let Some(open) = current.as_mut().or(orphan.as_mut()) {
+                    if open.push(line, to_extra) {
+                        sink.problem(ProblemKind::EventTooLarge, l.number);
+                    }
+                } else if !line.trim().is_empty() {
+                    let mut rec = Record::new(l.number);
+                    rec.message = line.to_string();
+                    orphan = Some(Open::new(rec, line, l.byte_offset));
+                }
+                continue;
             }
-            continue;
         };
         if let Some(o) = orphan.take() {
             emit_orphan(o, sink)?;
         }
         if let Some(open) = current.take() {
             emit(open, sink)?;
-        }
-
-        let mut rec = Record::new(l.number);
-        for name in &names {
-            let Some(m) = caps.name(name) else { continue };
-            let v = m.as_str();
-            match *name {
-                "timestamp" => {
-                    rec.ts = if fmt.time_only {
-                        parser.parse(v).or_else(|| {
-                            date.and_then(|d| parser.parse_time_on(v, d)).map(|mut ts| {
-                                // Rolled past midnight.
-                                if last_ts.is_some_and(|prev| ts + 12 * 3_600_000 < prev) {
-                                    ts += 86_400_000;
-                                    date = date.and_then(|d| d.succ_opt());
-                                }
-                                ts
-                            })
-                        })
-                    } else {
-                        parser.parse(v)
-                    };
-                    if rec.ts.is_some() {
-                        last_ts = rec.ts;
-                    }
-                }
-                "level" => rec.level = Level::parse(v).unwrap_or(Level::Information),
-                "message" => rec.message = v.to_string(),
-                "exception" => {
-                    if !v.trim().is_empty() {
-                        rec.exception = Some(v.to_string());
-                    }
-                }
-                PROPERTIES_GROUP => {
-                    if let Ok(Value::Object(props)) = serde_json::from_str::<Value>(v) {
-                        rec.fields.extend(props);
-                    }
-                }
-                other => {
-                    rec.fields.insert(other.to_string(), auto_value(v));
-                }
-            }
-        }
-        if !names.contains(&PROPERTIES_GROUP) {
-            split_trailing_properties(&mut rec.message, &mut rec.fields);
         }
         current = Some(Open::new(rec, line, l.byte_offset));
     }
@@ -213,18 +171,11 @@ mod tests {
             path: Path::new("x.log"),
             file_date: NaiveDate::from_ymd_opt(2026, 10, 14),
         };
-        let fmt = crate::importers::text_best_format(&profile.text_formats, content).unwrap();
+        let fmt = crate::importers::lines::best_format(profile, content).unwrap();
         let mut src = ReaderChunks::with_limits(content.as_bytes(), Encoding::Utf8, 0, block, crate::importers::MAX_LINE_LEN);
         let mut lines = LineReader::new(&mut src);
         let mut out = Events::default();
-        let skipped = import_text(
-            &ctx,
-            &profile.text_formats[fmt],
-            profile.timestamps.day_first(),
-            &mut lines,
-            &mut out,
-        )
-        .unwrap();
+        let skipped = import_text(&ctx, fmt, profile.timestamps.day_first(), &mut lines, &mut out).unwrap();
         (out, skipped)
     }
 

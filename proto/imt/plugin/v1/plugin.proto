@@ -137,6 +137,10 @@ message ImporterCap {
   bool tail = 3;
   // A record may span several lines (live tail re-reads from the start of the last record).
   bool multiline = 4;
+  // Fields this importer writes that identify who wrote an event (host, application, process), widest first,
+  // e.g. "Host", "App", "ProcId". They join the profile's instance-key candidates (ADR 0020). At most 8 names
+  // of at most 64 characters; IMT drops the rest.
+  repeated string identity_fields = 5;
 }
 
 message TransformCap {

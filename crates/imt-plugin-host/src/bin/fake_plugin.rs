@@ -58,6 +58,7 @@ impl Importer for Fake {
                 return Ok(Imported {
                     records: vec![r],
                     skipped: 0,
+                    ..Default::default()
                 });
             }
             _ => {}
@@ -114,6 +115,7 @@ impl imt_core::importers::BinaryImporter for FakeBin {
         Ok(Imported {
             records: vec![r],
             skipped: 0,
+            ..Default::default()
         })
     }
 }

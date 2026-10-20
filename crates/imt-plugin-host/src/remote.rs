@@ -169,6 +169,7 @@ impl Ctx {
             Imported {
                 records,
                 skipped: outcome.skipped as usize,
+                ..Default::default()
             },
             outcome.tail_unsupported,
         ))
@@ -275,6 +276,10 @@ impl Importer for RemoteImporter {
     fn multiline(&self) -> bool {
         self.cap.multiline
     }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
+    }
 }
 
 struct RemoteBinaryImporter {
@@ -286,6 +291,10 @@ struct RemoteBinaryImporter {
 impl BinaryImporter for RemoteBinaryImporter {
     fn id(&self) -> &'static str {
         self.id
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
     }
 
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {

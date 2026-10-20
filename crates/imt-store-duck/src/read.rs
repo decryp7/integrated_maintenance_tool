@@ -65,6 +65,9 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         offset_ms: 0,
         file_kind: r.file_kind,
         timestamp_issue: None,
+        routed_from: None,
+        problems: r.problems.clone(),
+        identity: Vec::new(),
     }
 }
 
@@ -396,6 +399,9 @@ impl Inner {
                     to: r.get(9)?,
                     offset_ms: 0,
                     timestamp_issue: None,
+                    routed_from: None,
+                    problems: Vec::new(),
+                    identity: Vec::new(),
                 })
             })
             .map_err(engine)?;

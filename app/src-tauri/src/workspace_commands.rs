@@ -1042,6 +1042,9 @@ mod tests {
             offset_ms: 0,
             file_kind: Default::default(),
             timestamp_issue: None,
+            routed_from: None,
+            problems: Vec::new(),
+            identity: Vec::new(),
         };
         assert_eq!(timestamp_notice(&source), None);
         source.timestamp_issue = Some(TimestampIssue {

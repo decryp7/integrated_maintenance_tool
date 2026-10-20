@@ -56,6 +56,7 @@ impl imt_core::importers::BinaryImporter for Bin {
         Ok(Imported {
             records: vec![Record::new(bytes.len() as u32)],
             skipped: 0,
+            ..Default::default()
         })
     }
 }

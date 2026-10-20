@@ -217,6 +217,8 @@ export class MockBackend implements ImtBackend {
         offsetMs: s.offsetMs ?? 0,
         fileKind: mockFileKind(s.path),
         timestampIssue: s.timestampIssue ?? null,
+        routedFrom: s.routedFrom ?? null,
+        problems: s.problems ?? [],
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,

@@ -13,6 +13,26 @@ pub struct ImporterCap {
     pub binary: bool,
     pub tail: bool,
     pub multiline: bool,
+    /// Fields that identify who wrote an event (ADR 0020), at most [`MAX_IDENTITY_FIELDS`] valid names.
+    pub identity_fields: Vec<String>,
+}
+
+/// Most identity fields an importer may declare.
+pub const MAX_IDENTITY_FIELDS: usize = 8;
+/// Longest identity field name, in characters.
+const MAX_IDENTITY_FIELD_LEN: usize = 64;
+
+/// The declared identity fields that are usable names (non-empty, at most 64 characters, no control
+/// characters), at most [`MAX_IDENTITY_FIELDS`], without duplicates. Untrusted input: the rest is dropped.
+pub fn identity_fields(declared: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in declared {
+        let ok = !name.trim().is_empty() && name.chars().count() <= MAX_IDENTITY_FIELD_LEN && !name.chars().any(char::is_control);
+        if ok && !out.contains(name) && out.len() < MAX_IDENTITY_FIELDS {
+            out.push(name.clone());
+        }
+    }
+    out
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,6 +128,7 @@ impl RemoteManifest {
                     binary: i.binary,
                     tail: i.tail && !i.binary,
                     multiline: i.multiline,
+                    identity_fields: identity_fields(&i.identity_fields),
                 }),
                 Some(Kind::Transform(t)) => caps.transforms.push(t.id.clone()),
                 Some(Kind::Exporter(e)) => {
@@ -204,6 +225,13 @@ mod tests {
     }
 
     #[test]
+    fn identity_fields_are_capped() {
+        let many: Vec<String> = (0..20).map(|i| format!("F{i}")).collect();
+        assert_eq!(identity_fields(&many).len(), MAX_IDENTITY_FIELDS);
+        assert!(identity_fields(&[" ".into()]).is_empty());
+    }
+
+    #[test]
     fn a_full_manifest_parses() {
         let mut m = manifest(vec![
             Kind::Importer(pb::ImporterCap {
@@ -211,6 +239,14 @@ mod tests {
                 binary: true,
                 tail: true,
                 multiline: false,
+                identity_fields: vec![
+                    "Computer".into(),
+                    String::new(),
+                    "Computer".into(),
+                    char::from(7).to_string(),
+                    "x".repeat(65),
+                    "ProcessId".into(),
+                ],
             }),
             Kind::Exporter(pb::ExporterCap {
                 id: "x".into(),
@@ -246,6 +282,11 @@ mod tests {
         assert_eq!(r.name, "a.b", "no name: the id");
         assert_eq!(r.contract, (1, 3));
         assert!(!r.capabilities.importers[0].tail, "binary importers have no tail");
+        assert_eq!(
+            r.capabilities.importers[0].identity_fields,
+            ["Computer", "ProcessId"],
+            "invalid, duplicate and over-long names are dropped"
+        );
         assert_eq!(r.capabilities.exporters[0].name, "x");
         let limits: Vec<usize> = r.capabilities.annotators.iter().map(|a| a.limit).collect();
         let max = imt_core::plugin::annotate::MAX_VIEW_RECORDS;

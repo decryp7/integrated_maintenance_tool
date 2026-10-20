@@ -3,8 +3,8 @@
 //! the file can be read in chunks, and later in parallel (R2b), with the same result.
 
 use super::chunk::{Encoding, CHUNK_BYTES};
+use crate::importers::lines::{self, LineFormat};
 use crate::importers::{first_lines, looks_binary, looks_utf16le, ImportCtx, Importers};
-use crate::time::detect_day_first;
 use std::io::Read;
 
 /// Bytes of a file's start the plan reads (1 MiB): enough for the importer choice (64 KiB of text), the
@@ -36,9 +36,10 @@ pub enum JsonShape {
 pub enum PlanKind {
     /// A binary importer reads the bytes.
     Binary,
-    /// The streaming text importer with this output template/regex (index into the profile's formats).
+    /// The streaming text importer, trying this format first on every line (the one most of the head's
+    /// lines have; other lines are read with the first format that matches them, ADR 0020).
     Text {
-        format: usize,
+        format: LineFormat,
         day_first: Option<bool>,
         /// The timestamp has no date: later events depend on earlier ones (midnight rollover).
         time_only: bool,
@@ -146,21 +147,11 @@ pub fn plan(importers: &Importers, ctx: &ImportCtx, head: &[u8], whole: bool) ->
     let importer = importers.select(ctx, &select).ok_or("no importer recognises this format")?;
     let kind = match importer.id() {
         "text" => {
-            let formats = &ctx.profile.text_formats;
-            let format =
-                crate::importers::text_best_format(formats, &text).ok_or("no output template or regex in the profile matches this file")?;
-            let fmt = &formats[format];
-            let day_first = ctx.profile.timestamps.day_first().or_else(|| {
-                detect_day_first(
-                    text.lines()
-                        .take(DAY_ORDER_LINES)
-                        .filter_map(|l| fmt.regex.captures(l).and_then(|c| c.name("timestamp")).map(|m| m.as_str())),
-                )
-            });
+            let format = lines::best_format(ctx.profile, &text).ok_or("no output template or regex in the profile matches this file")?;
             PlanKind::Text {
                 format,
-                day_first,
-                time_only: fmt.time_only,
+                day_first: crate::importers::text::day_order(ctx, format, &text, DAY_ORDER_LINES),
+                time_only: matches!(format, LineFormat::Text(i) if ctx.profile.text_formats[i].time_only),
             }
         }
         "json" => PlanKind::Json(json_shape(&text, whole)),
@@ -265,7 +256,7 @@ mod tests {
         assert_eq!(
             plan.kind,
             PlanKind::Text {
-                format: 0,
+                format: LineFormat::Text(0),
                 day_first: Some(true),
                 time_only: false
             }

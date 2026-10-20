@@ -1,11 +1,11 @@
-//! Plain-text logs described by Serilog output templates or regexes. Lines
-//! that do not start a new event (stack traces, multi-line messages) are
-//! attached to the previous event.
+//! Plain-text logs described by Serilog output templates or regexes. Each line is read with the first
+//! format that matches it (a file may mix formats, and JSON lines; see [`super::lines`]); lines that do not
+//! start a new event (stack traces, multi-line messages) are attached to the previous event.
 
-use super::{first_lines, ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use crate::model::{auto_value, Level, Record};
-use crate::profile::TextFormat;
-use crate::template::PROPERTIES_GROUP;
+use super::lines::{self, Line, LineFormat, LineParser};
+use super::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
+use crate::ingest::ProblemKind;
+use crate::model::Record;
 use crate::time::detect_day_first;
 use anyhow::{anyhow, Result};
 use serde_json::{Map, Value};
@@ -32,7 +32,7 @@ impl Importer for TextImporter {
     }
 
     fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
-        if best_format(&ctx.profile.text_formats, head).is_some() {
+        if lines::best_format(ctx.profile, head).is_some() {
             70
         } else {
             0
@@ -40,32 +40,37 @@ impl Importer for TextImporter {
     }
 
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
-        let formats = &ctx.profile.text_formats;
-        let fmt = best_format(formats, content).ok_or_else(|| anyhow!("no output template or regex in the profile matches this file"))?;
-        Ok(parse(ctx, &formats[fmt], content, content))
+        let fmt = lines::best_format(ctx.profile, content)
+            .ok_or_else(|| anyhow!("no output template or regex in the profile matches this file"))?;
+        Ok(parse(ctx, fmt, content, content))
     }
 
     fn import_tail(&self, ctx: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
-        let formats = &ctx.profile.text_formats;
-        let fmt = best_format(formats, head)?;
-        Some(Ok(parse(ctx, &formats[fmt], head, tail)))
+        let fmt = lines::best_format(ctx.profile, head)?;
+        Some(Ok(parse(ctx, fmt, head, tail)))
     }
 }
 
-/// Parses `content` with one format; `sample` (the file's start) decides an
-/// ambiguous day/month order.
-fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Imported {
-    let mut parser = ctx.profile.timestamps.clone();
-    if parser.day_first().is_none() {
-        let samples: Vec<&str> = sample
-            .lines()
-            .take(2000)
-            .filter_map(|l| fmt.regex.captures(l).and_then(|c| c.name("timestamp")).map(|m| m.as_str()))
-            .collect();
-        parser = parser.with_day_first(detect_day_first(samples));
-    }
+/// The day order of a file: the profile's, else detected from the timestamps `fmt` reads in `sample`
+/// (the file's start).
+pub(crate) fn day_order(ctx: &ImportCtx, fmt: LineFormat, sample: &str, max_lines: usize) -> Option<bool> {
+    ctx.profile.timestamps.day_first().or_else(|| match fmt {
+        LineFormat::Text(i) => {
+            let regex = &ctx.profile.text_formats[i].regex;
+            detect_day_first(
+                sample
+                    .lines()
+                    .take(max_lines)
+                    .filter_map(|l| regex.captures(l).and_then(|c| c.name("timestamp")).map(|m| m.as_str())),
+            )
+        }
+        LineFormat::Json => None,
+    })
+}
 
-    let names: Vec<&str> = fmt.regex.capture_names().flatten().collect();
+/// Parses `content` trying `fmt` first; `sample` (the file's start) decides an ambiguous day/month order.
+fn parse(ctx: &ImportCtx, fmt: LineFormat, sample: &str, content: &str) -> Imported {
+    let mut parser = LineParser::new(ctx.profile, fmt, day_order(ctx, fmt, sample, 2000), ctx.file_date);
     let mut out = Imported::default();
     let mut current: Option<Record> = None;
     let mut extra = String::new();
@@ -74,108 +79,54 @@ fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Impo
     let mut event_start = 0u32;
     // Text a continuation event already holds in its message.
     let mut held = 0usize;
-    let mut date = ctx.file_date;
-    let mut last_ts: Option<i64> = None;
 
     for (i, raw) in content.lines().enumerate() {
         let line = raw.trim_end_matches('\r');
+        let number = i as u32 + 1;
         if line.len() > MAX_LINE_LEN {
             out.skipped += 1;
             continue;
         }
-        let Some(caps) = fmt.regex.captures(line) else {
-            let size = held + extra.len();
-            let full = size > 0 && (size + 1 + line.len() > MAX_EVENT_BYTES || extra_lines >= MAX_EVENT_LINES);
-            if let Some(rec) = current.take_if(|_| full) {
-                // Too big for one event: the rest continues in a new one (same time and level).
-                let mut next = Record::new(i as u32 + 1);
-                (next.ts, next.level) = (rec.ts, rec.level);
-                next.fields.insert(CONTINUED_FIELD.into(), Value::from(event_start));
-                next.message = line.to_string();
-                out.records.push(finish(rec, std::mem::take(&mut extra)));
-                (extra_lines, held) = (0, line.len());
-                current = Some(next);
-            } else if current.is_some() {
-                if !extra.is_empty() {
-                    extra.push('\n');
+        let rec = match parser.line(line, number) {
+            Line::Event(rec) => rec,
+            other => {
+                if matches!(other, Line::Unmatched) {
+                    out.problems.add(ProblemKind::UnmatchedLine, number);
                 }
-                extra.push_str(line);
-                extra_lines += 1;
-            } else if !line.trim().is_empty() {
-                out.skipped += 1;
+                let size = held + extra.len();
+                let full = size > 0 && (size + 1 + line.len() > MAX_EVENT_BYTES || extra_lines >= MAX_EVENT_LINES);
+                if let Some(rec) = current.take_if(|_| full) {
+                    // Too big for one event: the rest continues in a new one (same time and level).
+                    let mut next = Record::new(number);
+                    (next.ts, next.level) = (rec.ts, rec.level);
+                    next.fields.insert(CONTINUED_FIELD.into(), Value::from(event_start));
+                    next.message = line.to_string();
+                    out.records.push(finish(rec, std::mem::take(&mut extra)));
+                    (extra_lines, held) = (0, line.len());
+                    current = Some(next);
+                } else if current.is_some() {
+                    if !extra.is_empty() {
+                        extra.push('\n');
+                    }
+                    extra.push_str(line);
+                    extra_lines += 1;
+                } else if !line.trim().is_empty() {
+                    out.skipped += 1;
+                }
+                continue;
             }
-            continue;
         };
-        if let Some(rec) = current.take() {
-            out.records.push(finish(rec, std::mem::take(&mut extra)));
+        if let Some(prev) = current.take() {
+            out.records.push(finish(prev, std::mem::take(&mut extra)));
         }
         (extra_lines, held) = (0, 0);
-        event_start = i as u32 + 1;
-
-        let mut rec = Record::new(i as u32 + 1);
-        for name in &names {
-            let Some(m) = caps.name(name) else { continue };
-            let v = m.as_str();
-            match *name {
-                "timestamp" => {
-                    rec.ts = if fmt.time_only {
-                        parser.parse(v).or_else(|| {
-                            date.and_then(|d| parser.parse_time_on(v, d)).map(|mut ts| {
-                                // Rolled past midnight.
-                                if last_ts.is_some_and(|prev| ts + 12 * 3_600_000 < prev) {
-                                    ts += 86_400_000;
-                                    date = date.and_then(|d| d.succ_opt());
-                                }
-                                ts
-                            })
-                        })
-                    } else {
-                        parser.parse(v)
-                    };
-                    if rec.ts.is_some() {
-                        last_ts = rec.ts;
-                    }
-                }
-                "level" => rec.level = Level::parse(v).unwrap_or(Level::Information),
-                "message" => rec.message = v.to_string(),
-                "exception" => {
-                    if !v.trim().is_empty() {
-                        rec.exception = Some(v.to_string());
-                    }
-                }
-                PROPERTIES_GROUP => {
-                    if let Ok(Value::Object(props)) = serde_json::from_str::<Value>(v) {
-                        rec.fields.extend(props);
-                    }
-                }
-                other => {
-                    rec.fields.insert(other.to_string(), auto_value(v));
-                }
-            }
-        }
-        if !names.contains(&PROPERTIES_GROUP) {
-            split_trailing_properties(&mut rec.message, &mut rec.fields);
-        }
+        event_start = number;
         current = Some(rec);
     }
     if let Some(rec) = current.take() {
         out.records.push(finish(rec, extra));
     }
     out
-}
-
-/// Index of the format matching the most of the first lines, earlier formats
-/// winning ties.
-pub(crate) fn best_format(formats: &[TextFormat], text: &str) -> Option<usize> {
-    let lines: Vec<&str> = first_lines(text, SNIFF_LINES).collect();
-    let mut best: Option<(usize, usize)> = None;
-    for (i, f) in formats.iter().enumerate() {
-        let hits = lines.iter().filter(|l| f.regex.is_match(l)).count();
-        if hits > 0 && best.is_none_or(|(_, h)| hits > h) {
-            best = Some((i, hits));
-        }
-    }
-    best.map(|(i, _)| i)
 }
 
 pub(crate) fn finish(mut rec: Record, extra: String) -> Record {
@@ -213,6 +164,7 @@ pub(crate) fn split_trailing_properties(message: &mut String, fields: &mut Map<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::Level;
     use crate::profile::{CompiledProfile, Profile};
     use chrono::NaiveDate;
     use std::path::Path;

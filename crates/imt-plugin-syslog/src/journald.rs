@@ -13,6 +13,11 @@ impl Importer for JournaldImporter {
         "journald"
     }
 
+    /// The journal fields mapped to the syslog names: host, identifier and process id.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Host", "App", "ProcId"].map(String::from).to_vec()
+    }
+
     fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
         let first = head.trim_start_matches('\u{feff}').lines().map(str::trim).find(|l| !l.is_empty());
         match first {

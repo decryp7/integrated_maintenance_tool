@@ -217,6 +217,10 @@ impl EventSink for RecordBatcher<'_> {
     fn problem(&mut self, kind: ProblemKind, line: u32) {
         self.out.problems.add(kind, line);
     }
+
+    fn problems(&mut self, problems: Problems) {
+        self.out.problems.merge(problems);
+    }
 }
 
 #[cfg(test)]
