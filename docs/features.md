@@ -483,9 +483,17 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
   skipped); a plugin can be reset or disabled there. A plugin that crashes, is quarantined or becomes
   inactive is also reported to its window as an engine error (`imt://error`, which can trigger an
   error snapshot). Plugins are deactivated when their window closes and when IMT exits.
+- **Only files you chose.** Commands that read or write a file the UI names accept only paths chosen
+  in a native dialog, dropped on the window, given on the command line or the window's own project;
+  anything else is refused with a message to choose the file again. Restarting (safe mode, as
+  administrator) passes no arguments from the UI to the new process. Closing a window and quitting
+  never wait more than a few seconds for a step (live tail, plugins, jobs), and each step is logged.
 - **One bad file never stops the import.** It is reported as unrecognised with a reason; the rest
   loads.
-- **Bounded resources.** Limits on line length, regex size, archive expansion and result sizes;
+- **Bounded resources.** Limits on line length, regex size, archive expansion and result sizes; a text
+  event collects at most 1 MiB or 10,000 continuation lines (the rest continues in a new event with
+  `ContinuedFromLine`, counted per source as `splitEvents`); an analysis over more than 2,000,000
+  matching events covers the first ones and says so (*Analysed the first ... of ...*);
   external tools run with timeouts; locked files and missing rights produce a message and a next step
   (retry, restart as administrator) instead of an error dialog.
 - **Diagnostics with or without the UI.** *Help ▸ Report a problem…* (and *Save diagnostics…* on the safe-mode and crash banners) and `imt-app --export-diagnostics [<file.zip>] [--force]` (no window, no plugins; exits 0/1) write one zip with IMT's logs, each child process's log (AI engine, llama-server, plugin processes; secrets scrubbed), `processes.json`, steps, snapshots, crash marker and a versioned `manifest.json`; opening that zip in IMT shows it as a diagnostics workspace (one lane per log, crash/restart markers, the *Diagnostics report* panel). Sample: `samples/diagnostics/imt-diagnostics-sample.zip`.
