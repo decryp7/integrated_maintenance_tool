@@ -1138,13 +1138,17 @@ mod tests {
         let grow = native(&mut b, "busy::grow", "busy.exe", Some(50));
         let malloc = native(&mut b, "malloc", "ucrtbase.dll", None);
         let raw = native(&mut b, "ntdll.dll+0x1234", "ntdll.dll", None);
+        let next = native(&mut b, "core::iter::range::impl$5::spec_next<i32>", "busy.exe", Some(1099));
         let hot = b.stack(&[main, spin]).unwrap();
+        let hot_lib = b.stack(&[main, spin, next]).unwrap();
         let waiting = b.stack(&[main, contend, enter, rtl]).unwrap();
         let growing = b.stack(&[main, grow, malloc]).unwrap();
         let unnamed = b.stack(&[main, raw]).unwrap();
         let th = b.thread(Some(1), "main").unwrap();
         for i in 0..90u64 {
-            b.sample_with(th, i * 1_000_000, hot, &[(MetricId::Samples, 1), (MetricId::TimeNs, 1_000_000)])
+            // Two thirds in the standard-library code busy::spin calls: still busy::spin's hot spot.
+            let stack = if i % 3 == 0 { hot } else { hot_lib };
+            b.sample_with(th, i * 1_000_000, stack, &[(MetricId::Samples, 1), (MetricId::TimeNs, 1_000_000)])
                 .unwrap();
         }
         for i in 0..10u64 {
@@ -1165,7 +1169,7 @@ mod tests {
         assert!(hot.title.contains("busy::spin (busy.rs:12)"), "{}", hot.title);
         assert!(hot.detail.contains("busy.exe"), "{}", hot.detail);
         assert_eq!(hot.severity, FindingSeverity::Warning);
-        assert_eq!(hot.evidence.path.len(), 2);
+        assert!(hot.value_pct.is_some_and(|v| v > 89.0), "{:?}", hot.value_pct);
         // Not repeated as a generic top-self finding.
         assert!(!f
             .iter()

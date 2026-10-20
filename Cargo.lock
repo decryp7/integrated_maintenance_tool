@@ -2854,6 +2854,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-plugin-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-etw",
+ "imt-plugin-api",
+ "imt-plugin-profiling",
+ "imt-profile",
+ "imt-symbols",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
 name = "imt-plugin-otel"
 version = "0.1.0"
 dependencies = [
@@ -2959,6 +2977,7 @@ dependencies = [
  "imt-plugin-api",
  "imt-plugin-formats",
  "imt-plugin-host",
+ "imt-plugin-native",
  "imt-plugin-otel",
  "imt-plugin-profiling",
  "imt-plugin-registry",

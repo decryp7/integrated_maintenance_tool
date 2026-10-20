@@ -22,6 +22,7 @@ imt-plugin-web = { path = "../imt-plugin-web" }
 imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
 imt-plugin-tools = { path = "../imt-plugin-tools" }
+imt-plugin-native = { path = "../imt-plugin-native" }
 serde_json.workspace = true
 
 [dev-dependencies]

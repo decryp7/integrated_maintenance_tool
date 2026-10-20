@@ -6,7 +6,7 @@
 
 use super::{matches_any, ms, Builder, LOCKS};
 use crate::api::{EvidenceView, FindingKind, FindingSeverity, HotPathRequest, TreeDirection};
-use crate::model::{FrameKind, MetricId, Profile};
+use crate::model::{FrameKind, MetricId, Profile, NONE};
 use crate::ops::common::{frame_dto, pct};
 use crate::ops::diff::Side;
 use crate::ops::nav::hot_path;
@@ -59,10 +59,20 @@ pub(super) fn is_system_module(module: Option<&str>) -> bool {
     SYSTEM_MODULES.contains(&m.as_str()) || SYSTEM_PREFIXES.iter().any(|p| m.starts_with(p))
 }
 
+/// Statically linked standard-library code (Rust `core`/`std`/`alloc`, C++ `std::`, CRT internals): its time
+/// belongs to the user function that called it.
+const LIBRARY_PREFIXES: &[&str] = &["core::", "std::", "alloc::", "__", "<core::", "<std::", "<alloc::"];
+
 /// A native frame named from symbols (not `module+0x…` or `0x…`).
 fn is_named_native(p: &Profile, frame: u32) -> bool {
     let f = &p.frames[frame as usize];
     f.kind == FrameKind::Native && !f.function.starts_with("0x") && !f.function.contains("+0x")
+}
+
+/// The user's own native code: named, not in an OS or runtime module, not standard-library code.
+pub(super) fn is_user_code(p: &Profile, frame: u32) -> bool {
+    let f = &p.frames[frame as usize];
+    is_named_native(p, frame) && !is_system_module(f.module.as_deref()) && !LIBRARY_PREFIXES.iter().any(|l| f.function.starts_with(l))
 }
 
 /// `file:line` (file name only) of a frame, when known.
@@ -76,15 +86,32 @@ fn location(p: &Profile, frame: u32) -> Option<String> {
     })
 }
 
-/// The hot native function: the user-code native function with the most self time. Returns its frame so the
-/// generic top-self finding does not repeat it.
+/// The hot native function: the user-code native function with the most self time, standard-library code it
+/// calls counted as its own (that is where a fix goes). Returns its frame so the generic top-self finding does
+/// not repeat it.
 pub(super) fn hot_function(b: &mut Builder<'_>, s: &Side<'_>, k: usize, grand: u64) -> Option<u32> {
     let p = s.profile;
     let mut by_frame: FxHashMap<u32, u64> = FxHashMap::default();
     for n in 0..s.tree.len() as u32 {
-        let f = s.tree.frame[n as usize];
-        if is_named_native(p, f) && !is_system_module(p.frames[f as usize].module.as_deref()) {
-            *by_frame.entry(f).or_default() += s.tree.self_of(n, k);
+        let v = s.tree.self_of(n, k);
+        if v == 0 {
+            continue;
+        }
+        // The node itself when it is user code, else its nearest user-code caller through library frames only.
+        let mut at = n;
+        loop {
+            let f = s.tree.frame[at as usize];
+            if is_user_code(p, f) {
+                *by_frame.entry(f).or_default() += v;
+                break;
+            }
+            let lib = &p.frames[f as usize];
+            let library = is_named_native(p, f) && LIBRARY_PREFIXES.iter().any(|l| lib.function.starts_with(l));
+            let parent = s.tree.parent[at as usize];
+            if !library || parent == NONE {
+                break;
+            }
+            at = parent;
         }
     }
     let (&frame, &value) = by_frame.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0)))?;
@@ -104,7 +131,7 @@ pub(super) fn hot_function(b: &mut Builder<'_>, s: &Side<'_>, k: usize, grand: u
         if share >= 25.0 { FindingSeverity::Warning } else { FindingSeverity::Info },
         format!("Native hot spot: {}{at} uses {share:.1}% of the time itself", f.function),
         format!(
-            "The function's own code{module} is where the time goes. Look at its loops and data access at the source location, or call it less often (see its callers)."
+            "The function's own code{module} (with the standard-library code it calls) is where the time goes. Look at its loops and data access at the source location, or call it less often (see its callers)."
         ),
         Some(share),
         e,
@@ -130,10 +157,7 @@ pub(super) fn wait_hot_spot(b: &mut Builder<'_>, s: &Side<'_>) {
             continue;
         }
         let path = s.tree.path_of(n);
-        let Some(i) = path
-            .iter()
-            .rposition(|&f| is_named_native(p, f) && !is_system_module(p.frames[f as usize].module.as_deref()))
-        else {
+        let Some(i) = path.iter().rposition(|&f| is_user_code(p, f)) else {
             continue;
         };
         let lock = path[i..]
@@ -213,7 +237,7 @@ pub(super) fn heap_growth(b: &mut Builder<'_>, s: &Side<'_>) {
         .iter()
         .rev()
         .copied()
-        .find(|&f| is_named_native(p, f) && !is_system_module(p.frames[f as usize].module.as_deref()))
+        .find(|&f| is_user_code(p, f))
         .or_else(|| path.last().copied());
     let under = site
         .and_then(|f| path.iter().position(|&x| x == f))
