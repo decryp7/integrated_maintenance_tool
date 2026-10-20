@@ -1243,8 +1243,14 @@ mod tests {
         assert!(last_session(main_window(&app), life()).unwrap().ends_with(SESSION_FILE));
 
         // Restoring reopens the other window with its session queued, once.
-        assert_eq!(tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(), 1);
-        assert_eq!(tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(), 0);
+        assert_eq!(
+            tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(),
+            1
+        );
+        assert_eq!(
+            tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(),
+            0
+        );
         let restored = crate::windows::CurrentWindow::of(&h, "w-2").unwrap().take_pending();
         assert_eq!(restored.len(), 1);
         assert_eq!(name_of(Path::new(&restored[0])), "second");
@@ -1270,7 +1276,12 @@ mod tests {
         app2.manage(Lifecycle::begin(None, false));
         save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None).unwrap();
         assert_eq!(
-            tauri::async_runtime::block_on(restore_windows(app2.handle().clone(), main_window(&app2), app2.state::<Lifecycle>())).unwrap(),
+            tauri::async_runtime::block_on(restore_windows(
+                app2.handle().clone(),
+                main_window(&app2),
+                app2.state::<Lifecycle>()
+            ))
+            .unwrap(),
             0
         );
         app2.state::<Lifecycle>().forget_session(MAIN);

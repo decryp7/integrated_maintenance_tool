@@ -46,7 +46,10 @@ mod tests {
     #[test]
     fn flags_always_hide_the_console() {
         assert_eq!(creation_flags(0), CREATE_NO_WINDOW);
-        assert_eq!(creation_flags(BELOW_NORMAL_PRIORITY_CLASS), CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
+        assert_eq!(
+            creation_flags(BELOW_NORMAL_PRIORITY_CLASS),
+            CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS
+        );
     }
 
     #[test]

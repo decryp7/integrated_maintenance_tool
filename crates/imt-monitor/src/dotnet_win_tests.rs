@@ -98,7 +98,15 @@ fn real_dotnet_framework_processes_get_runtime_fields() {
     let exe = compile(&csc, dir.path());
     // Two instances share a name, so PDH names them `ImtClrFixture` and `ImtClrFixture#1`.
     // They throw at different rates, so a mix-up of instances would show.
-    let spawn = |throws: &str| Kill(imt_core::process::quiet_command(&exe).args(["60", throws]).stdout(Stdio::null()).spawn().unwrap());
+    let spawn = |throws: &str| {
+        Kill(
+            imt_core::process::quiet_command(&exe)
+                .args(["60", throws])
+                .stdout(Stdio::null())
+                .spawn()
+                .unwrap(),
+        )
+    };
     let (a, b) = (spawn("8"), spawn("1"));
     let pids = [a.0.id(), b.0.id()];
     let me = std::process::id();
@@ -179,7 +187,13 @@ fn module_probe_detects_the_framework_and_native_processes() {
     };
     let dir = tempfile::tempdir().unwrap();
     let exe = compile(&csc, dir.path());
-    let child = Kill(imt_core::process::quiet_command(&exe).arg("20").stdout(Stdio::null()).spawn().unwrap());
+    let child = Kill(
+        imt_core::process::quiet_command(&exe)
+            .arg("20")
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
     let pid = child.0.id();
     let mut found = None;
     for _ in 0..50 {
