@@ -608,18 +608,46 @@ pub fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> AppS
     }
 }
 
-/// Relaunches IMT, optionally in safe mode, reopening `reopen` paths.
-#[tauri::command]
-pub fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>, safe_mode: bool, reopen: Vec<String>) -> CmdResult<()> {
-    let exe = std::env::current_exe().map_err(err)?;
-    let mut cmd = imt_core::process::quiet_command(exe);
+/// The relaunched process's command line, built here only (the webview sends no arguments): the flags,
+/// then `--` and the session file to reopen. The session must be an existing file (canonicalised, so
+/// absolute); anything else is left out, so no path can turn into a flag of the new process.
+pub(crate) fn relaunch_args(safe_mode: bool, session: Option<&Path>) -> Vec<std::ffi::OsString> {
+    let mut args = Vec::new();
     if safe_mode {
-        cmd.arg(SAFE_MODE_FLAG);
+        args.push(SAFE_MODE_FLAG.into());
     }
+    let session = session
+        .and_then(|p| p.canonicalize().ok())
+        .filter(|p| p.is_file() && p.is_absolute());
+    if let Some(path) = session {
+        args.push(crate::instance::END_OF_FLAGS.into());
+        args.push(path.into_os_string());
+    }
+    args
+}
+
+/// The calling window's autosaved session, when `reopen` asks for it.
+pub(crate) fn session_to_reopen(state: &CurrentWindow, lifecycle: &Lifecycle, reopen: bool) -> Option<PathBuf> {
+    reopen.then(|| lifecycle.session_path(state.label())).flatten()
+}
+
+/// Relaunches IMT, optionally in safe mode, reopening the calling window's autosaved session when
+/// `reopen_session` (save it first with `save_session`).
+#[tauri::command]
+pub fn restart_app<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: CurrentWindow,
+    lifecycle: State<'_, Lifecycle>,
+    safe_mode: bool,
+    reopen_session: bool,
+) -> CmdResult<()> {
+    let exe = std::env::current_exe().map_err(err)?;
+    let args = relaunch_args(safe_mode, session_to_reopen(&state, &lifecycle, reopen_session).as_deref());
+    let mut cmd = imt_core::process::quiet_command(exe);
     // The new process must become the running instance, not hand over to this one.
     crate::instance::release(&app);
-    cmd.args(&reopen).spawn().map_err(err)?;
-    log::info!(SafeMode = safe_mode; "Restarting");
+    cmd.args(&args).spawn().map_err(err)?;
+    log::info!(SafeMode = safe_mode, Reopen = args.len() > usize::from(safe_mode); "Restarting");
     crate::window_manager::quit(&app);
     Ok(())
 }
@@ -702,6 +730,53 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn relaunch_arguments_come_from_rust_only() {
+        let tmp = crate::test_support::TempDir::new("relaunch");
+        let session = tmp.0.join("last-session.imtproj");
+        std::fs::write(&session, "{}").unwrap();
+        let canonical = session.canonicalize().unwrap();
+        let strings = |a: Vec<std::ffi::OsString>| a.into_iter().map(|s| s.to_string_lossy().into_owned()).collect::<Vec<_>>();
+        assert!(relaunch_args(false, None).is_empty());
+        assert_eq!(strings(relaunch_args(true, None)), [SAFE_MODE_FLAG]);
+        assert_eq!(
+            strings(relaunch_args(true, Some(&session))),
+            [SAFE_MODE_FLAG.to_string(), "--".into(), canonical.to_string_lossy().into_owned()]
+        );
+        // A missing, relative, flag-like or folder path is left out.
+        for bad in [
+            "--export-diagnostics",
+            "--isolated",
+            "--safe-mode",
+            "relative.imtproj",
+            "/does/not/exist.imtproj",
+        ] {
+            assert!(relaunch_args(false, Some(Path::new(bad))).is_empty(), "{bad}");
+        }
+        assert!(relaunch_args(false, Some(&tmp.0)).is_empty(), "a folder");
+        // The new process reads no flag from the relaunch but safe mode.
+        let args = strings(relaunch_args(true, Some(&session)));
+        assert_eq!(crate::activity::report::cli::parse(&args), None);
+        let launch = crate::instance::parse_args(args, None);
+        assert!(launch.safe_mode && launch.paths == [canonical]);
+    }
+
+    #[test]
+    fn restart_takes_no_arguments_from_the_webview() {
+        let app = crate::test_support::test_app_with_commands(None);
+        let main = crate::test_support::window(&app, "main");
+        // The old `reopen` list is not part of the commands any more: they need `reopenSession`.
+        for cmd in ["restart_app", "restart_elevated"] {
+            let sent = serde_json::json!({ "safeMode": false, "reopen": ["--export-diagnostics", "/tmp/x.zip", "--force"] });
+            assert!(crate::tools::tests::ipc(&main, cmd, sent).is_err(), "{cmd}");
+        }
+        // Without a saved session nothing is reopened: the command line holds no path at all.
+        let state = CurrentWindow::of(&main, "main").unwrap();
+        let lifecycle = Lifecycle::begin(None, false);
+        assert_eq!(session_to_reopen(&state, &lifecycle, true), None);
+        assert_eq!(session_to_reopen(&state, &lifecycle, false), None);
+    }
 
     /// Installs the panic logging hook once for this test process (it chains the previous hook).
     fn panic_logging() {

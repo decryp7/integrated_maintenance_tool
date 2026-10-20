@@ -50,7 +50,6 @@ async fn echo(
 fn a_child_is_started_connected_and_answers_with_the_token() {
     let rt = rt();
     let mut s = spec(&[]);
-    s.clear_env = true;
     s.env = vec![("IMT_TEST".into(), "1".into())];
     s.current_dir = Some(std::env::temp_dir());
     let l = rt.block_on(launch(&s)).unwrap();
@@ -251,4 +250,33 @@ fn the_supervisor_restarts_a_crashed_child_with_a_new_process_then_quarantines()
     assert!(matches!(call(""), Err(IpcError::Spawn(m)) if m.contains("failed 3 times")));
     sup.reset();
     assert_eq!(call("").unwrap(), "ok");
+}
+
+#[test]
+fn a_child_inherits_only_the_allowed_environment() {
+    // Cargo sets CARGO_MANIFEST_DIR for this test process; no child is meant to see it.
+    assert!(std::env::var("CARGO_MANIFEST_DIR").is_ok());
+    let rt = rt();
+    let mut s = spec(&[]);
+    s.env = vec![("IMT_GIVEN".into(), "yes".into())];
+    let l = rt.block_on(launch(&s)).unwrap();
+    let t = Duration::from_secs(5);
+    let var = |name: &str| rt.block_on(echo(&l.channel, &l.process, name, "env", 0, t)).unwrap();
+    assert_eq!(var("CARGO_MANIFEST_DIR"), "<unset>", "the default clears the environment");
+    assert_eq!(var("IMT_GIVEN"), "yes", "explicit variables are passed");
+    assert_eq!(
+        var("PATH") == "<unset>",
+        std::env::var_os("PATH").is_none(),
+        "allowed variables are kept"
+    );
+    l.process.close(Duration::from_secs(2));
+    // A wider allow-list is explicit too.
+    static WIDER: &[&str] = &["PATH", "CARGO_MANIFEST_DIR"];
+    s.keep_env = WIDER;
+    let l = rt.block_on(launch(&s)).unwrap();
+    let seen = rt
+        .block_on(echo(&l.channel, &l.process, "CARGO_MANIFEST_DIR", "env", 0, t))
+        .unwrap();
+    assert_eq!(seen, std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    l.process.close(Duration::from_secs(2));
 }

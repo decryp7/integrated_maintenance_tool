@@ -68,7 +68,8 @@ pub struct AppIsolation {
 
 impl AppIsolation {
     pub fn new(config_dir: Option<&Path>, safe_mode: bool) -> AppIsolation {
-        let cli = std::env::args().any(|a| a == ISOLATED_FLAG);
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        let cli = crate::instance::flags(&args).iter().any(|a| a == ISOLATED_FLAG);
         let settings = if safe_mode {
             IsolationSettings::default()
         } else {

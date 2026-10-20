@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { isTauri } from '../core/platform';
+import { nativePickOne } from '../core/native-dialog';
 
 const FILTERS = [{ name: $localize`:File dialog filter|@@projects.picker.filter:IMT project`, extensions: ['imtproj'] }];
 
@@ -12,9 +13,7 @@ export class ProjectPicker {
   /** Asks for a project to open; null when cancelled. */
   async pickOpen(): Promise<string | null> {
     if (!isTauri()) return this.browserPath;
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const result = await open({ multiple: false, directory: false, title: $localize`:@@projects.picker.openTitle:Open project`, filters: FILTERS });
-    return typeof result === 'string' ? result : null;
+    return nativePickOne({ kind: 'openFile', title: $localize`:@@projects.picker.openTitle:Open project`, filters: FILTERS });
   }
 
   /** Asks where to save a project; null when cancelled. */
@@ -23,7 +22,6 @@ export class ProjectPicker {
       this.browserPath = `/demo/projects/${defaultName}`;
       return this.browserPath;
     }
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    return save({ title: $localize`:@@projects.picker.saveTitle:Save project`, defaultPath: defaultName, filters: FILTERS });
+    return nativePickOne({ kind: 'save', title: $localize`:@@projects.picker.saveTitle:Save project`, defaultName, filters: FILTERS });
   }
 }

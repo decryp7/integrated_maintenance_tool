@@ -8,9 +8,9 @@
  *                                                    perfmon.sets install/control/outputs, process-monitor
  *                                                    start/stop/status, diagnostics default-plan/collect)
  *   elevation         {}                          -> ElevationInfo
- *   restart_elevated  { reopen }                  -> void
+ *   restart_elevated  { reopenSession }           -> void
  *   app_status        {}                          -> AppStatus
- *   restart_app       { safeMode, reopen }        -> void
+ *   restart_app       { safeMode, reopenSession } -> void
  *   plugin_reset      { id }                      -> void
  *   plugin_set_enabled{ id, enabled }             -> boolean (restart needed)
  *   save_session      { ui }                      -> void

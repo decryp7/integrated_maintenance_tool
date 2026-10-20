@@ -211,6 +211,7 @@ const MUTATIONS: &[&str] = &[
     "agent_config_save",
     "agent_open_run",
     "restart_app",
+    "pick_paths",
     "updates_download",
     "updates_cancel",
     "updates_install_on_quit",

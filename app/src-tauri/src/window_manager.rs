@@ -127,6 +127,7 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
     }
     let label = windows.next_label();
     let state = windows.get_or_create(&label)?;
+    crate::paths::grant_read_all(app, &label, &pending, crate::paths::GrantSource::CommandLine);
     state.queue(pending);
     let built = crate::native_feel::build(
         WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
@@ -299,7 +300,16 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
             panel_windows::dragged(app, label);
         }
         WindowEvent::Resized(_) if panel_windows::is_popout(label) => panel_windows::moved(app, label),
-        WindowEvent::Destroyed => destroyed(app, label),
+        // Dropped files are the user's choice: commands of this window may read them.
+        WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+            crate::paths::grant_read_all(app, label, paths, crate::paths::GrantSource::Drop);
+        }
+        WindowEvent::Destroyed => {
+            if !panel_windows::is_popout(label) {
+                crate::paths::grants(app).forget(label);
+            }
+            destroyed(app, label)
+        }
         _ => {}
     }
 }

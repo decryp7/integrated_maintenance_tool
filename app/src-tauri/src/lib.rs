@@ -42,6 +42,7 @@ mod notification_centre;
 mod notify;
 mod opener;
 mod panel_windows;
+mod paths;
 mod plugin_isolation;
 mod pointer;
 mod profile;
@@ -187,6 +188,7 @@ macro_rules! commands {
             // System and tools
             system::elevation,
             system::restart_elevated,
+            paths::pick_paths,
             system::read_file_head,
             tools::tools_list,
             tools::tool_invoke,

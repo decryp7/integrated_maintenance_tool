@@ -2481,3 +2481,22 @@ export interface QueryProgress {
 
 /** Like `QueryOutcome`, or `{ cancelled: true }` after `cancel_query` (a normal outcome, not an error). */
 export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
+
+/** What a native dialog asks for (`pick_paths`, see core/native-dialog.ts). Mirrors `paths::PickRequest`. */
+export type PickKind = 'openFile' | 'openFiles' | 'openFolder' | 'openFolders' | 'save';
+
+/** `pick_paths` request: the engine shows the dialog and grants the chosen paths to the window. */
+export interface PickRequest {
+  kind: PickKind;
+  title: string;
+  /** File types offered (extensions without the dot, letters and digits only). */
+  filters?: { name: string; extensions: string[] }[];
+  /** Suggested name of a save dialog (a file name, not a path). */
+  defaultName?: string;
+}
+
+/** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
+export interface AnalysisCoverage {
+  analysed: number;
+  total: number;
+}

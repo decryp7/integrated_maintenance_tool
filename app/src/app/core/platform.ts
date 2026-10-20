@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { nativePick, nativePickOne } from './native-dialog';
 
 /** Host integration: native dialogs and drag-and-drop when running inside Tauri. */
 
@@ -14,14 +15,10 @@ export async function pickPaths(directory: boolean): Promise<string[]> {
     if (forced) return [forced];
     return [directory ? '/demo/extra-folder' : '/demo/extra-service.log'];
   }
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({
-    multiple: true,
-    directory,
+  return nativePick({
+    kind: directory ? 'openFolders' : 'openFiles',
     title: directory ? $localize`:@@core.dialog.openFolder:Open folder` : $localize`:@@core.dialog.openLogFiles:Open log files`,
   });
-  if (result === null) return [];
-  return Array.isArray(result) ? result : [result];
 }
 
 /** Subscribes to files dropped on the window. Returns an unsubscribe function. */
@@ -45,23 +42,19 @@ export async function onFilesDropped(
 /** Native open dialog for a single profile file; null when cancelled. */
 export async function pickProfileToOpen(): Promise<string | null> {
   if (!isTauri()) return '/demo/profiles/imported.toml';
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({ multiple: false, directory: false, title: $localize`:@@core.dialog.importProfile:Import profile`, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
-  return typeof result === 'string' ? result : null;
+  return nativePickOne({ kind: 'openFile', title: $localize`:@@core.dialog.importProfile:Import profile`, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
 }
 
 /** Native save dialog for a profile file; null when cancelled. */
 export async function pickProfileToSave(defaultName: string): Promise<string | null> {
   if (!isTauri()) return defaultName;
-  const { save } = await import('@tauri-apps/plugin-dialog');
-  return save({ title: $localize`:@@core.dialog.exportProfile:Export profile`, defaultPath: defaultName, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
+  return nativePickOne({ kind: 'save', title: $localize`:@@core.dialog.exportProfile:Export profile`, defaultName, filters: [{ name: $localize`:@@core.dialog.profileFilter:IMT profile`, extensions: ['toml'] }] });
 }
 
 /** Native save dialog for an events export; null when cancelled. Browser mode returns the default name. */
 export async function pickExportPath(defaultName: string, formats: { name: string; extension: string }[]): Promise<string | null> {
   if (!isTauri()) return defaultName;
-  const { save } = await import('@tauri-apps/plugin-dialog');
-  return save({ title: $localize`:@@core.dialog.exportEvents:Export events`, defaultPath: defaultName, filters: formats.map((f) => ({ name: f.name, extensions: [f.extension] })) });
+  return nativePickOne({ kind: 'save', title: $localize`:@@core.dialog.exportEvents:Export events`, defaultName, filters: formats.map((f) => ({ name: f.name, extensions: [f.extension] })) });
 }
 
 /** A file type offered in a save or open dialog. */
@@ -73,16 +66,13 @@ export interface FileFilter {
 /** Native save dialog for any file the app writes; null when cancelled. Browser mode returns the default name. */
 export async function pickSavePath(title: string, defaultName: string, filters: FileFilter[]): Promise<string | null> {
   if (!isTauri()) return defaultName;
-  const { save } = await import('@tauri-apps/plugin-dialog');
-  return save({ title, defaultPath: defaultName, filters });
+  return nativePickOne({ kind: 'save', title, defaultName, filters });
 }
 
 /** Native open dialog for one file; null when cancelled. Browser mode returns `/demo/<first extension>` file. */
 export async function pickOpenPath(title: string, filters: FileFilter[]): Promise<string | null> {
   if (!isTauri()) return `/demo/shared.${filters[0]?.extensions[0] ?? 'txt'}`;
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({ multiple: false, directory: false, title, filters });
-  return typeof result === 'string' ? result : null;
+  return nativePickOne({ kind: 'openFile', title, filters });
 }
 
 /**
@@ -94,16 +84,13 @@ export async function pickOpenPaths(title: string, filters: FileFilter[]): Promi
     const forced = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('mockOpen');
     return forced ? forced.split(',') : [`/demo/shared.${filters[0]?.extensions[0] ?? 'txt'}`];
   }
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({ multiple: true, directory: false, title, filters });
-  if (result === null) return [];
-  return Array.isArray(result) ? result : [result];
+  return nativePick({ kind: 'openFiles', title, filters });
 }
 
 /** Injectable facade over the host functions, so components and the store can be tested with fakes. */
 /**
  * Whether a path from the native save dialog was already confirmed there when it names an existing file.
- * tauri-plugin-dialog uses rfd, whose save dialogs ask before replacing on macOS (NSSavePanel), Windows
+ * The engine shows the dialogs with tauri-plugin-dialog, which uses rfd, whose save dialogs ask before replacing on macOS (NSSavePanel), Windows
  * (IFileSaveDialog with FOS_OVERWRITEPROMPT) and Linux (GTK overwrite confirmation / the portal). The
  * browser build has no dialog, so the app asks itself.
  */

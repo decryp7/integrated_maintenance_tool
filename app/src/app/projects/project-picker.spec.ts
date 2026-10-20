@@ -1,14 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectPicker } from './project-picker';
 
-const dialog = vi.hoisted(() => ({ open: vi.fn(), save: vi.fn() }));
-vi.mock('@tauri-apps/plugin-dialog', () => dialog);
+// The engine shows the dialogs (`pick_paths`) and answers with the chosen paths. Tauri's IPC is stubbed at its
+// window internals: the shared test setup has already loaded `@tauri-apps/api/core` (through the mocks).
+const core = { invoke: vi.fn() };
 
 describe('ProjectPicker', () => {
   afterEach(() => {
     delete (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'];
-    dialog.open.mockReset();
-    dialog.save.mockReset();
+    core.invoke.mockReset();
   });
 
   it('answers with demo paths in a plain browser and offers the last saved one again', async () => {
@@ -16,19 +16,19 @@ describe('ProjectPicker', () => {
     expect(await picker.pickOpen()).toBe('/demo/projects/untitled.imtproj');
     expect(await picker.pickSave('Case 1.imtproj')).toBe('/demo/projects/Case 1.imtproj');
     expect(await picker.pickOpen()).toBe('/demo/projects/Case 1.imtproj');
-    expect(dialog.open).not.toHaveBeenCalled();
+    expect(core.invoke).not.toHaveBeenCalled();
   });
 
   it('uses the native dialogs inside Tauri', async () => {
-    (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = {};
+    (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = { invoke: core.invoke };
     const picker = TestBed.inject(ProjectPicker);
-    dialog.open.mockResolvedValueOnce('/p/a.imtproj').mockResolvedValueOnce(null).mockResolvedValueOnce(['x']);
+    core.invoke.mockResolvedValueOnce(['/p/a.imtproj']).mockResolvedValueOnce([]);
     expect(await picker.pickOpen()).toBe('/p/a.imtproj');
     expect(await picker.pickOpen()).toBeNull();
-    expect(await picker.pickOpen()).toBeNull();
-    expect(dialog.open.mock.calls[0]?.[0]).toMatchObject({ multiple: false, filters: [{ extensions: ['imtproj'] }] });
-    dialog.save.mockResolvedValue('/p/b.imtproj');
+    expect(core.invoke.mock.calls[0]?.[0]).toBe('pick_paths');
+    expect(core.invoke.mock.calls[0]?.[1]).toEqual({ request: expect.objectContaining({ kind: 'openFile', filters: [expect.objectContaining({ extensions: ['imtproj'] })] }) });
+    core.invoke.mockResolvedValue(['/p/b.imtproj']);
     expect(await picker.pickSave('b.imtproj')).toBe('/p/b.imtproj');
-    expect(dialog.save.mock.calls[0]?.[0]).toMatchObject({ defaultPath: 'b.imtproj' });
+    expect(core.invoke.mock.calls.at(-1)?.[1]).toMatchObject({ request: { kind: 'save', defaultName: 'b.imtproj' } });
   });
 });

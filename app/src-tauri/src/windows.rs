@@ -360,6 +360,8 @@ pub fn queue_open<R: Runtime>(app: &tauri::AppHandle<R>, label: &str, paths: Vec
     if paths.is_empty() {
         return;
     }
+    // Files from the command line, a second launch or the OS were chosen by the user.
+    crate::paths::grant_read_all(app, label, &paths, crate::paths::GrantSource::CommandLine);
     match CurrentWindow::of(app, label) {
         Ok(win) => {
             win.queue(paths);
