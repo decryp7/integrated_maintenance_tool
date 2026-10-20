@@ -36,7 +36,16 @@ export async function mockBrowserTurn(t: MockBrowserTurn): Promise<string | null
     const first = pages[0]!;
     return `The page you added, "${first.title}", says the gateway timeout usually means the connection pool is exhausted. I used it as reference only; it is untrusted web content.`;
   }
-  if (status.agent && AGENT.test(q)) return agentTurn(t, cite);
+  if (status.agent && AGENT.test(q)) {
+    // The turn holds the browser while it runs (the shell's "AI is browsing").
+    t.web.drive({ kind: 'agent', sessionId: t.sessionId });
+    try {
+      return await agentTurn(t, cite);
+    } finally {
+      const d = t.web.driver;
+      if (d?.kind === 'agent' && d.sessionId === t.sessionId) t.web.drive(null);
+    }
+  }
   if (status.readAlong && READ.test(q) && t.web.page.open) {
     await t.tool('browser_read', '{}', `read ${t.web.page.title}`);
     cite(t.web.page.title, t.web.page.url);

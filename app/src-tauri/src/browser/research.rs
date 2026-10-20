@@ -101,7 +101,7 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
         .try_state::<super::BrowserState>()
         .map(|s| s.0.clone())
         .ok_or_else(|| AiCmdError::unavailable("the internal browser is not available"))?;
-    let key = format!("research:{}", ctx.id);
+    let key = super::hub::research_key(ctx.id.0);
     let control = hub.chat(owner, &key);
     // Only the addresses research opens may load while it drives (agent rules with nothing else granted).
     control.set_agent(true, AgentLimits::default());
@@ -109,6 +109,7 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
         hub.forget_chat(owner, &key);
         return Err(AiCmdError::busy("a chat is driving the browser now; stop its agent mode first"));
     }
+    super::driving::refresh(app, owner);
     let page = |chat: Option<String>| TauriPage {
         app: app.clone(),
         owner: owner.to_string(),
@@ -142,6 +143,8 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     });
     hub.end_driving(owner, &key);
     hub.forget_chat(owner, &key);
+    // Finished, failed or cancelled: the browser is the user's again.
+    super::driving::refresh(app, owner);
     r.map_err(AiCmdError::from)
 }
 
@@ -343,6 +346,11 @@ pub async fn ai_research<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, args
 #[tauri::command]
 pub fn browser_research_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
     let jobs = app.try_state::<jobs::Jobs>().ok_or("IMT is not ready yet")?;
+    // The banner clears at once; the jobs end when they next look at Cancel.
+    if let Some(hub) = app.try_state::<super::BrowserState>() {
+        hub.stop_research(win.label());
+    }
+    super::driving::refresh(&app, win.label());
     let ids = jobs.find_active(|j| j.kind == JobKind::Research && j.window() == Some(win.label()));
     Ok(ids.into_iter().filter(|id| jobs.cancel(*id).is_ok()).count())
 }

@@ -32,6 +32,8 @@ pub struct TurnBrowser {
     owner: String,
     chat: String,
     driving: bool,
+    /// Announces the end of the turn's driving ("AI is browsing" clears).
+    announce: Box<dyn Fn() + Send + Sync>,
     /// Research mode for the turn's `web_research` (a research job the turn waits for).
     researcher: Box<dyn Researcher>,
 }
@@ -46,6 +48,11 @@ impl TurnBrowser {
         control.begin_turn(settings.agent);
         // Only one chat drives a window's browser; another one's agent turn reads but cannot act.
         let driving = control.may_act() && hub.begin_driving(owner, chat);
+        if driving {
+            super::driving::refresh(app, owner);
+        }
+        let (a, o) = (app.clone(), owner.to_string());
+        let announce: Box<dyn Fn() + Send + Sync> = Box::new(move || super::driving::refresh(&a, &o));
         let pages = hub.take_attachments(owner, chat);
         if !pages.is_empty() {
             emit(
@@ -78,6 +85,7 @@ impl TurnBrowser {
             owner: owner.to_string(),
             chat: chat.to_string(),
             driving,
+            announce,
             researcher: Box::new(super::research::TurnResearcher {
                 app: app.clone(),
                 owner: owner.to_string(),
@@ -120,6 +128,7 @@ impl Drop for TurnBrowser {
     fn drop(&mut self) {
         if self.driving {
             self.hub.end_driving(&self.owner, &self.chat);
+            (self.announce)();
         }
     }
 }

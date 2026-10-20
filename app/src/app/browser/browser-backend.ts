@@ -6,6 +6,7 @@ import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
 import {
   AgentDecision,
+  AiDriver,
   BrowserEvent,
   BrowserStateDto,
   ChatBrowserStatus,
@@ -33,6 +34,8 @@ export abstract class BrowserBackend {
   abstract close(): Promise<boolean>;
   /** Stops the research reading pages in this window's browser; resolves with how many stopped. */
   abstract researchStop(): Promise<number>;
+  /** Who drives this window's browser now (null: nobody, the browser is the user's). */
+  abstract driving(): Promise<AiDriver | null>;
   /** Opens the page shown, or a popup it asked for, in the system browser (anything else is refused). */
   abstract openExternal(url: string): Promise<void>;
   abstract onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten>;
@@ -86,6 +89,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   }
   researchStop() {
     return this.call<number>('browser_research_stop');
+  }
+  driving() {
+    return this.call<AiDriver | null>('browser_driving');
   }
   openExternal(url: string) {
     return this.call<void>('browser_open_external', { url });

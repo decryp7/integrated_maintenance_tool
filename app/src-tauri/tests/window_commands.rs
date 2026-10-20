@@ -46,7 +46,7 @@ fn sync_window_commands(file: &str, src: &str) -> Vec<String> {
     let src = src.split("#[cfg(test)]\nmod tests").next().unwrap_or_default();
     let mut bad = Vec::new();
     for (at, _) in src.match_indices("#[tauri::command]") {
-        let f = function_after(&src, at);
+        let f = function_after(src, at);
         let signature = f.lines().find(|l| l.contains("fn ")).unwrap_or_default();
         if WINDOW_BUILDERS.iter().any(|b| f.contains(b)) && !signature.contains("async fn") {
             bad.push(format!("{} ({file})", signature.trim()));

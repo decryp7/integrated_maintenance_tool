@@ -69,12 +69,17 @@ export interface ChatBrowserStatus {
 
 export type NoticeKind = 'blocked' | 'download' | 'popup' | 'agentBlocked';
 
+/** Who drives the window's browser now (`browser_driving` and the `driving` event): a chat's agent mode, or research. */
+export type AiDriver = { kind: 'agent'; sessionId: string } | { kind: 'research' };
+
 /** `imt://browser`, to the window that owns the browser and its pop-out panels. */
 export type BrowserEvent =
   | ({ type: 'state' } & PageState)
   | { type: 'notice'; kind: NoticeKind; url: string; message: string }
   | { type: 'sources'; sessionId: string; sources: SourceInfo[] }
-  | ({ type: 'chatStatus' } & ChatBrowserStatus);
+  | ({ type: 'chatStatus' } & ChatBrowserStatus)
+  /** The AI started (`by`) or stopped (`null`) driving the browser; also sent to the browser window's banner. */
+  | { type: 'driving'; by: AiDriver | null };
 
 /** The user's answer on an agent approval card. */
 export type AgentDecision = 'allow' | 'allowSite' | 'deny';

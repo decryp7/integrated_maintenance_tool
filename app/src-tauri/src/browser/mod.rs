@@ -11,11 +11,13 @@
 //! `browser_reload`, `browser_stop`, `browser_close`, `browser_open_external`, `browser_capture`,
 //! `browser_sources`, `browser_discard_sources`, `browser_chat_status`, `browser_set_read_along`,
 //! `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`, `browser_agent_respond`,
-//! `browser_open_suggested`, `browser_open_and_read`, `ai_research`, `browser_research_stop`. Events: `imt://browser` (to the owner window and its pop-out panels).
-//! Wire contract: `app/src/app/browser/browser.types.ts`.
+//! `browser_open_suggested`, `browser_open_and_read`, `ai_research`, `browser_research_stop`, `browser_driving`.
+//! Events: `imt://browser` (to the owner window and its pop-out panels; `driving` also to the browser window's
+//! "AI is browsing" banner, see [`driving`]). Wire contract: `app/src/app/browser/browser.types.ts`.
 
 mod approvals;
 pub(crate) mod commands;
+pub(crate) mod driving;
 mod hub;
 mod page;
 pub(crate) mod research;
@@ -26,7 +28,8 @@ mod turn;
 mod window;
 
 pub use approvals::Approvals;
-pub use hub::{BrowserHub, PageState};
+pub use driving::{banner_owner, is_banner_label};
+pub use hub::{AiDriver, BrowserHub, PageState};
 pub use turn::TurnBrowser;
 pub use window::{destroyed, is_browser_label, owner_destroyed, WEB_PROFILE_DIR};
 
@@ -96,9 +99,20 @@ pub struct ChatStatusDto {
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum BrowserEvent {
     State(PageState),
-    Notice { kind: NoticeKind, url: String, message: String },
-    Sources { session_id: String, sources: Vec<SourceInfo> },
+    Notice {
+        kind: NoticeKind,
+        url: String,
+        message: String,
+    },
+    Sources {
+        session_id: String,
+        sources: Vec<SourceInfo>,
+    },
     ChatStatus(ChatStatusDto),
+    /// The AI started or stopped driving the browser (`by`: who; `None`: the browser is the user's again).
+    Driving {
+        by: Option<AiDriver>,
+    },
 }
 
 /// Sends a browser event to the owner window and its pop-out panels (never to the browser window).
@@ -171,6 +185,7 @@ pub fn forget_chat<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str) {
     if let Some(hub) = app.try_state::<BrowserState>() {
         hub.forget_chat(owner, chat);
     }
+    driving::refresh(app, owner);
 }
 
 /// Denies every approval a chat waits for (its turn was cancelled).

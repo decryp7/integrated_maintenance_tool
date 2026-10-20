@@ -1,6 +1,7 @@
 import { Citation } from '../../ai/ai.types';
 import { MockJobCtx, mockJobs, mockSteps, MockJobCancelled } from '../../jobs/mock-jobs';
 import { JobResult } from '../../jobs/jobs.types';
+import { mockWeb } from '../../browser/mock-browser-backend';
 
 /** What the mock research found (the engine's `ResearchReport`). */
 export interface MockResearchReport {
@@ -28,6 +29,17 @@ export function mockLeaks(text: string): boolean {
 
 /** Runs a mock research inside a job's work ("page 2 of 3"), honouring Cancel. */
 export async function runMockResearch(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number): Promise<MockResearchReport> {
+  // Research holds the browser while it reads (the shell's "AI is browsing"); finished, failed or cancelled, it lets go.
+  const web = mockWeb();
+  web.drive({ kind: 'research' });
+  try {
+    return await readPages(ctx, question, maxResults, stepMs);
+  } finally {
+    if (web.driver?.kind === 'research') web.drive(null);
+  }
+}
+
+async function readPages(ctx: MockJobCtx, question: string, maxResults: number, stepMs: number): Promise<MockResearchReport> {
   const pages = PAGES.slice(0, Math.max(1, Math.min(10, maxResults)));
   ctx.message('searching');
   await mockSteps(ctx, stepMs, 2);

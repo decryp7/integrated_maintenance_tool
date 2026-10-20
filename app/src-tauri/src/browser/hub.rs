@@ -14,6 +14,24 @@ pub const MAX_ATTACHMENTS: usize = 3;
 const MAX_POPUPS: usize = 5;
 /// Links remembered per chat for "Open".
 const MAX_SUGGESTED: usize = 50;
+/// The hold of a research job is the chat key `research:<job id>`.
+pub const RESEARCH_KEY_PREFIX: &str = "research:";
+
+/// The hold of research job `job` on a window's browser.
+pub fn research_key(job: u64) -> String {
+    format!("{RESEARCH_KEY_PREFIX}{job}")
+}
+
+/// Who drives a window's browser now, as the browser window shows it ("AI is browsing — Stop"). The Stop of
+/// an agent calls `browser_agent_stop` with its chat; the Stop of research calls `browser_research_stop`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum AiDriver {
+    /// A chat turn in agent mode.
+    Agent { session_id: String },
+    /// A research job reading result pages.
+    Research,
+}
 
 /// The browser settings (Settings ▸ Web browser).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -43,9 +61,26 @@ struct Owner {
     chats: HashMap<String, Arc<ChatBrowser>>,
     /// The chat whose agent turn drives the browser now.
     driving: Option<String>,
+    /// The driver last announced to the windows ([`BrowserHub::driving_changed`]).
+    announced: Option<AiDriver>,
     popups: VecDeque<String>,
     attachments: HashMap<String, Vec<PageCapture>>,
     suggested: HashMap<String, VecDeque<String>>,
+}
+
+impl Owner {
+    /// The AI drives the browser: a chat (or research) holds it and was not stopped.
+    fn driver(&self) -> Option<AiDriver> {
+        let id = self.driving.as_ref()?;
+        if !self.chats.get(id)?.may_act() {
+            return None;
+        }
+        Some(if id.starts_with(RESEARCH_KEY_PREFIX) {
+            AiDriver::Research
+        } else {
+            AiDriver::Agent { session_id: id.clone() }
+        })
+    }
 }
 
 #[derive(Default)]
@@ -211,6 +246,36 @@ impl BrowserHub {
         self.lock().get(owner).is_some_and(|o| o.driving.as_deref() == Some(chat))
     }
 
+    // ---- "AI is browsing" ----
+
+    /// Who drives the window's browser now (a hold that was stopped does not count: the AI no longer acts).
+    pub fn ai_driver(&self, owner: &str) -> Option<AiDriver> {
+        self.lock().get(owner).and_then(Owner::driver)
+    }
+
+    /// The driver changed since it was last announced: `Some(new driver)` to announce (and remember as
+    /// announced), `None` when nothing changed or the window is gone. Call after anything that may change it.
+    pub fn driving_changed(&self, owner: &str) -> Option<Option<AiDriver>> {
+        let mut owners = self.lock();
+        let o = owners.get_mut(owner)?;
+        let now = o.driver();
+        (o.announced != now).then(|| {
+            o.announced = now.clone();
+            now
+        })
+    }
+
+    /// Stop of research: every research hold of the window stops at once (its job ends soon after).
+    pub fn stop_research(&self, owner: &str) {
+        self.with(owner, |o| {
+            for (id, c) in &o.chats {
+                if id.starts_with(RESEARCH_KEY_PREFIX) {
+                    c.stop();
+                }
+            }
+        });
+    }
+
     // ---- pages handed to a chat ----
 
     /// Adds a captured page to the chat's next question; the oldest goes when there are too many.
@@ -370,6 +435,99 @@ mod tests {
         let held = hub.chat("w-2", "x");
         hub.forget_owner("w-2");
         assert!(!held.may_act());
+    }
+
+    fn agent(hub: &BrowserHub, chat: &str) -> Arc<ChatBrowser> {
+        let c = hub.chat("main", chat);
+        c.set_agent(true, AgentLimits::default());
+        c
+    }
+
+    #[test]
+    fn an_agent_turn_drives_until_it_ends_or_stop_or_agent_mode_off() {
+        let hub = BrowserHub::default();
+        assert_eq!(hub.driving_changed("main"), None, "no window state yet: nothing to announce");
+        let c = agent(&hub, "c-1");
+        assert_eq!(hub.driving_changed("main"), None, "agent mode alone does not drive");
+        assert!(hub.begin_driving("main", "c-1"));
+        let driver = AiDriver::Agent { session_id: "c-1".into() };
+        assert_eq!(hub.ai_driver("main"), Some(driver.clone()));
+        assert_eq!(hub.driving_changed("main"), Some(Some(driver.clone())));
+        assert_eq!(hub.driving_changed("main"), None, "announced once");
+        // The turn ends.
+        hub.end_driving("main", "c-1");
+        assert_eq!(hub.driving_changed("main"), Some(None));
+        // Stop pressed while the turn still holds the browser.
+        assert!(hub.begin_driving("main", "c-1"));
+        assert_eq!(hub.driving_changed("main"), Some(Some(driver.clone())));
+        c.stop();
+        assert_eq!(hub.ai_driver("main"), None);
+        assert_eq!(hub.driving_changed("main"), Some(None));
+        hub.end_driving("main", "c-1");
+        assert_eq!(hub.driving_changed("main"), None, "already announced as stopped");
+        // Agent mode turned off.
+        c.set_agent(true, AgentLimits::default());
+        assert!(hub.begin_driving("main", "c-1"));
+        assert_eq!(hub.driving_changed("main"), Some(Some(driver)));
+        c.set_agent(false, AgentLimits::default());
+        assert_eq!(hub.driving_changed("main"), Some(None));
+    }
+
+    #[test]
+    fn driving_ends_when_the_browser_or_the_chat_or_the_window_goes() {
+        let hub = BrowserHub::default();
+        agent(&hub, "c-1");
+        assert!(hub.begin_driving("main", "c-1"));
+        assert!(hub.driving_changed("main").is_some_and(|d| d.is_some()));
+        hub.closed("main");
+        assert_eq!(hub.driving_changed("main"), Some(None), "the browser window was closed");
+        hub.end_driving("main", "c-1");
+        agent(&hub, "c-1");
+        assert!(hub.begin_driving("main", "c-1"));
+        assert!(hub.driving_changed("main").is_some_and(|d| d.is_some()));
+        hub.forget_chat("main", "c-1");
+        assert_eq!(hub.driving_changed("main"), Some(None), "the chat was deleted");
+        agent(&hub, "c-2");
+        assert!(hub.begin_driving("main", "c-2"));
+        hub.forget_owner("main");
+        assert_eq!(hub.ai_driver("main"), None);
+        assert_eq!(hub.driving_changed("main"), None, "the window is gone: nobody to tell");
+    }
+
+    #[test]
+    fn research_drives_until_it_finishes_or_is_stopped() {
+        let hub = BrowserHub::default();
+        let key = research_key(7);
+        assert_eq!(key, "research:7");
+        let c = agent(&hub, &key);
+        assert!(hub.begin_driving("main", &key));
+        assert_eq!(hub.ai_driver("main"), Some(AiDriver::Research));
+        assert_eq!(hub.driving_changed("main"), Some(Some(AiDriver::Research)));
+        // Stop of research stops research holds only.
+        let other = agent(&hub, "c-1");
+        hub.stop_research("main");
+        assert!(!c.may_act() && other.may_act());
+        assert_eq!(hub.driving_changed("main"), Some(None), "Stop of research");
+        hub.end_driving("main", &key);
+        hub.forget_chat("main", &key);
+        let again = research_key(8);
+        agent(&hub, &again);
+        assert!(hub.begin_driving("main", &again));
+        assert_eq!(hub.driving_changed("main"), Some(Some(AiDriver::Research)));
+        // Finished, failed or cancelled: the job lets go of the browser.
+        hub.end_driving("main", &again);
+        hub.forget_chat("main", &again);
+        assert_eq!(hub.driving_changed("main"), Some(None));
+    }
+
+    #[test]
+    fn the_driver_goes_to_the_ui_tagged_by_kind() {
+        let agent = serde_json::to_value(AiDriver::Agent { session_id: "c-1".into() }).unwrap();
+        assert_eq!(agent, serde_json::json!({"kind": "agent", "sessionId": "c-1"}));
+        assert_eq!(
+            serde_json::to_value(AiDriver::Research).unwrap(),
+            serde_json::json!({"kind": "research"})
+        );
     }
 
     #[test]
