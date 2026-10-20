@@ -116,6 +116,37 @@ async function ensureDriverPortsFree(): Promise<void> {
   }
 }
 
+/** WebView2 browser processes of the previous spec's IMT (they use this run's data folder) that are still running. */
+function lingeringWebViews(): number {
+  if (!WINDOWS) return 0;
+  try {
+    const dir = layout.imt.replace(/'/g, "''");
+    const out = execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-Command',
+        `@(Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" | Where-Object { $_.CommandLine -like '*${dir}*' }).Count`,
+      ],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    return Number(out.trim()) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** A new IMT whose WebView2 starts while the previous one's browser processes still hold the data folder stayed
+ *  white for ~2 minutes on the CI runner: wait (bounded) until they are gone, and say how long it took. */
+async function previousWebViewGone(): Promise<void> {
+  const started = Date.now();
+  while (lingeringWebViews() > 0 && Date.now() - started < 30_000) await new Promise((r) => setTimeout(r, 500));
+  const left = lingeringWebViews();
+  const waited = Date.now() - started;
+  if (left > 0) console.warn(`${left} WebView2 process(es) of the previous IMT still running after ${waited} ms`);
+  else if (waited > 1_000) console.log(`Waited ${waited} ms for the previous IMT's WebView2 to exit`);
+}
+
 async function waitForPort(port: number, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -185,6 +216,7 @@ export const config: WebdriverIO.Config = {
     const native = nativeDriver();
     const args = ['--port', String(DRIVER_PORT), '--native-port', String(NATIVE_PORT)];
     if (native) args.push('--native-driver', native);
+    await previousWebViewGone();
     await ensureDriverPortsFree();
     driver = spawn(tauriDriver(), args, { stdio: [null, process.stdout, process.stderr] });
     await waitForPort(DRIVER_PORT, 20_000);

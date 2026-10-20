@@ -21,8 +21,10 @@ describe('real app: activity log', () => {
     const added = (await browser.getWindowHandles()).find((h) => !before.includes(h))!;
     try {
       await browser.switchToWindow(added);
-      // The UI loaded (a white window has no menu bar) and the activity project opened IMT's log.
+      // The UI loaded (a white window has no menu bar) and the activity project opened IMT's log. The project title
+      // proves this is the new window, not the main one (driver window switching has been unreliable).
       await $('[role=menubar][aria-label="Application menu"]').waitForDisplayed({ timeout: 60_000 });
+      await expect($('imt-title-bar [data-testid=project-title]')).toHaveText(/IMT activity log/, { wait: 30_000 });
       await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
       await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
     } finally {
