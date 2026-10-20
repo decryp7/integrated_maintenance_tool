@@ -61,17 +61,18 @@ pub fn collect_files(path: &Path, profile: &CompiledProfile, removed: &HashSet<P
     }
 }
 
-/// The files to read for `roots` (canonical paths), sorted, each with its display name (relative to
-/// the opened folder it came from). Files in `known` (already read) are left out.
+/// The files under `paths` (canonical) to read, sorted, each with its display name (relative to the
+/// opened folder of `roots` it came from). Files in `known` (already read) are left out.
 pub fn files_to_read(
+    paths: &[PathBuf],
     roots: &[PathBuf],
     profile: &CompiledProfile,
     removed: &HashSet<PathBuf>,
     known: &HashSet<String>,
 ) -> Vec<(PathBuf, String)> {
     let mut files = Vec::new();
-    for root in roots {
-        collect_files(root, profile, removed, &mut files);
+    for path in paths {
+        collect_files(path, profile, removed, &mut files);
     }
     files.retain(|f| !known.contains(f.to_string_lossy().as_ref()));
     files.sort();
@@ -130,10 +131,17 @@ mod tests {
         let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
         let removed: HashSet<PathBuf> = [dir.join("sub").join("gone.log")].into();
         let known: HashSet<String> = [dir.join("a.log").to_string_lossy().into_owned()].into();
-        let files = files_to_read(std::slice::from_ref(&dir), &p, &removed, &known);
+        let files = files_to_read(std::slice::from_ref(&dir), std::slice::from_ref(&dir), &p, &removed, &known);
         let names: Vec<&str> = files.iter().map(|(_, n)| n.as_str()).collect();
         assert_eq!(names, ["sub/b.log"]);
-        let all = files_to_read(&[dir.join("a.log")], &p, &HashSet::new(), &HashSet::new());
+        let all = files_to_read(
+            &[dir.join("a.log")],
+            std::slice::from_ref(&dir),
+            &p,
+            &HashSet::new(),
+            &HashSet::new(),
+        );
+        assert_eq!(all[0].1, "a.log");
         assert_eq!(all.len(), 1);
         std::fs::remove_dir_all(dir).ok();
     }
