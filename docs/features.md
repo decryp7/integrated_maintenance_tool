@@ -352,6 +352,21 @@ See [ADR 0012](adr/0012-jobs.md).
 Every view is a panel. Drag tabs to split, float a panel (`Float panel` button), maximise it, and
 reset the layout from the command palette. Layouts are remembered.
 
+Dragging a tab shows where it goes. On a docking guide (the compass over a group, the guides at
+the dock's edges) or a tab strip it docks there. Anywhere else in the window a dashed ghost of the
+panel, sized as it will float, follows the pointer with **Release to float**; outside the window
+the ghost waits at the window's edge with **Release to open in a new window**. Releasing does
+what the hint says; `Esc` cancels the drag. The hint is also announced to screen readers, and the
+ghost does not animate when reduced motion is on.
+
+IMT behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
+shows IMT's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
+and the browser's reload, back/forward (keys and mouse buttons), page zoom (`Ctrl` `+`/`-`/`0`,
+`Ctrl`+wheel), find, print, save page and view source do nothing, as do the developer tools in
+release builds. IMT's own shortcuts and `Ctrl`+wheel zoom on the timeline still work. Buttons, tabs,
+menus and bars do not select like text; log messages, inspector values and fields do. Images and
+links cannot be dragged out of the window.
+
 The default layout is minimal: the timeline, and the events grid with the query bar. The inspector
 waits at the right edge and slides out when you select an event (pin it to keep it docked); views for
 what you just opened (a registry export, a profile capture, a diagnostics report) open by themselves.
