@@ -187,6 +187,7 @@ command_table! {
     Query [WINDOW] => profiling::profiling_heap_dominators,
     Query [WINDOW] => profiling::profiling_heap_instances,
     Query [WINDOW] => profiling::profiling_heap_paths,
+    Query [WINDOW] limit 4 * 1024 => profiling::profiling_heap_findings,
     Query [WINDOW] => profile::get_profile,
     Query [WINDOW] limit MIB => profile::validate_profile,
     Mutation [WINDOW] limit MIB => profile::save_profile,
