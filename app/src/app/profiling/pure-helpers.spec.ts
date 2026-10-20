@@ -103,7 +103,7 @@ describe('brushToRange', () => {
 
 describe('EVENT_GLYPHS', () => {
   it('has a distinct shape and a label for every event kind', () => {
-    expect(Object.keys(EVENT_GLYPHS).sort()).toEqual(['exception', 'gc', 'jit', 'lockWait', 'marker']);
+    expect(Object.keys(EVENT_GLYPHS).sort()).toEqual(['exception', 'gc', 'jit', 'lockWait', 'marker', 'wait']);
     const paths = Object.values(EVENT_GLYPHS).map((g) => g.path);
     expect(new Set(paths).size).toBe(paths.length);
     for (const g of Object.values(EVENT_GLYPHS)) expect(g.label.length).toBeGreaterThan(0);

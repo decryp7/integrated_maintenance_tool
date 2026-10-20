@@ -25,6 +25,10 @@ test.describe('Profiling findings and memory', () => {
     await openProfiles(page);
     await runCommand(page, 'Profiling: memory');
     const view = heap(page);
+    // The memory view starts on its findings (problem first).
+    await expect(view.getByRole('list', { name: 'Memory findings' }).locator('li.finding').first()).toBeVisible();
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-findings', 'imt-heap-view');
+    await view.getByRole('tab', { name: 'Types' }).click();
     await expect(view.getByRole('table', { name: 'Types' })).toContainText('Shop.Orders.Order');
     await expectNoSeriousViolations(page, testInfo, 'profiling-heap-types', 'imt-heap-view');
 

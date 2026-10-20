@@ -1895,7 +1895,17 @@ export interface FindingsRequest {
   thresholds?: FindingThresholds;
 }
 
-export type ProfileFindingKind = 'topSelf' | 'gcPressure' | 'lockContention' | 'exceptionHotPath' | 'threadPoolStarvation' | 'regression';
+export type ProfileFindingKind =
+  | 'topSelf'
+  | 'gcPressure'
+  | 'lockContention'
+  | 'exceptionHotPath'
+  | 'threadPoolStarvation'
+  | 'regression'
+  | 'hotPath'
+  | 'blocking'
+  | 'jitTime'
+  | 'allocations';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
 
@@ -2056,6 +2066,27 @@ export interface HeapObjectsPage {
   rows: HeapObjectRow[];
   totalRows: number;
   totalBytes: number;
+}
+
+/** `profiling_heap_findings({ request })` → HeapFinding[] (Rust `HeapFindingsRequest`). */
+export interface HeapFindingsRequest {
+  snapshotId: number;
+  /** The snapshot before it, for growth. */
+  baselineId?: number | null;
+}
+
+export type HeapFindingKind = 'topRetainers' | 'largeObjects' | 'finalizable' | 'staticRetention' | 'eventHandlers' | 'strings' | 'growth';
+/** The memory view that shows a heap finding's evidence. */
+export type HeapFindingView = 'types' | 'dominators' | 'paths' | 'diff';
+
+export interface HeapFinding {
+  kind: HeapFindingKind;
+  severity: FindingSeverity;
+  title: string;
+  detail: string;
+  valueBytes: number | null;
+  typeName: string | null;
+  view: HeapFindingView;
 }
 
 /** `profiling_heap_paths({ request })` → HeapPaths ("why is this alive"). */
@@ -2499,4 +2530,68 @@ export interface PickRequest {
 export interface AnalysisCoverage {
   analysed: number;
   total: number;
+}
+
+// ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/imt-plugin-dotnet) ----
+
+/** A process that can be recorded (Rust `ProcessInfo`). */
+export interface DotnetProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  runtimeVersion: string | null;
+  /** `x86`, `x64`, `arm64` when known. */
+  arch: string | null;
+  /** .NET Framework processes are recorded with ETW (administrator), .NET Core with EventPipe. */
+  runtime: 'framework' | 'core';
+  /** Recording it needs administrator rights IMT does not have. */
+  needsElevation: boolean;
+}
+
+export type DotnetCaptureKind = 'cpu' | 'allocations' | 'heap';
+
+/** `start` (Rust `Request`). */
+export interface DotnetCaptureRequest {
+  pid: number;
+  kind: DotnetCaptureKind;
+  /** null = until stopped (a heap snapshot ends by itself). 1..3600. */
+  durationSec: number | null;
+}
+
+export type DotnetCaptureState = 'recording' | 'stopping' | 'done' | 'failed' | 'cancelled';
+
+/** A capture (Rust `Status`). */
+export interface DotnetCaptureStatus {
+  id: string;
+  pid: number;
+  processName: string;
+  kind: DotnetCaptureKind;
+  state: DotnetCaptureState;
+  elapsedMs: number;
+  bytes: number;
+  /** The NetTrace file once done; open it with `profiling_open`. */
+  path: string | null;
+  error: string | null;
+  /** The error is missing rights: offer "Restart as administrator". */
+  needsElevation: boolean;
+  /** It stopped at the size limit. */
+  truncated: boolean;
+  notes: string[];
+}
+
+/** A process in an `.etl` trace (Rust `EtlProcess`). */
+export interface EtlProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  samples: number;
+  /** CLR events (0: not .NET or not recorded). */
+  clrEvents: number;
+  pointerSize: number;
+}
+
+/** `etl-convert` result. */
+export interface EtlConverted {
+  path: string;
+  notes: string[];
 }

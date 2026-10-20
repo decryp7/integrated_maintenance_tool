@@ -1,8 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
-export type HeapTab = 'types' | 'diff' | 'growth' | 'dominators' | 'instances';
+export type HeapTab = 'findings' | 'types' | 'diff' | 'growth' | 'dominators' | 'instances';
 
 export const HEAP_TABS: { id: HeapTab; label: string }[] = [
+  { id: 'findings', label: $localize`:@@profiling.heap.tab.findings:Findings` },
   { id: 'types', label: $localize`:@@profiling.heap.tab.types:Types` },
   { id: 'diff', label: $localize`:@@profiling.heap.tab.diff:Compare snapshots` },
   { id: 'growth', label: $localize`:@@profiling.heap.tab.growth:Growth` },
@@ -13,7 +14,7 @@ export const HEAP_TABS: { id: HeapTab; label: string }[] = [
 /** Selection shared by the memory view's tabs (provided by the view). */
 @Injectable()
 export class HeapSelection {
-  readonly tab = signal<HeapTab>('types');
+  readonly tab = signal<HeapTab>('findings');
   /** Type whose instances are listed. */
   readonly typeName = signal<string | null>(null);
   /** Object whose paths to GC roots are shown. */

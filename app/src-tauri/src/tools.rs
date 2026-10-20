@@ -56,10 +56,15 @@ impl<R: Runtime> ShellTasks<R> {
 
 /// The collection jobs of tool tasks, by task id: the job ends when the tool reports the task finished.
 #[derive(Default)]
-struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>>);
+/// Each entry keeps the task's kind hint: one task per hint runs at a time (a second diagnostics collection is
+/// stopped), while tasks of different tools (a collection and a .NET capture) may run together.
+struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, CollectionJob>>);
+
+/// A collection job: its id, the sender that ends it, and the task's kind hint.
+type CollectionJob = (crate::jobs::JobId, std::sync::mpsc::Sender<()>, String);
 
 impl CollectionJobs {
-    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, CollectionJob>> {
         self.0.lock().unwrap_or_else(|p| p.into_inner())
     }
 }
@@ -75,7 +80,7 @@ impl<R: Runtime> ShellTasks<R> {
         self.host.stop(tool, id, &ctx).map_err(anyhow::Error::from)
     }
 
-    /// Lists a collection as a collection job, or stops it when another one runs.
+    /// Lists a collection as a collection job, or stops it when another of the same kind runs.
     fn track_collection(&self, tool: &str, task: &ToolTask) {
         let Some(jobs) = self.app.try_state::<crate::jobs::Jobs>() else {
             return;
@@ -86,8 +91,8 @@ impl<R: Runtime> ShellTasks<R> {
         let Some(registry) = self.app.try_state::<CollectionJobs>() else {
             return;
         };
-        if !jobs.find_active(|j| j.kind == crate::jobs::JobKind::Collection).is_empty() {
-            log::warn!(Tool = tool; "A second collection was stopped: one runs at a time");
+        if registry.lock().values().any(|(_, _, hint)| *hint == task.kind) {
+            log::warn!(Tool = tool; "A second collection was stopped: one of each kind runs at a time");
             let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
             // Off the caller's thread: stopping may run a system tool.
             let _ = std::thread::Builder::new().name("imt-tool-stop".into()).spawn(move || {
@@ -115,7 +120,7 @@ impl<R: Runtime> ShellTasks<R> {
             crate::jobs::queue::JobEnd::Done(None)
         }) {
             Ok(job) => {
-                registry.lock().insert(task.id.clone(), (job, tx));
+                registry.lock().insert(task.id.clone(), (job, tx, task.kind.clone()));
             }
             Err(e) => log::warn!(Tool = tool; "collection not listed as a job: {e}"),
         }
@@ -160,7 +165,7 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
         let job = self
             .app
             .try_state::<CollectionJobs>()
-            .and_then(|r| r.lock().get(task).map(|(id, _)| *id));
+            .and_then(|r| r.lock().get(task).map(|(id, _, _)| *id));
         match (job, self.app.try_state::<crate::jobs::Jobs>()) {
             (Some(id), Some(jobs)) => jobs.report(
                 id,
@@ -178,7 +183,7 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
     }
 
     fn finished(&self, _tool: &str, task: &str) {
-        if let Some((_, done)) = self.app.try_state::<CollectionJobs>().and_then(|r| r.lock().remove(task)) {
+        if let Some((_, done, _)) = self.app.try_state::<CollectionJobs>().and_then(|r| r.lock().remove(task)) {
             let _ = done.send(());
             return;
         }
@@ -379,8 +384,17 @@ pub(crate) mod tests {
     fn tools_are_listed_and_invoked_through_ipc() {
         let app = test_app_with_commands(None);
         let main = window(&app, "main");
-        let listed = ipc(&main, "tools_list", json!({})).unwrap();
-        let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
+        let all = ipc(&main, "tools_list", json!({})).unwrap();
+        // Other built-in plugins contribute tools too (the .NET profiler); these are the System tools.
+        assert!(all.as_array().unwrap().iter().any(|t| t["id"] == "dotnet-profiler"));
+        let listed: Vec<Value> = all
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["plugin"] == "net.decryptology.tools")
+            .cloned()
+            .collect();
+        let ids: Vec<&str> = listed.iter().map(|t| t["id"].as_str().unwrap()).collect();
         assert_eq!(
             ids,
             [
@@ -445,7 +459,11 @@ pub(crate) mod tests {
         std::fs::write(dir.0.join("plugins.json"), r#"{"disabled":["net.decryptology.tools"]}"#).unwrap();
         let app = test_app_with_commands(Some(dir.0.join("profiles")));
         let main = window(&app, "main");
-        assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
+        let listed = ipc(&main, "tools_list", json!({})).unwrap();
+        assert!(
+            listed.as_array().unwrap().iter().all(|t| t["plugin"] != "net.decryptology.tools"),
+            "{listed}"
+        );
         let e = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
         assert!(e.as_str().unwrap().contains("is the System tools plugin disabled"), "{e}");
     }
@@ -505,6 +523,16 @@ pub(crate) mod tests {
         sink.started("diag", &task("collect-2"));
         assert_eq!(collections().len(), 1);
         assert!(crate::activity::captured().iter().any(|c| c.message.contains("second collection")));
+        // A task of another kind (a .NET capture) is listed too, not stopped.
+        let capture = ToolTask {
+            id: "dotnet-1".into(),
+            label: "Recording CPU of Shop.exe".into(),
+            kind: "dotnet-capture".into(),
+            stoppable: true,
+        };
+        sink.started("dotnet-profiler", &capture);
+        crate::jobs::wait_until("the capture's job", || collections().len() == 2);
+        sink.finished("dotnet-profiler", "dotnet-1");
         sink.finished("diag", "collect-1");
         crate::jobs::wait_until("the job to end", || collections().is_empty());
         // Unknown tasks are ignored.
