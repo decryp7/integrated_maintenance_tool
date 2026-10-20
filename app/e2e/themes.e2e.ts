@@ -57,10 +57,14 @@ for (const theme of THEMES) {
 
 test('switching the theme restyles the timeline: runs, lane fill and surface follow the traits', async ({ page }) => {
   await openThemed(page, 'calm', 'dark');
+  // The checks read final styles; headless WebKit does not advance transitions, so a switched value would stay at its
+  // start.
+  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
   const html = page.locator('html');
   await expect(html).toHaveAttribute('data-runs', 'line');
   await expect(html).toHaveAttribute('data-lane-fill', 'neutral');
-  const run = page.locator('imt-timeline-panel imt-run-track .run[data-status="closed"]').first();
+  // A run cut off at the edge of the view squares that end, so pick one shown whole.
+  const run = page.locator('imt-timeline-panel imt-run-track .run[data-status="closed"]:not(.clip-l):not(.clip-r)').first();
   await expect(run).toBeVisible();
   // A run is a line in Calm (no fill) and a pill in Console (a tinted, rounded band).
   expect(await run.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
@@ -70,7 +74,8 @@ test('switching the theme restyles the timeline: runs, lane fill and surface fol
   await expect(html).toHaveAttribute('data-runs', 'pill');
   await expect(html).toHaveAttribute('data-surface', 'cards');
   await expect.poll(() => run.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
-  expect(await run.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('999px');
+  // One corner (WebKit leaves the `border-radius` shorthand empty in computed styles), polled: the switch transitions it.
+  await expect.poll(() => run.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe('999px');
   // The lane's volume is drawn in its source colour.
   await expect(html).toHaveAttribute('data-lane-fill', 'bySource');
   const edge = page.locator('imt-timeline-panel .lane.colored .density .edge').first();

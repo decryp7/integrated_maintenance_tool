@@ -430,7 +430,7 @@ fn group_limits_samples_and_orders_instances() {
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].sample_ids.len(), 10);
     assert_eq!(groups[0].instances, vec![("hosta".to_string(), 20), ("hostb".to_string(), 10)]);
-    assert!(group(std::iter::empty()).is_empty());
+    assert!(group(std::iter::empty::<(&imt_core::model::Record, &str)>()).is_empty());
     // Equal counts order by fingerprint deterministically; instances tie-break by name.
     let rs = [exc_rec(1, None, PYTHON), exc_rec(2, None, JS)];
     let g = group(rs.iter().zip(["z", "z"]));
@@ -829,4 +829,29 @@ fn mines_one_million_lines_quickly() {
     eprintln!("1M lines mined in {elapsed:?} into {} patterns", patterns.len());
     assert!(patterns.len() < 20);
     assert!(elapsed.as_secs() < 10, "took {elapsed:?}");
+}
+
+#[test]
+fn the_miner_is_capped_and_counts_the_overflow() {
+    // Regression (engine review finding 13): the Drain miner kept every distinct pattern.
+    let mut miner = PatternMiner::with_limit(MinerConfig::default(), 3);
+    let words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot"];
+    for (i, w) in words.iter().enumerate() {
+        let r = rec(i as u32, &format!("{w} {w} {w} {w}"));
+        miner.add(&r);
+    }
+    let mut t = rec(9, "templated");
+    t.template = Some("serilog {X}".into());
+    miner.add(&t);
+    let patterns = miner.clusters();
+    assert_eq!(patterns.len(), 4, "{patterns:?}");
+    assert_eq!(miner.overflowed(), 4);
+    let overflow = patterns
+        .iter()
+        .find(|p| p.template == imt_core::patterns::OVERFLOW_TEMPLATE)
+        .unwrap();
+    assert_eq!(overflow.count, 4);
+    // Lines matching a kept pattern still join it.
+    miner.add(&rec(10, "alpha alpha alpha alpha"));
+    assert_eq!(miner.overflowed(), 4);
 }

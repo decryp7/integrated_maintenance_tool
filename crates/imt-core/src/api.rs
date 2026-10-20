@@ -188,6 +188,9 @@ pub struct SourceContext {
     /// Line of the event itself.
     pub line: u32,
     pub lines: Vec<SourceLine>,
+    /// Why the lines are not read from the file (e.g. it is missing, so the stored events are shown).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -1,4 +1,4 @@
-//! Runs a [`Program`] over records.
+//! Runs a [`Program`] over events (any [`RowRef`]).
 
 use super::control::{QueryControl, QueryStage, RunError, BATCH};
 use super::error::QlError;
@@ -7,18 +7,13 @@ use super::parser::{FieldRef, Program, SortKeySpec, Stage};
 use super::stats::aggregate;
 use super::QlResult;
 use crate::model::Record;
+use crate::row::{RecordRow, RowRef};
 use serde_json::Value;
 use std::cmp::Ordering;
 
-enum State<'a> {
-    Events {
-        items: Vec<(&'a Record, &'a str)>,
-        fields: Option<Vec<String>>,
-    },
-    Table {
-        columns: Vec<String>,
-        rows: Vec<Vec<Value>>,
-    },
+enum State<R> {
+    Events { items: Vec<R>, fields: Option<Vec<String>> },
+    Table { columns: Vec<String>, rows: Vec<Vec<Value>> },
 }
 
 enum Key {
@@ -45,15 +40,14 @@ fn key_order(a: &Key, b: &Key, descending: bool) -> Ordering {
     }
 }
 
-fn event_key(rec: &Record, source: &str, field: &FieldRef) -> Key {
+fn event_key(row: &dyn RowRef, field: &FieldRef) -> Key {
     if field.name == "@level" {
-        return Key::Num(rec.level.index() as f64);
+        return Key::Num(row.level().index() as f64);
     }
-    if let Some(n) = rec.field_number(&field.name) {
+    if let Some(n) = row.number(&field.key) {
         return Key::Num(n);
     }
-    rec.field_text(&field.name, source)
-        .map_or(Key::Missing, |t| Key::Text(t.into_owned()))
+    row.text(&field.key).map_or(Key::Missing, |t| Key::Text(t.into_owned()))
 }
 
 fn cell_key(cell: &Value) -> Key {
@@ -75,15 +69,15 @@ fn column_index(columns: &[String], field: &FieldRef) -> Result<usize, QlError> 
     })
 }
 
-impl<'a> State<'a> {
-    fn apply(self, stage: &Stage, control: &QueryControl) -> Result<State<'a>, RunError> {
+impl<R: RowRef> State<R> {
+    fn apply(self, stage: &Stage, control: &QueryControl) -> Result<State<R>, RunError> {
         Ok(match (self, stage) {
             (State::Events { mut items, fields }, Stage::Where(f)) => {
                 let mut seen = 0usize;
-                items.retain(|(rec, src)| {
+                items.retain(|row| {
                     seen += 1;
                     // Once cancelled, the rest is dropped quickly; the caller discards the state.
-                    !(seen.is_multiple_of(BATCH) && control.is_cancelled()) && f.matches(rec, src)
+                    !(seen.is_multiple_of(BATCH) && control.is_cancelled()) && f.matches_event(row)
                 });
                 control.check()?;
                 State::Events { items, fields }
@@ -95,7 +89,7 @@ impl<'a> State<'a> {
             (State::Events { items, fields }, Stage::Sort(specs)) => {
                 let keyed = control
                     .guard(items.into_iter())
-                    .map(|(rec, src)| (specs.iter().map(|s| event_key(rec, src, &s.field)).collect(), (rec, src)))
+                    .map(|row| (specs.iter().map(|s| event_key(&row, &s.field)).collect(), row))
                     .collect();
                 control.check()?;
                 State::Events {
@@ -136,7 +130,7 @@ impl<'a> State<'a> {
                 }
             }
             (State::Events { items, .. }, Stage::Stats { aggs, by }) => {
-                let rows = control.guard(items.iter()).map(|(rec, source)| EventRow { rec, source });
+                let rows = control.guard(items.iter()).map(|row| EventRow(row));
                 let (columns, rows) = aggregate(rows, aggs, by)?;
                 control.check()?;
                 State::Table { columns, rows }
@@ -175,25 +169,88 @@ pub fn run_with<'a>(
     records: &mut dyn Iterator<Item = (&'a Record, &'a str)>,
     control: &QueryControl,
 ) -> Result<QlResult, RunError> {
+    run_rows(program, &mut records.map(|(rec, source)| RecordRow { rec, source }), control)
+}
+
+/// [`run_with`] over any events. The leading filter, the `where` stages right after it and a first
+/// `stats` stream (nothing is kept per event); `sort`, `head` and `fields` keep the events they need.
+pub fn run_rows<R: RowRef>(program: &Program, rows: &mut dyn Iterator<Item = R>, control: &QueryControl) -> Result<QlResult, RunError> {
     control.check()?;
-    control.begin(QueryStage::Evaluating, records.size_hint().0);
-    let items = control
-        .watch(records)
-        .filter(|(rec, src)| program.filter.matches(rec, src))
+    control.begin(QueryStage::Evaluating, rows.size_hint().0);
+    let leading = program.stages.iter().take_while(|s| matches!(s, Stage::Where(_))).count();
+    let wheres: Vec<&super::Filter> = program.stages[..leading]
+        .iter()
+        .filter_map(|s| match s {
+            Stage::Where(f) => Some(f),
+            _ => None,
+        })
         .collect();
-    control.check()?;
-    let mut state = State::Events { items, fields: None };
-    for stage in &program.stages {
+    let keep = |row: &R| program.filter.matches_event(row) && wheres.iter().all(|f| f.matches_event(row));
+    let mut stages = program.stages[leading..].iter().peekable();
+    let state = match stages.peek() {
+        Some(Stage::Stats { aggs, by }) => {
+            stages.next();
+            let matched = control.watch(rows).filter(|r| keep(r)).map(OwnedEvent);
+            let (columns, out) = aggregate(matched, aggs, by)?;
+            control.check()?;
+            State::Table { columns, rows: out }
+        }
+        _ => {
+            let items = control.watch(rows).filter(|r| keep(r)).collect();
+            control.check()?;
+            State::Events { items, fields: None }
+        }
+    };
+    finish(state, stages, control)
+}
+
+/// Applies `stages` to a result table (e.g. one a store aggregated in SQL for the program's first
+/// `stats`), as [`run_rows`] does after its `stats`.
+pub fn run_table(columns: Vec<String>, rows: Vec<Vec<Value>>, stages: &[Stage], control: &QueryControl) -> Result<QlResult, RunError> {
+    finish::<crate::row::OwnedRow>(State::Table { columns, rows }, stages.iter(), control)
+}
+
+/// Applies the remaining `stages` to `state` and returns the result.
+fn finish<'a, R: RowRef>(
+    mut state: State<R>,
+    stages: impl Iterator<Item = &'a Stage>,
+    control: &QueryControl,
+) -> Result<QlResult, RunError> {
+    for stage in stages {
         state = state.apply(stage, control)?;
         control.check()?;
     }
     Ok(match state {
         State::Events { items, fields } => QlResult::Events {
-            ids: items.iter().map(|(r, _)| r.id).collect(),
+            ids: items.iter().map(|r| u32::try_from(r.id()).unwrap_or(u32::MAX)).collect(),
             fields,
         },
         State::Table { columns, rows } => QlResult::Table { columns, rows },
     })
+}
+
+/// An owned event as a filter row (for the streaming `stats`).
+struct OwnedEvent<R>(R);
+
+impl<R: RowRef> super::Row for OwnedEvent<R> {
+    fn text(&self, key: &crate::row::FieldKey) -> Option<std::borrow::Cow<'_, str>> {
+        self.0.text(key)
+    }
+    fn number(&self, key: &crate::row::FieldKey) -> Option<f64> {
+        self.0.number(key)
+    }
+    fn level(&self) -> Option<crate::model::Level> {
+        Some(self.0.level())
+    }
+    fn full_text(&self, needle: &str) -> bool {
+        super::expr::full_text_match(&self.0, needle)
+    }
+    fn value(&self, key: &crate::row::FieldKey) -> Option<Value> {
+        self.0.value(key)
+    }
+    fn event(&self) -> Option<&dyn RowRef> {
+        Some(&self.0)
+    }
 }
 
 #[cfg(test)]
@@ -214,7 +271,7 @@ mod tests {
         for ql in ["| where N < 5", "| sort N", "| stats count() by N"] {
             let program = super::super::parse(ql).unwrap();
             let state = State::Events {
-                items: recs.iter().map(|r| (r, "s")).collect(),
+                items: recs.iter().map(|rec| RecordRow { rec, source: "s" }).collect(),
                 fields: None,
             };
             assert!(
@@ -222,5 +279,38 @@ mod tests {
                 "{ql}"
             );
         }
+    }
+
+    #[test]
+    fn run_table_applies_the_stages_after_a_first_stats() {
+        let program = super::super::parse("| stats count() as n by N | sort n desc | head 2").unwrap();
+        let rows = vec![
+            vec![serde_json::json!("a"), serde_json::json!(1)],
+            vec![serde_json::json!("b"), serde_json::json!(3)],
+            vec![serde_json::json!("c"), serde_json::json!(2)],
+        ];
+        let columns = vec!["N".to_string(), "n".to_string()];
+        let control = QueryControl::new();
+        let out = super::run_table(columns.clone(), rows.clone(), &program.stages[1..], &control).unwrap();
+        assert_eq!(
+            out,
+            QlResult::Table {
+                columns: columns.clone(),
+                rows: vec![rows[1].clone(), rows[2].clone()],
+            }
+        );
+        // No further stages: the table as given; a cancel stops between stages.
+        assert_eq!(
+            super::run_table(columns.clone(), rows.clone(), &[], &control).unwrap(),
+            QlResult::Table {
+                columns: columns.clone(),
+                rows: rows.clone()
+            }
+        );
+        control.cancel();
+        assert!(matches!(
+            super::run_table(columns, rows, &program.stages[1..], &control),
+            Err(RunError::Cancelled)
+        ));
     }
 }

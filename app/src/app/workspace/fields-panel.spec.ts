@@ -45,11 +45,13 @@ describe('Sidebar fields with the facet popover', () => {
 
   it('adds a column from the popover and closes it', async () => {
     const { fixture, store } = await render();
+    // Counted relative to the start: spec files can share a window, and with it saved preferences.
+    const before = store.extraColumns().length;
     at(all<HTMLButtonElement>(fixture, '.field'), 0).click();
     await settle(fixture);
     buttonByText(fixture, 'Add column').click();
     await settle(fixture);
-    expect(store.extraColumns().length).toBe(1);
+    expect(store.extraColumns().length).toBe(before + 1);
     expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
   });
 

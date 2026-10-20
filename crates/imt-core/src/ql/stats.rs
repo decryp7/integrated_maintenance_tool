@@ -47,17 +47,17 @@ impl NumAcc {
 
     fn finish(self) -> Value {
         match self {
-            NumAcc::Sum(s) => number(s),
+            NumAcc::Sum(s) => json_number(s),
             NumAcc::Avg(_, 0) | NumAcc::Min(None) | NumAcc::Max(None) => Value::Null,
-            NumAcc::Avg(s, n) => number(s / n as f64),
-            NumAcc::Min(Some(v)) | NumAcc::Max(Some(v)) => number(v),
+            NumAcc::Avg(s, n) => json_number(s / n as f64),
+            NumAcc::Min(Some(v)) | NumAcc::Max(Some(v)) => json_number(v),
             NumAcc::Percentile(p, mut vals) => {
                 if vals.is_empty() {
                     return Value::Null;
                 }
                 vals.sort_by(f64::total_cmp);
                 let rank = ((p / 100.0) * vals.len() as f64).ceil() as usize;
-                number(vals[rank.clamp(1, vals.len()) - 1])
+                json_number(vals[rank.clamp(1, vals.len()) - 1])
             }
         }
     }
@@ -78,15 +78,15 @@ impl Acc {
 
     /// Returns false when a limit was exceeded.
     fn feed(&mut self, row: &dyn Row, field: Option<&FieldRef>) -> bool {
-        let name = field.map_or("", |f| f.name.as_str());
+        let key = field.map(|f| &f.key);
         match self {
             Acc::Count(n) => *n += 1,
             Acc::Distinct(set) => {
-                if let Some(t) = row.text(name) {
+                if let Some(t) = key.and_then(|k| row.text(k)) {
                     set.insert(t.into_owned());
                 }
             }
-            Acc::Num(acc) => return row.number(name).is_none_or(|v| acc.add(v)),
+            Acc::Num(acc) => return key.and_then(|k| row.number(k)).is_none_or(|v| acc.add(v)),
         }
         true
     }
@@ -100,8 +100,9 @@ impl Acc {
     }
 }
 
-/// Whole numbers become JSON integers, everything else a float (NaN/inf become null).
-fn number(f: f64) -> Value {
+/// Whole numbers become JSON integers, everything else a float (NaN/inf become null): how `stats` writes
+/// its numbers (stores that aggregate in SQL use it too).
+pub fn json_number(f: f64) -> Value {
     if f.fract() == 0.0 && f.abs() < 1e15 {
         Value::from(f as i64)
     } else {
@@ -127,7 +128,7 @@ pub fn aggregate<R: Row>(
     let mut index: HashMap<String, usize> = HashMap::new();
     let mut groups: Vec<Group> = Vec::new();
     for row in rows {
-        let keys: Vec<Value> = by.iter().map(|f| row.value(&f.name).unwrap_or(Value::Null)).collect();
+        let keys: Vec<Value> = by.iter().map(|f| row.value(&f.key).unwrap_or(Value::Null)).collect();
         let id = keys.iter().map(Value::to_string).collect::<Vec<_>>().join("\u{1f}");
         let slot = *index.entry(id).or_insert_with(|| {
             groups.push(new_group(keys));

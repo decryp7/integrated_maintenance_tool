@@ -14,7 +14,7 @@ pub struct ConditionCfg {
     pub value: Option<CondValue>,
 }
 
-/// Lets TOML write `value = 5`, `value = true` or `value = "x"`.
+/// Lets TOML write `value = 5`, `value = true`, `value = "x"` or `value = ["a", "b"]`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CondValue {

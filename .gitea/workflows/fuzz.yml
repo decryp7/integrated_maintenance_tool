@@ -1,5 +1,5 @@
 # Nightly fuzzing of every parser with cargo-fuzz (libFuzzer, nightly Rust).
-# Each target runs for FUZZ_SECONDS, seven per shard; any crash fails the shard and its
+# Each target runs for FUZZ_SECONDS, up to seven per shard; any crash fails the shard and its
 # reproducer is uploaded as an artifact named after the target. Triage: see docs/fuzzing.md.
 
 name: fuzz
@@ -20,11 +20,11 @@ env:
   FUZZ_TOOLCHAIN: nightly-2026-10-01
 
 jobs:
-  # Four shards of seven targets instead of one job per target: each shard compiles the fuzz workspace once
+  # Five shards of up to seven targets instead of one job per target: each shard compiles the fuzz workspace once
   # (cargo fuzz build builds every target in one cargo run) and then fuzzes its targets one after another,
   # where 28 jobs each compiled the whole workspace and queued for the few shared Linux runner slots.
   fuzz:
-    name: fuzz (shard ${{ matrix.shard }}/4)
+    name: fuzz (shard ${{ matrix.shard }}/5)
     runs-on: ubuntu-latest
     container:
       image: catthehacker/ubuntu:act-latest
@@ -40,6 +40,8 @@ jobs:
             targets: [fuzz_prof_folded, fuzz_prof_cpuprofile, fuzz_prof_chrome_trace, fuzz_prof_pprof, fuzz_prof_perf_script, fuzz_prof_nettrace, fuzz_prof_heapsnapshot, fuzz_plugin_reply]
           - shard: 4
             targets: [fuzz_procmon_csv, fuzz_minidump, fuzz_eventlog, fuzz_log4j_xml, fuzz_sql_errorlog, fuzz_docker_json, fuzz_cri, fuzz_ai_request, fuzz_worker_http]
+          - shard: 5
+            targets: [fuzz_prof_nettrace_heap, fuzz_dotnet_etw, fuzz_dotnet_ipc]
     steps:
       - uses: actions/checkout@v4
 

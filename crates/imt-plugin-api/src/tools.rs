@@ -347,6 +347,10 @@ pub struct OpSpec {
     /// started through the administrator prompt on first use.
     #[serde(default)]
     pub elevated: bool,
+    /// A read-only status operation the UI polls: the shell runs it through the quiet `tool_poll`
+    /// (not logged per call) and refuses `tool_poll` for any other operation.
+    #[serde(default)]
+    pub poll: bool,
 }
 
 mod millis {
@@ -374,7 +378,14 @@ impl OpSpec {
             args: Schema::object(),
             budget: Some(DEFAULT_OP_BUDGET),
             elevated: false,
+            poll: false,
         }
+    }
+
+    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
+    pub fn polling(mut self) -> OpSpec {
+        self.poll = true;
+        self
     }
 
     pub fn args(mut self, schema: Schema) -> OpSpec {

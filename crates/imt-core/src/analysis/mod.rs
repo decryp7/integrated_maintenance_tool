@@ -8,6 +8,7 @@
 pub mod anomaly;
 pub mod compare;
 pub mod field_stats;
+pub mod moment;
 pub mod trace;
 pub mod trend;
 
