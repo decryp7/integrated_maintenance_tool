@@ -50,10 +50,9 @@ frame   = len:u32le  body:postcard(Frame)          len ≤ max_frame (default 16
 Frame   = Hello  { version, token: [u8; 32], pid }      first frame of the connecting side
         | Welcome{ version }                            the listening side accepted it
         | Call   { id, credit, body }                   a request (body: the protocol's own message)
-        | Reply  { id, body }                           its single answer
+        | Reply  { id, body }                           its answer; after Items it also ends the stream
         | Item   { id, body }                           one item of a streamed answer
-        | End    { id }                                 the stream is complete
-        | Fail   { id, error: RemoteError }             typed error {code, message, retryable, detail}
+        | Fail   { id, error: RemoteError }             typed error {code, message, data: optional JSON}
         | Cancel { id }                                 the caller gave up; the callee stops at its next check
         | Credit { id, n }                              the caller can take n more items
 ```
@@ -179,10 +178,11 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
   first-party plugins. Third-party binaries would need external enforcement (AppContainer / a restricted token at
   `CreateProcessAsUser`, a seccomp launcher) before IMT accepts them; none ship.
 - Profiles: `SandboxSpec::locked()` (importers, parsers: no network, no file system, no children, low integrity,
-  512 MiB), `SandboxSpec::tools()` (the tools plugin: normal integrity, may run its allow-listed programs, writes
-  only granted folders), workers have their own (the store worker: its project folders read-write, 1 GiB; the AI
-  worker: models read-only, may start `llama-server`). A manifest permission widens a plugin's spec explicitly
-  (`OpenedFilePaths`, `RunPrograms`, `WriteGrantedFolders`); the Plugins settings show them.
+  1 GiB unless the manifest declares another cap), widened only by manifest permissions the user granted
+  (`OpenedFilePaths`, `RunPrograms`, `WriteFolders`, `Network`; `imt_plugin_host::sandbox_for`): the tools plugin
+  asks for `RunPrograms` and `WriteFolders` (normal integrity, children allowed). Workers have their own (the
+  store worker: memory cap, no file-system restriction yet; the AI worker: may start `llama-server`). The Plugins
+  settings show the permissions.
 - Lockdown failures on an older kernel (no landlock) degrade with a note in the child's log; on Windows a failed
   integrity drop fails the start (it always works on supported versions).
 
@@ -261,3 +261,53 @@ UAC prompt itself cannot run in CI and is a manual check.
   the same frames, not a second transport.
 - The sandbox is applied by the child after connecting; it protects against exploited parsers, not against a
   malicious plugin binary (none are installable).
+
+## Implementation notes (R3, 2026-10-21)
+
+What landed, and where it differs from the text above:
+
+- **Frames** (`imt_ipc::frame`, `peer`, `link`): as in §1, except that there is no `End` frame: a streamed
+  answer is its `Item`s followed by the `Reply`. `RemoteError` is `{code, message, data: Option<Json>}`; retry
+  advice is in the message and the error code. The `Peer` API is synchronous (handlers run on a blocking pool of
+  one shared two-thread runtime), with `max_concurrent_calls` (over it: `BUSY`) and a 2 s cancel grace.
+- **Descriptive types cross as JSON.** The manifest (with settings sections, tool schemas, marker kinds) is read
+  once per start with `imt-plugins --manifests` and on `PluginRequest::Manifest`, as JSON: these types use serde
+  attributes postcard cannot carry, and they are not on a hot path. Event rows (`WireEvent` with `WireValue`s),
+  file chunks and every request/reply envelope are postcard.
+- **Host files** are lent per call: the host answers the plugin's `ReadFile` (≤ 1 MiB) from the file it opened,
+  on the calling thread, for the duration of the call (`imt_plugin_host::process`'s pump); the plugin sees a
+  `HostFileRef`, never a path, unless it was granted `OpenedFilePaths`. Annotators read the host's view through
+  `ViewSelect`/`ViewInstances`/`ViewTimeRange` callbacks with a call-scoped ticket; tools report tasks with
+  `TaskStarted`/`TaskProgress`/`TaskFinished`.
+- **Plugins**: every built-in runs in its own `imt-plugins --plugin <id>` process; the app links no plugin crate.
+  Settings are re-applied after a restart (`Supervisor::with_restore`). Path arguments are typed
+  (`Schema::Path`) and checked by `imt_core`'s `ToolHost` against the window's grants (`ToolError::PathRefused`
+  → `CmdError::NotGranted`).
+- **Profiling**: the profiling plugin's process is the profile worker (3 GiB cap); the model crosses as postcard
+  through `imt_profile::wire`, validated on decode.
+- **AI worker**: `WorkerRequest` (`Hello`, `Load`, `Chat` streamed with credits, `Unload`, `Status`, `Shutdown`)
+  over frames; the gRPC code and `llm.proto` are gone.
+- **Store worker**: `StoreRequest { OpenStore, CloseStore, Status, Call { store, op: StoreOp, body } }` over
+  frames. The port DTOs still travel as JSON inside the frame (`Json` body), because many use serde attributes
+  postcard cannot carry; moving them to postcard-safe types is part of ADR 0014 6c, together with the store
+  worker running importer plugins itself.
+- **Sandbox and elevation** (`imt_ipc::sandbox`, `job`, `elevation`): Windows low integrity, job memory/CPU/child
+  limits and the elevated launch (`ShellExecuteExW runas`, bootstrap file `--imt-bootstrap <file>` read and
+  deleted by the child, Administrators in the pipe DACL, peer PID check) are implemented and tested on Windows
+  (low-integrity write denied, job blocks a child process, memory cap). The UAC prompt itself is a manual check.
+  Linux (rlimits, landlock, seccomp BPF denying `AF_INET`/`AF_INET6` sockets and `execve`) and macOS
+  (`sandbox_init` profile) are implemented behind `cfg` and type-checked with clippy for
+  `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; they run in CI on those runners.
+
+Deferred (tracked in `docs/redesign-2026-10.md`, R3):
+
+- Splitting `imt-ai` into `imt-ai-proto` / `imt-ai-runtime` / `imt-ai` / `imt-browser-agent`, one `SafeHttp`, the
+  assistant on the `Query`/`Analysis` ports (§8); the worker already links only `imt-ai`'s worker module and
+  `imt-ipc`.
+- One redactor `imt_core::redact` (§8).
+- `imt-perfmon` and `imt-eventlog` as libraries (§4): the tools plugin still links `imt-core` (through
+  `imt-collect` and `imt-monitor`); its process is sandboxed like any other plugin.
+- Importer plugins streaming to the store worker directly (§5): needs the store worker in the workspace and its
+  imports (ADR 0014 6c).
+- `imt-plugin-dotnet` on the contract with ETW capture as the first elevated operation (§7, ADR 0019): the
+  elevated launch and channel exist; the operation is migrated when that crate lands on `main`.

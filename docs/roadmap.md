@@ -212,7 +212,7 @@ planned.)*
   Tantivy index, moving to DuckDB 2.0's server mode once it is released and supported;
   implementation not started.)*
 - **Very large UIs**: scaled grid scrolling (50M rows), virtualised facet lists and trees. *(Done.)*
-- **Plugin SDK:** out-of-process plugins over gRPC (`imt.plugin.v1`) with the Rust and C# SDKs.
+- **Plugins:** Rust plugins on `imt-plugin-api`, each in its own sandboxed process over one IPC (ADR 0017; the gRPC `imt.plugin.v1` contract and the C# SDK it replaced are gone).
   *(Done.)* ~~WASM components and a plugin catalogue~~ *(dropped 2026-10-18).*
 - **Scripting** for custom transforms where profiles aren't enough. *(Done: Rhai `script` step,
   sandboxed and bounded per record.)*

@@ -89,6 +89,10 @@ ADR 0014 stands. The engine review adds what it must also decide:
 - Fuzz targets for every frame decoder and the worker HTTP parser; mutants and coverage for `imt-ipc`, the host
   and the store worker.
 
+Status (2026-10-21, branch `r3/ipc-plugins`): done except the `imt-ai` split, the redactor, the `imt-perfmon` and
+`imt-eventlog` libraries, importer plugins under the store worker (with ADR 0014 6c), postcard store DTOs and the
+`imt-plugin-dotnet` migration; see ADR 0017, "Implementation notes".
+
 ## R4: the shell (new ADR 0016, about 2 days)
 
 - **One command table** (attribute macro): kind (query or mutation), window class allowed, payload limit, async
