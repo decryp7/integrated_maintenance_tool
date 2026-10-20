@@ -440,6 +440,13 @@ fn reports<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, OpenedReports> {
     app.state::<OpenedReports>()
 }
 
+/// A window closed: the report it opened and its pending notice go with it.
+pub fn forget_window<R: Runtime>(app: &AppHandle<R>, window: &str) {
+    let state = reports(app);
+    lock(&state.opened).remove(window);
+    lock(&state.notices).remove(window);
+}
+
 /// Called by `open_paths` before opening: diagnostics reports become the folders of their logs, and the
 /// window remembers the report for its panel. Never fails: anything unexpected opens the paths as given.
 pub async fn divert<R: Runtime>(app: &AppHandle<R>, window: &str, paths: Vec<String>) -> Vec<String> {
@@ -755,5 +762,17 @@ mod tests {
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), crate::test_support::main_window(&app))).unwrap();
         assert!(st.notice.is_none());
         std::fs::remove_dir_all(d).unwrap();
+    }
+
+    /// A closed window's report and notice go with it (they used to stay for the app's lifetime).
+    #[test]
+    fn a_closed_window_forgets_its_report() {
+        let app = crate::test_support::test_app(None);
+        let state = reports(app.handle());
+        lock(&state.notices).insert("w-4".into(), "n".into());
+        lock(&state.notices).insert("main".into(), "kept".into());
+        crate::window_scoped::destroyed(app.handle(), "w-4");
+        assert!(!lock(&state.notices).contains_key("w-4"));
+        assert!(lock(&state.notices).contains_key("main"));
     }
 }

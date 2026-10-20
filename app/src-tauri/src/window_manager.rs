@@ -8,7 +8,6 @@
 //! Events: `imt://windows-changed` (all windows), `imt://close-requested`
 //! and `imt://open-ask` (the window concerned).
 
-use crate::background::BackgroundTasks;
 use crate::notify::{notify, NotificationKind};
 use crate::panel_windows;
 use crate::window_prefs::{OnClose, SharedPrefs, WINDOW_SECTION};
@@ -143,6 +142,7 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
         windows.remove(&label);
         anyhow::bail!("could not open a window: {e}");
     }
+    crate::window_scoped::created(app, &label);
     windows.note_focus(&label);
     log::info!(Windows = app.webview_windows().len() as u64; "Window opened");
     changed(app);
@@ -308,12 +308,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
             crate::paths::grant_read_all(app, label, paths, crate::paths::GrantSource::Drop);
         }
-        WindowEvent::Destroyed => {
-            if !panel_windows::is_popout(label) {
-                crate::paths::grants(app).forget(label);
-            }
-            destroyed(app, label)
-        }
+        WindowEvent::Destroyed => destroyed(app, label),
         _ => {}
     }
 }
@@ -381,14 +376,8 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     use crate::lifecycle::{teardown_step, TEARDOWN_STEP_LIMIT};
     let state = windows.remove(label);
     teardown_step("window state", TEARDOWN_STEP_LIMIT, move || drop(state));
-    let (handle, owner) = (app.clone(), label.to_string());
-    teardown_step("window registries", TEARDOWN_STEP_LIMIT, move || {
-        if let Some(tasks) = handle.try_state::<BackgroundTasks>() {
-            tasks.remove_window(&owner);
-        }
-        crate::jobs::forget_window(&handle, &owner);
-        crate::notification_centre::forget_window(&handle, &owner);
-    });
+    // Every feature that keeps state per window (see `window_scoped`).
+    crate::window_scoped::destroyed(app, label);
     if !exiting {
         if let Some(life) = app.try_state::<crate::lifecycle::Lifecycle>() {
             life.forget_session(label);
@@ -613,7 +602,7 @@ mod tests {
         let state = app.state::<Windows>().get("w-2").unwrap();
         let weak = Arc::downgrade(&state);
         drop(state);
-        app.state::<BackgroundTasks>()
+        app.state::<crate::background::BackgroundTasks>()
             .register(
                 crate::background::TaskSpec {
                     id: "live:w-2".into(),
@@ -626,7 +615,7 @@ mod tests {
             .unwrap();
         destroyed(&h, "w-2");
         assert!(weak.upgrade().is_none());
-        assert_eq!(app.state::<BackgroundTasks>().running(), 0);
+        assert_eq!(app.state::<crate::background::BackgroundTasks>().running(), 0);
         assert!(CurrentWindow::of(&h, "w-2").is_err());
         assert_eq!(target(&h).as_deref(), Some("w-3"), "the last focused window");
         // After quitting starts, sessions are kept.

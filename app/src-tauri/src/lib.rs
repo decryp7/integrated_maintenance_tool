@@ -67,6 +67,7 @@ mod ui_dispatch;
 mod updater;
 mod window_manager;
 mod window_prefs;
+mod window_scoped;
 mod windows;
 mod workspace_commands;
 
@@ -441,6 +442,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(instance::SingleInstance(single));
     app.manage(recent::Recents::load(app_dirs::config(app.handle()).ok().as_deref()));
     jobs::init(app.handle());
+    window_scoped::install(app.handle());
     notification_centre::init(app.handle());
 
     // ---- settings ----
@@ -642,6 +644,7 @@ pub(crate) mod test_support {
         // The repository samples count as chosen in the main window (files in a test's own folder do not).
         paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());
+        window_scoped::install(app.handle());
         app
     }
 
