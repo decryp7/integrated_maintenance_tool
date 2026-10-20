@@ -22,6 +22,8 @@ test.describe('Profiling findings and memory', () => {
   });
 
   test('heap: types, snapshot diff with new types, steady growth and the path to a GC root', async ({ page }, testInfo) => {
+    // Five views, each checked with axe: long while the suite runs in parallel.
+    test.slow();
     await openProfiles(page);
     await runCommand(page, 'Profiling: memory');
     const view = heap(page);

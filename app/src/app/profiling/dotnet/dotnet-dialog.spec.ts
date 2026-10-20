@@ -10,6 +10,7 @@ import { DotnetDialog, KIND_CHOICES } from './dotnet-dialog';
 import { EtlDialog } from './etl-dialog';
 import { MOCK_PROFILE_PATH, MockDotnetBackend } from './mock-dotnet-backend';
 import { ToolCatalogBackend } from '../../core/tools-backend';
+import { JobsBackend } from '../../jobs/jobs-backend';
 import { provideToolsTesting } from '../../tools/mock/test-support';
 
 class FakeOpener {
@@ -131,8 +132,13 @@ describe('EtlDialog', () => {
 describe('ToolDotnetBackend', () => {
   it('calls the dotnet-profiler tool with each operation', async () => {
     const calls: unknown[][] = [];
-    const tools = { toolInvoke: (tool: string, op: string, args: unknown) => (calls.push([tool, op, args]), Promise.resolve(op)) } as unknown as ToolCatalogBackend;
-    const b = new ToolDotnetBackend(tools);
+    const tools = {
+      toolInvoke: (tool: string, op: string, args: unknown) => (calls.push([tool, op, args]), Promise.resolve(op)),
+      toolPoll: (tool: string, op: string, args: unknown) => (calls.push(['poll', tool, op, args]), Promise.resolve({ captures: [{ id: 'b', state: 'cancelled' }] })),
+      toolTaskJob: (task: string) => (calls.push(['job', task]), Promise.resolve(task === 'b' ? 7 : null)),
+    } as unknown as ToolCatalogBackend;
+    const jobs = { cancel: (id: number) => (calls.push(['jobs_cancel', id]), Promise.resolve()) } as unknown as JobsBackend;
+    const b = new ToolDotnetBackend(tools, jobs);
     await b.processes();
     await b.start({ pid: 1, kind: 'cpu', durationSec: null });
     await b.captures();
@@ -140,14 +146,18 @@ describe('ToolDotnetBackend', () => {
     await b.cancel('b');
     await b.etlProcesses('x.etl');
     await b.etlConvert('x.etl', 3);
+    await expect(b.cancel('none')).rejects.toThrow('not running');
     expect(calls).toEqual([
       ['dotnet-profiler', 'processes', {}],
       ['dotnet-profiler', 'start', { pid: 1, kind: 'cpu', durationSec: null }],
-      ['dotnet-profiler', 'status', {}],
+      ['poll', 'dotnet-profiler', 'status', {}],
       ['dotnet-profiler', 'stop', { id: 'a' }],
-      ['dotnet-profiler', 'cancel', { id: 'b' }],
+      ['job', 'b'],
+      ['jobs_cancel', 7],
+      ['poll', 'dotnet-profiler', 'status', {}],
       ['dotnet-profiler', 'etl-processes', { path: 'x.etl' }],
       ['dotnet-profiler', 'etl-convert', { path: 'x.etl', pid: 3 }],
+      ['job', 'none'],
     ]);
   });
 });

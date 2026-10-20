@@ -347,6 +347,10 @@ pub struct OpSpec {
     /// started through the administrator prompt on first use.
     #[serde(default)]
     pub elevated: bool,
+    /// A read-only status operation the UI polls: the shell runs it through the quiet `tool_poll`
+    /// (not logged per call) and refuses `tool_poll` for any other operation.
+    #[serde(default)]
+    pub poll: bool,
 }
 
 mod millis {
@@ -374,6 +378,7 @@ impl OpSpec {
             args: Schema::object(),
             budget: Some(DEFAULT_OP_BUDGET),
             elevated: false,
+            poll: false,
         }
     }
 
@@ -390,6 +395,12 @@ impl OpSpec {
     /// Runs in the plugin's elevated process.
     pub fn elevated(mut self) -> OpSpec {
         self.elevated = true;
+        self
+    }
+
+    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
+    pub fn polling(mut self) -> OpSpec {
+        self.poll = true;
         self
     }
 }
@@ -718,11 +729,12 @@ mod tests {
             .op(OpSpec::new("generate", "Generate")
                 .args(Schema::object().field("n", Schema::int(1, 5)).open())
                 .budget(None)
-                .elevated());
+                .elevated()
+                .polling());
         info.check().unwrap();
         let back: ToolInfo = serde_json::from_value(serde_json::to_value(&info).unwrap()).unwrap();
         assert_eq!(back, info);
-        assert!(back.ops[0].elevated && back.ops[0].budget.is_none());
+        assert!(back.ops[0].elevated && back.ops[0].poll && back.ops[0].budget.is_none());
         assert!(info.unsupported_on(Platform::Linux).unwrap().contains("only available on Windows"));
         assert_eq!(info.unsupported_on(Platform::Windows), None);
         assert!(ToolInfo::new("x", "X").check().is_err());

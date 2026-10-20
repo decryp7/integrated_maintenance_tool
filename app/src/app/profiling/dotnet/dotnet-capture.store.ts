@@ -2,6 +2,7 @@ import { computed, inject, Injectable, Injector } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { DotnetCaptureKind, DotnetCaptureStatus, DotnetProcess } from '../../core/api.types';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
+import { CmdError } from '../../core/cmd-error';
 import { errorMessage } from '../../tools/tool-errors';
 import { CapturesStore } from '../captures.store';
 import { showOpened } from '../provide-profiling';
@@ -37,6 +38,8 @@ interface DotnetState {
   processes: DotnetProcess[];
   loading: boolean;
   error: string | null;
+  /** The error's `CmdError` code (`denied`: offer the restart as administrator). */
+  errorCode: string | null;
   filter: string;
   selectedPid: number | null;
   kind: DotnetCaptureKind;
@@ -52,6 +55,7 @@ const initial: DotnetState = {
   processes: [],
   loading: false,
   error: null,
+  errorCode: null,
   filter: '',
   selectedPid: null,
   kind: 'cpu',
@@ -74,6 +78,7 @@ export const DotnetCaptureStore = signalStore(
     canRecord: computed(() => !!s.selected() && !s.busy() && !s.running().some((c) => c.pid === s.selectedPid())),
   })),
   withMethods((s, backend = inject(DotnetBackend), opener = inject(DotnetOpener)) => {
+    const fail = (e: unknown) => patchState(s, { error: errorMessage(e), errorCode: e instanceof CmdError ? e.code : null });
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const openFinished = async (list: DotnetCaptureStatus[]) => {
@@ -83,7 +88,7 @@ export const DotnetCaptureStore = signalStore(
           try {
             await opener.open(c.path);
           } catch (e) {
-            patchState(s, { error: errorMessage(e) });
+            fail(e);
           }
         }
       }
@@ -91,14 +96,14 @@ export const DotnetCaptureStore = signalStore(
 
     const methods = {
       async refresh(): Promise<void> {
-        patchState(s, { loading: true, error: null });
+        patchState(s, { loading: true, error: null, errorCode: null });
         try {
           const processes = await backend.processes();
           const keep = processes.some((p) => p.pid === s.selectedPid()) ? s.selectedPid() : (processes[0]?.pid ?? null);
           patchState(s, { processes, selectedPid: keep });
           await methods.poll();
         } catch (e) {
-          patchState(s, { error: errorMessage(e) });
+          fail(e);
         } finally {
           patchState(s, { loading: false });
         }
@@ -117,7 +122,7 @@ export const DotnetCaptureStore = signalStore(
         patchState(s, { durationSec: d });
       },
       dismissError(): void {
-        patchState(s, { error: null });
+        patchState(s, { error: null, errorCode: null });
       },
       /** Reads the captures; opens those that just finished; keeps polling while any runs. */
       async poll(): Promise<void> {
@@ -130,7 +135,7 @@ export const DotnetCaptureStore = signalStore(
           patchState(s, { captures });
           await openFinished(captures);
         } catch (e) {
-          patchState(s, { error: errorMessage(e) });
+          fail(e);
         }
         methods.schedule();
       },
@@ -149,7 +154,7 @@ export const DotnetCaptureStore = signalStore(
       async start(): Promise<DotnetCaptureStatus | null> {
         const p = s.selected();
         if (!p || !s.canRecord()) return null;
-        patchState(s, { busy: true, error: null });
+        patchState(s, { busy: true, error: null, errorCode: null });
         try {
           const durationSec = s.kind() === 'heap' ? null : s.durationSec();
           const status = await backend.start({ pid: p.pid, kind: s.kind(), durationSec });
@@ -157,7 +162,9 @@ export const DotnetCaptureStore = signalStore(
           methods.schedule();
           return status;
         } catch (e) {
-          patchState(s, { error: errorMessage(e) });
+          // A refused start may still be listed (failed): show it.
+          await methods.poll();
+          fail(e);
           return null;
         } finally {
           patchState(s, { busy: false });
@@ -176,7 +183,7 @@ export const DotnetCaptureStore = signalStore(
           patchState(s, { captures: s.captures().map((c) => (c.id === id ? status : c)) });
           await openFinished([status]);
         } catch (e) {
-          patchState(s, { error: errorMessage(e) });
+          fail(e);
         }
       },
     };

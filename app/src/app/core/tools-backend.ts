@@ -43,6 +43,10 @@ export abstract class ToolCatalogBackend {
   abstract toolsList(): Promise<ToolEntry[]>;
   /** Runs one operation of a tool (`tool_invoke`); `args` must match the op's schema. */
   abstract toolInvoke<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
+  /** Runs a tool's pollable status operation (`tool_poll`, quiet in the activity log). */
+  abstract toolPoll<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
+  /** The job of a running tool task (cancel it with `jobs_cancel`), or null. */
+  abstract toolTaskJob(task: string): Promise<number | null>;
 }
 
 /** Performance Monitor templates and `logman` control. */
@@ -126,6 +130,8 @@ export abstract class ToolsBackend
 {
   abstract toolsList(): Promise<ToolEntry[]>;
   abstract toolInvoke<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
+  abstract toolPoll<T = unknown>(tool: string, op: string, args?: unknown): Promise<T>;
+  abstract toolTaskJob(task: string): Promise<number | null>;
   abstract perfmonPresets(): Promise<CounterPreset[]>;
   /** Builds the XML; with `xmlPath` also writes it there, replacing an existing file only with `overwrite`. */
   abstract perfmonGenerate(
@@ -198,6 +204,12 @@ export class TauriToolsBackend extends ToolsBackend {
   }
   toolInvoke<T = unknown>(tool: string, op: string, args: unknown = {}) {
     return this.call<T>('tool_invoke', { tool, op, args });
+  }
+  toolPoll<T = unknown>(tool: string, op: string, args: unknown = {}) {
+    return this.call<T>('tool_poll', { tool, op, args });
+  }
+  toolTaskJob(task: string) {
+    return this.call<number | null>('tool_task_job', { task });
   }
   perfmonPresets() {
     return this.toolInvoke<CounterPreset[]>(TOOL_IDS.perfmonTemplates, 'presets');

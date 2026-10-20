@@ -34,7 +34,9 @@ export class ToolError {
   readonly message = input<string | null>(null);
   /** Show a Retry button (the host listens to `retried`). */
   readonly retry = input(false);
-  protected readonly denied = computed(() => isAccessDenied(this.message()));
+  /** The failure's `CmdError` code, when known: `denied` offers the restart without reading the text. */
+  readonly code = input<string | null>(null);
+  protected readonly denied = computed(() => this.code() === 'denied' || isAccessDenied(this.message()));
   readonly dismissed = output<void>();
   readonly retried = output<void>();
 }

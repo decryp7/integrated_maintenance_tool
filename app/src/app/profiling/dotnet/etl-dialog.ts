@@ -41,13 +41,13 @@ import { DotnetOpener } from './dotnet-capture.store';
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+    :host { display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-md); }
     .procs { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; border: 1px solid var(--border-2); border-radius: 6px; }
     .proc { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; }
     .proc[aria-selected='true'] { background: var(--bg-sel); }
     .proc:focus-visible { outline: 2px solid var(--accent); }
     .name { font-weight: 600; }
-    .tag { border: 1px solid var(--border-2); border-radius: 10px; padding: 0 6px; font-size: 11px; color: var(--text-2); }
+    .tag { border: 1px solid var(--border-2); border-radius: 10px; padding: 0 6px; font-size: var(--fs-xs); color: var(--text-2); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
   `,
 })

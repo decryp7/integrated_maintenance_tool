@@ -103,10 +103,11 @@ describe('DotnetCaptureStore', () => {
     const { store } = setup();
     await store.refresh();
     store.select(5150);
-    const s = await store.start();
-    expect(s?.state).toBe('failed');
-    expect(s?.needsElevation).toBe(true);
-    expect(s?.error).toContain('administrator');
+    expect(await store.start()).toBeNull();
+    expect(store.errorCode()).toBe('denied');
+    expect(store.error()).toContain('Restart IMT as administrator');
+    expect(store.captures()[0]?.state).toBe('failed');
+    expect(store.captures()[0]?.needsElevation).toBe(true);
   });
 
   it('reports backend and opener failures as errors and clamps durations', async () => {

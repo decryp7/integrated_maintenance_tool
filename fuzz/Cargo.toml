@@ -261,3 +261,10 @@ path = "fuzz_targets/fuzz_worker_http.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_prof_nettrace_heap"
+path = "fuzz_targets/fuzz_prof_nettrace_heap.rs"
+test = false
+doc = false
+bench = false
