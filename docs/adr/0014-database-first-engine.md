@@ -566,6 +566,46 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   (still in Rust) will miss the 0.5 s budget; they need SQL pre-aggregation (field stats, `stats`), the
   position order of R2b instead of a sort, or to run as jobs with cached results.
 
+### Reads on R2b's structures (R2c, after merging R2b)
+
+- **Fields**: statements read `events_wide`; a key is read from its promoted `p_<key>` column when every
+  segment that has the key promotes it as text (`sql::Fields`, `FieldSource`), else from `extra`. The field
+  list comes from `segment_fields` (counts exact; distinct exact when every segment lists all its values,
+  counted in one SQL statement below `PREAGGREGATE_ABOVE` events, else the segments' estimates summed).
+- **Pages**: unfiltered pages and anchors use `ord` positions; filtered pages stay two-phase (ids by the time
+  key, then `rows_by_id`, which prunes to the segment files holding the ids).
+- **Timeline**: from 1M events (`PREAGGREGATE_ABOVE`, `set_preaggregate_above` for tests) a timeline of
+  minute-or-longer buckets that filters only sources, time and levels, where each source belongs to one lane,
+  comes from the minute histogram: counts per whole minute (a bucket edge inside a minute takes the whole
+  minute), lane bounds from the sources' first and last events (exact without a time range), markers from
+  the marked events. Otherwise one GROUP BY over the events, as before.
+- **Field stats and QL `stats`** aggregate in SQL when the filter is exact: field stats in one statement
+  (`quantile_cont`, top values, histogram bins by `analysis::field_stats::bin_layout`); a program's first
+  `stats` as one GROUP BY (keys as text, groups in first-seen order by `min(struct(time key))`, nearest-rank
+  percentiles from a sorted `list`, the engine's limit on values per percentile), the remaining stages by
+  `ql::run_table`. Floats can differ from the engine in the last digits (summation order).
+- **Time-ordered analyses** (patterns, anomalies, traces, runs, Moment, QL without `stats`, previews) no longer
+  sort the wide rows of every matching event: joining `ord` and sorting all ids both exceeded the 192 MB
+  limit or took minutes at 10M events, so a stream (`EventStream::ordered`) reads windows of time with about
+  100,000 matching events each (from the minute histogram, scaled by the share of events that match; a busy
+  minute split evenly; untimed events last), each sorted on its own; a stream of fewer events sorts at once.
+  An exact stream stops at its limit and counts the rest in SQL.
+- **Not done: plain text through the full-text index.** Tantivy's hits are words, the search box and `Text`
+  match substrings (`timeout` finds `ReadTimeout`, `timeouts`): on `/samples` the index finds 194 of the 431
+  events. Narrowing by the index changes what users find, so it needs a decision first: word semantics for
+  the search box (matching the Search port), or an n-gram index that is a superset of substring matches.
+- **Promotion is per segment**: at 10M, 9 of 93 segments with `MachineName` did not promote it (it is decided
+  on each segment's first batch), so the facet reads `extra` (0.8–1.3 s instead of 0.12–0.25 s from the column).
+  Sticky promotion (a key promoted once stays promoted in later segments, or compaction re-promotes) would let
+  every read use the column.
+- **Measured** (release, 10M events, `IMT_BENCH_STORE`, cached analyses dropped first; the machine was shared
+  with other builds, so times vary by up to 2x between runs): pages 50–360 ms (were 0.5–2.5 s), field stats
+  2.3 s (15 s), QL stats 0.3 s (refused before), Moment 0.5 s (1.0 s), exception groups 3 s, requests 5.6 s
+  (30 s); patterns, anomalies, traces and runs now finish (they failed before: refused or out of memory); peak
+  RSS 971 MB in anomaly detection (was 1,047 MB), under 270 MB elsewhere. Still over budget: timelines with
+  instance lanes at 10M (3–6 s; sources with several instances need the events), facets of keys not promoted
+  everywhere, charts (1.3 s), correlate.
+
 ### Span rule inference (R2c)
 
 - `Profiles::propose_span_rule(SpanRuleRequest { examples: [{ start, end }], hints: { name?, keyField? } })`
