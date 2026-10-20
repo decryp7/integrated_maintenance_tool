@@ -397,7 +397,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     const fixture = TestBed.createComponent(EventsGrid);
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
-    const grid = fixture.componentInstance as unknown as { virtualTop(): number; pages: Map<number, unknown>; total(): number; geometry(): { maxTop: number; maxScroll: number; scaled: boolean } };
+    const grid = fixture.componentInstance as unknown as { virtualTop(): number; rows: { pageCount: number }; total(): number; geometry(): { maxTop: number; maxScroll: number; scaled: boolean } };
     const vp = el(fixture, '.viewport');
     return { fixture, store, grid, vp };
   }
@@ -546,7 +546,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
       await settle(fixture, 2);
     }
     await flush(fixture);
-    expect(grid.pages.size).toBeLessThanOrEqual(40);
+    expect(grid.rows.pageCount).toBeLessThanOrEqual(40);
     expect(visibleIds(fixture).length).toBeGreaterThan(10);
   });
 

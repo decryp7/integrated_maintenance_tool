@@ -1,21 +1,12 @@
-import {
-  afterNextRender,
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  effect,
-  ElementRef,
-  inject,
-  signal,
-  untracked,
-  viewChild,
-} from '@angular/core';
-import { Level, Query, RecordView } from '../core/api.types';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount, formatDateTime } from '../core/format';
 import { describeError } from '../core/logger';
-import { WorkspaceStore } from '../core/workspace.store';
+import { QueryStore } from '../core/workspace/query.store';
+import { SelectionStore } from '../core/workspace/selection.store';
+import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
+import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
 import { LiveTail } from '../workspace/live-tail';
 import { LiveFeed } from '../live/live-feed';
 import { NewEventsPill } from '../live/new-events-pill';
@@ -32,30 +23,50 @@ import { GridSelection } from './grid-selection';
 import { contains, EMPTY_SELECTION, extendTo, indices, RowSelection, shift, single, toggle, withFocus } from './row-selection';
 import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToScroll, visibleWindow, wheelToPixels, clamp } from './scroll-map';
 import { NextSteps } from '../ui/next-steps';
-import { SourceColors } from '../sources/source-colors.store';
+import { SourceColors, SourceMark } from '../sources/source-colors.store';
 import { stripeBackground } from '../sources/source-colors';
-import { Debouncer } from '../shared/throttle';
+import { LiveArrival, liveMode, PagedRowsStore } from './paged-rows.store';
+
+export { SCROLL_IDLE_MS } from './paged-rows.store';
 
 /** Row heights for the two grid densities (px). */
 const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
 const HEADER_H = 28;
-const PAGE = 500;
-/** Pages for the rows in view are fetched once scrolling has paused this long. */
-export const SCROLL_IDLE_MS = 50;
 const OVERSCAN = 8;
-/** Pages kept in memory; the ones farthest from the viewport are dropped first. */
-const MAX_PAGES = 40;
 /** At most this many selected lines go to actions on several records (e.g. "Infer pattern from lines…"). */
 const MAX_ACTION_RECORDS = 200;
 
 /** Anchor requests survive the grid being destroyed (tab switch); only act on new ones (per store). */
 const handledAnchorNonce = new WeakMap<object, number>();
 
-interface VisibleRow {
+/** What one rendered row shows: everything the template needs, computed once per change instead of per binding. */
+export interface RowVm {
+  kind: 'row';
   index: number;
   y: number;
-  row: RecordView | null;
+  row: RecordView;
+  selected: boolean;
+  /** Colour of the first highlight rule that matches, if any. */
+  highlight: string | null;
+  /** Source / instance colour stripe. */
+  mark: SourceMark | null;
+  stripe: string | null;
+  marker: { kind: string; color: string | null; label: string } | null;
+  time: string;
+  levelVar: string;
+  levelCode: string;
+  /** The extra columns' texts, in column order. */
+  cells: { column: string; text: string }[];
 }
+
+/** A row whose page has not arrived. */
+export interface PlaceholderVm {
+  kind: 'placeholder';
+  index: number;
+  y: number;
+}
+
+export type GridRowVm = RowVm | PlaceholderVm;
 
 @Component({
   selector: 'imt-events-grid',
@@ -66,13 +77,13 @@ interface VisibleRow {
     <div class="bar">
       <span class="section-title" i18n="@@grid.title">Events</span>
       <span class="mono total">{{ fmt(total()) }}</span>
-      <span class="faint" i18n="@@grid.subtitle">of {{ fmt(store.summary()?.total ?? 0) //i18n(ph="total") }} · sorted by time {{ store.descending() ? '↓' : '↑' //i18n(ph="direction") }}</span>
-      @if (store.anchorMissed()) {
+      <span class="faint" i18n="@@grid.subtitle">of {{ fmt(data.summary()?.total ?? 0) //i18n(ph="total") }} · sorted by time {{ prefs.descending() ? '↓' : '↑' //i18n(ph="direction") }}</span>
+      @if (sel.anchorMissed()) {
         <span class="warn" i18n="@@grid.anchorMissed">That event is hidden by the current filters.</span>
       }
       <span class="spacer"></span>
-      <button class="btn ghost" (click)="store.toggleSort()" title="Toggle sort order" i18n-title="@@grid.sortToggle">
-        <imt-icon [name]="store.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ sortLabel() }}
+      <button class="btn ghost" (click)="prefs.toggleSort()" title="Toggle sort order" i18n-title="@@grid.sortToggle">
+        <imt-icon [name]="prefs.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ sortLabel() }}
       </button>
       <div class="anchor" (imtClickOutside)="colsOpen.set(false)">
         <button class="btn ghost" (click)="colsOpen.set(!colsOpen())" [attr.aria-expanded]="colsOpen()" i18n="@@grid.columns"><imt-icon name="columns" [size]="14" /> Columns</button>
@@ -82,7 +93,7 @@ interface VisibleRow {
             <imt-virtual-list [items]="colChoices()" [itemHeight]="24" [maxHeight]="300" label="Columns" i18n-label="@@grid.columns.listLabel">
               <ng-template let-f>
                 <label class="col-opt">
-                  <input type="checkbox" [checked]="store.extraColumns().includes(f)" (change)="toggleColumn(f)" />
+                  <input type="checkbox" [checked]="prefs.extraColumns().includes(f)" (change)="toggleColumn(f)" />
                   <span class="mono ellipsis">{{ f }}</span>
                 </label>
               </ng-template>
@@ -108,53 +119,53 @@ interface VisibleRow {
     >
       <div class="header" role="row" aria-rowindex="1" [style.grid-template-columns]="columns()">
         <span class="hcell" role="columnheader"><span class="sr-only" i18n="@@grid.header.marker">Marker</span></span>
-        <span class="hcell" role="columnheader" [attr.aria-sort]="store.descending() ? 'descending' : 'ascending'">
-          <button class="sort" (click)="store.toggleSort()" i18n="@@grid.header.time">Time {{ store.descending() ? '↓' : '↑' //i18n(ph="direction") }}</button>
+        <span class="hcell" role="columnheader" [attr.aria-sort]="prefs.descending() ? 'descending' : 'ascending'">
+          <button class="sort" (click)="prefs.toggleSort()" i18n="@@grid.header.time">Time {{ prefs.descending() ? '↓' : '↑' //i18n(ph="direction") }}</button>
         </span>
         <span class="hcell" role="columnheader" i18n="@@grid.header.level">Level</span>
         <span class="hcell" role="columnheader" i18n="@@grid.header.instance">Instance</span>
-        @for (c of store.extraColumns(); track c) {
-          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="removeColumnLabel(c)" (click)="store.removeColumn(c)" [attr.title]="removeColumnLabel(c)">×</button></span>
+        @for (c of prefs.extraColumns(); track c) {
+          <span class="hcell extra" role="columnheader"><span class="ellipsis mono">{{ c }}</span><button class="x" [attr.aria-label]="removeColumnLabel(c)" (click)="prefs.removeColumn(c)" [attr.title]="removeColumnLabel(c)">×</button></span>
         }
         <span class="hcell" role="columnheader" i18n="@@grid.header.message">Message</span>
       </div>
       <div class="layer" role="presentation" [style.height.px]="viewportH()">
-        @for (v of visible(); track v.index) {
-          @if (v.row; as r) {
+        @for (v of rowVms(); track v.index) {
+          @if (v.kind === 'row') {
             <div
               class="row"
               role="row"
               [attr.aria-rowindex]="v.index + 2"
-              [attr.aria-selected]="isSelected(v.index, r)"
-              [class.sel]="isSelected(v.index, r)"
-              [class.hl]="!!highlight.colorFor(r)"
+              [attr.aria-selected]="v.selected"
+              [class.sel]="v.selected"
+              [class.hl]="!!v.highlight"
               [class.marked]="colors.enabled()"
-              [style.--hl]="highlight.colorFor(r)"
+              [style.--hl]="v.highlight"
               [style.top.px]="v.y"
               [style.grid-template-columns]="columns()"
               (mousedown)="onRowMouseDown($event)"
-              (click)="onRowClick($event, v.index, r)"
-              (contextmenu)="openRowMenu($event, v.index, r)"
+              (click)="onRowClick($event, v.index, v.row)"
+              (contextmenu)="openRowMenu($event, v.index, v.row)"
             >
               <span class="mk" role="gridcell">
-                @if (colors.forRecord(r); as m) {
-                  <span class="srcmark" role="img" data-testid="source-stripe" [style.background]="stripe(m.swatch)" [attr.data-pattern]="m.swatch.pattern" [attr.aria-label]="m.label" [title]="m.label"></span>
+                @if (v.mark; as m) {
+                  <span class="srcmark" role="img" data-testid="source-stripe" [style.background]="v.stripe" [attr.data-pattern]="m.swatch.pattern" [attr.aria-label]="m.label" [title]="m.label"></span>
                 }
-                @if (r.markers[0]; as mk) { <imt-marker-icon [kind]="mk" [color]="markerColor(mk)" [label]="markerLabel(mk)" /> }
+                @if (v.marker; as mk) { <imt-marker-icon [kind]="mk.kind" [color]="mk.color" [label]="mk.label" /> }
               </span>
-              <span class="mono time" role="gridcell">{{ time(r.ts) }}</span>
-              <span class="lvl" role="gridcell"><span class="dot" [style.background]="levelVar(r.level)"></span><span class="mono">{{ code(r.level) }}</span></span>
-              <span class="mono inst ellipsis" role="gridcell" [title]="r.group">{{ r.group }}</span>
-              @for (c of store.extraColumns(); track c) {
-                <span class="mono extra ellipsis" role="gridcell" [title]="cell(r, c)">{{ cell(r, c) }}</span>
+              <span class="mono time" role="gridcell">{{ v.time }}</span>
+              <span class="lvl" role="gridcell"><span class="dot" [style.background]="v.levelVar"></span><span class="mono">{{ v.levelCode }}</span></span>
+              <span class="mono inst ellipsis" role="gridcell" [title]="v.row.group">{{ v.row.group }}</span>
+              @for (c of v.cells; track c.column) {
+                <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
               }
-              <span class="msg ellipsis" role="gridcell">{{ r.message }}</span>
+              <span class="msg ellipsis" role="gridcell">{{ v.row.message }}</span>
             </div>
           } @else {
             <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading" i18n-aria-label="@@grid.loading"></span></div>
           }
         }
-        @if (loaded() && total() === 0 && !pageError()) {
+        @if (rows.loaded() && total() === 0 && !rows.error()) {
           <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ emptyMessage() }}<imt-next-steps /></span></div>
         }
       </div>
@@ -214,7 +225,10 @@ interface VisibleRow {
   `,
 })
 export class EventsGrid {
-  protected readonly store = inject(WorkspaceStore);
+  protected readonly data = inject(WorkspaceDataStore);
+  private readonly queryStore = inject(QueryStore);
+  protected readonly sel = inject(SelectionStore);
+  protected readonly prefs = inject(UiPrefsStore);
   private readonly backend = inject(ImtBackend);
   private readonly formatters = inject(FieldFormatters);
   private readonly actions = inject(RecordActions);
@@ -222,24 +236,33 @@ export class EventsGrid {
   private readonly live = inject(LiveTail);
   /** Live refreshes: whether to reload the rows in view (following) or keep them ("N new events"). */
   private readonly feed = inject(LiveFeed);
-  protected readonly highlight = inject(HighlightRules);
+  private readonly highlight = inject(HighlightRules);
   /** Source / instance colour of each row (View › Source colours). */
   protected readonly colors = inject(SourceColors);
-  protected readonly stripe = stripeBackground;
   /** Where the grid publishes its multi-selection for palette commands and other panels. */
   private readonly published = inject(GridSelection);
   protected readonly rowH = computed(() => ROW_HEIGHT[this.settings.density()]);
   private readonly viewport = viewChild<ElementRef<HTMLElement>>('viewport');
 
+  /** The rows: paging, eviction, generations and live refreshes (no DOM). */
+  protected readonly rows: PagedRowsStore = new PagedRowsStore({
+    fetch: (request) => this.backend.queryPage(request),
+    onTotal: (total) => this.sel.setMatchTotal(total),
+    onLive: (arrival) => this.applyLive(arrival),
+    onPage: () => this.selectPending(),
+    centre: (): number => rowAtTop(this.geometry(), this.virtualTop()),
+  });
+
   protected readonly fmt = formatCount;
   protected readonly colsOpen = signal(false);
   protected readonly colFilter = signal('');
-  protected readonly total = signal(0);
-  protected readonly loaded = signal(false);
-  protected readonly pageError = signal<string | null>(null);
-  protected readonly sortLabel = computed(() => (this.store.descending() ? $localize`:@@grid.sort.newest:Newest first` : $localize`:@@grid.sort.oldest:Oldest first`));
+  protected readonly total = this.rows.total;
+  /** Why loading rows failed: a page or a jump to a record. */
+  private readonly jumpError = signal<string | null>(null);
+  protected readonly pageError = computed(() => this.rows.error() ?? this.jumpError());
+  protected readonly sortLabel = computed(() => (this.prefs.descending() ? $localize`:@@grid.sort.newest:Newest first` : $localize`:@@grid.sort.oldest:Oldest first`));
   protected readonly emptyMessage = computed(() =>
-    this.store.summary()?.sources?.length ? $localize`:@@grid.empty.filtered:No events match the current filters.` : $localize`:@@grid.empty.noFiles:No events: nothing is open yet.`,
+    this.data.summary()?.sources?.length ? $localize`:@@grid.empty.filtered:No events match the current filters.` : $localize`:@@grid.empty.noFiles:No events: nothing is open yet.`,
   );
 
   protected removeColumnLabel(column: string): string {
@@ -251,63 +274,85 @@ export class EventsGrid {
    * is the source of truth: with tens of millions of rows one scrollbar pixel covers many rows (see scroll-map.ts).
    */
   protected readonly virtualTop = signal(0);
-  private readonly cacheTick = signal(0);
 
-  private pages = new Map<number, RecordView[]>();
-  private inflight = new Set<number>();
-  private stale = new Set<number>();
-  private failed = new Set<number>();
-  /** When the user last scrolled (pages wait until scrolling pauses). */
-  private scrolledAt = Number.NEGATIVE_INFINITY;
-  private generation = 0;
-  private query: Query | null = null;
   private queryKey = '';
-  private descending = false;
-  /** Selected rows by index (multi-select); its focus is the row the inspector shows (`store.selected`). */
+  /** Selected rows by index (multi-select); its focus is the row the inspector shows (`selected`). */
   protected readonly selection = signal<RowSelection>(EMPTY_SELECTION);
   /** Row to select once its page arrives (keyboard navigation to a page that is not loaded yet). */
   private pendingSelect: number | null = null;
   /** The scrollTop we last wrote ourselves; scroll events at that position carry no new information. */
   private writtenScroll = Number.NaN;
-  /** What to do with the scroll position when the first page of a live refresh arrives. */
-  private pendingLive: { oldTotal: number; mode: 'end' | 'shift' | 'keep' } | null = null;
 
   protected readonly columns = computed(() => {
-    const extra = this.store.extraColumns().map(() => '150px').join(' ');
+    const extra = this.prefs.extraColumns().map(() => '150px').join(' ');
     return `16px 150px 52px 240px ${extra} minmax(0, 1fr)`;
   });
 
-  protected readonly colCount = computed(() => 5 + this.store.extraColumns().length);
+  protected readonly colCount = computed(() => 5 + this.prefs.extraColumns().length);
 
   protected readonly colChoices = computed(() => {
     const needle = this.colFilter().toLowerCase();
-    return ['@source', '@line', '@template', ...this.store.fieldNames()].filter((f) => f.toLowerCase().includes(needle));
+    return ['@source', '@line', '@template', ...this.data.fieldNames()].filter((f) => f.toLowerCase().includes(needle));
   });
 
   protected readonly geometry = computed(() => makeGeometry(this.total(), this.rowH(), this.viewportH()));
   protected readonly spacerH = computed(() => this.geometry().maxScroll);
 
-  protected readonly visible = computed<VisibleRow[]>(() => {
-    this.cacheTick();
+  /** The row indexes in view (with overscan) and their positions, with the rows loaded so far. */
+  private readonly visible = computed(() => {
+    this.rows.version();
     const g = this.geometry();
     const top = this.virtualTop();
     const { first, last } = visibleWindow(g, top, OVERSCAN);
-    const rows: VisibleRow[] = [];
-    for (let i = first; i < last; i++) rows.push({ index: i, y: rowY(g, i, top), row: this.rowAt(i) });
-    return rows;
+    const out: { index: number; y: number; row: RecordView | null }[] = [];
+    for (let i = first; i < last; i++) out.push({ index: i, y: rowY(g, i, top), row: this.rows.rowAt(i) });
+    return out;
+  });
+
+  /** What each row in view shows (review #9: no per-row method calls in the template). */
+  protected readonly rowVms = computed<GridRowVm[]>(() => {
+    const sel = this.selection();
+    const selectedId = this.sel.selected()?.id;
+    const tz = this.prefs.timezone();
+    const dateFormat = this.settings.dateFormat();
+    const columns = this.prefs.extraColumns();
+    const kinds = this.data.markerKindMap();
+    return this.visible().map(({ index, y, row }): GridRowVm => {
+      if (!row) return { kind: 'placeholder', index, y };
+      const mark = this.colors.forRecord(row);
+      const first = row.markers[0];
+      const kind = first === undefined ? undefined : kinds.get(first);
+      return {
+        kind: 'row',
+        index,
+        y,
+        row,
+        // In the grid's selection; while the grid has none (selected elsewhere, e.g. on the timeline), the inspector's record.
+        selected: sel.anchor >= 0 ? contains(sel, index) : row.id === selectedId,
+        highlight: this.highlight.colorFor(row),
+        mark,
+        stripe: mark ? stripeBackground(mark.swatch) : null,
+        marker: first === undefined ? null : { kind: first, color: kind?.color ?? null, label: kind?.label ?? first },
+        time: formatDateTime(row.ts, tz, true, dateFormat),
+        levelVar: LEVEL_VARS[row.level],
+        levelCode: LEVEL_CODES[row.level],
+        cells: columns.map((column) => ({ column, text: this.cell(row, column) })),
+      };
+    });
   });
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => this.rows.dispose());
 
     // New query, sort order or data: start from the top, except that a live refresh keeps the position.
     effect(() => {
-      const query = this.store.effectiveQuery();
-      const descending = this.store.descending();
-      this.store.dataVersion();
+      const query = this.queryStore.effectiveQuery();
+      const descending = this.prefs.descending();
+      this.data.dataVersion();
       untracked(() => {
         const key = JSON.stringify(query);
-        const sameView = this.queryKey === key && descending === this.descending;
+        const sameView = this.queryKey === key && descending === this.rows.descending;
         this.queryKey = key;
         if (sameView && this.live.isLiveRefresh()) {
           if (!this.feed.holdGrid()) this.liveRefresh();
@@ -319,43 +364,35 @@ export class EventsGrid {
     effect(() => {
       const nonce = this.feed.revealNonce();
       untracked(() => {
-        if (nonce > 0 && this.query) this.liveRefresh(this.descending ? 'start' : 'end');
+        if (nonce > 0 && this.rows.query) this.liveRefresh(this.rows.descending ? 'start' : 'end');
       });
     });
 
-    // Fill in pages the viewport needs; while the user scrolls, only once scrolling pauses: dragging the scrollbar
-    // through a million rows must not ask the engine for every page it passes. Other changes (data, a jump) fetch at once.
-    const idle = new Debouncer(SCROLL_IDLE_MS);
-    destroyRef.onDestroy(() => idle.cancel());
+    // Fill in pages the viewport needs; while the user scrolls, only once scrolling pauses. Other changes (data, a
+    // jump) fetch at once.
     effect(() => {
       const missing = this.visible().some((v) => !v.row);
       if (!missing) return;
-      untracked(() => {
-        if (performance.now() - this.scrolledAt < SCROLL_IDLE_MS) idle.run(() => this.fillVisible());
-        else {
-          idle.cancel();
-          this.fillVisible();
-        }
-      });
+      untracked(() => this.rows.fill(() => this.missingRows()));
     });
 
     effect(() => {
-      const anchor = this.store.anchor();
-      if (!anchor || anchor.nonce === handledAnchorNonce.get(this.store)) return;
-      handledAnchorNonce.set(this.store, anchor.nonce);
+      const anchor = this.sel.anchor();
+      if (!anchor || anchor.nonce === handledAnchorNonce.get(this.sel)) return;
+      handledAnchorNonce.set(this.sel, anchor.nonce);
       untracked(() => void this.jumpTo(anchor.id));
     });
 
     // Something else selected a record (timeline, bookmark, data reset): drop a multi-selection that no longer matches.
     effect(() => {
-      const selected = this.store.selected();
+      const selected = this.sel.selected();
       untracked(() => {
         const sel = this.selection();
         if (!selected) {
           if (sel !== EMPTY_SELECTION) this.selection.set(EMPTY_SELECTION);
           return;
         }
-        const focusRow = this.rowAt(sel.focus);
+        const focusRow = this.rows.rowAt(sel.focus);
         if (focusRow && focusRow.id !== selected.id) this.selection.set(EMPTY_SELECTION);
       });
     });
@@ -363,7 +400,7 @@ export class EventsGrid {
     // Publish the selected records (and again as their pages load) for commands outside the grid.
     effect(() => {
       this.selection();
-      this.cacheTick();
+      this.rows.version();
       untracked(() => this.published.publish(this.selectedRecords()));
     });
     destroyRef.onDestroy(() => this.published.clear());
@@ -378,27 +415,18 @@ export class EventsGrid {
     });
   }
 
-  private rowAt(i: number): RecordView | null {
-    const page = this.pages.get(Math.floor(i / PAGE));
-    return page?.[i % PAGE] ?? null;
+  private missingRows(): number[] {
+    return this.visible()
+      .filter((v) => !v.row)
+      .map((v) => v.index);
   }
 
-  private reset(query: Query, descending: boolean): void {
-    this.generation++;
-    this.query = query;
-    this.descending = descending;
-    this.pages = new Map();
-    this.inflight.clear();
-    this.stale.clear();
-    this.failed.clear();
-    this.pendingLive = null;
+  private reset(query: Parameters<PagedRowsStore['reset']>[0], descending: boolean): void {
     this.pendingSelect = null;
+    this.jumpError.set(null);
     this.selection.set(EMPTY_SELECTION);
-    this.loaded.set(false);
-    this.pageError.set(null);
     this.setTop(0);
-    this.cacheTick.update((t) => t + 1);
-    void this.fetchPage(0, descending);
+    this.rows.reset(query, descending);
   }
 
   /** Live tail changed the data: refetch what is on screen (old rows stay until the new ones arrive) and keep following. */
@@ -406,129 +434,48 @@ export class EventsGrid {
     if (reveal === 'start') this.setTop(0);
     const g = this.geometry();
     const top = this.virtualTop();
-    const oldTotal = this.total();
-    const atStart = top < g.rowH;
-    const atEnd = top >= g.maxTop - g.rowH;
-    const mode = reveal === 'end' ? 'end' : reveal === 'start' ? 'keep' : this.descending ? (atStart ? 'keep' : 'shift') : atEnd ? 'end' : 'keep';
-    this.generation++;
-    this.inflight.clear();
-    this.failed.clear();
-    this.pageError.set(null);
-    if (mode === 'shift') {
-      // New events were inserted above the rows in view: drop the cache so shifted indexes never show wrong rows.
-      this.pages = new Map();
-      this.stale.clear();
-    } else {
-      this.stale = new Set(this.pages.keys());
-    }
-    this.pendingLive = { oldTotal, mode };
-    this.cacheTick.update((t) => t + 1);
+    const mode = liveMode(this.rows.descending, top < g.rowH, top >= g.maxTop - g.rowH, reveal);
     const { first, last } = visibleWindow(g, top, 0);
-    const wanted = new Set<number>([0, Math.floor(first / PAGE), Math.floor(Math.max(first, last - 1) / PAGE)]);
-    if (mode === 'end') wanted.add(Math.floor(Math.max(0, oldTotal - 1) / PAGE));
-    for (const page of wanted) this.ensurePage(page);
-  }
-
-  /** Fetches the pages of the rows in view that are not loaded (a page that failed waits for Retry). */
-  private fillVisible(): void {
-    for (const v of this.visible()) if (!v.row) this.ensurePage(Math.floor(v.index / PAGE));
-  }
-
-  private ensurePage(page: number): void {
-    if (this.failed.has(page) || this.inflight.has(page) || (this.pages.has(page) && !this.stale.has(page))) return;
-    void this.fetchPage(page, this.descending);
-  }
-
-  private async fetchPage(page: number, descending: boolean): Promise<void> {
-    const gen = this.generation;
-    const query = this.query;
-    if (!query) return;
-    this.inflight.add(page);
-    try {
-      const res = await this.backend.queryPage({ query, offset: page * PAGE, limit: PAGE, descending, anchor: null });
-      if (gen !== this.generation) return;
-      this.pages.set(page, res.rows);
-      this.stale.delete(page);
-      this.failed.delete(page);
-      this.evictFarPages();
-      this.total.set(res.total);
-      this.loaded.set(true);
-      this.pageError.set(null);
-      this.store.setMatchTotal(res.total);
-      this.applyLive(res.total);
-      this.cacheTick.update((t) => t + 1);
-      if (this.pendingSelect !== null) this.selectPending();
-    } catch (e) {
-      if (gen === this.generation) {
-        this.failed.add(page);
-        this.pageError.set(describeError(e));
-      }
-    } finally {
-      this.inflight.delete(page);
-    }
+    this.jumpError.set(null);
+    this.rows.liveRefresh(mode, first, last);
   }
 
   /** After the first response of a live refresh: follow the end, or keep the same events in view. */
-  private applyLive(newTotal: number): void {
-    const live = this.pendingLive;
-    if (!live) return;
-    this.pendingLive = null;
-    const delta = newTotal - live.oldTotal;
-    if (live.mode === 'end') {
+  private applyLive({ mode, newTotal, delta }: LiveArrival): void {
+    if (mode === 'end') {
       this.setTop(Number.POSITIVE_INFINITY, newTotal);
       return;
     }
     if (delta <= 0) return;
-    if (live.mode === 'shift') {
+    if (mode === 'shift') {
       this.setTop(this.virtualTop() + delta * this.rowH(), newTotal);
       this.selection.update((sel) => shift(sel, delta));
     }
   }
 
-  /** Keeps memory bounded while scrolling through millions of rows: drops pages far from the viewport. */
-  private evictFarPages(): void {
-    if (this.pages.size <= MAX_PAGES) return;
-    const centre = Math.floor(rowAtTop(this.geometry(), this.virtualTop()) / PAGE);
-    const far = [...this.pages.keys()].filter((p) => !this.inflight.has(p)).sort((a, b) => Math.abs(b - centre) - Math.abs(a - centre));
-    for (const page of far.slice(0, this.pages.size - MAX_PAGES)) {
-      this.pages.delete(page);
-      this.stale.delete(page);
-    }
-  }
-
   protected retry(): void {
-    this.pageError.set(null);
-    if (!this.loaded() || !this.pages.size) {
-      this.failed.clear();
-      this.generation++;
-      this.inflight.clear();
-      void this.fetchPage(0, this.descending);
-      return;
-    }
-    const pages = new Set(this.failed);
-    this.failed.clear();
-    for (const v of this.visible()) if (!v.row) pages.add(Math.floor(v.index / PAGE));
-    for (const page of pages) this.ensurePage(page);
+    this.jumpError.set(null);
+    this.rows.retry(this.missingRows());
   }
 
   private async jumpTo(id: number): Promise<void> {
-    const query = this.query ?? this.store.effectiveQuery();
-    const gen = this.generation;
+    const query = this.rows.query ?? this.queryStore.effectiveQuery();
+    const gen = this.rows.generation;
     let res;
     try {
-      res = await this.backend.queryPage({ query, offset: 0, limit: 1, descending: this.store.descending(), anchor: id });
+      res = await this.backend.queryPage({ query, offset: 0, limit: 1, descending: this.prefs.descending(), anchor: id });
     } catch (e) {
-      if (gen === this.generation) this.pageError.set(describeError(e));
+      if (gen === this.rows.generation) this.jumpError.set(describeError(e));
       return;
     }
-    if (gen !== this.generation) return;
+    if (gen !== this.rows.generation) return;
     if (res.anchorIndex === null || !res.rows.length) {
-      this.store.anchorResolved(null);
+      this.sel.anchorResolved(null);
       return;
     }
-    this.total.set(res.total);
+    this.rows.setTotal(res.total);
     this.selection.set(single(res.anchorIndex));
-    this.store.anchorResolved(res.rows[0] ?? null);
+    this.sel.anchorResolved(res.rows[0] ?? null);
     this.revealRow(res.anchorIndex, 'center', res.total);
   }
 
@@ -552,7 +499,7 @@ export class EventsGrid {
   protected onScroll(): void {
     const el = this.viewport()?.nativeElement;
     if (!el) return;
-    this.scrolledAt = performance.now();
+    this.rows.noteScroll();
     const g = this.geometry();
     const s = el.scrollTop;
     // Our own writes round to whole pixels; reading them back would lose the row-exact position.
@@ -569,15 +516,6 @@ export class EventsGrid {
     this.setTop(this.virtualTop() + wheelToPixels(e.deltaY, e.deltaMode, g));
   }
 
-  /**
-   * A row is selected when it is in the grid's selection; while the grid has none (the record was selected
-   * elsewhere, e.g. on the timeline), the record the inspector shows is.
-   */
-  protected isSelected(index: number, row: RecordView): boolean {
-    const sel = this.selection();
-    return sel.anchor >= 0 ? contains(sel, index) : row.id === this.store.selected()?.id;
-  }
-
   /** Keeps shift/ctrl-click from also selecting text across rows. */
   protected onRowMouseDown(e: MouseEvent): void {
     if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault();
@@ -589,7 +527,7 @@ export class EventsGrid {
     if (e.shiftKey) this.selection.set(extendTo(sel, index));
     else if (e.ctrlKey || e.metaKey) this.selection.set(toggle(sel, index));
     else this.selection.set(single(index));
-    this.store.select(row);
+    this.sel.select(row);
   }
 
   /** Right-click inside the selection acts on all selected rows; elsewhere it selects and acts on that row only. */
@@ -597,14 +535,14 @@ export class EventsGrid {
     e.preventDefault();
     const sel = this.selection();
     this.selection.set(contains(sel, index) ? withFocus(sel, index) : single(index));
-    this.store.select(row);
+    this.sel.select(row);
     this.actions.openFor(e, row, { records: this.selectedRecords() });
   }
 
   /** The loaded records of the selection in grid order (rows of pages not in memory are skipped), capped. */
   private selectedRecords(): RecordView[] {
     return indices(this.selection(), MAX_ACTION_RECORDS)
-      .map((i) => this.rowAt(i))
+      .map((i) => this.rows.rowAt(i))
       .filter((r): r is RecordView => r !== null);
   }
 
@@ -612,7 +550,7 @@ export class EventsGrid {
     const total = this.total();
     if (!total) return;
     if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
-      const selected = this.store.selected();
+      const selected = this.sel.selected();
       if (selected) {
         e.preventDefault();
         const focus = this.selection().focus;
@@ -632,46 +570,31 @@ export class EventsGrid {
     // Shift+arrow (or Shift+Page/Home/End) extends the selection from its anchor.
     this.selection.set(e.shiftKey && sel.anchor >= 0 ? extendTo(sel, next) : single(next));
     this.revealRow(next, 'nearest');
-    const row = this.rowAt(next);
+    const row = this.rows.rowAt(next);
     if (row) {
       this.pendingSelect = null;
-      this.store.select(row);
+      this.sel.select(row);
     } else {
       this.pendingSelect = next;
-      this.ensurePage(Math.floor(next / PAGE));
+      this.rows.ensurePage(this.rows.pageOf(next));
     }
   }
 
   private selectPending(): void {
     const index = this.pendingSelect;
     if (index === null) return;
-    const row = this.rowAt(index);
+    const row = this.rows.rowAt(index);
     if (!row) return;
     this.pendingSelect = null;
-    if (this.selection().focus === index) this.store.select(row);
+    if (this.selection().focus === index) this.sel.select(row);
   }
 
   protected toggleColumn(f: string): void {
-    if (this.store.extraColumns().includes(f)) this.store.removeColumn(f);
-    else this.store.addColumn(f);
+    if (this.prefs.extraColumns().includes(f)) this.prefs.removeColumn(f);
+    else this.prefs.addColumn(f);
   }
 
-  protected time(ts: number | null): string {
-    return formatDateTime(ts, this.store.timezone(), true, this.settings.dateFormat());
-  }
-  protected levelVar(l: Level): string {
-    return LEVEL_VARS[l];
-  }
-  protected code(l: Level): string {
-    return LEVEL_CODES[l];
-  }
-  protected markerLabel(kind: string): string {
-    return this.store.markerKindMap().get(kind)?.label ?? kind;
-  }
-  protected markerColor(kind: string): string | null {
-    return this.store.markerKindMap().get(kind)?.color ?? null;
-  }
-  protected cell(r: RecordView, c: string): string {
+  private cell(r: RecordView, c: string): string {
     switch (c) {
       case '@source':
         return r.sourceName;
