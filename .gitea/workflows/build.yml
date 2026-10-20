@@ -359,7 +359,20 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: app
         shell: bash
+        # Keep IMT's folders so a failure can show the app's own logs (next step).
+        env:
+          IMT_E2E_KEEP_DATA: "1"
         run: npm run e2e:tauri
+
+      - name: IMT logs of the failed smoke run (Windows)
+        if: failure() && runner.os == 'Windows'
+        working-directory: app
+        shell: bash
+        run: |
+          for f in $(find e2e-tauri/.tmp -path '*imt-e2e-*' -name '*.log' 2>/dev/null | sort); do
+            echo "::group::$f"; tail -n 150 "$f"; echo "::endgroup::"
+          done
+          tasklist //FI "IMAGENAME eq imt-app.exe" || true
 
       # A session bus for the single-instance plugin and notifications, and a virtual display for WebKitGTK.
       - name: Smoke tests (Linux)
