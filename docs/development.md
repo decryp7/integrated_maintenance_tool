@@ -216,12 +216,11 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
 │   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
 │   │                              templates, plugin runtime, event bus
-│   ├── imt-api-perf/              plugin service API: performance counter sources (+ contract tests)
 │   ├── imt-plugin-registry/       .reg importer
 │   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg), Process Monitor CSV and
 │   │                              minidump import, Event Log follower, Windows marker kinds and annotators
 │   ├── imt-plugin-tools/          tools plugin: Performance Monitor templates and logman control, process
-│   │                              monitor, diagnostics collector, elevation, live counter source
+│   │                              monitor, Event Log follower, diagnostics collector, elevation
 │   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
 │   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
 │   │                              heapsnapshot
@@ -229,7 +228,6 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-plugin-formats/        log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
-│   ├── imt-clr-format/            capture format and pipe protocol for the planned .NET profiler (pure library)
 │   ├── imt-monitor/               process monitor with .NET runtime counters (library and `imt-monitor` CLI)
 │   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
 │   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)

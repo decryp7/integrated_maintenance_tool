@@ -2748,14 +2748,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-api-perf"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "imt-core",
-]
-
-[[package]]
 name = "imt-app"
 version = "0.1.0"
 dependencies = [
@@ -2802,13 +2794,6 @@ dependencies = [
  "webview2-com",
  "windows 0.62.2",
  "zip",
-]
-
-[[package]]
-name = "imt-clr-format"
-version = "0.1.0"
-dependencies = [
- "proptest",
 ]
 
 [[package]]
@@ -3037,7 +3022,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "imt-api-perf",
  "imt-collect",
  "imt-core",
  "imt-monitor",
@@ -3045,7 +3029,6 @@ dependencies = [
  "quick-xml",
  "serde",
  "serde_json",
- "sysinfo 0.39.6",
  "windows 0.62.2",
 ]
 

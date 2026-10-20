@@ -11,10 +11,8 @@
 //! | [`ids::DIAGNOSTICS`] | all | `default-plan`, `collect` (an `.imtz` bundle, see `imt-collect`) |
 //! | [`ids::ELEVATION`] | all | `info` (administrator rights, platform) |
 //!
-//! It also provides the [`imt_api_perf::CounterSource`] service from live
-//! system sampling ([`counters::SystemCounters`]), and declares an optional
-//! dependency on the Windows plugin, which imports the `.blg` files a
-//! collector set writes.
+//! It declares an optional dependency on the Windows plugin, which imports the
+//! `.blg` files a collector set writes.
 //!
 //! One [`ToolsPlugin`] value is shared by every window's registry (clones
 //! share state), so a running process monitor is the same in every window.
@@ -23,13 +21,11 @@
 //! fakes for both ([`ToolsEnv`]).
 
 mod collect_tool;
-pub mod counters;
 mod elevation;
 mod eventlog_tool;
 #[cfg(test)]
 pub(crate) mod fake;
 mod monitor_tool;
-pub mod path_counters;
 pub mod perfmon_control;
 pub mod perfmon_template;
 mod perfmon_tools;
@@ -84,7 +80,6 @@ impl ToolsEnv {
 struct Shared {
     knobs: Arc<settings::Knobs>,
     tools: Vec<Arc<dyn Tool>>,
-    counters: Arc<dyn imt_api_perf::CounterSource>,
 }
 
 /// The plugin. Clones share their tools and state.
@@ -116,11 +111,7 @@ impl ToolsPlugin {
             Arc::new(elevation::ElevationTool::new(env.runner)),
         ];
         ToolsPlugin {
-            shared: Arc::new(Shared {
-                knobs,
-                tools,
-                counters: counters::system(),
-            }),
+            shared: Arc::new(Shared { knobs, tools }),
         }
     }
 }
@@ -139,19 +130,15 @@ impl Plugin for ToolsPlugin {
     }
 
     /// Optionally uses the Windows plugin (it imports the `.blg` logs a
-    /// collector set writes); provides live performance counters.
+    /// collector set writes).
     fn manifest(&self) -> Manifest {
-        Manifest::new(self.id(), self.version())
-            .optionally("net.decryptology.windows", ">=0.1")
-            .provides(imt_api_perf::SERVICE_ID, imt_api_perf::VERSION)
+        Manifest::new(self.id(), self.version()).optionally("net.decryptology.windows", ">=0.1")
     }
 
     fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
         for tool in &self.shared.tools {
             registry.add_tool(tool.clone())?;
         }
-        let counters = self.shared.counters.clone();
-        registry.provide::<dyn imt_api_perf::CounterSource>(imt_api_perf::SERVICE_ID, imt_api_perf::VERSION, counters)?;
         Ok(())
     }
 
