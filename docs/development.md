@@ -34,7 +34,10 @@ npx tauri dev         # the desktop app with the real engine (starts `npm run st
 cargo test -p imt-core        # engine tests, including end-to-end runs over /samples
 ```
 
-Regenerate the sample logs with `python3 samples/generate.py` (do not edit them by hand);
+Regenerate the samples with `cargo xtask gen-samples` (do not edit them by hand). It runs
+`samples/generate.py` (with `python3`, `python` or `py -3`, whichever works) and then the Rust generators
+of the profiler captures and the crash dump (`IMT_REGENERATE_SAMPLES=1` tests in `imt-plugin-profiling`
+and `imt-plugin-windows`); `cargo xtask help` lists the tasks.
 [`samples/README.md`](../samples/README.md) lists every sample, its format and the views it shows.
 
 ### Visual Studio Code (Windows and macOS)
@@ -116,6 +119,32 @@ npm run screenshots     # writes docs/screenshots/*.png
 
 The script is [`app/scripts/screenshots/capture.ts`](../app/scripts/screenshots/capture.ts); set
 `IMT_SHOT_PORT` to use another dev-server port.
+
+### App icon
+
+The icon is drawn as SVG in [`app/src-tauri/icons-src/`](../app/src-tauri/icons-src/): a blue tile
+(IMT's accent) with two log lines, a timeline pulse and an amber marker.
+
+| File | Used for |
+| --- | --- |
+| `imt-icon.svg` | Master, 1024×1024: every bundle icon from 44 px up (`.icns`, `.ico` 48–256 px, PNGs, Store logos) |
+| `imt-icon-small.svg` | The same motif snapped to a 16 px grid with heavier strokes: the 16/24/32 px `.ico` entries, `32x32.png`, `Square30x30Logo.png` and the in-app logo |
+| `imt-tray-template.svg` | Black-on-transparent glyph for the macOS menu bar (`tray-template.png`, 44×44); other platforms use the window icon |
+
+After editing an SVG, regenerate everything with:
+
+```sh
+cd app
+node scripts/app-icon.mjs
+```
+
+It runs `npx tauri icon src-tauri/icons-src/imt-icon.svg`, deletes the `android/` and `ios/` sets that
+command always writes (IMT has no mobile build), re-renders the small sizes from the small variant into
+`icon.ico` (copied to `app/public/favicon.ico`), `32x32.png` and `Square30x30Logo.png`, and renders
+`tray-template.png`. Check the result at 16 px on a light and a dark taskbar before committing. The
+in-app logo (title bar, About) is the inline component
+[`app/src/app/shared/app-logo.ts`](../app/src/app/shared/app-logo.ts), which copies the small variant's
+geometry: change both together.
 
 ## Testing and quality gates
 
@@ -216,12 +245,11 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-core/                  engine: importers, profile, query/ql, workspace (live tail), analysis,
 │   │                              export, redaction, reports, dashboards, bundles, clock skew, config diff,
 │   │                              templates, plugin runtime, event bus
-│   ├── imt-api-perf/              plugin service API: performance counter sources (+ contract tests)
 │   ├── imt-plugin-registry/       .reg importer
 │   ├── imt-plugin-windows/        .evtx, msinfo32 .nfo, Performance Monitor (.csv/.blg), Process Monitor CSV and
 │   │                              minidump import, Event Log follower, Windows marker kinds and annotators
 │   ├── imt-plugin-tools/          tools plugin: Performance Monitor templates and logman control, process
-│   │                              monitor, diagnostics collector, elevation, live counter source
+│   │                              monitor, Event Log follower, diagnostics collector, elevation
 │   ├── imt-profile/               profiling engine (pure): profile and heap model, every profiling view
 │   ├── imt-plugin-profiling/      capture importers: nettrace, perf script, folded, pprof, Chrome, speedscope,
 │   │                              heapsnapshot
@@ -229,7 +257,6 @@ scope). Dependencies are updated by Renovate, which also pins CI actions to comm
 │   ├── imt-plugin-formats/        log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI
 │   ├── imt-plugin-otel/           OpenTelemetry OTLP/JSON
 │   ├── imt-plugin-syslog/         syslog and journald
-│   ├── imt-clr-format/            capture format and pipe protocol for the planned .NET profiler (pure library)
 │   ├── imt-monitor/               process monitor with .NET runtime counters (library and `imt-monitor` CLI)
 │   ├── imt-collect/               diagnostics collector (library and `imt-collect` CLI)
 │   ├── imt-agent/                 headless scheduled/triggered collection (library, CLI and service)

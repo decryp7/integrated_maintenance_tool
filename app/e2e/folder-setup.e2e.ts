@@ -3,7 +3,7 @@ import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { chooseMenu } from './menu-support';
 
-// "Set up analysis for this folder…" against the mock backend: open a folder, the hint offers the wizard,
+// "Set up analysis for this folder…" against the mock backend: open a folder, a message in Notifications offers the wizard,
 // select proposals, review the profile diff, apply, and the timeline lanes and markers change.
 
 test.describe('Folder set-up', () => {
@@ -15,9 +15,13 @@ test.describe('Folder set-up', () => {
     expect(before.some((l) => /\d{3,4}$/.test(l))).toBe(true); // lanes include process ids
 
     await chooseMenu(page, 'File', 'Open folder…');
-    const hint = page.getByTestId('folder-setup-hint');
-    await expect(hint).toBeVisible();
-    await hint.getByRole('button', { name: 'Set up analysis…' }).click();
+    // Offered in Notifications (the bell), not as a banner over the workspace.
+    await expect(page.getByTestId('folder-setup-hint')).toHaveCount(0);
+    await page.getByTestId('status-notifications').click();
+    const notices = page.locator('imt-notifications-panel');
+    // Offered once the folder is imported (the import can take a few seconds while the suite runs).
+    await expect(notices).toContainText('New folder? Set up analysis', { timeout: 15_000 });
+    await notices.getByRole('button', { name: 'Set up analysis…' }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Set up analysis for this folder' });
     await expect(dialog.getByTestId('survey-facts')).toContainText('Sampled');

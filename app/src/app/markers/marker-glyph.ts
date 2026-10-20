@@ -57,7 +57,8 @@ import { GlyphStyle } from './markers.types';
     /* The text is drawn from an attribute so assistive tooling does not read it twice (it is decorative). */
     .badge-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono), monospace; font-weight: 700; line-height: 1; pointer-events: none; }
     .badge-text::after { content: attr(data-t); }
-    .outline { stroke: rgba(0, 0, 0, 0.35); stroke-width: 1; }
+    /* A ring in the surface colour separates the glyph from what it overlaps (density, runs, other glyphs). */
+    .outline { stroke: var(--ring); stroke-width: 1.5; paint-order: stroke; }
     .slot, img { display: block; width: 100%; height: 100%; object-fit: contain; }
   `,
 })

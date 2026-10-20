@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signa
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { copyText } from '../tools/clipboard';
 import { DialogService } from '../ui/dialog.service';
+import { AppLogo } from '../shared/app-logo';
 import { BUILD_INFO } from './build-info';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 import { LEGAL_SOURCE, LegalDoc } from './legal-source';
@@ -19,12 +20,10 @@ const DOC_TITLES: Record<LegalDoc, string> = {
 @Component({
   selector: 'imt-about',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AppLogo],
   template: `
     <div class="id">
-      <svg class="logo" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
-        <rect width="48" height="48" rx="10" fill="var(--accent)" />
-        <path d="M10 14h8M14 14v20M10 34h8M22 34V14l6 12l6-12v20M38 14h4" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <imt-app-logo [size]="48" />
       <div>
         <h3 class="name">IMT — Integrated Maintenance Tool</h3>
         <p class="meta" i18n="@@about.meta">
@@ -74,18 +73,18 @@ const DOC_TITLES: Record<LegalDoc, string> = {
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
     .id { display: flex; gap: 14px; align-items: center; }
-    .name { margin: 0; font-size: 15px; }
-    .promise { margin: 0; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--ok); border-radius: 6px; background: var(--bg-3); color: var(--text-2); font-size: 12px; line-height: 1.45; }
+    .name { margin: 0; font-size: var(--fs-lg); }
+    .promise { margin: 0; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--ok); border-radius: 6px; background: var(--bg-3); color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
     .meta, .licence { margin: 4px 0 0; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .viewer-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    h4 { margin: 0; font-size: 12px; flex: 1 1 auto; }
+    h4 { margin: 0; font-size: var(--fs-sm); flex: 1 1 auto; }
     .search { flex: 0 1 220px; }
-    .count { font-size: 11px; }
+    .count { font-size: var(--fs-xs); }
     .viewport { overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1, var(--bg-2)); }
     .spacer { position: relative; min-width: max-content; }
     .rows { position: absolute; inset-inline-start: 0; top: 0; }
-    .line { height: 18px; line-height: 18px; padding: 0 8px; white-space: pre; font-family: var(--font-mono); font-size: 11.5px; color: var(--text); }
-    .line.head { font-weight: 600; color: var(--accent); }
+    .line { height: 18px; line-height: 18px; padding: 0 8px; white-space: pre; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text); }
+    .line.head { font-weight: 600; color: var(--accent-text); }
     .err { color: var(--danger-text); margin: 0; }
     .actions { display: flex; gap: 10px; align-items: center; }
   `,

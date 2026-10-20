@@ -46,9 +46,9 @@ const MAX_LINES = 50;
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; }
-    textarea { resize: vertical; font-size: 12px; }
+    textarea { resize: vertical; font-size: var(--fs-sm); }
     .row { display: flex; justify-content: space-between; align-items: center; }
-    .small { font-size: 12px; }
+    .small { font-size: var(--fs-sm); }
     .err { margin: 0; color: var(--danger-text, var(--lvl-error)); }
     .foot { display: flex; justify-content: flex-end; }
   `,

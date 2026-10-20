@@ -16,9 +16,9 @@ import { LifecycleService } from './lifecycle.service';
     }
   `,
   styles: `
-    .project { font-size: 12px; color: var(--text-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    .project { font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
     .unsaved { margin-inline-start: 6px; color: var(--warn-text); }
-    .admin { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; background: var(--chip-bg); border: 1px solid var(--lvl-warn); color: var(--warn-text); white-space: nowrap; }
+    .admin { font-size: var(--fs-xs); font-weight: 600; padding: 1px 8px; border-radius: 10px; background: var(--chip-bg); border: 1px solid var(--lvl-warn); color: var(--warn-text); white-space: nowrap; }
   `,
 })
 export class TitleExtras {

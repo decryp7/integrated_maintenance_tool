@@ -104,14 +104,14 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
     .color { width: 56px; padding: 2px; }
     .presets { display: flex; gap: 4px; padding-bottom: 6px; }
     .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bg-1); outline: 1px solid var(--border-3); cursor: pointer; }
-    .swatch[aria-pressed='true'] { outline: 2px solid var(--accent); }
-    .assist { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+    .swatch[aria-pressed='true'] { outline: 2px solid var(--focus-ring); }
+    .assist { display: flex; align-items: flex-start; gap: 8px; font-size: var(--fs-sm); }
     .assist .ellipsis { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 3px; }
     .link { align-self: flex-start; }
     .preview { display: flex; flex-direction: column; gap: 6px; }
     .strip { width: 100%; height: 28px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; }
     .strip rect { fill: var(--accent); }
-    .samples { margin: 0; padding: 6px 8px; list-style: none; max-height: 150px; overflow: auto; font-size: 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 2px; }
+    .samples { margin: 0; padding: 6px 8px; list-style: none; max-height: 150px; overflow: auto; font-size: var(--fs-sm); background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 2px; }
     .samples li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     textarea { resize: vertical; }
     code { font-family: var(--font-mono); }

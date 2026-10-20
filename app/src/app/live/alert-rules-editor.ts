@@ -103,11 +103,11 @@ type Phase = 'loading' | 'ready' | 'busy';
     DIALOG_FORM_STYLES,
     `
       .group { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 0; }
-      .group legend { font-size: 11px; color: var(--muted); padding: 0 4px; }
+      .group legend { font-size: var(--fs-xs); color: var(--muted); padding: 0 4px; }
       .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
       .rules-head { display: flex; align-items: center; gap: 10px; }
       .spacer { flex: 1; }
-      .small { font-size: 11px; }
+      .small { font-size: var(--fs-xs); }
       .rules { display: flex; flex-direction: column; gap: 10px; max-height: 46vh; overflow: auto; }
       .rule { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
       .rule .num { flex: 0 0 96px; min-width: 96px; }
@@ -115,7 +115,7 @@ type Phase = 'loading' | 'ready' | 'busy';
       .rm { align-self: flex-end; }
       .invalid { border-color: var(--danger-text) !important; }
       label.invalid input { border-color: var(--danger-text); }
-      .ok { color: var(--ok); font-size: 12px; }
+      .ok { color: var(--ok); font-size: var(--fs-sm); }
       .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     `,
   ],

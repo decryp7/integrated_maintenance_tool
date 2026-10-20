@@ -251,7 +251,7 @@ import {
     }
     h3 {
       margin: 0 0 6px;
-      font-size: 13px;
+      font-size: var(--fs-md);
     }
     p {
       margin: 0;
@@ -306,10 +306,10 @@ import {
       flex-wrap: wrap;
       gap: 4px 12px;
       color: var(--text-2);
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .notes {
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .fit-comfortable::before,
     .fit-tight::before,
@@ -339,7 +339,7 @@ import {
     }
     .note {
       color: var(--muted);
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .bar {
       height: 8px;

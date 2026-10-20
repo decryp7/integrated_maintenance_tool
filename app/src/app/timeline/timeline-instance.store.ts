@@ -9,6 +9,7 @@ import { instanceQuery, LaneMode, laneGroupBy, MAIN_TIMELINE, TimelineConfig, Ti
 import { TimelineSource } from './timeline-source';
 import { TimelineViews } from './timeline-views';
 import { Range, RangeZoom, summaryExtent, TimelineZoom } from './zoom';
+import { stableLanes } from './lane-order';
 
 interface InstanceState {
   timeline: Timeline | null;
@@ -86,6 +87,7 @@ export const TimelineInstanceStore = signalStore(
   }),
   withComputed((store) => ({
     zoom: computed<RangeZoom>(() => (store.synced() ? store._sharedZoom : store._localZoom)),
+    lanes: stableLanes(store.timeline, store.hasRange),
   })),
   withMethods((store) => {
     const update = (patch: Partial<Omit<TimelineConfig, 'id'>>) => store._views.update(store.id, patch);

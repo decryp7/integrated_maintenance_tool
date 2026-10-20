@@ -67,7 +67,7 @@ export function bundleFileName(name: string): string {
   styles: `
     ${DIALOG_FORM_STYLES}
     .group { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-    legend { font-size: 11px; color: var(--muted); padding: 0 4px; }
+    legend { font-size: var(--fs-xs); color: var(--muted); padding: 0 4px; }
     .skipped { margin: 4px 0 0; padding-inline-start: 18px; }
   `,
 })

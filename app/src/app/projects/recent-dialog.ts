@@ -41,7 +41,7 @@ export class RecentProjectsDialogService {
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .item { width: 100%; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; padding: 6px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); color: var(--text); cursor: pointer; text-align: start; min-width: 0; }
     .item:hover { background: var(--bg-hover); }
-    .item .ellipsis { max-width: 100%; font-size: 11px; }
+    .item .ellipsis { max-width: 100%; font-size: var(--fs-xs); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
     p { margin: 0; }
   `,

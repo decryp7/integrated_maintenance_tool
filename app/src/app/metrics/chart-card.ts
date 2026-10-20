@@ -211,11 +211,11 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     :host { display: flex; flex-direction: column; padding: 10px 14px 6px; border-bottom: 1px solid var(--border); min-height: 220px; }
     .head { display: flex; align-items: baseline; gap: 10px; }
     .title { font-weight: 600; }
-    .sub { font-size: 11px; }
+    .sub { font-size: var(--fs-xs); }
     .spacer { flex: 1; }
     .actions { display: inline-flex; gap: 2px; align-self: center; }
-    .small { font-size: 10px; font-family: var(--font-mono); min-width: 22px; }
-    .lc { display: flex; gap: 10px; font-size: 11px; }
+    .small { font-size: var(--fs-2xs); font-family: var(--font-mono); min-width: 22px; }
+    .lc { display: flex; gap: 10px; font-size: var(--fs-xs); }
     .lc-item { display: inline-flex; align-items: center; gap: 4px; }
     .dash { width: 0; height: 10px; border-left: 1px dashed; }
     .plot { flex: 1; min-height: 180px; position: relative; display: flex; flex-direction: column; }

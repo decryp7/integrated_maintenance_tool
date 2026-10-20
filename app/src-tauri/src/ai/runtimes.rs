@@ -8,8 +8,8 @@ use imt_ai::models::source::{ModelSource, Progress};
 use imt_ai::models::DownloadOptions;
 use imt_ai::runtimes::builds::{is_build_id, label};
 use imt_ai::runtimes::{
-    current_platform, list_builds, overview, suggest, BuildChoice, BuildsReport, GithubReleases, InstalledRuntime, OverviewInput,
-    ReleaseConfig, RuntimeCatalog, RuntimeOverview, RuntimeStage, RuntimeStore,
+    current_platform, list_builds, overview, suggest, usable_tag, BuildChoice, BuildsReport, GithubReleases, InstalledRuntime,
+    OverviewInput, ReleaseConfig, RuntimeCatalog, RuntimeOverview, RuntimeStage, RuntimeStore,
 };
 use imt_ai::settings::AiSettings;
 use imt_ai::worker::WorkerEnv;
@@ -59,7 +59,7 @@ impl RuntimeDeps {
 
     /// The worker's environment for `settings`: where the builds are and which one to use.
     pub fn worker_env(&self, settings: &AiSettings) -> Vec<(String, String)> {
-        settings.worker_env(&self.store.builds_dir(&self.catalog.tag))
+        settings.worker_env(&builds_dir(&self.store, &self.catalog.tag))
     }
 
     /// The worker launcher's environment, read from `settings` at every launch.
@@ -68,7 +68,7 @@ impl RuntimeDeps {
         let tag = self.catalog.tag.clone();
         Arc::new(move || {
             let s = crate::sync::read(&settings).clone();
-            s.worker_env(&store.builds_dir(&tag))
+            s.worker_env(&builds_dir(&store, &tag))
         })
     }
 
@@ -80,6 +80,12 @@ impl RuntimeDeps {
             .map(|r| r.id)
             .collect()
     }
+}
+
+/// The builds the worker runs: the pinned release's, or an older release's until the pinned one is installed
+/// (an update keeps the previous build working until the new one is verified).
+fn builds_dir(store: &RuntimeStore, pinned: &str) -> PathBuf {
+    store.builds_dir(&usable_tag(&store.list(pinned), pinned))
 }
 
 /// Progress of an install, streamed as `imt://ai-runtime`; `ready`, `failed` and `cancelled` end it.

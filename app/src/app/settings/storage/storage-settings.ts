@@ -157,7 +157,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; }
     .section-head { display: flex; align-items: center; gap: 8px; }
-    h3 { margin: 0; font-size: 14px; font-weight: 600; }
+    h3 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
     .spacer { flex: 1; }
     .desc { margin: 0 0 4px; color: var(--muted); line-height: 1.45; }
     .muted { margin: 0; color: var(--muted); }
@@ -169,18 +169,18 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
     .lines .error { color: var(--danger-text); }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; text-align: start; vertical-align: top; border-bottom: 1px solid var(--border); }
-    thead th { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    thead th { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
     tbody th { font-weight: 500; color: var(--text); }
     .name { margin-inline-end: 6px; }
-    .badge { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: 11px; color: var(--text-2); border: 1px solid var(--border-3); }
+    .badge { display: inline-block; padding: 0 6px; border-radius: 8px; font-size: var(--fs-xs); color: var(--text-2); border: 1px solid var(--border-3); }
     .badge.cache { border-color: var(--accent); color: var(--text); }
-    .note { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
+    .note { display: block; margin-top: 2px; font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
     .num { text-align: end; white-space: nowrap; }
-    .files { display: block; font-size: 12px; color: var(--muted); }
+    .files { display: block; font-size: var(--fs-sm); color: var(--muted); }
     .where { max-width: 320px; }
-    .path { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-2); }
+    .path { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); color: var(--text-2); }
     .act { text-align: end; white-space: nowrap; }
-    .btn.small { padding: 2px 8px; font-size: 12px; }
+    .btn.small { padding: 2px 8px; font-size: var(--fs-sm); }
     tfoot th, tfoot td { border-bottom: 0; font-weight: 600; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,

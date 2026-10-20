@@ -5,7 +5,8 @@ import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
 import { fileName, formatBytes, formatEta, percent, progressLine } from './import-format';
-import { ImportProgressService, isImportLabel, LONG_IMPORT_MS, POLL_MS } from './import-progress.service';
+import { ImportProgressService, LONG_IMPORT_MS, POLL_MS } from './import-progress.service';
+import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { ImportStatus, ImportToast, PartialImportBanner } from './import-ui';
 
 const p = (patch: Partial<ImportProgress> = {}): ImportProgress => ({
@@ -44,11 +45,16 @@ describe('import formatting', () => {
     expect(progressLine(p({ total: 1, done: 0, bytesTotal: 0, etaMs: null }))).toBe('0 of 1 file');
   });
 
-  it('recognises import work by its busy label', () => {
-    expect(isImportLabel('Opening 2 items…')).toBe(true);
-    expect(isImportLabel('Re-importing…')).toBe(true);
-    expect(isImportLabel('Removing source…')).toBe(false);
-    expect(isImportLabel(null)).toBe(false);
+  it('recognises import work by the kind of the busy state, not its label', () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
+    const status = TestBed.inject(WorkspaceStatusStore);
+    status.setBusy({ kind: 'import', label: 'Ouverture de 2 éléments…', jobId: null });
+    expect(status.importing()).toBe(true);
+    status.setBusy({ kind: 'op', label: 'Opening 2 items…' });
+    expect(status.importing()).toBe(false);
+    status.setBusy(null);
+    expect(status.importing()).toBe(false);
+    expect(status.busyLabel()).toBeNull();
   });
 });
 

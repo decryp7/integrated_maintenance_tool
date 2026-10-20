@@ -1,8 +1,23 @@
 import { $, browser, expect } from '@wdio/globals';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { chooseMenu, waitForShell } from '../support/app';
+import { RUN_DIR_VAR, runLayout } from '../support/paths';
 
-// Regression: Help ▸ Show activity log opened a white window on Windows (the command that built the window was
-// synchronous, and WebView2 never finished loading it). The new window must load IMT and show its own log.
+/** IMT's own log lines of this run (CLEF, one JSON object per line). */
+function imtLog(): string {
+  const dir = join(runLayout(process.env[RUN_DIR_VAR]!).imt, 'logs');
+  if (!existsSync(dir)) return '';
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.log'))
+    .map((f) => readFileSync(join(dir, f), 'utf8'))
+    .join('\n');
+}
+
+// Regression: Help ▸ Show activity log opened a white window on Windows (WebView2 never finished loading it). The
+// new window's UI must start and open IMT's activity project. The check reads IMT's own log instead of switching
+// the driver to the new window: WebKitWebDriver cannot switch reliably, and a white window cannot log, so
+// "IPC open_project from w-N" proves its page loaded and ran.
 describe('real app: activity log', () => {
   it('Help ▸ Show activity log opens a working window with IMT’s log', async () => {
     await waitForShell();
@@ -10,7 +25,6 @@ describe('real app: activity log', () => {
     // previous spec can leave the timeline in a background tab, and hidden panels are not rendered.
     await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
     await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
-    const main = await browser.getWindowHandle();
     const before = await browser.getWindowHandles();
 
     await chooseMenu('Help', 'Show activity log');
@@ -18,16 +32,10 @@ describe('real app: activity log', () => {
       timeout: 30_000,
       timeoutMsg: 'no new window appeared',
     });
-    const added = (await browser.getWindowHandles()).find((h) => !before.includes(h))!;
-    try {
-      await browser.switchToWindow(added);
-      // The UI loaded (a white window has no menu bar) and the activity project opened IMT's log.
-      await $('[role=menubar][aria-label="Application menu"]').waitForDisplayed({ timeout: 60_000 });
-      await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
-      await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
-    } finally {
-      await browser.closeWindow().catch(() => undefined);
-      await browser.switchToWindow(main);
-    }
+    await browser.waitUntil(() => /"IPC open_project from w-\d+"/.test(imtLog()), {
+      timeout: 60_000,
+      timeoutMsg: 'the activity window never ran its UI (no "IPC open_project from w-N" in IMT’s log): a white window',
+    });
+    // The `after` hook closes the activity window through IMT's menu and quits.
   });
 });

@@ -74,7 +74,11 @@ describe('ActivityBar', () => {
   });
 
   it('renders the contributed buttons in order, Settings at the bottom, AI hidden until a model is set up', async () => {
-    const { fixture, ai } = setup();
+    const { fixture, ai, live } = setup();
+    await settle(fixture);
+    // Live tail shows once there are files to follow.
+    expect(labels(fixture)).toEqual(['Explorer', 'Search', 'Timeline', 'Analysis', 'Metrics', 'Tools', 'Profile editor', 'Settings']);
+    live.available.set(true);
     await settle(fixture);
     expect(labels(fixture)).toEqual(['Explorer', 'Search', 'Timeline', 'Analysis', 'Metrics', 'Toggle live tail', 'Tools', 'Profile editor', 'Settings']);
     expect(all<HTMLButtonElement>(fixture, 'button.act').every((b) => b.type === 'button')).toBe(true);
@@ -173,20 +177,16 @@ describe('ActivityBar', () => {
     expect(ran).toEqual(['tools.collect']);
   });
 
-  it('toggles live tail: inert with a reason while nothing is open, pressed while on, pulsing while following', async () => {
+  it('toggles live tail: hidden while nothing is open, pressed while on, pulsing while following', async () => {
     const { fixture, live, follow } = setup();
     await settle(fixture);
     const toggle = () => button(fixture, 'Toggle live tail');
-    expect(toggle().getAttribute('aria-disabled')).toBe('true');
-    expect(toggle().getAttribute('aria-pressed')).toBe('false');
-    expect(toggle().title).toBe('Toggle live tail — Open files first to follow them live');
-    toggle().click();
-    await settle(fixture);
-    expect(live.enabled()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-activity-id="live-tail"]')).toBeNull();
 
     live.available.set(true);
     await settle(fixture);
     expect(toggle().hasAttribute('aria-disabled')).toBe(false);
+    expect(toggle().getAttribute('aria-pressed')).toBe('false');
     toggle().click();
     await settle(fixture);
     expect(live.enabled()).toBe(true);
@@ -248,7 +248,8 @@ describe('ActivityBar', () => {
   });
 
   it('collapses the last top buttons into a More fly-out when the bar is too short', async () => {
-    const { fixture, dock } = setup();
+    const { fixture, dock, live } = setup();
+    live.available.set(true);
     await settle(fixture);
     // 8 top buttons + Settings; 6 slots fit in 264px, so 4 stay and More holds the rest.
     (fixture.componentInstance as unknown as { barHeight: { set(v: number): void } }).barHeight.set(264);
@@ -259,7 +260,6 @@ describe('ActivityBar', () => {
     await settle(fixture);
     expect(entryLabels('More')).toEqual(['Metrics', 'Toggle live tail', 'Tools', 'Profile editor']);
     expect(entry('More', 'Toggle live tail')?.getAttribute('role')).toBe('menuitemcheckbox');
-    expect(entry('More', 'Toggle live tail')?.getAttribute('aria-disabled')).toBe('true');
     expect(entry('More', 'Tools')?.getAttribute('aria-haspopup')).toBe('menu');
     entry('More', 'Profile editor')?.click();
     await settle(fixture);

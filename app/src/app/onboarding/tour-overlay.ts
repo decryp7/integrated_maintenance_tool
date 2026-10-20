@@ -44,12 +44,12 @@ export function popoverPosition(spot: { top: number; left: number; width: number
   `,
   styles: `
     .shade { position: fixed; inset: 0; z-index: 180; pointer-events: none; }
-    .shade.dim { background: rgba(0, 0, 0, 0.35); }
-    .spot { position: fixed; z-index: 181; border-radius: 8px; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); pointer-events: none; transition: all 0.2s ease; }
+    .shade.dim { background: var(--scrim); }
+    .spot { position: fixed; z-index: 181; border-radius: 8px; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px var(--scrim); pointer-events: none; transition: all 0.2s ease; }
     .pop { position: fixed; z-index: 182; width: ${POPOVER_WIDTH}px; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
-    .count { font-size: 11px; color: var(--muted); }
-    h2 { margin: 0; font-size: 15px; font-weight: 600; }
-    p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-2); }
+    .count { font-size: var(--fs-xs); color: var(--muted); }
+    h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
+    p { margin: 0; font-size: var(--fs-md); line-height: 1.45; color: var(--text-2); }
     .foot { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
     .spacer { flex: 1; }
     @media (prefers-reduced-motion: reduce) { .spot { transition: none; } }

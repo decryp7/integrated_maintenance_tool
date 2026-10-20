@@ -15,7 +15,7 @@ import { LiveFeed } from './live-feed';
   `,
   styles: `
     :host { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 4; }
-    .pill { height: 24px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg-3); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; box-shadow: var(--shadow); white-space: nowrap; }
+    .pill { height: 24px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--accent); background: var(--bg-3); color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer; box-shadow: var(--shadow); white-space: nowrap; }
     .pill:hover { background: var(--bg-hover); }
   `,
 })

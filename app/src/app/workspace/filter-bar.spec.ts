@@ -53,9 +53,14 @@ describe('FilterBar', () => {
     expect(err.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('edits the group-by', async () => {
+  it('edits the group-by in View options', async () => {
     const { fixture, store } = await render();
-    buttonByText(fixture, /Group by/).click();
+    const options = el<HTMLButtonElement>(fixture, '[data-testid=view-options]');
+    expect(options.getAttribute('aria-expanded')).toBe('false');
+    options.click();
+    await settle(fixture);
+    expect(options.getAttribute('aria-expanded')).toBe('true');
+    expect(el(fixture, '[role=dialog]').getAttribute('aria-label')).toBe('View options');
     await settle(fixture);
     all<HTMLButtonElement>(fixture, '.opt').find((b) => b.textContent?.includes('Application'))!.click();
     expect(store.effectiveGroupBy()).toEqual(['MachineName', 'ProcessId', 'Application']);
@@ -117,6 +122,8 @@ describe('FilterBar', () => {
     expect(text(fixture)).toContain('14 Oct 09:00:00 →');
     store.resetRange();
 
+    el<HTMLButtonElement>(fixture, '[data-testid=view-options]').click();
+    await settle(fixture);
     const switchFor = (name: RegExp) =>
       [...fixture.nativeElement.querySelectorAll('imt-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
     expect(switchFor(/Marked only/).checked).toBe(false);
@@ -129,6 +136,15 @@ describe('FilterBar', () => {
     await settle(fixture);
     buttonByText(fixture, 'Clear all').click();
     expect(store.markedOnly()).toBe(false);
+  });
+
+  it('keeps one row: chips get a second row only while there are field or instance filters', async () => {
+    const { fixture, store } = await render();
+    expect(all(fixture, '.row')).toHaveLength(1);
+    store.addFilter({ field: 'MachineName', op: 'eq', value: 'WEB01' });
+    await settle(fixture);
+    expect(all(fixture, '.row')).toHaveLength(2);
+    expect(all(fixture, 'imt-switch')).toHaveLength(0);
   });
 
   it('focuses the search box on request', async () => {

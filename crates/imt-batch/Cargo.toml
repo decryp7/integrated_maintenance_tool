@@ -1,0 +1,20 @@
+[package]
+name = "imt-batch"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "IMT's event batch: stable ids, the fixed Arrow schema of an event (ADR 0014 §3), a builder and a validated EventBatch shared by importers, the store and plugins"
+
+# Arrow 58 is the version duckdb-rs 1.10506 (DuckDB 1.5.6) links against, so batches reach the store's
+# Arrow appender without a conversion. The plugin SDK is on Arrow 60; the two meet in R3 (ADR 0014 notes).
+[dependencies]
+arrow-array = { version = "58", default-features = false }
+arrow-buffer = { version = "58", default-features = false }
+arrow-schema = { version = "58", default-features = false }
+thiserror.workspace = true
+# Serialisation of ids and the timestamp state in the store's request/reply types.
+serde = { workspace = true, optional = true }
+
+[features]
+serde = ["dep:serde"]

@@ -96,29 +96,29 @@ interface Tip {
   `,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; flex: 1; position: relative; }
-    .legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 12px; font-size: 11px; color: var(--muted); }
+    .legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 12px; font-size: var(--fs-xs); color: var(--muted); }
     .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
     .sw { width: 12px; height: 10px; border-radius: 2px; display: inline-block; }
     .ramp { width: 90px; height: 8px; border-radius: 4px; }
     .spacer { flex: 1; }
     .scroll { flex: 1; min-height: 80px; overflow: auto; padding: 0 12px; }
     .surface { position: relative; width: 100%; cursor: pointer; }
-    .surface:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .surface:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     canvas { position: absolute; left: 0; top: 0; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .tip { position: fixed; display: flex; flex-direction: column; gap: 2px; max-width: 420px; pointer-events: none; z-index: 10; font-size: 12px; }
+    .tip { position: fixed; display: flex; flex-direction: column; gap: 2px; max-width: 420px; pointer-events: none; z-index: 10; font-size: var(--fs-sm); }
     .tname { word-break: break-all; color: var(--text); }
     .faint { color: var(--faint); }
     .mono { font-family: var(--font-mono); }
-    .frames { flex: none; max-height: 180px; overflow: auto; padding: 2px 12px 6px; font-size: 12px; }
+    .frames { flex: none; max-height: 180px; overflow: auto; padding: 2px 12px 6px; font-size: var(--fs-sm); }
     .frames summary { cursor: pointer; color: var(--muted); padding: 2px 0; }
     table.grid { border-collapse: collapse; width: 100%; }
     table.grid th, table.grid td { padding: 2px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
     table.grid .num { text-align: right; font-family: var(--font-mono); }
     tr.sel td { background: var(--bg-sel); }
     .link { background: none; border: 0; padding: 0; font: inherit; color: var(--chip-text); cursor: pointer; text-align: left; }
-    .link:focus-visible { outline: 2px solid var(--accent); }
-    .tag { margin-left: 6px; font-family: var(--font-mono); font-size: 10px; padding: 0 4px; border: 1px solid var(--border-3); border-radius: 3px; }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); }
+    .tag { margin-left: 6px; font-family: var(--font-mono); font-size: var(--fs-2xs); padding: 0 4px; border: 1px solid var(--border-3); border-radius: 3px; }
   `,
 })
 export class FlameChart {

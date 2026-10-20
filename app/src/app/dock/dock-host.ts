@@ -114,7 +114,7 @@ export const HOVER_HIDE_MS = 300;
     .imt-ah-right { grid-area: right; flex-direction: column; border-left: 1px solid var(--border); }
     .imt-ah-bottom { grid-area: bottom; flex-direction: row; border-top: 1px solid var(--border); }
     .imt-ah-tab {
-      border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+      border: 0; background: transparent; color: var(--muted); font: inherit; font-size: var(--fs-sm); cursor: pointer;
       padding: 8px 4px; border-radius: 3px; white-space: nowrap;
     }
     .imt-ah-left .imt-ah-tab, .imt-ah-right .imt-ah-tab { writing-mode: vertical-rl; }
@@ -123,7 +123,7 @@ export const HOVER_HIDE_MS = 300;
     .imt-ah-tab:hover, .imt-ah-tab.open { color: var(--text); background: var(--bg-hover); box-shadow: inset 0 -2px 0 var(--accent); }
     .imt-ah-left .imt-ah-tab:hover, .imt-ah-left .imt-ah-tab.open { box-shadow: inset 2px 0 0 var(--accent); }
     .imt-ah-right .imt-ah-tab:hover, .imt-ah-right .imt-ah-tab.open { box-shadow: inset -2px 0 0 var(--accent); }
-    .imt-ah-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .imt-ah-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
     .imt-ah-flyout {
       position: absolute; z-index: 990; display: flex; flex-direction: column; background: var(--bg-1);
@@ -140,7 +140,7 @@ export const HOVER_HIDE_MS = 300;
       display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 4px 0 10px; flex: none;
       background: var(--bg-0); border-bottom: 1px solid var(--border); box-shadow: inset 0 2px 0 var(--accent);
     }
-    .imt-ah-title { flex: 1; font-size: 12px; color: var(--text); }
+    .imt-ah-title { flex: 1; font-size: var(--fs-sm); color: var(--text); }
     .imt-ah-body { flex: 1; min-height: 0; display: flex; }
     .imt-ah-body > .imt-panel { flex: 1; }
     .imt-ah-grip { position: absolute; background: transparent; }
@@ -158,9 +158,9 @@ export const HOVER_HIDE_MS = 300;
     .imt-drop-guides { position: absolute; inset: 0; pointer-events: none; z-index: 1000; display: none; }
     .imt-drop-guides.on { display: block; }
     .imt-guide {
-      position: absolute; display: flex; align-items: center; justify-content: center; font-size: 11px;
-      color: var(--accent); background: var(--bg-1); border: 1px solid var(--accent); border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); opacity: 0.92;
+      position: absolute; display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs);
+      color: var(--accent-text); background: var(--bg-1); border: 1px solid var(--accent); border-radius: 4px;
+      box-shadow: var(--shadow-pop); opacity: 0.92;
     }
     .imt-guide-center::after { content: ''; width: 14px; height: 14px; border: 2px solid var(--accent); border-radius: 2px; }
     .imt-guide.hot { background: var(--accent); color: var(--accent-ink); }
@@ -174,8 +174,8 @@ export const HOVER_HIDE_MS = 300;
     .imt-float-cue[hidden] { display: none; }
     .imt-float-cue[data-outcome='window'] { border-style: solid; }
     .imt-float-cue-hint {
-      padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap;
-      background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      padding: 4px 10px; border-radius: 4px; font-size: var(--fs-sm); font-weight: 500; white-space: nowrap;
+      background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow-pop);
     }
     @keyframes imt-float-cue-in { from { opacity: 0; } to { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) { .imt-float-cue { animation: none; } }
@@ -186,9 +186,9 @@ export const HOVER_HIDE_MS = 300;
     /* VS-style tabs: a thin accent line on the active document tab, muted inactive tabs, a pin on pinned tabs. */
     .imt-dockview .dv-groupview.dv-active-group .dv-tab.dv-active-tab { box-shadow: inset 0 2px 0 var(--accent); background: var(--bg-1); }
     .imt-dockview .dv-groupview.dv-inactive-group .dv-tab.dv-active-tab { box-shadow: inset 0 2px 0 var(--border-3); }
-    .imt-tab-pin { display: none; font-size: 10px; filter: grayscale(1); }
+    .imt-tab-pin { display: none; font-size: var(--fs-2xs); filter: grayscale(1); }
     .imt-tab.pinned .imt-tab-pin { display: inline; }
-    .imt-tab-menu { width: 14px; text-align: center; font-size: 11px; color: var(--faint); visibility: hidden; border-radius: 3px; }
+    .imt-tab-menu { width: 14px; text-align: center; font-size: var(--fs-xs); color: var(--faint); visibility: hidden; border-radius: 3px; }
     .dv-tab:hover .imt-tab-menu, .dv-tab.dv-active-tab .imt-tab-menu, .dv-tab:focus-visible .imt-tab-menu { visibility: visible; }
     /* Only the active tab carries the menu chevron, so inactive tabs stay as narrow as their label and close button. */
     .dv-tab:not(.dv-active-tab) .imt-tab-menu { display: none; }

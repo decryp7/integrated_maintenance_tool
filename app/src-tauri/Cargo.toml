@@ -1,12 +1,13 @@
 [package]
 name = "imt-app"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
 description = "IMT — integrated maintenance tool for analysing logs and diagnostic files"
 authors = ["decryp7"]
-edition = "2021"
+edition.workspace = true
 publish = false
-rust-version = "1.85"
+rust-version.workspace = true
 
 [lib]
 name = "imt_app_lib"
@@ -36,11 +37,11 @@ imt-ipc = { path = "../../crates/imt-ipc" }
 # IMT's folders for `--export-diagnostics` without starting Tauri (the same crate Tauri resolves them with).
 dirs = "7"
 open = "5"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-log = { version = "0.4", features = ["kv"] }
-chrono = "0.4.45"
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+log = { workspace = true, features = ["kv"] }
+chrono.workspace = true
 tauri = { version = "2.12.4", features = ["tray-icon", "image-png"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
@@ -55,15 +56,17 @@ tracing-log = { version = "0.2", default-features = false, features = ["std"] }
 # "rustls-tls" is reqwest 0.13's `rustls-no-provider`, whose default verifier is rustls-platform-verifier: update checks
 # trust the OS certificate store like the AI downloads (`imt_ai::net`), so they work behind TLS-inspecting proxies.
 tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
-semver = "1"
+semver.workspace = true
 notify-debouncer-mini = "0.7"
-base64 = "0.22"
-sysinfo = { version = "0.39", default-features = false, features = ["system"] }
-zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+base64.workspace = true
+sysinfo = { workspace = true, features = ["system"] }
+zip.workspace = true
 
 [dev-dependencies]
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
 ts-rs = "11.1"
+# The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.
+updater-base64 = { package = "base64", version = "0.22" }
 tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
@@ -74,4 +77,4 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Security", "Win32_System_Console", "Win32_System_Threading", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

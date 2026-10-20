@@ -1,7 +1,9 @@
 import { Injector } from '@angular/core';
 import { Query, RecordView } from '../core/api.types';
 import { DateFormat, TimeZoneMode } from '../core/format';
-import { ThemeMode, WorkspaceStore } from '../core/workspace.store';
+import { WorkspaceStore } from '../core/workspace.store';
+import { isSchemeMode } from '../core/workspace/ui-prefs.store';
+import { isThemeId } from '../theme/themes';
 import { TimeCursor } from '../analysis/time-cursor';
 import { sanitizeQuery } from '../lifecycle/core-ui-state';
 import { LiveFollow, sanitizeFollow } from '../live/live-follow.store';
@@ -12,7 +14,6 @@ import { SyncedValue } from './ui-sync';
 /** The time cursor follows the pointer: other windows get it at most this often. */
 export const CURSOR_SYNC_MS = 50;
 
-const THEMES: readonly ThemeMode[] = ['system', 'dark', 'light'];
 const ZONES: readonly TimeZoneMode[] = ['utc', 'local'];
 const DATE_FORMATS: readonly DateFormat[] = ['readable', 'iso'];
 const DENSITIES: readonly GridDensity[] = ['compact', 'comfortable'];
@@ -59,7 +60,9 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         if (isRecord(v) && typeof v['id'] === 'number') store.jumpTo(v['id']);
       },
     },
-    { key: 'theme', read: () => store.theme(), apply: (v) => THEMES.includes(v as ThemeMode) && store.setTheme(v as ThemeMode) },
+    { key: 'theme', read: () => store.theme(), apply: (v) => isThemeId(v) && store.setTheme(v) },
+    { key: 'scheme', read: () => store.scheme(), apply: (v) => isSchemeMode(v) && store.setScheme(v) },
+    { key: 'lanesBySource', read: () => store.lanesBySource(), apply: (v) => (v === null || typeof v === 'boolean') && store.setLanesBySource(v) },
     { key: 'timezone', read: () => store.timezone(), apply: (v) => ZONES.includes(v as TimeZoneMode) && store.setTimezone(v as TimeZoneMode) },
     { key: 'lifecycle', read: () => store.alwaysShowLifecycle(), apply: (v) => typeof v === 'boolean' && store.setAlwaysShowLifecycle(v) },
     {

@@ -63,7 +63,7 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
     :host { display: flex; flex-direction: column; gap: 6px; }
     textarea { resize: vertical; font-family: inherit; }
     .row { display: flex; justify-content: flex-end; }
-    .small { margin: 0; font-size: 12px; }
+    .small { margin: 0; font-size: var(--fs-sm); }
     .err { margin: 0; color: var(--danger-text, var(--lvl-error)); }
     .foot { display: flex; justify-content: flex-end; }
   `,

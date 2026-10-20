@@ -62,7 +62,7 @@ import { CoverageNote } from './coverage-note';
       .list.body { padding: 0; }
       .count { width: 48px; flex: none; color: var(--text); }
       .type { flex: none; color: var(--danger-text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-      .frame { max-width: 320px; flex: none; font-size: 11px; }
+      .frame { max-width: 320px; flex: none; font-size: var(--fs-xs); }
       .group { border-bottom: 1px solid var(--border); }
       .head { border-bottom: 0; }
       .detail { padding: 0 12px 10px 38px; }

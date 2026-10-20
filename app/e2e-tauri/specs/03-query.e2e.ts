@@ -1,13 +1,20 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 import { gridTotal, tab, waitForEvents, waitForShell } from '../support/app';
 
+/** Shows the Query view: its tab once it is docked, else Ctrl+/ (the focused first run opens it on demand). */
+async function showQuery(): Promise<void> {
+  const query = tab('Query');
+  if (await query.isExisting()) await query.click();
+  else await browser.keys(['Control', '/']);
+}
+
 describe('real app: query language', () => {
   it('a filter query narrows the grid to errors; clearing it restores the total', async () => {
     await waitForShell();
     await waitForEvents();
     const all = await gridTotal();
 
-    await tab('Query').click();
+    await showQuery();
     const input = $('[role=combobox][aria-label="Query"]');
     await input.waitForDisplayed();
     await input.click();
@@ -32,7 +39,7 @@ describe('real app: query language', () => {
     for (const row of await rows.getElements())
       await expect(row).not.toHaveText(/\b(INF|WRN|DBG|VRB)\b/);
 
-    await tab('Query').click();
+    await showQuery();
     await $('imt-query-view .applied').$(`.//button[normalize-space()='Clear']`).click();
     await tab('Events').click();
     await browser.waitUntil(async () => (await gridTotal()) === all, {

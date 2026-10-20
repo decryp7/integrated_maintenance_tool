@@ -66,7 +66,7 @@ struct ProgressDetail {
 /// Reason of the files a cancelled import did not read (listed as unrecognised, re-imported on the next open).
 pub const NOT_IMPORTED: &str = "Not imported: the import was cancelled";
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressSnapshot {
     pub running: bool,
@@ -80,6 +80,23 @@ pub struct ProgressSnapshot {
     pub elapsed_ms: u64,
     /// Estimated time left from the bytes read so far; `None` until it can be estimated.
     pub eta_ms: Option<u64>,
+}
+
+impl ProgressSnapshot {
+    /// Nothing running (also what a progress that cannot be asked for reads as).
+    pub fn stopped() -> ProgressSnapshot {
+        ProgressSnapshot {
+            running: false,
+            done: 0,
+            total: 0,
+            cancelled: false,
+            bytes_done: 0,
+            bytes_total: 0,
+            current: None,
+            elapsed_ms: 0,
+            eta_ms: None,
+        }
+    }
 }
 
 /// Time left at the observed rate; `None` before anything was read or after the end.
@@ -126,7 +143,7 @@ impl ImportProgress {
         self.detail.lock().unwrap_or_else(|p| p.into_inner())
     }
 
-    fn start(&self, total: usize, bytes: u64) {
+    pub(crate) fn start(&self, total: usize, bytes: u64) {
         use std::sync::atomic::Ordering::SeqCst;
         self.cancel.store(false, SeqCst);
         self.done.store(0, SeqCst);
@@ -141,17 +158,17 @@ impl ImportProgress {
         self.running.store(true, SeqCst);
     }
 
-    fn reading(&self, path: &Path) {
+    pub(crate) fn reading(&self, path: &Path) {
         self.detail().current = Some(path.to_string_lossy().into_owned());
     }
 
-    fn file_done(&self, bytes: u64) {
+    pub(crate) fn file_done(&self, bytes: u64) {
         use std::sync::atomic::Ordering::SeqCst;
         self.bytes_done.fetch_add(bytes, SeqCst);
         self.done.fetch_add(1, SeqCst);
     }
 
-    fn finish(&self) {
+    pub(crate) fn finish(&self) {
         let mut d = self.detail();
         d.current = None;
         d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
@@ -159,7 +176,12 @@ impl ImportProgress {
         self.running.store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
-    fn is_cancelled(&self) -> bool {
+    /// The flag [`ImportProgress::cancel`] sets, for code that checks it in a loop.
+    pub fn cancel_flag(&self) -> &std::sync::atomic::AtomicBool {
+        &self.cancel
+    }
+
+    pub(crate) fn is_cancelled(&self) -> bool {
         self.cancel.load(std::sync::atomic::Ordering::SeqCst)
     }
 }
@@ -460,26 +482,7 @@ impl Workspace {
     }
 
     fn collect_files(&self, path: &Path, out: &mut Vec<PathBuf>) {
-        if path.is_file() {
-            out.push(path.to_path_buf());
-            return;
-        }
-        let mut stack = vec![path.to_path_buf()];
-        while let Some(dir) = stack.pop() {
-            let Ok(entries) = std::fs::read_dir(&dir) else { continue };
-            for entry in entries.flatten() {
-                let p = entry.path();
-                let rel = p.strip_prefix(path).unwrap_or(&p);
-                if self.profile.exclude.is_match(rel) || self.removed.contains(&p) {
-                    continue;
-                }
-                match entry.file_type() {
-                    Ok(t) if t.is_dir() => stack.push(p),
-                    Ok(t) if t.is_file() && self.profile.include.is_match(rel) => out.push(p),
-                    _ => {}
-                }
-            }
-        }
+        crate::ingest::collect_files(path, &self.profile, &self.removed, out);
     }
 
     /// Progress and cancellation of the current import.
@@ -626,28 +629,7 @@ impl Workspace {
     }
 
     fn pick_group_by(&self) -> Vec<String> {
-        let cfg = &self.profile.profile.instance;
-        if !cfg.key.is_empty() {
-            return cfg.key.clone();
-        }
-        let total = self.records.len().max(1);
-        let present: Vec<&FieldInfo> = cfg
-            .candidates
-            .iter()
-            .filter_map(|c| self.fields.iter().find(|f| &f.name == c))
-            .filter(|f| f.count * 2 >= total)
-            .collect();
-        // Constant fields (same value everywhere) do not tell instances apart.
-        let varying: Vec<String> = present.iter().filter(|f| f.distinct > 1).map(|f| f.name.clone()).collect();
-        if !varying.is_empty() {
-            return varying;
-        }
-        if self.sources.len() <= 1 {
-            if let Some(f) = present.first() {
-                return vec![f.name.clone()];
-            }
-        }
-        vec!["@source".into()]
+        crate::query::default_group_by(&self.profile.profile.instance, &self.fields, self.records.len(), self.sources.len())
     }
 
     fn source_name(&self, id: u32) -> &str {
@@ -968,7 +950,7 @@ fn import_bytes(
 
 /// Reads a file, retrying briefly when another process holds it open
 /// exclusively (common for logs being written on Windows).
-fn read_with_retry(path: &Path) -> std::result::Result<Vec<u8>, String> {
+pub(crate) fn read_with_retry(path: &Path) -> std::result::Result<Vec<u8>, String> {
     const ATTEMPTS: u32 = 4;
     let mut delay = std::time::Duration::from_millis(100);
     for attempt in 1..=ATTEMPTS {
@@ -986,7 +968,7 @@ fn read_with_retry(path: &Path) -> std::result::Result<Vec<u8>, String> {
 }
 
 /// Opens a file for reading, retrying briefly while another process holds it exclusively.
-fn open_with_retry(path: &Path) -> std::io::Result<std::fs::File> {
+pub(crate) fn open_with_retry(path: &Path) -> std::io::Result<std::fs::File> {
     const ATTEMPTS: u32 = 4;
     let mut delay = std::time::Duration::from_millis(100);
     let mut attempt = 1;
@@ -1003,7 +985,7 @@ fn open_with_retry(path: &Path) -> std::io::Result<std::fs::File> {
 }
 
 /// Sharing/lock violations (Windows error 32/33) or permission errors that may be transient.
-fn is_locked(e: &std::io::Error) -> bool {
+pub(crate) fn is_locked(e: &std::io::Error) -> bool {
     matches!(e.raw_os_error(), Some(32) | Some(33)) && cfg!(windows) || e.kind() == std::io::ErrorKind::ResourceBusy
 }
 
@@ -1013,7 +995,7 @@ fn source_file(path: &str) -> &str {
 }
 
 /// Path relative to the opened folder it came from, else `<parent dir>/<file name>`.
-fn display_name(path: &Path, roots: &[PathBuf]) -> String {
+pub(crate) fn display_name(path: &Path, roots: &[PathBuf]) -> String {
     roots
         .iter()
         .filter(|r| r.is_dir())

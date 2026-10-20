@@ -92,7 +92,7 @@ export const SYNC_START_TIMEOUT_MS = 5000;
     :host { display: flex; flex-direction: column; height: 100vh; background: var(--bg-1); color: var(--text); }
     .view { flex: 1; min-height: 0; display: flex; }
     .view > .imt-panel { flex: 1; }
-    .connecting { margin: auto; color: var(--muted); font-size: 13px; }
+    .connecting { margin: auto; color: var(--muted); font-size: var(--fs-md); }
     .toast {
       position: fixed; inset-inline-end: 12px; bottom: 12px; max-width: 420px; z-index: 100; display: flex; align-items: center; gap: 10px;
       padding: 8px 8px 8px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--lvl-error); box-shadow: var(--shadow);

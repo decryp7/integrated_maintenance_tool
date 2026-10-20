@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openApp } from './app';
+import { expandFields, openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { openQuery, runCommand } from './analysis-support';
 
@@ -83,6 +83,7 @@ test.describe('analysis views', () => {
   });
 
   test('Fields: the per-field Statistics… action opens field statistics for that field', async ({ page }) => {
+    await expandFields(page);
     const field = page.locator('imt-fields-panel .field-wrap').filter({ hasText: 'ElapsedMs' }).first();
     await field.hover();
     await field.getByRole('button', { name: 'Statistics for ElapsedMs' }).click();

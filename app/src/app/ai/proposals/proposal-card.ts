@@ -118,18 +118,18 @@ const APPLY: Record<Proposal['kind'], string> = {
     header { display: flex; align-items: center; gap: 8px; }
     .kind { font-weight: 600; }
     .badge.done { color: var(--ok); }
-    .block { display: block; background: var(--code-bg); padding: 6px 8px; border-radius: 4px; overflow-wrap: anywhere; font-size: 12px; }
-    .facts, .why, .example { margin: 0; font-size: 12px; color: var(--text-2); }
+    .block { display: block; background: var(--code-bg); padding: 6px 8px; border-radius: 4px; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+    .facts, .why, .example { margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
     .chips { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
-    .explain, .steps { margin: 0; padding-left: 16px; font-size: 12px; color: var(--text-2); }
-    .preview { border-collapse: collapse; font-size: 12px; width: 100%; }
+    .explain, .steps { margin: 0; padding-left: 16px; font-size: var(--fs-sm); color: var(--text-2); }
+    .preview { border-collapse: collapse; font-size: var(--fs-sm); width: 100%; }
     .preview th, .preview td { text-align: left; padding: 2px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
     .preview .msg { overflow-wrap: anywhere; }
     .before { text-decoration: line-through; color: var(--muted); }
-    details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
-    pre { max-height: 200px; overflow: auto; background: var(--code-bg); padding: 6px; border-radius: 4px; font-size: 11px; margin: 4px 0 0; }
-    .err { margin: 0; color: var(--danger-text, var(--lvl-error)); font-size: 12px; }
-    .ok { margin: 0; color: var(--ok); font-size: 12px; }
+    details summary { cursor: pointer; font-size: var(--fs-sm); color: var(--muted); }
+    pre { max-height: 200px; overflow: auto; background: var(--code-bg); padding: 6px; border-radius: 4px; font-size: var(--fs-xs); margin: 4px 0 0; }
+    .err { margin: 0; color: var(--danger-text, var(--lvl-error)); font-size: var(--fs-sm); }
+    .ok { margin: 0; color: var(--ok); font-size: var(--fs-sm); }
     .actions { display: flex; justify-content: flex-end; gap: 8px; }
   `,
 })

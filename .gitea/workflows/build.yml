@@ -181,7 +181,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/build-sidecars.test.mjs scripts/commit-lint.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/app-icon.test.mjs app/scripts/lint-styles.test.mjs scripts/commit-lint.test.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
 
@@ -391,11 +391,37 @@ jobs:
         shell: bash
         run: node e2e-tauri/scripts/fetch-msedgedriver.mjs
 
+      # Windows host: unpacking ~900 packages into a fresh node_modules took 7–14 min per job even with the npm cache
+      # on disk. A finished node_modules per package-lock.json lives in %USERPROFILE%\.imt-ci and is linked into the
+      # job's checkout (a directory junction); npm ci runs only when the lockfile changed. The last step removes the
+      # junction before the runner deletes the work folder, so its cleanup never walks into the shared copy (if a
+      # killed job skips that step, the worst case is one reinstall).
+      - name: Reuse node_modules for this lockfile (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          key=$(sha256sum app/package-lock.json | cut -c1-16)
+          base="$USERPROFILE/.imt-ci"
+          # <hash>/node_modules, not node_modules-<hash>: Node resolves packages from the junction's real path, so it
+          # must still contain a folder named node_modules (else e.g. @tauri-apps/cli cannot find its native binary).
+          cached="$base/node-cache/$key/node_modules"
+          mkdir -p "$base/node-cache/$key"
+          if [ ! -f "$cached/.complete" ]; then
+            rm -rf "$cached"
+            (cd app && npm ci)
+            mv app/node_modules "$cached"
+            touch "$cached/.complete"
+          fi
+          powershell.exe -NoProfile -Command "New-Item -ItemType Junction -Path '$(cygpath -w "$PWD/app/node_modules")' -Target '$(cygpath -w "$cached")' | Out-Null"
+          # Older lockfiles' copies go (and the first layout's node_modules-<hash> folders).
+          for old in "$base"/node-cache/*; do [ "$old" = "$base/node-cache/$key" ] || rm -rf "$old"; done
+          rm -rf "$base"/node_modules-*
+
       - name: Debug app binary
         working-directory: app
         shell: bash
         run: |
-          npm ci
+          [ -d node_modules ] || npm ci
           npm run e2e:tauri:build
 
       - name: Smoke tests (Windows)
@@ -448,6 +474,12 @@ jobs:
           name: tauri-smoke-${{ runner.os }}
           path: app/e2e-tauri/.artifacts
           if-no-files-found: ignore
+
+      # Unlink the shared node_modules (rmdir on a junction removes the link only, never the target's files).
+      - name: Unlink the shared node_modules (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: cmd
+        run: if exist app\node_modules rmdir app\node_modules
 
   # Installers only for v* tags, the nightly run and manual runs (workflow_dispatch), never for pushes or pull
   # requests: they are the slowest jobs and the Windows leg runs on a developer PC. A change that breaks the
@@ -567,6 +599,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+          # Installers use the size-optimised `dist` profile (thin LTO, one codegen unit, stripped); the sidecars match.
+          IMT_CARGO_PROFILE: dist
         run: |
           npm ci
           bundles='${{ matrix.bundles }}'
@@ -575,11 +609,11 @@ jobs:
             if [ "$RUNNER_OS" = macOS ]; then bundles="app,$bundles"; fi
             mkdir -p ../target
             node -e 'process.stdout.write(JSON.stringify({ bundle: { createUpdaterArtifacts: true }, plugins: { updater: { pubkey: process.env.TAURI_UPDATER_PUBKEY } } }))' > ../target/updater.conf.json
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json -- --profile dist
           else
             echo '::warning::No updater signing secrets: this build cannot update itself.'
             unset TAURI_UPDATER_PUBKEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json -- --profile dist
           fi
 
       - name: Collect installers
@@ -589,7 +623,7 @@ jobs:
           dir="${CARGO_TARGET_DIR:-target}"
           # Git bash on Windows: turn C:\... into a path find understands.
           if command -v cygpath >/dev/null; then dir="$(cygpath -u "$dir")"; fi
-          find "$dir/release/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
+          find "$dir/dist/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
           ls -la dist
 
       # Gitea Actions supports upload/download-artifact v3.

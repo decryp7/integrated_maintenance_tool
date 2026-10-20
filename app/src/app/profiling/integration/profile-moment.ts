@@ -42,14 +42,14 @@ import { MeasurementTag } from '../profiling-shared';
   `,
   styles: `
     :host { display: block; }
-    h3.sec { margin: 14px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .card { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); padding: 8px 10px; margin-bottom: 8px; }
     .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); }
     .spacer { flex: 1; }
     .muted { color: var(--muted); }
     .mono { font-family: var(--font-mono); }
     .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-    .top { margin: 6px 0 0; padding: 0; list-style: none; font-size: 11px; }
+    .top { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--fs-xs); }
     .top li { display: flex; gap: 8px; padding: 1px 0; }
     .pct { width: 48px; flex: none; text-align: right; }
   `,

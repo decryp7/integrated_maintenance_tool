@@ -94,9 +94,9 @@ const BUCKETS = ['auto', '10s', '30s', '1m', '5m', '15m', '1h'];
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .spacer { flex: 1; }
-    .range { font-size: 12px; color: var(--text-2); }
+    .range { font-size: var(--fs-sm); color: var(--text-2); }
     .builder { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg-2); }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     select[multiple] { height: auto; padding: 2px; }
     .b-actions { display: flex; gap: 6px; margin-left: auto; }
     .charts { flex: 1; min-height: 0; overflow: auto; }

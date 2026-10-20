@@ -54,7 +54,7 @@ export function worthSearching(r: RecordView): boolean {
     </span>
     @if (note(); as n) { <p class="err small" role="alert">{{ n }}</p> }
   </div>`,
-  styles: `.pad { padding: 0 14px 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .research { display: inline-flex; gap: 4px; } .err { margin: 0; color: var(--danger-text, var(--lvl-error)); } .small { font-size: 11px; } .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }`,
+  styles: `.pad { padding: 0 14px 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .research { display: inline-flex; gap: 4px; } .err { margin: 0; color: var(--danger-text, var(--lvl-error)); } .small { font-size: var(--fs-xs); } .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }`,
 })
 export class WebInspectorSection {
   protected readonly launcher = inject(BrowserLauncher);

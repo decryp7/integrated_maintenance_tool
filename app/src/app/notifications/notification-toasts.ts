@@ -30,6 +30,13 @@ import { titleWithCount } from './notifications-text';
             @if (t.primary; as a) {
               <button type="button" class="btn primary" (click)="act(t, a)" data-testid="notice-toast-primary">{{ actionLabel(a) }}</button>
             }
+            <!-- A question with three answers ("Update", "Later", "Skip this version") shows all of them. -->
+            @if (t.tertiary; as c) {
+              @if (t.secondary; as b) {
+                <button type="button" class="btn" (click)="act(t, b)" data-testid="notice-toast-secondary">{{ actionLabel(b) }}</button>
+              }
+              <button type="button" class="btn" (click)="act(t, c)" data-testid="notice-toast-tertiary">{{ actionLabel(c) }}</button>
+            }
             @if (t.id > 0) {
               <button type="button" class="btn ghost" (click)="show(t)" data-testid="notice-toast-show" i18n="@@notifications.toasts.show">Show in Notifications</button>
             }
@@ -42,7 +49,7 @@ import { titleWithCount } from './notifications-text';
   styles: `
     :host { position: fixed; left: 64px; bottom: 32px; z-index: 1900; pointer-events: none; }
     .stack { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-    .toast { pointer-events: auto; position: relative; width: 360px; max-width: calc(100vw - 96px); padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+    .toast { pointer-events: auto; position: relative; width: 360px; max-width: calc(100vw - 96px); padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-md); }
     .toast[data-severity='error'] { border-left-color: var(--lvl-error); }
     .toast[data-severity='warning'] { border-left-color: var(--lvl-warn); }
     .toast[data-severity='success'] { border-left-color: var(--ok); }
@@ -51,7 +58,7 @@ import { titleWithCount } from './notifications-text';
     .err { color: var(--danger-text, var(--lvl-error)); }
     .actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .x { all: unset; position: absolute; top: 6px; right: 8px; cursor: pointer; color: var(--text-2); line-height: 1; }
-    .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .x:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   `,
 })
 export class NotificationToasts {

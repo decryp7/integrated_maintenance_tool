@@ -42,7 +42,7 @@ import { NextSteps } from '../ui/next-steps';
     :host { display: contents; }
     .state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 28px 16px; color: var(--muted); text-align: center; }
     [role='alert'] .msg { color: var(--danger-text); }
-    .hint { max-width: 420px; font-size: 12px; color: var(--faint); }
+    .hint { max-width: 420px; font-size: var(--fs-sm); color: var(--faint); }
     .row { display: flex; gap: 8px; }
   `,
 })

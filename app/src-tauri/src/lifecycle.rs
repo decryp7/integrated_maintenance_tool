@@ -514,6 +514,10 @@ pub fn teardown_step(step: &str, limit: std::time::Duration, f: impl FnOnce() + 
 /// IMT exits (`RunEvent::Exit`): plugins stop, jobs are interrupted, the instance marker goes. Every step
 /// is bounded ([`teardown_step`]), so a stuck plugin or job cannot keep the process alive.
 pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    // Once only: the exit watchdog and the normal exit path may both get here.
+    if TEARDOWN_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
     use tauri::Manager;
     let a = app.clone();
     teardown_step("plugins", TEARDOWN_STEP_LIMIT, move || {
@@ -534,6 +538,61 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         life.end();
         log::info!("Teardown: instance marker removed");
     }
+}
+
+static TEARDOWN_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// How long the windows may take to close after an exit request before the exit watchdog ends the process.
+pub const EXIT_STALL_LIMIT: std::time::Duration = std::time::Duration::from_secs(8);
+
+/// Ends a quit that stalls while its windows close (seen with WebView2 in a non-interactive session, where
+/// closing the webview waited for its driver): after [`EXIT_STALL_LIMIT`] without reaching `RunEvent::Exit`,
+/// logs the windows still open, runs the bounded [`exit_teardown`] (which also removes the running marker, so
+/// the next start reports no crash) and ends the process with `code`. Armed once per process.
+pub fn arm_exit_watchdog<R: tauri::Runtime>(app: &tauri::AppHandle<R>, code: i32) {
+    arm_exit_watchdog_with(app, code, EXIT_STALL_LIMIT, |code| std::process::exit(code));
+}
+
+fn arm_exit_watchdog_with<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    code: i32,
+    limit: std::time::Duration,
+    end: impl FnOnce(i32) + Send + 'static,
+) {
+    static ARMED: AtomicBool = AtomicBool::new(false);
+    if ARMED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    let spawned = std::thread::Builder::new().name("imt-exit-watchdog".into()).spawn(move || {
+        std::thread::sleep(limit);
+        use tauri::Manager;
+        let open = || app.webview_windows().into_keys().collect::<Vec<_>>();
+        end_stalled_exit(&TEARDOWN_STARTED, open, || exit_teardown(&app), end, code, limit);
+    });
+    if let Err(e) = spawned {
+        log::warn!(Error = e.to_string().as_str(); "Could not start the exit watchdog");
+    }
+}
+
+/// The exit watchdog's decision once its time is up: nothing if the normal exit is already tearing down, else
+/// log the windows still open, tear down and end the process.
+fn end_stalled_exit(
+    teardown_started: &AtomicBool,
+    open_windows: impl FnOnce() -> Vec<String>,
+    teardown: impl FnOnce(),
+    end: impl FnOnce(i32),
+    code: i32,
+    waited: std::time::Duration,
+) -> bool {
+    if teardown_started.load(Ordering::SeqCst) {
+        return false; // the normal exit path is tearing down
+    }
+    let open = open_windows();
+    log::warn!(Windows = open.join(", ").as_str(), WaitedMs = waited.as_millis() as u64; "Exit stalled while closing windows; ending the process");
+    teardown();
+    end(code);
+    true
 }
 
 /// Logs a panic on any thread (UI, Tauri's async runtime, rayon pools, watcher and event-bus threads,
@@ -720,6 +779,38 @@ mod tests {
         assert!(started.elapsed() < std::time::Duration::from_secs(60));
     }
 
+    /// The exit watchdog tears down and ends a quit whose windows never close, once.
+    #[test]
+    fn a_stalled_exit_is_ended_after_teardown_unless_the_normal_exit_already_runs() {
+        use std::cell::RefCell;
+        let steps = RefCell::new(Vec::new());
+        let started = AtomicBool::new(false);
+        let ended = end_stalled_exit(
+            &started,
+            || vec!["main".to_string()],
+            || steps.borrow_mut().push("teardown".to_string()),
+            |code| steps.borrow_mut().push(format!("end {code}")),
+            3,
+            EXIT_STALL_LIMIT,
+        );
+        assert!(ended);
+        assert_eq!(
+            *steps.borrow(),
+            ["teardown", "end 3"],
+            "tear down first, then end with the requested code"
+        );
+        let started = AtomicBool::new(true);
+        let ended = end_stalled_exit(
+            &started,
+            || panic!("not asked"),
+            || panic!("no second teardown"),
+            |_| panic!("no end"),
+            0,
+            EXIT_STALL_LIMIT,
+        );
+        assert!(!ended, "the normal exit path owns the teardown");
+    }
+
     /// Closing the last window and exiting finish in bounded time with a live tail whose batch waits for
     /// the workspace (an import holds it), a job whose stop never returns, and the tray present.
     #[test]
@@ -741,7 +832,10 @@ mod tests {
         .unwrap()
         .json();
         block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
-        crate::tray::create(app.handle());
+        // GTK needs a display for a tray icon (the Linux CI test job has none; the smoke job does).
+        if cfg!(not(target_os = "linux")) || std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            crate::tray::create(app.handle());
+        }
         let (entered, running) = std::sync::mpsc::channel();
         let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Export, "Never stops").window("main");
         let controls = crate::jobs::Controls::cancel(|| std::thread::sleep(std::time::Duration::from_secs(30)));

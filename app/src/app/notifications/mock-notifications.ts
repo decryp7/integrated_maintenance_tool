@@ -10,6 +10,7 @@ export interface MockNewNotice {
   body?: string;
   primary?: NoticeAction | null;
   secondary?: NoticeAction | null;
+  tertiary?: NoticeAction | null;
   dedupeKey?: string | null;
   /** Posting the same key again changes nothing (the engine's `NewNotice::once`). */
   once?: boolean;
@@ -47,7 +48,7 @@ export class MockNotifications implements NotificationsBackend {
     let notice: Notice;
     if (existing && n.once) return existing;
     if (existing) {
-      notice = { ...existing, count: existing.count + 1, at: now, read: false, title: n.title, body: n.body ?? '', severity: n.severity, primary: n.primary ?? null, secondary: n.secondary ?? null };
+      notice = { ...existing, count: existing.count + 1, at: now, read: false, title: n.title, body: n.body ?? '', severity: n.severity, primary: n.primary ?? null, secondary: n.secondary ?? null, tertiary: n.tertiary ?? null };
       this.notices = [...this.notices.filter((m) => m !== existing), notice];
     } else {
       notice = {
@@ -62,6 +63,7 @@ export class MockNotifications implements NotificationsBackend {
         read: false,
         primary: n.primary ?? null,
         secondary: n.secondary ?? null,
+        tertiary: n.tertiary ?? null,
         link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null, ...n.link },
         dedupeKey: key,
         scope: n.scope ?? 'project',

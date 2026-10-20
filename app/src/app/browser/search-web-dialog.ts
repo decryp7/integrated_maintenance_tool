@@ -44,12 +44,12 @@ import { engineLabel, ENGINE_OPTIONS } from './browser-text';
     :host { display: flex; flex-direction: column; gap: 8px; }
     form { display: flex; flex-direction: column; gap: 6px; }
     p { margin: 0; }
-    .small { font-size: 12px; }
+    .small { font-size: var(--fs-sm); }
     .row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .spacer { flex: 1; }
     .err { color: var(--danger-text, var(--lvl-error)); }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
-    .link:focus-visible { outline: 2px solid var(--accent); }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })
 export class SearchWebDialog implements OnInit {

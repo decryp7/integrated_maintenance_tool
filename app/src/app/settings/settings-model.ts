@@ -3,6 +3,8 @@ import { FieldKind, SectionGroup, SettingField, SettingsSection, SettingValue } 
 
 /** Navigation id of the UI-only preferences (theme, density, ...), which are not engine settings. */
 export const GENERAL_ID = '@general';
+/** Navigation id of Appearance: theme, colour scheme, density (UI preferences, not engine settings). */
+export const APPEARANCE_ID = '@appearance';
 
 /** Navigation order and titles of the groups the engine assigns. */
 export const GROUPS: { id: SectionGroup; title: string }[] = [

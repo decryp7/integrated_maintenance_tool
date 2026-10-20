@@ -1,6 +1,7 @@
 import { inject, Injectable, InjectionToken } from '@angular/core';
 import type { ECharts, EChartsCoreOption } from 'echarts/core';
 import { WorkspaceStore } from '../../core/workspace.store';
+import { ThemeService } from '../../core/workspace/theme.service';
 import { Platform } from '../../core/platform';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
 import { errorMessage } from '../../tools/tool-errors';
@@ -88,11 +89,11 @@ export class VisualExportService {
   private readonly loadECharts = inject(VISUAL_ECHARTS);
   private readonly rasterizer = inject(SVG_RASTERIZER);
 
-  /** The theme the user sees (resolving "system"). */
+  private readonly themes = inject(ThemeService);
+
+  /** The colour scheme the user sees ("system" resolved). */
   theme(): SvgTheme {
-    const t = this.store.theme();
-    if (t === 'light' || t === 'dark') return t;
-    return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    return this.themes.scheme();
   }
 
   /** The option without animation or interaction (brushing, toolbox): a still image. */

@@ -139,12 +139,12 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
     ANALYSIS_STYLES,
     `
       .summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .total { font-size: 14px; color: var(--text); margin-right: 6px; }
+      .total { font-size: var(--fs-lg); color: var(--text); margin-right: 6px; }
       .head { margin-bottom: 4px; color: var(--text); }
-      .counts { display: flex; gap: 12px; font-size: 11px; margin-bottom: 6px; }
+      .counts { display: flex; gap: 12px; font-size: var(--fs-xs); margin-bottom: 6px; }
       .warn { color: var(--warn-text); }
       .errs { color: var(--danger-text); }
-      .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: 11px; }
+      .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: var(--fs-xs); }
       .pats .num { width: 36px; flex: none; }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .chips .chip { cursor: pointer; color: var(--chip-text); }

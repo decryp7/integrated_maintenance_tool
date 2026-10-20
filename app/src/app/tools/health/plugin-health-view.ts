@@ -101,25 +101,25 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
     .plugin { padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); display: flex; flex-direction: column; gap: 6px; }
     .plugin[data-status='quarantined'] { border-color: var(--lvl-error); }
     .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-    .id { margin-left: auto; font-size: 11px; }
+    .id { margin-left: auto; font-size: var(--fs-xs); }
     .st.active { color: var(--ok); }
     .st.quarantined { color: var(--danger-text); }
     .st.disabled { color: var(--muted); }
     .st.inactive { color: var(--warn-text); }
     .st.hung { color: var(--danger-text); }
     .plugin[data-status='inactive'] { border-color: var(--lvl-warn); }
-    .reason { font-size: 12px; color: var(--warn-text); }
-    .deps { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin: 0; font-size: 12px; }
+    .reason { font-size: var(--fs-sm); color: var(--warn-text); }
+    .deps { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin: 0; font-size: var(--fs-sm); }
     .deps dt { color: var(--muted); }
     .deps dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-    .warnings { margin: 0; padding-left: 18px; font-size: 12px; color: var(--warn-text); }
-    .events { border-collapse: collapse; font-size: 11.5px; }
+    .warnings { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--warn-text); }
+    .events { border-collapse: collapse; font-size: var(--fs-xs); }
     .events th, .events td { padding: 2px 8px; text-align: left; border-bottom: 1px solid var(--border); }
     .events .num { text-align: right; }
     .events tr.bad td { color: var(--warn-text); }
     .events-bar { display: flex; gap: 10px; align-items: center; }
-    .fail { font-size: 12px; color: var(--warn-text); }
-    .err { font-size: 11.5px; color: var(--text-2); white-space: pre-wrap; word-break: break-word; max-height: 72px; overflow: auto; }
+    .fail { font-size: var(--fs-sm); color: var(--warn-text); }
+    .err { font-size: var(--fs-xs); color: var(--text-2); white-space: pre-wrap; word-break: break-word; max-height: 72px; overflow: auto; }
     .actions { display: flex; gap: 8px; }
   `,
 })

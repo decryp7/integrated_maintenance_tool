@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { Citation } from '../ai.types';
-import { Block, Inline, parseMarkdown } from './markdown';
+import { Block, IncrementalMarkdown, Inline } from './markdown';
 
 /**
  * Renders a model answer from the safe Markdown subset with text bindings only (no `innerHTML`), with
@@ -40,14 +40,14 @@ import { Block, Inline, parseMarkdown } from './markdown';
     :host { display: block; line-height: 1.5; overflow-wrap: anywhere; }
     p { margin: 0 0 8px; }
     p:last-child { margin-bottom: 0; }
-    .h { font-weight: 600; color: var(--text-1, inherit); }
+    .h { font-weight: 600; color: var(--text); }
     ul, ol { margin: 0 0 8px; padding-left: 20px; }
     li { margin: 2px 0; }
     code { background: var(--code-bg); padding: 0 3px; border-radius: 3px; font-size: 0.92em; }
-    pre { background: var(--code-bg); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0 0 8px; font-size: 12px; white-space: pre; }
+    pre { background: var(--code-bg); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0 0 8px; font-size: var(--fs-sm); white-space: pre; }
     pre code { background: none; padding: 0; }
-    .cite { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-    .cite:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+    .cite { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+    .cite:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 2px; }
     .cite.q { color: inherit; background: var(--code-bg); padding: 0 3px; border-radius: 3px; text-decoration: none; border-bottom: 1px dashed var(--accent); }
     .cite.unverified { color: var(--muted); text-decoration-style: dotted; }
   `,
@@ -59,7 +59,9 @@ export class AiRichText {
   readonly query = output<string>();
   readonly link = output<{ url: string; title: string }>();
 
-  protected readonly blocks = computed(() => parseMarkdown(this.text(), this.citations()));
+  /** While an answer streams in, only its last open block is parsed again (closed blocks are kept). */
+  private readonly markdown = new IncrementalMarkdown();
+  protected readonly blocks = computed(() => this.markdown.parse(this.text(), this.citations()));
 
   protected asInlines(v: unknown): Inline[] {
     return v as Inline[];

@@ -96,11 +96,6 @@ describe('TimelinePanel as an additional timeline', () => {
 
   it('filters lanes and markers for itself only', async () => {
     const { fixture, store, views } = await render();
-    at(all<HTMLButtonElement>(fixture, '.lane-label'), 1).click();
-    await settle(fixture);
-    expect(views.config('timeline#2').groups).toEqual(['WEB02 · 300']);
-    expect(store.query().groups).toEqual([]);
-    expect(el(fixture, '.lane-label.filtered').title).toContain('remove the lane filter');
     const fatal = all<HTMLButtonElement>(fixture, '.legend .lg').find((b) => b.textContent?.includes('Fatal'))!;
     fatal.click();
     await settle(fixture);
@@ -109,6 +104,12 @@ describe('TimelinePanel as an additional timeline', () => {
     expect(fatal.getAttribute('aria-pressed')).toBe('true');
     fatal.click();
     expect(views.config('timeline#2').markers).toBeNull();
+    await settle(fixture);
+    at(all<HTMLButtonElement>(fixture, '.lane-label'), 1).click();
+    await settle(fixture);
+    expect(views.config('timeline#2').groups).toEqual(['WEB02 · 300']);
+    expect(store.query().groups).toEqual([]);
+    expect(el(fixture, '.lane-label.filtered').title).toContain('remove the lane filter');
   });
 
   it('renames from a double-click on the title; Escape cancels', async () => {

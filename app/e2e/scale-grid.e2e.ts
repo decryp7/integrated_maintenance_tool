@@ -47,7 +47,9 @@ test.describe('events grid with 50 million rows', () => {
       expect(first).toBeLessThanOrEqual(0 + 10);
     }).toPass();
     await expect(page.locator('imt-events-grid .row', { hasText: 'Synthetic event 10' }).first()).toBeAttached();
-    await page.mouse.wheel(0, 2600);
+    // About a hundred rows further (the row height comes from the theme and density).
+    const rowH = await page.locator('imt-events-grid').evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--row-h')));
+    await page.mouse.wheel(0, 110 * rowH - 260);
     await expect(page.locator('imt-events-grid .row', { hasText: 'Synthetic event 110' }).first()).toBeAttached();
   });
 

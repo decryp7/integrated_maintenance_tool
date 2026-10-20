@@ -54,9 +54,9 @@ describe('VisualExportService', () => {
     const svg = service.timelineSvg('light')!;
     expect(svg).toContain('<title>Timeline — ');
     expect(svg).toContain('reboot');
-    store.setTheme('dark');
+    store.setScheme('dark');
     expect(service.theme()).toBe('dark');
-    store.setTheme('light');
+    store.setScheme('light');
     expect(service.theme()).toBe('light');
     expect(await service.exportTimeline('svg')).toBe('/out/timeline.svg');
     expect(await service.exportTimeline('png')).toBe('/out/timeline.png');
@@ -68,7 +68,7 @@ describe('VisualExportService', () => {
     expect(service.timelineSvg()).toBeNull();
     expect(await service.exportTimeline('svg')).toBeNull();
     expect(TestBed.inject(WorkspaceStore).error()).toContain('There is no timeline to export.');
-    TestBed.inject(WorkspaceStore).setTheme('system');
+    TestBed.inject(WorkspaceStore).setScheme('system');
     expect(['light', 'dark']).toContain(service.theme());
   });
 

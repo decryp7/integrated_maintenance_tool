@@ -91,9 +91,9 @@ import { MonitorChartsStore } from './monitor-charts.store';
     .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     h2 { margin: 0; }
     .spacer { flex: 1; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .seg, .legend { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-    .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 11px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 11px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-sm); cursor: pointer; white-space: nowrap; }
     .chip:hover { background: var(--bg-hover); }
     .chip[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
     .key[aria-pressed='false'] { opacity: 0.55; text-decoration: line-through; }
@@ -103,13 +103,13 @@ import { MonitorChartsStore } from './monitor-charts.store';
     .follow[aria-pressed='false'] { border-color: var(--warn-text); color: var(--text); background: var(--bg-3); }
     .swatch { flex: none; }
     .group { display: flex; flex-direction: column; gap: 6px; }
-    .group-title { margin: 0; font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .group-title { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
     .card { margin: 0; padding: 6px 8px 2px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-2); display: flex; flex-direction: column; min-width: 0; }
     figcaption { display: flex; align-items: baseline; gap: 6px; }
     .title { font-weight: 600; }
     .chart { height: 160px; }
-    .none { height: 160px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .none { height: 160px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-sm); }
     .state { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 120px; padding: 12px; border: 1px dashed var(--border-3); border-radius: 8px; text-align: center; flex-wrap: wrap; }
     .err { color: var(--danger-text); border-style: solid; }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }

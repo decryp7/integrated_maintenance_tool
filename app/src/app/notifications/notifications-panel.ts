@@ -51,11 +51,17 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <p class="body">{{ n.body }}</p>
             }
             <div class="actions">
+              @if (store.localAction(n.id); as label) {
+                <button type="button" class="btn small primary" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
+              }
               @if (n.primary; as a) {
                 <button type="button" class="btn small primary" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
               }
               @if (n.secondary; as a) {
                 <button type="button" class="btn small" (click)="act(n, a)">{{ actionLabel(a) }}</button>
+              }
+              @if (n.tertiary; as a) {
+                <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-tertiary-' + n.id">{{ actionLabel(a) }}</button>
               }
               @if (!n.read) {
                 <button type="button" class="btn ghost small" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" i18n="@@notifications.panel.markRead">Mark read</button>
@@ -68,20 +74,20 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: 12.5px; }
+    :host { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: var(--fs-md); }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .spacer, .grow { flex: 1; }
-    .chip { border: 1px solid var(--border-2); background: transparent; color: var(--text-2); border-radius: 10px; padding: 1px 8px; font-size: 11px; cursor: pointer; }
+    .chip { border: 1px solid var(--border-2); background: transparent; color: var(--text-2); border-radius: 10px; padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
     .chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-    .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .err { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--lvl-error); margin: 0; }
-    h3 { margin: 8px 0 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+    h3 { margin: 8px 0 2px; font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
     .notice { border: 1px solid var(--border); border-left: 3px solid var(--border-2); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .notice[data-severity='error'] { border-left-color: var(--lvl-error); }
     .notice[data-severity='warning'] { border-left-color: var(--lvl-warn); }
     .notice[data-severity='success'] { border-left-color: var(--ok); }
-    .notice.focus { outline: 2px solid var(--accent); }
+    .notice.focus { outline: 2px solid var(--focus-ring); }
     .row { display: flex; align-items: center; gap: 6px; min-width: 0; }
     .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
     .unread .dot { background: var(--accent); }
@@ -91,7 +97,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     .body { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
     .empty { margin: 12px 0; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,
 })

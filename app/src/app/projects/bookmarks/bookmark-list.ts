@@ -41,7 +41,7 @@ import { BookmarkStore } from './bookmark.store';
     .item { padding: 6px 8px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); display: flex; flex-direction: column; gap: 6px; }
     .top { display: flex; align-items: center; gap: 8px; }
     .label { flex: 1; min-width: 0; }
-    .when { font-size: 11px; white-space: nowrap; }
+    .when { font-size: var(--fs-xs); white-space: nowrap; }
     .note { width: 100%; box-sizing: border-box; }
     p { margin: 0; }
   `,

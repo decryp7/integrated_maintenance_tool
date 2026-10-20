@@ -100,10 +100,10 @@ const PREVIEW_MS = 250;
   styles: `
     ${DIALOG_FORM_STYLES}
     .group { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    legend { font-size: 11px; color: var(--muted); padding: 0 4px; }
+    legend { font-size: var(--fs-xs); color: var(--muted); padding: 0 4px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; }
-    .check { font-size: 12px; }
-    .desc { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .check { font-size: var(--fs-sm); }
+    .desc { color: var(--muted); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .inline { display: flex; gap: 14px; flex-wrap: wrap; }
     .rule { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
     .rule .grow { flex: 2; }

@@ -320,6 +320,11 @@ impl AiCore {
         crate::sync::read(&self.settings).clone()
     }
 
+    /// The folder of `ai.json` (none in tests without one).
+    pub(super) fn config_dir(&self) -> Option<&Path> {
+        self.dir.as_deref()
+    }
+
     fn settings_path(&self) -> Option<PathBuf> {
         self.dir.as_ref().map(|d| d.join(SETTINGS_FILE))
     }
@@ -332,7 +337,7 @@ impl AiCore {
             .unwrap_or_else(|| self.default_models_dir.clone())
     }
 
-    fn store(&self) -> ModelStore {
+    pub(super) fn store(&self) -> ModelStore {
         ModelStore::new(self.models_dir())
     }
 
@@ -344,7 +349,7 @@ impl AiCore {
         self.deps.probe.probe()
     }
 
-    fn installed_files(&self) -> Vec<String> {
+    pub(super) fn installed_files(&self) -> Vec<String> {
         self.store().list().into_iter().map(|m| m.file_name).collect()
     }
 
@@ -559,7 +564,7 @@ impl AiCore {
         }
     }
 
-    fn with_setup<T>(&self, f: impl FnOnce(&Setup<'_>) -> imt_ai::Result<T>) -> AiResult<T> {
+    pub(super) fn with_setup<T>(&self, f: impl FnOnce(&Setup<'_>) -> imt_ai::Result<T>) -> AiResult<T> {
         let settings = self.settings();
         let source = (self.deps.source)(&settings)?;
         let store = self.store();
@@ -713,7 +718,7 @@ impl AiCore {
 
     // ---- settings ----
 
-    fn update_settings(&self, f: impl FnOnce(&mut AiSettings)) -> AiResult<AiSettings> {
+    pub(super) fn update_settings(&self, f: impl FnOnce(&mut AiSettings)) -> AiResult<AiSettings> {
         let mut s = self.settings();
         f(&mut s);
         let s = s.clamp();

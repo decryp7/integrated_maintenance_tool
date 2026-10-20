@@ -138,14 +138,14 @@ interface EventVm {
       .lg.hl { border-color: var(--accent); background: var(--accent-soft); }
       .range { display: flex; gap: 6px; align-items: center; }
       .range input { width: 90px; }
-      .axis { position: relative; height: 18px; font-size: 10px; color: var(--faint); margin: 0 12px; }
+      .axis { position: relative; height: 18px; font-size: var(--fs-2xs); color: var(--faint); margin: 0 12px; }
       .axis span { position: absolute; top: 2px; }
       .axis .end { right: 0; }
       .lanes { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 8px; user-select: none; cursor: crosshair; }
       .lane { display: flex; height: ${LANE_H}px; border-bottom: 1px solid var(--border); }
       .label { width: ${LABEL_W}px; flex: none; display: flex; align-items: center; gap: 6px; border: 0; border-left: 2px solid transparent; background: transparent; color: var(--text); font: inherit; text-align: left; padding: 0 8px; cursor: pointer; min-width: 0; }
       .label.on { border-left-color: var(--accent); background: var(--bg-active); }
-      .label:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .label:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
       .plot { position: relative; flex: 1; min-width: 0; }
       .plot svg[role='img'] { position: absolute; inset: 3px 0; width: 100%; height: ${LANE_H - 6}px; }
       .plot path { fill: var(--s1); opacity: 0.75; }

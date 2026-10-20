@@ -7,9 +7,12 @@ import {
   AI_RUNTIME_EVENT,
   AI_SETUP_EVENT,
   AI_STATUS_EVENT,
+  AI_UPDATES_EVENT,
   AiRuntimeEvent,
   AiRuntimeOverview,
   AiStatus,
+  AiUpdateKind,
+  AiUpdatesStatus,
   ChatContext,
   ChatEnvelope,
   ManualDownload,
@@ -109,6 +112,21 @@ export class TauriAiBackend extends AiBackend {
   async runtimeAddArchives(id: string, paths: string[]) {
     this.runtimeJob = await this.run<number>('ai_runtime_add_archives', { id, paths });
   }
+  updatesStatus() {
+    return this.run<AiUpdatesStatus>('ai_updates_status');
+  }
+  updatesCheck(kind?: AiUpdateKind | null) {
+    return this.run<AiUpdatesStatus>('ai_updates_check', { kind: kind ?? null });
+  }
+  updatesApply(key: string) {
+    return this.run<AiUpdatesStatus>('ai_updates_apply', { key });
+  }
+  updatesSkip(key: string) {
+    return this.run<AiUpdatesStatus>('ai_updates_skip', { key });
+  }
+  updatesLater(key: string) {
+    return this.run<AiUpdatesStatus>('ai_updates_later', { key });
+  }
   manualDownload(kind: ManualKind, id: string) {
     return this.run<ManualDownload>('ai_manual_download', { kind, id });
   }
@@ -195,6 +213,12 @@ export class TauriAiBackend extends AiBackend {
     return this.listen(AI_STATUS_EVENT, (p) => {
       if (isObject(p) && typeof p['state'] === 'string' && typeof p['available'] === 'boolean')
         handler(p as unknown as AiStatus);
+    });
+  }
+  onUpdates(handler: (s: AiUpdatesStatus) => void) {
+    return this.listen(AI_UPDATES_EVENT, (p) => {
+      if (isObject(p) && Array.isArray(p['kinds']) && typeof p['intervalHours'] === 'number')
+        handler(p as unknown as AiUpdatesStatus);
     });
   }
   onChat(handler: (e: ChatEventEnvelope) => void) {

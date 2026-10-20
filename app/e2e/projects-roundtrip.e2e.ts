@@ -41,7 +41,8 @@ test.describe('projects', () => {
 
     // A clean project starts a new one without asking.
     await runCommand(page, 'New project');
-    await expect(search).toHaveValue('');
+    // A new project is an empty workspace: the welcome page, without the filter bar.
+    await expect(search).toHaveCount(0);
     await expect(title).toContainText('Untitled');
     await expect(unsaved).toHaveCount(0);
   });
@@ -66,7 +67,7 @@ test.describe('projects', () => {
 
     await runCommand(page, 'New project');
     await unsaved.getByRole('button', { name: 'Discard' }).click();
-    await expect(search).toHaveValue('');
+    await expect(search).toHaveCount(0);
     await expect(page.locator('imt-status-bar')).toContainText('0 sources');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toHaveCount(0);
   });
@@ -78,7 +79,7 @@ test.describe('projects', () => {
     await runCommand(page, 'New project');
     await page.getByRole('dialog', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Saved Untitled' })).toBeVisible();
-    await expect(search).toHaveValue('');
+    await expect(search).toHaveCount(0);
     await runCommand(page, 'Open recent project');
     await expect(page.getByRole('dialog', { name: 'Recent projects' }).getByRole('listitem')).toHaveCount(1);
   });

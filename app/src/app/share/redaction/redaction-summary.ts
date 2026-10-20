@@ -28,10 +28,10 @@ import { formatCount } from '../../core/format';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+    :host { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
     .line { margin: 0; color: var(--text-2); }
     .sample { display: grid; gap: 2px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); }
-    .before, .after { font-size: 11px; white-space: pre-wrap; word-break: break-word; max-height: 3.2em; overflow: hidden; }
+    .before, .after { font-size: var(--fs-xs); white-space: pre-wrap; word-break: break-word; max-height: 3.2em; overflow: hidden; }
     .before { color: var(--muted); text-decoration: line-through; }
     .after { color: var(--text); }
   `,

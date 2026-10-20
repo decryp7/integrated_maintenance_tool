@@ -42,7 +42,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
   CorrelationId".
 - **Source colours**: a thin stripe at the start of each row tells which file the line came from, with
   matching dots in the Explorer, the inspector and the timeline lane labels; hover one for the file
-  name. *View ▸ Source colours* (or Settings ▸ General) colours by file, by instance (the timeline
+  name. *View ▸ Source colours* (or Settings ▸ Appearance) colours by file, by instance (the timeline
   lane key) or switches it off; the choice is remembered. The four colours are checked for
   colour-vision deficiency (protanopia, deuteranopia, tritanopia) and for 3:1 contrast on every row
   and panel background in both themes; past four, they repeat dashed and then dotted. A file keeps
@@ -409,12 +409,27 @@ release builds. IMT's own shortcuts and `Ctrl`+wheel zoom on the timeline still 
 menus and bars do not select like text; log messages, inspector values and fields do. Images and
 links cannot be dragged out of the window.
 
-The default layout is minimal: the timeline, and the events grid with the query bar. The inspector
-waits at the right edge and slides out when you select an event (pin it to keep it docked); views for
-what you just opened (a registry export, a profile capture, a diagnostics report) open by themselves.
-Everything else is one click away on the **activity bar** on the left: Explorer, Search, Timeline,
-*Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*,
-*AI*, *Tools ▸* and the profile editor. Plugins can add their own buttons to it.
+The first run is focused. With nothing open, the window shows only the welcome page (open a folder or files,
+or try the demo) and the Explorer; the filter bar and the Fields section appear once data is open. After
+opening data, the default layout is the timeline over the events grid. The inspector waits at the right edge
+and slides out when you select an event (pin it to keep it docked); views for what you just opened (a registry
+export, a profile capture, a diagnostics report) open by themselves. The Overview, the query bar and Metrics
+stay one click away: the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
+errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens the Overview),
+`Ctrl/⌘+/` opens the query bar, and the **activity bar** on the left offers Explorer, Search, Timeline,
+*Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*, *AI*,
+*Tools ▸* and the profile editor. Buttons that need data (Search, Timeline, Analysis, Metrics, Live tail) appear
+once data is open; everything stays reachable from the View menu. Plugins can add their own buttons.
+
+The filter bar is one row: search, level chips, the time range, *+ Add filter* and **View options** (group by,
+*Marked only*, *Always show start / stop*); field and instance filters appear as chips on a second row while
+there are any. The timeline legend lists only the marker kinds in the data, on one line, with *+N more* for the
+rest. The Fields section of the sidebar starts collapsed and remembers whether you opened it. After opening a
+folder of several files, *Set up analysis…* is offered as a message in Notifications (the bell), not as a banner.
+
+*View ▸ Layout* switches between **Focused** (the default) and **Full**, where the query bar is part of the
+default layout and the Overview opens after every import, as in earlier versions. The switch applies to new
+layouts (*Reset layout*, a new window); a layout you saved or arranged is never changed by it.
 
 ## Windows, tray and notifications
 
@@ -459,11 +474,36 @@ their pure logic but have not been checked on every desktop environment.
 - **Accessibility.** The Playwright suite runs axe against WCAG 2.0, 2.1 and 2.2 level A and AA and
   fails on serious violations; severity and state are never shown by colour alone.
 
-## Light and dark themes
+## Themes, colour schemes and density
 
-![The workspace in the light theme](screenshots/light-theme.png)
+![The workspace in the light colour scheme of the Calm theme](screenshots/light-theme.png)
 
-Theme follows the system by default, or choose **Theme: dark/light** in the command palette.
+![The workspace in the Console theme, dark](screenshots/theme-console.png)
+
+Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses how IMT looks:
+
+- **Theme.** *Calm* (the default) is quiet and neutral: graphite surfaces, one blue accent, 1 px structure, and
+  colour only where the data is. *Console* has soft cards on a tinted canvas, a violet accent and richer severity
+  colour: findings as chips, lanes filled in their source colour, labelled run pills, a band behind each crash and
+  a floating summary while you brush a range. Themes differ in shape as well as colour (Inter + JetBrains Mono for
+  Calm, Geist + Geist Mono for Console; the fonts are bundled).
+- **Colour scheme.** Light, dark, or *System* (the default), which follows the operating system as it changes.
+- **Density.** *Comfortable* or *Compact* row and lane heights, in every theme.
+- **Colour lanes by source.** Draws each lane's volume in its source colour instead of neutral grey; each theme
+  has its own default, and *Use the theme's default* goes back to it.
+
+The choice is yours (kept for your user, not in projects) and applies at once in every window, pop-outs
+included. Every theme and scheme is checked: all text has at least 4.5:1 contrast on the surfaces it is drawn
+on, markers and source colours at least 3:1, the source and chart palettes stay distinct under protanopia,
+deuteranopia and tritanopia, axe (WCAG 2.2 AA) runs on the main window, and screenshot tests guard the main
+window and the timeline. With *reduce motion* set in the operating system there are no transitions.
+
+**The timeline** takes its look from the theme: lanes show their volume as an area (on a square-root scale shared
+by all lanes, so volumes compare) or, for a quiet lane, one tick per busy moment; markers differ by shape (crash,
+error, warning, exception, start, stop) and have a ring so they stay clear of what they overlap; the histogram
+stacks errors and warnings on its baseline so a single error still shows, with its scale in the label column.
+**Overlapping runs** on a lane (several views open at once, nested "X started" / "X ended") are stacked on labelled
+sub-tracks below the lane's markers, so none hides another; the lane grows by one thin row per sub-track.
 
 ## Robust by design
 
@@ -505,9 +545,10 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
   guided tour of the timeline, grid, query bar, Moment view, markers and overview.
-- **Overview after every import:** a health check lists crashes, error spikes, exceptions, unread lines,
-  files that could not be opened (with the reason) and plugins with problems, each with a button to jump
-  to the time, show the events or fix the cause. It can be turned off.
+- **Overview:** a health check lists crashes, error spikes, exceptions, unread lines, files that could not
+  be opened (with the reason) and plugins with problems, each with a button to jump to the time, show the
+  events or fix the cause. Its headline is on the timeline header; in the Full layout the Overview opens after
+  every import (which can be turned off).
 - **Import progress with Cancel:** files, bytes, the current file and the time left; a cancelled import
   says clearly what was not read, and *Re-import all* loads the rest.
 - **Undo and redo** for user edits; changes to the profile are undone by saving the previous version

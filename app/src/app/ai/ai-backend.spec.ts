@@ -10,7 +10,7 @@ import {
   toAiError,
 } from './ai-backend';
 import { TauriAiBackend } from './ai-backend-tauri';
-import { AI_CHAT_EVENT, AI_RUNTIME_EVENT, AI_SETUP_EVENT, AI_STATUS_EVENT } from './ai.types';
+import { AI_CHAT_EVENT, AI_RUNTIME_EVENT, AI_SETUP_EVENT, AI_STATUS_EVENT, AI_UPDATES_EVENT } from './ai.types';
 
 describe('toAiError', () => {
   it('keeps AiErrors, reads {code, message} payloads and wraps anything else', () => {
@@ -118,6 +118,12 @@ describe('TauriAiBackend', () => {
       [() => b.runtimes(), 'ai_runtimes', undefined],
       [() => b.runtimeDelete('b1', 'cpu'), 'ai_runtime_delete', { tag: 'b1', id: 'cpu' }],
       [() => b.runtimeChoose('auto'), 'ai_runtime_choose', { id: 'auto' }],
+      [() => b.updatesStatus(), 'ai_updates_status', undefined],
+      [() => b.updatesCheck(), 'ai_updates_check', { kind: null }],
+      [() => b.updatesCheck('model'), 'ai_updates_check', { kind: 'model' }],
+      [() => b.updatesApply('runtime:cpu@b2'), 'ai_updates_apply', { key: 'runtime:cpu@b2' }],
+      [() => b.updatesSkip('runtime:cpu@b2'), 'ai_updates_skip', { key: 'runtime:cpu@b2' }],
+      [() => b.updatesLater('runtime:cpu@b2'), 'ai_updates_later', { key: 'runtime:cpu@b2' }],
       [() => b.manualDownload('model', 'm'), 'ai_manual_download', { kind: 'model', id: 'm' }],
       [
         () => b.openManualDownload('runtime', 'cpu', 1),
@@ -207,5 +213,21 @@ describe('TauriAiBackend', () => {
     handlers.get(AI_CHAT_EVENT)!({ sessionId: 'c', type: 'delta', seq: 1, text: 'x' });
     handlers.get(AI_RUNTIME_EVENT)!({ stage: 'finishing', id: 'cpu' });
     expect([setup, status, chat, runtime].map((f) => f.mock.calls.length)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('listens to the update status and drops malformed payloads', async () => {
+    let handler: ((p: unknown) => void) | undefined;
+    const listen = vi.fn(async (event: string, h: (p: unknown) => void) => {
+      expect(event).toBe(AI_UPDATES_EVENT);
+      handler = h;
+      return () => undefined;
+    });
+    const b = new TauriAiBackend(invoke as never, listen);
+    const got = vi.fn();
+    await b.onUpdates(got);
+    for (const bad of [null, [], { kinds: [] }, { intervalHours: 24 }, { kinds: 'x', intervalHours: 1 }]) handler!(bad);
+    expect(got).not.toHaveBeenCalled();
+    handler!({ kinds: [], intervalHours: 24 });
+    expect(got).toHaveBeenCalledOnce();
   });
 });

@@ -78,9 +78,9 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     .field { display: flex; flex-direction: column; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
-    label, legend { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
+    label, legend { font-size: var(--fs-sm); color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
     /* Stacked options stay 24px apart (WCAG 2.5.8 spacing for the 13px radios). */
-    .opt { color: var(--text-2); font-size: 13px; min-height: 24px; }
+    .opt { color: var(--text-2); font-size: var(--fs-md); min-height: 24px; }
     .count { margin: 0; color: var(--text-2); }
     .err { margin: 0; color: var(--danger-text); }
     .footer { display: flex; justify-content: flex-end; gap: 8px; }

@@ -1,9 +1,10 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { CHANGE_KINDS, ChangeKind, DiffRow, SnapshotFile, ValueDto } from '../core/config-diff.types';
 import { makeGeometry, scrollToTop, visibleWindow } from '../grid/scroll-map';
 import { baseName } from '../tools/tool-errors';
 import { ConfigDiffStore } from './config-diff.store';
+import { ActiveDescendantNavigation } from '../shared/list-navigation';
 
 /** Height of one diff row, px. */
 export const ROW_H = 24;
@@ -252,23 +253,23 @@ export function valueText(v: ValueDto | null): string {
     .btn[aria-pressed='true'] { background: var(--bg-sel); border-color: var(--accent); }
     .pick { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
     .side { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 180px; }
-    .lbl { font-size: 11.5px; color: var(--text-2); }
-    .opts summary { cursor: pointer; color: var(--text-2); font-size: 12px; }
+    .lbl { font-size: var(--fs-xs); color: var(--text-2); }
+    .opts summary { cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); }
     .ign { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
     .ign textarea { width: 100%; box-sizing: border-box; }
     .row-opts { display: flex; gap: 12px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
-    .check { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
+    .check { display: inline-flex; gap: 4px; align-items: center; font-size: var(--fs-sm); }
     .alert { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border: 1px solid var(--lvl-error); border-radius: 6px; background: var(--bg-2); color: var(--text); }
-    .notice { font-size: 12px; color: var(--text-2); }
+    .notice { font-size: var(--fs-sm); color: var(--text-2); }
     .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .kinds { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .count { color: var(--text-2); }
     .search { min-width: 200px; flex: 1; }
-    .sides { display: flex; gap: 16px; font-size: 11.5px; flex-wrap: wrap; }
+    .sides { display: flex; gap: 16px; font-size: var(--fs-xs); flex-wrap: wrap; }
     .warn { color: var(--warn-text); }
     .tree-box { position: relative; flex: 1; min-height: 160px; display: flex; }
-    .tree { position: relative; flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-0); font-family: var(--font-mono); font-size: 12px; }
-    .tree:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .tree { position: relative; flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-0); font-family: var(--font-mono); font-size: var(--fs-sm); }
+    .tree:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .sizer { position: relative; min-width: 100%; }
     .r { position: absolute; left: 0; right: 0; height: ${ROW_H}px; display: grid; grid-template-columns: 1fr 1fr; cursor: default; color: var(--text); }
     .unified .r { grid-template-columns: 1fr; }
@@ -287,19 +288,19 @@ export function valueText(v: ValueDto | null): string {
     .old { text-decoration: line-through; color: var(--text-2); }
     .arrow { color: var(--text-2); }
     .mark { width: 10px; text-align: center; font-weight: 600; }
-    .tog { width: 16px; height: 16px; padding: 0; border: none; background: none; color: var(--text-2); cursor: pointer; flex: none; font-size: 11px; line-height: 16px; }
+    .tog { width: 16px; height: 16px; padding: 0; border: none; background: none; color: var(--text-2); cursor: pointer; flex: none; font-size: var(--fs-xs); line-height: 16px; }
     .loading .c { color: var(--text-2); padding-left: 8px; }
     .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; font-family: var(--font-sans); pointer-events: none; }
     .details { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
-    .d-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-    .files { border-collapse: collapse; font-size: 12px; width: 100%; }
+    .d-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+    .files { border-collapse: collapse; font-size: var(--fs-sm); width: 100%; }
     .files th, .files td { padding: 3px 8px; text-align: left; border-bottom: 1px solid var(--border); }
     .files .num { text-align: right; }
     .st.changed { color: var(--warn-text); }
     .st.unreadable, .st.removed { color: var(--danger-text); }
-    .err { font-size: 11px; }
+    .err { font-size: var(--fs-xs); }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-    .formats { font-size: 11.5px; }
+    .formats { font-size: var(--fs-xs); }
   `,
 })
 export class ConfigDiffView {
@@ -317,6 +318,11 @@ export class ConfigDiffView {
   private readonly scrollTop = signal(0);
   private readonly viewportH = signal(400);
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Moves the selected row (CDK ActiveDescendantKeyManager: focus stays on the tree, which names the row). */
+  private readonly nav = new ActiveDescendantNavigation(this.store.total, inject(Injector), {
+    homeAndEnd: true,
+    pageDelta: () => Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1),
+  });
 
   protected readonly formatNames = computed(() => this.store.formats().map((f) => f.name).join(', '));
   protected readonly geometry = computed(() => makeGeometry(this.store.total(), ROW_H, this.viewportH()));
@@ -400,22 +406,18 @@ export class ConfigDiffView {
     let next: number;
     switch (e.key) {
       case 'ArrowDown':
-        next = cur === null ? 0 : Math.min(total - 1, cur + 1);
-        break;
       case 'ArrowUp':
-        next = cur === null ? 0 : Math.max(0, cur - 1);
-        break;
       case 'Home':
-        next = 0;
-        break;
       case 'End':
-        next = total - 1;
-        break;
       case 'PageDown':
-        next = Math.min(total - 1, (cur ?? 0) + Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1));
-        break;
       case 'PageUp':
-        next = Math.max(0, (cur ?? 0) - Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1));
+        // Nothing selected yet: the arrows start at the first row.
+        if (cur === null && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) next = 0;
+        else {
+          this.nav.sync(cur ?? 0);
+          if (!this.nav.handle(e)) return;
+          next = this.nav.active();
+        }
         break;
       case 'ArrowRight':
       case 'ArrowLeft':

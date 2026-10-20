@@ -1,3 +1,4 @@
+import { FIELDS_OPEN_KEY } from './sidebar-sections';
 import { Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
@@ -66,9 +67,11 @@ describe('TitleBar', () => {
     await choose(fixture, 'View', 'Inspector');
     expect(dock.calls).toContain('toggle:inspector');
     await choose(fixture, 'View', 'Theme', 'Light');
-    expect(store.theme()).toBe('light');
+    expect(store.scheme()).toBe('light');
     await choose(fixture, 'View', 'Theme', 'System');
-    expect(store.theme()).toBe('system');
+    expect(store.scheme()).toBe('system');
+    await choose(fixture, 'View', 'Theme', 'Console');
+    expect(store.theme()).toBe('console');
     await choose(fixture, 'Analyze', 'Marked events only');
     expect(store.markedOnly()).toBe(true);
     await choose(fixture, 'Analyze', 'Clear all filters');
@@ -102,6 +105,10 @@ describe('TitleBar', () => {
     await settle(fixture);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: '/' }));
     expect(store.focusSearchNonce()).toBe(1);
+    // Ctrl/⌘+/ is the query bar's shortcut, not the search box's.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', metaKey: true }));
+    expect(store.focusSearchNonce()).toBe(1);
     const input = document.createElement('input');
     document.body.appendChild(input);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
@@ -118,7 +125,7 @@ describe('TitleBar', () => {
     const view = document.querySelector<HTMLElement>('[role=menu][data-menu=View]')!;
     const top = [...view.children].filter((e) => e.matches('[role=menuitemcheckbox], [role=menuitem]'));
     const label = (e: Element) => (e.querySelector('.label')?.textContent ?? '').trim();
-    expect(top.map(label)).toEqual(['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Profile editor', 'Plugins', 'Other windows…', 'Theme', 'Source colours']);
+    expect(top.map(label)).toEqual(['Explorer', 'Fields', 'Inspector', 'Timeline', 'Events', 'Metrics', 'Profile editor', 'Plugins', 'Other windows…', 'Theme', 'Layout', 'Source colours']);
     expect(menuItem('Timeline').getAttribute('aria-checked')).toBe('true');
     expect(menuItem('Events').getAttribute('aria-checked')).toBe('false');
     expect(menuItem('Plugins').getAttribute('aria-haspopup')).toBe('menu');
@@ -173,7 +180,7 @@ describe('TitleBar', () => {
     chosen('view:metrics');
     expect(dock.calls).toContain('toggle:metrics');
     // Unchanged menus are not sent again; a change is.
-    TestBed.inject(WorkspaceStore).setTheme('dark');
+    TestBed.inject(WorkspaceStore).setScheme('dark');
     await settle(fixture);
     expect(sent.length).toBe(2);
     await settle(fixture);
@@ -286,6 +293,9 @@ describe('StatusBar', () => {
 });
 
 describe('Sidebar', () => {
+  // The Fields section starts collapsed; these tests use it expanded.
+  beforeEach(() => localStorage.setItem(FIELDS_OPEN_KEY, 'true'));
+  afterEach(() => localStorage.removeItem(FIELDS_OPEN_KEY));
   it('lists sources and unrecognised files and manages them', async () => {
     const { fixture, store } = setup(Sidebar);
     await settle(fixture);
@@ -314,18 +324,21 @@ describe('Sidebar', () => {
     expect(all(fixture, '.src')[1]?.getAttribute('title')).toContain('1 dropped by pipeline');
   });
 
-  it('shows an empty state with open buttons', async () => {
+  it('shows an empty state without the Fields section; the header buttons open files (the welcome page offers them too)', async () => {
     const { fixture, store } = setup(Sidebar);
     await settle(fixture);
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('No files open');
-    buttonByText(fixture, 'Open folder…').click();
+    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(all(fixture, '.empty button')).toHaveLength(0);
+    el<HTMLButtonElement>(fixture, 'button[aria-label="Open folder"]').click();
     await settle(fixture);
     expect(store.summary()?.sources).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('imt-fields-panel')).not.toBeNull();
     await store.clearWorkspace();
     await settle(fixture);
-    buttonByText(fixture, 'Open files…').click();
+    el<HTMLButtonElement>(fixture, 'button[aria-label="Open files"]').click();
     await settle(fixture);
     expect(store.summary()?.sources).toHaveLength(1);
   });

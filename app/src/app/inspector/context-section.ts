@@ -56,15 +56,15 @@ export const CONTEXT_SETTLE_MS = 120;
     :host { display: block; }
     .head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 6px; }
     .toggle { border: 0; background: transparent; padding: 0; cursor: pointer; text-align: left; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .body { padding: 0 14px; display: flex; flex-direction: column; gap: 6px; }
-    .lines { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: 11px; line-height: 1.55; }
+    .lines { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: var(--fs-xs); line-height: 1.55; }
     .lines:focus-visible { outline: 1px solid var(--accent); }
     .line { display: flex; gap: 10px; padding: 0 8px; white-space: pre; color: var(--text-2); }
     .line.hit { background: var(--bg-sel); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .ln { flex: none; min-width: 5ch; text-align: right; color: var(--muted); user-select: none; }
     .actions { display: flex; align-items: center; gap: 8px; }
-    .err { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--danger-text); font-size: 12px; }
+    .err { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--danger-text); font-size: var(--fs-sm); }
     .pad { padding: 4px 0; }
   `,
 })

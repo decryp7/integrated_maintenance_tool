@@ -124,7 +124,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
       .fill { display: block; height: 100%; }
       .fill.a { background: var(--s1); }
       .fill.b { background: var(--s2); }
-      .nums { width: 160px; flex: none; font-size: 11px; }
+      .nums { width: 160px; flex: none; font-size: var(--fs-xs); }
       .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .chip { margin-right: 4px; }
     `,

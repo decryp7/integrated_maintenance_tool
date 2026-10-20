@@ -9,6 +9,8 @@ import {
   AiErrorCode,
   AiRuntimeEvent,
   AiStatus,
+  AiUpdateKind,
+  AiUpdatesStatus,
   ChatContext,
   ChatEnvelope,
   ChatEvent,
@@ -44,6 +46,7 @@ import {
 import { FILE_EXISTS_SUFFIX } from '../api.types';
 import { MOCK_NET_FAILURES, MockNetFailure, mockNetError, MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 import { mockWeb } from '../../browser/mock-browser-backend';
+import { MockAiUpdates, MockUpdatesMode } from './mock-ai-updates';
 import { mockBrowserTurn } from './mock-ai-browser';
 import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { JobLink, JobResult } from '../../jobs/jobs.types';
@@ -74,6 +77,8 @@ export interface MockAiOptions {
   runtime?: MockRuntimeMode;
   /** Model and runtime downloads fail like on a corporate network (e.g. `tls`: a TLS-inspecting proxy). */
   net?: MockNetFailure;
+  /** Runtime and model update checks: `available` (an update with the Ask policy), `automatic`, `manual`. */
+  updates?: MockUpdatesMode;
 }
 
 /**
@@ -82,6 +87,7 @@ export interface MockAiOptions {
  *   ?mockAiFail=chat,setup   these operations fail (`runtime`: runtime downloads)
  *   ?mockAiRuntime=none|broken  no inference runtime installed, or one that finds no GPU
  *   ?mockAiNet=tls|proxyAuth|proxy|offline|timeout|httpStatus  downloads fail like behind a corporate proxy
+ *   ?mockAiUpdates=available|automatic|manual  a runtime update to find (Ask, or that policy)
  *   ?mockAiStepMs=5          streaming speed
  */
 export function mockAiOptionsFromSearch(search: string): MockAiOptions {
@@ -99,6 +105,8 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   if (runtime === 'none' || runtime === 'broken' || runtime === 'installed') o.runtime = runtime;
   const net = p.get('mockAiNet');
   if ((MOCK_NET_FAILURES as readonly (string | null)[]).includes(net)) o.net = net as MockNetFailure;
+  const updates = p.get('mockAiUpdates');
+  if (updates === 'available' || updates === 'automatic' || updates === 'manual' || updates === 'none') o.updates = updates;
   return o;
 }
 
@@ -124,6 +132,7 @@ export class MockAiBackend extends AiBackend {
   private activeFile: string | null;
   private backend: string | null;
   private readonly rt: MockRuntimes;
+  private readonly updates: MockAiUpdates;
   private setupCancelled = false;
   private setupRunning = false;
   private readonly chats = new Map<string, MockChat>();
@@ -154,6 +163,7 @@ export class MockAiBackend extends AiBackend {
           : null,
     );
     this.backend = ready ? (this.rt.backendName() ?? 'Vulkan') : null;
+    this.updates = new MockAiUpdates(this.mode === 'off' ? 'none' : (options.updates ?? 'none'), this.stepMs, this.net);
   }
 
   private check(op?: AiFailable): void {
@@ -431,6 +441,29 @@ export class MockAiBackend extends AiBackend {
   }
   runtimeCancel() {
     return this.later(() => this.rt.cancel(), 0);
+  }
+
+  // ---- update checks ----
+
+  updatesStatus() {
+    return this.later(() => {
+      this.check();
+      return this.updates.status();
+    }, 0);
+  }
+  async updatesCheck(kind?: AiUpdateKind | null): Promise<AiUpdatesStatus> {
+    this.check();
+    return this.updates.check(kind);
+  }
+  async updatesApply(key: string): Promise<AiUpdatesStatus> {
+    this.check();
+    return this.updates.install(key);
+  }
+  updatesSkip(key: string) {
+    return this.later(() => this.updates.skip(key), 0);
+  }
+  updatesLater(key: string) {
+    return this.later(() => this.updates.later(key), 0);
   }
 
   // ---- manual downloads ----
@@ -1009,6 +1042,9 @@ export class MockAiBackend extends AiBackend {
   }
   onChat(handler: (e: ChatEventEnvelope) => void) {
     return this.subscribe(this.chatHandlers, handler);
+  }
+  onUpdates(handler: (s: AiUpdatesStatus) => void) {
+    return Promise.resolve(this.updates.subscribe(handler));
   }
 
   /** Test hook: the code an operation rejects with. */

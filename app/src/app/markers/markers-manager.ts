@@ -124,14 +124,14 @@ function failureText(f: { message: string; line: number | null }): string {
   `,
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
-    .head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: 12px; }
+    .head { display: flex; align-items: center; gap: 12px; padding: 8px 14px; font-size: var(--fs-sm); }
     .spacer { flex: 1; }
     .scroll { flex: 1; overflow: auto; padding: 0 14px 14px; }
-    .rules { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .rules { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
     .rules th, .rules td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .rules thead th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--bg-1); }
     .rules th.lbl { font-weight: 600; color: var(--text); }
-    .id { display: block; font-weight: 400; font-size: 11px; }
+    .id { display: block; font-weight: 400; font-size: var(--fs-xs); }
     .desc, .when { color: var(--text-2); max-width: 280px; }
     .num { text-align: right; }
     .off { opacity: 0.6; }
@@ -140,12 +140,12 @@ function failureText(f: { message: string; line: number | null }): string {
     .actions > * { margin-right: 2px; }
     .empty { padding: 20px; text-align: center; }
     .err { padding: 8px 14px; color: var(--danger-text); }
-    .sub { font-size: 12.5px; font-weight: 600; margin: 18px 0 6px; }
+    .sub { font-size: var(--fs-md); font-weight: 600; margin: 18px 0 6px; }
     .sub .faint { font-weight: 400; }
     .badge.owner { margin-right: 4px; }
-    .badge.ro { font-size: 10px; margin-left: 4px; }
+    .badge.ro { font-size: var(--fs-2xs); margin-left: 4px; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-    .cdk-drag-preview { background: var(--bg-2); box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+    .cdk-drag-preview { background: var(--bg-2); box-shadow: var(--shadow-pop); }
   `,
 })
 export class MarkersManager {

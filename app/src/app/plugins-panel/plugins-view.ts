@@ -62,10 +62,10 @@ export function contributionLabel(contribution: string): string {
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     .plugin { padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); display: flex; flex-direction: column; gap: 6px; }
     .top { display: flex; gap: 8px; align-items: baseline; }
-    .id { margin-left: auto; font-size: 11px; }
+    .id { margin-left: auto; font-size: var(--fs-xs); }
     .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
     .builtin { display: flex; gap: 32px; flex-wrap: wrap; }
-    .help { max-width: 640px; color: var(--text-2); font-size: 13px; line-height: 1.5; }
+    .help { max-width: 640px; color: var(--text-2); font-size: var(--fs-md); line-height: 1.5; }
     .help p { margin: 0 0 8px; }
   `,
 })

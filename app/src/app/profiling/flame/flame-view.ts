@@ -90,7 +90,7 @@ import { measuredWidth } from './measured-width';
     `
       .seg { display: inline-flex; gap: 2px; }
       .seg .btn[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
-      .crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 12px; font-size: 12px; min-height: 26px; }
+      .crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 12px; font-size: var(--fs-sm); min-height: 26px; }
       .crumb.current { color: var(--text); font-weight: 600; }
       .sep { color: var(--faint); }
     `,

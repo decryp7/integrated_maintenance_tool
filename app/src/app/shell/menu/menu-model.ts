@@ -96,9 +96,13 @@ export interface MenuState {
   commands: ReadonlyMap<string, MenuCommand>;
   views: readonly MenuView[];
   sidebarOpen: boolean;
-  theme: 'system' | 'dark' | 'light';
+  /** View › Theme: the look and the colour scheme. */
+  theme: 'calm' | 'console';
+  scheme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
+  /** View › Layout: what the window opens by itself; default focused. */
+  layoutMode?: 'focused' | 'full';
   timezone: 'utc' | 'local';
   markedOnly: boolean;
   undoLabel: string | null;
@@ -367,9 +371,16 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
     { kind: 'item', id: MENU_IDS.otherWindows, label: $localize`:@@shell.menu.view.otherWindows:Other windows…` },
     SEP,
     sub('view.theme', $localize`:@@shell.menu.view.theme:Theme`, [
-      cmd('view.theme.system', $localize`:@@shell.menu.view.theme.system:System`, state.theme === 'system'),
-      cmd('view.theme.dark', $localize`:@@shell.menu.view.theme.dark:Dark`, state.theme === 'dark'),
-      cmd('view.theme.light', $localize`:@@shell.menu.view.theme.light:Light`, state.theme === 'light'),
+      cmd('view.theme.calm', $localize`:Theme name@@shell.menu.view.theme.calm:Calm`, state.theme === 'calm'),
+      cmd('view.theme.console', $localize`:Theme name@@shell.menu.view.theme.console:Console`, state.theme === 'console'),
+      SEP,
+      cmd('view.scheme.system', $localize`:Colour scheme option@@shell.menu.view.scheme.system:System`, state.scheme === 'system'),
+      cmd('view.scheme.dark', $localize`:Colour scheme option@@shell.menu.view.scheme.dark:Dark`, state.scheme === 'dark'),
+      cmd('view.scheme.light', $localize`:Colour scheme option@@shell.menu.view.scheme.light:Light`, state.scheme === 'light'),
+    ]),
+    sub('view.layout', $localize`:@@shell.menu.view.layout:Layout`, [
+      cmd('view.layout.focused', $localize`:@@shell.menu.view.layout.focused:Focused`, (state.layoutMode ?? 'focused') === 'focused'),
+      cmd('view.layout.full', $localize`:@@shell.menu.view.layout.full:Full`, state.layoutMode === 'full'),
     ]),
     sub('view.sourceColors', $localize`:@@shell.menu.view.sourceColors:Source colours`, [
       cmd('view.sourceColors.source', $localize`:@@shell.menu.view.sourceColors.source:By file`, (state.sourceColors ?? 'source') === 'source'),

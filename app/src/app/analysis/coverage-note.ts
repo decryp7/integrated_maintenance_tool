@@ -16,7 +16,7 @@ import { formatCount } from '../core/format';
       <p class="note" role="note" i18n="@@analysis.coverage.partial">Analysed the first {{ count(c.analysed) }} of {{ count(c.total) }} matching events. Narrow the query to analyse all of them.</p>
     }
   `,
-  styles: [`.note { margin: 0; padding: 4px 12px; font-size: 12px; color: var(--warning-text, var(--text)); background: var(--warning-bg, transparent); border-bottom: 1px solid var(--border); }`],
+  styles: [`.note { margin: 0; padding: 4px 12px; font-size: var(--fs-sm); color: var(--warn-text); background: color-mix(in srgb, var(--warn-text) 8%, transparent); border-bottom: 1px solid var(--border); }`],
 })
 export class CoverageNote {
   readonly query = input.required<QlQuery>();

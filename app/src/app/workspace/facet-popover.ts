@@ -72,9 +72,9 @@ export interface FacetFilterEvent {
     :host { position: fixed; width: 340px; display: flex; flex-direction: column; gap: 8px; max-height: 460px; }
     .facet-head { display: flex; justify-content: space-between; gap: 8px; }
     .facet-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .err { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--danger-text); font-size: 12px; }
+    .err { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--danger-text); font-size: var(--fs-sm); }
     .value { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 60px 48px 22px 22px; align-items: center; gap: 6px; }
-    .value .mono { font-size: 11px; }
+    .value .mono { font-size: var(--fs-xs); }
     .value .icon-btn { width: 22px; height: 22px; }
     .bar { height: 4px; background: var(--border-2); border-radius: 2px; overflow: hidden; }
     .bar span { display: block; height: 4px; background: var(--accent); border-radius: 2px; }

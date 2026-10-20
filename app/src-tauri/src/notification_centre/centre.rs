@@ -95,6 +95,18 @@ pub enum NoticeAction {
         #[serde(rename = "jobId")]
         job_id: u64,
     },
+    /// Installs an AI runtime or model update (`key` from the update check).
+    UpdateAi {
+        key: String,
+    },
+    /// Puts an AI update off until the next check.
+    LaterAiUpdate {
+        key: String,
+    },
+    /// Never offers this version of an AI update again.
+    SkipAiUpdate {
+        key: String,
+    },
 }
 
 /// What a message refers to.
@@ -124,6 +136,9 @@ pub struct Notice {
     pub read: bool,
     pub primary: Option<NoticeAction>,
     pub secondary: Option<NoticeAction>,
+    /// A third button (e.g. "Skip this version" next to "Update" and "Later").
+    #[serde(default)]
+    pub tertiary: Option<NoticeAction>,
     #[serde(default)]
     pub link: NoticeLink,
     pub dedupe_key: Option<String>,
@@ -139,6 +154,7 @@ pub struct NewNotice {
     pub body: String,
     pub primary: Option<NoticeAction>,
     pub secondary: Option<NoticeAction>,
+    pub tertiary: Option<NoticeAction>,
     pub link: NoticeLink,
     pub dedupe_key: Option<String>,
     pub scope: NoticeScope,
@@ -155,6 +171,7 @@ impl NewNotice {
             body: String::new(),
             primary: None,
             secondary: None,
+            tertiary: None,
             link: NoticeLink::default(),
             dedupe_key: None,
             scope,
@@ -180,6 +197,11 @@ impl NewNotice {
 
     pub fn secondary(mut self, a: NoticeAction) -> NewNotice {
         self.secondary = Some(a);
+        self
+    }
+
+    pub fn tertiary(mut self, a: NoticeAction) -> NewNotice {
+        self.tertiary = Some(a);
         self
     }
 
@@ -260,6 +282,7 @@ impl Centre {
             n.severity = new.severity;
             n.primary = new.primary;
             n.secondary = new.secondary;
+            n.tertiary = new.tertiary;
             n.link = new.link;
             self.notices.push(n.clone());
             return Posted {
@@ -280,6 +303,7 @@ impl Centre {
             read: false,
             primary: new.primary,
             secondary: new.secondary,
+            tertiary: new.tertiary,
             link: new.link,
             dedupe_key: key,
             scope: new.scope,
@@ -468,5 +492,39 @@ mod tests {
         );
         let action = serde_json::to_value(NoticeAction::ViewJob { job_id: 3 }).unwrap();
         assert_eq!(action, serde_json::json!({"type": "viewJob", "jobId": 3}));
+    }
+
+    #[test]
+    fn a_third_action_is_kept_merged_and_optional_on_the_wire() {
+        let ask = |to: &str| {
+            NewNotice::new(NoticeSource::Ai, NoticeSeverity::Info, format!("Update to {to}"), NoticeScope::App)
+                .dedupe("ai-update:runtime:cpu")
+                .primary(NoticeAction::UpdateAi {
+                    key: format!("runtime:cpu@{to}"),
+                })
+                .secondary(NoticeAction::LaterAiUpdate {
+                    key: format!("runtime:cpu@{to}"),
+                })
+                .tertiary(NoticeAction::SkipAiUpdate {
+                    key: format!("runtime:cpu@{to}"),
+                })
+        };
+        let mut c = Centre::new(10);
+        c.post(ask("b1"), NoticeId(1), 1);
+        let merged = c.post(ask("b2"), NoticeId(2), 2).notice;
+        assert_eq!(
+            merged.tertiary,
+            Some(NoticeAction::SkipAiUpdate {
+                key: "runtime:cpu@b2".into()
+            })
+        );
+        let wire = serde_json::to_value(&merged).unwrap();
+        assert_eq!(wire["primary"], serde_json::json!({"type": "updateAi", "key": "runtime:cpu@b2"}));
+        assert_eq!(wire["secondary"]["type"], "laterAiUpdate");
+        assert_eq!(wire["tertiary"]["type"], "skipAiUpdate");
+        let mut old = wire.clone();
+        old.as_object_mut().unwrap().remove("tertiary");
+        let back: Notice = serde_json::from_value(old).unwrap();
+        assert_eq!(back.tertiary, None, "messages saved before the third action still load");
     }
 }
