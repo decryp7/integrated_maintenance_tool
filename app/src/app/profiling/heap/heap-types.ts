@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { HeapSort, HeapTypeRow, HeapTypesPage } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { AnalysisState } from '../../analysis/analysis-state';
@@ -58,7 +58,12 @@ export class HeapTypes {
   protected readonly res = new AsyncResource<HeapTypesPage>();
   protected readonly sort = signal<HeapSort>('bytes');
   private readonly search = signal('');
-  private readonly extra = signal<HeapTypeRow[]>([]);
+  private readonly request = computed(() => ({ snapshotId: this.snapshotId(), sort: this.sort(), search: this.search() || null, offset: 0, limit: PAGE }));
+  /** Rows paged in after the first page; a new request starts over. */
+  private readonly extra = linkedSignal<HeapTypeRow[]>(() => {
+    this.request();
+    return [];
+  });
   protected readonly cols: { id: HeapSort; label: string }[] = [
     { id: 'name', label: $localize`:@@profiling.heapTypes.col.type:Type` },
     { id: 'count', label: $localize`:@@profiling.heapTypes.col.count:Count` },
@@ -74,11 +79,8 @@ export class HeapTypes {
 
   constructor() {
     effect(() => {
-      const request = { snapshotId: this.snapshotId(), sort: this.sort(), search: this.search() || null, offset: 0, limit: PAGE };
-      untracked(() => {
-        this.extra.set([]);
-        void this.res.load(() => this.backend.heapTypes(request));
-      });
+      const request = this.request();
+      untracked(() => void this.res.load(() => this.backend.heapTypes(request)));
     });
     inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
   }

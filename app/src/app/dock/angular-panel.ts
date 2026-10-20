@@ -1,4 +1,4 @@
-import { ApplicationRef, ChangeDetectorRef, Component, ComponentRef, createComponent, viewChild, ViewContainerRef, EnvironmentInjector, ErrorHandler, InjectionToken, Injector, signal, Type, WritableSignal } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, ChangeDetectorRef, Component, ComponentRef, createComponent, viewChild, ViewContainerRef, EnvironmentInjector, ErrorHandler, InjectionToken, Injector, signal, Type, WritableSignal } from '@angular/core';
 import type { GroupPanelPartInitParameters, IContentRenderer } from 'dockview';
 import { reportFailure } from '../core/failure-reporter';
 import { PANEL_VISIBLE } from '../core/panel-visibility';
@@ -213,6 +213,7 @@ export class AngularContentRenderer implements IContentRenderer {
   selector: 'imt-panel-outlet',
   host: { style: 'display: contents' },
   template: '<ng-container #outlet />',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class PanelOutlet {
   readonly outlet = viewChild.required('outlet', { read: ViewContainerRef });

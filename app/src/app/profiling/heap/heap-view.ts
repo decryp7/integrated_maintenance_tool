@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { HeapSummary } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { CapturesStore } from '../captures.store';
@@ -71,14 +71,6 @@ export class HeapView {
   protected readonly tabs = HEAP_TABS;
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
-
-  constructor() {
-    // Another snapshot drops the object selection (ids are per snapshot).
-    effect(() => {
-      this.state.heapId();
-      untracked(() => this.sel.object.set(null));
-    });
-  }
 
   protected summary(h: HeapSummary): string {
     const objects = this.count(h.objectCount);

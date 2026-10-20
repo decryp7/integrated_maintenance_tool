@@ -83,7 +83,7 @@ import { OverviewPrefs } from './overview-prefs';
                 <imt-icon [name]="g.icon" [size]="14" />{{ g.label }} <span class="faint">({{ g.findings.length }})</span>
               </h3>
               <ul class="findings">
-                @for (f of g.findings; track $index) {
+                @for (f of g.findings; track f.kind + ':' + f.title + ':' + f.detail) {
                   <li class="finding">
                     <div class="title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
                     <p class="detail">{{ f.detail }}</p>

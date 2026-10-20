@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, linkedSignal, signal, untracked } from '@angular/core';
 import { DiffSort, FlameGraph, FunctionDiffPage, FunctionDiffRow } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
@@ -133,10 +133,18 @@ export class CompareView {
   private readonly backend = inject(ProfilingBackend);
   protected readonly flame = new AsyncResource<FlameGraph>();
   protected readonly diff = new AsyncResource<FunctionDiffPage>();
-  protected readonly focus = signal<number[]>([]);
+  /** Zoom chain; a different pair starts unzoomed. */
+  protected readonly focus = linkedSignal<number[]>(() => {
+    this.common();
+    return [];
+  });
   protected readonly sort = signal<DiffSort>('absDeltaSelf');
   protected readonly search = signal('');
-  protected readonly extra = signal<FunctionDiffRow[]>([]);
+  /** Rows paged in after the first page; a new request starts over. */
+  protected readonly extra = linkedSignal<FunctionDiffRow[]>(() => {
+    this.diffRequest();
+    return [];
+  });
   protected readonly sorts = SORTS;
   protected readonly pct = formatPct;
   protected readonly pp = formatPp;
@@ -163,12 +171,12 @@ export class CompareView {
     return p && metric && baselineId !== null && baselineId !== p.id ? { baselineId, targetId: p.id, view: this.state.view(), metric } : null;
   });
 
+  private readonly diffRequest = computed(() => {
+    const c = this.common();
+    return c ? { ...c, sort: this.sort(), search: this.search() || null, offset: 0, limit: DIFF_PAGE } : null;
+  });
+
   constructor() {
-    // A different pair starts unzoomed.
-    effect(() => {
-      this.common();
-      untracked(() => this.focus.set([]));
-    });
     effect(() => {
       const c = this.common();
       const widthPx = this.widthPx();
@@ -180,10 +188,8 @@ export class CompareView {
       });
     });
     effect(() => {
-      const c = this.common();
-      const request = c ? { ...c, sort: this.sort(), search: this.search() || null, offset: 0, limit: DIFF_PAGE } : null;
+      const request = this.diffRequest();
       untracked(() => {
-        this.extra.set([]);
         if (!request) return this.diff.reset();
         void this.diff.load(() => this.backend.functionDiff(request));
       });
