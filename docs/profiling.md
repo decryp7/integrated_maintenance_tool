@@ -88,8 +88,8 @@ Navigation and layout details the UI relies on (it never recomputes them):
 
 ## Errors
 
-Every profiling command rejects with `{ code, message }` (`ProfilingErrorDto`, mirrored as
-`ProfilingError` in `api.types.ts`). The UI turns it into a `ProfilingFailure` (an `Error` with
+Every profiling command rejects with the one command error `{ code, message, retryable }` (`CmdError`,
+ADR 0016; the engine's `ProfilingErrorDto` codes below are part of its `ErrorCode`). The UI turns it into a `ProfilingFailure` (an `Error` with
 the code) at the backend edge and decides by code, never by message text:
 
 | Code | Meaning | Engine errors |

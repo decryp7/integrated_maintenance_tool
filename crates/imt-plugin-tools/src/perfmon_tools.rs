@@ -7,7 +7,7 @@ use crate::settings::Knobs;
 use crate::Runner;
 use anyhow::{anyhow, bail, Result};
 use imt_core::overwrite::check_overwrite;
-use imt_core::plugin::tools::{OpSpec, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+use imt_core::plugin::tools::{OpSpec, Platform, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
@@ -117,6 +117,14 @@ impl SetsTool {
     }
 }
 
+/// logman refusing for missing rights is a typed denial (the shell offers to restart elevated).
+fn typed(e: anyhow::Error) -> anyhow::Error {
+    match e.downcast_ref::<crate::perfmon_control::PerfmonError>() {
+        Some(crate::perfmon_control::PerfmonError::AccessDenied) => anyhow::Error::new(ToolFailure::denied(e.to_string())),
+        _ => e,
+    }
+}
+
 impl Tool for SetsTool {
     fn id(&self) -> &str {
         PERFMON_SETS
@@ -139,52 +147,55 @@ impl Tool for SetsTool {
     }
 
     fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> Result<Value> {
-        let c = self.controller();
-        match op {
-            "install" => {
-                let template = parse_template(&args)?;
-                let xml = template.to_xml()?;
-                let file = std::env::temp_dir().join(format!("imt-{}.xml", template.name));
-                std::fs::write(&file, xml)?;
-                let imported = c.import(&template.name, &file, true);
-                let _ = std::fs::remove_file(&file);
-                imported?;
-                self.status(&c, &template.name)
-            }
-            "control" => {
-                let name = text(&args, "name");
-                match text(&args, "action") {
-                    "start" => {
-                        c.start(name)?;
-                        ctx.task_started(ToolTask {
-                            id: task_id(name),
-                            label: format!("PerfMon collection \u{201c}{name}\u{201d}"),
-                            kind: "perfmon".into(),
-                            stoppable: true,
-                        });
-                    }
-                    "stop" => {
-                        c.stop(name)?;
-                        ctx.task_finished(&task_id(name));
-                    }
-                    "delete" => {
-                        c.delete(name)?;
-                        ctx.task_finished(&task_id(name));
-                        return Ok(Value::Null);
-                    }
-                    _ => {}
+        let run = || -> Result<Value> {
+            let c = self.controller();
+            match op {
+                "install" => {
+                    let template = parse_template(&args)?;
+                    let xml = template.to_xml()?;
+                    let file = std::env::temp_dir().join(format!("imt-{}.xml", template.name));
+                    std::fs::write(&file, xml)?;
+                    let imported = c.import(&template.name, &file, true);
+                    let _ = std::fs::remove_file(&file);
+                    imported?;
+                    self.status(&c, &template.name)
                 }
-                self.status(&c, name)
+                "control" => {
+                    let name = text(&args, "name");
+                    match text(&args, "action") {
+                        "start" => {
+                            c.start(name)?;
+                            ctx.task_started(ToolTask {
+                                id: task_id(name),
+                                label: format!("PerfMon collection \u{201c}{name}\u{201d}"),
+                                kind: "perfmon".into(),
+                                stoppable: true,
+                            });
+                        }
+                        "stop" => {
+                            c.stop(name)?;
+                            ctx.task_finished(&task_id(name));
+                        }
+                        "delete" => {
+                            c.delete(name)?;
+                            ctx.task_finished(&task_id(name));
+                            return Ok(Value::Null);
+                        }
+                        _ => {}
+                    }
+                    self.status(&c, name)
+                }
+                "outputs" => {
+                    let status = c.query(text(&args, "name"))?;
+                    Ok(json!(output_files(&status)
+                        .into_iter()
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .collect::<Vec<_>>()))
+                }
+                other => bail!("unknown operation \"{other}\""),
             }
-            "outputs" => {
-                let status = c.query(text(&args, "name"))?;
-                Ok(json!(output_files(&status)
-                    .into_iter()
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .collect::<Vec<_>>()))
-            }
-            other => bail!("unknown operation \"{other}\""),
-        }
+        };
+        run().map_err(typed)
     }
 
     /// Stops a started collector set (`logman stop`).
@@ -345,7 +356,10 @@ mod tests {
         let tasks = Arc::new(Tasks::default());
         let ctx = ToolCtx::new(None, tasks.clone());
         let e = sets(&fake, true).invoke("control", json!({ "name": "IMT", "action": "start" }), &ctx);
-        assert!(e.unwrap_err().to_string().contains("Access is denied"));
+        let e = e.unwrap_err();
+        assert!(e.to_string().contains("Access is denied"));
+        let typed = e.downcast_ref::<ToolFailure>().expect("a typed denial");
+        assert_eq!(typed.reason, imt_core::plugin::tools::FailureReason::Denied);
         assert!(tasks.0.lock().unwrap().is_empty());
         let fake = Arc::new(FakeRunner::new(|_, _| ok("")));
         let e = sets(&fake, false).invoke("outputs", json!({ "name": "IMT" }), &ctx);

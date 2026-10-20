@@ -78,9 +78,11 @@ fn open(action: FileAction, target: &FileTarget) -> Result<FileOpened, String> {
 pub(crate) async fn open_source_file(state: CurrentWindow, request: OpenFileRequest) -> CmdResult<FileOpened> {
     let sources = read(&state, |ws| Ok(ws.sources())).await?;
     let target = resolve(&sources, &request).map_err(|e| e.to_string())?;
-    tauri::async_runtime::spawn_blocking(move || open(request.action, &target))
-        .await
-        .map_err(|e| e.to_string())?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || open(request.action, &target))
+            .await
+            .map_err(|e| e.to_string())?,
+    )
 }
 
 #[cfg(test)]
@@ -258,7 +260,7 @@ mod tests {
                 .clone()
         };
         let open = |w: &tauri::WebviewWindow<tauri::test::MockRuntime>, body| ipc(w, "open_source_file", json!({ "request": body }));
-        let err = |r: Result<serde_json::Value, serde_json::Value>| r.unwrap_err().as_str().unwrap_or_default().to_string();
+        let err = |r: Result<serde_json::Value, serde_json::Value>| r.unwrap_err()["message"].as_str().unwrap_or_default().to_string();
 
         let text = by_kind("text");
         assert_eq!(

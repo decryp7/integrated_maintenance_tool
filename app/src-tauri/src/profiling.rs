@@ -5,7 +5,7 @@
 //! registry and are called through their guarded service handles, so a
 //! crashing importer is contained and counted against its plugin.
 //!
-//! Every command rejects with a [`ProfilingErrorDto`] (`{ code, message }`),
+//! Every command rejects with the one [`crate::CmdError`] (profiling's codes are part of it),
 //! so the UI reacts to the code (`notACapture`, `notFound`, `io`, ...)
 //! instead of matching message text.
 //!
@@ -24,7 +24,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 /// Result of a profiling command.
-pub(crate) type ProfResult<T> = Result<T, ProfilingErrorDto>;
+pub(crate) type ProfResult<T> = crate::CmdResult<T>;
 
 /// Time an importer may take for one file. Imports of large captures take
 /// minutes, far more than the ordinary service budget; past this the import
@@ -135,11 +135,13 @@ async fn read<T: Send + 'static>(
     f: impl FnOnce(&dyn ProfileStore) -> imt_profile::Result<T> + Send + 'static,
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        f(store.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(ProfilingErrorDto::from)
-    })
-    .await
-    .map_err(join_error)?
+    crate::error::lift_dto(
+        tauri::async_runtime::spawn_blocking(move || {
+            f(store.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(ProfilingErrorDto::from)
+        })
+        .await
+        .map_err(join_error)?,
+    )
 }
 
 async fn write<T: Send + 'static>(
@@ -147,11 +149,13 @@ async fn write<T: Send + 'static>(
     f: impl FnOnce(&mut dyn ProfileStore) -> imt_profile::Result<T> + Send + 'static,
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        f(store.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(ProfilingErrorDto::from)
-    })
-    .await
-    .map_err(join_error)?
+    crate::error::lift_dto(
+        tauri::async_runtime::spawn_blocking(move || {
+            f(store.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(ProfilingErrorDto::from)
+        })
+        .await
+        .map_err(join_error)?,
+    )
 }
 
 /// An I/O error about `path`: `notFound` when it does not exist, `io` otherwise.
@@ -170,10 +174,10 @@ fn canonical_file(path: &str) -> ProfResult<(std::path::PathBuf, std::fs::Metada
     let canonical = path.canonicalize().map_err(|e| io_error("open", path, &e))?;
     let meta = std::fs::metadata(&canonical).map_err(|e| io_error("open", &canonical, &e))?;
     if !meta.is_file() {
-        return Err(ProfilingErrorDto::new(
+        return Err(crate::CmdError::from(ProfilingErrorDto::new(
             ErrorCode::Invalid,
             format!("{} is not a file", canonical.display()),
-        ));
+        )));
     }
     Ok((canonical, meta))
 }
@@ -183,7 +187,7 @@ fn read_capture(path: &str) -> ProfResult<(String, String, Vec<u8>)> {
     let (canonical, meta) = canonical_file(path)?;
     let max = Limits::default().max_input_bytes;
     if meta.len() > max {
-        return Err(ProfilingErrorDto::new(
+        return Err(crate::CmdError::from(ProfilingErrorDto::new(
             ErrorCode::Limit,
             format!(
                 "{} is {} MB; captures up to {} MB can be opened",
@@ -191,7 +195,7 @@ fn read_capture(path: &str) -> ProfResult<(String, String, Vec<u8>)> {
                 meta.len() >> 20,
                 max >> 20
             ),
-        ));
+        )));
     }
     let bytes = std::fs::read(&canonical).map_err(|e| io_error("read", &canonical, &e))?;
     let name = canonical.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -218,10 +222,10 @@ fn read_head(path: &str) -> Option<(String, Vec<u8>)> {
 #[tauri::command]
 pub async fn profiling_sniff(state: CurrentWindow, grants: WindowGrants, paths: Vec<String>) -> ProfResult<Vec<SniffResult>> {
     if paths.len() > MAX_SNIFF_PATHS {
-        return Err(ProfilingErrorDto::new(
+        return Err(crate::CmdError::from(ProfilingErrorDto::new(
             ErrorCode::Limit,
             format!("at most {MAX_SNIFF_PATHS} files can be checked at once"),
-        ));
+        )));
     }
     // Read the heads first, without holding the store.
     let heads = tauri::async_runtime::spawn_blocking(move || {
@@ -252,7 +256,7 @@ pub async fn profiling_open(state: CurrentWindow, grants: WindowGrants, path: St
         canonical_file(&path)?;
         grants
             .read_file(&path, &[])
-            .map_err(|e| ProfilingErrorDto::new(ErrorCode::Invalid, e))?;
+            .map_err(|e| ProfilingErrorDto::new(ErrorCode::Invalid, e.message))?;
         read_capture(&path)
     })
     .await

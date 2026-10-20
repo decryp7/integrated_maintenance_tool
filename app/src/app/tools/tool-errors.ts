@@ -1,8 +1,7 @@
-/** Text of a rejected backend call (Tauri rejects with strings). */
+import { failureText } from '../core/cmd-error';
+/** Text of a rejected backend call (its message and next step; see `CmdError`). */
 export function errorMessage(e: unknown): string {
-  if (typeof e === 'string') return e;
-  if (e instanceof Error) return e.message;
-  return JSON.stringify(e);
+  return failureText(e);
 }
 
 const ACCESS_DENIED = /access (is )?denied|requires? (elevat|administrator)|administrator (rights|privileges)|run as administrator|elevation/i;

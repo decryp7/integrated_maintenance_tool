@@ -297,12 +297,14 @@ pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
         ql,
     };
     let w = win.arc().clone();
-    run_announced(app, spec, controls, announce, move |ctx| {
-        read_store(&w, |ws| f(ws, ctx))
-            .map(|v| Done::new(v).with_result(result))
-            .map_err(crate::err)
-    })
-    .await
+    crate::error::lift(
+        run_announced(app, spec, controls, announce, move |ctx| {
+            read_store(&w, |ws| f(ws, ctx))
+                .map(|v| Done::new(v).with_result(result))
+                .map_err(crate::err)
+        })
+        .await,
+    )
 }
 
 /// The spec of an export to `path` by the window (or the app).
@@ -332,12 +334,14 @@ pub(crate) fn start_file<R: Runtime>(
     let result = JobResult::File {
         path: path.display().to_string(),
     };
-    spawn(app, spec, Controls::default(), move |ctx| {
-        let summary = f(ctx)?;
-        ctx.message(&summary);
-        Ok::<_, String>(Done::new(()).with_result(result))
-    })
-    .map(|id| id.0)
+    crate::error::lift(
+        spawn(app, spec, Controls::default(), move |ctx| {
+            let summary = f(ctx)?;
+            ctx.message(&summary);
+            Ok::<_, String>(Done::new(()).with_result(result))
+        })
+        .map(|id| id.0),
+    )
 }
 
 /// An export of the window's logs to `path` as a background export job (two at a time); see [`start_file`].
@@ -370,9 +374,11 @@ where
 }
 
 fn service<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Jobs> {
-    app.try_state::<Jobs>()
-        .map(|j| j.inner().clone())
-        .ok_or_else(|| "IMT is not ready yet".to_string())
+    crate::error::lift(
+        app.try_state::<Jobs>()
+            .map(|j| j.inner().clone())
+            .ok_or_else(|| "IMT is not ready yet".to_string()),
+    )
 }
 
 /// The job, when the calling window may act on it (its own or an app-wide one).
@@ -409,7 +415,7 @@ pub fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult
 pub async fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.cancel(JobId(id))
+    crate::error::lift(jobs.cancel(JobId(id)))
 }
 
 #[tauri::command]
@@ -417,14 +423,14 @@ pub async fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: 
 pub fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<u64>> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.retry(JobId(id)).map(|j| j.map(|j| j.0))
+    crate::error::lift(jobs.retry(JobId(id)).map(|j| j.map(|j| j.0)))
 }
 
 #[tauri::command]
 pub async fn jobs_move<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64, up: bool) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.move_job(JobId(id), up)
+    crate::error::lift(jobs.move_job(JobId(id), up))
 }
 
 #[tauri::command]
@@ -459,9 +465,11 @@ pub async fn jobs_wait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u6
             return Err("this job belongs to another window".into());
         }
     }
-    tauri::async_runtime::spawn_blocking(move || jobs.wait_end(JobId(id)))
-        .await
-        .map_err(crate::err)
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || jobs.wait_end(JobId(id)))
+            .await
+            .map_err(crate::err),
+    )
 }
 
 /// The dialog that waited for job `id` closed: the job goes on and tells the user when it is done.
@@ -483,7 +491,7 @@ pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
     };
     let p = std::path::PathBuf::from(&path);
     if !p.exists() {
-        return Err(format!("{path} no longer exists"));
+        return Err(crate::CmdError::from(format!("{path} no longer exists")));
     }
     jobs.mark_seen(JobId(id));
     crate::opener::start(&crate::opener::reveal(crate::opener::Os::CURRENT, &p))

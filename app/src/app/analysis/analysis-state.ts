@@ -14,7 +14,9 @@ import { NextSteps } from '../ui/next-steps';
       <div class="state" role="alert">
         <span class="msg">{{ message }}</span>
         <span class="row">
-          <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
+          @if (retryable()) {
+            <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
+          }
         </span>
         @if (suggest()) {
           <imt-next-steps />
@@ -47,6 +49,8 @@ import { NextSteps } from '../ui/next-steps';
 export class AnalysisState {
   readonly loading = input(false);
   readonly error = input<string | null>(null);
+  /** Whether Retry is offered (the engine says trying again as is may pass). */
+  readonly retryable = input(true);
   readonly empty = input(false);
   readonly emptyText = input($localize`:@@analysis.state.nothingToShow:Nothing to show.`);
   /** What the view needs to show something (e.g. "Pick a field on the left"). */

@@ -679,7 +679,7 @@ pub fn set_app_menu<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, men
     if !applies(window.is_focused().unwrap_or(false), is_target) {
         return Ok(());
     }
-    apply(&app, native_spec(&model)).map(|_| ()).map_err(crate::err)
+    crate::error::lift(apply(&app, native_spec(&model)).map(|_| ()).map_err(crate::err))
 }
 
 #[cfg(test)]

@@ -72,13 +72,10 @@ pub fn ai_runtime_add_archives<R: Runtime>(
 
 /// A file the user picked in the open dialog (granted to the window), canonical.
 fn archive_path(grants: &crate::paths::WindowGrants, path: &str) -> AiResult<PathBuf> {
-    if !crate::paths::parse(path).map_err(AiCmdError::invalid)?.exists() {
+    if !crate::paths::parse(path)?.exists() {
         return Err(AiCmdError::not_found(format!("cannot open {path}: it does not exist")));
     }
-    grants
-        .read_file(path, &[])
-        .map(|g| g.path().to_path_buf())
-        .map_err(AiCmdError::invalid)
+    grants.read_file(path, &[]).map(|g| g.path().to_path_buf())
 }
 
 fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<u64> {
@@ -168,7 +165,7 @@ pub async fn ai_runtime_choose<R: Runtime>(app: AppHandle<R>, id: String) -> AiR
     blocking(move || {
         c.availability()?;
         let choice = c.check_build_choice(&id)?;
-        let overview = crate::settings::settings_sections(a.clone()).map_err(|e| AiCmdError::new(AiErrorCode::Io, e))?;
+        let overview = crate::settings::settings_sections(a.clone())?;
         let mut values = overview
             .sections
             .into_iter()
@@ -177,7 +174,7 @@ pub async fn ai_runtime_choose<R: Runtime>(app: AppHandle<R>, id: String) -> AiR
             .filter(Value::is_object)
             .unwrap_or_else(|| Value::Object(Default::default()));
         values["inference_build"] = Value::from(choice);
-        let r = crate::settings::set_settings(a, AI_SECTION.into(), values).map_err(|e| AiCmdError::new(AiErrorCode::Io, e))?;
+        let r = crate::settings::set_settings(a, AI_SECTION.into(), values)?;
         if !r.applied {
             let why: Vec<String> = r.errors.into_iter().map(|e| e.message).collect();
             return Err(AiCmdError::invalid(why.join("; ")));

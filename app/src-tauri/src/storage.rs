@@ -192,13 +192,15 @@ impl<R: Runtime> Drop for Job<R> {
 /// What IMT stores, per category (sizes are lower bounds when `capped`).
 #[tauri::command]
 pub async fn storage_usage<R: Runtime>(app: AppHandle<R>) -> CmdResult<StorageUsage> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let ai = ai_port(&app);
-        let folders = folders(&app, ai.as_ref().map(|a| a as &dyn AiPort));
-        usage_of(&plan::categories(&folders), &mut Budget::standard())
-    })
-    .await
-    .map_err(err)
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || {
+            let ai = ai_port(&app);
+            let folders = folders(&app, ai.as_ref().map(|a| a as &dyn AiPort));
+            usage_of(&plan::categories(&folders), &mut Budget::standard())
+        })
+        .await
+        .map_err(err),
+    )
 }
 
 /// Starts clearing the categories `ids` (validated here) as a background maintenance job and returns it at
@@ -212,37 +214,39 @@ pub fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) 
     let names = ids.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(",");
     let flag = job.cancel.clone();
     let spec = JobSpec::new(JobKind::Maintenance, "Clear IMT's storage");
-    crate::jobs::spawn(
-        &app,
-        spec,
-        Controls::cancel(move || flag.store(true, Ordering::Relaxed)),
-        move |ctx| {
-            let ai = ai_port(&job.app);
-            let port = ai.as_ref().map(|a| a as &dyn AiPort);
-            let folders = folders(&job.app, port);
-            let r = clear_all(&plan::categories(&folders), &ids, port, &job.cancel, &mut |f| {
-                ctx.progress(JobProgress::fraction(f))
-            });
-            let freed = r.freed_bytes.to_string();
-            let skipped = r.categories.iter().map(|c| c.skipped_count).sum::<u64>();
-            let ms = started.elapsed().as_millis().to_string();
-            domain_event(
-                "storage.cleared",
-                op.as_deref(),
-                &[
-                    ("Categories", &names),
-                    ("FreedBytes", &freed),
-                    ("Skipped", &skipped.to_string()),
-                    ("ElapsedMs", &ms),
-                ],
-            );
-            ctx.message(&cleared_line(r.freed_bytes, skipped));
-            let cancelled = r.cancelled;
-            let result = serde_json::to_value(&r).map_err(|e| e.to_string())?;
-            Ok::<_, String>(Done::new(()).with_result(JobResult::Storage { result }).cancelled_if(cancelled))
-        },
+    crate::error::lift(
+        crate::jobs::spawn(
+            &app,
+            spec,
+            Controls::cancel(move || flag.store(true, Ordering::Relaxed)),
+            move |ctx| {
+                let ai = ai_port(&job.app);
+                let port = ai.as_ref().map(|a| a as &dyn AiPort);
+                let folders = folders(&job.app, port);
+                let r = clear_all(&plan::categories(&folders), &ids, port, &job.cancel, &mut |f| {
+                    ctx.progress(JobProgress::fraction(f))
+                });
+                let freed = r.freed_bytes.to_string();
+                let skipped = r.categories.iter().map(|c| c.skipped_count).sum::<u64>();
+                let ms = started.elapsed().as_millis().to_string();
+                domain_event(
+                    "storage.cleared",
+                    op.as_deref(),
+                    &[
+                        ("Categories", &names),
+                        ("FreedBytes", &freed),
+                        ("Skipped", &skipped.to_string()),
+                        ("ElapsedMs", &ms),
+                    ],
+                );
+                ctx.message(&cleared_line(r.freed_bytes, skipped));
+                let cancelled = r.cancelled;
+                let result = serde_json::to_value(&r).map_err(|e| e.to_string())?;
+                Ok::<_, String>(Done::new(()).with_result(JobResult::Storage { result }).cancelled_if(cancelled))
+            },
+        )
+        .map(|id| id.0),
     )
-    .map(|id| id.0)
 }
 
 /// "Freed 12.4 MB; 3 items stayed": the line the job's message shows.
@@ -268,7 +272,10 @@ pub async fn storage_reveal<R: Runtime>(app: AppHandle<R>, id: String) -> CmdRes
     .map_err(err)?
     .ok_or_else(|| "IMT cannot find this folder on this computer".to_string())?;
     if !dir.is_dir() {
-        return Err(format!("{} does not exist yet: IMT has not stored anything there", dir.display()));
+        return Err(crate::CmdError::from(format!(
+            "{} does not exist yet: IMT has not stored anything there",
+            dir.display()
+        )));
     }
     open_in_file_manager(&dir).map_err(|e| format!("could not open the folder ({e}); it is at {}", dir.display()))?;
     Ok(dir.to_string_lossy().into_owned())

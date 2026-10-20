@@ -46,7 +46,7 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
       </label>
     </div>
     <imt-coverage-note [query]="targets.query()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
       @if (res.data(); as s) {
         <div class="body" tabindex="0" role="region" aria-label="Field statistics" i18n-aria-label="@@analysis.fieldStats.region">
           <p class="facts mono" i18n="@@analysis.fieldStats.facts">{{ count(s.count) }} events with the field · {{ count(s.missing) }} without · {{ count(s.distinct) }} distinct</p>

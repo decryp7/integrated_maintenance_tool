@@ -749,7 +749,7 @@ pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: V
         .into_iter()
         .filter_map(|r| imt_core::report::Report::parse(r).ok())
         .collect();
-    store.save(state.label(), &project).map(|_| ()).map_err(err)
+    crate::error::lift(store.save(state.label(), &project).map(|_| ()).map_err(err))
 }
 
 /// Path of the calling window's autosaved session (open it with `open_project`, which it is granted to),

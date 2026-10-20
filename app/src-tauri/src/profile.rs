@@ -75,18 +75,11 @@ pub(crate) fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
             },
             Err(e) => ProfileValidation {
                 ok: false,
-                line: find_line(toml, &e),
+                line: imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(toml)),
                 error: Some(err(e)),
             },
         },
     }
-}
-
-/// Points compile errors ("extract \"stats\": regex") at the rule's line.
-fn find_line(toml: &str, e: &anyhow::Error) -> Option<usize> {
-    let msg = e.to_string();
-    let name = msg.split('"').nth(1)?;
-    toml.lines().position(|l| l.contains(&format!("\"{name}\""))).map(|i| i + 1)
 }
 
 /// Saves the profile as the active one (for new windows and the next start) and applies it to the calling
@@ -100,9 +93,12 @@ pub(crate) fn save_profile<R: Runtime>(
     op: OpId,
     toml: String,
 ) -> CmdResult<u64> {
-    let profile = Profile::from_toml(&toml).map_err(err)?;
+    let profile = Profile::from_toml(&toml).map_err(|e| crate::CmdError::invalid(e.message).field("toml").line(e.line))?;
     // Never replace a working profile on disk with one that does not compile.
-    state.store_read().validate_profile(profile.clone()).map_err(err)?;
+    state.store_read().validate_profile(profile.clone()).map_err(|e| {
+        let line = imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(&toml));
+        crate::CmdError::invalid(err(e)).field("toml").line(line)
+    })?;
     let name = profile.name.clone();
     let path = app_state.profile_dir.as_ref().map(|d| d.join(PROFILE_FILE));
     if let Some(p) = &path {
@@ -202,7 +198,7 @@ pub(crate) fn import_profile(grants: WindowGrants, path: String) -> CmdResult<Pr
 #[tauri::command]
 pub(crate) fn export_profile(grants: WindowGrants, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
     let target = grants.write(&path, &["toml"])?;
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     std::fs::write(target.path(), &toml).map_err(err)?;
     let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
     domain_event("export.written", None, &[("Export", "profile"), ("Path", &safe), ("Bytes", &bytes)]);
@@ -262,7 +258,26 @@ mod tests {
         drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
-        assert!(save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into()).is_err());
+        let bad = save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into()).unwrap_err();
+        assert_eq!(
+            (bad.code, bad.field.as_deref(), bad.line),
+            (crate::ErrorCode::Invalid, Some("toml"), Some(1))
+        );
+        let rule = save_profile(
+            app.handle().clone(),
+            shared(),
+            st(),
+            OpId::default(),
+            "name = 'x'
+
+[[extract]]
+name = \"stats\"
+regex = '('
+"
+            .into(),
+        )
+        .unwrap_err();
+        assert_eq!(rule.line, Some(4), "{rule:?}");
         let _log = crate::activity::test_capture();
         let job = save_profile(
             app.handle().clone(),
@@ -313,7 +328,10 @@ mod tests {
         assert_eq!(w.props["Bytes"], "17");
         // Replacing the file needs the user's confirmation.
         let again = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None).unwrap_err();
-        assert_eq!(again, format!("{} already exists; confirm to replace it", exported.display()));
+        assert_eq!(
+            again,
+            crate::error::file_exists(format!("{} already exists; confirm to replace it", exported.display()))
+        );
         export_profile(
             grants(),
             exported.to_string_lossy().into_owned(),

@@ -972,7 +972,7 @@ pub fn export_settings<R: Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<()> {
     let target = grants.write(&path, &["json"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let path = target;
     service(&app).export(&path).map_err(err)?;
     log::info!("Settings exported");
@@ -1610,7 +1610,7 @@ pub(crate) mod tests {
         export_settings(h.clone(), grants(), out.clone(), None).unwrap();
         assert_eq!(
             export_settings(h.clone(), grants(), out.clone(), None).unwrap_err(),
-            format!("{out} already exists; confirm to replace it")
+            crate::error::file_exists(format!("{out} already exists; confirm to replace it"))
         );
         export_settings(h.clone(), grants(), out.clone(), Some(true)).unwrap();
         reset_settings(h.clone(), WORKSPACE_SECTION.into()).unwrap();

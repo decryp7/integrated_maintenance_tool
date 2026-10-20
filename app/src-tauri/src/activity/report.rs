@@ -553,9 +553,11 @@ pub async fn problem_report_preview<R: tauri::Runtime>(
     description: Option<String>,
 ) -> CmdResult<ProblemReportPreview> {
     let inputs = inputs(&app);
-    tauri::async_runtime::spawn_blocking(move || preview(&inputs, description.as_deref().unwrap_or("")))
-        .await
-        .map_err(err)
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || preview(&inputs, description.as_deref().unwrap_or("")))
+            .await
+            .map_err(err),
+    )
 }
 
 /// Writes the problem report to `path` (chosen in the save dialog) as a background export job and returns
@@ -569,7 +571,7 @@ pub fn save_problem_report<R: tauri::Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = grants.write(&path, &["zip"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     // What the report shows is gathered now (the steps up to the click), the zip is written in the job.
     let inputs = inputs(&app);
     let spec = crate::jobs::export_spec("Save problem report", None, &target);
@@ -623,7 +625,7 @@ pub async fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> C
     let log_dir = crate::app_dirs::log(&app).map_err(err)?;
     let data_dir = crate::app_dirs::data(&app).map_err(err)?;
     let project = write_activity_project(&data_dir, &log_dir).map_err(err)?;
-    crate::window_manager::open_new(&app, vec![project.to_string_lossy().into_owned()]).map_err(err)
+    crate::error::lift(crate::window_manager::open_new(&app, vec![project.to_string_lossy().into_owned()]).map_err(err))
 }
 
 #[cfg(test)]
@@ -982,7 +984,7 @@ pub(crate) mod tests {
         let refused = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, None);
         assert_eq!(
             refused.unwrap_err(),
-            format!("{} already exists; confirm to replace it", out.display())
+            crate::error::file_exists(format!("{} already exists; confirm to replace it", out.display()))
         );
         let again = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, Some(true)).unwrap();
         crate::test_support::job_done(&app, again);

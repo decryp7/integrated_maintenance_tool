@@ -309,10 +309,12 @@ impl CurrentWindow {
     /// have no workspace of their own: they get their window's.
     pub fn of<R: Runtime, M: Manager<R>>(manager: &M, label: &str) -> CmdResult<CurrentWindow> {
         let windows = manager.try_state::<Windows>().ok_or("IMT is not ready yet")?;
-        windows
-            .get_or_create(crate::browser::banner_owner(label).unwrap_or_else(|| crate::panel_windows::resolve(label)))
-            .map(CurrentWindow)
-            .map_err(err)
+        crate::error::lift(
+            windows
+                .get_or_create(crate::browser::banner_owner(label).unwrap_or_else(|| crate::panel_windows::resolve(label)))
+                .map(CurrentWindow)
+                .map_err(err),
+        )
     }
 
     pub fn arc(&self) -> &Arc<WindowState> {
@@ -382,9 +384,11 @@ pub(crate) async fn read<T: Send + 'static>(
     f: impl FnOnce(&dyn LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
     let ws = win.workspace.clone();
-    tauri::async_runtime::spawn_blocking(move || f(ws.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(err))
-        .await
-        .map_err(err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || f(ws.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(err))
+            .await
+            .map_err(err)?,
+    )
 }
 
 pub(crate) async fn write<T: Send + 'static>(
@@ -392,9 +396,11 @@ pub(crate) async fn write<T: Send + 'static>(
     f: impl FnOnce(&mut dyn LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
     let ws = win.workspace.clone();
-    tauri::async_runtime::spawn_blocking(move || f(ws.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(err))
-        .await
-        .map_err(err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || f(ws.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(err))
+            .await
+            .map_err(err)?,
+    )
 }
 
 /// Like [`write`], and tells the window (`imt://error`) about plugin crashes,
@@ -414,7 +420,7 @@ pub(crate) async fn write_reporting<R: Runtime, T: Send + 'static>(
     for e in &errors {
         crate::snapshots::emit_engine_error(app, win.label(), e);
     }
-    out.map_err(err)
+    crate::error::lift(out.map_err(err))
 }
 
 /// Like [`write_reporting`], on the calling thread (a job's).

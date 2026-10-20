@@ -381,7 +381,7 @@ pub(crate) async fn tail_status(state: CurrentWindow) -> CmdResult<Value> {
         Some(live) => status.with_modes(|p| live.mode_of(p)),
         None => status,
     };
-    serde_json::to_value(status).map_err(err)
+    crate::error::lift(serde_json::to_value(status).map_err(err))
 }
 
 /// Whether the calling window's live tail runs, and the options in effect

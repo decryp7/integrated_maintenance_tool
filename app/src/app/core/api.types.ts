@@ -2518,3 +2518,68 @@ export interface RecentLists {
 
 /** Which recent list a command means. Mirrors `recent::RecentKind`. */
 export type RecentKind = 'files' | 'projects';
+
+// ---- The one error of every command (app/src-tauri/src/error.rs; ADR 0016) ----
+
+/** What kind of failure an error is. Mirrors `error::ErrorCode`; the UI reacts to it, never to the text. */
+export type ErrorCode =
+  | 'failed'
+  | 'invalid'
+  | 'notFound'
+  | 'notGranted'
+  | 'busy'
+  | 'cancelled'
+  | 'io'
+  | 'limit'
+  | 'unsupported'
+  | 'unavailable'
+  | 'fileExists'
+  | 'denied'
+  | 'missing'
+  | 'internal'
+  | 'noModel'
+  | 'noRuntime'
+  | 'engine'
+  | 'contextOverflow'
+  | 'malformed'
+  | 'toolLoopLimit'
+  | 'modelFile'
+  | 'memory'
+  | 'network'
+  | 'tls'
+  | 'proxyAuth'
+  | 'proxy'
+  | 'offline'
+  | 'timeout'
+  | 'httpStatus'
+  | 'gated'
+  | 'integrity'
+  | 'disk'
+  | 'refused'
+  | 'notACapture'
+  | 'notAvailable'
+  | 'unreachable'
+  | 'noRelease'
+  | 'noPlatform'
+  | 'invalidManifest'
+  | 'signatureInvalid'
+  | 'tooLarge'
+  | 'diskFull'
+  | 'installFailed';
+
+/** What every command rejects with. Mirrors `error::CmdError`. */
+export interface CmdErrorDto {
+  code: ErrorCode;
+  /** For the user, as is. */
+  message: string;
+  /** Trying again as is may succeed. */
+  retryable: boolean;
+  /** The request field the error is about. */
+  field?: string;
+  /** The 1-based line of a text the error is about (a profile, a query). */
+  line?: number;
+  /** What to do next. */
+  hint?: string;
+  /** Technical detail. */
+  detail?: string;
+}

@@ -214,12 +214,14 @@ pub fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> Vec<TaskInf
 /// Stops a background task (off the UI thread: stopping may join a worker or run `logman`).
 #[tauri::command]
 pub async fn stop_background_task<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> crate::CmdResult<()> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("IMT is not ready yet")?;
-        tasks.stop(&id).map_err(crate::err)
-    })
-    .await
-    .map_err(crate::err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || {
+            let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("IMT is not ready yet")?;
+            tasks.stop(&id).map_err(crate::err)
+        })
+        .await
+        .map_err(crate::err)?,
+    )
 }
 
 #[cfg(test)]

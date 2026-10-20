@@ -420,7 +420,7 @@ pub async fn quit_app<R: Runtime>(app: AppHandle<R>) -> CmdResult<()> {
 /// Closes the calling window as its close button does (the close setting applies).
 #[tauri::command]
 pub fn close_window<R: Runtime>(window: Window<R>) -> CmdResult<()> {
-    window.close().map_err(err)
+    crate::error::lift(window.close().map_err(err))
 }
 
 #[tauri::command]

@@ -257,12 +257,7 @@ pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::pa
     let core = core(&app)?;
     core.availability()?;
     // Only a file the user chose in the dialog.
-    let path = grants
-        .read_file(&path, &["gguf"])
-        .map_err(AiCmdError::invalid)?
-        .path()
-        .to_string_lossy()
-        .into_owned();
+    let path = grants.read_file(&path, &["gguf"])?.path().to_string_lossy().into_owned();
     let name = Path::new(&path)
         .file_name()
         .map(|n| n.to_string_lossy().chars().take(120).collect::<String>())
@@ -555,9 +550,7 @@ pub async fn ai_chat_export_markdown<R: Runtime>(
         .get(&session_id)
         .ok_or_else(|| AiCmdError::not_found("this chat no longer exists"))?;
     // Only where the user chose to save (the save dialog granted it to this window).
-    let granted = crate::paths::WindowGrants::of(&app, win.label())
-        .write(&path, &["md", "markdown"])
-        .map_err(AiCmdError::invalid)?;
+    let granted = crate::paths::WindowGrants::of(&app, win.label()).write(&path, &["md", "markdown"])?;
     let target = markdown_target(&granted.path().to_string_lossy(), overwrite.unwrap_or(false))?;
     blocking(move || {
         let tmp = target.with_extension("md.tmp");

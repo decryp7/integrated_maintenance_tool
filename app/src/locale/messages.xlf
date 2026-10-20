@@ -3784,21 +3784,21 @@
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-state.ts</context>
-          <context context-type="linenumber">17,19</context>
+          <context context-type="linenumber">18,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.state.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-state.ts</context>
-          <context context-type="linenumber">24,26</context>
+          <context context-type="linenumber">26,28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.state.nothingToShow" datatype="html">
         <source>Nothing to show.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/analysis-state.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.plugin.view.query" datatype="html">
@@ -4072,7 +4072,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/compare-view.ts</context>
-          <context context-type="linenumber">76,77</context>
+          <context context-type="linenumber">76,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.compare.col.p95A" datatype="html">
@@ -4093,7 +4093,7 @@
         <source>No numeric field changed noticeably.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/compare-view.ts</context>
-          <context context-type="linenumber">90,93</context>
+          <context context-type="linenumber">90,94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.compare.newInB" datatype="html">
@@ -4121,7 +4121,7 @@
         <source>Nothing gone.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/compare-view.ts</context>
-          <context context-type="linenumber">104,106</context>
+          <context context-type="linenumber">104,107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.compare.fieldN" datatype="html">
@@ -4506,7 +4506,7 @@
         <source>User activity</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/moment-view.ts</context>
-          <context context-type="linenumber">99,100</context>
+          <context context-type="linenumber">99,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.moment.noActivity" datatype="html">
@@ -4590,7 +4590,7 @@
         <source>Example</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/patterns-view.ts</context>
-          <context context-type="linenumber">41,43</context>
+          <context context-type="linenumber">41,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.patterns.exampleLabel" datatype="html">
@@ -14927,14 +14927,14 @@
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> file not opened} other {<x id="INTERPOLATION"/> files not opened}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">41,42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="overview.view.pluginProblems" datatype="html">
         <source>{VAR_PLURAL, plural, =1 {<x id="INTERPOLATION"/> plugin with problems} other {<x id="INTERPOLATION"/> plugins with problems}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/overview/overview-view.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">51,53</context>
         </context-group>
       </trans-unit>
       <trans-unit id="overview.view.empty" datatype="html">
@@ -18059,7 +18059,7 @@
         <source>No callees: all of its time is self time.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/butterfly/butterfly-view.ts</context>
-          <context context-type="linenumber">64,66</context>
+          <context context-type="linenumber">64,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.butterfly.noCapture" datatype="html">
@@ -19215,7 +19215,7 @@
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">38,40</context>
+          <context context-type="linenumber">38,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.openSecond" datatype="html">
@@ -19719,7 +19719,7 @@
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">33,35</context>
+          <context context-type="linenumber">33,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.loadMore" datatype="html">
@@ -31302,14 +31302,14 @@
         <source>The request failed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates.types.ts</context>
-          <context context-type="linenumber">80</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.tryAgain" datatype="html">
         <source>Try again.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates.types.ts</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="welcome.title" datatype="html">

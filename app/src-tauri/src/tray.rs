@@ -278,7 +278,9 @@ fn refresh_now<R: Runtime>(app: &AppHandle<R>) {
 pub fn handle<R: Runtime>(app: &AppHandle<R>, action: TrayAction) {
     let result: CmdResult<()> = match action {
         TrayAction::ShowWindow(label) => reveal(app, &label),
-        TrayAction::NewWindow => open_new(app, Vec::new()).map(|_| ()).map_err(crate::err),
+        TrayAction::NewWindow => open_new(app, Vec::new())
+            .map(|_| ())
+            .map_err(|e| crate::CmdError::from(crate::err(e))),
         TrayAction::Recent(i) => {
             let recent = crate::recent::recents(app).list().projects.get(i).cloned();
             match recent {

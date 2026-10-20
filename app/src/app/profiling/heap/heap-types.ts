@@ -20,7 +20,7 @@ const PAGE = 200;
       <input type="search" placeholder="Search types…" i18n-placeholder="@@profiling.heapTypes.searchPlaceholder" aria-label="Search types" i18n-aria-label="@@profiling.heapTypes.searchLabel" (input)="onSearch($event)" />
       @if (res.data(); as d) { <span class="muted" i18n="@@profiling.heapTypes.summary">{{ count(d.totalRows) // i18n(ph: "types") }} types · {{ count(d.totalCount) // i18n(ph: "objects") }} objects · {{ bytes(d.totalBytes) // i18n(ph: "bytes") }}</span> }
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." i18n-emptyText="@@profiling.heapTypes.empty" (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types match." i18n-emptyText="@@profiling.heapTypes.empty" (retry)="res.retry()">
       <div class="body tight" tabindex="0" role="region" aria-label="Type rows" i18n-aria-label="@@profiling.heapTypes.rowsRegion">
         <table class="grid" aria-label="Types" i18n-aria-label="@@profiling.heapTypes.tableLabel">
           <thead>

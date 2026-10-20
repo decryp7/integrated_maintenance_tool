@@ -92,7 +92,7 @@ async fn parsers(state: &CurrentWindow) -> CmdResult<ConfigParsers> {
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> CmdResult<T> {
-    tauri::async_runtime::spawn_blocking(f).await.map_err(err)?.map_err(err)
+    crate::error::lift(tauri::async_runtime::spawn_blocking(f).await.map_err(err)?.map_err(err))
 }
 
 /// Supported formats and the default ignore patterns.
@@ -179,7 +179,7 @@ pub(crate) async fn export_config_diff(
     let format = parse_format(&format).map_err(err)?;
     let (l, r) = sides(&grants, &left_path, &right_path)?;
     let target = grants.write(&path, &["csv", "html", "htm"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let parsers = parsers(&state).await?;
     blocking(move || {
         let c = computed(&parsers, &l, &r, &options.compare)?;
@@ -284,7 +284,7 @@ mod tests {
             DiffOptions::default(),
         ))
         .unwrap_err();
-        assert!(e.starts_with("left file: JSON"), "{e}");
+        assert!(e.message.starts_with("left file: JSON"), "{e}");
         assert!(block(diff_configs(
             main_window(&app),
             granted(&app),
@@ -388,7 +388,10 @@ mod tests {
                 overwrite,
             ))
         };
-        assert_eq!(export(None).unwrap_err(), format!("{csv} already exists; confirm to replace it"));
+        assert_eq!(
+            export(None).unwrap_err(),
+            crate::error::file_exists(format!("{csv} already exists; confirm to replace it"))
+        );
         assert_eq!(export(Some(true)).unwrap().rows, 2);
         assert!(block(export_config_diff(
             main_window(&app),

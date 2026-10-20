@@ -1,3 +1,4 @@
+import { CmdError } from '../core/cmd-error';
 /**
  * Wire types of the updater (mirror `app/src-tauri/src/updater.rs`, `updater/state.rs`, `updater/error.rs`).
  *
@@ -73,6 +74,7 @@ export interface UpdateStatus {
 
 /** Turns whatever a rejected request carries into an `UpdateError`. */
 export function toUpdateError(e: unknown): UpdateError {
+  if (e instanceof CmdError) return { kind: e.code as UpdateErrorKind, message: e.message, nextStep: e.hint ?? '', detail: e.detail ?? null };
   if (e && typeof e === 'object' && typeof (e as UpdateError).kind === 'string' && typeof (e as UpdateError).message === 'string') {
     const u = e as UpdateError;
     return { kind: u.kind, message: u.message, nextStep: u.nextStep ?? '', detail: u.detail ?? null };

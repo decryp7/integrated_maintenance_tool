@@ -22,7 +22,7 @@ import { PROFILING_STYLES } from '../profiling-styles';
         <span class="section-title" i18n="@@profiling.butterfly.title">Callers and callees</span>
         @if (state.selectedFrame(); as f) { <span class="mono ellipsis grow" [title]="f.name">{{ f.name }}</span> }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." i18n-emptyText="@@profiling.butterfly.empty" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!state.selectedFrame()" emptyText="Select a function (in the hotspots, a tree or the flame graph) to see who calls it and what it calls." i18n-emptyText="@@profiling.butterfly.empty" (retry)="res.retry()">
         @if (res.data(); as b) {
           <div class="body">
             <h3 class="sec" id="bf-callers" i18n="@@profiling.butterfly.callers">Callers ({{ b.callers.length }})</h3>

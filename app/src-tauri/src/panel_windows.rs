@@ -426,7 +426,7 @@ pub fn dragged<R: Runtime>(app: &AppHandle<R>, label: &str) {
 #[tauri::command]
 pub async fn popout_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, request: PopoutRequest) -> CmdResult<PopoutInfo> {
     // Async: a window must not be created from a synchronous command (it deadlocks on Windows).
-    crate::panel_windows::open(&app, resolve(window.label()), request).map_err(err)
+    crate::error::lift(crate::panel_windows::open(&app, resolve(window.label()), request).map_err(err))
 }
 
 /// Closes a pop-out of the calling window's group; its panel docks back into the host.
@@ -436,7 +436,7 @@ pub fn dock_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, popout_label
         return Err("that is not a pop-out of this window".into());
     }
     let w = app.get_webview_window(&popout_label).ok_or("the pop-out was already closed")?;
-    w.close().map_err(err)
+    crate::error::lift(w.close().map_err(err))
 }
 
 /// The pop-outs of the calling window's group (the host and its pop-outs see the same list).

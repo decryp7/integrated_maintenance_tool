@@ -33,7 +33,7 @@ pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
     spec: JobSpec,
     f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
-    crate::jobs::run(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).await
+    crate::error::lift(crate::jobs::run(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).await)
 }
 
 /// Like [`import_job`], without waiting: returns the job at once (applying a profile re-imports in the
@@ -44,7 +44,9 @@ pub(crate) fn start_import<R: Runtime>(
     spec: JobSpec,
     f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<()> + Send + 'static,
 ) -> CmdResult<u64> {
-    crate::jobs::spawn(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).map(|id| id.0)
+    crate::error::lift(
+        crate::jobs::spawn(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).map(|id| id.0),
+    )
 }
 
 /// An import's Cancel and progress (the window's import progress).
@@ -195,10 +197,10 @@ pub(crate) const MAX_OPEN_PATHS: usize = 1024;
 /// reports it as not found.
 pub(crate) fn open_request<R: Runtime>(app: &AppHandle<R>, window: &str, paths: Vec<String>) -> CmdResult<Vec<PathBuf>> {
     if paths.len() > MAX_OPEN_PATHS {
-        return Err(format!(
+        return Err(crate::CmdError::from(format!(
             "{} files at once are too many: open at most {MAX_OPEN_PATHS}, or open their folder",
             paths.len()
-        ));
+        )));
     }
     let grants = crate::paths::WindowGrants::of(app, window);
     let recents = crate::recent::recents(app);
@@ -413,7 +415,7 @@ pub(crate) async fn export_events<R: Runtime>(
         .path()
         .to_path_buf();
     // Checked now, so the dialog can ask to replace the file; the engine checks again when it writes.
-    imt_core::overwrite::check_overwrite(std::path::Path::new(&request.path), request.overwrite).map_err(err)?;
+    imt_core::overwrite::check_overwrite(std::path::Path::new(&request.path), request.overwrite)?;
     request.path = target.to_string_lossy().into_owned();
     let redact = request.redact;
     crate::jobs::export(&app, &state, "Export events to", &target, move |ws| {
@@ -485,7 +487,7 @@ pub(crate) async fn save_project<R: Runtime>(
     let (file, check) = (target.path().to_path_buf(), path.clone());
     let project = tauri::async_runtime::spawn_blocking(move || -> CmdResult<ProjectFile> {
         // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
-        imt_core::overwrite::check_overwrite(std::path::Path::new(&check), overwrite.unwrap_or(false)).map_err(err)?;
+        imt_core::overwrite::check_overwrite(std::path::Path::new(&check), overwrite.unwrap_or(false))?;
         project.save(&file).map_err(err)?;
         Ok(project)
     })
@@ -931,7 +933,10 @@ mod tests {
             None,
             None,
         ));
-        assert_eq!(again.unwrap_err(), format!("{file} already exists; confirm to replace it"));
+        assert_eq!(
+            again.unwrap_err(),
+            crate::error::file_exists(format!("{file} already exists; confirm to replace it"))
+        );
         block(save_project(
             app.handle().clone(),
             st(),

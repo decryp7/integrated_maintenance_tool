@@ -12,7 +12,10 @@ use imt_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResu
 #[tauri::command]
 pub(crate) async fn set_source_offset(state: CurrentWindow, op: OpId, request: SetOffsetRequest) -> CmdResult<OffsetChange> {
     if request.track.len() > MAX_TRACKED {
-        return Err(format!("too many tracked events ({}; at most {MAX_TRACKED})", request.track.len()));
+        return Err(crate::CmdError::from(format!(
+            "too many tracked events ({}; at most {MAX_TRACKED})",
+            request.track.len()
+        )));
     }
     write(&state, move |ws| {
         let change = ws.set_source_offset(&request)?;

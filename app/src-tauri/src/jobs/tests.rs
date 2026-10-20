@@ -142,7 +142,7 @@ fn long_jobs_post_a_message_and_view_opens_their_result() {
     assert_eq!(ipc(&main, "jobs_result", json!({"id": id.0})).unwrap()["type"], "file");
     std::fs::remove_file(&file).unwrap();
     let gone = ipc(&main, "jobs_reveal", json!({"id": id.0})).unwrap_err();
-    assert!(gone.as_str().unwrap().contains("no longer exists"));
+    assert!(gone["message"].as_str().unwrap().contains("no longer exists"));
     assert!(ipc(&main, "jobs_reveal", json!({"id": 999})).is_err());
 }
 
@@ -202,7 +202,7 @@ fn failures_always_ask_for_attention_with_retry() {
     assert_eq!(n["secondary"], json!({"type": "showJobs"}));
     // Exports have no retry handler: a clear message.
     let e = ipc(&main, "jobs_retry", json!({"id": id.0})).unwrap_err();
-    assert!(e.as_str().unwrap().contains("cannot be retried"), "{e}");
+    assert!(e["message"].as_str().unwrap().contains("cannot be retried"), "{e}");
     assert!(ipc(&main, "jobs_move", json!({"id": id.0, "up": true})).is_err());
     assert_eq!(ipc(&main, "jobs_mark_seen", json!({"id": id.0})).unwrap(), true);
 }
@@ -220,10 +220,10 @@ fn a_window_acts_only_on_its_own_and_app_wide_jobs() {
     assert_eq!(listed(&other).len(), 1);
     for cmd in ["jobs_cancel", "jobs_retry", "jobs_mark_seen", "jobs_result", "jobs_reveal"] {
         let e = ipc(&main, cmd, json!({"id": id.0})).unwrap_err();
-        assert!(e.as_str().unwrap().contains("another window"), "{cmd}: {e}");
+        assert!(e["message"].as_str().unwrap().contains("another window"), "{cmd}: {e}");
     }
     let e = ipc(&main, "jobs_move", json!({"id": id.0, "up": false})).unwrap_err();
-    assert!(e.as_str().unwrap().contains("another window"));
+    assert!(e["message"].as_str().unwrap().contains("another window"));
     // Closing the window stops its jobs and drops its history.
     forget_window(app.handle(), "w-2");
     wait_until("stopped", || jobs(&app).find_active(|_| true).is_empty());

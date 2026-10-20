@@ -48,9 +48,12 @@ pub(crate) fn parse_reports(values: Vec<Value>) -> CmdResult<Vec<Report>> {
 
 fn parse_report(value: Value) -> CmdResult<Report> {
     if value.to_string().len() > MAX_REPORT_JSON {
-        return Err(format!("a report is limited to {} MB", MAX_REPORT_JSON >> 20));
+        return Err(crate::CmdError::from(format!(
+            "a report is limited to {} MB",
+            MAX_REPORT_JSON >> 20
+        )));
     }
-    Report::parse(value).map_err(err)
+    crate::error::lift(Report::parse(value).map_err(err))
 }
 
 /// Switches the window's redacted view on or off; returns the new summary.
@@ -107,7 +110,9 @@ fn renderer(format: &str) -> CmdResult<Box<dyn ReportRenderer>> {
     match format {
         "html" => Ok(Box::new(HtmlRenderer)),
         "pdf" => Ok(Box::new(imt_pdf::PdfRenderer)),
-        other => Err(format!("unknown report format \"{other}\" (use html or pdf)")),
+        other => Err(crate::CmdError::from(format!(
+            "unknown report format \"{other}\" (use html or pdf)"
+        ))),
     }
 }
 
@@ -132,7 +137,7 @@ pub(crate) async fn export_report<R: Runtime>(
         .write(&request.path, &[renderer.extension()])?
         .path()
         .to_path_buf();
-    check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
+    check_overwrite(Path::new(&request.path), request.overwrite)?;
     let report = parse_report(request.report)?;
     let (redact, theme) = (request.redact, request.theme);
     let shown = target.clone();
@@ -215,7 +220,7 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
 pub(crate) async fn save_visual(grants: WindowGrants, op: OpId, request: VisualRequest) -> CmdResult<VisualSaved> {
     tauri::async_runtime::spawn_blocking(move || {
         let target = grants.write(&request.path, &[request.kind.as_str()])?.path().to_path_buf();
-        check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
+        check_overwrite(Path::new(&request.path), request.overwrite)?;
         let bytes = visual_bytes(&request.kind, &request.data).map_err(err)?;
         std::fs::write(&target, &bytes).map_err(|e| format!("cannot write {}: {e}", target.display()))?;
         log::info!(Kind = request.kind.as_str(), Bytes = bytes.len() as u64; "Image exported");
@@ -252,7 +257,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = WindowGrants::of(&app, state.label()).write(&path, &["imtz"])?.path().to_path_buf();
-    check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     parse_reports(options.reports.clone())?;
     let profile = state.profile_doc().toml;
     let shown = target.clone();
@@ -369,7 +374,10 @@ mod tests {
                 },
             ))
         };
-        assert_eq!(again(false).unwrap_err(), format!("{png} already exists; confirm to replace it"));
+        assert_eq!(
+            again(false).unwrap_err(),
+            crate::error::file_exists(format!("{png} already exists; confirm to replace it"))
+        );
         assert_eq!(again(true).unwrap().bytes, 21);
         assert!(std::fs::read(&png).unwrap().starts_with(b"\x89PNG"));
 
@@ -547,7 +555,7 @@ mod tests {
             req("pdf", "r.pdf", false),
         ))
         .unwrap_err();
-        assert!(again.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
+        assert!(again.message.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
         let mut confirmed = req("pdf", "r.pdf", false);
         confirmed.overwrite = true;
         let replaced = block(export_report(app.handle().clone(), st(), OpId::default(), confirmed)).unwrap();
@@ -616,7 +624,10 @@ mod tests {
             None,
         ))
         .unwrap_err();
-        assert_eq!(again, format!("{path} already exists; confirm to replace it"));
+        assert_eq!(
+            again,
+            crate::error::file_exists(format!("{path} already exists; confirm to replace it"))
+        );
         let replaced = block(create_bundle(
             app.handle().clone(),
             st(),

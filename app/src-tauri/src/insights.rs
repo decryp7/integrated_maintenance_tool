@@ -134,13 +134,13 @@ pub async fn preview_parse(state: CurrentWindow, request: ParsePreviewRequest) -
 /// Infers a regex with named, typed groups from example lines (with explanation).
 #[tauri::command]
 pub fn infer_regex(lines: Vec<String>) -> CmdResult<Value> {
-    serde_json::to_value(imt_core::regex_assist::infer(&lines).map_err(crate::err)?).map_err(crate::err)
+    crate::error::lift(serde_json::to_value(imt_core::regex_assist::infer(&lines).map_err(crate::err)?).map_err(crate::err))
 }
 
 /// Explains a regex in plain English as an indented outline.
 #[tauri::command]
 pub fn explain_regex(pattern: String) -> CmdResult<Value> {
-    serde_json::to_value(imt_core::regex_assist::explain(&pattern).map_err(crate::err)?).map_err(crate::err)
+    crate::error::lift(serde_json::to_value(imt_core::regex_assist::explain(&pattern).map_err(crate::err)?).map_err(crate::err))
 }
 
 #[cfg(test)]

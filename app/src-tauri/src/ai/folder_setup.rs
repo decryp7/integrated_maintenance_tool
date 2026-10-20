@@ -79,20 +79,22 @@ pub fn folder_survey<R: Runtime>(
     });
     let spec = JobSpec::new(JobKind::Analysis, "Survey the folder").window(state.label());
     let win = state.arc().clone();
-    crate::jobs::spawn(&app, spec, controls, move |_| {
-        let ticker = Ticker::start(control.clone(), on_progress.clone());
-        let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
-        drop(ticker);
-        let _ = on_progress.send(control.progress());
-        let out = out.map_err(crate::err)?;
-        let cancelled = out.get("cancelled").is_some();
-        Ok::<_, String>(
-            Done::new(())
-                .with_result(JobResult::FolderSurvey { outcome: out })
-                .cancelled_if(cancelled),
-        )
-    })
-    .map(|id| id.0)
+    crate::error::lift(
+        crate::jobs::spawn(&app, spec, controls, move |_| {
+            let ticker = Ticker::start(control.clone(), on_progress.clone());
+            let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
+            drop(ticker);
+            let _ = on_progress.send(control.progress());
+            let out = out.map_err(crate::err)?;
+            let cancelled = out.get("cancelled").is_some();
+            Ok::<_, String>(
+                Done::new(())
+                    .with_result(JobResult::FolderSurvey { outcome: out })
+                    .cancelled_if(cancelled),
+            )
+        })
+        .map(|id| id.0),
+    )
 }
 
 /// The active profile with `fragments` merged in, validated against the window's plugins, with its diff.
@@ -100,7 +102,7 @@ pub fn folder_survey<R: Runtime>(
 #[tauri::command]
 pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>) -> CmdResult<ComposedProfile> {
     if fragments.is_empty() || fragments.len() > MAX_FRAGMENTS {
-        return Err(format!("select 1 to {MAX_FRAGMENTS} proposals"));
+        return Err(crate::CmdError::from(format!("select 1 to {MAX_FRAGMENTS} proposals")));
     }
     let base = state.profile_doc().toml;
     read(&state, move |ws| survey::compose(ws, &base, &fragments)).await

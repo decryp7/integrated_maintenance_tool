@@ -44,6 +44,10 @@ describe('AnalysisState', () => {
     state.detectChanges();
     buttonByText(state, 'Retry').click();
     expect(retried).toBe(1);
+    // The engine says trying again as is cannot pass: no Retry.
+    state.componentRef.setInput('retryable', false);
+    state.detectChanges();
+    expect(text(state)).not.toContain('Retry');
   });
 });
 

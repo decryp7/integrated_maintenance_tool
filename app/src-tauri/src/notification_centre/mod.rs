@@ -302,7 +302,7 @@ pub fn forget_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
 
 fn centre<'a, R: Runtime>(app: &'a AppHandle<R>) -> crate::CmdResult<tauri::State<'a, NotificationCentre>> {
     app.try_state::<NotificationCentre>()
-        .ok_or_else(|| "IMT is not ready yet".to_string())
+        .ok_or_else(|| crate::CmdError::unavailable("IMT is not ready yet"))
 }
 
 fn changed<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &str, app_wide: bool) {

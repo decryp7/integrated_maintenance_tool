@@ -29,6 +29,7 @@ mod demo;
 mod dev_overrides;
 mod diagnostics;
 mod engine_errors;
+mod error;
 mod file_commands;
 mod insights;
 mod instance;
@@ -69,7 +70,7 @@ pub(crate) use tauri::State;
 
 use tauri::{Emitter, Manager};
 
-pub(crate) type CmdResult<T> = Result<T, String>;
+pub(crate) use error::{CmdError, CmdResult, ErrorCode};
 
 pub(crate) fn err(e: impl std::fmt::Display) -> String {
     format!("{e:#}")

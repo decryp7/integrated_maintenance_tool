@@ -83,7 +83,7 @@ interface EventVm {
       @if (!p.hasTime) {
         <div class="state" role="status" i18n="@@profiling.threads.noTimestamps">This capture has no timestamps (e.g. folded stacks), so there is no timeline.</div>
       } @else {
-        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
+        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
           @if (res.data(); as t) {
             <div class="axis mono" aria-hidden="true">
               <span [style.left.px]="labelW">{{ axisLabel(t, t.fromNs) }}</span>

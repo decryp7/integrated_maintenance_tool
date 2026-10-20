@@ -622,7 +622,7 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
     // Only to a file the user chose in the save dialog.
     assert_eq!(
         code(ipc(&main, "ai_chat_export_markdown", json!({"sessionId": sid, "path": path})).unwrap_err()),
-        "invalid"
+        "notGranted"
     );
     assert!(!md.exists());
     crate::paths::grant(

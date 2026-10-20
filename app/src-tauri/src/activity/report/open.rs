@@ -539,9 +539,11 @@ pub async fn diagnostics_report_image<R: Runtime>(app: AppHandle<R>, state: Curr
         .get(state.label())
         .cloned()
         .ok_or("no diagnostics report is open in this window")?;
-    tauri::async_runtime::spawn_blocking(move || read_image(&opened.zip, &opened.manifest, &id))
-        .await
-        .map_err(err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || read_image(&opened.zip, &opened.manifest, &id))
+            .await
+            .map_err(err)?,
+    )
 }
 
 #[cfg(test)]

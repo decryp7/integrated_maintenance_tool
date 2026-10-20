@@ -39,10 +39,10 @@ fn chat_of(win: &CurrentWindow, session_id: &str) -> CmdResult<String> {
 fn bounded(what: &str, s: &str) -> CmdResult<String> {
     let t = s.trim();
     if t.is_empty() {
-        return Err(format!("{what} is empty"));
+        return Err(crate::CmdError::from(format!("{what} is empty")));
     }
     if t.chars().count() > MAX_INPUT_CHARS {
-        return Err(format!("{what} is longer than {MAX_INPUT_CHARS} characters"));
+        return Err(crate::CmdError::from(format!("{what} is longer than {MAX_INPUT_CHARS} characters")));
     }
     Ok(t.to_string())
 }
@@ -114,12 +114,14 @@ pub async fn browser_event_query(win: CurrentWindow, record_id: u32) -> CmdResul
     let w = win.arc().clone();
     blocking(move || {
         let store = w.store_read();
-        search_for_event(store.as_ref(), record_id)
-            .map(|q| EventQueryDto {
-                query: q.query,
-                removed: q.removed,
-            })
-            .map_err(|e| format!("nothing to search for: {e}"))
+        crate::error::lift(
+            search_for_event(store.as_ref(), record_id)
+                .map(|q| EventQueryDto {
+                    query: q.query,
+                    removed: q.removed,
+                })
+                .map_err(|e| format!("nothing to search for: {e}")),
+        )
     })
     .await
 }
@@ -145,13 +147,13 @@ pub async fn browser_nav<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, comm
         NavCommand::Reload => scripts::RELOAD,
         NavCommand::Stop => scripts::STOP_LOADING,
     };
-    w.eval(js).map_err(err)
+    crate::error::lift(w.eval(js).map_err(err))
 }
 
 #[tauri::command]
 pub async fn browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<bool> {
     match app.get_webview_window(&browser_label(win.label())) {
-        Some(w) => w.close().map(|_| true).map_err(err),
+        Some(w) => crate::error::lift(w.close().map(|_| true).map_err(err)),
         None => Ok(false),
     }
 }
@@ -164,7 +166,7 @@ pub fn browser_open_external<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
         return Err("refused: only the page shown or a window it asked to open can be opened".into());
     }
     crate::activity::domain_event("browser.openExternal", None, &[("Site", u.site().as_str())]);
-    open::that_detached(u.as_str()).map_err(|e| format!("cannot open your browser: {e}"))
+    crate::error::lift(open::that_detached(u.as_str()).map_err(|e| format!("cannot open your browser: {e}")))
 }
 
 fn sources_event<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str, hub: &BrowserHub) -> Vec<SourceInfo> {
@@ -191,7 +193,7 @@ pub async fn browser_capture<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
         owner: owner.clone(),
         chat: None,
     };
-    let captured = blocking(move || page.capture().map_err(err)).await?;
+    let captured = blocking(move || crate::error::lift(page.capture().map_err(err))).await?;
     if captured.text.trim().is_empty() {
         return Err("the page has no readable text yet; wait for it to load and try again".into());
     }
@@ -338,31 +340,33 @@ pub async fn browser_open_and_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
         return Err("refused: this link was not suggested in this chat".into());
     }
     let (a, w) = (app.clone(), win.arc().clone());
-    tauri::async_runtime::spawn_blocking(move || {
-        let owner = w.label().to_string();
-        let before = h.page(&owner).loads;
-        open(&a, &owner, &u, true)?;
-        h.wait_loaded(&owner, before, std::time::Duration::from_secs(15));
-        let page = super::page::TauriPage {
-            app: a.clone(),
-            owner: owner.clone(),
-            chat: None,
-        };
-        let capture = imt_ai::browser::PageReader::capture(&page).map_err(err)?;
-        let title = capture.title.clone();
-        h.attach(&owner, &chat, capture);
-        crate::activity::domain_event("browser.openAndRead", None, &[("Site", u.site().as_str())]);
-        let emit = crate::ai::commands::chat_emitter(&a, &owner);
-        let text = format!(
-            "I opened \"{}\" for you: read it and go on with my question.",
-            title.chars().take(120).collect::<String>()
-        );
-        crate::ai::requests::start_turn(&a, &w, &chat, text, Default::default(), emit)
-            .map(|id| id.0)
-            .map_err(|e| e.message)
-    })
-    .await
-    .map_err(err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || {
+            let owner = w.label().to_string();
+            let before = h.page(&owner).loads;
+            open(&a, &owner, &u, true)?;
+            h.wait_loaded(&owner, before, std::time::Duration::from_secs(15));
+            let page = super::page::TauriPage {
+                app: a.clone(),
+                owner: owner.clone(),
+                chat: None,
+            };
+            let capture = imt_ai::browser::PageReader::capture(&page).map_err(err)?;
+            let title = capture.title.clone();
+            h.attach(&owner, &chat, capture);
+            crate::activity::domain_event("browser.openAndRead", None, &[("Site", u.site().as_str())]);
+            let emit = crate::ai::commands::chat_emitter(&a, &owner);
+            let text = format!(
+                "I opened \"{}\" for you: read it and go on with my question.",
+                title.chars().take(120).collect::<String>()
+            );
+            crate::ai::requests::start_turn(&a, &w, &chat, text, Default::default(), emit)
+                .map(|id| id.0)
+                .map_err(|e| e.message)
+        })
+        .await
+        .map_err(err)?,
+    )
 }
 
 /// Opens a link a chat suggested, in the internal browser. Only links that chat suggested are opened.

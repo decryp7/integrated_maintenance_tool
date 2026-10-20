@@ -759,7 +759,7 @@ pub fn export_diagnostics<R: tauri::Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = grants.write(&path, &["zip"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let store = store(&app)?;
     let path = target.to_string_lossy().into_owned();
     let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
@@ -1303,7 +1303,7 @@ mod tests {
         let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![saved.id.clone()], None);
         assert_eq!(
             refused.unwrap_err(),
-            format!("{} already exists; confirm to replace it", out.display())
+            crate::error::file_exists(format!("{} already exists; confirm to replace it", out.display()))
         );
         let _ = std::fs::remove_file(out);
         prune_on_startup(&handle);
