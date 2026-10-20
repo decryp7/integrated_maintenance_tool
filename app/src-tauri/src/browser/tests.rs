@@ -308,3 +308,15 @@ fn the_banner_window_shows_its_windows_driver_and_stop_clears_it() {
     assert!(crate::window_manager::is_auxiliary(banner.label()));
     assert!(!crate::window_manager::list(app.handle()).iter().any(|w| w.label == banner.label()));
 }
+
+// Regression: the banner floated over whatever window was in front when the browser was behind it (macOS).
+#[test]
+fn the_banner_shows_only_while_the_browser_or_the_banner_is_active() {
+    use super::driving::banner_visible;
+    assert!(banner_visible(true, false), "the browser is the active window");
+    assert!(banner_visible(false, true), "the banner's own Stop button has focus");
+    assert!(
+        !banner_visible(false, false),
+        "another window is in front: the title and the frame say it instead"
+    );
+}
