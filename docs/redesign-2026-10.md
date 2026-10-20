@@ -148,6 +148,7 @@ ADR 0014 stands. The engine review adds what it must also decide:
 | R4 | R3 | about 2 days | typed contract, safe commands, one config and error model |
 | R5 | R2, R4 | about 2 days | cancellable, coalesced requests; engine-owned rules |
 | R6 themes + timeline | R5 | about 2 days | three switchable themes (two first); a polished timeline with stacked spans |
+| Notes (ADR 0021) | 6c | about 1 day | a note on anything (a log line, a time range, a lane, a finding, a rule, a profiler frame), stored in the project |
 | 6b Problems pane | R2, R5 | about 1 day | diagnostics with quick fixes and AI fix |
 
 About 11 working days in total, plus CI rounds. R0 starts as soon as batch 5 is merged.
