@@ -1,8 +1,10 @@
 [package]
 name = "imt-plugin-sdk"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "SDK for IMT process plugins: the imt.plugin.v1 gRPC contract (Arrow record batches), serve(plugin), and the conformance test kit (imt-plugin-check)"
 
@@ -23,18 +25,18 @@ test = false
 [dependencies]
 imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+anyhow.workspace = true
+serde.workspace = true
 # float_roundtrip: f64 field values must survive JSON text exactly (Record ↔ Arrow is lossless).
-serde_json = { version = "1.0", features = ["preserve_order", "float_roundtrip"] }
-bytes = "1"
-chrono = "0.4.45"
-semver = "1"
-prost = "0.14"
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
-tonic-prost = "0.14"
-tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-tokio-stream = { version = "0.1", default-features = false }
+serde_json = { workspace = true, features = ["preserve_order", "float_roundtrip"] }
+bytes.workspace = true
+chrono.workspace = true
+semver.workspace = true
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-stream.workspace = true
 # Arrow IPC for record batches (Apache-2.0). No compression codecs: batches cross a local socket, where
 # encoding speed matters more than size.
 arrow-array = { version = "60", default-features = false }
@@ -43,10 +45,10 @@ arrow-ipc = { version = "60", default-features = false, features = ["lz4"] }
 arrow-schema = { version = "60", default-features = false }
 
 [build-dependencies]
-protox = "0.9"
-tonic-prost-build = "0.14"
+protox.workspace = true
+tonic-prost-build.workspace = true
 
 [dev-dependencies]
-proptest = "1"
-tempfile = "3"
-tokio-stream = { version = "0.1", default-features = false }
+proptest.workspace = true
+tempfile.workspace = true
+tokio-stream.workspace = true

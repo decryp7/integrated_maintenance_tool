@@ -1,8 +1,10 @@
 [package]
 name = "imt-plugin-host"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "Out-of-process plugins for IMT: the adapter that makes a plugin process look like an in-process plugin, isolation settings, and the imt-plugin-host binary that serves the built-in plugins over imt.plugin.v1"
 
@@ -32,18 +34,18 @@ imt-plugin-windows = { path = "../imt-plugin-windows" }
 imt-plugin-web = { path = "../imt-plugin-web" }
 imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
-anyhow = "1.0"
-bytes = "1"
-log = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
-tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
-tokio-stream = { version = "0.1", default-features = false }
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+anyhow.workspace = true
+bytes.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-stream.workspace = true
+tonic.workspace = true
 
 [dev-dependencies]
-proptest = "1"
-tempfile = "3"
-chrono = "0.4.45"
-prost = "0.14"
+proptest.workspace = true
+tempfile.workspace = true
+chrono.workspace = true
+prost.workspace = true
 imt-ipc = { path = "../imt-ipc" }

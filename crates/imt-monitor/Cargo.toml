@@ -1,24 +1,26 @@
 [package]
 name = "imt-monitor"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 
 [dependencies]
 imt-core = { path = "../imt-core" }
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
-globset = "0.4"
-sysinfo = { version = "0.39", default-features = false, features = ["system"] }
-ctrlc = "3"
+anyhow.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+globset.workspace = true
+sysinfo = { workspace = true, features = ["system"] }
+ctrlc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Performance", "Win32_System_Diagnostics_ToolHelp"] }
+windows = { workspace = true, features = ["Win32_System_Performance", "Win32_System_Diagnostics_ToolHelp"] }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
 
 [[bin]]
 name = "imt-monitor"

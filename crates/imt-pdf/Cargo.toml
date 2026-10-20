@@ -1,15 +1,17 @@
 [package]
 name = "imt-pdf"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "PDF output for IMT incident reports: selectable Unicode text (embedded font subsets) and charts embedded as vector graphics"
 
 [dependencies]
 imt-core = { path = "../imt-core" }
-anyhow = "1.0"
-miniz_oxide = "0.8"
+anyhow.workspace = true
+miniz_oxide = "0.9"
 # Pure-Rust PDF writing (MIT/Apache-2.0, from the typst project); svg2pdf turns the
 # sanitised chart/timeline SVG into vector XObjects with selectable text.
 pdf-writer = "0.12"
@@ -23,5 +25,5 @@ svg2pdf = { version = "0.13", default-features = false, features = ["text"] }
 usvg = { version = "0.45", default-features = false, features = ["text", "system-fonts"] }
 
 [dev-dependencies]
-proptest = "1.12"
-serde_json = "1.0"
+proptest.workspace = true
+serde_json.workspace = true
