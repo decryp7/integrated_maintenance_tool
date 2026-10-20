@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 
 pub const NOTIFICATIONS_EVENT: &str = "imt://notifications";
@@ -33,6 +34,8 @@ pub const OPEN_EVENT: &str = "imt://notifications-open";
 /// An OS notification clicked (IMT focused) within this time opens its message.
 const OPEN_WITHIN_MS: i64 = 120_000;
 const FILE_NAME: &str = "notifications.json";
+/// How long changes to the app list wait before they are written (bursts are written once).
+const SAVE_DELAY: Duration = Duration::from_millis(250);
 
 /// A window's messages: its project's and the app's, newest first.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -64,7 +67,8 @@ pub struct NotificationCentre {
     app: Mutex<Centre>,
     projects: Mutex<HashMap<String, Centre>>,
     next: AtomicU64,
-    file: Option<PathBuf>,
+    /// Writes the app list to its file, debounced, off the centre's locks (none: in memory only).
+    writer: Option<Arc<crate::config_store::Debounced<Vec<Notice>>>>,
     clock: Arc<dyn Clock>,
     pending: Mutex<Option<PendingOpen>>,
 }
@@ -82,7 +86,13 @@ impl NotificationCentre {
             next: AtomicU64::new(app.max_id() + 1),
             app: Mutex::new(app),
             projects: Mutex::new(HashMap::new()),
-            file,
+            writer: file.map(|path| {
+                crate::config_store::Debounced::new(SAVE_DELAY, move |notices: Vec<Notice>| {
+                    if let Err(e) = persist::save_file(&path, &notices) {
+                        log::warn!("The notifications could not be saved: {e}");
+                    }
+                })
+            }),
             clock,
             pending: Mutex::new(None),
         }
@@ -92,11 +102,17 @@ impl NotificationCentre {
         NoticeId(self.next.fetch_add(1, Ordering::SeqCst))
     }
 
+    /// Queues the app list for its file (written by the debounced writer, never under the centre's locks).
     fn save_app(&self, app: &Centre) {
-        if let Some(path) = &self.file {
-            if let Err(e) = persist::save_file(path, app.notices()) {
-                log::warn!("The notifications could not be saved: {e}");
-            }
+        if let Some(w) = &self.writer {
+            w.schedule(app.notices().to_vec());
+        }
+    }
+
+    /// Writes what is pending now (IMT is closing; tests).
+    pub fn flush(&self) {
+        if let Some(w) = &self.writer {
+            w.flush(Duration::from_secs(2));
         }
     }
 
@@ -418,16 +434,19 @@ mod tests {
         assert_eq!(main.notices.iter().find(|n| n.source == NoticeSource::LiveAlert).unwrap().count, 2);
         assert_eq!(c.snapshot("w-2").notices.len(), 3);
         // App messages are in the data file; project ones are not.
+        c.flush();
         let saved = persist::load_file(&file);
         assert_eq!(saved.len(), 2);
         assert!(saved.iter().all(|n| n.scope == NoticeScope::App));
         assert!(c.mark_read("main", update.notice.id), "app messages are reachable from any window");
         assert_eq!(c.snapshot("w-2").unread, 2);
         assert_eq!(c.mark_all_read("main"), 2);
+        c.flush();
         assert!(persist::load_file(&file).iter().all(|n| n.read));
         assert!(c.dismiss("w-2", update.notice.id));
         assert!(!c.dismiss("w-2", update.notice.id));
         assert!(!c.mark_read("main", NoticeId(999)));
+        c.flush();
         // A restart reads the app file back, with fresh ids after the saved ones.
         let again = NotificationCentre::new(Some(file), clock);
         assert_eq!(again.snapshot("main").notices.len(), 1);

@@ -4,7 +4,7 @@ import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
-import { JobOutcome, JobResult, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
+import { JobInfo, JobOutcome, JobResult, JobsDelta, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
 
 export const JOBS_EVENT = 'imt://jobs';
 
@@ -36,7 +36,9 @@ export abstract class JobsBackend {
   abstract onChange(handler: (s: JobsSnapshot) => void): Promise<Unlisten>;
 }
 
-const isSnapshot = (p: unknown): p is JobsSnapshot => !!p && typeof p === 'object' && Array.isArray((p as JobsSnapshot).jobs) && Array.isArray((p as JobsSnapshot).paused);
+
+const isDelta = (p: unknown): p is JobsDelta =>
+  !!p && typeof p === 'object' && typeof (p as JobsDelta).version === 'number' && Array.isArray((p as JobsDelta).order) && Array.isArray((p as JobsDelta).changed) && Array.isArray((p as JobsDelta).paused);
 
 /** Talks to the Rust shell; `call` is Tauri's `invoke`, tests pass fakes. */
 export class TauriJobsBackend implements JobsBackend {
@@ -81,9 +83,31 @@ export class TauriJobsBackend implements JobsBackend {
   restore(record: unknown) {
     return this.call<RestoredJobs>('jobs_restore', { record });
   }
+  /**
+   * The event carries what changed since the last one (`JobsDelta`); this keeps the window's snapshot and
+   * hands the whole of it to `handler`. A missed version (or a job the delta does not explain) asks for
+   * the list again.
+   */
   onChange(handler: (s: JobsSnapshot) => void) {
+    let known: { version: number; jobs: Map<number, JobInfo> } | null = null;
+    // The list is at least as new as `version`: the deltas after it apply on top of it.
+    const resync = (version: number) =>
+      void this.list()
+        .then((s) => {
+          known = { version, jobs: new Map(s.jobs.map((j) => [j.id, j])) };
+          handler(s);
+        })
+        .catch(() => undefined);
     return this.listen(JOBS_EVENT, (p) => {
-      if (isSnapshot(p)) handler(p);
+      if (!isDelta(p)) return;
+      const base = known && p.version === known.version + 1 ? known.jobs : p.version === 1 ? new Map<number, JobInfo>() : null;
+      if (!base) return resync(p.version);
+      const jobs = new Map(base);
+      for (const j of p.changed) jobs.set(j.id, j);
+      const ordered = p.order.map((id) => jobs.get(id));
+      if (ordered.some((j) => !j)) return resync(p.version);
+      known = { version: p.version, jobs: new Map(ordered.map((j) => [j!.id, j!])) };
+      handler({ jobs: ordered as JobInfo[], paused: p.paused });
     });
   }
 }

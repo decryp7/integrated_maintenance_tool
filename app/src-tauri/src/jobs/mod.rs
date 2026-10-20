@@ -58,9 +58,10 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
     let h = app.clone();
     jobs.set_retry(JobKind::Research, move |job| crate::browser::research::retry(&h, job));
     let mirrored = Mutex::new(HashSet::<String>::new());
+    let sent = Mutex::new(Sent::default());
     jobs.subscribe(move |event| match event {
         JobsEvent::Changed => {
-            emit_all(&handle, &service);
+            emit_all(&handle, &service, &sent);
             mirror(&handle, &service, &mirrored);
         }
         JobsEvent::Finished(f) => finished(&handle, f),
@@ -68,12 +69,63 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
     });
 }
 
-fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
+/// What each window was last sent: its version and snapshot.
+type Sent = std::collections::HashMap<String, (u64, JobsSnapshot)>;
+
+/// What `imt://jobs` carries: the window's jobs as a change of the last event (version `version`, the one
+/// before is `version - 1`): the jobs in their order by id, those new or changed in full, the paused queues.
+/// A window that missed a version asks for the list again (`jobs_list`).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobsDelta {
+    pub version: u64,
+    pub order: Vec<JobId>,
+    pub changed: Vec<queue::JobInfo>,
+    pub paused: Vec<queue::PausedKind>,
+}
+
+/// The change from `prev` to `next` as version `version`; `None` when nothing changed (nothing is sent).
+pub fn delta(prev: Option<&JobsSnapshot>, next: &JobsSnapshot, version: u64) -> Option<JobsDelta> {
+    if prev == Some(next) {
+        return None;
+    }
+    let changed = next
+        .jobs
+        .iter()
+        .filter(|j| !prev.is_some_and(|p| p.jobs.iter().any(|o| o == *j)))
+        .cloned()
+        .collect();
+    Some(JobsDelta {
+        version,
+        order: next.jobs.iter().map(|j| j.id).collect(),
+        changed,
+        paused: next.paused.clone(),
+    })
+}
+
+/// Sends each window what changed in its jobs since its last event (nothing when nothing did). `sent` is
+/// held only to compute the deltas; events go out after it is released.
+fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, sent: &Mutex<Sent>) {
     let Some(windows) = app.try_state::<crate::windows::Windows>() else {
         return;
     };
-    for w in windows.all() {
-        crate::windows::emit_to_window(app, w.label(), JOBS_EVENT, jobs.snapshot(Some(w.label())));
+    let labels: Vec<String> = windows.all().iter().map(|w| w.label().to_string()).collect();
+    let deltas: Vec<(String, JobsDelta)> = {
+        let mut sent = sent.lock().unwrap_or_else(|p| p.into_inner());
+        sent.retain(|l, _| labels.contains(l));
+        labels
+            .into_iter()
+            .filter_map(|label| {
+                let next = jobs.snapshot(Some(&label));
+                let (version, prev) = sent.get(&label).map_or((0, None), |(v, s)| (*v, Some(s)));
+                let d = delta(prev, &next, version + 1)?;
+                sent.insert(label.clone(), (version + 1, next));
+                Some((label, d))
+            })
+            .collect()
+    };
+    for (label, d) in deltas {
+        crate::windows::emit_to_window(app, &label, JOBS_EVENT, d);
     }
 }
 

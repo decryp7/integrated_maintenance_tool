@@ -156,19 +156,16 @@ pub fn load_file(dir: Option<&Path>) -> SettingsFile {
 
 /// `Ok(None)` when the file does not exist.
 fn read_settings_file(path: &Path) -> Result<Option<SettingsFile>, String> {
-    let meta = match std::fs::metadata(path) {
-        Ok(m) => m,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(e.to_string()),
-    };
-    if !meta.is_file() {
-        return Err("not a file".into());
-    }
-    if meta.len() > MAX_FILE_BYTES {
+    use crate::config_store::{read_json, ReadError};
+    if std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() > MAX_FILE_BYTES) {
         return Err(format!("the file is larger than {} KB", MAX_FILE_BYTES / 1024));
     }
-    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let value: Value = serde_json::from_str(&text).map_err(|e| format!("not a settings file: {e}"))?;
+    let value = match read_json(path) {
+        Ok(v) => v,
+        Err(ReadError::Missing) => return Ok(None),
+        Err(ReadError::Damaged(why)) => return Err(format!("not a settings file: {why}")),
+        Err(ReadError::Newer(v)) => return Err(format!("written by a newer IMT (format {v})")),
+    };
     if !value.is_object() {
         return Err("not a settings file: expected a JSON object".into());
     }
@@ -184,24 +181,11 @@ fn read_settings_file(path: &Path) -> Result<Option<SettingsFile>, String> {
 
 /// Writes `file` to `path` atomically: a temp file next to it, then a rename.
 pub fn write_atomic(path: &Path, file: &SettingsFile) -> anyhow::Result<()> {
-    use std::io::Write;
-    let text = serde_json::to_string_pretty(&SettingsFile {
+    let text = serde_json::to_vec_pretty(&SettingsFile {
         version: VERSION,
         sections: file.sections.clone(),
     })?;
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let tmp = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
-    let result = (|| {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(text.as_bytes())?;
-        f.sync_all()?;
-        drop(f);
-        std::fs::rename(&tmp, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    Ok(result?)
+    Ok(crate::config_store::write_atomic(path, &text)?)
 }
 
 /// Values that live outside `settings.json` (their owner's file).
@@ -1160,8 +1144,8 @@ pub(crate) mod tests {
         // A folder where the file should be.
         std::fs::create_dir_all(t.0.join(FILE)).unwrap();
         assert_eq!(load_file(Some(&t.0)), SettingsFile::default());
-        // Writing into a missing folder fails cleanly.
-        assert!(write_atomic(&t.0.join("missing/settings.json"), &f).is_err());
+        // A missing folder is created; a folder in the way fails cleanly.
+        assert!(write_atomic(&t.0.join("missing/settings.json"), &f).is_ok());
         assert!(write_atomic(Path::new("/"), &f).is_err());
     }
 

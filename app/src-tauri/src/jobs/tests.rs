@@ -84,7 +84,7 @@ fn the_pane_lists_running_jobs_after_two_seconds_and_the_tray_can_stop_them() {
             .lock()
             .unwrap()
             .iter()
-            .any(|e| e["jobs"].as_array().is_some_and(|j| !j.is_empty()))
+            .any(|e| e["order"].as_array().is_some_and(|j| !j.is_empty()) && e["version"].as_u64().is_some())
     });
     let task = format!("{TASK_PREFIX}{id}");
     wait_until("the tray entry", || {
@@ -375,4 +375,33 @@ fn mirroring_never_notifies_under_its_lock() {
     );
     assert_eq!(mirrored.lock().unwrap().len(), 1);
     release.send(Ok(None)).unwrap();
+}
+
+/// Windows get what changed, versioned; nothing when nothing did.
+#[test]
+fn job_events_are_versioned_deltas() {
+    let app = test_app_with_commands(None);
+    let jobs = app.state::<Jobs>().inner().clone();
+    let empty = jobs.snapshot(Some("main"));
+    let first = delta(None, &empty, 1).expect("the first event is always sent");
+    assert_eq!((first.version, first.order.len(), first.changed.len()), (1, 0, 0));
+    assert_eq!(delta(Some(&empty), &empty, 2), None, "unchanged: nothing is sent");
+    let (tx, rx) = mpsc::channel::<()>();
+    let rx = std::sync::Mutex::new(rx);
+    jobs.submit_work(
+        JobSpec::new(JobKind::Export, "Waits").window("main"),
+        Controls::default(),
+        move |_| {
+            let _ = rx.lock().unwrap().recv();
+            queue::JobEnd::Done(None)
+        },
+    )
+    .unwrap();
+    // Jobs show once they ran a moment.
+    app.state::<TestClock>().0.advance(60_000);
+    let running = jobs.snapshot(Some("main"));
+    let d = delta(Some(&empty), &running, 2).unwrap();
+    assert_eq!((d.order.len(), d.changed.len()), (1, 1));
+    assert_eq!(delta(Some(&running), &running, 3), None);
+    let _ = tx.send(());
 }

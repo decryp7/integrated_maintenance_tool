@@ -2,6 +2,7 @@
 //! error screenshots. Persisted as `diagnostics.json` in the config folder;
 //! a missing or corrupt file, or out-of-range values, fall back to defaults.
 
+use crate::config_store::ConfigStore;
 use crate::{err, AppState, CmdResult, State};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -116,16 +117,14 @@ impl DiagnosticsSettings {
 }
 
 pub fn load(dir: Option<&Path>) -> DiagnosticsSettings {
-    dir.and_then(|d| std::fs::read_to_string(d.join(FILE)).ok())
-        .and_then(|t| serde_json::from_str::<DiagnosticsSettings>(&t).ok())
-        .unwrap_or_default()
+    // A newer file's values are re-validated (clamped), like the settings.
+    ConfigStore::new(dir.map(Path::to_path_buf))
+        .load_doc::<DiagnosticsSettings>(FILE)
         .clamped()
 }
 
 pub fn save(dir: &Path, s: &DiagnosticsSettings) -> anyhow::Result<()> {
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(FILE), serde_json::to_string_pretty(s)?)?;
-    Ok(())
+    Ok(ConfigStore::new(Some(dir.to_path_buf())).save_doc(FILE, s)?)
 }
 
 /// Deletes IMT log files older than `max_age_days` (the active file is kept).

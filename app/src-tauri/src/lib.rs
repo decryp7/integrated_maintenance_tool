@@ -27,6 +27,7 @@ mod browser;
 mod clef;
 mod commands;
 mod config_diff;
+mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;

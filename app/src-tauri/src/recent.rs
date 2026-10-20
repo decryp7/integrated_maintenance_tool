@@ -8,10 +8,10 @@
 //!
 //! Commands: `recent_list`, `recent_remove`, `recent_clear`.
 
+use crate::config_store::{Config, ConfigStore};
 use crate::CmdResult;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::path::Path;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 /// Event to every window: the lists changed (payload: [`RecentLists`]).
@@ -50,46 +50,32 @@ pub enum RecentKind {
     Projects,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Stored {
-    version: u32,
-    #[serde(flatten)]
-    lists: RecentLists,
-}
-
 /// Managed state: the lists and where they are kept.
 pub struct Recents {
-    file: Option<PathBuf>,
-    lists: Mutex<RecentLists>,
+    lists: Config<RecentLists>,
 }
 
 impl Recents {
     /// The lists kept in `dir` (none: in memory only), read once.
     pub fn load(dir: Option<&Path>) -> Recents {
-        let file = dir.map(|d| d.join(FILE));
-        let lists = file.as_deref().map(read).unwrap_or_default();
+        let store = ConfigStore::new(dir.map(Path::to_path_buf));
         Recents {
-            file,
-            lists: Mutex::new(lists),
+            lists: Config::open(store, FILE, VERSION).fixed(clean),
         }
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, RecentLists> {
-        self.lists.lock().unwrap_or_else(|p| p.into_inner())
-    }
-
     pub fn list(&self) -> RecentLists {
-        self.lock().clone()
+        self.lists.get()
     }
 
     /// Whether `path` (as the webview sends it) is a recent file or folder.
     pub fn has_file(&self, path: &str) -> bool {
-        self.lock().files.iter().any(|f| same(f, path))
+        self.list().files.iter().any(|f| same(f, path))
     }
 
     /// Whether `path` is a recent project.
     pub fn has_project(&self, path: &str) -> bool {
-        self.lock().projects.iter().any(|p| same(&p.path, path))
+        self.list().projects.iter().any(|p| same(&p.path, path))
     }
 
     /// Puts opened files and folders at the front (deduplicated, capped); whether the list changed.
@@ -138,21 +124,15 @@ impl Recents {
 
     /// Applies `f`; when the lists changed, writes them (outside the lock) and says so.
     fn change(&self, f: impl FnOnce(&mut RecentLists)) -> bool {
-        let snapshot = {
-            let mut lists = self.lock();
+        let changed = self.lists.update_if(|lists| {
             let before = lists.clone();
-            f(&mut lists);
-            if *lists == before {
-                return false;
-            }
-            lists.clone()
-        };
-        if let Some(file) = &self.file {
-            if let Err(e) = write(file, &snapshot) {
-                log::warn!("could not save the recent lists: {e}");
-            }
-        }
-        true
+            f(lists);
+            *lists != before
+        });
+        changed.unwrap_or_else(|e| {
+            log::warn!("could not save the recent lists: {e}");
+            true
+        })
     }
 }
 
@@ -176,38 +156,13 @@ fn file_stem(path: &str) -> String {
         .unwrap_or_default()
 }
 
-fn read(file: &Path) -> RecentLists {
-    let Ok(text) = std::fs::read_to_string(file) else {
-        return RecentLists::default();
-    };
-    match serde_json::from_str::<Stored>(&text) {
-        Ok(s) if s.version == VERSION => {
-            let mut lists = s.lists;
-            lists.files.retain(|f| keepable(f));
-            lists.files.truncate(MAX_FILES);
-            lists.projects.retain(|p| keepable(&p.path));
-            lists.projects.truncate(MAX_PROJECTS);
-            lists
-        }
-        _ => RecentLists::default(),
-    }
-}
-
-fn write(file: &Path, lists: &RecentLists) -> std::io::Result<()> {
-    let stored = Stored {
-        version: VERSION,
-        lists: lists.clone(),
-    };
-    let text = serde_json::to_string_pretty(&stored).map_err(std::io::Error::other)?;
-    if let Some(dir) = file.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let tmp = file.with_extension("json.tmp");
-    std::fs::write(&tmp, text)
-        .and_then(|_| std::fs::rename(&tmp, file))
-        .inspect_err(|_| {
-            let _ = std::fs::remove_file(&tmp);
-        })
+/// The lists as read, bounded and with only absolute paths.
+fn clean(mut lists: RecentLists) -> RecentLists {
+    lists.files.retain(|f| keepable(f));
+    lists.files.truncate(MAX_FILES);
+    lists.projects.retain(|p| keepable(&p.path));
+    lists.projects.truncate(MAX_PROJECTS);
+    lists
 }
 
 /// The app's lists (created on first use, read from the config folder).

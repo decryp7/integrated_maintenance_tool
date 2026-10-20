@@ -456,16 +456,16 @@ pub struct PluginSettings {
     pub disabled: Vec<String>,
 }
 
+/// The format of `plugins.json`, the one place plugin enablement is kept (the Plugins settings section and
+/// `plugin_set_enabled` both go through [`set_plugin_enabled`]).
+const PLUGINS_VERSION: u32 = 1;
+
 pub fn load_plugin_settings(dir: Option<&Path>) -> PluginSettings {
-    dir.and_then(|d| std::fs::read_to_string(d.join(PLUGINS_FILE)).ok())
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_default()
+    crate::config_store::ConfigStore::new(dir.map(Path::to_path_buf)).load(PLUGINS_FILE, PLUGINS_VERSION)
 }
 
 fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Result<()> {
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(PLUGINS_FILE), serde_json::to_string_pretty(s)?)?;
-    Ok(())
+    Ok(crate::config_store::ConfigStore::new(Some(dir.to_path_buf())).save(PLUGINS_FILE, PLUGINS_VERSION, s)?)
 }
 
 /// Every compiled-in plugin. Add new plugins here; install order does not
@@ -608,6 +608,13 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     });
     let a = app.clone();
     teardown_step("jobs", TEARDOWN_STEP_LIMIT, move || crate::jobs::shutdown(&a));
+    // After the jobs (their end posts messages): the debounced notifications reach the disk.
+    let a = app.clone();
+    teardown_step("notifications", TEARDOWN_STEP_LIMIT, move || {
+        if let Some(c) = a.try_state::<crate::notification_centre::NotificationCentre>() {
+            c.flush();
+        }
+    });
     if let Some(life) = app.try_state::<Lifecycle>() {
         life.end();
         log::info!("Teardown: instance marker removed");
