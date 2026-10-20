@@ -4,7 +4,7 @@
 //! project can carry a different one).
 
 use crate::activity::{domain_event, privacy, OpId};
-use crate::windows::{write, CurrentWindow};
+use crate::windows::{read, write, CurrentWindow};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
@@ -50,10 +50,11 @@ pub(crate) fn get_profile(state: CurrentWindow) -> CmdResult<ProfileDoc> {
 }
 
 /// Parses and compiles a profile against the installed plugins.
+/// Async (off the main thread): while an import or live tail holds the workspace, a sync command would wait for
+/// the lock on the main thread and freeze every window.
 #[tauri::command]
-pub(crate) fn validate_profile(state: CurrentWindow, toml: String) -> CmdResult<ProfileValidation> {
-    let store = state.store_read();
-    Ok(validate(store.as_ref(), &toml))
+pub(crate) async fn validate_profile(state: CurrentWindow, toml: String) -> CmdResult<ProfileValidation> {
+    read(&state, move |store| Ok(validate(store, &toml))).await
 }
 
 pub(crate) fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
@@ -250,7 +251,7 @@ mod tests {
         assert!(!semantic.ok);
         assert_eq!(semantic.line, Some(4));
         let unlocated = validate("[parse]\nassume_timezone = 'Mars'");
-        assert!(validate_profile(st(), "name = 'y'".into()).unwrap().ok);
+        assert!(block(validate_profile(st(), "name = 'y'".into())).unwrap().ok);
         drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
