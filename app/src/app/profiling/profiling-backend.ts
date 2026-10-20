@@ -40,8 +40,8 @@ import {
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { MockProfilingBackend } from '../core/mock/mock-profiling';
 import { toProfilingFailure } from './profiling-errors';
+import { browserMocks } from '../core/mock-registry';
 
 /**
  * The profiling engine as the UI sees it (commands in `app/src-tauri/src/profiling.rs`). Every
@@ -161,7 +161,7 @@ export class TauriProfilingBackend extends ProfilingBackend {
 
 /** The real backend inside Tauri, the in-memory mock (URL switches as in `mock-profiling.ts`) in a browser. */
 export function createProfilingBackend(): ProfilingBackend {
-  const real = isTauri() ? new TauriProfilingBackend() : new MockProfilingBackend(MockProfilingBackend.optionsFromSearch(location.search));
+  const real = isTauri() ? new TauriProfilingBackend() : new (browserMocks().MockProfilingBackend)(browserMocks().MockProfilingBackend.optionsFromSearch(location.search));
   return withFailureLogging<ProfilingBackend>(real, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

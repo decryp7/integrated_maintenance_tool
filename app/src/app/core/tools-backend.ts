@@ -5,7 +5,6 @@ import { ImtBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
-import { MockToolsBackend } from '../tools/mock/mock-tools-backend';
 import { listenHere } from '../windowing/window-events';
 import {
   AppStatus,
@@ -30,6 +29,7 @@ import {
   ToolEntry,
 } from './tools.types';
 import { hasSkew } from './skew-backend';
+import { browserMocks } from './mock-registry';
 
 /** Names of the events the shell emits. */
 export const OPEN_EVENT = 'imt://open';
@@ -307,7 +307,7 @@ export function provideToolsBackend(): Provider[] {
     const imt = inject(ImtBackend);
     const real = isTauri()
       ? new TauriToolsBackend()
-      : new MockToolsBackend(
+      : new (browserMocks().MockToolsBackend)(
           undefined,
           () => imt.workspaceSummary(),
           hasSkew(imt)

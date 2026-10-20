@@ -8,7 +8,7 @@ import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtView } from '../extensions/tokens'
 import { provideImtPlugin } from '../extensions/provide';
 import { analysisActivityItems } from './analysis-activity';
 import { AnalysisCommands } from './analysis-commands';
-import { MockAnalysisBackend, recordsFrom } from './mock/mock-analysis-backend';
+import { browserMocks } from '../core/mock-registry';
 
 /** The analysis views. Only the query bar opens by default (it follows the workspace); the rest open from the palette. */
 export const ANALYSIS_VIEWS: ImtView[] = [
@@ -34,7 +34,7 @@ export const ANALYSIS_VIEWS: ImtView[] = [
 
 /** The engine-backed analysis backend inside Tauri, the mock (derived from the demo records) in a browser. */
 export function createAnalysisBackend(): AnalysisBackend {
-  const backend: AnalysisBackend = isTauri() ? new TauriAnalysisBackend() : new MockAnalysisBackend(recordsFrom(inject(ImtBackend)));
+  const backend: AnalysisBackend = isTauri() ? new TauriAnalysisBackend() : new (browserMocks().MockAnalysisBackend)(browserMocks().recordsFrom(inject(ImtBackend)));
   return withFailureLogging<AnalysisBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

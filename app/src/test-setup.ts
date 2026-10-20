@@ -1,5 +1,10 @@
 /** jsdom gaps the app relies on. Loaded before every spec (angular.json test.setupFiles). */
 import '@angular/localize/init';
+import * as mocks from './app/mock-backends';
+import { installBrowserMocks } from './app/core/mock-registry';
+
+// The app loads the mock backends before bootstrapping in a browser; specs get them at once.
+installBrowserMocks(mocks);
 
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}

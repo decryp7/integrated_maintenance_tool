@@ -2,13 +2,13 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { CaptureSummary, FrameDto } from '../core/api.types';
 import { isTauri } from '../core/platform';
-import { MOCK_CAPTURE_PATHS } from '../core/mock/mock-profiling-data';
 import { errorText } from '../analysis/async-resource';
 import { ProfilingBackend } from './profiling-backend';
 import { plural } from '../i18n/locale';
 import { profilingErrorCode } from './profiling-errors';
 import { isHeap, isProfile } from './profiling-format';
 import { ProfileViewState } from './profile-view-state';
+import { browserMocks } from '../core/mock-registry';
 
 /* v8 ignore start: the native dialog exists only inside Tauri */
 async function nativePick(): Promise<string[]> {
@@ -25,7 +25,7 @@ export class CapturePicker {
   pick(): Promise<string[]> {
     /* v8 ignore next */
     if (isTauri()) return nativePick();
-    return Promise.resolve([...MOCK_CAPTURE_PATHS]);
+    return Promise.resolve([...browserMocks().MOCK_CAPTURE_PATHS]);
   }
 }
 

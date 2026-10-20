@@ -6,18 +6,18 @@ import { isTauri } from '../core/platform';
 import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
 import { DiagnosticsCommands, DIAGNOSTICS_VIEWS } from './diagnostics-commands';
 import { ErrorSnapshotService } from './error-snapshot.service';
-import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
 import { DiagnosticsReportService } from './diagnostics-report.service';
 import { ImtEvents } from '../extensions/events';
+import { browserMocks } from '../core/mock-registry';
 
 /** The real backend inside Tauri, an in-memory one in a plain browser (ng serve, e2e). */
 export function createSnapshotBackend(): SnapshotBackend {
   const injector = inject(Injector);
   // The mock finds an opened diagnostics zip in the workspace; looked up late to avoid a cycle with the workspace store.
-  const mock = () => new MockSnapshotBackend(undefined, () => injector.get(ImtEvents).workspace());
+  const mock = () => new (browserMocks().MockSnapshotBackend)(undefined, () => injector.get(ImtEvents).workspace());
   return withFailureLogging<SnapshotBackend>(isTauri() ? new TauriSnapshotBackend() : mock(), inject(Logger), { category: 'ui.snapshot' });
 }
 
