@@ -28,6 +28,7 @@ const src = (id: number, path: string, group: string, to: number | null, records
   name: path.split('/').pop()!,
   group,
   importer: 'text',
+  fileKind: 'text',
   records,
   dropped: 0,
   skipped: 0,

@@ -55,7 +55,8 @@ import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashb
 import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
 import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
-import { ImportProgress, ProfileVersionInfo } from '../api.types';
+import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from '../api.types';
+import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
@@ -213,6 +214,7 @@ export class MockBackend implements ImtBackend {
         from: perSource.get(s.id)?.from ?? null,
         to: perSource.get(s.id)?.to ?? null,
         offsetMs: s.offsetMs ?? 0,
+        fileKind: mockFileKind(s.path),
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,
@@ -484,6 +486,11 @@ export class MockBackend implements ImtBackend {
         return { sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '', line: rec.line, lines: r ? lines.map((l) => ({ ...l, text: r.apply(l.text) })) : lines };
       }, 20)
     );
+  }
+
+  /** `FilesBackend.openSourceFile`: the engine's checks; nothing is opened in a browser. */
+  openSourceFile(request: OpenFileRequest): Promise<FileOpened> {
+    return this.delay(() => mockOpenSourceFile(this.engine.sources, request), 20);
   }
 
   readFileHead(path: string, maxBytes = 65536): Promise<string> {

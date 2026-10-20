@@ -73,6 +73,28 @@ export interface SourceInfo {
   to: number | null;
   /** Clock-skew correction applied to this source's timestamps, in ms (0 = none; the engine always sends it). See `set_source_offset`. */
   offsetMs?: number;
+  /** How the source is stored on disk: what Open file / Open at line / Show in folder can do with it. */
+  fileKind: FileKind;
+}
+
+/**
+ * How a source is stored: a plain text file (lines are file lines), a file read by a binary importer (event log,
+ * trace), a gzip file (lines are in the decompressed text) or a zip archive member (no file of its own).
+ */
+export type FileKind = 'text' | 'binary' | 'compressed' | 'archiveMember';
+
+/** `open_source_file({ request })`: what to do with one of the window's sources (the engine resolves the path). */
+export type FileAction = 'open' | 'openAtLine' | 'reveal';
+export interface OpenFileRequest {
+  sourceId: number;
+  action: FileAction;
+  /** The event's line (1-based); needed for `openAtLine`. */
+  line?: number;
+}
+/** Reply of `open_source_file`: what opened the file (an editor, the default program, the file manager) and its path. */
+export interface FileOpened {
+  with: 'editor' | 'defaultApp' | 'fileManager';
+  path: string;
 }
 
 export interface UnrecognizedFile {
@@ -401,7 +423,12 @@ export interface Lane {
   /** Matched records per bucket. */
   density: number[];
   markers: MarkerCluster[];
+  /** Ids of the sources with events in the lane, ascending (at most MAX_LANE_SOURCES). */
+  sources: number[];
 }
+
+/** Most source ids a timeline lane lists (`Lane.sources`). */
+export const MAX_LANE_SOURCES = 16;
 
 export interface Timeline {
   from: number;

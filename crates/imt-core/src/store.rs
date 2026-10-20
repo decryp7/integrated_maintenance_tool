@@ -42,6 +42,11 @@ pub trait LogStore: Send + Sync {
     /// Sources, fields, totals and chart definitions of what is loaded.
     fn summary(&self) -> WorkspaceSummary;
 
+    /// The opened sources (the summary's `sources`, without computing the rest of it).
+    fn sources(&self) -> Vec<crate::api::SourceInfo> {
+        self.summary().sources
+    }
+
     /// One page of the records matching a query.
     fn page(&self, req: &PageRequest) -> Result<Page<'_>>;
 
@@ -336,6 +341,10 @@ impl LogStore for Workspace {
 
     fn summary(&self) -> WorkspaceSummary {
         Workspace::summary(self)
+    }
+
+    fn sources(&self) -> Vec<crate::api::SourceInfo> {
+        Workspace::sources(self).to_vec()
     }
 
     fn page(&self, req: &PageRequest) -> Result<Page<'_>> {

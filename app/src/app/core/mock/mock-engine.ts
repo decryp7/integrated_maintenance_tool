@@ -9,6 +9,7 @@ import {
   FieldInfo,
   LEVELS,
   Lane,
+  MAX_LANE_SOURCES,
   Level,
   LifecycleEvent,
   MarkerCluster,
@@ -329,11 +330,12 @@ export class MockEngine {
       const key = this.groupKey(r, c.groupBy);
       let lane = lanes.get(key);
       if (!lane) {
-        lane = { key, first: r.ts, last: r.ts, total: 0, matched: 0, density: new Array(buckets).fill(0), markers: [], clusters: new Map() };
+        lane = { key, first: r.ts, last: r.ts, total: 0, matched: 0, density: new Array(buckets).fill(0), markers: [], sources: [], clusters: new Map() };
         lanes.set(key, lane);
       }
       lane.total++;
       lane.last = r.ts;
+      if (lane.sources.length < MAX_LANE_SOURCES && !lane.sources.includes(r.source)) lane.sources.push(r.source);
       const b = Math.min(buckets - 1, Math.floor((r.ts - from) / bucketMs));
       const pass = c.content(r);
       if (pass) {
@@ -358,7 +360,7 @@ export class MockEngine {
       to,
       bucketMs,
       histogram,
-      lanes: all.slice(0, MAX).map(({ clusters, ...lane }) => ({ ...lane, markers: [...clusters.values()] })),
+      lanes: all.slice(0, MAX).map(({ clusters, ...lane }) => ({ ...lane, sources: [...lane.sources].sort((a, b) => a - b), markers: [...clusters.values()] })),
       truncatedLanes: Math.max(0, all.length - MAX),
     };
   }

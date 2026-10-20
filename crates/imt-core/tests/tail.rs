@@ -527,6 +527,7 @@ fn binary_formats_are_reimported_whole() {
     let mut ws = Workspace::with_importers(Profile::default_profile(), importers).unwrap();
     ws.open(std::slice::from_ref(&d.0)).unwrap();
     let id = source_of(&ws, "perf.blg").id;
+    assert_eq!(source_of(&ws, "perf.blg").file_kind, imt_core::api::FileKind::Binary);
     assert_eq!(ws.summary().total, 3);
     assert!(ws.tail_status().files.iter().any(|f| f.state == TailFileState::Whole));
     std::fs::write(&p, b"BLB1abcde").unwrap();

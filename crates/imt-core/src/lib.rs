@@ -16,6 +16,7 @@ pub mod dashboard;
 pub mod events;
 pub mod exceptions;
 pub mod export;
+pub mod file_target;
 pub mod guard;
 pub mod icons;
 pub mod importers;

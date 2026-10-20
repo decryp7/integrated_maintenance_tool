@@ -231,6 +231,12 @@ fn stores_without_live_tail_or_plugins_get_safe_defaults() {
         .open_with(std::slice::from_ref(&d.0), &OpenOptions { start_at_end: true })
         .unwrap();
     assert_eq!(store.summary().total, 6);
+    // The sources come from the summary by default, as the workspace lists them itself.
+    let names: Vec<String> = store.sources().into_iter().map(|s| s.name).collect();
+    let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+    ws.open(std::slice::from_ref(&d.0)).unwrap();
+    assert_eq!(names, LogStore::sources(&ws).into_iter().map(|s| s.name).collect::<Vec<_>>());
+    assert!(!names.is_empty());
 
     // A tail refresh re-imports changed files and reports nothing finer.
     let file = d.0.join("app.clef");

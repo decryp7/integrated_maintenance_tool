@@ -1,6 +1,6 @@
 //! Per-instance lanes and the level histogram.
 
-use super::{Lane, MarkerCluster, Timeline, TimelineRequest, Workspace};
+use super::{Lane, MarkerCluster, Timeline, TimelineRequest, Workspace, MAX_LANE_SOURCES};
 use crate::model::Record;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -60,6 +60,7 @@ impl Workspace {
                     matched: 0,
                     density: vec![0; buckets],
                     markers: Vec::new(),
+                    sources: Vec::new(),
                 });
                 clusters.push(HashMap::new());
                 lanes.len() - 1
@@ -68,6 +69,9 @@ impl Workspace {
             lane.first = lane.first.min(ts);
             lane.last = lane.last.max(ts);
             lane.total += 1;
+            if lane.sources.len() < MAX_LANE_SOURCES && !lane.sources.contains(&r.source) {
+                lane.sources.push(r.source);
+            }
             let b = bucket_of(ts);
             let matched = cq.content(r, self.source_name(r.source));
             let mask = if matched {
@@ -96,6 +100,7 @@ impl Workspace {
         for (lane, c) in lanes.iter_mut().zip(clusters) {
             lane.markers = c.into_values().collect();
             lane.markers.sort_by_key(|m| (m.ts, m.kind.clone()));
+            lane.sources.sort_unstable();
         }
         lanes.sort_by(|a, b| a.first.cmp(&b.first).then_with(|| a.key.cmp(&b.key)));
         let truncated_lanes = lanes.len().saturating_sub(MAX_LANES);

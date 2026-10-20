@@ -246,6 +246,11 @@ impl Workspace {
         &self.profile.profile
     }
 
+    /// The opened sources, by name.
+    pub fn sources(&self) -> &[SourceInfo] {
+        &self.sources
+    }
+
     pub fn records(&self) -> &[Record] {
         &self.records
     }
@@ -513,11 +518,13 @@ impl Workspace {
                 Ok(mut loaded) => {
                     let offset = self.apply_offset(&path_s, &mut loaded.imported.records);
                     let id = self.add_source(path_s, name, loaded.importer, loaded.imported.skipped, loaded.stats);
+                    let file_kind = loaded.file_kind;
                     let (from, to) = time_range(&loaded.imported.records);
                     if let Some(s) = self.sources.last_mut() {
                         s.records = loaded.imported.records.len();
                         (s.from, s.to) = (from, to);
                         s.offset_ms = offset;
+                        s.file_kind = file_kind;
                     }
                     if let Some(seed) = loaded.seed {
                         let path = PathBuf::from(&self.sources[self.sources.len() - 1].path);
@@ -573,6 +580,7 @@ impl Workspace {
             from: None,
             to: None,
             offset_ms: 0,
+            file_kind: FileKind::Text,
         });
         id
     }
@@ -797,6 +805,7 @@ impl Workspace {
 /// statistics, and how to tail it.
 struct Loaded {
     importer: String,
+    file_kind: FileKind,
     imported: crate::importers::Imported,
     stats: Vec<crate::pipeline::StepStats>,
     seed: Option<tail::TailSeed>,
@@ -866,6 +875,11 @@ fn import_file(
             })
             .unwrap_or_else(|e| Err(format!("{e:#} (please report this file)")))
             .map(|mut loaded| {
+                if compressed {
+                    loaded.file_kind = FileKind::ArchiveMember;
+                } else if packed {
+                    loaded.file_kind = FileKind::Compressed;
+                }
                 if !compressed && loaded.seed.is_none() {
                     loaded.seed = whole.clone().or_else(|| Some(tail::TailSeed::whole(path, &entry.bytes)));
                 }
@@ -892,8 +906,12 @@ fn import_bytes(
     }
     let ctx = ImportCtx { profile, path, file_date };
     let mut append = None;
+    let mut file_kind = FileKind::Text;
     let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
-        Some(importer) => (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?),
+        Some(importer) => {
+            file_kind = FileKind::Binary;
+            (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?)
+        }
         None => {
             let content = decode(bytes).ok_or("binary file")?;
             let head: String = content.chars().take(64 * 1024).collect();
@@ -924,6 +942,7 @@ fn import_bytes(
     imported.records = records;
     Ok(Loaded {
         importer: id.to_string(),
+        file_kind,
         imported,
         stats,
         seed,

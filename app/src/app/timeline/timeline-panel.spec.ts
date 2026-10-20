@@ -20,7 +20,7 @@ const mk = (kind: string, left: number, count = 1, id = left): MarkerVm => ({
   label: kind,
 });
 
-const lane = (key: string, first: number): Lane => ({ key, first, last: first + 1, total: 1, matched: 1, density: [], markers: [] });
+const lane = (key: string, first: number): Lane => ({ key, first, last: first + 1, total: 1, matched: 1, density: [], markers: [], sources: [] });
 
 describe('timeline geometry', () => {
   it('merges same-kind markers that are closer than the gap', () => {
