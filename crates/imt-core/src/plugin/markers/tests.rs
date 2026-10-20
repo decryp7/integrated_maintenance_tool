@@ -86,9 +86,9 @@ fn builder_sets_every_field() {
         ),
         (Some("d"), Some("#123"), Some("flag"), Some("AB"), Some("square"))
     );
-    k.check("p").unwrap();
-    assert!(PluginMarkerKind::new("", "x").check("p").is_err());
-    assert!(PluginMarkerKind::new(&"x".repeat(65), "x").check("p").is_err());
-    assert!(PluginMarkerKind::new("k", "x").color("blue").check("p").is_err());
+    super::check(&k, "p").unwrap();
+    assert!(super::check(&PluginMarkerKind::new("", "x"), "p").is_err());
+    assert!(super::check(&PluginMarkerKind::new(&"x".repeat(65), "x"), "p").is_err());
+    assert!(super::check(&PluginMarkerKind::new("k", "x").color("blue"), "p").is_err());
     assert_eq!(serde_json::to_string(&MarkerRole::Crash).unwrap(), "\"crash\"");
 }

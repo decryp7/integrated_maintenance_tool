@@ -300,6 +300,26 @@ impl WindowGrants {
     }
 }
 
+/// Path arguments of plugin tools (ADR 0017 §4): a path the window's user chose, canonical, or why not.
+impl imt_core::plugin::tools::PathPolicy for WindowGrants {
+    fn check(
+        &self,
+        raw: &str,
+        kind: imt_core::plugin::tools::PathKind,
+        access: imt_core::plugin::tools::PathAccess,
+    ) -> Result<PathBuf, String> {
+        use imt_core::plugin::tools::{PathAccess, PathKind};
+        let granted = match (access, kind) {
+            (PathAccess::Read, PathKind::Dir) => self.read_dir(raw),
+            (PathAccess::Read, PathKind::File) => self.read_file(raw, &[]),
+            // An output folder: the folder the user chose with the folder dialog (granted as a tree).
+            (PathAccess::Write, PathKind::Dir) => self.read_dir(raw),
+            (PathAccess::Write, PathKind::File) => self.write(raw, &[]),
+        };
+        granted.map(|g| g.path).map_err(|e| e.message)
+    }
+}
+
 impl<'de, R: Runtime> CommandArg<'de, R> for WindowGrants {
     fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
         let webview = command.message.webview();

@@ -3,37 +3,8 @@
 use crate::model::Record;
 use anyhow::{anyhow, Result};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConditionCfg {
-    pub field: String,
-    pub op: String,
-    #[serde(default)]
-    pub value: Option<CondValue>,
-}
-
-/// Lets TOML write `value = 5`, `value = true` or `value = "x"`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum CondValue {
-    Text(String),
-    Number(f64),
-    Bool(bool),
-    List(Vec<String>),
-}
-
-impl CondValue {
-    fn text(&self) -> String {
-        match self {
-            CondValue::Text(s) => s.clone(),
-            CondValue::Number(n) => n.to_string(),
-            CondValue::Bool(b) => b.to_string(),
-            CondValue::List(l) => l.join("|"),
-        }
-    }
-}
+pub use imt_plugin_api::condition::{CondValue, ConditionCfg};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Op {

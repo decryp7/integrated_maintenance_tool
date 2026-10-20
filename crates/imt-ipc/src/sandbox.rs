@@ -115,7 +115,7 @@ mod platform {
         if elevated {
             // IMT could not put an elevated child into a job: it joins one itself (killed with its last handle,
             // which this process holds until it exits).
-            match crate::job::JobGuard::assign_self(&crate::job::JobLimits::from_sandbox(spec, None)) {
+            match crate::job::JobGuard::assign_self(&crate::job::JobLimits::from_sandbox(spec)) {
                 Some(job) => std::mem::forget(job),
                 None => notes.push("could not apply the job limits".into()),
             }

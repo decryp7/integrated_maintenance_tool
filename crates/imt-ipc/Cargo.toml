@@ -6,18 +6,12 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
-description = "Local gRPC transport for IMT's worker and plugin processes: private Unix socket / owner-only named pipe, per-launch token, typed error trailer, and a supervisor (restart with backoff, quarantine, no orphans)"
+description = "IMT's one IPC (ADR 0017): length-prefixed postcard frames on a private Unix socket / owner-only named pipe, a symmetric peer with credits and cancel, the launcher with sandbox and elevation, the child loop and the supervisor (restart with backoff and restore, quarantine, no orphans)"
 
-# A fake child process (crash, hang, wrong token, ...) used only by the tests. Never bundled.
+# A fake child process (crash, hang, wrong token, another process, garbage, ...) used only by the tests. Never bundled.
 [[bin]]
 name = "imt-ipc-fake-child"
 path = "src/bin/fake_child.rs"
-test = false
-
-# The fake child of the launcher tests (frames). Never bundled.
-[[bin]]
-name = "imt-ipc-frame-child"
-path = "src/bin/frame_child.rs"
 test = false
 
 [dependencies]
@@ -26,12 +20,6 @@ serde_json.workspace = true
 getrandom.workspace = true
 postcard.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
-tokio-stream = { workspace = true, features = ["net"] }
-tonic.workspace = true
-tower.workspace = true
-hyper-util.workspace = true
-prost.workspace = true
-tonic-prost.workspace = true
 sysinfo = { workspace = true, features = ["system"] }
 
 [target.'cfg(unix)'.dependencies]
@@ -47,6 +35,3 @@ windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Secu
 [dev-dependencies]
 tempfile.workspace = true
 
-[build-dependencies]
-protox.workspace = true
-tonic-prost-build.workspace = true

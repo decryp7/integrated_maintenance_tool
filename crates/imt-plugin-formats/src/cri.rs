@@ -6,12 +6,12 @@ use crate::container::{path_fields, Joiner, Stream};
 use crate::first_line;
 use anyhow::Result;
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::Fields;
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::Fields;
 
 pub struct CriImporter;
 
-impl Importer for CriImporter {
+impl TextImporter for CriImporter {
     fn id(&self) -> &'static str {
         "cri"
     }
@@ -91,7 +91,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
 mod tests {
     use super::*;
     use crate::testutil::{garbage, ms, with_ctx, with_path};
-    use imt_core::model::Level;
+    use imt_plugin_api::model::Level;
 
     const LOG: &str = "\
 2026-10-17T12:00:00.123456789Z stdout F Started orders v3.14.2\r

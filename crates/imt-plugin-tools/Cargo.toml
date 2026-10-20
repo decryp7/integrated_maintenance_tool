@@ -10,6 +10,7 @@ description = "IMT tools plugin: Performance Monitor collector sets, the process
 
 [dependencies]
 imt-core = { path = "../imt-core" }
+imt-plugin-api = { path = "../imt-plugin-api" }
 imt-monitor = { path = "../imt-monitor" }
 imt-collect = { path = "../imt-collect" }
 imt-plugin-windows = { path = "../imt-plugin-windows" }

@@ -1,7 +1,10 @@
 //! Capturing a real child's standard error and exit into its child log: crash vs normal vs stopped by IMT.
 
 use imt_ipc::child_log::{self, ChildKind, ChildLogSpec, ChildRunState};
-use imt_ipc::process::{launch, ChildProcess, SpawnSpec};
+use imt_ipc::launch::{launch, ChildSpec};
+use imt_ipc::peer::NoCalls;
+use imt_ipc::process::{ChildProcess, SpawnSpec};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 fn spec(args: &[&str], log: &str) -> SpawnSpec {
@@ -44,11 +47,10 @@ fn a_crash_is_recorded_with_its_output_and_exit_code() {
 
 #[test]
 fn a_child_stopped_by_imt_and_restarted_counts_runs() {
-    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
-    let s = spec(&["--say=ready"], "capture-stop");
-    let first = rt.block_on(launch(&s)).unwrap();
-    first.process.close(Duration::from_secs(2));
-    let second = rt.block_on(launch(&s)).unwrap();
+    let s = ChildSpec::new(spec(&["--say=ready"], "capture-stop"));
+    let first = launch(&s, Arc::new(NoCalls)).unwrap();
+    first.stop();
+    let second = launch(&s, Arc::new(NoCalls)).unwrap();
     drop(second);
     let log = child_log::find("capture-stop").unwrap();
     let st = log.status();

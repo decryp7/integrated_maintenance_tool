@@ -7,8 +7,8 @@
 
 use crate::ids::EVENT_LOG;
 use anyhow::{anyhow, bail, Result};
-use imt_core::export::ClefFileSink;
-use imt_core::plugin::tools::{OpSpec, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+use imt_plugin_api::clef::ClefFileSink;
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 use imt_plugin_windows::eventlog::bookmark::BookmarkStore;
 use imt_plugin_windows::eventlog::follower::Limits;
 use imt_plugin_windows::eventlog::query::{offered_channels, Backfill, EventLevel, MAX_CHANNELS, MAX_CHANNEL_LEN, MAX_XPATH_LEN};
@@ -218,7 +218,7 @@ impl Tool for EventLogTool {
                 .args(
                     query_args(Schema::object())
                         .optional("resumeFromBookmark", Schema::Bool)
-                        .optional("dir", Schema::text(4096))
+                        .optional("dir", Schema::path(PathKind::Dir, PathAccess::Write))
                         .optional("maxFileMb", Schema::int(1, 100))
                         .optional("maxFiles", Schema::int(1, 50)),
                 )

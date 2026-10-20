@@ -15,9 +15,7 @@
     "schedule": ["at any time"]
   },
   "ignorePaths": [
-    "**/node_modules/**",
-    "proto/**",
-    "sdk/dotnet/**"
+    "**/node_modules/**"
   ],
   "packageRules": [
     {
@@ -25,11 +23,6 @@
       "matchPackageNames": ["*"],
       "groupName": "weekly dependency updates",
       "groupSlug": "weekly"
-    },
-    {
-      "description": "The gRPC stack is being removed in R3 (docs/redesign-2026-10.md)",
-      "matchPackageNames": ["protox", "/^tonic/", "/^prost/"],
-      "enabled": false
     },
     {
       "description": "Gitea Actions only supports v3 of the artifact actions",

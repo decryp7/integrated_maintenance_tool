@@ -25,10 +25,10 @@ pub enum Capture {
 /// problems as [`ProfileError`]s that say what is wrong with the file.
 pub trait CaptureImporter: Send + Sync {
     /// Stable id, e.g. `speedscope`; recorded as the capture's source.
-    fn id(&self) -> &'static str;
+    fn id(&self) -> &str;
 
     /// Human-readable format name, e.g. `speedscope JSON`.
-    fn name(&self) -> &'static str;
+    fn name(&self) -> &str;
 
     /// Confidence 0 (not mine) to 100 (certain) from the file name and its
     /// first bytes (up to 64 KiB).

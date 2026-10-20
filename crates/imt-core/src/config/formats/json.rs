@@ -79,7 +79,7 @@ pub(crate) fn walk(b: &mut TreeBuilder, path: &mut Vec<PathSeg>, v: &Value) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tree::display_path;
+    use crate::config::display_path;
 
     fn parse(s: &str) -> Result<ConfigTree, ConfigError> {
         JsonParser.parse(s, &Limits::default())

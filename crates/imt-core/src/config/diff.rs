@@ -6,8 +6,8 @@
 //! children), each entry added, removed, changed (old → new) or unchanged.
 //! Paths matching an ignore pattern are left out with their subtrees.
 
+use super::display_path;
 use super::dto::{ChangeKind, CompareOptions, DiffCounts, DiffRow, DiffView, ExpandMode, ValueDto, MAX_IGNORE_PATTERNS, MAX_PAGE};
-use super::tree::display_path;
 use super::{ConfigTree, ConfigValue, PathSeg};
 use anyhow::{anyhow, Result};
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};

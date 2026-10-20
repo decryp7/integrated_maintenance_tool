@@ -101,7 +101,7 @@ impl Health {
         });
         if disabled {
             // In the worker's child log too, for problem reports.
-            imt_ipc::child_log::get(&super::grpc_client::worker_log()).quarantined(&self.disabled_reason().unwrap_or_default());
+            imt_ipc::child_log::get(&super::frames::worker_log()).quarantined(&self.disabled_reason().unwrap_or_default());
         }
         disabled
     }
@@ -516,12 +516,12 @@ mod tests {
         let h = Health::new(2, Duration::from_secs(60));
         assert!(!h.record_failure("it crashed (exit code 3)"));
         assert!(h.record_failure("it crashed (exit code 3)"));
-        let s = imt_ipc::child_log::find(super::super::grpc_client::WORKER_LOG).unwrap().status();
+        let s = imt_ipc::child_log::find(super::super::frames::WORKER_LOG).unwrap().status();
         assert!(s.quarantined, "{s:?}");
         assert!(s.quarantine_reason.unwrap().contains("failed 2 times"));
         assert_eq!(s.kind, imt_ipc::child_log::ChildKind::AiWorker);
-        let spec = super::super::grpc_client::worker_log();
-        assert_eq!(spec.forwarded[0].name, super::super::grpc_client::LLAMA_LOG);
+        let spec = super::super::frames::worker_log();
+        assert_eq!(spec.forwarded[0].name, super::super::frames::LLAMA_LOG);
     }
 
     #[test]

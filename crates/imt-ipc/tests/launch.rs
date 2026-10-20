@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 fn spec(args: &[&str]) -> ChildSpec {
-    let mut s = SpawnSpec::new(env!("CARGO_BIN_EXE_imt-ipc-frame-child"), "the fake child");
+    let mut s = SpawnSpec::new(env!("CARGO_BIN_EXE_imt-ipc-fake-child"), "the fake child");
     s.args = args.iter().map(|a| a.to_string()).collect();
     s.endpoint_prefix = "imt-test".into();
     s.connect_window = Duration::from_secs(10);

@@ -9,7 +9,7 @@ publish = false
 description = "IMT plugin: profile and heap snapshot importers (speedscope, folded stacks, Chrome, pprof, perf script, nettrace, V8 heap snapshots) and the profiling.importers extension point"
 
 [dependencies]
-imt-core = { path = "../imt-core", optional = true }
+imt-plugin-api = { path = "../imt-plugin-api", optional = true }
 imt-profile = { path = "../imt-profile" }
 anyhow = { workspace = true, optional = true }
 flate2.workspace = true
@@ -25,4 +25,4 @@ proptest.workspace = true
 # The plugin adapter (imt-core). Without it the crate is the pure importers,
 # which is what the fuzz targets build.
 default = ["plugin"]
-plugin = ["dep:imt-core", "dep:anyhow"]
+plugin = ["dep:imt-plugin-api", "dep:anyhow"]

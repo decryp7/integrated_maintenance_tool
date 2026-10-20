@@ -16,7 +16,7 @@ use imt_ai::gguf;
 use imt_ai::hardware::{HardwareProbe, SystemProbe};
 use imt_ai::llm::{ChatMessage, ChatRequest, LlmProvider, StopReason, ToolSpec};
 use imt_ai::runtime::{GpuMode, LoadRequest, ModelRuntime};
-use imt_ai::worker::{GrpcLauncher, WorkerConfig, WorkerRuntime};
+use imt_ai::worker::{FramesLauncher, WorkerConfig, WorkerRuntime};
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,7 +54,7 @@ fn the_real_worker_loads_a_model_and_answers() {
         "model: {:?} {} B, arch {}, ctx {:?}",
         info.name, info.params_b, info.architecture, info.context_length
     );
-    let mut cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
+    let mut cfg = WorkerConfig::new(Arc::new(FramesLauncher {
         exe: worker_exe(),
         args: vec![],
         env: imt_ai::worker::fixed_env(vec![]),

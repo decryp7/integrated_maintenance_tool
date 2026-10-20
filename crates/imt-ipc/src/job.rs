@@ -24,12 +24,12 @@ pub struct JobLimits {
 
 impl JobLimits {
     pub fn of(spec: &crate::process::SpawnSpec) -> JobLimits {
-        JobLimits::from_sandbox(&spec.sandbox, spec.memory_limit)
+        JobLimits::from_sandbox(&spec.sandbox)
     }
 
-    pub fn from_sandbox(s: &crate::sandbox::SandboxSpec, memory_fallback: Option<u64>) -> JobLimits {
+    pub fn from_sandbox(s: &crate::sandbox::SandboxSpec) -> JobLimits {
         JobLimits {
-            memory: s.memory_limit.or(memory_fallback),
+            memory: s.memory_limit,
             cpu_rate_percent: s.cpu_rate_percent,
             cpu_seconds: s.cpu_seconds,
             no_children: !s.children,

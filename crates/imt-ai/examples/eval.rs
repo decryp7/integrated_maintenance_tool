@@ -17,7 +17,7 @@ use imt_ai::gguf;
 use imt_ai::hardware::{HardwareProbe, SystemProbe};
 use imt_ai::llm::{ChatRequest, ChatResponse, LlmProvider};
 use imt_ai::runtime::{GpuMode, LoadRequest, ModelRuntime};
-use imt_ai::worker::{default_worker_path, GrpcLauncher, WorkerConfig, WorkerRuntime};
+use imt_ai::worker::{default_worker_path, FramesLauncher, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use imt_core::api::{PageRequest, QueryRequest};
 use imt_core::ql::QlResult;
@@ -716,7 +716,7 @@ fn main() {
 
     // The real worker, over the real transport.
     let info = gguf::inspect(&model).unwrap_or_else(|e| panic!("{e}"));
-    let cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
+    let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
         exe: worker,
         args: vec![],
         env: imt_ai::worker::fixed_env(vec![]),

@@ -1,14 +1,13 @@
-//! Starting a child process the supervisor owns: below-normal priority, no console window, killed with
-//! IMT (a job object with KILL_ON_JOB_CLOSE on Windows; on Unix the child exits when its stdin, the
-//! lifeline, closes), told its private address and token on stdin, and connected to with retries.
+//! Starting a child process the supervisor owns: below-normal priority, no console window, a cleared
+//! environment, killed with IMT (a job object with KILL_ON_JOB_CLOSE on Windows, which also carries the
+//! sandbox's limits; on Unix the child exits when its stdin, the lifeline, closes). [`crate::launch`] writes its
+//! bootstrap to stdin and accepts its connection.
 
 //!
 //! With [`SpawnSpec::log`] the child's standard error is captured into its [`crate::child_log`] (with start
 //! and exit lines); without it, standard error is discarded.
 
 use crate::child_log::{self, ChildLog, ChildLogSpec, Exit};
-use crate::client::{authenticated, connect_with_retry, AuthChannel};
-use crate::endpoint::{new_token, Handshake, PrivateEndpoint};
 use crate::IpcError;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
@@ -60,15 +59,12 @@ pub struct SpawnSpec {
     pub label: String,
     /// Prefix of the private address (see [`PrivateEndpoint::create_named`]).
     pub endpoint_prefix: String,
-    /// How long the child may take to start listening.
+    /// How long the child may take to connect.
     pub connect_window: Duration,
     /// Run at below-normal priority so the analysis stays responsive.
     pub below_normal_priority: bool,
     /// Capture standard error into this child log (see [`crate::child_log`]); `None` discards it.
     pub log: Option<ChildLogSpec>,
-    /// Committed-memory cap of the child in bytes (a job object limit on Windows; not enforced elsewhere
-    /// yet). `None`: no cap.
-    pub memory_limit: Option<u64>,
     /// The child's sandbox: the launcher applies its job limits (Windows), the child the rest
     /// ([`crate::sandbox`]).
     pub sandbox: crate::sandbox::SandboxSpec,
@@ -87,7 +83,6 @@ impl SpawnSpec {
             connect_window: Duration::from_secs(15),
             below_normal_priority: true,
             log: None,
-            memory_limit: None,
             sandbox: crate::sandbox::SandboxSpec::unrestricted(),
         }
     }
@@ -260,11 +255,6 @@ impl ChildProcess {
         self.pid
     }
 
-    /// Writes the handshake line to the child's stdin.
-    pub fn send_handshake(&self, hs: &Handshake) -> Result<(), IpcError> {
-        self.send_line(hs)
-    }
-
     /// Writes `value` as one JSON line to the child's stdin (its bootstrap).
     pub fn send_line<T: serde::Serialize>(&self, value: &T) -> Result<(), IpcError> {
         let line = serde_json::to_string(value).map_err(|e| IpcError::Protocol(e.to_string()))?;
@@ -326,7 +316,7 @@ impl ChildProcess {
     }
 
     /// Stops the child and reaps it: its lifeline is closed first and a well-behaved child exits at once
-    /// (see [`crate::server::child_main`]); one that has not after [`KILL_GRACE`] is killed.
+    /// (see [`crate::child::child_main`]); one that has not after [`KILL_GRACE`] is killed.
     pub fn kill(&self) {
         self.note_own_exit();
         self.mark_stopping();
@@ -370,42 +360,18 @@ impl Drop for ChildProcess {
     }
 }
 
-/// A started, listening child and an authenticated channel to it.
-pub struct Launched {
-    pub process: ChildProcess,
-    pub channel: AuthChannel,
-    /// Kept so the private directory lives as long as the connection.
-    pub endpoint: PrivateEndpoint,
+/// Resident memory of this process, in bytes (0 if unknown).
+pub fn current_rss_bytes() -> u64 {
+    let Ok(pid) = sysinfo::get_current_pid() else { return 0 };
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+    sys.process(pid).map(|p| p.memory()).unwrap_or(0)
 }
 
-/// Starts the child, hands it a fresh private address and token, and connects.
-pub async fn launch(spec: &SpawnSpec) -> Result<Launched, IpcError> {
-    let endpoint = PrivateEndpoint::create_named(&spec.endpoint_prefix)
-        .map_err(|e| IpcError::Spawn(format!("cannot prepare a private socket: {e}")))?;
-    let token = new_token().map_err(|e| IpcError::Spawn(e.to_string()))?;
-    let process = ChildProcess::spawn(spec)?;
-    let label = spec.label.clone();
-    if let Err(e) = process.send_handshake(&Handshake {
-        address: endpoint.address.clone(),
-        token: token.clone(),
-    }) {
-        process.kill();
-        return Err(e);
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn rss_is_reported() {
+        assert!(super::current_rss_bytes() > 0);
     }
-    let channel = connect_with_retry(&endpoint.address, spec.connect_window, || {
-        process.try_exit().map(|s| format!("{label} exited while starting ({s})"))
-    })
-    .await;
-    let channel = match channel {
-        Ok(c) => c,
-        Err(e) => {
-            process.kill();
-            return Err(e);
-        }
-    };
-    Ok(Launched {
-        channel: authenticated(channel, &token)?,
-        process,
-        endpoint,
-    })
 }

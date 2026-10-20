@@ -559,7 +559,7 @@ pub struct GuardedImporter {
 }
 
 impl Importer for GuardedImporter {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         self.inner.id()
     }
     fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
@@ -604,7 +604,7 @@ pub struct GuardedBinaryImporter {
 }
 
 impl BinaryImporter for GuardedBinaryImporter {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         self.inner.id()
     }
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {

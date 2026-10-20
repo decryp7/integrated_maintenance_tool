@@ -1,10 +1,10 @@
 //! Writing events out: the [`Exporter`] extension point and the built-in
 //! CSV and CLEF (Serilog compact JSON) exporters.
 
-use crate::model::{Level, Record};
+use crate::model::Record;
 use anyhow::Result;
 use chrono::{SecondsFormat, TimeZone, Utc};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::io::Write;
 
 /// One event handed to an exporter, with what the workspace knows about it.
@@ -87,100 +87,7 @@ impl Exporter for CsvExporter {
     }
 }
 
-/// One record as a CLEF JSON object.
-pub fn clef_value(r: &Record) -> Value {
-    let mut e = Map::new();
-    if r.ts.is_some() {
-        e.insert("@t".into(), Value::from(iso(r.ts)));
-    }
-    if r.level != Level::Information {
-        e.insert("@l".into(), Value::from(r.level.as_str()));
-    }
-    e.insert("@m".into(), Value::from(r.message.as_str()));
-    if let Some(t) = &r.template {
-        e.insert("@mt".into(), Value::from(t.as_str()));
-    }
-    if let Some(x) = &r.exception {
-        e.insert("@x".into(), Value::from(x.as_str()));
-    }
-    for (k, v) in &r.fields {
-        let k = if k.starts_with('@') { format!("@{k}") } else { k.clone() };
-        e.insert(k, v.clone());
-    }
-    Value::Object(e)
-}
-
-/// Where collectors write the events they produce.
-pub trait EventSink: Send + Sync {
-    fn write(&self, records: &[Record]) -> Result<()>;
-}
-
-/// Appends events as CLEF lines to `<dir>/<stem>.clef`, rolling over to
-/// `<stem>-1.clef`, `<stem>-2.clef`, ... when a file exceeds `max_bytes`, and
-/// keeping at most `keep` files.
-pub struct ClefFileSink {
-    dir: std::path::PathBuf,
-    stem: String,
-    max_bytes: u64,
-    keep: usize,
-    lock: std::sync::Mutex<()>,
-}
-
-impl ClefFileSink {
-    pub fn new(dir: impl Into<std::path::PathBuf>, stem: &str, max_bytes: u64, keep: usize) -> Result<ClefFileSink> {
-        let dir = dir.into();
-        std::fs::create_dir_all(&dir)?;
-        Ok(ClefFileSink {
-            dir,
-            stem: stem.to_string(),
-            max_bytes: max_bytes.max(1),
-            keep: keep.max(1),
-            lock: std::sync::Mutex::new(()),
-        })
-    }
-
-    /// The file currently written to.
-    pub fn current(&self) -> std::path::PathBuf {
-        self.dir.join(format!("{}.clef", self.stem))
-    }
-
-    fn roll(&self) -> Result<()> {
-        let numbered = |i: usize| self.dir.join(format!("{}-{i}.clef", self.stem));
-        let oldest = numbered(self.keep - 1);
-        if self.keep == 1 {
-            return Ok(std::fs::remove_file(self.current())?);
-        }
-        let _ = std::fs::remove_file(&oldest);
-        for i in (1..self.keep - 1).rev() {
-            let from = numbered(i);
-            if from.exists() {
-                std::fs::rename(&from, numbered(i + 1))?;
-            }
-        }
-        std::fs::rename(self.current(), numbered(1))?;
-        Ok(())
-    }
-}
-
-impl EventSink for ClefFileSink {
-    fn write(&self, records: &[Record]) -> Result<()> {
-        let _guard = self.lock.lock().map_err(|_| anyhow::anyhow!("sink lock poisoned"))?;
-        if std::fs::metadata(self.current())
-            .map(|m| m.len() >= self.max_bytes)
-            .unwrap_or(false)
-        {
-            self.roll()?;
-        }
-        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(self.current())?;
-        let mut buf = Vec::new();
-        for r in records {
-            serde_json::to_writer(&mut buf, &clef_value(r))?;
-            buf.push(b'\n');
-        }
-        f.write_all(&buf)?;
-        Ok(())
-    }
-}
+pub use imt_plugin_api::clef::{clef_value, ClefFileSink, EventSink};
 
 /// Serilog compact JSON, one event per line; IMT, Seq and Serilog tooling
 /// read it back with all properties.
@@ -215,6 +122,7 @@ impl Exporter for ClefExporter {
 mod tests {
     use super::*;
     use crate::importers::Importer;
+    use crate::model::Level;
     use serde_json::json;
 
     fn rec() -> Record {
@@ -317,29 +225,5 @@ mod tests {
         assert_eq!(r.fields["@odd"], "x");
         assert_eq!((ClefExporter.id(), ClefExporter.extension()), ("clef", "clef"));
         assert!(ClefExporter.name().contains("CLEF"));
-    }
-
-    #[test]
-    fn clef_file_sink_appends_and_rolls() {
-        let dir = std::env::temp_dir().join(format!("imt-sink-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let sink = ClefFileSink::new(&dir, "monitor", 200, 3).unwrap();
-        for _ in 0..6 {
-            sink.write(&[rec()]).unwrap();
-        }
-        let mut files: Vec<String> = std::fs::read_dir(&dir)
-            .unwrap()
-            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-            .collect();
-        files.sort();
-        assert_eq!(files, ["monitor-1.clef", "monitor-2.clef", "monitor.clef"]);
-        let line = std::fs::read_to_string(sink.current()).unwrap();
-        assert_eq!(serde_json::from_str::<Value>(line.lines().next().unwrap()).unwrap()["Id"], 88);
-
-        let single = ClefFileSink::new(dir.join("one"), "m", 1, 1).unwrap();
-        single.write(&[rec()]).unwrap();
-        single.write(&[rec()]).unwrap();
-        assert_eq!(std::fs::read_to_string(single.current()).unwrap().lines().count(), 1);
-        std::fs::remove_dir_all(dir).unwrap();
     }
 }

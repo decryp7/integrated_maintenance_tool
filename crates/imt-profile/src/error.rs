@@ -1,12 +1,12 @@
 //! Typed errors of the profiling engine. Every message tells the user what
 //! went wrong and, where there is one, what to do about it.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// What kind of failure an error is, for callers (the UI) that react to it
 /// without reading the message. Serialised camelCase (`notACapture`, ...).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ErrorCode {
     /// The file is not a profile or heap snapshot any importer recognises.
@@ -69,6 +69,10 @@ pub enum ProfileError {
     /// The view needs data the capture does not have (e.g. timestamps).
     #[error("{0}")]
     NotAvailable(String),
+
+    /// An error of an importer in the profiling plugin's process, with its code (ADR 0017).
+    #[error("{message}")]
+    Remote { code: ErrorCode, message: String },
 }
 
 impl ProfileError {
@@ -101,6 +105,7 @@ impl ProfileError {
             | ProfileError::Importer { .. }
             | ProfileError::WrongCapture { .. }
             | ProfileError::InvalidRequest(_) => ErrorCode::Invalid,
+            ProfileError::Remote { code, .. } => *code,
         }
     }
 }
@@ -143,6 +148,13 @@ mod tests {
             ),
             (ProfileError::invalid("m"), ErrorCode::Invalid),
             (ProfileError::NotAvailable("m".into()), ErrorCode::Unsupported),
+            (
+                ProfileError::Remote {
+                    code: ErrorCode::Io,
+                    message: "m".into(),
+                },
+                ErrorCode::Io,
+            ),
         ];
         for (e, code) in cases {
             assert_eq!(e.code(), code, "{e}");

@@ -9,7 +9,7 @@
 
 use crate::evtx_import::to_record;
 use anyhow::{anyhow, bail, Result};
-use imt_core::model::{auto_value, Record};
+use imt_plugin_api::model::{auto_value, Record};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 use serde_json::{Map, Value};

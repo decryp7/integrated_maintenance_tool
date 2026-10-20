@@ -6,7 +6,7 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 publish = false
-description = "Inference worker for IMT: serves the gRPC worker contract on a private local socket (imt-ipc) and runs inference in a supervised child, the official prebuilt llama.cpp `llama-server` (ADR 0009)"
+description = "Inference worker for IMT: serves the worker protocol over imt-ipc frames on a private local socket and runs inference in a supervised child, the official prebuilt llama.cpp `llama-server` (ADR 0009)"
 
 [lib]
 name = "imt_ai_worker"

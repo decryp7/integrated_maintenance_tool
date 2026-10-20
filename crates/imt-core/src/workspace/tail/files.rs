@@ -257,7 +257,7 @@ impl Workspace {
         rest
     }
 
-    fn seed_at_end(&self, path: &Path) -> Option<(&'static str, TailSeed)> {
+    fn seed_at_end(&self, path: &Path) -> Option<(String, TailSeed)> {
         let len = std::fs::metadata(path).ok()?.len();
         let src = FileBytes { path, len };
         let head = src.read(0, HEAD_TEXT_BYTES).ok()?;
@@ -289,7 +289,7 @@ impl Workspace {
         let next_line = count_lines(&src, encoding, offset).ok()? + 1;
         let anchor = hash(&src.read(offset.saturating_sub(ANCHOR_BYTES), offset).ok()?);
         Some((
-            importer.id(),
+            importer.id().to_string(),
             TailSeed {
                 identity: identity_of(path),
                 head: Fingerprint::of(&head),
@@ -301,7 +301,9 @@ impl Workspace {
                 next_line,
                 encoding,
                 bom,
-                mode: Mode::Append { importer: importer.id() },
+                mode: Mode::Append {
+                    importer: importer.id().to_string(),
+                },
             },
         ))
     }

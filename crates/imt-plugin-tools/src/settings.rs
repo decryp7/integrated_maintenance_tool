@@ -3,7 +3,7 @@
 
 use crate::perfmon_control::DEFAULT_TIMEOUT;
 use anyhow::{anyhow, Result};
-use imt_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -62,7 +62,7 @@ impl Configurable for ToolsSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::settings::validate;
+    use imt_plugin_api::settings::validate;
     use serde_json::json;
 
     #[test]

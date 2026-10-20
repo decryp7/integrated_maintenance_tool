@@ -125,7 +125,7 @@ pub trait Connection: Send + Sync {
     fn kill(&self);
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SupervisorConfig {
     /// Names the child in messages ("plugin \"x\"").
     pub label: String,

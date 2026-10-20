@@ -906,7 +906,10 @@ fn import_bytes(
     let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
         Some(importer) => {
             file_kind = FileKind::Binary;
-            (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?)
+            (
+                importer.id().to_string(),
+                importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?,
+            )
         }
         None => {
             let content = decode(bytes).ok_or("binary file")?;
@@ -916,13 +919,13 @@ fn import_bytes(
             // Probe: an importer that cannot append is tailed by re-reading the file.
             if plain && importer.import_tail(&ctx, &head, "").is_some_and(|r| r.is_ok()) {
                 append = Some(tail::AppendInfo {
-                    importer: importer.id(),
+                    importer: importer.id().to_string(),
                     multiline: importer.multiline(),
                     last_line: imported.records.last().map(|r| r.line),
                 });
             }
             text = Some(content);
-            (importer.id(), imported)
+            (importer.id().to_string(), imported)
         }
     };
     if imported.records.is_empty() {
@@ -937,7 +940,7 @@ fn import_bytes(
     });
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
-    let timestamp_issue = text.and_then(|t| crate::timestamp_issue::assess(id, &imported.records, &t, &profile.timestamps));
+    let timestamp_issue = text.and_then(|t| crate::timestamp_issue::assess(&id, &imported.records, &t, &profile.timestamps));
     Ok(Loaded {
         importer: id.to_string(),
         file_kind,

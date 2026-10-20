@@ -1,6 +1,0 @@
-bin/
-obj/
-artifacts/
-TestResults/
-coverage/
-*.user

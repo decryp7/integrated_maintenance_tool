@@ -1,16 +1,8 @@
-//! Errors of a call to a child process, and the typed error that travels in a binary gRPC trailer.
-//!
-//! A child answers a failed call with a gRPC status whose `x-imt-error-bin` trailer holds a
-//! [`RemoteError`] as JSON. The caller turns any status into an [`IpcError`]: a typed error passes through
-//! as [`IpcError::Remote`] (the call failed, the process is fine); a broken connection is a crash; a missed
-//! deadline is a hang.
+//! Errors of a call to another process: a typed [`RemoteError`] the other side answers with (it crosses as a
+//! `Fail` frame), and [`IpcError`] for every failed call: a typed error passes through as [`IpcError::Remote`]
+//! (the call failed, the process is fine); a broken connection is a crash; a missed deadline is a hang.
 
 use serde::{Deserialize, Serialize};
-use tonic::metadata::MetadataValue;
-use tonic::{Code, Status};
-
-/// Binary trailer carrying the typed error (JSON).
-pub const ERROR_TRAILER: &str = "x-imt-error-bin";
 
 /// A typed error a child returns for a call (not a failure of the child itself).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -78,80 +70,21 @@ impl std::fmt::Display for IpcError {
 
 impl std::error::Error for IpcError {}
 
-/// `e` as a gRPC status with gRPC code `code`, the typed error in the binary trailer.
-pub fn to_status(code: Code, e: &RemoteError) -> Status {
-    let mut s = Status::new(code, e.message.clone());
-    if let Ok(json) = serde_json::to_vec(e) {
-        s.metadata_mut().insert_bin(ERROR_TRAILER, MetadataValue::from_bytes(&json));
-    }
-    s
-}
-
-/// The typed error in a status' trailer, if it has one.
-pub fn remote_error(s: &Status) -> Option<RemoteError> {
-    let bin = s.metadata().get_bin(ERROR_TRAILER)?;
-    serde_json::from_slice(&bin.to_bytes().ok()?).ok()
-}
-
-/// A failed call as an [`IpcError`]. `died` describes the process when the connection broke (e.g. its exit
-/// status); `label` names it in messages ("the engine").
-pub fn from_status(s: &Status, label: &str, died: impl FnOnce() -> String) -> IpcError {
-    if let Some(e) = remote_error(s) {
-        return IpcError::Remote(e);
-    }
-    match s.code() {
-        Code::Unauthenticated | Code::PermissionDenied => IpcError::Protocol(format!("{label} rejected the session token")),
-        Code::DeadlineExceeded => IpcError::Timeout,
-        // The child's server enforces the call's deadline (`grpc-timeout`) and reports it this way.
-        Code::Cancelled if s.message() == tonic::TimeoutExpired(()).to_string() => IpcError::Timeout,
-        Code::Unavailable | Code::Cancelled | Code::Unknown | Code::Aborted => IpcError::Died(died()),
-        _ => IpcError::Protocol(s.message().to_string()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn typed_errors_travel_in_the_trailer() {
+    fn typed_errors_roundtrip() {
         let mut e = RemoteError::new(-32001, "no such model — café");
         e.data = Some(serde_json::json!({"limit": 5}).into());
-        let s = to_status(Code::FailedPrecondition, &e);
-        assert_eq!(remote_error(&s), Some(e.clone()));
-        assert_eq!(from_status(&s, "x", || unreachable!()), IpcError::Remote(e.clone()));
         assert_eq!(e.to_string(), "no such model — café");
         assert_eq!(serde_json::from_str::<RemoteError>(&serde_json::to_string(&e).unwrap()).unwrap(), e);
+        assert_eq!(crate::wire::decode::<RemoteError>(&crate::wire::encode(&e).unwrap()).unwrap(), e);
         assert_eq!(
             serde_json::from_str::<RemoteError>(r#"{"code":1,"message":"m"}"#).unwrap(),
             RemoteError::new(1, "m")
         );
-    }
-
-    #[test]
-    fn statuses_without_a_typed_error_are_classified() {
-        let f = |c: Code| from_status(&Status::new(c, "msg"), "the engine", || "exited (1)".into());
-        assert_eq!(
-            f(Code::Unauthenticated),
-            IpcError::Protocol("the engine rejected the session token".into())
-        );
-        assert_eq!(
-            f(Code::PermissionDenied),
-            IpcError::Protocol("the engine rejected the session token".into())
-        );
-        assert_eq!(f(Code::DeadlineExceeded), IpcError::Timeout);
-        for c in [Code::Unavailable, Code::Cancelled, Code::Unknown, Code::Aborted] {
-            assert_eq!(f(c), IpcError::Died("exited (1)".into()));
-        }
-        assert_eq!(
-            from_status(&Status::cancelled("Timeout expired"), "x", String::new),
-            IpcError::Timeout
-        );
-        assert_eq!(f(Code::InvalidArgument), IpcError::Protocol("msg".into()));
-        // A trailer that is not a typed error is ignored.
-        let mut s = Status::new(Code::Internal, "m");
-        s.metadata_mut().insert_bin(ERROR_TRAILER, MetadataValue::from_bytes(b"not json"));
-        assert_eq!(from_status(&s, "x", String::new), IpcError::Protocol("m".into()));
     }
 
     #[test]

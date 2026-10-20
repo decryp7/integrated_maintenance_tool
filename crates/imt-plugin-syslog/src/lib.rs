@@ -11,11 +11,7 @@
 //! and `MsgId` where the format provides them. Severity 0-2 maps to Fatal,
 //! 3 Error, 4 Warning, 5-6 Information and 7 Debug.
 //!
-//! Register it with:
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_syslog::SyslogPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin <id>`, ADR 0017).
 
 mod journald;
 mod syslog;
@@ -24,8 +20,8 @@ pub use journald::JournaldImporter;
 pub use syslog::SyslogImporter;
 
 use anyhow::Result;
-use imt_core::model::Level;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::model::Level;
+use imt_plugin_api::{Contributions, Plugin};
 
 pub struct SyslogPlugin;
 
@@ -42,14 +38,9 @@ impl Plugin for SyslogPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Stand-alone: no dependencies, no services.
-    fn manifest(&self) -> imt_core::plugin::Manifest {
-        imt_core::plugin::Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_importer(Box::new(JournaldImporter));
-        registry.add_importer(Box::new(SyslogImporter));
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_importer(JournaldImporter);
+        c.add_importer(SyslogImporter);
         Ok(())
     }
 }
@@ -96,12 +87,12 @@ mod tests {
 
     #[test]
     fn plugin_registers_both_importers() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&SyslogPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.syslog");
+        let mut c = Contributions::default();
+        SyslogPlugin.register(&mut c).unwrap();
+        let info = c.manifest(&SyslogPlugin);
+        assert_eq!(&*info.id, "net.decryptology.syslog");
         assert_eq!(
-            info.contributes,
+            info.contributions(),
             vec!["importer:journald".to_string(), "importer:syslog".to_string()]
         );
         assert_eq!(SyslogPlugin.name(), "Syslog & journald");

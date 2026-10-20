@@ -112,9 +112,9 @@ enum Framing {
     UntilClose,
 }
 
-/// The response body, decoded from its framing.
-pub struct Body<'a> {
-    inner: BufReader<Ticking<'a>>,
+/// The response body, decoded from its framing, over the buffered connection `R`.
+pub struct Body<R> {
+    inner: R,
     framing: Framing,
 }
 
@@ -134,7 +134,7 @@ fn read_crlf_line(r: &mut impl BufRead, limit: usize) -> io::Result<String> {
     String::from_utf8(line).map_err(|_| bad("not UTF-8"))
 }
 
-impl Read for Body<'_> {
+impl<R: BufRead> Read for Body<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if buf.is_empty() {
             return Ok(0);
@@ -184,7 +184,7 @@ impl Read for Body<'_> {
     }
 }
 
-impl Body<'_> {
+impl<R: BufRead> Body<R> {
     /// The next line of the body without its line ending; `None` at the end. Longer lines are an error.
     pub fn next_line(&mut self, limit: usize) -> Result<Option<String>, HttpError> {
         let mut line = Vec::new();
@@ -232,7 +232,7 @@ pub struct Call<'a> {
 
 impl Client {
     /// Sends the request and returns the status and the body reader.
-    pub fn open<'a>(&self, call: &Call<'a>) -> Result<(u16, Body<'a>), HttpError> {
+    pub fn open<'a>(&self, call: &Call<'a>) -> Result<(u16, Body<impl BufRead + 'a>), HttpError> {
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, self.port));
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).map_err(HttpError::Connect)?;
         stream.set_read_timeout(Some(TICK)).map_err(HttpError::Io)?;
@@ -251,38 +251,13 @@ impl Client {
         w.write_all(head.as_bytes())
             .and_then(|_| w.write_all(body))
             .map_err(HttpError::Io)?;
-        let mut inner = BufReader::new(Ticking {
+        let inner = BufReader::new(Ticking {
             stream,
             idle: call.idle,
             last: Instant::now(),
             cancelled: call.cancelled,
         });
-        let status_line = read_crlf_line(&mut inner, 1024).map_err(classify)?;
-        let status = parse_status(&status_line).ok_or_else(|| HttpError::Protocol(format!("bad status line {status_line:?}")))?;
-        let (mut length, mut chunked, mut seen) = (None, false, 0usize);
-        loop {
-            let line = read_crlf_line(&mut inner, 8192).map_err(classify)?;
-            seen += line.len() + 2;
-            if seen > MAX_HEADER_BYTES {
-                return Err(HttpError::TooLarge("header"));
-            }
-            if line.is_empty() {
-                break;
-            }
-            let Some((k, v)) = line.split_once(':') else { continue };
-            let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
-            if k == "content-length" {
-                length = Some(v.parse::<u64>().map_err(|_| HttpError::Protocol("bad Content-Length".into()))?);
-            } else if k == "transfer-encoding" && v.to_ascii_lowercase().contains("chunked") {
-                chunked = true;
-            }
-        }
-        let framing = match (chunked, length) {
-            (true, _) => Framing::Chunked { left: 0, done: false },
-            (false, Some(n)) => Framing::Length(n),
-            (false, None) => Framing::UntilClose,
-        };
-        Ok((status, Body { inner, framing }))
+        read_head(inner)
     }
 
     /// A complete request: status and body (at most `limit` bytes).
@@ -291,6 +266,37 @@ impl Client {
         let body = body.read_all(limit)?;
         Ok(Response { status, body })
     }
+}
+
+/// Reads the status line and the headers of a response from `inner` and returns the status and the body reader
+/// (the parser of everything the server sends; fuzzed by `fuzz_worker_http`).
+pub fn read_head<R: BufRead>(mut inner: R) -> Result<(u16, Body<R>), HttpError> {
+    let status_line = read_crlf_line(&mut inner, 1024).map_err(classify)?;
+    let status = parse_status(&status_line).ok_or_else(|| HttpError::Protocol(format!("bad status line {status_line:?}")))?;
+    let (mut length, mut chunked, mut seen) = (None, false, 0usize);
+    loop {
+        let line = read_crlf_line(&mut inner, 8192).map_err(classify)?;
+        seen += line.len() + 2;
+        if seen > MAX_HEADER_BYTES {
+            return Err(HttpError::TooLarge("header"));
+        }
+        if line.is_empty() {
+            break;
+        }
+        let Some((k, v)) = line.split_once(':') else { continue };
+        let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+        if k == "content-length" {
+            length = Some(v.parse::<u64>().map_err(|_| HttpError::Protocol("bad Content-Length".into()))?);
+        } else if k == "transfer-encoding" && v.to_ascii_lowercase().contains("chunked") {
+            chunked = true;
+        }
+    }
+    let framing = match (chunked, length) {
+        (true, _) => Framing::Chunked { left: 0, done: false },
+        (false, Some(n)) => Framing::Length(n),
+        (false, None) => Framing::UntilClose,
+    };
+    Ok((status, Body { inner, framing }))
 }
 
 fn parse_status(line: &str) -> Option<u16> {
@@ -306,6 +312,44 @@ mod tests {
 
     fn never() -> bool {
         false
+    }
+
+    #[test]
+    fn head_parser_decodes_chunks_and_refuses_bad_input() {
+        let ok = b"HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+
+3
+ab
+
+2
+cd
+0
+
+";
+        let (status, mut body) = read_head(&ok[..]).unwrap();
+        assert_eq!(status, 200);
+        assert_eq!(body.next_line(16).unwrap().as_deref(), Some("ab"));
+        assert_eq!(body.read_all(16).unwrap(), b"cd");
+        assert!(matches!(
+            read_head(
+                &b"garbage
+
+"[..]
+            ),
+            Err(HttpError::Protocol(_))
+        ));
+        let short = b"HTTP/1.1 200 OK
+Content-Length: 10
+
+abc";
+        assert!(read_head(&short[..]).unwrap().1.read_all(64).is_err());
+        let bad_chunk = b"HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+
+zz
+";
+        assert!(read_head(&bad_chunk[..]).unwrap().1.read_all(64).is_err());
     }
 
     /// Serves one canned response (written in pieces) and returns the request it received.

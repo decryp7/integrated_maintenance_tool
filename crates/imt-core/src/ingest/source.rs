@@ -301,7 +301,7 @@ fn read_events<R: Read + Seek>(
             drop(bytes);
             let importer = env
                 .importers
-                .find(plan.importer)
+                .find(&plan.importer)
                 .ok_or_else(|| anyhow!("importer {} is not installed", plan.importer))?;
             legacy::import_text_whole(importer, ctx, &content, plan.data_start, &mut batcher)?
         }

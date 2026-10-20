@@ -10,9 +10,7 @@
 //! [`crate::guard::Budgets::annotate`]) and capped at [`MAX_ANNOTATIONS`].
 
 use crate::api::Severity;
-use crate::condition::ConditionCfg;
 use crate::guard::{CallKind, Guard};
-use crate::model::Record;
 use crate::query::Query;
 use anyhow::Result;
 use serde::Serialize;
@@ -26,34 +24,7 @@ pub const MAX_VIEW_RECORDS: usize = 100_000;
 /// Most annotations one [`super::PluginRegistry::annotations`] reply holds.
 pub const MAX_REPLY: usize = 20_000;
 
-/// The first record that is new since the previous run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecordCursor {
-    pub id: u32,
-    pub ts: Option<i64>,
-}
-
-/// Which records a [`AnnotationView::select`] returns.
-#[derive(Debug, Clone, Default)]
-pub struct ViewFilter {
-    /// All must match (the `[[marker]] when` condition language).
-    pub when: Vec<ConditionCfg>,
-    /// Inclusive time bounds (records without a time never match bounds).
-    pub from: Option<i64>,
-    pub to: Option<i64>,
-    /// Newest first instead of oldest first.
-    pub newest_first: bool,
-}
-
-/// A record as an annotator sees it.
-#[derive(Debug, Clone)]
-pub struct ViewRecord {
-    pub record: Record,
-    /// Display name of its source file.
-    pub source: String,
-    /// Its instance (timeline lane) key.
-    pub instance: String,
-}
+pub use imt_plugin_api::annotate::{RecordCursor, ViewFilter, ViewRecord};
 
 /// Read-only, bounded queries over the workspace for annotators.
 pub trait AnnotationView {
@@ -69,13 +40,7 @@ pub trait AnnotationView {
     fn time_range(&self) -> Option<(i64, i64)>;
 }
 
-/// Records with `field == value` (e.g. `Computer = WEB01`): a machine-wide range.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FieldMatch {
-    pub field: String,
-    pub value: String,
-}
+pub use imt_plugin_api::annotate::FieldMatch;
 
 /// A point (`from == to`) or range an annotator found.
 #[derive(Debug, Clone)]

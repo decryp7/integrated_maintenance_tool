@@ -33,13 +33,13 @@ jobs:
       matrix:
         include:
           - shard: 1
-            targets: [fuzz_json, fuzz_csv, fuzz_text, fuzz_timestamp, fuzz_profile_toml, fuzz_ql, fuzz_archive]
+            targets: [fuzz_json, fuzz_csv, fuzz_text, fuzz_timestamp, fuzz_profile_toml, fuzz_ql, fuzz_archive, fuzz_ipc_frame]
           - shard: 2
-            targets: [fuzz_registry, fuzz_evtx, fuzz_w3c_access_har, fuzz_otel, fuzz_syslog, fuzz_perfmon_csv, fuzz_prof_speedscope]
+            targets: [fuzz_registry, fuzz_evtx, fuzz_w3c_access_har, fuzz_otel, fuzz_syslog, fuzz_perfmon_csv, fuzz_prof_speedscope, fuzz_plugin_request]
           - shard: 3
-            targets: [fuzz_prof_folded, fuzz_prof_cpuprofile, fuzz_prof_chrome_trace, fuzz_prof_pprof, fuzz_prof_perf_script, fuzz_prof_nettrace, fuzz_prof_heapsnapshot]
+            targets: [fuzz_prof_folded, fuzz_prof_cpuprofile, fuzz_prof_chrome_trace, fuzz_prof_pprof, fuzz_prof_perf_script, fuzz_prof_nettrace, fuzz_prof_heapsnapshot, fuzz_plugin_reply]
           - shard: 4
-            targets: [fuzz_procmon_csv, fuzz_minidump, fuzz_eventlog, fuzz_log4j_xml, fuzz_sql_errorlog, fuzz_docker_json, fuzz_cri]
+            targets: [fuzz_procmon_csv, fuzz_minidump, fuzz_eventlog, fuzz_log4j_xml, fuzz_sql_errorlog, fuzz_docker_json, fuzz_cri, fuzz_ai_request, fuzz_worker_http]
     steps:
       - uses: actions/checkout@v4
 
