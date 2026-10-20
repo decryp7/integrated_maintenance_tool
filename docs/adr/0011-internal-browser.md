@@ -29,8 +29,8 @@ evasion is explicitly out.
    with its own profile: a `web-profile` folder in IMT's data folder (WebView2 user data folder, WebKitGTK
    data manager) and a fixed WebKit data store id on macOS 14+. The profile is a category of Settings ▸
    Storage. The user drives it from a **Web panel** in their IMT window (back, forward, reload/stop, an
-   address and search box with an engine picker: DuckDuckGo, Google, Bing, Stack Overflow or a URL template
-   with `{q}`, "Add page to AI context", "Open in your browser"). *Search the web for this error* (event
+   address and search box with an engine picker: Google (the default), DuckDuckGo, Bing, Stack Overflow or a
+   URL template with `{q}`, "Add page to AI context", "Open in your browser"). *Search the web for this error* (event
    context menu, inspector, chat, palette) opens a search text the engine built from the event with the
    privacy guard; the user edits it before anything opens.
 3. **The AI gets web content four ways, all through `imt_ai::browser`:**

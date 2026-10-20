@@ -64,13 +64,14 @@ describe('WebPanel', () => {
     f.detectChanges();
     el<HTMLButtonElement>(f, 'button[type=submit]').click();
     await until(f, () => !!root.querySelector('[data-testid=web-page]'));
-    expect(root.textContent).toContain('duckduckgo.com');
+    expect(root.textContent).toContain('google.com/search');
     // The engine picker changes the engine of the next search.
     const engine = el<HTMLSelectElement>(f, '[data-testid=web-engine]');
-    expect(all<HTMLOptionElement>(f, '[data-testid=web-engine] option').map((o) => o.textContent?.trim())).toEqual(['DuckDuckGo', 'Google', 'Bing', 'Stack Overflow']);
-    typeInto(engine, 'google', 'change');
+    expect(all<HTMLOptionElement>(f, '[data-testid=web-engine] option').map((o) => o.textContent?.trim())).toEqual(['Google', 'DuckDuckGo', 'Bing', 'Stack Overflow']);
+    expect(engine.value).toBe('google');
+    typeInto(engine, 'duckDuckGo', 'change');
     typeInto(engine, 'nonsense', 'change');
-    expect(TestBed.inject(BrowserStore).engine()).toBe('google');
+    expect(TestBed.inject(BrowserStore).engine()).toBe('duckDuckGo');
     // Add page to AI context: a chat is created when there is none, and shown.
     el<HTMLButtonElement>(f, '[data-testid=web-capture]').click();
     await until(f, () => root.textContent!.includes('untrusted web content'));
@@ -80,7 +81,7 @@ describe('WebPanel', () => {
     // Open in your browser asks first.
     buttonByText(f, 'Open in your browser').click();
     f.detectChanges();
-    expect(el(f, '[data-testid=web-confirm]').textContent).toContain('duckduckgo.com');
+    expect(el(f, '[data-testid=web-confirm]').textContent).toContain('google.com');
     buttonByText(f, 'Cancel').click();
     f.detectChanges();
     expect(root.querySelector('[data-testid=web-confirm]')).toBeNull();

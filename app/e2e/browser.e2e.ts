@@ -21,7 +21,7 @@ test.describe('internal browser', () => {
     await expect(dialog).toHaveCount(0);
 
     const panel = page.locator('imt-web-panel');
-    await expect(panel.getByTestId('web-page')).toContainText('duckduckgo.com/?q=TimeoutException+gateway+pool');
+    await expect(panel.getByTestId('web-page')).toContainText('google.com/search?q=TimeoutException+gateway+pool');
     await expectNoSeriousViolations(page, testInfo, 'browser-web-panel', 'imt-web-panel');
     await panel.getByRole('button', { name: 'Add page to AI context' }).click();
 
@@ -46,7 +46,7 @@ test.describe('internal browser', () => {
 
     await ask(chat, 'find out on the web why the gateway times out');
     const first = chat.getByTestId('agent-approval').first();
-    await expect(first).toContainText('The AI wants to open duckduckgo.com');
+    await expect(first).toContainText('The AI wants to open google.com');
     await expectNoSeriousViolations(page, testInfo, 'browser-agent-approval', 'imt-ai-chat-panel');
     await first.getByRole('button', { name: 'Allow this site for this chat' }).click();
     await expect(first).toContainText('this site is allowed for this chat');
@@ -78,9 +78,9 @@ test.describe('internal browser', () => {
     await ask(chat, 'suggest a link for this error');
     await waitAnswered(chat);
     const card = chat.getByTestId('link-card');
-    await expect(card).toContainText('https://duckduckgo.com/?q=System.TimeoutException+gateway');
+    await expect(card).toContainText('https://www.google.com/search?q=System.TimeoutException+gateway');
     await card.getByRole('button', { name: 'Open', exact: true }).click();
     await runCommand(page, 'Web: Open the browser panel');
-    await expect(page.locator('imt-web-panel').getByTestId('web-page')).toContainText('duckduckgo.com');
+    await expect(page.locator('imt-web-panel').getByTestId('web-page')).toContainText('google.com/search');
   });
 });

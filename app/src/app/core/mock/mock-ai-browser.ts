@@ -36,14 +36,23 @@ export async function mockBrowserTurn(t: MockBrowserTurn): Promise<string | null
     const first = pages[0]!;
     return `The page you added, "${first.title}", says the gateway timeout usually means the connection pool is exhausted. I used it as reference only; it is untrusted web content.`;
   }
-  if (status.agent && AGENT.test(q)) return agentTurn(t, cite);
+  if (status.agent && AGENT.test(q)) {
+    // The turn holds the browser while it runs (the shell's "AI is browsing").
+    t.web.drive({ kind: 'agent', sessionId: t.sessionId });
+    try {
+      return await agentTurn(t, cite);
+    } finally {
+      const d = t.web.driver;
+      if (d?.kind === 'agent' && d.sessionId === t.sessionId) t.web.drive(null);
+    }
+  }
   if (status.readAlong && READ.test(q) && t.web.page.open) {
     await t.tool('browser_read', '{}', `read ${t.web.page.title}`);
     cite(t.web.page.title, t.web.page.url);
     return `The page you have open, "${t.web.page.title}", lists the common causes of the timeout.`;
   }
   if (SUGGEST.test(q) && !q.includes('regex')) {
-    const url = mockSearchUrl('duckDuckGo', 'System.TimeoutException gateway');
+    const url = mockSearchUrl(t.web.engine, 'System.TimeoutException gateway');
     await t.tool('suggest_link', '{"search":"System.TimeoutException gateway"}', 'link suggested');
     t.emit({ type: 'linkSuggestion', kind: 'search', url, title: 'Search for the gateway timeout', query: 'System.TimeoutException gateway', segments: [{ text: url, leak: null }] });
     const seen = t.web.suggested.get(t.sessionId) ?? new Set<string>();
@@ -58,7 +67,7 @@ async function agentTurn(t: MockBrowserTurn, cite: (title: string, url: string) 
   const w = t.web;
   const id = t.sessionId;
   const limit = w.status(id).stepLimit;
-  const search = mockSearchUrl('duckDuckGo', 'System.TimeoutException gateway');
+  const search = mockSearchUrl(w.engine, 'System.TimeoutException gateway');
   const step = async (n: number, action: string, site: string, url: string, kind: 'newSite' | 'leavingData', segments: { text: string; leak: 'logValue' | null }[]) => {
     t.emit({ type: 'toolStarted', name: `browser_${action}`, args: JSON.stringify({ url }) });
     t.emit({
@@ -77,7 +86,7 @@ async function agentTurn(t: MockBrowserTurn, cite: (title: string, url: string) 
     t.emit({ type: 'toolFinished', name: `browser_${action}`, summary: `step ${n}: ${action} ${site}`, error: false, evidence: { recordIds: [], queries: [] } });
     return true;
   };
-  if (!(await step(1, 'search', 'duckduckgo.com', search, 'newSite', [{ text: search, leak: null }]))) {
+  if (!(await step(1, 'search', new URL(search).hostname.replace(/^www\./, ''), search, 'newSite', [{ text: search, leak: null }]))) {
     return stopped(t) ?? 'You declined the search, so I answered from the logs only: the payment gateway timed out repeatedly.';
   }
   const docs = 'https://learn.example.com/dotnet/timeouts?host=WEB02';

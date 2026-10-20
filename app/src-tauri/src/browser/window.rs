@@ -4,6 +4,7 @@
 //! drives, the chat's site rules; downloads are blocked; popups never open, the user may open them in the
 //! system browser instead.
 
+use super::driving;
 use super::hub::PageState;
 use super::{emit, BrowserEvent, NoticeKind};
 use imt_ai::browser::{check_navigation, Navigation, WebUrl};
@@ -18,8 +19,8 @@ pub const WEB_PROFILE_DIR: &str = "web-profile";
 pub const WEB_STORE_ID: [u8; 16] = [
     0x5b, 0x1e, 0x8c, 0x47, 0x0d, 0xa2, 0x4f, 0x31, 0x9e, 0x6a, 0x2c, 0x77, 0xb4, 0x03, 0xe9, 0x58,
 ];
-const TITLE: &str = "IMT browser";
-const MAX_TITLE: usize = 200;
+/// Longest page title kept for the Web panel.
+const MAX_PAGE_TITLE: usize = 200;
 
 pub fn browser_label(owner: &str) -> String {
     format!("{PREFIX}{owner}")
@@ -97,7 +98,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, owner: &str, url: &WebUrl, focus: bo
         owner.to_string(),
     );
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url.url().clone()))
-        .title(TITLE)
+        .title(driving::TITLE)
         .inner_size(1100.0, 820.0)
         .min_inner_size(480.0, 360.0)
         .focused(focus)
@@ -134,13 +135,10 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, owner: &str, url: &WebUrl, focus: bo
             page_changed(&a4, &o4, page);
         })
         .on_document_title_changed(move |w, title| {
-            let title: String = title.chars().filter(|c| !c.is_control()).take(MAX_TITLE).collect();
-            let _ = w.set_title(&if title.trim().is_empty() {
-                TITLE.to_string()
-            } else {
-                format!("{} \u{2014} {TITLE}", title.trim())
-            });
+            let driving = hub(&a5).is_some_and(|h| h.ai_driver(&o5).is_some());
+            let _ = w.set_title(&driving::window_title(&title, driving));
             if let Some(hub) = hub(&a5) {
+                let title: String = title.chars().filter(|c| !c.is_control()).take(MAX_PAGE_TITLE).collect();
                 let page = hub.update_page(&o5, |p| p.title = title.trim().to_string());
                 page_changed(&a5, &o5, page);
             }
@@ -149,7 +147,18 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, owner: &str, url: &WebUrl, focus: bo
     // environment, which has its own data folder, gets these arguments).
     #[cfg(windows)]
     let builder = builder.additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI");
-    builder.build().map_err(|e| format!("could not open the browser: {e}"))?;
+    let window = builder.build().map_err(|e| format!("could not open the browser: {e}"))?;
+    // The "AI is browsing" banner stays over the top of the window; the agent may be what opened it.
+    let (a6, o6) = (app.clone(), owner.to_string());
+    window.on_window_event(move |e| {
+        if matches!(
+            e,
+            tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
+        ) {
+            driving::follow(&a6, &o6);
+        }
+    });
+    driving::reapply(app, owner);
     if let Some(hub) = hub(app) {
         let page = hub.update_page(owner, |p| {
             p.open = true;
@@ -168,10 +177,13 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
         let page = hub.closed(owner);
         page_changed(app, owner, page);
     }
+    driving::close_banner(app, owner);
+    driving::refresh(app, owner);
 }
 
 /// An IMT window is gone: its browser closes too and everything about it is forgotten.
 pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
+    driving::close_banner(app, owner);
     if let Some(w) = app.get_webview_window(&browser_label(owner)) {
         let _ = w.destroy();
     }

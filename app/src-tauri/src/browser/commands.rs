@@ -273,6 +273,7 @@ pub fn browser_set_agent<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, sess
     } else {
         c.stop();
         approvals(&app)?.deny_chat(win.label(), &chat);
+        super::driving::refresh(&app, win.label());
     }
     crate::activity::domain_event(
         "browser.agent.mode",
@@ -295,6 +296,7 @@ pub fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, ses
             let _ = w.eval(scripts::STOP_LOADING);
         }
     }
+    super::driving::refresh(&app, win.label());
     crate::activity::domain_event("browser.agent.stop", None, &[("Chat", chat.as_str())]);
     Ok(status_changed(&app, win.label(), &chat, &hub))
 }

@@ -39,6 +39,8 @@ describe('TauriBrowserBackend', () => {
       [() => b.eventQuery(4), 'browser_event_query', { recordId: 4 }],
       [() => b.nav('back'), 'browser_nav', { command: 'back' }],
       [() => b.close(), 'browser_close', undefined],
+      [() => b.researchStop(), 'browser_research_stop', undefined],
+      [() => b.driving(), 'browser_driving', undefined],
       [() => b.openExternal('https://e.org/'), 'browser_open_external', { url: 'https://e.org/' }],
       [() => b.capture('c'), 'browser_capture', { sessionId: 'c' }],
       [() => b.sources('c'), 'browser_sources', { sessionId: 'c' }],
@@ -70,11 +72,13 @@ describe('BrowserStore', () => {
 
   it('opens pages and searches and follows the page shown', async () => {
     const { browser, web } = setup();
+    expect(browser.engine()).toBeNull();
     await browser.load();
     expect(browser.loaded() && !browser.page().open).toBe(true);
+    expect(browser.engine()).toBe(web.engine);
     expect(await browser.go('connection reset by peer')).toBe(true);
     await settle();
-    expect(browser.page().url).toBe(mockSearchUrl('duckDuckGo', 'connection reset by peer'));
+    expect(browser.page().url).toBe(mockSearchUrl('google', 'connection reset by peer'));
     browser.setEngine('bing');
     await browser.go('learn.microsoft.com/dotnet');
     await settle();

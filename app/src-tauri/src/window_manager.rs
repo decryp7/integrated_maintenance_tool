@@ -77,9 +77,9 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
-/// Pop-out panels and browser windows belong to an IMT window; they are not windows of their own.
+/// Pop-out panels, browser windows and their banners belong to an IMT window; they are not windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
-    panel_windows::is_popout(label) || crate::browser::is_browser_label(label)
+    panel_windows::is_popout(label) || crate::browser::is_browser_label(label) || crate::browser::is_banner_label(label)
 }
 
 /// The open windows, `main` first.
@@ -287,7 +287,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
                 api.prevent_close();
             }
         }
-        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) => {
+        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) && !crate::browser::is_banner_label(label) => {
             if let Some(windows) = app.try_state::<Windows>() {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
@@ -352,6 +352,9 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
     if crate::browser::is_browser_label(label) {
         crate::browser::destroyed(app, label);
+        return;
+    }
+    if crate::browser::is_banner_label(label) {
         return;
     }
     panel_windows::close_all_of(app, label);

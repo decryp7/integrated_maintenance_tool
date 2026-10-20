@@ -305,7 +305,8 @@ is checked the same way.
 IMT's own browser window: the engine builds the search from the event without names from your logs or
 other private details, and you can edit it first. You browse in a separate window with its own cookies
 and history; the **Web** panel (Tools ▸ Web) has back and forward, the address box with your search engine
-(DuckDuckGo, Google, Bing, Stack Overflow or your own URL template with `{q}`), *Add page to AI context*
+(Google by default; DuckDuckGo, Bing, Stack Overflow or your own URL template with `{q}`, chosen in
+Settings ▸ Web browser and per search), *Add page to AI context*
 and *Open in your browser*. The AI never searches the web by itself. It sees a page only when you add it
 to a chat (as cited, untrusted web content it must not take instructions from), when you turn on *Let AI
 read the browser* for a chat, or in **agent mode**: then it drives the visible browser one step at a time,
@@ -314,6 +315,13 @@ stops for logins, payments and CAPTCHAs, and logs every step; *Stop* takes the b
 can also suggest a search or a page as a card that opens only when you click it; *Open and let AI read
 it* opens it and the chat goes on with the page. Pages get no access to IMT at all; downloads and popups
 are blocked. See [ADR 0011](adr/0011-internal-browser.md).
+
+**"AI is browsing" on the browser window:** while agent mode or research drives the browser, the browser
+window itself says so: an amber banner of IMT's own across its top (never put into the page) reads *AI is
+browsing* with a *Stop* button, the window title starts with "AI browsing —", and on Windows 11 the window
+frame turns amber. It all clears as soon as the AI lets go: Stop (there, in the chat or in the Web panel),
+the answer or the research is done, cancelled or failed, agent mode is turned off, or the browser or its IMT
+window is closed. See [ADR 0013](adr/0013-ai-browsing-banner.md).
 
 **Research mode:** when a question needs outside information (an error code, an exception, how a product
 behaves), or you say "search" or "look up", the AI researches by itself, read-only: it searches with your

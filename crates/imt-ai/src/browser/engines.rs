@@ -15,9 +15,10 @@ pub const QUERY_PLACEHOLDER: &str = "{q}";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SearchEngine {
+    /// The default: what most users expect from a search box.
     #[default]
-    DuckDuckGo,
     Google,
+    DuckDuckGo,
     Bing,
     StackOverflow,
     /// The user's own URL template with `{q}` (see [`SearchTemplate`]).
@@ -25,9 +26,10 @@ pub enum SearchEngine {
 }
 
 impl SearchEngine {
+    /// Every engine, in the order pickers list them (the default first).
     pub const ALL: [SearchEngine; 5] = [
-        SearchEngine::DuckDuckGo,
         SearchEngine::Google,
+        SearchEngine::DuckDuckGo,
         SearchEngine::Bing,
         SearchEngine::StackOverflow,
         SearchEngine::Custom,
@@ -209,6 +211,18 @@ mod tests {
     }
 
     #[test]
+    fn google_is_the_default_and_listed_first() {
+        assert_eq!(SearchEngine::default(), SearchEngine::Google);
+        assert_eq!(SearchSettings::default().engine, SearchEngine::Google);
+        assert_eq!(SearchEngine::ALL[0], SearchEngine::default());
+        assert_eq!(
+            SearchEngine::ALL.last(),
+            Some(&SearchEngine::Custom),
+            "the custom template comes last"
+        );
+    }
+
+    #[test]
     fn custom_templates_are_validated() {
         assert_eq!(s().search_url(SearchEngine::Custom, "x"), Err(SearchError::NoTemplate));
         assert_eq!(SearchTemplate::parse("https://s.example/?q="), Err(SearchError::NoPlaceholder));
@@ -237,25 +251,28 @@ mod tests {
 
     #[test]
     fn the_address_box_opens_pages_or_searches() {
-        let r = |t: &str| s().resolve_address(t, SearchEngine::DuckDuckGo).map(|u| u.as_str().to_string());
+        let r = |t: &str| s().resolve_address(t, s().engine).map(|u| u.as_str().to_string());
         assert_eq!(r("https://learn.microsoft.com/x").unwrap(), "https://learn.microsoft.com/x");
         assert_eq!(r("learn.microsoft.com/dotnet").unwrap(), "https://learn.microsoft.com/dotnet");
         assert_eq!(r("localhost:8080/health").unwrap(), "https://localhost:8080/health");
         assert_eq!(r("10.1.2.3").unwrap(), "https://10.1.2.3/");
         assert_eq!(
             r("System.TimeoutException").unwrap(),
-            "https://duckduckgo.com/?q=System.TimeoutException"
+            "https://www.google.com/search?q=System.TimeoutException"
         );
         assert_eq!(
             r("java.lang.nullpointerexception").unwrap(),
-            "https://duckduckgo.com/?q=java.lang.nullpointerexception"
+            "https://www.google.com/search?q=java.lang.nullpointerexception"
         );
         assert_eq!(
             r("connection reset by peer").unwrap(),
-            "https://duckduckgo.com/?q=connection+reset+by+peer"
+            "https://www.google.com/search?q=connection+reset+by+peer"
         );
-        assert_eq!(r("error: 0x80004005").unwrap(), "https://duckduckgo.com/?q=error%3A+0x80004005");
-        assert_eq!(r("ERROR:5").unwrap(), "https://duckduckgo.com/?q=ERROR%3A5");
+        assert_eq!(
+            r("error: 0x80004005").unwrap(),
+            "https://www.google.com/search?q=error%3A+0x80004005"
+        );
+        assert_eq!(r("ERROR:5").unwrap(), "https://www.google.com/search?q=ERROR%3A5");
         assert!(matches!(r("javascript:alert(1)"), Err(SearchError::Url(UrlError::Scheme(_)))));
         assert!(matches!(r("file:///C:/x"), Err(SearchError::Url(UrlError::Scheme(_)))));
         assert!(matches!(r("http://tauri.localhost/"), Err(SearchError::Url(UrlError::AppOrigin))));

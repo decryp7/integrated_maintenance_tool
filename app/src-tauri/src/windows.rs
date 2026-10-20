@@ -300,11 +300,12 @@ pub struct CurrentWindow(Arc<WindowState>);
 
 impl CurrentWindow {
     /// The state of window `label` (created on first use). A pop-out panel
-    /// window (`p-<host>-<n>`) has no workspace of its own: it gets its host's.
+    /// window (`p-<host>-<n>`) and a browser's "AI is browsing" banner (`aib-<owner>`)
+    /// have no workspace of their own: they get their window's.
     pub fn of<R: Runtime, M: Manager<R>>(manager: &M, label: &str) -> CmdResult<CurrentWindow> {
         let windows = manager.try_state::<Windows>().ok_or("IMT is not ready yet")?;
         windows
-            .get_or_create(crate::panel_windows::resolve(label))
+            .get_or_create(crate::browser::banner_owner(label).unwrap_or_else(|| crate::panel_windows::resolve(label)))
             .map(CurrentWindow)
             .map_err(err)
     }

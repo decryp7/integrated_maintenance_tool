@@ -37,10 +37,7 @@ fn the_panel_reads_the_browser_state_and_only_known_addresses_open_externally() 
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
     let s = ipc(&main, "browser_state", json!({})).unwrap();
-    assert_eq!(
-        (s["page"]["open"].as_bool(), s["engine"].as_str()),
-        (Some(false), Some("duckDuckGo"))
-    );
+    assert_eq!((s["page"]["open"].as_bool(), s["engine"].as_str()), (Some(false), Some("google")));
     assert_eq!(s["customEngine"], false);
     assert!(err(ipc(&main, "browser_open_external", json!({"url": "https://evil.example/"}))).contains("refused"));
     assert!(err(ipc(&main, "browser_open_external", json!({"url": "file:///etc/passwd"}))).contains("http and https"));
@@ -233,4 +230,80 @@ fn research_stop_and_retry_need_a_research_to_act_on() {
     closed.source.window = Some("w-9".into());
     assert!(super::research::retry(app.handle(), &closed).unwrap_err().contains("closed"));
     assert_eq!(super::research::settings(app.handle()).max_results, 5);
+}
+
+#[test]
+fn google_is_the_default_engine_of_settings_and_listed_first() {
+    use imt_core::settings::{sanitize, Configurable, FieldKind};
+    let hub = std::sync::Arc::new(BrowserHub::default());
+    let section = super::settings_section::BrowserSection { hub: hub.clone() };
+    let schema = section.settings_section();
+    let field = schema.fields.iter().find(|f| f.key == "searchEngine").expect("the field");
+    assert_eq!(field.default, json!("google"));
+    let FieldKind::Enum { options } = &field.kind else {
+        panic!("an enum")
+    };
+    assert_eq!(options[0].value, "google");
+    section.apply_settings(&sanitize(&schema, &json!({})).0).unwrap();
+    assert_eq!(hub.settings().search.engine, imt_ai::browser::SearchEngine::Google);
+}
+
+#[test]
+fn the_banner_window_shows_its_windows_driver_and_stop_clears_it() {
+    use std::sync::{Arc, Mutex};
+    use tauri::Listener;
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    window(&app, "browser-main");
+    let banner = window(&app, &super::driving::banner_label("main"));
+    let chat = main_window(&app).ai.chats.create().unwrap();
+    let seen = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let s = seen.clone();
+    // What the banner hears (the IMT window hears the same changes through `emit_to_window`).
+    banner.listen(super::BROWSER_EVENT, move |e| {
+        if let Ok(v) = serde_json::from_str::<Value>(e.payload()) {
+            if v["type"] == "driving" {
+                s.lock().unwrap().push(v["by"].clone());
+            }
+        }
+    });
+    assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), Value::Null);
+    ipc(&main, "browser_set_agent", json!({"sessionId": chat, "on": true})).unwrap();
+    let hub = app.state::<BrowserState>().0.clone();
+    assert!(hub.begin_driving("main", &chat));
+    super::driving::refresh(app.handle(), "main");
+    let agent = json!({"kind": "agent", "sessionId": chat});
+    // The banner works on its window's chats: its driver, and Stop through the same command as the chat's.
+    assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), agent);
+    ipc(&banner, "browser_agent_stop", json!({"sessionId": chat})).unwrap();
+    assert_eq!(ipc(&main, "browser_driving", json!({})).unwrap(), Value::Null);
+    // Agent mode turned off while driving.
+    ipc(&main, "browser_set_agent", json!({"sessionId": chat, "on": true})).unwrap();
+    super::driving::refresh(app.handle(), "main");
+    ipc(&main, "browser_set_agent", json!({"sessionId": chat, "on": false})).unwrap();
+    // Research, and its Stop.
+    hub.end_driving("main", &chat);
+    let key = super::hub::research_key(1);
+    hub.chat("main", &key).set_agent(true, Default::default());
+    assert!(hub.begin_driving("main", &key));
+    super::driving::refresh(app.handle(), "main");
+    assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), json!({"kind": "research"}));
+    ipc(&banner, "browser_research_stop", json!({})).unwrap();
+    assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), Value::Null);
+    let by = seen.lock().unwrap().clone();
+    assert_eq!(
+        by,
+        vec![
+            agent.clone(),
+            Value::Null,
+            agent,
+            Value::Null,
+            json!({"kind": "research"}),
+            Value::Null
+        ],
+        "each change announced once"
+    );
+    // The banner is IMT's UI, not a window of its own.
+    assert!(crate::window_manager::is_auxiliary(banner.label()));
+    assert!(!crate::window_manager::list(app.handle()).iter().any(|w| w.label == banner.label()));
 }

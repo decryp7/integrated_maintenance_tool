@@ -4,9 +4,10 @@
  * and agent mode are part of `ChatEvent` in `../ai/ai.types.ts`.
  */
 
-export type SearchEngine = 'duckDuckGo' | 'google' | 'bing' | 'stackOverflow' | 'custom';
+export type SearchEngine = 'google' | 'duckDuckGo' | 'bing' | 'stackOverflow' | 'custom';
 
-export const SEARCH_ENGINES: readonly SearchEngine[] = ['duckDuckGo', 'google', 'bing', 'stackOverflow', 'custom'];
+/** Every engine in the order the engine lists them (`SearchEngine::ALL`: Google, the default, first). */
+export const SEARCH_ENGINES: readonly SearchEngine[] = ['google', 'duckDuckGo', 'bing', 'stackOverflow', 'custom'];
 
 /** The page a window's browser shows. */
 export interface PageState {
@@ -68,12 +69,17 @@ export interface ChatBrowserStatus {
 
 export type NoticeKind = 'blocked' | 'download' | 'popup' | 'agentBlocked';
 
+/** Who drives the window's browser now (`browser_driving` and the `driving` event): a chat's agent mode, or research. */
+export type AiDriver = { kind: 'agent'; sessionId: string } | { kind: 'research' };
+
 /** `imt://browser`, to the window that owns the browser and its pop-out panels. */
 export type BrowserEvent =
   | ({ type: 'state' } & PageState)
   | { type: 'notice'; kind: NoticeKind; url: string; message: string }
   | { type: 'sources'; sessionId: string; sources: SourceInfo[] }
-  | ({ type: 'chatStatus' } & ChatBrowserStatus);
+  | ({ type: 'chatStatus' } & ChatBrowserStatus)
+  /** The AI started (`by`) or stopped (`null`) driving the browser; also sent to the browser window's banner. */
+  | { type: 'driving'; by: AiDriver | null };
 
 /** The user's answer on an agent approval card. */
 export type AgentDecision = 'allow' | 'allowSite' | 'deny';

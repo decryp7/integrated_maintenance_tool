@@ -8,6 +8,7 @@ import { Unlisten } from '../windowing/window-events';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
 import {
   AgentDecision,
+  AiDriver,
   BrowserEvent,
   BrowserStateDto,
   ChatBrowserStatus,
@@ -20,15 +21,15 @@ import {
 } from './browser.types';
 
 const TEMPLATES: Record<Exclude<SearchEngine, 'custom'>, string> = {
-  duckDuckGo: 'https://duckduckgo.com/?q={q}',
   google: 'https://www.google.com/search?q={q}',
+  duckDuckGo: 'https://duckduckgo.com/?q={q}',
   bing: 'https://www.bing.com/search?q={q}',
   stackOverflow: 'https://stackoverflow.com/search?q={q}',
 };
 
 /** A mock search page address, like the engine builds it. */
 export function mockSearchUrl(engine: SearchEngine, query: string): string {
-  const t = engine === 'custom' ? TEMPLATES.duckDuckGo : TEMPLATES[engine];
+  const t = engine === 'custom' ? TEMPLATES.google : TEMPLATES[engine];
   return t.replace('{q}', encodeURIComponent(query.trim()).replace(/%20/g, '+'));
 }
 
@@ -45,7 +46,8 @@ function titleFor(url: string): string {
 /** The shared pretend world: one page, chats' pages and switches, and waiting approvals. */
 export class MockWeb {
   page: PageState = { open: false, url: '', title: '', loading: false };
-  engine: SearchEngine = 'duckDuckGo';
+  /** Settings ▸ Web browser ▸ Search engine (the engine's default: Google). */
+  engine: SearchEngine = 'google';
   readonly history: string[] = [];
   at = -1;
   readonly handlers = new Set<(e: BrowserEvent) => void>();
@@ -63,8 +65,18 @@ export class MockWeb {
   /** "Open and let AI read it" hands the page to the chat; the mock AI backend sets this to ask the follow-up. */
   continueChat: ((sessionId: string, title: string) => Promise<number>) | null = null;
 
+  /** Who drives the pretend browser (`?mockDriving=agent` or `research` starts with one, for the banner's e2e). */
+  driver: AiDriver | null = mockDrivingParam();
+
   emit(e: BrowserEvent): void {
     for (const h of this.handlers) h(e);
+  }
+
+  /** The AI takes (or gives back) the browser; announced only when it changes, like the shell. */
+  drive(by: AiDriver | null): void {
+    if (JSON.stringify(by) === JSON.stringify(this.driver)) return;
+    this.driver = by;
+    this.emit({ type: 'driving', by });
   }
 
   show(url: string): void {
@@ -123,6 +135,12 @@ export class MockWeb {
     this.statuses.delete(sessionId);
     this.suggested.delete(sessionId);
   }
+}
+
+function mockDrivingParam(): AiDriver | null {
+  if (typeof window === 'undefined') return null;
+  const p = new URLSearchParams(window.location.search).get('mockDriving');
+  return p === 'research' ? { kind: 'research' } : p === 'agent' ? { kind: 'agent', sessionId: 'mock-chat' } : null;
 }
 
 let world: MockWeb | null = null;
@@ -229,12 +247,14 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   setAgent(sessionId: string, on: boolean) {
     return later(() => {
       if (!on) this.w.denyAll(sessionId);
+      if (!on) this.stopDriving(sessionId);
       return this.w.update(sessionId, on ? { agent: true, stepsUsed: 0, stepLimit: this.w.stepLimit, paused: false } : { agent: false });
     });
   }
   stop(sessionId: string) {
     return later(() => {
       this.w.denyAll(sessionId);
+      this.stopDriving(sessionId);
       return this.w.update(sessionId, { agent: false });
     });
   }
@@ -266,7 +286,17 @@ export class MockBrowserBackend implements BrowserBackend, ChatBrowserBackend {
     return this.w.continueChat ? this.w.continueChat(sessionId, this.w.page.title) : 0;
   }
   researchStop() {
-    return later(() => mockJobs().cancelWhere((j) => j.kind === 'research'));
+    return later(() => {
+      if (this.w.driver?.kind === 'research') this.w.drive(null);
+      return mockJobs().cancelWhere((j) => j.kind === 'research');
+    });
+  }
+  driving() {
+    return later(() => this.w.driver);
+  }
+  private stopDriving(sessionId: string): void {
+    const d = this.w.driver;
+    if (d?.kind === 'agent' && d.sessionId === sessionId) this.w.drive(null);
   }
   onEvent(handler: (e: BrowserEvent) => void): Promise<Unlisten> {
     this.w.handlers.add(handler);

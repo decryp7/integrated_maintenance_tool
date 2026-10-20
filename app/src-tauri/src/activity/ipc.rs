@@ -59,6 +59,7 @@ const QUERIES: &[&str] = &[
     "browser_event_query",
     "browser_sources",
     "browser_chat_status",
+    "browser_driving",
     "check_query",
     "complete_query",
     "query_patterns",
