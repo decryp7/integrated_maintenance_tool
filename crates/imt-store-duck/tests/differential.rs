@@ -478,18 +478,14 @@ fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
     assert_eq!(again.events, 0);
     let problems = store.problems().unwrap();
     assert!(problems.iter().all(|p| p.count > 0 && p.sample_lines.len() <= 20));
-    for e in [
-        store
-            .search(&SearchRequest {
-                text: "x".into(),
-                limit: 1,
-            })
-            .unwrap_err(),
-        store.reload().map(|_| ()).unwrap_err(),
-        store.set_profile(Profile::default_profile()).map(|_| ()).unwrap_err(),
-    ] {
-        assert!(matches!(e, StoreError::Unsupported { .. }), "{e}");
-    }
+    // Full-text search is R2b's.
+    let e = store
+        .search(&SearchRequest {
+            text: "x".into(),
+            limit: 1,
+        })
+        .unwrap_err();
+    assert!(matches!(e, StoreError::Unsupported { .. }), "{e}");
     assert_eq!(store.active_profile().unwrap().name, Profile::default_profile().name);
     assert!(store.validate_profile(&Profile::default_profile()).is_ok());
     let total = store.summary().unwrap().total;

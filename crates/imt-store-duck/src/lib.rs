@@ -5,6 +5,10 @@
 //! The other operations answer [`StoreError::Unsupported`] naming the phase that adds them.
 
 mod analysis;
+mod context;
+mod diag;
+mod profiles;
+mod project;
 mod qlang;
 mod read;
 mod schema;
@@ -16,11 +20,8 @@ pub use schema::FORMAT_VERSION;
 use duckdb::{params, Config, Connection};
 use imt_core::api::{UnrecognizedFile, WorkspaceState};
 use imt_core::batch::{EventSchema, SourceId};
-use imt_core::ingest::{self, ImportEnv, Outcome, ProblemKind};
-use imt_core::ports::{
-    DiagnosticRow, Diagnostics, FixEvaluation, ImportReport, ImportSession, IndexStatus, Ingest, Profiles, QuickFix, Search, SearchReply,
-    SearchRequest, StoreError, StoreResult,
-};
+use imt_core::ingest::{self, ImportEnv, Outcome};
+use imt_core::ports::{ImportReport, ImportSession, IndexStatus, Ingest, Search, SearchReply, SearchRequest, StoreError, StoreResult};
 use imt_core::profile::{CompiledProfile, Profile};
 use imt_core::workspace::{ImportProgress, NOT_IMPORTED};
 use imt_core::PluginRegistry;
@@ -43,24 +44,26 @@ pub(crate) fn engine(e: impl std::fmt::Display) -> StoreError {
 }
 
 /// What the store was opened with and what was opened in it.
-struct State {
-    profile: Arc<CompiledProfile>,
-    roots: Vec<PathBuf>,
+pub(crate) struct State {
+    pub(crate) profile: Arc<CompiledProfile>,
+    pub(crate) roots: Vec<PathBuf>,
     removed: HashSet<PathBuf>,
     unrecognized: Vec<UnrecognizedFile>,
 }
 
 pub(crate) struct Inner {
+    /// The store's (project's) folder.
+    pub(crate) dir: PathBuf,
     /// The connection the database was opened with; every other connection is cloned from it.
     db: Mutex<Connection>,
     pool: Mutex<Vec<Connection>>,
     registry: PluginRegistry,
     pub(crate) schema: Arc<EventSchema>,
-    state: RwLock<State>,
+    pub(crate) state: RwLock<State>,
     /// Bumped by every change to the events (keys read caches).
     pub(crate) generation: AtomicU64,
-    importing: AtomicBool,
-    progress: Arc<ImportProgress>,
+    pub(crate) importing: AtomicBool,
+    pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
 }
 
@@ -93,11 +96,11 @@ pub(crate) fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-fn read_lock<T>(m: &RwLock<T>) -> RwLockReadGuard<'_, T> {
+pub(crate) fn read_lock<T>(m: &RwLock<T>) -> RwLockReadGuard<'_, T> {
     m.read().unwrap_or_else(|p| p.into_inner())
 }
 
-fn write_lock<T>(m: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
+pub(crate) fn write_lock<T>(m: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
     m.write().unwrap_or_else(|p| p.into_inner())
 }
 
@@ -120,6 +123,16 @@ impl Inner {
 
     pub(crate) fn registry(&self) -> &PluginRegistry {
         &self.registry
+    }
+
+    /// Forgets every event, source and problem (the opened roots stay).
+    pub(crate) fn forget_events(&self) -> StoreResult<()> {
+        let conn = self.conn()?;
+        conn.execute_batch("DELETE FROM events; DELETE FROM diagnostics; DELETE FROM sources;")
+            .map_err(engine)?;
+        write_lock(&self.state).unrecognized.clear();
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        self.bump_version(&conn)
     }
 
     pub(crate) fn is_importing(&self) -> bool {
@@ -146,7 +159,7 @@ impl Inner {
     }
 
     /// Reads `paths` (canonical) into the database.
-    fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
+    pub(crate) fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
         let started = std::time::Instant::now();
         let (profile, roots, removed) = {
             let s = read_lock(&self.state);
@@ -223,7 +236,7 @@ fn open_db(dir: &Path) -> StoreResult<Connection> {
     Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)
 }
 
-fn invalid(e: anyhow::Error) -> StoreError {
+pub(crate) fn invalid(e: anyhow::Error) -> StoreError {
     StoreError::Invalid(format!("{e:#}"))
 }
 
@@ -254,7 +267,7 @@ impl DuckStore {
             conn.execute("INSERT INTO marker_kinds VALUES (0, ?, ?, ?)", params![bit as u8, m.kind, m.owner])
                 .map_err(engine)?;
         }
-        Self::with(conn, schema, compiled, registry)
+        Self::with(dir, conn, schema, compiled, registry)
     }
 
     /// Reopens the store in `dir`. A database written by a newer IMT is refused with a message.
@@ -277,14 +290,21 @@ impl DuckStore {
         }
         let schema =
             schema::decode_declared(&meta("declared")?).ok_or_else(|| StoreError::Invalid("the store's column list is damaged".into()))?;
-        Self::with(conn, schema, compiled, registry)
+        Self::with(dir, conn, schema, compiled, registry)
     }
 
-    fn with(conn: Connection, schema: EventSchema, profile: CompiledProfile, registry: PluginRegistry) -> StoreResult<DuckStore> {
+    fn with(
+        dir: &Path,
+        conn: Connection,
+        schema: EventSchema,
+        profile: CompiledProfile,
+        registry: PluginRegistry,
+    ) -> StoreResult<DuckStore> {
         // Added after format 1 was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
         Ok(DuckStore {
             inner: Arc::new(Inner {
+                dir: dir.to_path_buf(),
                 db: Mutex::new(conn),
                 pool: Mutex::new(Vec::new()),
                 registry,
@@ -310,7 +330,7 @@ impl DuckStore {
 }
 
 /// Clears the "import running" flag when the job ends, however it ends.
-struct Importing(Arc<Inner>);
+pub(crate) struct Importing(pub(crate) Arc<Inner>);
 
 impl Drop for Importing {
     fn drop(&mut self) {
@@ -319,7 +339,7 @@ impl Drop for Importing {
 }
 
 impl DuckStore {
-    fn idle(&self) -> StoreResult<()> {
+    pub(crate) fn idle(&self) -> StoreResult<()> {
         if self.inner.importing.load(Ordering::SeqCst) {
             return Err(StoreError::Busy("an import is running; wait for it or cancel it".into()));
         }
@@ -361,7 +381,7 @@ impl Ingest for DuckStore {
     }
 
     fn reload(&self) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("reload", "R2c"))
+        self.reload_job()
     }
 
     fn refresh(&self, _changed: &[PathBuf]) -> StoreResult<ImportSession> {
@@ -394,15 +414,11 @@ impl Ingest for DuckStore {
 
     fn clear(&self) -> StoreResult<()> {
         self.idle()?;
-        let conn = self.inner.conn()?;
-        conn.execute_batch("DELETE FROM events; DELETE FROM diagnostics; DELETE FROM sources;")
-            .map_err(engine)?;
+        self.inner.forget_events()?;
         let mut s = write_lock(&self.inner.state);
         s.roots.clear();
         s.removed.clear();
-        s.unrecognized.clear();
-        drop(s);
-        self.changed()
+        Ok(())
     }
 
     fn restore(&self, _state: &WorkspaceState) -> StoreResult<ImportSession> {
@@ -411,68 +427,6 @@ impl Ingest for DuckStore {
 
     fn append_tail(&self, _changed: &[PathBuf]) -> StoreResult<usize> {
         Err(StoreError::unsupported("live tail", "6c"))
-    }
-}
-
-impl Profiles for DuckStore {
-    fn active_profile(&self) -> StoreResult<Profile> {
-        Ok(self.inner.profile().profile.clone())
-    }
-
-    fn validate_profile(&self, profile: &Profile) -> StoreResult<()> {
-        self.inner.registry.compile_profile(profile.clone()).map(|_| ()).map_err(invalid)
-    }
-
-    fn set_profile(&self, _profile: Profile) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("changing the profile", "R2c"))
-    }
-
-    fn preview_parse(&self, _req: &imt_core::api::ParsePreviewRequest) -> StoreResult<imt_core::api::ParsePreview> {
-        Err(StoreError::unsupported("parse preview", "R2c"))
-    }
-
-    fn preview_extractor(&self, _req: &imt_core::api::ExtractPreviewRequest) -> StoreResult<imt_core::api::ExtractPreview> {
-        Err(StoreError::unsupported("extractor preview", "R2c"))
-    }
-}
-
-impl Diagnostics for DuckStore {
-    fn problems(&self) -> StoreResult<Vec<DiagnosticRow>> {
-        let conn = self.inner.conn()?;
-        let mut stmt = conn
-            .prepare("SELECT d.source, s.name, d.kind, d.count, d.samples FROM diagnostics d JOIN sources s ON s.id = d.source ORDER BY s.name, d.kind")
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, u32>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, u64>(3)?,
-                    r.get::<_, String>(4)?,
-                ))
-            })
-            .map_err(engine)?;
-        let mut out = Vec::new();
-        for row in rows {
-            let (source, name, kind, count, samples) = row.map_err(engine)?;
-            // Rows of kinds this build does not know (a newer writer) are skipped.
-            let Some(kind) = ProblemKind::from_id(&kind) else { continue };
-            out.push(DiagnosticRow::new(
-                SourceId(source),
-                name,
-                ingest::Problem {
-                    kind,
-                    count,
-                    sample_lines: serde_json::from_str(&samples).unwrap_or_default(),
-                },
-            ));
-        }
-        Ok(out)
-    }
-
-    fn evaluate_fix(&self, _fix: &QuickFix) -> StoreResult<FixEvaluation> {
-        Err(StoreError::unsupported("quick-fix evaluation", "R2c"))
     }
 }
 

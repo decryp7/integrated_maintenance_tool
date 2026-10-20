@@ -187,6 +187,12 @@ fn check_analyses(p: &Pair) {
         p.duck.overview(&r).unwrap().result.len(),
     );
     assert!(found.0 > 0 && found.1 > 0 && found.2 > 0, "{found:?}");
+    // Runs between lifecycle markers (the default profile's span rules), and a filtered page of them.
+    for rr in [json!({}), json!({"from": mid, "sort": "duration", "descending": true, "limit": 5})] {
+        let rr: imt_core::spans::RunsRequest = req(rr);
+        same("runs", to(p.ws.runs(&rr)), to(p.duck.runs(&rr).unwrap()), &ids);
+    }
+    assert!(p.duck.runs(&req(json!({}))).unwrap().total > 0, "the samples have runs");
     // A trace's waterfall.
     let traces = p.ws.traces(&req(json!({"query": all}))).unwrap().0;
     if let Some(t) = traces.first() {

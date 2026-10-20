@@ -930,8 +930,8 @@ impl Query for DuckStore {
         self.inner.field_stats(req)
     }
 
-    fn source_context(&self, _req: &ContextRequest) -> StoreResult<SourceContext> {
-        Err(StoreError::unsupported("source context", "R2c"))
+    fn source_context(&self, req: &ContextRequest) -> StoreResult<SourceContext> {
+        self.inner.source_context(req)
     }
 
     fn run_query_with(&self, req: &QueryRequest, control: &imt_core::ql::QueryControl) -> StoreResult<QlResult> {

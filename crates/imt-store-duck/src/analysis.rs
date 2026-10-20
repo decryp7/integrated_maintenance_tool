@@ -301,6 +301,19 @@ impl Inner {
         Ok(Analyzed { result, coverage })
     }
 
+    /// Calls `f` with each event matching `q` in time order, at most `limit` of them.
+    pub(crate) fn stream_rows(&self, q: &Filter, limit: usize, f: &mut dyn FnMut(OwnedRow)) -> StoreResult<Coverage> {
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let (sf, cq) = self.compile(&ctx, q)?;
+        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", sf.all_sql(), order_by(false));
+        let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, limit)?;
+        for r in stream.by_ref() {
+            f(r);
+        }
+        stream.finish()
+    }
+
     fn patterns(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Pattern>>> {
         self.cached("patterns", &req.query, || {
             let mut overflow = 0;
@@ -472,6 +485,29 @@ impl Inner {
         })
     }
 
+    /// Runs between lifecycle markers: every timed event, in time order, fed to the profile's span rules.
+    fn runs(&self, req: &imt_core::spans::RunsRequest) -> StoreResult<imt_core::spans::RunsReply> {
+        use imt_core::spans::book;
+        let profile = self.profile();
+        let rules = book::enabled_rules(&profile);
+        let mut pairers = book::pairers(&rules);
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        if !rules.is_empty() {
+            let cq = CompiledQuery::new(&Filter::default(), &ctx.default_group_by, &ctx.marker_kinds)
+                .map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
+            let sql = format!("SELECT {ROWS} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
+            let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
+            for r in stream.by_ref() {
+                let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
+                book::feed_one(&r.rec, &r.source, &lane, &rules, &mut pairers);
+            }
+            stream.finish()?;
+        }
+        let anns = book::annotations(&rules, &pairers, &ctx.default_group_by);
+        Ok(book::runs_reply(&profile, &rules, &pairers, &anns, req))
+    }
+
     pub(crate) fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
         Ok(self
             .analyse(&req.query, None, |rows, _| {
@@ -623,8 +659,8 @@ impl Analysis for DuckStore {
     fn overview(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Finding>>> {
         self.inner.overview(req)
     }
-    fn runs(&self, _req: &imt_core::spans::RunsRequest) -> StoreResult<imt_core::spans::RunsReply> {
-        Err(StoreError::unsupported("runs", "6c"))
+    fn runs(&self, req: &imt_core::spans::RunsRequest) -> StoreResult<imt_core::spans::RunsReply> {
+        self.inner.runs(req)
     }
 }
 

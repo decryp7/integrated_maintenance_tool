@@ -273,3 +273,108 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
   quick-fix evaluation and `timestamp_issue`, untimed events in the UI (`tsState` in `api.types.ts`), projects as
   `.imt` folders and `.imtz` archives (one archive module; the database streamed under its own limits), clock
   offsets, and source context by `byte_offset`.
+
+## Implementation notes (R2c, 2026-10-20)
+
+Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the app still uses `LogStore` until 6c.
+
+### What exists
+
+- **One predicate language** (review finding 7). `condition::Check` is one variant per operator (operands typed,
+  a list value only for `in`; the `in` list is no longer joined with `|` and split again); a `Condition` is its
+  `Check` lowered into `ql::Expr`. `CompiledQuery` lowers every criterion (sources, time range, field filters,
+  instance selection; levels, markers, the search box, the QL filter and leading `where` stages) into `Expr`
+  conjuncts evaluated by the one evaluator over `&dyn RowRef` (records and Arrow rows alike; field names interned
+  as `FieldKey`, `BatchSlots` check the name so keys of other `FieldKeys` stay correct). New `Expr` variants carry
+  the condition semantics exactly: `TextEq` (level names ignore ASCII case), `TextIn`, `NumCmp` (strictly
+  numeric), `Search`, `Levels`, `Markers`, `Sources`, `Time`, `Group`, `Const`. One intended change: `ne` is the
+  negation of `eq`, so `@level ne Warning` now also ignores case.
+- **SQL compiler** (`imt-store-duck/src/sql.rs`): `expr_sql` compiles each conjunct to a never-NULL predicate or
+  `None` (regex, NUL text); the compiled conjuncts prefilter, the evaluator decides the rest on the scan (so the
+  prefilter is never approximate). Numbers follow `value_number` (`TRY_CAST(trim(..))`, finite only), QL `Cmp`
+  compares by severity, numerically when both sides are numbers, else as text; contains folds with `lower()`.
+- **`RowRef`** gains `id`, `named_value`, `for_each_field`, `text_of`/`number_of`; `Record` (source name empty),
+  `RecordRow`, `OwnedRow` (an owned event streamed out of a store) and `ArrowRow` implement it.
+- **Analyses are pure over `RowRef`** (finding 1): patterns, exception groups, anomalies (and memory growth),
+  compare, field stats, correlate, spans/waterfall, requests; new pure modules for the Moment
+  (`MomentBuilder`, `MetricCollector`), the health check (`findings`), trace summaries, chart series
+  (`chart::Buckets`, `SeriesBuilder`, `chart_defs`) and runs (`spans::book`). The Workspace and the store call the
+  same code.
+- **Bounded** (finding 13): the Drain miner keeps `MAX_CLUSTERS` (10,000) patterns and counts the rest in one
+  overflow pattern; compare tracks at most `max_distinct + 1` values per field and side (identical results: a
+  field with more is not compared anyway) and 1,000 fields; the waterfall is linear (finding 19: the
+  `roots.contains` and root walk were quadratic).
+- **Coverage** (finding 16): the `Analysis` port returns `Analyzed<T> { result, coverage }`; `Coverage { matched,
+  analysed, limits }` says when `MAX_ANALYSED` (2M) or a cap bounded the result. The query language fails with a
+  message instead of truncating silently.
+- **The store's `Analysis` and `Query` ports** are complete except `export` (6c): events stream out of the
+  database in time order (`EventStream`, a pull iterator over the DuckDB statement, the residual filter on Arrow
+  rows, never the `raw` column); compare uses two connections; correlate and chart bounds are SQL.
+- **Per-generation cache** (finding 18): `analysis_cache(version, kind, hash, query, value)` holds patterns,
+  exception groups and anomalies, keyed by the persisted `meta.data_version` (bumped by every import, removal,
+  clear and re-import; older versions are deleted) and the FNV-1a hash of the canonical query (set-like lists
+  sorted; the text is stored and compared too). Nothing is cached while an import runs.
+- **Query language on the store**: the program's filter part compiles to SQL with the query; `ql::run_rows`
+  streams the leading `where`s and a first `stats` (nothing is kept per event), `sort`/`head`/`fields` keep
+  what they need. `Query::run_query_with(req, &QueryControl)`; `QueryControl::on_cancel` hooks interrupt the
+  running DuckDB statement (`InterruptHandle`), and an interrupted statement is `StoreError::Cancelled`.
+  `StoreError::Query(QlError)` keeps the error span.
+- **Profiles**: `profile_change::classify` sorts a change into presentation, derivation or parsing (finding 4)
+  with the changed sections. The store swaps the profile for a presentation change; for derivation and parsing
+  it re-reads the sources as a job when every file is still there and unchanged (plain files: same size), and
+  refuses with a message naming the missing or changed files otherwise. `Ingest::reload` works.
+  `Profile::with_override` merges TOML over a profile (project overrides, quick fixes). Extractor field types are
+  the `FieldType` enum; an unknown type is refused with its line (finding 20). `preview_parse` and the extractor
+  preview (`ExtractPreviewer`) are pure and served by the store.
+- **Diagnostics**: `ProblemKind` adds `fieldInvalid`, `encoding`, `unknownFormat`, `truncatedArchive`,
+  `eventSplit`. `DiagnosticRow` has `source: Option<SourceId>`, `path`, `detail` and `fix: Option<DiagnosticFix>`;
+  files no importer reads are `unknownFormat` rows; unreadable timestamps come with the batch 5 suggestion
+  verified against the stored untimed events (the override keeps the current formats). `evaluate_fix` merges the
+  override, then re-reads up to 10,000 stored untimed events of the affected sources with the candidate
+  profile's importer ("fixes N of M"); an event that cannot be read alone (a CSV line without its header) counts
+  when the candidate's timestamp formats read a timestamp in it that the active ones do not (said in `notes`).
+- **Projects** (`imt_core::package`): `<name>.imt/` with `project.toml` (`format = "imt-project"`, version 1,
+  name, profile overrides, clock offsets, layout, roots; missing keys default, a newer version is refused), the
+  database, `snapshots/`, and the caches `index/` and `tmp/`. `ProjectDir::export_with` writes the `.imtz` without
+  caches or WAL (Parquet stored, the rest deflated, zip64); the store exports a `COPY FROM DATABASE` copy of its
+  open database (Windows does not let another handle read it). `open_package` is the one archive entry point: a
+  root `project.toml` of format `imt-project` is a project (extracted under `MAX_PROJECT_ENTRY` 256 GiB per file
+  and 1 TiB in all, streamed to disk), a share manifest a share bundle, anything else a collector bundle
+  (finding 14). `DuckStore::{create_project, open_project, save_project, export_project}`; a project opens
+  without its log files.
+- **Source context** (finding 12): read from the file at the event's `byte_offset` when the line there is the
+  event's first stored line (plain UTF-8 files, a 4 MiB window either side); otherwise the stored events of the
+  source around the line, with `SourceContext.note` saying why (missing, changed, compressed or archived).
+- **Tests**: differential against the old condition evaluator for every operator on the samples, records vs
+  Arrow rows for every criterion, and the DuckDB store vs the Workspace for every operator and QL form (pages),
+  every analysis (ids compared as source path and line), charts (also the profile's charts with `when`), field
+  stats, runs, the query language (events and tables), check and completion; diagnostics, quick fixes,
+  classified profile changes, projects opened without their files, and cancellation.
+
+### Deviations and open points
+
+- **Writes stay R2b's.** With events as read-only Parquet segments (R2b), re-deriving fields and markers from
+  `raw` without the files means writing a new segment generation; R2c re-reads the files instead and refuses
+  when they are gone. A change that declares other typed columns is refused (the schema is per store until
+  segments carry their own). `forget_events` (clear, re-import) still deletes from `events`; R2b's manifest swap
+  replaces it.
+- **Not done here**: dedupe per source after sorting with key expiry and `StepCfg` as a tagged enum (finding 11),
+  lookup tables stored in the project, the pure timestamp parse environment and the per-source winning format
+  (finding 15), marker kinds written per generation on a profile change (finding 5), a stored source fingerprint
+  (finding 8; the size check stands in), redaction of an exported project, clock offsets applied by the store
+  (they are kept in `project.toml`; the `events` view of R2b can apply them), producers of the new problem kinds
+  (`fieldInvalid` in the batcher, `encoding`, `truncatedArchive`, `eventSplit` in the R2b pipeline), and
+  `Query::export`.
+- **Ids**: QL event ids, sample ids, `ContextRequest.record_id` and run events are still `u32` (saturating).
+- **Analyses that keep events**: anomaly detection and spans keep the window's events (as owned rows in the
+  store); a projection of the few columns they read is the next step for the memory budget.
+- **Compare reads numeric text as numbers** (stores keep undeclared fields as text), so JSON strings such as
+  `"500"` count as numbers too.
+
+### For 6c (`api.types.ts`)
+
+- `Analysis` results: `{ result, coverage: { matched, analysed, limits } }`.
+- `DiagnosticRow`: `source` nullable, new `path`, `detail?`, `fix?: { title, profileOverride, timestamp? }`; new
+  kinds; `FixEvaluation`: `{ fixed, checked, unchecked, notes? }`.
+- `SourceContext.note?`; `StoreError::Query` carries the `QlError` (message, offset, len, suggestions).
+- Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
