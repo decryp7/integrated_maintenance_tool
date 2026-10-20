@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { HeapObjectRow } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { errorText } from '../../analysis/async-resource';
@@ -90,8 +90,15 @@ export class HeapDominators {
   readonly snapshotId = input.required<number>();
   protected readonly sel = inject(HeapSelection);
   private readonly backend = inject(ProfilingBackend);
-  private readonly levels = signal<ReadonlyMap<number | null, Level>>(new Map());
-  private readonly expanded = signal<ReadonlySet<number>>(new Set());
+  // Another snapshot starts over.
+  private readonly levels = linkedSignal<ReadonlyMap<number | null, Level>>(() => {
+    this.snapshotId();
+    return new Map();
+  });
+  private readonly expanded = linkedSignal<ReadonlySet<number>>(() => {
+    this.snapshotId();
+    return new Set();
+  });
   protected readonly focus = signal(0);
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
@@ -108,8 +115,6 @@ export class HeapDominators {
       this.snapshotId();
       untracked(() => {
         this.generation++;
-        this.levels.set(new Map());
-        this.expanded.set(new Set());
         void this.load(null);
       });
     });

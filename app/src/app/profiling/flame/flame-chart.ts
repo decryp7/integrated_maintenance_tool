@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, linkedSignal, output, signal, untracked, viewChild } from '@angular/core';
 import { FlameGraph, FlameRect, FrameDto, MetricDto } from '../../core/api.types';
 import { formatMetric, formatPct, formatPp, measurementLabel } from '../profiling-format';
 import { buildFlameModel, chainTo, FlameModel, FlameOrientation, flameKey, hitTest, topRects } from './flame-model';
@@ -138,7 +138,12 @@ export class FlameChart {
   private readonly surface = viewChild<ElementRef<HTMLElement>>('surface');
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly width = signal(800);
-  protected readonly current = signal<number | null>(null);
+  /** The keyboard cursor; a new graph or orientation resets it. */
+  protected readonly current = linkedSignal<number | null>(() => {
+    this.graph();
+    this.orientation();
+    return null;
+  });
   protected readonly tip = signal<Tip | null>(null);
   protected readonly palette = signal<FlamePalette>(FALLBACK_PALETTE);
   protected readonly listLimit = LIST_LIMIT;
@@ -218,12 +223,11 @@ export class FlameChart {
       ro.observe(el);
       destroy.onDestroy(() => ro.disconnect());
     });
-    // A new graph resets the cursor; a flame graph (root at the bottom) scrolls to its root.
+    // A flame graph (root at the bottom) scrolls to its root on a new graph.
     effect(() => {
       this.graph();
       const flame = this.orientation() === 'flame';
       untracked(() => {
-        this.current.set(null);
         const scroller = this.surface()?.nativeElement.parentElement;
         if (scroller) queueMicrotask(() => (scroller.scrollTop = flame ? scroller.scrollHeight : 0));
       });

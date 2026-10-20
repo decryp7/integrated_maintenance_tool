@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, linkedSignal, signal, untracked, viewChildren } from '@angular/core';
 import { RovingFocusNavigation } from '../../shared/list-navigation';
 import { RecordView, SourceInfo } from '../../core/api.types';
 import { ImtBackend } from '../../core/backend';
@@ -108,7 +108,16 @@ export class RegistryView {
   protected readonly truncated = signal(false);
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
   protected readonly selected = signal<string | null>(null);
-  protected readonly focusId = signal<string | null>(null);
+  /** The roving tab stop; falls back to the first row when its row is gone (filter, collapse, reload). */
+  protected readonly focusId = linkedSignal<readonly { node: RegistryNode }[], string | null>({
+    source: () => this.flat(),
+    computation: (rows, previous) => {
+      const first = rows[0];
+      if (!first) return previous?.value ?? null;
+      const focus = previous?.value;
+      return focus && rows.some((r) => r.node.id === focus) ? focus : first.node.id;
+    },
+  });
   protected readonly copied = signal(false);
   protected readonly copyLabel = computed(() => (this.copied() ? $localize`:@@plugins.registry.copied:Copied` : $localize`:@@plugins.registry.copyPath:Copy path`));
 
@@ -129,13 +138,6 @@ export class RegistryView {
       const summary = this.events.workspace();
       const sources = (summary?.sources ?? []).filter((s) => s.importer === 'registry');
       untracked(() => void this.load(sources));
-    });
-    effect(() => {
-      const rows = this.flat();
-      const focus = this.focusId();
-      const firstRow = rows[0];
-      if (!firstRow) return;
-      if (!focus || !rows.some((r) => r.node.id === focus)) untracked(() => this.focusId.set(firstRow.node.id));
     });
   }
 

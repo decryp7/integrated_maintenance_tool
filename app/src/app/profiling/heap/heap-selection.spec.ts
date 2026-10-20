@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
+import { ProfileViewState } from '../profile-view-state';
 import { HEAP_TABS, HeapSelection, sparkline } from './heap-selection';
 
 describe('HeapSelection', () => {
@@ -28,6 +29,16 @@ describe('HeapSelection', () => {
     expect([s.tab(), s.typeName(), s.object()]).toEqual(['instances', 'Foo', 7]);
     s.showPaths(8, 'Bar');
     expect([s.typeName(), s.object()]).toEqual(['Bar', 8]);
+  });
+
+  it('drops the object selection when another snapshot is chosen (ids are per snapshot)', () => {
+    const s = make();
+    const state = TestBed.inject(ProfileViewState);
+    state.setHeap(1);
+    s.showPaths(7, 'Foo');
+    expect(s.object()).toBe(7);
+    state.setHeap(2);
+    expect([s.object(), s.typeName()]).toEqual([null, 'Foo']);
   });
 });
 

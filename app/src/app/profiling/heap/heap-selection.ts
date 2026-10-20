@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, linkedSignal, signal } from '@angular/core';
+import { ProfileViewState } from '../profile-view-state';
 
 export type HeapTab = 'types' | 'diff' | 'growth' | 'dominators' | 'instances';
 
@@ -16,8 +17,12 @@ export class HeapSelection {
   readonly tab = signal<HeapTab>('types');
   /** Type whose instances are listed. */
   readonly typeName = signal<string | null>(null);
-  /** Object whose paths to GC roots are shown. */
-  readonly object = signal<number | null>(null);
+  private readonly state = inject(ProfileViewState);
+  /** Object whose paths to GC roots are shown; another snapshot drops it (ids are per snapshot). */
+  readonly object = linkedSignal<number | null>(() => {
+    this.state.heapId();
+    return null;
+  });
 
   showInstances(typeName: string): void {
     this.typeName.set(typeName);
