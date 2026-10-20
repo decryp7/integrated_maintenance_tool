@@ -23,8 +23,8 @@ A `Profile` has the following parts:
   `unknown`), each with a framework flag.
 - **Stacks:** a prefix tree in which each node is a frame plus its parent, so a stack is one id.
 - **Threads.**
-- **Metrics:** `samples`, `timeNs`, `calls`, `allocCount`, `allocBytes`, `exceptions`, `waitNs` and
-  `maxCallNs`. Each one is tagged `sampled` (an estimate) or `exact`. The UI shows this tag next to
+- **Metrics:** `samples`, `timeNs`, `calls`, `allocCount`, `allocBytes`, `exceptions`, `waitNs`,
+  `maxCallNs` and `liveBytes` (native heap memory allocated during a capture and not freed by its end). Each one is tagged `sampled` (an estimate) or `exact`. The UI shows this tag next to
   the values.
 - **Samples:** stored in columns and sorted by time. A sample is a weighted stack observation,
   with one value per metric.
@@ -163,8 +163,12 @@ Paths to roots stop after 2M visited objects. At most 32 captures can be open pe
 - Thread-pool worker starts (thread names) and starvation adjustments (markers).
 - GC heap walks (`GCBulkType`/`Node`/`Edge` and root events): a trace with one imports as a heap snapshot
   (roots grouped as `[Stack roots]`, `[Finalizer queue]`, `[Handles]`, `[Static variables]`, ...).
-- IMT's ETW extension events (`IMT-Windows-Kernel`, ADR 0019): image loads (native frames as
-  `module+0xoffset`), context-switch waits (`wait` events, `waitNs`) and thread names.
+- IMT's ETW extension events (`IMT-Windows-Kernel`, ADR 0019 and ADR 0022): image loads (native frames as
+  `module+0xoffset`), context-switch waits (`wait` events, `waitNs`), thread names, `NativeSymbol` (native
+  frames named by function, with module, source file and the function's first line) and the native heap events
+  `HeapAlloc`/`HeapFree`/`HeapReAlloc` (paired by address: `allocBytes`/`allocCount` at the allocating stack,
+  exact; what is not freed by the end becomes `liveBytes`). Addresses resolve in this order: CLR methods,
+  native symbols, images, `0x…`.
 
 It follows PerfView's `EventPipeFormat.md` / `NetTraceFormat.md` and the runtime's `ep-file.c` and
 `ep-block.c`. It reads NetTrace V4/V5 (FastSerialization objects) and V6 (.NET 10 blocks, threads by
@@ -230,6 +234,36 @@ The pairs `orders.folded` / `orders-regression.folded` and `orders.speedscope.js
 `orders-regression.speedscope.json` show a regression: serialisation grows from about 10% to
 about 30%, and `Shop.Orders.AuditLog.Write` is new. In the heap snapshots, `Order` grows steadily
 from 50 to 100 to 150 instances, and `AuditLog` first appears in the second snapshot.
+
+## Native (C/C++) captures
+
+*Tools ▸ Profile native process…* records a running native process with the native profiling plugin
+(`crates/imt-plugin-native`, ADR 0022). Nothing is loaded into the target. Two modes:
+
+| Mode | Rights | How | What it gives |
+|---|---|---|---|
+| Sampling | none (your own processes) | the plugin suspends one target thread at a time, copies its registers and the top 64 KiB of its stack, resumes it (an RAII guard resumes on every path) and walks the copy with DbgHelp `StackWalkEx`; 100 Hz per thread by default, 1 kHz at most | CPU samples where a thread's CPU time advanced since its previous sample, `wait` events otherwise (one interval each; the reason is read from the leaf frames: sleep, lock, I/O completion, object wait). Wall clock, approximate |
+| ETW | administrator (the plugin's elevated process, started through the administrator prompt) | a system-logger session: kernel `PROFILE` (1 ms) and `CSWITCH`/`DISPATCHER` with stack walks, image loads; optionally the heap provider for the target (allocations with stacks); the CLR providers when the target runs .NET (mixed stacks) | every CPU sample, waits with the thread that ended them, heap allocations and unfreed memory by stack |
+
+Both write NetTrace through `imt-etw`'s writer; after recording, `imt-symbols` names the distinct code addresses
+(symbol path from the dialog or *Settings ▸ Native profiling*, the cache `<app data>/symbols` in symstore layout,
+and, only when enabled, the Microsoft symbol server) and the capture ends with `NativeSymbol` events. Kernel image
+paths (`\Device\HarddiskVolumeN\…`) are mapped to drive paths first. A finished capture opens on *Profile
+findings* (problem first).
+
+Native findings: **hot native function** (the user-code function with most self time, with its source location;
+standard-library code it calls counts as its own), **wait hot spot** (the user-code function above the longest
+waits, locks recognised), **native heap growth** (the call path holding most `liveBytes`). OS and runtime DLLs
+(`ntdll.dll`, `kernelbase.dll`, `ucrtbase.dll`, `vcruntime*`, ...) are never reported as the place of a fix.
+
+`.etl` traces (WPR/xperf: `wpr -start CPU -start Heap`, PerfView, `logman`) open by dropping them (the busiest
+process) or with *File ▸ Open native process from .etl…* (choose the process); the same converter and
+symbolisation run.
+
+Limits: x64 and x86 (WOW64) targets from the 64-bit IMT; ARM64 targets are not sampled. Sampled stacks stop at
+JIT-compiled frames whose unwind data only the runtime knows (managed parts of sampled stacks are truncated; use
+ETW for mixed stacks). Captures stop at 1 hour, 1 GiB, or 4M samples; at most 200,000 distinct addresses are
+symbolised. Heap tracing slows allocation-heavy targets while it runs.
 
 ## Performance
 

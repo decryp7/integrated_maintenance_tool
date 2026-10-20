@@ -132,6 +132,28 @@ throws, contends on a lock and sleeps for 10 minutes). *Tools ▸ Profile .NET p
 | 62 | Kill IMT (Task Manager) during an elevated capture, start it again and capture again; run `logman query -ets`. | No `IMT-dotnet-*` session is left running after the second capture starts. |
 
 
+## Profile a native process (Windows, ADR 0022)
+
+Build the fixture once: `cargo build -p imt-plugin-native --example native-busy` (32-bit:
+`rustup target add i686-pc-windows-msvc`, then add `--target i686-pc-windows-msvc`); run
+`target\debug\examples\native-busy.exe all 600` (a busy loop, four threads contending for a lock, a heap that
+grows). *Tools ▸ Profile native process…* lists it.
+
+| # | Steps | Expected |
+|---|-------|----------|
+| 63 | IMT **not** elevated: pick `native-busy.exe`, *Sampling*, *Stop after 10 seconds*, *Record*. | The capture shows elapsed time and samples, ends by itself and opens on *Profile findings*: "Native hot spot: native_busy::native_busy_spin (main.rs:…)" and a wait hot spot in `native_busy_contend` "on a lock"; the call tree names frames with their source file; the notes say which modules had PDBs. `native-busy` keeps running normally. |
+| 64 | Pick a service of another user (e.g. `svchost.exe`). | It is tagged *ETW only*; *Record* is disabled for *Sampling* with the hint to choose ETW. |
+| 65 | Choose *ETW (administrator)*, *Heap allocations*, *Record* on `native-busy.exe`; accept the administrator prompt. | A second, elevated `imt-plugins` process starts; the capture records, ends and opens with CPU samples, waits (with the readying thread) and *Native heap growth* under `native_busy_grow` ("… MB of native heap not freed"); Hotspots has an *Unfreed bytes* column. Declining the prompt instead shows the error with *Restart as administrator*. |
+| 66 | Enable *Settings ▸ Native profiling ▸ Download symbols from Microsoft*, record again. | `ntdll.dll`/`kernelbase.dll` frames get function names; PDBs appear under `<app data>\symbols\<pdb>\<key>\`. With the setting off (the default) no request is made (check with a proxy log). |
+| 67 | Start a sampling capture without a duration, *Stop*; start another and *Cancel*; start one, close the dialog and cancel it from the Jobs pane. | Stop keeps and opens it (symbols resolved first); Cancel deletes the file; Jobs lists the running capture. |
+| 68 | During a capture end `native-busy.exe` in Task Manager. | The capture ends with "The process exited during the capture" and still opens. |
+| 69 | `wpr -start CPU -start Heap -filemode` while `native-busy` runs, `wpr -stop trace.etl`; drop `trace.etl`; then *File ▸ Open native process from .etl…* and pick another process. | Dropping opens the busiest process with symbols (the notes list the others); the dialog lists the processes with samples and opens the chosen one. |
+| 70 | Kill IMT during an ETW capture, start it again and capture again; `logman query -ets`. | No `IMT-native-*` session is left running after the second capture starts. |
+| 71 | The 32-bit fixture (above), sampling and ETW. | The process shows `x86`; frames are named; the sampling notes mention WOW64. |
+
+ETW automated tests (elevated shell): `set IMT_ETW_TESTS=1`, then
+`cargo test -p imt-plugin-native --test real_process -- --ignored --nocapture`.
+
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 
 `app/e2e-tauri/` holds a few automated smoke tests of the real app: the Rust engine, the Tauri shell and the

@@ -25,6 +25,8 @@ imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
 imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
 imt-profile = { path = "../crates/imt-profile" }
 imt-plugin-profiling = { path = "../crates/imt-plugin-profiling", default-features = false }
+imt-etw = { path = "../crates/imt-etw" }
+imt-symbols = { path = "../crates/imt-symbols", default-features = false }
 serde_json = "1"
 chrono = "0.4"
 
@@ -265,6 +267,20 @@ bench = false
 [[bin]]
 name = "fuzz_prof_nettrace_heap"
 path = "fuzz_targets/fuzz_prof_nettrace_heap.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_native_etw"
+path = "fuzz_targets/fuzz_native_etw.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_native_pe"
+path = "fuzz_targets/fuzz_native_pe.rs"
 test = false
 doc = false
 bench = false
