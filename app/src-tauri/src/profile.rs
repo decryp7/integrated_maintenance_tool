@@ -233,6 +233,7 @@ pub(crate) fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Prof
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, test_app, TempDir};
     use imt_core::Workspace;
@@ -297,7 +298,7 @@ regex = '('
         .now()
         .unwrap();
         crate::test_support::job_done(&app, job);
-        let summary = block(crate::workspace_commands::workspace_summary(st())).unwrap();
+        let summary = block(crate::workspace_commands::workspace_summary(st())).unwrap().json();
         assert_eq!(
             crate::tools::tests::domain_event("profile.saved", "op-profile").props["Profile"],
             "Saved"
@@ -398,7 +399,9 @@ regex = '('
             .now()
             .unwrap(),
         );
-        let summary = block(crate::workspace_commands::workspace_summary(main_window(&app))).unwrap();
+        let summary = block(crate::workspace_commands::workspace_summary(main_window(&app)))
+            .unwrap()
+            .json();
         assert_eq!(summary["profileName"], "Memory only");
         assert_eq!(get_profile(main_window(&app)).now().unwrap().path, None);
     }

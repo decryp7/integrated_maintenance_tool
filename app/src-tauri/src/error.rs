@@ -10,6 +10,7 @@ use serde::Serialize;
 
 /// What kind of failure an error is (camelCase on the wire). One list for every command, so a code means
 /// the same everywhere; domain codes (the AI's, profiling's, the updater's) are part of it.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ErrorCode {
@@ -88,6 +89,7 @@ impl ErrorCode {
 }
 
 /// The error of every command.
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CmdErrorDto"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CmdError {
@@ -98,15 +100,19 @@ pub struct CmdError {
     pub retryable: bool,
     /// The request field the error is about (a form highlights it).
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub field: Option<String>,
     /// The 1-based line of a text the error is about (a profile, a query).
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub line: Option<usize>,
     /// What to do next, for the user.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub hint: Option<String>,
     /// Technical detail (shown on demand, logged).
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub detail: Option<String>,
 }
 

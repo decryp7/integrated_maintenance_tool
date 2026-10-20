@@ -328,6 +328,7 @@ pub(crate) async fn open_bundle<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, job_done, main_window, samples, test_app, TempDir};
     use serde_json::json;
@@ -434,7 +435,8 @@ mod tests {
             main_window(&app),
             paths,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         let toml = "name = 'Shared'\n[redact]\ndetectors = ['email', 'ipv4']\n";
         crate::test_support::job_done(
             &app,
@@ -663,7 +665,7 @@ mod tests {
         ))
         .is_err());
 
-        let total = block(crate::workspace_commands::workspace_summary(st())).unwrap()["total"].clone();
+        let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
         let opened = block(open_bundle(
             app.handle().clone(),
             st(),

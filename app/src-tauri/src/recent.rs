@@ -25,6 +25,7 @@ const FILE: &str = "recent.json";
 const MAX_NAME: usize = 120;
 
 /// A project in the recent list.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecentProject {
     pub path: String,
@@ -32,6 +33,7 @@ pub struct RecentProject {
 }
 
 /// Both lists, newest first (camelCase on the wire; mirrored as `RecentLists` in api.types.ts).
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecentLists {
@@ -40,6 +42,7 @@ pub struct RecentLists {
 }
 
 /// Which list a command means.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecentKind {

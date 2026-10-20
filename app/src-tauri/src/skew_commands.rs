@@ -37,6 +37,7 @@ pub(crate) async fn suggest_offsets(state: CurrentWindow, request: Option<Sugges
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::{block, main_window, test_app, TempDir};
     use imt_core::skew::OffsetSpec;
     use serde_json::json;
@@ -116,7 +117,7 @@ mod tests {
         .unwrap();
         let saved: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&project).unwrap()).unwrap();
         assert_eq!(saved["clock"]["b.log"], 1_200);
-        block(crate::workspace_commands::clear_workspace(st())).unwrap();
+        block(crate::workspace_commands::clear_workspace(st())).unwrap().json();
         let opened = block(crate::workspace_commands::open_project(
             app.handle().clone(),
             st(),

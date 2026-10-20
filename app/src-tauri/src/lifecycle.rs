@@ -808,6 +808,7 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
 
     #[test]
@@ -846,7 +847,8 @@ mod tests {
             state.clone(),
             vec![log.to_string_lossy().into_owned()],
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
         crate::tray::create(app.handle());
         let (entered, running) = std::sync::mpsc::channel();
@@ -1486,7 +1488,9 @@ mod tests {
         // Autosave of this run, per window.
         crate::paths::allow_under(&h, MAIN, &samples());
         let csv = samples().join("csv").to_string_lossy().into_owned();
-        block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv])).unwrap();
+        block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv]))
+            .unwrap()
+            .json();
         save_session(
             main_window(&app),
             life(),

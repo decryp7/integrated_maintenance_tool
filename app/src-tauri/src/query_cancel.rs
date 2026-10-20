@@ -129,6 +129,7 @@ pub async fn run_query_stream<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
     use imt_core::query::Query;
@@ -170,7 +171,8 @@ mod tests {
             main_window(&app),
             pending,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         app
     }
 

@@ -62,6 +62,8 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
+# TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
+ts-rs = "11.1"
 tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]

@@ -33,6 +33,8 @@ mod diagnostics;
 mod engine_errors;
 mod error;
 mod file_commands;
+#[cfg(test)]
+mod generated_types;
 mod insights;
 mod instance;
 mod jobs;
@@ -587,6 +589,15 @@ pub(crate) mod test_support {
     }
 
     impl<F: std::future::Future> Now for F {}
+
+    /// `.json()`: a typed reply as the JSON the UI gets (tests index it like the UI reads it).
+    pub trait Json: serde::Serialize {
+        fn json(&self) -> serde_json::Value {
+            serde_json::to_value(self).unwrap()
+        }
+    }
+
+    impl<T: serde::Serialize> Json for T {}
 
     /// Waits for the test app's job `id` to end; how it ended.
     pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {

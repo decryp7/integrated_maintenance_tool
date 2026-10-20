@@ -15,7 +15,6 @@ use crate::window_prefs::{OnClose, SharedPrefs, WINDOW_SECTION};
 use crate::windows::{emit_to_window, label_order, queue_open, CurrentWindow, Windows, MAIN};
 use crate::{err, CmdResult};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
 
@@ -215,8 +214,7 @@ fn begin_quit<R: Runtime>(app: &AppHandle<R>) {
 
 /// Tells the user an import finished in a window that is not in front.
 /// Called from commands and workers: the window getters run on the main thread ([`crate::ui_dispatch::run`]).
-pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Value) {
-    let events = summary["total"].as_u64().unwrap_or(0);
+pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, events: u64) {
     let title = app
         .try_state::<Windows>()
         .and_then(|ws| ws.get(label))
@@ -646,7 +644,7 @@ mod tests {
         let a = asked.clone();
         main.listen(OPEN_ASK_EVENT, move |e| a.lock().unwrap().push(e.payload().to_string()));
         ask_open(&h, MAIN, vec!["/logs/a.log".into(), "/logs/b".into()]);
-        let payload: Value = serde_json::from_str(&asked.lock().unwrap()[0]).unwrap();
+        let payload: serde_json::Value = serde_json::from_str(&asked.lock().unwrap()[0]).unwrap();
         assert_eq!(payload, serde_json::json!({ "count": 2, "names": ["a.log", "b"] }));
         // "This window": the paths are queued here.
         tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Here)).unwrap();

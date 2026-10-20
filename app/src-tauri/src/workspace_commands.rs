@@ -21,8 +21,8 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
-pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<Value> {
-    read(&state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await
+pub(crate) async fn workspace_summary(state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
+    read(&state, |ws| Ok(ws.summary())).await
 }
 
 /// Runs an import (open, reload, project) as the window's import job: one at a time per window, with the
@@ -215,7 +215,11 @@ pub(crate) fn open_request<R: Runtime>(app: &AppHandle<R>, window: &str, paths: 
 }
 
 #[tauri::command]
-pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
+pub(crate) async fn open_paths<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    paths: Vec<String>,
+) -> CmdResult<imt_core::api::WorkspaceSummary> {
     let paths: Vec<String> = open_request(&app, state.label(), paths)?
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
@@ -226,11 +230,15 @@ pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWind
 }
 
 /// Opens paths that were checked already (granted, or IMT's own): see [`open_request`].
-pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
+pub(crate) async fn open_granted<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    paths: Vec<String>,
+) -> CmdResult<imt_core::api::WorkspaceSummary> {
     let (app, state) = (app.clone(), state.clone());
     let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
     if paths.is_empty() {
-        return write_reporting(&app, &state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await;
+        return write_reporting(&app, &state, |ws| Ok(ws.summary())).await;
     }
     let (handle, label) = (app.clone(), state.label().to_string());
     let summary = import_job(&app, &state, open_spec(&paths), move |ws| {
@@ -248,10 +256,10 @@ pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &Current
             ElapsedMs = summary.load_ms;
             "Workspace opened"
         );
-        serde_json::to_value(summary).map_err(anyhow::Error::from)
+        Ok(summary)
     })
     .await?;
-    crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
     Ok(summary)
 }
 
@@ -282,36 +290,36 @@ pub(crate) fn log_unrecognized(files: &[imt_core::api::UnrecognizedFile], before
 }
 
 #[tauri::command]
-pub(crate) async fn remove_source(state: CurrentWindow, source_id: u32) -> CmdResult<Value> {
+pub(crate) async fn remove_source(state: CurrentWindow, source_id: u32) -> CmdResult<imt_core::api::WorkspaceSummary> {
     write(&state, move |ws| {
         ws.remove_source(source_id);
-        serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
+        Ok(ws.summary())
     })
     .await
 }
 
 #[tauri::command]
-pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Value> {
+pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
     state.set_project(None);
     write(&state, |ws| {
         ws.clear();
-        serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
+        Ok(ws.summary())
     })
     .await
 }
 
 #[tauri::command]
-pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<Value> {
+pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<imt_core::api::WorkspaceSummary> {
     let (handle, label) = (app.clone(), state.label().to_string());
     let summary = import_job(&app, &state, JobSpec::new(JobKind::Import, "Reload the files"), move |ws| {
         ws.reload()?;
         let summary = ws.summary();
         log_unrecognized(&summary.unrecognized, &Default::default());
         report_timestamp_issues(&handle, &label, &summary.sources);
-        serde_json::to_value(summary).map_err(anyhow::Error::from)
+        Ok(summary)
     })
     .await?;
-    crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
     Ok(summary)
 }
 
@@ -557,7 +565,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
         let missing = ws.restore(profile, &ws_state)?;
         let summary = ws.summary();
         report_timestamp_issues(&handle, &label, &summary.sources);
-        Ok((serde_json::to_value(summary)?, missing))
+        Ok((summary, missing))
     })
     .await?;
     state.set_profile_doc(doc.clone());
@@ -571,7 +579,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
         op.as_deref(),
         &[("Path", &safe), ("Sources", &sources), ("Missing", &missing_n)],
     );
-    crate::window_manager::import_finished(app, state.label(), &summary);
+    crate::window_manager::import_finished(app, state.label(), summary.total as u64);
     Ok(serde_json::json!({
         "path": shown,
         "name": project.name,
@@ -642,6 +650,7 @@ pub(crate) async fn take_pending_open(state: CurrentWindow, grants: crate::paths
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app, window, TempDir};
     use crate::windows::{queue_open, Windows};
@@ -658,7 +667,7 @@ mod tests {
         let pending = take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
             .now()
             .unwrap();
-        block(open_paths(app.handle().clone(), main_window(&app), pending)).unwrap();
+        block(open_paths(app.handle().clone(), main_window(&app), pending)).unwrap().json();
         app
     }
 
@@ -694,7 +703,7 @@ mod tests {
         );
         let st = || main_window(&app);
 
-        let summary = block(workspace_summary(st())).unwrap();
+        let summary = block(workspace_summary(st())).unwrap().json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
         assert_eq!(summary["profileName"], "Default (Serilog)");
 
@@ -703,7 +712,8 @@ mod tests {
             st(),
             vec![samples().join("log4net").to_string_lossy().into_owned()],
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 3);
         assert!(block(open_paths(app.handle().clone(), st(), vec!["/does/not/exist".into()]))
             .unwrap_err()
@@ -729,11 +739,11 @@ mod tests {
         assert!(block(preview_extractor(st(), preview)).unwrap()["error"].is_string());
 
         let id = summary["sources"][0]["id"].as_u64().unwrap() as u32;
-        let summary = block(remove_source(st(), id)).unwrap();
+        let summary = block(remove_source(st(), id)).unwrap().json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
-        let summary = block(reload_workspace(app.handle().clone(), st())).unwrap();
+        let summary = block(reload_workspace(app.handle().clone(), st())).unwrap().json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
-        let summary = block(clear_workspace(st())).unwrap();
+        let summary = block(clear_workspace(st())).unwrap().json();
         assert_eq!(summary["total"], 0);
     }
 
@@ -863,7 +873,7 @@ mod tests {
         );
         let st = || main_window(&app);
         crate::paths::allow_under(app.handle(), "main", &dir.0);
-        let summary = block(workspace_summary(st())).unwrap();
+        let summary = block(workspace_summary(st())).unwrap().json();
         assert!(summary["plugins"]
             .as_array()
             .unwrap()
@@ -958,7 +968,7 @@ mod tests {
         let ctx: ContextRequest = serde_json::from_value(json!({"recordId": 5, "before": 1, "after": 1})).unwrap();
         assert_eq!(block(source_context(st(), ctx)).unwrap()["lines"].as_array().unwrap().len(), 3);
 
-        block(clear_workspace(st())).unwrap();
+        block(clear_workspace(st())).unwrap().json();
         assert!(st().project().is_none());
         crate::test_support::job_done(
             &app,
@@ -1313,13 +1323,13 @@ mod tests {
             crate::paths::GrantSource::Drop,
         )
         .unwrap();
-        block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap();
+        block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap().json();
         let recent = crate::recent::recents(app.handle()).list().files;
         assert_eq!(recent.len(), 1);
         // Another window may reopen it from the recent list (granted again there); a file that is not
         // listed stays refused.
         let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
-        block(open_paths(app.handle().clone(), w2.clone(), recent.clone())).unwrap();
+        block(open_paths(app.handle().clone(), w2.clone(), recent.clone())).unwrap().json();
         assert!(crate::paths::WindowGrants::of(app.handle(), "w-2")
             .read_file(&recent[0], &[])
             .is_ok());

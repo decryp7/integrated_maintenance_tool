@@ -2483,18 +2483,8 @@ export type QueryStreamEvent = { kind: 'started'; jobId: number } | ({ kind: 'pr
 /** Like `QueryOutcome`, or `{ cancelled: true }` after its job was cancelled (a normal outcome, not an error). */
 export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 
-/** What a native dialog asks for (`pick_paths`, see core/native-dialog.ts). Mirrors `paths::PickRequest`. */
-export type PickKind = 'openFile' | 'openFiles' | 'openFolder' | 'openFolders' | 'save';
-
-/** `pick_paths` request: the engine shows the dialog and grants the chosen paths to the window. */
-export interface PickRequest {
-  kind: PickKind;
-  title: string;
-  /** File types offered (extensions without the dot, letters and digits only). */
-  filters?: { name: string; extensions: string[] }[];
-  /** Suggested name of a save dialog (a file name, not a path). */
-  defaultName?: string;
-}
+// What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
+export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
 /** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
 export interface AnalysisCoverage {
@@ -2503,83 +2493,10 @@ export interface AnalysisCoverage {
 }
 
 // ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
-
-/** A project of the recent list. Mirrors `recent::RecentProject`. */
-export interface RecentProject {
-  path: string;
-  name: string;
-}
-
-/** Both recent lists, newest first. Rust records an entry after a granted open or save. Mirrors `recent::RecentLists`. */
-export interface RecentLists {
-  files: string[];
-  projects: RecentProject[];
-}
-
-/** Which recent list a command means. Mirrors `recent::RecentKind`. */
-export type RecentKind = 'files' | 'projects';
+// Generated from `recent.rs`. Rust records an entry after a granted open or save.
+export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
 
 // ---- The one error of every command (app/src-tauri/src/error.rs; ADR 0016) ----
 
-/** What kind of failure an error is. Mirrors `error::ErrorCode`; the UI reacts to it, never to the text. */
-export type ErrorCode =
-  | 'failed'
-  | 'invalid'
-  | 'notFound'
-  | 'notGranted'
-  | 'busy'
-  | 'cancelled'
-  | 'io'
-  | 'limit'
-  | 'unsupported'
-  | 'unavailable'
-  | 'fileExists'
-  | 'denied'
-  | 'missing'
-  | 'internal'
-  | 'noModel'
-  | 'noRuntime'
-  | 'engine'
-  | 'contextOverflow'
-  | 'malformed'
-  | 'toolLoopLimit'
-  | 'modelFile'
-  | 'memory'
-  | 'network'
-  | 'tls'
-  | 'proxyAuth'
-  | 'proxy'
-  | 'offline'
-  | 'timeout'
-  | 'httpStatus'
-  | 'gated'
-  | 'integrity'
-  | 'disk'
-  | 'refused'
-  | 'notACapture'
-  | 'notAvailable'
-  | 'unreachable'
-  | 'noRelease'
-  | 'noPlatform'
-  | 'invalidManifest'
-  | 'signatureInvalid'
-  | 'tooLarge'
-  | 'diskFull'
-  | 'installFailed';
-
-/** What every command rejects with. Mirrors `error::CmdError`. */
-export interface CmdErrorDto {
-  code: ErrorCode;
-  /** For the user, as is. */
-  message: string;
-  /** Trying again as is may succeed. */
-  retryable: boolean;
-  /** The request field the error is about. */
-  field?: string;
-  /** The 1-based line of a text the error is about (a profile, a query). */
-  line?: number;
-  /** What to do next. */
-  hint?: string;
-  /** Technical detail. */
-  detail?: string;
-}
+// What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.
+export type { CmdErrorDto, ErrorCode } from './generated/errors';

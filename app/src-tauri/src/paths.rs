@@ -434,6 +434,7 @@ pub fn confined(root: &Path, item: &Path) -> Result<PathBuf, String> {
 // ---- the dialogs ----
 
 /// What a dialog asks for.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PickKind {
@@ -445,6 +446,7 @@ pub enum PickKind {
 }
 
 /// A file type offered in a dialog.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PickFilter {
     pub name: String,
@@ -452,6 +454,7 @@ pub struct PickFilter {
 }
 
 /// `pick_paths`' request (camelCase on the wire; mirrored as `PickRequest` in api.types.ts).
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PickRequest {
@@ -459,9 +462,11 @@ pub struct PickRequest {
     #[serde(default)]
     pub title: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(as = "Option<Vec<PickFilter>>", optional))]
     pub filters: Vec<PickFilter>,
     /// Suggested file name of a save dialog (a name, not a path).
     #[serde(default)]
+    #[cfg_attr(test, ts(optional))]
     pub default_name: Option<String>,
 }
 

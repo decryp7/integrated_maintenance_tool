@@ -417,7 +417,7 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     state: CurrentWindow,
     paths: Vec<String>,
     start_at_end: Option<bool>,
-) -> CmdResult<Value> {
+) -> CmdResult<imt_core::api::WorkspaceSummary> {
     let options = OpenOptions {
         start_at_end: start_at_end.unwrap_or(false),
     };
@@ -427,10 +427,10 @@ pub(crate) async fn open_paths_live<R: Runtime>(
         ws.open_with(&paths, &options)?;
         let summary = ws.summary();
         log::info!(Sources = summary.sources.len() as u64, StartAtEnd = options.start_at_end; "Workspace opened for live tail");
-        serde_json::to_value(summary).map_err(anyhow::Error::from)
+        Ok(summary)
     })
     .await?;
-    crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
     crate::recent::opened_files(&app, &recorded);
     Ok(summary)
 }
@@ -438,6 +438,7 @@ pub(crate) async fn open_paths_live<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::Now as _;
 
     #[test]
@@ -489,7 +490,8 @@ mod tests {
             win.clone(),
             vec![dir.to_string_lossy().into_owned()],
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         win
     }
 
@@ -522,7 +524,7 @@ mod tests {
         while st().store_read().summary().total < 2 && std::time::Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
+        assert_eq!(block(workspace_summary(st())).unwrap().json()["total"], 2);
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "events");
         assert_eq!(status["totals"]["records"], 2);
@@ -542,7 +544,8 @@ mod tests {
             vec![other.0.to_string_lossy().into_owned()],
             Some(true),
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(summary["total"], 2);
         // A broken refresh is reported as no change.
         assert!(apply_changes(&st(), &[]).is_empty());
