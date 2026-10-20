@@ -4,7 +4,33 @@
     "config:recommended",
     "helpers:pinGitHubActionDigests"
   ],
+  "schedule": ["before 6am on monday"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "groupName": null,
+    "schedule": ["at any time"]
+  },
+  "ignorePaths": [
+    "**/node_modules/**",
+    "proto/**",
+    "sdk/dotnet/**"
+  ],
   "packageRules": [
+    {
+      "description": "One weekly PR for every non-security update; security fixes come as their own PRs at any time",
+      "matchPackageNames": ["*"],
+      "groupName": "weekly dependency updates",
+      "groupSlug": "weekly"
+    },
+    {
+      "description": "The gRPC stack is being removed in R3 (docs/redesign-2026-10.md)",
+      "matchPackageNames": ["protox", "/^tonic/", "/^prost/"],
+      "enabled": false
+    },
     {
       "description": "Gitea Actions only supports v3 of the artifact actions",
       "matchPackageNames": ["actions/upload-artifact", "actions/download-artifact"],
