@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub const EMBEDDED_CATALOG: &str = include_str!("../data/local-models.json");
+/// Older files one catalog entry may replace.
+const MAX_SUPERSEDED: usize = 16;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +41,10 @@ pub struct CatalogModel {
     pub recommended_for: Vec<String>,
     #[serde(default)]
     pub notes: String,
+    /// Older files of this same entry (an earlier revision or quantisation) that this one replaces: an
+    /// installed one of them is offered an update to `file` (`crate::updates`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub supersedes: Vec<String>,
 }
 
 fn default_ctx() -> usize {
@@ -82,6 +88,9 @@ fn problem(m: &CatalogModel) -> Option<String> {
     }
     if m.size_bytes == 0 || !(m.params_b.is_finite() && m.params_b > 0.0) {
         return Some(format!("{}: invalid size", m.id));
+    }
+    if m.supersedes.len() > MAX_SUPERSEDED || m.supersedes.iter().any(|f| !is_safe_file_name(f) || *f == m.file) {
+        return Some(format!("{}: invalid list of replaced files", m.id));
     }
     None
 }
@@ -170,10 +179,29 @@ mod tests {
         let mut bad_size = good.clone();
         bad_size.id = "d".into();
         bad_size.size_bytes = 0;
-        c.models = vec![good, bad_name, bad_repo, bad_sha, bad_size];
+        let mut bad_supersedes = good.clone();
+        bad_supersedes.id = "e".into();
+        bad_supersedes.supersedes = vec!["../old.gguf".into()];
+        let mut supersedes_itself = good.clone();
+        supersedes_itself.id = "f".into();
+        supersedes_itself.supersedes = vec![good.file.clone()];
+        let mut replaces_older = good.clone();
+        replaces_older.id = "g".into();
+        replaces_older.supersedes = vec!["Older-Q4_K_M.gguf".into()];
+        c.models = vec![
+            good,
+            bad_name,
+            bad_repo,
+            bad_sha,
+            bad_size,
+            bad_supersedes,
+            supersedes_itself,
+            replaces_older,
+        ];
         let (parsed, w) = Catalog::parse(&serde_json::to_string(&c).unwrap()).unwrap();
-        assert_eq!(parsed.models.len(), 1);
-        assert_eq!(w.len(), 4);
+        assert_eq!(parsed.models.len(), 2);
+        assert_eq!(parsed.models[1].supersedes, ["Older-Q4_K_M.gguf"]);
+        assert_eq!(w.len(), 6);
     }
 
     #[test]
