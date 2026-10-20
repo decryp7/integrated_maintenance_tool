@@ -307,7 +307,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
         .resizable(true)
         .always_on_top(request.always_on_top)
         .focused(true);
-    let built = crate::dev_overrides::apply(frameless(builder)).build();
+    let built = crate::native_feel::build(frameless(builder));
     if let Err(e) = built {
         popouts.remove(&label);
         anyhow::bail!("could not open a window for the panel: {e}");

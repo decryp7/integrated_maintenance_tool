@@ -31,10 +31,12 @@ import { provideImtIcons } from './shared/material/imt-icons';
 import { provideUpdates } from './updates/provide-updates';
 import { provideJobs } from './jobs/provide-jobs';
 import { provideNotifications } from './notifications/provide-notifications';
+import { provideNativeFeel } from './core/native-feel';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideNativeFeel(),
     provideLogger(),
     provideErrorLogging(),
     provideDiagnostics(),

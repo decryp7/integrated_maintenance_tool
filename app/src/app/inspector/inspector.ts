@@ -73,7 +73,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
           @for (p of props(); track p.key) {
             <div class="prop" (contextmenu)="openPropMenu($event, p.key, p.value)" (keydown)="onPropKey($event, p.key, p.value)">
               <span class="mono k ellipsis" [title]="p.key">{{ p.key }}</span>
-              <span class="mono v" [title]="p.display">{{ p.display }}</span>
+              <span class="mono v imt-selectable" [title]="p.display">{{ p.display }}</span>
               <span class="pa">
                 <button class="icon-btn" [attr.aria-label]="filterEqLabel(p.key, p.value)" title="Only this value" i18n-title="@@inspector.prop.only" (click)="filter(p.key, 'eq', p.value)"><imt-icon name="plus" [size]="12" /></button>
                 <button class="icon-btn" [attr.aria-label]="filterNeLabel(p.key, p.value)" title="Exclude this value" i18n-title="@@inspector.prop.exclude" (click)="filter(p.key, 'ne', p.value)"><imt-icon name="minus" [size]="12" /></button>

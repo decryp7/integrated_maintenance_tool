@@ -36,6 +36,7 @@ mod lifecycle;
 mod live;
 mod logging;
 mod menu;
+mod native_feel;
 mod notification_centre;
 mod notify;
 mod panel_windows;
@@ -497,11 +498,11 @@ fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash:
 }
 
 /// The startup window from `tauri.conf.json` (`create: false` there), built here so it gets the same
-/// [`dev_overrides`] as every other window.
+/// [`dev_overrides`] and [`native_feel`] as every other window.
 fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
     let config = app.config().app.windows.iter().find(|w| w.label == windows::MAIN).cloned();
     let config = config.ok_or_else(|| tauri::Error::WindowNotFound)?;
-    dev_overrides::apply(tauri::WebviewWindowBuilder::from_config(app, &config)?).build()?;
+    native_feel::build(tauri::WebviewWindowBuilder::from_config(app, &config)?)?;
     Ok(())
 }
 
