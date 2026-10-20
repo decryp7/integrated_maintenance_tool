@@ -67,7 +67,7 @@ Download the installer for your platform from the **Releases** page of this repo
 
 | Platform | Package |
 |---|---|
-| Windows | `.msi` or NSIS `-setup.exe` |
+| Windows | NSIS `-setup.exe` |
 | macOS | `.dmg` |
 | Linux | `.deb` or `.rpm` |
 

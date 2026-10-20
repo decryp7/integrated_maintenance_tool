@@ -403,7 +403,7 @@ jobs:
           - os: ubuntu-latest
             bundles: deb,rpm
           - os: windows-latest
-            bundles: msi,nsis
+            bundles: nsis
           # macOS is off until a runner with the macos-latest label is registered (see docs/releasing.md);
           # uncomment to build the .dmg again.
           # - os: macos-latest
@@ -494,7 +494,7 @@ jobs:
           dir="${CARGO_TARGET_DIR:-target}"
           # Git bash on Windows: turn C:\... into a path find understands.
           if command -v cygpath >/dev/null; then dir="$(cygpath -u "$dir")"; fi
-          find "$dir/release/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
+          find "$dir/release/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
           ls -la dist
 
       # Gitea Actions supports upload/download-artifact v3.

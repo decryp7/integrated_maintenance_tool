@@ -36,7 +36,6 @@ against). Pre-releases are not offered to users: updaters read `latest.json` of 
   "platforms": {
     "windows-x86_64-nsis": { "url": "https://…/releases/download/v1.2.0/IMT_1.2.0_x64-setup.exe", "signature": "…", "size": 41234567 },
     "windows-x86_64":      { "url": "…/IMT_1.2.0_x64-setup.exe", "signature": "…", "size": 41234567 },
-    "windows-x86_64-msi":  { "url": "…/IMT_1.2.0_x64_en-US.msi", "signature": "…", "size": 43000000 },
     "darwin-aarch64-app":  { "url": "…/IMT.app.tar.gz", "signature": "…", "size": 39000000 },
     "darwin-aarch64":      { "url": "…/IMT.app.tar.gz", "signature": "…", "size": 39000000 },
     "linux-x86_64-deb":    { "url": "…/IMT_1.2.0_amd64.deb", "signature": "…", "size": 38000000 },

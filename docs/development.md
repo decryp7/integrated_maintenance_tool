@@ -18,8 +18,8 @@ contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md
   - *Linux:* `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf`
     (as installed by CI on Debian/Ubuntu).
   - *macOS:* Xcode Command Line Tools.
-  - *Windows:* Microsoft C++ Build Tools and the WebView2 runtime. MSI bundling needs WiX, NSIS
-    bundling needs NSIS (both are handled by `tauri build`).
+  - *Windows:* Microsoft C++ Build Tools and the WebView2 runtime. The installer is NSIS only (`tauri build`
+    fetches NSIS itself).
 
 ### Develop
 
@@ -66,7 +66,7 @@ rust-analyzer checks into its own target folder, so it never blocks a build in t
 cd app
 npx tauri build                         # all bundle types for the current OS
 npx tauri build --bundles deb,rpm       # Linux
-npx tauri build --bundles msi,nsis      # Windows
+npx tauri build --bundles nsis          # Windows
 npx tauri build --bundles dmg           # macOS
 ```
 
@@ -75,7 +75,7 @@ Installers are written to `target/release/bundle/`:
 | OS | Output |
 |---|---|
 | Linux | `bundle/deb/*.deb`, `bundle/rpm/*.rpm` |
-| Windows | `bundle/msi/*.msi`, `bundle/nsis/*-setup.exe` |
+| Windows | `bundle/nsis/*-setup.exe` |
 | macOS | `bundle/dmg/*.dmg` (and `bundle/macos/IMT.app`) |
 
 Build the UI with `npm run build` (or `npm start`), not plain `npx ng build`: the npm scripts run
@@ -155,7 +155,7 @@ Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):
      unit tests with coverage, the Playwright end-to-end tests, and a check that the generated
      third-party notices are up to date.
   2. *real-app smoke* (Windows and Linux): builds the debug app and runs the `tauri-driver` tests.
-  3. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, `.msi`/NSIS `.exe` on `windows-latest` and
+  3. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, the NSIS `-setup.exe` on `windows-latest` and
      `.dmg` on `macos-latest`, uploaded as run artifacts.
   4. *release*: on a `v*` tag, creates a Gitea release with all installers, release notes
      (git-cliff), CycloneDX SBOMs for the Rust and UI dependencies and the signed updater manifest

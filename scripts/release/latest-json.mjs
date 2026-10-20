@@ -8,7 +8,7 @@
 //
 // Every installer with a `.sig` next to it (Tauri writes them when TAURI_SIGNING_PRIVATE_KEY is set and
 // bundle.createUpdaterArtifacts is true) becomes a platform entry: { url, signature, size }. These are v2
-// updater artifacts, the installers themselves (NSIS .exe, .msi, .deb, .rpm, .AppImage) and the macOS
+// updater artifacts, the installers themselves (NSIS .exe, .deb, .rpm, .AppImage) and the macOS
 // .app.tar.gz, never v1 zips.
 
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -33,7 +33,6 @@ export function platformKeys(name, macArch = 'aarch64') {
   if (name.endsWith('.app.tar.gz')) return [`darwin-${archOf(name) ?? macArch}-app`, `darwin-${archOf(name) ?? macArch}`];
   const arch = archOf(name) ?? 'x86_64';
   if (name.endsWith('-setup.exe')) return [`windows-${arch}-nsis`, `windows-${arch}`];
-  if (name.endsWith('.msi')) return [`windows-${arch}-msi`];
   if (name.endsWith('.deb')) return [`linux-${arch}-deb`];
   if (name.endsWith('.rpm')) return [`linux-${arch}-rpm`];
   if (name.endsWith('.AppImage')) return [`linux-${arch}-appimage`, `linux-${arch}`];
@@ -53,7 +52,7 @@ export function cleanNotes(text) {
 
 /**
  * Builds the manifest. `files` are { path, name, size, signature? }; only signed ones count. The first
- * artifact for a key wins (NSIS over MSI for `windows-x86_64`, by sorting).
+ * artifact for a key wins (by name). Windows ships only the NSIS installer.
  */
 export function buildManifest({ version, notes, pubDate, baseUrl, files, macArch = 'aarch64' }) {
   const v = version.replace(/^v/, '');
@@ -66,8 +65,6 @@ export function buildManifest({ version, notes, pubDate, baseUrl, files, macArch
   }
   const platforms = {};
   const signed = files.filter((f) => f.signature && platformKeys(f.name, macArch)).sort((a, b) => a.name.localeCompare(b.name));
-  // NSIS before MSI so the plain windows key points at the NSIS installer.
-  signed.sort((a, b) => Number(b.name.endsWith('-setup.exe')) - Number(a.name.endsWith('-setup.exe')));
   for (const f of signed) {
     const entry = { url: `${baseUrl.replace(/\/+$/, '')}/${encodeURIComponent(f.name)}`, signature: f.signature.trim(), size: f.size };
     for (const key of platformKeys(f.name, macArch)) platforms[key] ??= entry;
