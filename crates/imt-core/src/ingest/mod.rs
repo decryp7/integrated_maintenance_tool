@@ -7,12 +7,14 @@
 //!          format, day order     of whole lines                per ≤ 8,192 rows
 //! ```
 //!
-//! Phase R2a reads files one after another; R2b parallelises parsing with the plan's chunk starts.
+//! [`import_files`] reads files one after another; [`import_files_parallel`] parses many files and the
+//! chunks of large files on a bounded pool (ADR 0014 §2).
 
 mod batcher;
 mod chunk;
 mod json;
 mod legacy;
+mod parallel;
 mod plan;
 mod problems;
 mod sink;
@@ -21,6 +23,7 @@ mod text;
 
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
+pub use parallel::{default_threads, import_files_parallel, ParallelOptions, SharedRef, SharedSink, MAX_DEFAULT_THREADS};
 pub use plan::{detect_encoding, plan, scan_chunk_starts, ChunkStart, FilePlan, JsonShape, PlanKind, CHUNK_TARGET, HEAD_BYTES};
 pub use problems::{Problem, ProblemKind, Problems, MAX_SAMPLES};
 pub use sink::{BatchSink, EventSink, ImportCancelled, NewSource, ParsedEvent, SourceReport};

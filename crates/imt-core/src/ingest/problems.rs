@@ -89,6 +89,23 @@ impl Problems {
         self.by_kind.is_empty()
     }
 
+    /// Adds the problems of another part of the same source (a chunk read in parallel); the samples stay
+    /// the first [`MAX_SAMPLES`] lines.
+    pub fn merge(&mut self, other: Problems) {
+        for (kind, p) in other.by_kind {
+            let mine = self.by_kind.entry(kind).or_insert_with(|| Problem {
+                kind,
+                count: 0,
+                sample_lines: Vec::new(),
+            });
+            mine.count += p.count;
+            mine.sample_lines.extend(p.sample_lines);
+            mine.sample_lines.sort_unstable();
+            mine.sample_lines.dedup();
+            mine.sample_lines.truncate(MAX_SAMPLES);
+        }
+    }
+
     pub fn into_vec(self) -> Vec<Problem> {
         self.by_kind.into_values().collect()
     }

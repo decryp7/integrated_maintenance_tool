@@ -69,6 +69,24 @@ pub struct BatchedSource {
     pub problems: Problems,
 }
 
+impl BatchedSource {
+    /// Adds the totals of another part of the same source (a chunk read in parallel).
+    pub fn merge(&mut self, other: BatchedSource) {
+        self.parsed += other.parsed;
+        self.events += other.events;
+        self.from = match (self.from, other.from) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.to = match (self.to, other.to) {
+            (Some(a), Some(b)) => Some(a.max(b)),
+            (a, b) => a.or(b),
+        };
+        merge_stats(&mut self.step_stats, &other.step_stats);
+        self.problems.merge(other.problems);
+    }
+}
+
 /// Collects one source's parsed events, runs the ingest pipeline per batch and writes the batches.
 pub struct RecordBatcher<'a> {
     profile: &'a CompiledProfile,
