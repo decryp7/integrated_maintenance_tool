@@ -17,6 +17,8 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         Arc::new(imt_plugin_web::WebPlugin),
         Arc::new(imt_plugin_formats::FormatsPlugin),
         Arc::new(imt_plugin_profiling::ProfilingPlugin),
+        // Captures are shared by every window (the default value uses one process-wide capture list).
+        Arc::new(imt_plugin_dotnet::DotnetPlugin::default()),
     ]
 }
 
@@ -118,7 +120,8 @@ mod tests {
     #[test]
     fn builtins_are_listed_and_classified() {
         let ids: Vec<&str> = all().iter().map(|p| p.id()).collect();
-        assert_eq!(ids.len(), 7);
+        assert_eq!(ids.len(), 8);
+        assert!(find("net.decryptology.dotnet").is_some());
         assert!(ids.contains(&"net.decryptology.formats"));
         assert!(find("net.decryptology.web").is_some() && find("nope").is_none());
         assert_eq!(isolable(find("net.decryptology.web").unwrap().as_ref()), Isolable::Fully);

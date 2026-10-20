@@ -34,7 +34,7 @@ export class MockJobCancelled extends Error {
 }
 
 /** The engine's rules, mimicked (see app/src-tauri/src/jobs/queue.rs). */
-const LIMITS: Record<JobKind, number> = { ai: 1, research: 1, analysis: 3, import: 1, export: 2, download: 2, collection: 1, maintenance: 1 };
+const LIMITS: Record<JobKind, number> = { ai: 1, research: 1, analysis: 3, import: 1, export: 2, download: 2, collection: 1, capture: 4, maintenance: 1 };
 const QUEUE_CAP = 20;
 /** Results the user asked for and waits to see: their job always tells when it is done (engine: queue.rs). */
 const ATTENTION_RESULTS = new Set<string>(['narrative', 'proposal', 'file', 'folderSurvey', 'storage']);

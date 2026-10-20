@@ -59,13 +59,45 @@ pub(super) struct SampleRec {
 /// A runtime event, decoded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Rt {
-    GcStart { count: u32, generation: u32, reason: u32 },
-    GcEnd { count: u32 },
-    Exception { type_name: String },
-    ContentionStart { native: bool },
+    GcStart {
+        count: u32,
+        generation: u32,
+        reason: u32,
+    },
+    GcEnd {
+        count: u32,
+    },
+    Exception {
+        type_name: String,
+    },
+    ContentionStart {
+        native: bool,
+    },
     ContentionStop,
-    JitStart { method_id: u64, name: String },
-    JitDone { method_id: u64, name: String },
+    JitStart {
+        method_id: u64,
+        name: String,
+    },
+    JitDone {
+        method_id: u64,
+        name: String,
+    },
+    /// A `GCAllocationTick` (sampled allocations).
+    Alloc {
+        bytes: u64,
+        kind: u32,
+        type_name: Option<String>,
+    },
+    /// A context-switch wait (ETW captures).
+    Wait {
+        duration: u64,
+        reason: u8,
+        readied_by: u32,
+    },
+    /// The thread pool injected threads because it was starved.
+    PoolStarvation {
+        workers: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +118,12 @@ pub(super) struct Parsed {
     pub modules: HashMap<u64, String>,
     /// Distinct stacks (addresses, leaf first).
     pub stacks: Vec<Vec<u64>>,
+    /// Loaded images (ETW captures): module + offset for addresses no method covers.
+    pub images: Vec<super::ext::ImageLoad>,
+    /// Thread names (ETW `ThreadName`, thread-pool workers).
+    pub thread_names: HashMap<u64, String>,
+    /// The GC heap walk, when the trace recorded one.
+    pub heap: super::heap::HeapParts,
     /// Earliest and latest event timestamps (QPC).
     pub min_ts: Option<i64>,
     pub max_ts: Option<i64>,
@@ -127,15 +165,15 @@ pub mod flags {
 pub const BLOCK_COMPRESSED: u16 = 1;
 
 /// The stream reader's state.
-struct Reader<'l> {
-    limits: &'l Limits,
-    out: Parsed,
+pub(super) struct Reader<'l> {
+    pub(super) limits: &'l Limits,
+    pub(super) out: Parsed,
     /// metadata id → what it means (`None`: an event the importer ignores).
-    metadata: HashMap<u32, Option<Known>>,
+    pub(super) metadata: HashMap<u32, Option<Known>>,
     /// Stack ids of the current sequence-point region → index into `out.stacks`.
-    stack_ids: HashMap<u32, u32>,
+    pub(super) stack_ids: HashMap<u32, u32>,
     /// Content → index into `out.stacks`.
-    stack_index: HashMap<Vec<u64>, u32>,
+    pub(super) stack_index: HashMap<Vec<u64>, u32>,
 }
 
 /// Parses a whole nettrace file.
@@ -149,11 +187,7 @@ pub(super) fn parse(bytes: &[u8], limits: &Limits) -> Result<Parsed> {
     }
     if bytes.get(8..12) == Some(&[0, 0, 0, 0]) {
         // NetTrace V6+ replaced the FastSerialization header with Reserved=0, Major, Minor.
-        let major = bytes.get(12..16).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])).unwrap_or(0);
-        return Err(ProfileError::unsupported(
-            FORMAT,
-            format!("NetTrace format version {major} (written by .NET 10 or later) is not supported yet; versions 4 and 5 are"),
-        ));
+        return super::v6::parse(bytes, limits);
     }
     let len = c.u32()?;
     if len as usize != FAST_SERIALIZATION.len() || c.take(FAST_SERIALIZATION.len())? != &FAST_SERIALIZATION[..] {
@@ -281,7 +315,7 @@ impl Reader<'_> {
         rows(block, |h, mut payload| self.event(&h, payload.rest()))
     }
 
-    fn event(&mut self, h: &RowHeader, bytes: &[u8]) -> Result<()> {
+    pub(super) fn event(&mut self, h: &RowHeader, bytes: &[u8]) -> Result<()> {
         self.out.min_ts = Some(self.out.min_ts.map_or(h.ts, |m| m.min(h.ts)));
         self.out.max_ts = Some(self.out.max_ts.map_or(h.ts, |m| m.max(h.ts)));
         let kind = match self.metadata.get(&h.metadata_id) {
@@ -353,6 +387,44 @@ impl Reader<'_> {
             Known::Exception => runtime::exception(bytes, max_name).map(|type_name| Rt::Exception { type_name }),
             Known::ContentionStart => runtime::contention_native(bytes).map(|native| Rt::ContentionStart { native }),
             Known::ContentionStop => Some(Rt::ContentionStop),
+            Known::Alloc => runtime::alloc_tick(bytes, self.pointer_size(), max_name).map(|t| Rt::Alloc {
+                bytes: t.bytes,
+                kind: t.kind,
+                type_name: t.type_name,
+            }),
+            Known::Wait => super::ext::decode_thread_wait(bytes).map(|w| Rt::Wait {
+                duration: w.duration,
+                reason: w.reason,
+                readied_by: w.readied_by,
+            }),
+            Known::PoolAdjust => match runtime::pool_adjust(bytes) {
+                Some((workers, runtime::POOL_STARVATION)) => Some(Rt::PoolStarvation { workers }),
+                Some(_) => return Ok(()),
+                None => None,
+            },
+            Known::PoolWorker => {
+                self.name_thread(h.thread, ".NET ThreadPool Worker");
+                return Ok(());
+            }
+            Known::ThreadName => {
+                match super::ext::decode_thread_name(bytes, max_name) {
+                    Some(name) => self.name_thread(h.thread, &name),
+                    None => self.out.damaged_payloads += 1,
+                }
+                return Ok(());
+            }
+            Known::Image => {
+                match super::ext::decode_image_load(bytes, max_name) {
+                    Some(image) if self.out.images.len() < self.limits.max_frames as usize => self.out.images.push(image),
+                    Some(_) => self.out.dropped_methods += 1,
+                    None => self.out.damaged_payloads += 1,
+                }
+                return Ok(());
+            }
+            Known::Heap(kind) => {
+                let ptr = self.pointer_size();
+                return self.out.heap.add(kind, bytes, ptr, self.limits);
+            }
         };
         let Some(rt) = rt else {
             self.out.damaged_payloads += 1;
@@ -372,7 +444,18 @@ impl Reader<'_> {
         Ok(())
     }
 
-    fn stack_block(&mut self, mut block: Cursor<'_>) -> Result<()> {
+    /// The target's pointer size (4 or 8), from the Trace object.
+    fn pointer_size(&self) -> usize {
+        self.out.info.map_or(8, |i| i.pointer_size as usize)
+    }
+
+    pub(super) fn name_thread(&mut self, thread: u64, name: &str) {
+        if self.out.thread_names.len() < self.limits.max_threads as usize || self.out.thread_names.contains_key(&thread) {
+            self.out.thread_names.insert(thread, name.to_string());
+        }
+    }
+
+    pub(super) fn stack_block(&mut self, mut block: Cursor<'_>) -> Result<()> {
         let first_id = block.u32()?;
         let count = block.u32()?;
         let ptr = self.out.info.map_or(8, |i| i.pointer_size as usize);

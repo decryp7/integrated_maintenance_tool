@@ -2,9 +2,9 @@
 // app/src-tauri/src/jobs/{model,queue,persist}.rs. Change both sides together.
 
 /** Each kind has its own queue and limit (enforced by the engine). */
-export type JobKind = 'ai' | 'research' | 'analysis' | 'import' | 'export' | 'download' | 'collection' | 'maintenance';
+export type JobKind = 'ai' | 'research' | 'analysis' | 'import' | 'export' | 'download' | 'collection' | 'capture' | 'maintenance';
 
-export const JOB_KINDS: readonly JobKind[] = ['ai', 'research', 'analysis', 'import', 'export', 'download', 'collection', 'maintenance'];
+export const JOB_KINDS: readonly JobKind[] = ['ai', 'research', 'analysis', 'import', 'export', 'download', 'collection', 'capture', 'maintenance'];
 
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled' | 'interrupted';
 

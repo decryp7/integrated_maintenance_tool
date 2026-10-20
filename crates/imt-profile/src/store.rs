@@ -61,6 +61,8 @@ pub trait HeapQueries: Send + Sync {
     fn heap_dominators(&self, req: &HeapDominatorsRequest) -> Result<HeapObjectsPage>;
     fn heap_instances(&self, req: &HeapInstancesRequest) -> Result<HeapObjectsPage>;
     fn heap_paths(&self, req: &HeapPathsRequest) -> Result<HeapPaths>;
+    /// Automatic findings over a snapshot (growth against an optional baseline).
+    fn heap_findings(&self, req: &HeapFindingsRequest) -> Result<Vec<HeapFinding>>;
 }
 
 /// Everything the shell needs: one value per window.
@@ -502,6 +504,21 @@ impl HeapQueries for Captures {
             req,
         )
     }
+
+    fn heap_findings(&self, req: &HeapFindingsRequest) -> Result<Vec<HeapFinding>> {
+        let (s, a) = self.heap(req.snapshot_id)?;
+        let baseline = match req.baseline_id.filter(|&b| b != req.snapshot_id) {
+            Some(b) => Some(self.heap(b)?.0),
+            None => None,
+        };
+        Ok(crate::heap::findings::findings(
+            &Heap {
+                snapshot: &s,
+                analysis: a.as_deref(),
+            },
+            baseline.as_deref(),
+        ))
+    }
 }
 
 /// Runs every view with ordinary arguments over a capture and discards the
@@ -669,6 +686,10 @@ pub fn fuzz_views(capture: Capture) {
                 steady_only: false,
                 offset: 0,
                 limit: 50,
+            });
+            let _ = s.heap_findings(&HeapFindingsRequest {
+                snapshot_id: id,
+                baseline_id: Some(id),
             });
             if let Ok(top) = s.heap_dominators(&HeapDominatorsRequest {
                 snapshot_id: id,

@@ -6,7 +6,7 @@ import { MockProfilingBackend, MockProfilingOptions } from '../../core/mock/mock
 import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
 import { openDemoCaptures, setupProfiling } from '../testing/profiling-test-support';
-import { sparkline } from './heap-selection';
+import { HeapSelection, HeapTab, sparkline } from './heap-selection';
 import { flattenDominators } from './heap-dominators';
 import { byTaken } from './heap-diff';
 import { HeapView } from './heap-view';
@@ -18,6 +18,8 @@ interface Setup {
   options?: MockProfilingOptions;
   open?: string[] | false;
   noGraph?: boolean;
+  /** The tab to start on (the view starts on Findings; most tests look at Types). */
+  tab?: HeapTab;
 }
 
 async function mount(s: Setup = {}) {
@@ -43,6 +45,7 @@ async function mount(s: Setup = {}) {
   else if (s.open) await TestBed.inject(CapturesStore).openPaths(s.open);
   const state = TestBed.inject(ProfileViewState);
   const fixture: ComponentFixture<HeapView> = TestBed.createComponent(HeapView);
+  fixture.debugElement.injector.get(HeapSelection).tab.set(s.tab ?? 'types');
   fixture.detectChanges();
   await settle(fixture, 6);
   return { fixture, state, backend, spies, orig };
@@ -146,11 +149,11 @@ describe('HeapView', () => {
 
   describe('tabs', () => {
     it('exposes a tablist with the selected tab and a panel labelled by it', async () => {
-      const { fixture } = await mount();
-      expect(tabs(fixture).map((t) => t.textContent!.trim())).toEqual(['Types', 'Compare snapshots', 'Growth', 'Dominator tree', 'Instances and paths']);
-      expect(tabs(fixture).map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false']);
-      expect(tabs(fixture).map((t) => t.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1', '-1']);
-      expect(el(fixture, '[role=tabpanel]').getAttribute('aria-labelledby')).toBe('heap-tab-types');
+      const { fixture } = await mount({ tab: 'findings' });
+      expect(tabs(fixture).map((t) => t.textContent!.trim())).toEqual(['Findings', 'Types', 'Compare snapshots', 'Growth', 'Dominator tree', 'Instances and paths']);
+      expect(tabs(fixture).map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+      expect(tabs(fixture).map((t) => t.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1', '-1', '-1']);
+      expect(el(fixture, '[role=tabpanel]').getAttribute('aria-labelledby')).toBe('heap-tab-findings');
       await goto(fixture, 'Growth');
       expect(tab(fixture, 'Growth').getAttribute('aria-selected')).toBe('true');
       expect(el(fixture, '[role=tabpanel]').getAttribute('aria-labelledby')).toBe('heap-tab-growth');
@@ -165,11 +168,12 @@ describe('HeapView', () => {
       await settle(fixture, 2);
       key(list, 'ArrowLeft');
       key(list, 'ArrowLeft');
+      key(list, 'ArrowLeft');
       fixture.detectChanges();
       expect(tab(fixture, 'Instances and paths').getAttribute('aria-selected')).toBe('true');
       key(list, 'ArrowRight');
       fixture.detectChanges();
-      expect(tab(fixture, 'Types').getAttribute('aria-selected')).toBe('true');
+      expect(tab(fixture, 'Findings').getAttribute('aria-selected')).toBe('true');
       expect(key(list, 'Home').defaultPrevented).toBe(false);
     });
 
@@ -269,6 +273,7 @@ describe('HeapView', () => {
       const spy = paged(doubles.backend as MockProfilingBackend, 2);
       await openDemoCaptures();
       const fixture = TestBed.createComponent(HeapView);
+      fixture.debugElement.injector.get(HeapSelection).tab.set('types');
       fixture.detectChanges();
       await settle(fixture, 6);
       const before = typeRows(fixture).length;
@@ -284,6 +289,7 @@ describe('HeapView', () => {
       const spy = paged(doubles.backend as MockProfilingBackend, 2);
       await openDemoCaptures();
       const fixture = TestBed.createComponent(HeapView);
+      fixture.debugElement.injector.get(HeapSelection).tab.set('types');
       fixture.detectChanges();
       await settle(fixture, 6);
       const before = typeRows(fixture).length;
