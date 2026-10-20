@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { provideTinyBackendBare, settle, tinyBackend } from '../../../testing/helpers';
+import { provideTinyBackendBare, settle, testLogger, tinyBackend } from '../../../testing/helpers';
+import { Platform } from '../platform';
 import { WorkspaceSummary } from '../api.types';
 import { ImtBackend } from '../backend';
 import { provideWorkspace } from './provide-workspace';
@@ -52,6 +53,15 @@ describe('workspace stores', () => {
     prefs.setTheme('system');
     await settle();
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+  });
+
+  it('keeps working when the window cannot listen for file drops, and logs why', async () => {
+    const platform = { onFilesDropped: () => Promise.reject(new Error('no webview')), isTauri: () => true };
+    TestBed.configureTestingModule({ providers: [provideWorkspace(), ...provideTinyBackendBare(), { provide: Platform, useValue: platform }] });
+    const data = TestBed.inject(WorkspaceDataStore);
+    await settle();
+    expect(data.summary()?.total).toBe(11);
+    expect(testLogger().entries.some((e) => e.message === 'File drops are not available' && String(e.props?.['Error']).includes('no webview'))).toBe(true);
   });
 
   it('tells appended events from changed sources in its generations', async () => {
