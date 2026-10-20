@@ -270,6 +270,17 @@ are resumable and checked against pinned SHA-256 hashes. Builds are not bundled 
 compiling ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). Settings ▸ AI chooses the
 build, or a `llama-server` of your own.
 
+Downloads trust the operating system's certificate store (the same roots as your browser), so they work
+behind TLS-inspecting corporate proxies such as Zscaler once IT has installed the proxy's root
+certificate; certificate checking is never switched off. A proxy is used only when you set *Download
+proxy* in Settings ▸ AI. A failed download says why in plain words (certificate problem, the proxy wants
+a sign-in, the proxy cannot be used, offline, timeout, an HTTP status) and offers **Download manually**:
+IMT opens the exact model or runtime file in your browser (the address comes from IMT's catalogs, never
+from the page), shows its expected SHA-256 and the steps, and *Add downloaded file…* / *Add downloaded
+files…* checks what you downloaded against that SHA-256 before using it, as a cancellable job with
+progress. A model added with *Add local GGUF…* that is named like a catalog model, or has its exact size,
+is checked the same way.
+
 ## Internal web browser
 
 *Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens

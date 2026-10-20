@@ -9,6 +9,7 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Query language](#query-language)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
+- [Troubleshooting](#troubleshooting)
 
 ## Supported inputs
 
@@ -169,3 +170,32 @@ imt-monitor --config <monitor.json> --out <dir> [--duration <10m|30s|2h|1500ms>]
 
 `imt-collect` writes an `.imtz` bundle that IMT opens directly; `imt-monitor` writes rolling CLEF files.
 Run them from a checkout with `cargo run -p imt-collect -- --help` or `cargo run -p imt-monitor -- --config monitor.json --out ./logs`.
+
+## Troubleshooting
+
+### Behind a corporate proxy (Zscaler etc.)
+
+Model and runtime downloads use HTTPS and check the server's certificate against the operating system's
+certificate store, like your browser. Security tools that inspect HTTPS (Zscaler, Netskope, Forcepoint,
+Palo Alto and similar) replace the certificate with one of their own. If their root certificate is in
+Windows' certificate store (*Manage computer certificates* ▸ *Trusted Root Certification Authorities*;
+IT usually installs it), IMT's downloads work without anything to set. If it is not, the download stops
+with *Certificate problem: a proxy or security tool on your network intercepts HTTPS*. Then either:
+
+- ask IT to install the proxy's root certificate in Windows' store (on macOS: the System keychain; on
+  Linux: the system store, e.g. `update-ca-certificates`) and choose *Try again*; or
+- choose **Download manually** in the error: IMT opens the exact file in your browser and shows its
+  expected SHA-256.
+  - For a **model**, choose *Add downloaded file…* (or *Add local GGUF…* in *AI: Manage models*) and
+    pick the `.gguf` file. IMT checks its SHA-256 against the catalog before adding it, even if the
+    browser renamed it, and rejects an incomplete or changed file.
+  - For an **inference runtime**, download every file listed (CUDA builds have two), choose *Add
+    downloaded files…* and pick them all without unzipping them. IMT checks each SHA-256 and unpacks
+    the build into the folder shown. Alternatively set *Custom llama-server* in *Settings ▸ AI* to a
+    `llama-server` IT provides.
+
+If your network needs an explicit proxy, set *Download proxy* in *Settings ▸ AI* (`http://host:port`,
+or `http://user:password@host:port` when the proxy asks for a sign-in); IMT does not read proxy
+environment variables. The other errors say what to check: *the server cannot be reached* (offline or
+the name does not resolve), *did not answer in time*, or *refused the download* (an HTTP status; a 403
+can come from a proxy that blocks the site).
