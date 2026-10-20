@@ -46,7 +46,7 @@ fn sync_window_commands(file: &str, src: &str) -> Vec<String> {
     let src = src.split("#[cfg(test)]\nmod tests").next().unwrap_or_default();
     let mut bad = Vec::new();
     for (at, _) in src.match_indices("#[tauri::command]") {
-        let f = function_after(&src, at);
+        let f = function_after(src, at);
         let signature = f.lines().find(|l| l.contains("fn ")).unwrap_or_default();
         if WINDOW_BUILDERS.iter().any(|b| f.contains(b)) && !signature.contains("async fn") {
             bad.push(format!("{} ({file})", signature.trim()));
@@ -67,8 +67,15 @@ fn every_command_that_builds_a_window_is_async() {
         checked += src.matches("#[tauri::command]").count();
         bad.extend(sync_window_commands(&f.display().to_string(), &src));
     }
-    assert!(checked > 100, "found only {checked} commands; is the scan looking in the right place?");
-    assert!(bad.is_empty(), "these commands build a window but are not async (they deadlock on Windows):\n{}", bad.join("\n"));
+    assert!(
+        checked > 100,
+        "found only {checked} commands; is the scan looking in the right place?"
+    );
+    assert!(
+        bad.is_empty(),
+        "these commands build a window but are not async (they deadlock on Windows):\n{}",
+        bad.join("\n")
+    );
 }
 
 #[test]
@@ -77,6 +84,7 @@ fn the_scan_flags_a_synchronous_window_command() {
     assert_eq!(sync_window_commands("x.rs", sync).len(), 1);
     let fine = sync.replace("pub fn", "pub async fn");
     assert!(sync_window_commands("x.rs", &fine).is_empty());
-    let unrelated = "#[tauri::command]\npub fn list(app: AppHandle) -> Vec<String> {\n    vec![]\n}\nfn helper() { open_new(&app, vec![]) }\n";
+    let unrelated =
+        "#[tauri::command]\npub fn list(app: AppHandle) -> Vec<String> {\n    vec![]\n}\nfn helper() { open_new(&app, vec![]) }\n";
     assert!(sync_window_commands("x.rs", unrelated).is_empty());
 }
