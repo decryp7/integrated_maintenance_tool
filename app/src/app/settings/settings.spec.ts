@@ -68,16 +68,12 @@ describe('GeneralSettings', () => {
     return { fixture, dock, resets, store: TestBed.inject(WorkspaceStore), settings: TestBed.inject(SettingsStore) };
   }
 
-  it('edits theme, time zone, date format, density and lifecycle default', async () => {
+  it('edits time zone, date format and lifecycle default', async () => {
     const { fixture, store, settings } = await setup();
-    buttonByText(fixture, 'light').click();
-    expect(store.theme()).toBe('light');
     buttonByText(fixture, 'Local').click();
     expect(store.timezone()).toBe('local');
     buttonByText(fixture, 'ISO').click();
     expect(settings.dateFormat()).toBe('iso');
-    buttonByText(fixture, 'compact').click();
-    expect(settings.density()).toBe('compact');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     expect(store.alwaysShowLifecycle()).toBe(false);
     const overview = TestBed.inject(OverviewPrefs);
@@ -86,10 +82,9 @@ describe('GeneralSettings', () => {
     expect(overview.autoOpen()).toBe(false);
     expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);
-    expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'Local', 'ISO', 'compact', 'By file']);
-    // Source colours: by file, by instance or off, remembered with the other display settings.
-    all<HTMLButtonElement>(fixture, '[data-testid=source-colors] button')[2]?.click();
-    expect(settings.sourceColors()).toBe('off');
+    expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['Local', 'ISO']);
+    // The look moved to Appearance.
+    expect(text(fixture)).not.toContain('Theme');
     expect(text(fixture)).toContain('Always show start/stop markers');
     expect(text(fixture)).toContain('Overview: show after every import');
   });

@@ -1,12 +1,13 @@
 //! Windows: put the worker in a job object that kills it when IMT exits or crashes, so no worker is ever
-//! left behind. (On Unix the worker exits when its stdin closes.)
+//! left behind, and that caps its committed memory when asked to (a worker past the cap fails its
+//! allocations and stops; the supervisor restarts it). (On Unix the worker exits when its stdin closes.)
 
 use std::os::windows::io::AsRawHandle;
 use std::process::Child;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::JobObjects::{
     AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_PROCESS_MEMORY,
 };
 
 pub struct JobGuard(HANDLE);
@@ -18,12 +19,16 @@ unsafe impl Sync for JobGuard {}
 
 impl JobGuard {
     /// Best effort: `None` when the job cannot be created (the process is still killed explicitly).
-    pub fn assign(child: &Child) -> Option<JobGuard> {
+    pub fn assign(child: &Child, memory_limit: Option<u64>) -> Option<JobGuard> {
         // SAFETY: plain Win32 calls with valid arguments; the handle is closed in `Drop`.
         unsafe {
             let job = CreateJobObjectW(None, None).ok()?;
             let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
             info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if let Some(limit) = memory_limit {
+                info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+                info.ProcessMemoryLimit = usize::try_from(limit).unwrap_or(usize::MAX);
+            }
             let ok = SetInformationJobObject(
                 job,
                 JobObjectExtendedLimitInformation,

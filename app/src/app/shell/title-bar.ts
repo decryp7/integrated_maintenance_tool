@@ -30,7 +30,7 @@ import { localizeDecimal } from '../i18n/locale';
       </button>
     </div>
     <div class="state">
-      @if (store.busy(); as busy) {
+      @if (store.busyLabel(); as busy) {
         <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
       } @else if (store.summary(); as s) {
         <span class="dot" style="background: var(--mk-start)"></span>
@@ -41,14 +41,14 @@ import { localizeDecimal } from '../i18n/locale';
   `,
   host: { '(document:keydown)': 'onKey($event)' },
   styles: `
-    :host { height: 36px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--bg-0); border-bottom: 1px solid var(--border); }
+    :host { height: var(--title-h); flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--titlebar-bg); border-bottom: 1px solid var(--border); }
     .brand { display: flex; align-items: center; gap: 8px; }
     .name { font-weight: 600; letter-spacing: 0.04em; }
     .palette-wrap { flex: 1; display: flex; justify-content: center; min-width: 0; }
-    .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: 12px; cursor: text; }
+    .palette { width: 440px; max-width: 100%; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); color: var(--faint); font-size: var(--fs-sm); cursor: text; }
     .palette span:nth-child(2) { flex: 1; text-align: start; }
-    .kbd { font-size: 11px; }
-    .state { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 12px; white-space: nowrap; }
+    .kbd { font-size: var(--fs-xs); }
+    .state { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: var(--fs-sm); white-space: nowrap; }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
   `,
@@ -76,7 +76,8 @@ export class TitleBar {
   protected onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
     const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-    if (e.key === '/' && !typing) {
+    // A bare '/' focuses the search box; Ctrl/⌘+/ is a command (focus the query bar).
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing) {
       e.preventDefault();
       this.store.focusSearch();
       return;

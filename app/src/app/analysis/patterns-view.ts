@@ -23,7 +23,7 @@ import { AsyncResource } from './async-resource';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.patterns.refresh">Refresh</button>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Patterns" i18n-aria-label="@@analysis.patterns.listLabel">
         @for (p of res.data() ?? []; track p.id) {
           <li>
@@ -52,10 +52,10 @@ import { AsyncResource } from './async-resource';
       .count { width: 56px; flex: none; color: var(--text); }
       .bars { flex: none; min-width: 0; }
       .bar-slot { width: 90px; flex: none; display: flex; }
-      .range { flex: none; font-size: 11px; }
+      .range { flex: none; font-size: var(--fs-xs); }
       li { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
       li > .row { flex: 1; min-width: 0; border-bottom: 0; }
-      .sample { flex: none; height: 22px; padding: 0 8px; margin-right: 8px; font-size: 11px; }
+      .sample { flex: none; height: 22px; padding: 0 8px; margin-right: 8px; font-size: var(--fs-xs); }
     `,
   ],
 })

@@ -10,7 +10,7 @@ import { at } from '../../testing/must';
 describe('UxBackend', () => {
   it('maps every method to its Tauri command', async () => {
     const calls: [string, unknown][] = [];
-    const t = new TauriUxBackend((async (cmd: string, args?: unknown) => (calls.push([cmd, args]), cmd === 'profile_history' ? [] : null)) as never);
+    const t = new TauriUxBackend((async (cmd: string, args?: unknown) => (calls.push([cmd, args]), cmd === 'profile_history' ? [] : cmd === 'jobs_list' ? { jobs: [{ id: 4, kind: 'import', state: 'running' }], paused: [] } : null)) as never);
     await t.importProgress();
     await t.cancelImport();
     await t.profileHistory();
@@ -19,7 +19,8 @@ describe('UxBackend', () => {
     await t.demoPaths();
     expect(calls).toEqual([
       ['import_progress', undefined],
-      ['cancel_import', undefined],
+      ['jobs_list', undefined],
+      ['jobs_cancel', { id: 4 }],
       ['profile_history', undefined],
       ['profile_version', { file: 'a.toml' }],
       ['profile_templates', undefined],

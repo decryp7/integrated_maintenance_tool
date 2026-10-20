@@ -4,6 +4,7 @@ import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
 import { UPDATES_EVENT, UpdateStatus } from './updates.types';
+import { cancelJob } from '../jobs/job-cancel';
 import { browserMocks } from '../core/mock-registry';
 
 /** The updater in the Rust shell (`updater.rs`). Injected as a class token. */
@@ -41,8 +42,11 @@ export class TauriUpdatesBackend extends UpdatesBackend {
   download() {
     return this.call<UpdateStatus>('updates_download');
   }
-  cancel() {
-    return this.call<UpdateStatus>('updates_cancel');
+  /** Stops the download (through its job) or drops the downloaded update. */
+  async cancel() {
+    const status = await this.call<UpdateStatus>('updates_status');
+    if (await cancelJob(this.call, status?.downloadJob)) return this.call<UpdateStatus>('updates_status');
+    return this.call<UpdateStatus>('updates_discard');
   }
   installOnQuit(enabled: boolean) {
     return this.call<UpdateStatus>('updates_install_on_quit', { enabled });

@@ -45,7 +45,7 @@ import { QuerySession } from './query-session';
   `,
   styles: [
     `
-      :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); color: var(--text-2); font-size: 12px; }
+      :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); color: var(--text-2); font-size: var(--fs-sm); }
       .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
       .spacer { flex: 1; }
       .body { flex: 1; min-height: 0; overflow: auto; }
@@ -55,7 +55,7 @@ import { QuerySession } from './query-session';
       table.grid th, table.grid td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
       table.grid th { position: sticky; top: 0; background: var(--bg-2); color: var(--muted); font-weight: 600; }
       table.grid th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; }
-      table.grid th button:focus-visible { outline: 2px solid var(--accent); }
+      table.grid th button:focus-visible { outline: 2px solid var(--focus-ring); }
       table.grid td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
     `,
   ],

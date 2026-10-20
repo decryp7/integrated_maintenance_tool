@@ -21,6 +21,21 @@ function setup(web: MockWeb = resetMockWeb()) {
 }
 
 describe('TauriBrowserBackend', () => {
+  it('stops research by cancelling the active research jobs of the window', async () => {
+    const calls: [string, unknown][] = [];
+    const job = (id: number, kind: string, state: string) => ({ id, kind, state });
+    const call = (async (cmd: string, args?: unknown) => {
+      calls.push([cmd, args]);
+      return cmd === 'jobs_list' ? { jobs: [job(1, 'research', 'running'), job(2, 'research', 'done'), job(3, 'import', 'running')], paused: [] } : undefined;
+    }) as never;
+    const b = new TauriBrowserBackend(call, async () => () => undefined);
+    expect(await b.researchStop()).toBe(1);
+    expect(calls).toEqual([
+      ['jobs_list', undefined],
+      ['jobs_cancel', { id: 1 }],
+    ]);
+  });
+
   it('maps every method to its command', async () => {
     const calls: [string, unknown][] = [];
     const call = (async (cmd: string, args?: unknown) => {
@@ -39,7 +54,6 @@ describe('TauriBrowserBackend', () => {
       [() => b.eventQuery(4), 'browser_event_query', { recordId: 4 }],
       [() => b.nav('back'), 'browser_nav', { command: 'back' }],
       [() => b.close(), 'browser_close', undefined],
-      [() => b.researchStop(), 'browser_research_stop', undefined],
       [() => b.driving(), 'browser_driving', undefined],
       [() => b.openExternal('https://e.org/'), 'browser_open_external', { url: 'https://e.org/' }],
       [() => b.capture('c'), 'browser_capture', { sessionId: 'c' }],

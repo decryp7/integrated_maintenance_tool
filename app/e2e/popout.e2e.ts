@@ -1,4 +1,5 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
+import { openQuery } from './analysis-support';
 import { ensureInspector, gridTotal, initialTotal, openApp, openView, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
@@ -47,6 +48,7 @@ test.describe('pop-out windows', () => {
 
   test('a query changed in the pop-out filters the host grid', async ({ page, context }) => {
     const before = parseCount(await initialTotal(page));
+    await openQuery(page);
     const popup = await popOut(page, context, 'Query');
     const input = popup.getByRole('combobox', { name: 'Query' });
     await input.click();
@@ -135,8 +137,8 @@ test.describe('pop-out windows', () => {
   test('the pop-out shell is accessible and follows the host theme', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');
     for (const theme of ['dark', 'light'] as const) {
-      await runCommand(page, `Theme: ${theme}`);
-      await expect(popup.locator('html')).toHaveAttribute('data-theme', theme);
+      await runCommand(page, `Colour scheme: ${theme}`);
+      await expect(popup.locator('html')).toHaveAttribute('data-scheme', theme);
       await expectNoSeriousViolations(popup, test.info(), `popout-shell-${theme}`);
     }
     // The title bar's icon buttons are reachable with the keyboard.

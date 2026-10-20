@@ -13,15 +13,18 @@ test.describe('app load', () => {
     await expect(page.getByRole('tab', { name: 'Timeline', selected: true })).toBeVisible();
   });
 
-  test('default layout: only the core views; Query pinned above the grid, the registry viewer stacked behind Timeline, the inspector auto-hidden', async ({ page }) => {
+  test('default (Focused) layout: the timeline over the events, the registry viewer stacked behind Timeline, the inspector auto-hidden; Ctrl+/ pins the query bar above the grid', async ({ page }) => {
     const names = async (selected?: boolean) => (await page.getByRole('tab', selected ? { selected } : {}).locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-    // Each group shows one tab: Timeline (with the viewer of the opened registry export behind it), Query, Events.
-    await expect.poll(() => names(true)).toEqual(['Events', 'Query', 'Timeline']);
-    expect(await names()).toEqual(['Events', 'Query', 'Registry', 'Timeline']);
-    // The inspector waits as an auto-hidden tool window on the right edge; Metrics opens on demand.
+    // Each group shows one tab: Timeline (with the viewer of the opened registry export behind it) and Events.
+    await expect.poll(() => names(true)).toEqual(['Events', 'Timeline']);
+    expect(await names()).toEqual(['Events', 'Registry', 'Timeline']);
+    // The inspector waits as an auto-hidden tool window on the right edge; Overview, Query and Metrics open on demand.
     await expect(page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' }).getByRole('button', { name: 'Inspector' })).toBeVisible();
     await expect(page.locator('imt-inspector')).toHaveCount(0);
-    // The query bar sits directly above the events grid, in its own short group.
+    await expect(page.locator('imt-overview-view')).toHaveCount(0);
+    // Ctrl+/ opens the query bar directly above the events grid, in its own short group.
+    await page.keyboard.press('ControlOrMeta+/');
+    await expect(page.getByRole('combobox', { name: 'Query' })).toBeFocused();
     const query = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Query' }) }).boundingBox();
     const events = await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Events' }) }).boundingBox();
     expect(query && events).toBeTruthy();

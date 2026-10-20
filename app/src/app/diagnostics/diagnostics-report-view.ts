@@ -190,11 +190,11 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
     }
   `,
   styles: `
-    :host { flex: 1; min-width: 0; min-height: 0; display: block; overflow: auto; background: var(--bg-1); color: var(--text); font-size: 12px; }
+    :host { flex: 1; min-width: 0; min-height: 0; display: block; overflow: auto; background: var(--bg-1); color: var(--text); font-size: var(--fs-sm); }
     .wrap { display: flex; flex-direction: column; gap: 14px; padding: 12px 16px; }
-    h2 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
-    h3 { margin: 0 0 6px; font-size: 13px; }
-    h4 { margin: 4px 0 0; font-size: 12px; }
+    h2 { margin: 0; font-size: var(--fs-lg); overflow-wrap: anywhere; }
+    h3 { margin: 0 0 6px; font-size: var(--fs-md); }
+    h4 { margin: 4px 0 0; font-size: var(--fs-sm); }
     .sub, .muted { margin: 2px 0 0; color: var(--text-2); }
     .empty { margin: 0; padding: 16px; color: var(--text-2); }
     .description { margin: 6px 0 0; padding: 4px 10px; border-inline-start: 3px solid var(--border-2); color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -218,7 +218,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
     .crumbs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
     .crumb { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: 12px; align-items: baseline; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
     .crumb:hover { background: var(--bg-3); }
-    .crumb:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .crumb:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .time { color: var(--text-2); min-width: 150px; }
     .trigger { color: var(--text-2); }
     .outcome.bad { color: var(--danger-text); }
@@ -226,7 +226,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
     .card { border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); display: flex; flex-direction: column; overflow: hidden; }
     .card.open { border-color: var(--accent); }
     .thumb { all: unset; display: block; cursor: pointer; height: 110px; background: var(--bg-3); }
-    .thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .thumb:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; image-rendering: pixelated; }
     .ph { display: grid; place-items: center; height: 100%; color: var(--muted); }
     .meta { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; min-width: 0; }

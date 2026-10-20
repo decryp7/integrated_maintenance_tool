@@ -1,3 +1,4 @@
+import { FIELDS_OPEN_KEY } from '../shell/sidebar-sections';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle } from '../../testing/helpers';
 import { ImtBackend } from '../core/backend';
@@ -137,6 +138,9 @@ describe('EventsGrid context menu', () => {
 });
 
 describe('Explorer additions', () => {
+  // The Fields section starts collapsed; these tests use it expanded.
+  beforeEach(() => localStorage.setItem(FIELDS_OPEN_KEY, 'true'));
+  afterEach(() => localStorage.removeItem(FIELDS_OPEN_KEY));
   async function render() {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock)] });

@@ -8,7 +8,8 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { buildOption, ChartCard, LIVE_UPDATE_MS, liveOption } from './chart-card';
 import { ImtBackend } from '../core/backend';
 import { LiveTail } from '../workspace/live-tail';
-import { ChartTheme, ChartTokens } from './chart-theme';
+import { chartTokensOf, ChartTheme, ChartTokens } from './chart-theme';
+import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
 import { EChart } from './echart';
 import { MetricsView } from './metrics-view';
 import { TimeCursor } from '../analysis/time-cursor';
@@ -147,14 +148,21 @@ describe('EChart', () => {
 });
 
 describe('ChartTheme', () => {
-  it('reads tokens and refreshes on theme changes', async () => {
+  it('takes the tokens of the theme and scheme in effect, and follows changes', () => {
     const theme = TestBed.inject(ChartTheme);
+    const prefs = TestBed.inject(UiPrefsStore);
+    prefs.setScheme('dark');
     expect(theme.tokens().series).toHaveLength(4);
-    const before = theme.tokens();
-    document.documentElement.setAttribute('data-theme', 'light');
-    await new Promise((r) => setTimeout(r, 40));
-    expect(theme.tokens()).not.toBe(before);
-    document.documentElement.removeAttribute('data-theme');
+    expect(theme.tokens().text).toBe('#e7e8eb');
+    expect(theme.tokens().fontSans).toContain('Inter');
+    prefs.setScheme('light');
+    expect(theme.tokens().text).toBe('#1a1c20');
+    prefs.setTheme('console');
+    expect(theme.tokens().accent).toBe('#5b47e8');
+    expect(theme.tokens().levels['Information']).toBe('#c4cbe0');
+    expect(theme.tokens().markers['fatal']).toBe('#d02a8a');
+    // A missing token reads as empty rather than throwing.
+    expect(chartTokensOf({}).text).toBe('');
     TestBed.resetTestingModule();
   });
 });

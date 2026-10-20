@@ -29,10 +29,10 @@ test.describe('command palette', () => {
   test('arrow keys move the highlight and Enter runs it', async ({ page }) => {
     await page.keyboard.press('ControlOrMeta+k');
     const input = page.getByRole('combobox', { name: 'Type a command' });
-    await input.fill('theme');
+    await input.fill('scheme');
     const options = page.getByRole('option');
-    // Other commands (e.g. from plugins) may match too; the three theme commands must be there.
-    for (const name of ['Theme: system', 'Theme: dark', 'Theme: light']) await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
+    // Other commands (e.g. from plugins) may match too; the three colour scheme commands must be there.
+    for (const name of ['Colour scheme: system', 'Colour scheme: dark', 'Colour scheme: light']) await expect(page.getByRole('option', { name: new RegExp(name) })).toHaveCount(1);
     await expect(options.first()).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowDown');
     await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true');
@@ -41,9 +41,14 @@ test.describe('command palette', () => {
     // Up from the first option wraps to the last one.
     await expect(options.last()).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('[role=option][aria-selected=true]')).toHaveCount(1);
-    await input.fill('theme: light');
+    await input.fill('colour scheme: light');
     await page.keyboard.press('Enter');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light');
+    // The theme commands switch the look.
+    await page.keyboard.press('ControlOrMeta+k');
+    await input.fill('theme: console');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   });
 
   test('shows key hints and plugin commands, and says when nothing matches', async ({ page }) => {

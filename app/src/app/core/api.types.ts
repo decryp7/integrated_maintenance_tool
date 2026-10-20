@@ -2426,7 +2426,6 @@ export interface BundleOpened {
 // Ease of use: import progress, profile history and templates, the demo, overwrite protection
 // (crates/imt-core/src/{workspace,templates}, app/src-tauri/src/{workspace_commands,profile}.rs)
 //   import_progress    {}                         -> ImportProgress   (readable while an import runs)
-//   cancel_import      {}                         -> void             (stops after the files in flight)
 //   profile_history    {}                         -> ProfileVersionInfo[]  (newest first, at most 20)
 //   profile_version    { file }                   -> ProfileDoc       (not applied until saved again)
 //   profile_templates  {}                         -> ProfileTemplate[]  (ready-made profiles, built into the engine)
@@ -2495,12 +2494,11 @@ export interface ProfileTemplate {
 // ---- Cancellable queries -------------------------------------------------------------------
 
 /**
- * Query-language runs with progress and cancellation. Mirrors `app/src-tauri/src/query_cancel.rs` and
- * `crates/imt-core/src/ql/control.rs`. `queryId` is chosen by the UI (1-64 of `[A-Za-z0-9-]`, unique per window
- * while running); `onProgress` is a Tauri `Channel<QueryProgress>`, sampled every ~150 ms.
+ * Query-language runs with progress, as analysis jobs. Mirrors `app/src-tauri/src/query_cancel.rs` and
+ * `crates/imt-core/src/ql/control.rs`. `onProgress` is a Tauri `Channel<QueryStreamEvent>`: first the run's job
+ * (cancel it with `jobs_cancel`), then progress sampled every ~150 ms.
  *
- *   run_query_stream { request: { query }, queryId, onProgress } -> StreamedQueryOutcome
- *   cancel_query     { queryId }                                 -> boolean (false: not running any more)
+ *   run_query_stream { request: { query }, onProgress } -> StreamedQueryOutcome
  */
 
 /** What a running query is doing: `done` of `total` records of the current `stage`. */
@@ -2510,21 +2508,14 @@ export interface QueryProgress {
   total: number;
 }
 
-/** Like `QueryOutcome`, or `{ cancelled: true }` after `cancel_query` (a normal outcome, not an error). */
+/** What a run's channel carries. Mirrors `query_cancel::QueryStreamEvent`. */
+export type QueryStreamEvent = { kind: 'started'; jobId: number } | ({ kind: 'progress' } & QueryProgress);
+
+/** Like `QueryOutcome`, or `{ cancelled: true }` after its job was cancelled (a normal outcome, not an error). */
 export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 
-/** What a native dialog asks for (`pick_paths`, see core/native-dialog.ts). Mirrors `paths::PickRequest`. */
-export type PickKind = 'openFile' | 'openFiles' | 'openFolder' | 'openFolders' | 'save';
-
-/** `pick_paths` request: the engine shows the dialog and grants the chosen paths to the window. */
-export interface PickRequest {
-  kind: PickKind;
-  title: string;
-  /** File types offered (extensions without the dot, letters and digits only). */
-  filters?: { name: string; extensions: string[] }[];
-  /** Suggested name of a save dialog (a file name, not a path). */
-  defaultName?: string;
-}
+// What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
+export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
 /** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
 export interface AnalysisCoverage {
@@ -2595,3 +2586,12 @@ export interface EtlConverted {
   path: string;
   notes: string[];
 }
+
+// ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
+// Generated from `recent.rs`. Rust records an entry after a granted open or save.
+export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
+
+// ---- The one error of every command (app/src-tauri/src/error.rs; ADR 0016) ----
+
+// What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.
+export type { CmdErrorDto, ErrorCode } from './generated/errors';

@@ -8,7 +8,8 @@ const BUILT_IN = new Set(['start', 'stop', 'fatal', 'exception', 'error', 'warni
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<span class="mk" [class]="cls()" [style.background]="customColor()" [attr.aria-label]="label() || kind()" role="img"></span>`,
   styles: `
-    :host { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; flex: none; }
+    :host { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; flex: none; filter: drop-shadow(0 0 0.6px var(--ring)) drop-shadow(0 0 0.6px var(--ring)); }
+    /* The ring above (in the surface colour) separates a glyph from what it overlaps: density, runs, other glyphs. */
     .mk { display: block; width: 10px; height: 10px; }
     .mk-start { background: var(--mk-start); clip-path: polygon(10% 0, 100% 50%, 10% 100%); }
     .mk-stop { background: var(--mk-stop); width: 9px; height: 9px; border-radius: 1px; }

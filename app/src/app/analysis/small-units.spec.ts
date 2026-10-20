@@ -1,3 +1,4 @@
+import { CmdError } from '../core/cmd-error';
 import { TestBed } from '@angular/core/testing';
 import { ANOMALY_ICONS, ANOMALY_LABELS, anomalyIcon, anomalyLabel, barWidth, direction, formatChange, levelCounts, shortId, templateQl } from './analysis-format';
 import { qlQuote } from './ql-text';
@@ -59,6 +60,9 @@ describe('AsyncResource', () => {
     expect(r.loading()).toBe(false);
     await r.load(() => Promise.reject(new Error('boom')));
     expect(r.error()).toBe('boom');
+    expect(r.retryable()).toBe(true);
+    await r.load(() => Promise.reject(new CmdError({ code: 'invalid', message: 'bad', retryable: false, hint: 'Fix it.' })));
+    expect([r.error(), r.retryable()]).toEqual(['bad Fix it.', false]);
     expect(r.data()).toBe(1);
     let fail = true;
     const flaky = async () => {

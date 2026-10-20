@@ -28,7 +28,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
       <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
       @if (res.data(); as m) {
         <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">
@@ -117,7 +117,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
           <h3 class="sec" i18n="@@analysis.moment.anomalies">Anomalies in this window</h3>
           @if (m.anomalies.length) {
             <ul class="list">
-              @for (a of m.anomalies; track $index) {
+              @for (a of m.anomalies; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
                 <li>
                   <button class="row" type="button" (click)="selectSample(a.sampleIds[0])">
                     <span aria-hidden="true">{{ icon(a.kind) }}</span><strong>{{ label(a.kind) }}</strong>
@@ -139,12 +139,12 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
     ANALYSIS_STYLES,
     `
       .summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .total { font-size: 14px; color: var(--text); margin-right: 6px; }
+      .total { font-size: var(--fs-lg); color: var(--text); margin-right: 6px; }
       .head { margin-bottom: 4px; color: var(--text); }
-      .counts { display: flex; gap: 12px; font-size: 11px; margin-bottom: 6px; }
+      .counts { display: flex; gap: 12px; font-size: var(--fs-xs); margin-bottom: 6px; }
       .warn { color: var(--warn-text); }
       .errs { color: var(--danger-text); }
-      .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: 11px; }
+      .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: var(--fs-xs); }
       .pats .num { width: 36px; flex: none; }
       .chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .chips .chip { cursor: pointer; color: var(--chip-text); }

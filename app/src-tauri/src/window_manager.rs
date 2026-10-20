@@ -8,14 +8,12 @@
 //! Events: `imt://windows-changed` (all windows), `imt://close-requested`
 //! and `imt://open-ask` (the window concerned).
 
-use crate::background::BackgroundTasks;
 use crate::notify::{notify, NotificationKind};
 use crate::panel_windows;
 use crate::window_prefs::{OnClose, SharedPrefs, WINDOW_SECTION};
 use crate::windows::{emit_to_window, label_order, queue_open, CurrentWindow, Windows, MAIN};
 use crate::{err, CmdResult};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
 
@@ -144,6 +142,7 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
         windows.remove(&label);
         anyhow::bail!("could not open a window: {e}");
     }
+    crate::window_scoped::created(app, &label);
     windows.note_focus(&label);
     log::info!(Windows = app.webview_windows().len() as u64; "Window opened");
     changed(app);
@@ -201,18 +200,21 @@ pub fn ask_open<R: Runtime>(app: &AppHandle<R>, label: &str, paths: Vec<String>)
 
 /// Quits IMT; windows destroyed from now on keep their sessions for recovery.
 pub fn quit<R: Runtime>(app: &AppHandle<R>) {
+    begin_quit(app);
+    app.exit(0);
+}
+
+/// What quitting does before the event loop ends: windows destroyed from now on keep their sessions.
+fn begin_quit<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.try_state::<Windows>() {
         w.set_exiting();
     }
     log::info!(Windows = app.webview_windows().len() as u64; "Quit requested");
-    app.exit(0);
 }
 
 /// Tells the user an import finished in a window that is not in front.
-pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Value) {
-    let Some(w) = app.get_webview_window(label) else { return };
-    let seen = w.is_focused().unwrap_or(false) && w.is_visible().unwrap_or(false);
-    let events = summary["total"].as_u64().unwrap_or(0);
+/// Called from commands and workers: the window getters run on the main thread ([`crate::ui_dispatch::run`]).
+pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, events: u64) {
     let title = app
         .try_state::<Windows>()
         .and_then(|ws| ws.get(label))
@@ -223,13 +225,12 @@ pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Va
     } else {
         format!("\u{201c}{title}\u{201d}")
     };
-    notify(
-        app,
-        NotificationKind::ImportFinished,
-        seen,
-        "Import finished",
-        &format!("{events} events loaded in {place}."),
-    );
+    let (label, body) = (label.to_string(), format!("{events} events loaded in {place}."));
+    crate::ui_dispatch::run(app, move |app| {
+        let Some(w) = app.get_webview_window(&label) else { return };
+        let seen = w.is_focused().unwrap_or(false) && w.is_visible().unwrap_or(false);
+        notify(app, NotificationKind::ImportFinished, seen, "Import finished", &body);
+    });
 }
 
 /// A webview whose content process died is reloaded at most this often per window within
@@ -307,12 +308,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
             crate::paths::grant_read_all(app, label, paths, crate::paths::GrantSource::Drop);
         }
-        WindowEvent::Destroyed => {
-            if !panel_windows::is_popout(label) {
-                crate::paths::grants(app).forget(label);
-            }
-            destroyed(app, label)
-        }
+        WindowEvent::Destroyed => destroyed(app, label),
         _ => {}
     }
 }
@@ -380,14 +376,8 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     use crate::lifecycle::{teardown_step, TEARDOWN_STEP_LIMIT};
     let state = windows.remove(label);
     teardown_step("window state", TEARDOWN_STEP_LIMIT, move || drop(state));
-    let (handle, owner) = (app.clone(), label.to_string());
-    teardown_step("window registries", TEARDOWN_STEP_LIMIT, move || {
-        if let Some(tasks) = handle.try_state::<BackgroundTasks>() {
-            tasks.remove_window(&owner);
-        }
-        crate::jobs::forget_window(&handle, &owner);
-        crate::notification_centre::forget_window(&handle, &owner);
-    });
+    // Every feature that keeps state per window (see `window_scoped`).
+    crate::window_scoped::destroyed(app, label);
     if !exiting {
         if let Some(life) = app.try_state::<crate::lifecycle::Lifecycle>() {
             life.forget_session(label);
@@ -406,25 +396,33 @@ pub async fn new_window<R: Runtime>(app: AppHandle<R>) -> CmdResult<WindowInfo> 
         .ok_or_else(|| "the window closed".into())
 }
 
+/// Quits IMT: every window closes at once (File ▸ Exit, IMT ▸ Quit IMT). The UI asks about unsaved work in the
+/// calling window first; other windows keep their autosaved sessions.
+#[tauri::command]
+pub async fn quit_app<R: Runtime>(app: AppHandle<R>) -> CmdResult<()> {
+    quit(&app);
+    Ok(())
+}
+
 /// Closes the calling window as its close button does (the close setting applies).
 #[tauri::command]
-pub fn close_window<R: Runtime>(window: Window<R>) -> CmdResult<()> {
-    window.close().map_err(err)
+pub async fn close_window<R: Runtime>(window: Window<R>) -> CmdResult<()> {
+    crate::error::lift(window.close().map_err(err))
 }
 
 #[tauri::command]
-pub fn list_windows<R: Runtime>(app: AppHandle<R>) -> Vec<WindowInfo> {
+pub async fn list_windows<R: Runtime>(app: AppHandle<R>) -> Vec<WindowInfo> {
     list(&app)
 }
 
 #[tauri::command]
-pub fn focus_window<R: Runtime>(app: AppHandle<R>, label: String) -> CmdResult<()> {
+pub async fn focus_window<R: Runtime>(app: AppHandle<R>, label: String) -> CmdResult<()> {
     reveal(&app, &label)
 }
 
 /// Sets the calling window's title (the UI shows the project name there).
 #[tauri::command]
-pub fn set_window_title<R: Runtime>(app: AppHandle<R>, window: Window<R>, state: CurrentWindow, title: String) -> CmdResult<()> {
+pub async fn set_window_title<R: Runtime>(app: AppHandle<R>, window: Window<R>, state: CurrentWindow, title: String) -> CmdResult<()> {
     let title = clean_title(&title);
     if state.title() == title {
         return Ok(());
@@ -444,7 +442,7 @@ pub enum CloseChoice {
 
 /// The user's answer to `imt://close-requested`; with `remember` it becomes the setting.
 #[tauri::command]
-pub fn resolve_close<R: Runtime>(
+pub async fn resolve_close<R: Runtime>(
     app: AppHandle<R>,
     window: Window<R>,
     state: CurrentWindow,
@@ -459,7 +457,7 @@ pub fn resolve_close<R: Runtime>(
             CloseChoice::Tray => OnClose::Tray,
         };
         // A failure to save must not keep the window from closing.
-        match crate::settings::set_settings(app.clone(), WINDOW_SECTION.into(), prefs.to_json()) {
+        match crate::settings::apply_section(&app, WINDOW_SECTION, prefs.to_json()) {
             Ok(r) if r.applied => {}
             Ok(_) => log::warn!("the close choice could not be remembered"),
             Err(e) => log::warn!("the close choice could not be remembered: {e}"),
@@ -511,6 +509,7 @@ pub async fn resolve_open<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, c
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{main_window, test_app, window};
     use std::sync::{Arc, Mutex};
     use tauri::Listener;
@@ -572,12 +571,12 @@ mod tests {
         let info = tauri::async_runtime::block_on(new_window(h.clone())).unwrap();
         assert_eq!(info.label, "w-3");
         assert_eq!(info.title, DEFAULT_TITLE);
-        let labels: Vec<String> = list_windows(h.clone()).into_iter().map(|w| w.label).collect();
+        let labels: Vec<String> = list_windows(h.clone()).now().into_iter().map(|w| w.label).collect();
         assert_eq!(labels, ["main", "w-2", "w-3"]);
         assert!(*changes.lock().unwrap() >= 2, "every window hears about new windows");
         assert_eq!(target(&h).as_deref(), Some("w-3"), "the newest window has the focus");
-        focus_window(h.clone(), "w-2".into()).unwrap();
-        assert!(focus_window(h.clone(), "w-99".into()).is_err());
+        focus_window(h.clone(), "w-2".into()).now().unwrap();
+        assert!(focus_window(h.clone(), "w-99".into()).now().is_err());
 
         // Titles reach the window list.
         let w2 = window(&app, "w-2");
@@ -587,6 +586,7 @@ mod tests {
             CurrentWindow::of(&h, "w-2").unwrap(),
             "Incident — IMT".into(),
         )
+        .now()
         .unwrap();
         set_window_title(
             h.clone(),
@@ -594,6 +594,7 @@ mod tests {
             CurrentWindow::of(&h, "w-2").unwrap(),
             "Incident — IMT".into(),
         )
+        .now()
         .unwrap();
         assert!(list(&h).iter().any(|w| w.title == "Incident — IMT"));
 
@@ -601,7 +602,7 @@ mod tests {
         let state = app.state::<Windows>().get("w-2").unwrap();
         let weak = Arc::downgrade(&state);
         drop(state);
-        app.state::<BackgroundTasks>()
+        app.state::<crate::background::BackgroundTasks>()
             .register(
                 crate::background::TaskSpec {
                     id: "live:w-2".into(),
@@ -614,7 +615,7 @@ mod tests {
             .unwrap();
         destroyed(&h, "w-2");
         assert!(weak.upgrade().is_none());
-        assert_eq!(app.state::<BackgroundTasks>().running(), 0);
+        assert_eq!(app.state::<crate::background::BackgroundTasks>().running(), 0);
         assert!(CurrentWindow::of(&h, "w-2").is_err());
         assert_eq!(target(&h).as_deref(), Some("w-3"), "the last focused window");
         // After quitting starts, sessions are kept.
@@ -632,7 +633,7 @@ mod tests {
         let a = asked.clone();
         main.listen(OPEN_ASK_EVENT, move |e| a.lock().unwrap().push(e.payload().to_string()));
         ask_open(&h, MAIN, vec!["/logs/a.log".into(), "/logs/b".into()]);
-        let payload: Value = serde_json::from_str(&asked.lock().unwrap()[0]).unwrap();
+        let payload: serde_json::Value = serde_json::from_str(&asked.lock().unwrap()[0]).unwrap();
         assert_eq!(payload, serde_json::json!({ "count": 2, "names": ["a.log", "b"] }));
         // "This window": the paths are queued here.
         tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Here)).unwrap();
@@ -693,7 +694,9 @@ mod tests {
         assert_eq!(*requested.lock().unwrap(), 1);
         assert!(main_window(&app).close_asked.load(Ordering::SeqCst));
         // "Keep running in tray", remembered.
-        resolve_close(h.clone(), w.clone(), main_window(&app), CloseChoice::Tray, true).unwrap();
+        resolve_close(h.clone(), w.clone(), main_window(&app), CloseChoice::Tray, true)
+            .now()
+            .unwrap();
         assert!(!main_window(&app).close_asked.load(Ordering::SeqCst));
         assert_eq!(app.state::<SharedPrefs>().get().on_close, OnClose::Tray);
         // Now closing hides without asking.
@@ -702,12 +705,23 @@ mod tests {
         // With another visible window, closing just closes.
         let other = open_new(&h, vec![]).unwrap();
         assert_eq!(close_requested(&h, &window(&app, &other).as_ref().window()), CloseDecision::Close);
-        close_window(w.clone()).unwrap();
+        close_window(w.clone()).now().unwrap();
         // While quitting, every close goes through.
         app.state::<Windows>().set_exiting();
         assert_eq!(close_requested(&h, &w), CloseDecision::Close);
         // Focus is tracked.
         on_window_event(&main.as_ref().window(), &WindowEvent::Focused(true));
         assert_eq!(app.state::<Windows>().last_focused().as_deref(), Some(MAIN));
+    }
+
+    /// File ▸ Exit and IMT ▸ Quit IMT (`quit_app`): one step quits every window.
+    #[test]
+    fn quitting_keeps_the_sessions_of_the_windows_it_closes() {
+        // (The mock runtime cannot exit: `app.exit` is the part not run here.)
+        let app = crate::test_support::test_app_with_commands(None);
+        crate::test_support::window(&app, "w-2");
+        assert!(!app.state::<Windows>().exiting());
+        begin_quit(app.handle());
+        assert!(app.state::<Windows>().exiting(), "windows destroyed now keep their sessions");
     }
 }

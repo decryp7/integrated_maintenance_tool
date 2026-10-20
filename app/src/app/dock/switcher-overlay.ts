@@ -48,12 +48,12 @@ import { selected, selectId } from './switcher';
       box-shadow: var(--shadow); padding: 12px 14px;
     }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    h2 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    h2 { margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
     ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
-    li { padding: 4px 8px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+    li { padding: 4px 8px; border-radius: 4px; font-size: var(--fs-md); cursor: pointer; }
     li.on { background: var(--accent); color: var(--accent-ink); }
     li.none { color: var(--faint); cursor: default; }
-    .hint { margin: 10px 0 0; font-size: 11px; color: var(--muted); }
+    .hint { margin: 10px 0 0; font-size: var(--fs-xs); color: var(--muted); }
   `,
 })
 export class DockSwitcher {

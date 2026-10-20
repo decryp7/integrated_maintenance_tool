@@ -23,9 +23,9 @@ let nextId = 0;
   `,
   styles: `
     :host { position: relative; display: inline-flex; }
-    .q { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--border-3); background: transparent; color: var(--muted); font-size: 11px; line-height: 1; cursor: pointer; }
+    .q { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid var(--border-3); background: transparent; color: var(--muted); font-size: var(--fs-xs); line-height: 1; cursor: pointer; }
     .q:hover, .q[aria-expanded='true'] { background: var(--bg-active); color: var(--text); }
-    .tip { position: absolute; z-index: 60; top: 24px; inset-inline-start: 0; width: 280px; padding: 8px 10px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: 12px; font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; }
+    .tip { position: absolute; z-index: 60; top: 24px; inset-inline-start: 0; width: 280px; padding: 8px 10px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: var(--fs-sm); font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; }
   `,
 })
 export class HelpHint {

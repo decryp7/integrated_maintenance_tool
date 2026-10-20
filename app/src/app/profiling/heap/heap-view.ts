@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { HeapSummary } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { CapturesStore } from '../captures.store';
@@ -59,7 +59,7 @@ import { HeapTypes } from './heap-types';
       .tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: inherit; padding: 6px 10px; cursor: pointer; }
       .tabs button[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
       .tabs button:disabled { opacity: 0.45; cursor: default; }
-      .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .tabs button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
       .panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
       .panel > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     `,
@@ -73,14 +73,6 @@ export class HeapView {
   protected readonly tabs = HEAP_TABS;
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
-
-  constructor() {
-    // Another snapshot drops the object selection (ids are per snapshot).
-    effect(() => {
-      this.state.heapId();
-      untracked(() => this.sel.object.set(null));
-    });
-  }
 
   protected summary(h: HeapSummary): string {
     const objects = this.count(h.objectCount);

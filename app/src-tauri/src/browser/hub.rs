@@ -23,7 +23,7 @@ pub fn research_key(job: u64) -> String {
 }
 
 /// Who drives a window's browser now, as the browser window shows it ("AI is browsing — Stop"). The Stop of
-/// an agent calls `browser_agent_stop` with its chat; the Stop of research calls `browser_research_stop`.
+/// an agent calls `browser_agent_stop` with its chat; the Stop of research cancels its job (`jobs_cancel`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AiDriver {
@@ -92,7 +92,7 @@ pub struct BrowserHub {
 
 impl BrowserHub {
     fn lock(&self) -> MutexGuard<'_, HashMap<String, Owner>> {
-        self.owners.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.owners)
     }
 
     fn with<T>(&self, owner: &str, f: impl FnOnce(&mut Owner) -> T) -> T {
@@ -100,11 +100,11 @@ impl BrowserHub {
     }
 
     pub fn settings(&self) -> BrowserSettings {
-        self.settings.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.settings).clone()
     }
 
     pub fn set_settings(&self, s: BrowserSettings) {
-        *self.settings.write().unwrap_or_else(|p| p.into_inner()) = s;
+        *crate::sync::write(&self.settings) = s;
     }
 
     // ---- the page ----

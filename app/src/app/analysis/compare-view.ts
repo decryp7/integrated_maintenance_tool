@@ -33,7 +33,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
       <div><strong>A</strong> <span class="mono">{{ time.range(targets.windowA()) }}</span></div>
       <div><strong>B</strong> <span class="mono">{{ time.range(targets.windowB()) }}</span></div>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
       @if (res.data(); as c) {
         <div class="body" tabindex="0" role="region" aria-label="Comparison" i18n-aria-label="@@analysis.compare.region">
           <h3 class="sec first" i18n="@@analysis.compare.summary">Summary</h3>
@@ -124,7 +124,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
       .fill { display: block; height: 100%; }
       .fill.a { background: var(--s1); }
       .fill.b { background: var(--s2); }
-      .nums { width: 160px; flex: none; font-size: 11px; }
+      .nums { width: 160px; flex: none; font-size: var(--fs-xs); }
       .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .chip { margin-right: 4px; }
     `,

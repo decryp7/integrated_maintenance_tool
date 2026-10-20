@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { gridRows, openAppWith } from './mock-url';
+import { expandFields } from './app';
 
 test.describe('panel error boundaries', () => {
   test('a panel that throws shows an error card and leaves the rest of the app working', async ({ page }, testInfo) => {
@@ -13,7 +14,7 @@ test.describe('panel error boundaries', () => {
     await expect(card.getByRole('button', { name: 'Copy details' })).toBeVisible();
     // Other panels are untouched: the timeline renders and the layout is intact.
     await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Query' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Timeline' })).toBeVisible();
     await expect(page.locator('imt-status-bar')).toContainText('events');
     await expectNoSeriousViolations(page, testInfo, 'resilience-panel-failed');
   });
@@ -49,6 +50,7 @@ test.describe('panel error boundaries', () => {
     // Open the popover only once the workspace has settled: a query change while it is open reloads the facet,
     // and that newer (successful) request would supersede the failing one before its error is shown.
     await expect(gridRows(page).first()).toBeVisible();
+    await expandFields(page);
     await page.locator('imt-sidebar .field').first().click();
     const pop = page.locator('imt-facet-popover');
     await expect(pop.getByRole('alert')).toContainText('Simulated queryFacet failure');

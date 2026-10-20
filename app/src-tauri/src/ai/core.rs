@@ -21,7 +21,7 @@ use imt_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 const SETTINGS_FILE: &str = "ai.json";
@@ -196,9 +196,7 @@ struct AppLoader {
     primed: Mutex<Option<Primed>>,
 }
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 impl ModelLoader for AppLoader {
     fn load(&self) -> imt_ai::Result<Arc<dyn LlmProvider>> {
@@ -269,7 +267,7 @@ impl AiCore {
             None => (Catalog::embedded(), vec![]),
         };
         warnings.extend(settings_warning);
-        *deps.settings.write().unwrap_or_else(|p| p.into_inner()) = settings;
+        *crate::sync::write(&deps.settings) = settings;
         for w in &warnings {
             log::warn!("AI: {w}");
         }
@@ -319,7 +317,7 @@ impl AiCore {
     }
 
     pub fn settings(&self) -> AiSettings {
-        self.settings.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.settings).clone()
     }
 
     /// The folder of `ai.json` (none in tests without one).
@@ -635,7 +633,7 @@ impl AiCore {
     }
 
     fn adopt(&self, outcome: imt_ai::setup::SetupOutcome) {
-        *self.settings.write().unwrap_or_else(|p| p.into_inner()) = outcome.settings;
+        *crate::sync::write(&self.settings) = outcome.settings;
         self.install_active(Some((outcome.provider, outcome.backend, outcome.notes)));
     }
 
@@ -727,7 +725,7 @@ impl AiCore {
         if let Some(p) = self.settings_path() {
             s.save(&p)?;
         }
-        *self.settings.write().unwrap_or_else(|p| p.into_inner()) = s.clone();
+        *crate::sync::write(&self.settings) = s.clone();
         Ok(s)
     }
 

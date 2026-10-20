@@ -72,22 +72,22 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
     :host(.mac) .bar { padding-inline-start: 78px; }
     :host(.inactive) .bar { box-shadow: none; color: var(--muted); }
     :host(.inactive) .title { color: var(--muted); }
-    .grip { color: var(--faint); cursor: grab; font-size: 12px; }
+    .grip { color: var(--faint); cursor: grab; font-size: var(--fs-sm); }
     .titles { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; cursor: default; }
-    .title { margin: 0; font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .host { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .title { margin: 0; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
+    .host { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tb-btn {
       height: 28px; border: 0; border-radius: 4px; background: transparent; color: var(--muted);
       cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
     }
     .tb-btn.icon { width: 28px; }
-    .tb-btn.icon.on { color: var(--accent); }
+    .tb-btn.icon.on { color: var(--accent-text); }
     .tb-btn:hover { color: var(--text); }
     .tb-btn:hover { background: var(--bg-hover); }
-    .tb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .tb-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .controls { display: flex; height: 100%; margin-inline-start: 4px; }
     .tb-btn.ctl { width: 40px; height: 100%; border-radius: 0; color: inherit; }
-    .tb-btn.close:hover { background: #c42b1c; color: #fff; }
+    .tb-btn.close:hover { background: var(--window-close-bg); color: var(--window-close-text); }
     .edge { position: fixed; z-index: 1000; }
     .edge.n { top: 0; left: 6px; right: 6px; height: 4px; cursor: ns-resize; }
     .edge.s { bottom: 0; left: 6px; right: 6px; height: 4px; cursor: ns-resize; }

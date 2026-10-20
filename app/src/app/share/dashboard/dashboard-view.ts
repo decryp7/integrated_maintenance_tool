@@ -102,18 +102,18 @@ interface Drag {
     :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); container-type: inline-size; }
     :host(.wall) { position: fixed; inset: 0; z-index: 1000; --tile-value-size: 44px; }
     .bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-    .pick, .title-edit { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .pick, .title-edit { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--muted); }
     .spacer { flex: 1; }
-    .hint { font-size: 11px; }
+    .hint { font-size: var(--fs-xs); }
     .err { margin: 6px 12px 0; color: var(--danger-text); }
-    .wall-title { margin: 12px 16px 0; font-size: 22px; }
+    .wall-title { margin: 12px 16px 0; font-size: var(--fs-xl); }
     .scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
     .grid { display: grid; grid-auto-rows: ${ROW_PX}px; gap: ${GAP_PX}px; }
     .tile { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-2); overflow: hidden; }
     .editing .tile { cursor: grab; border-style: dashed; touch-action: none; }
-    .tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .tile-title { margin: 0 0 4px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    :host(.wall) .tile-title { font-size: 15px; }
+    .tile:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .tile-title { margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    :host(.wall) .tile-title { font-size: var(--fs-lg); }
     .win { font-weight: 400; }
     .remove { position: absolute; top: 4px; right: 4px; }
     .resizer { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); }

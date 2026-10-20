@@ -28,7 +28,7 @@ let nextId = 0;
   `,
   styles: `
     :host { display: inline-flex; min-width: 0; max-width: 100%; --sw-w: 30px; --sw-h: 18px; --sw-knob: 12px; }
-    :host(.small) { --sw-w: 26px; --sw-h: 16px; --sw-knob: 10px; font-size: 12px; }
+    :host(.small) { --sw-w: 26px; --sw-h: 16px; --sw-knob: 10px; font-size: var(--fs-sm); }
     .sw { display: inline-flex; align-items: center; gap: 8px; min-width: 0; cursor: pointer; }
     .text { min-width: 0; overflow-wrap: anywhere; }
     input {
@@ -42,8 +42,8 @@ let nextId = 0;
       border-radius: 50%; background: var(--muted); transform: translateY(-50%); transition: left 0.12s, background-color 0.12s;
     }
     input:checked { background: var(--accent); border-color: var(--accent); }
-    input:checked::before { left: calc(var(--sw-w) - var(--sw-knob) - 4px); background: var(--accent-ink, #fff); }
-    input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    input:checked::before { left: calc(var(--sw-w) - var(--sw-knob) - 4px); background: var(--accent-ink); }
+    input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     input:disabled { opacity: 0.5; }
     .sw:has(input:disabled) { cursor: default; }
     @media (prefers-reduced-motion: reduce) { input, input::before { transition: none; } }

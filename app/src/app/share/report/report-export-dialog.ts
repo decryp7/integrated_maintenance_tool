@@ -57,10 +57,10 @@ import { JobFollow } from '../../jobs/job-follow';
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     .field { display: flex; flex-direction: column; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
-    label, legend { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
+    label, legend { font-size: var(--fs-sm); color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
     /* Stacked options stay 24px apart (WCAG 2.5.8 spacing for the 13px radios and checkbox). */
-    .opt { color: var(--text-2); font-size: 13px; min-height: 24px; }
-    .preview { font-size: 12px; color: var(--text-2); padding: 8px; border: 1px dashed var(--border-3); border-radius: 6px; }
+    .opt { color: var(--text-2); font-size: var(--fs-md); min-height: 24px; }
+    .preview { font-size: var(--fs-sm); color: var(--text-2); padding: 8px; border: 1px dashed var(--border-3); border-radius: 6px; }
     .err { margin: 0; color: var(--danger-text); }
     .footer { display: flex; justify-content: flex-end; gap: 8px; }
   `,
@@ -77,7 +77,7 @@ export class ReportExportDialog {
 
   protected readonly report = computed<Report | null>(() => this.reports.active());
   protected readonly format = signal<ReportFormat>('html');
-  protected readonly theme = signal<ExportTheme>(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+  protected readonly theme = signal<ExportTheme>(document.documentElement.getAttribute('data-scheme') === 'dark' ? 'dark' : 'light');
   protected readonly redact = signal(false);
   protected readonly preview = signal<RedactionPreview | null>(null);
   protected readonly busy = signal(false);

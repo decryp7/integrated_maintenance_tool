@@ -27,9 +27,9 @@ import { JobsStore } from './jobs.store';
   `,
   styles: `
     :host { display: inline-flex; gap: 8px; align-items: center; }
-    .pill { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: inherit; cursor: pointer; font-size: 11px; font-weight: 600; }
+    .pill { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
     .pill:hover, .pill.on { border-color: currentColor; }
-    .pill:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+    .pill:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   `,
 })
 export class StatusJobs {

@@ -62,7 +62,7 @@ import { OverviewPrefs } from './overview-prefs';
 
       <imt-analysis-state
         [loading]="res.loading()"
-        [error]="res.error()"
+        [error]="res.error()" [retryable]="res.retryable()"
         [hasData]="!!res.data()"
         [empty]="false"
         (retry)="res.retry()"
@@ -83,7 +83,7 @@ import { OverviewPrefs } from './overview-prefs';
                 <imt-icon [name]="g.icon" [size]="14" />{{ g.label }} <span class="faint">({{ g.findings.length }})</span>
               </h3>
               <ul class="findings">
-                @for (f of g.findings; track $index) {
+                @for (f of g.findings; track f.kind + ':' + f.title + ':' + f.detail) {
                   <li class="finding">
                     <div class="title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
                     <p class="detail">{{ f.detail }}</p>
@@ -120,29 +120,29 @@ import { OverviewPrefs } from './overview-prefs';
     .stats { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
     .stats > div { padding: 6px 8px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
     .stats > div.wide { grid-column: span 2; }
-    .stats dt { font-size: 11px; color: var(--muted); }
-    .stats dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .stats .wide dd { font-size: 12px; font-weight: 500; }
+    .stats dt { font-size: var(--fs-xs); color: var(--muted); }
+    .stats dd { margin: 2px 0 0; font-size: var(--fs-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stats .wide dd { font-size: var(--fs-sm); font-weight: 500; }
     .stats > div.bad dd { color: var(--danger-text); }
-    .sub h3, .sev { margin: 0 0 4px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .sub h3, .sev { margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 600; display: flex; align-items: center; gap: 6px; }
     .sub ul, .findings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
-    .sub li { font-size: 12px; overflow-wrap: anywhere; }
+    .sub li { font-size: var(--fs-sm); overflow-wrap: anywhere; }
     .name { color: var(--text); }
     .muted { color: var(--muted); }
     [data-severity='critical'] .sev imt-icon { color: var(--danger-text); }
     [data-severity='warning'] .sev imt-icon { color: var(--warn-text); }
-    [data-severity='info'] .sev imt-icon { color: var(--accent); }
+    [data-severity='info'] .sev imt-icon { color: var(--accent-text); }
     .finding { padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
-    .title { font-weight: 600; font-size: 12px; overflow-wrap: anywhere; }
-    .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--border-3); color: var(--text-2); }
+    .title { font-weight: 600; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+    .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--border-3); color: var(--text-2); }
     [data-severity='critical'] .tag { border-color: var(--lvl-error); color: var(--danger-text); }
     [data-severity='warning'] .tag { border-color: var(--lvl-warn); color: var(--warn-text); }
-    .detail { margin: 4px 0 0; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+    .detail { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--text-2); overflow-wrap: anywhere; }
     .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
     .none { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
     .none imt-icon { color: var(--ok); margin-top: 2px; }
-    .none p { margin: 4px 0 0; font-size: 12px; }
-    .auto { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+    .none p { margin: 4px 0 0; font-size: var(--fs-sm); }
+    .auto { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-2); }
   `,
 })
 export class OverviewView {

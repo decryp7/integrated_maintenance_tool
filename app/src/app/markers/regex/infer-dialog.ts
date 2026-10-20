@@ -76,10 +76,10 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
     DIALOG_FORM_STYLES,
     `
     textarea { resize: vertical; }
-    .groups { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .groups { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
     .groups th, .groups td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); }
-    .lines { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 120px; overflow: auto; }
-    .ok { color: var(--success-text, #3fbf7f); }
+    .lines { list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); max-height: 120px; overflow: auto; }
+    .ok { color: var(--ok); }
     .no { color: var(--danger-text); }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   `,

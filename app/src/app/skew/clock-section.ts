@@ -33,7 +33,7 @@ export class ClockDialogService {
   `,
   styles: `
     .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 0 6px; }
-    .small { font-size: 11.5px; }
+    .small { font-size: var(--fs-xs); }
   `,
 })
 export class ClockSection {

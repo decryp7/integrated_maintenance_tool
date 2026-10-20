@@ -23,7 +23,7 @@ import { LiveTail } from '../workspace/live-tail';
       <button type="button" class="btn primary" [disabled]="busy()" (click)="open(true)" i18n="@@live.openLive.folder">Open folder…</button>
     </div>
   `,
-  styles: [DIALOG_FORM_STYLES, `.small { font-size: 11px; }`],
+  styles: [DIALOG_FORM_STYLES, `.small { font-size: var(--fs-xs); }`],
 })
 export class OpenLiveDialog {
   protected readonly ref = inject(DIALOG_REF);

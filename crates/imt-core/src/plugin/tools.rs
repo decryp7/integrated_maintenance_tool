@@ -534,6 +534,69 @@ pub enum ToolError {
     },
     /// The plugin refused (inactive, quarantined, hung) or the call failed, crashed or overran.
     Failed(String),
+    /// The call needs rights the user lacks (administrator, a group): the next step is to restart elevated.
+    Denied(String),
+    /// A program the tool runs is not installed.
+    Missing(String),
+}
+
+/// Why a tool's operation failed, when the tool knows it (see [`ToolFailure`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureReason {
+    /// Missing rights.
+    Denied,
+    /// A program it runs is not installed.
+    Missing,
+}
+
+/// A typed failure a tool returns (inside its `anyhow::Error`) so the host reports it as [`ToolError::Denied`] or
+/// [`ToolError::Missing`] instead of a plain failure; the shell never reads the message to tell them apart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolFailure {
+    pub reason: FailureReason,
+    pub message: String,
+}
+
+impl ToolFailure {
+    pub fn denied(message: impl Into<String>) -> ToolFailure {
+        ToolFailure {
+            reason: FailureReason::Denied,
+            message: message.into(),
+        }
+    }
+
+    pub fn missing(message: impl Into<String>) -> ToolFailure {
+        ToolFailure {
+            reason: FailureReason::Missing,
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for ToolFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ToolFailure {}
+
+/// A failed call as a [`ToolError`]: a [`ToolFailure`] or an OS "permission denied" in its chain keeps its reason.
+fn failed(e: anyhow::Error) -> ToolError {
+    let message = format!("{e:#}");
+    let reason = e.chain().find_map(|c| {
+        if let Some(t) = c.downcast_ref::<ToolFailure>() {
+            return Some(t.reason);
+        }
+        c.downcast_ref::<std::io::Error>()
+            .filter(|io| io.kind() == std::io::ErrorKind::PermissionDenied)
+            .map(|_| FailureReason::Denied)
+    });
+    match reason {
+        Some(FailureReason::Denied) => ToolError::Denied(message),
+        Some(FailureReason::Missing) => ToolError::Missing(message),
+        None => ToolError::Failed(message),
+    }
 }
 
 impl fmt::Display for ToolError {
@@ -545,7 +608,7 @@ impl fmt::Display for ToolError {
             }
             ToolError::Unsupported(reason) => write!(f, "{reason}"),
             ToolError::InvalidArgs { tool, op, error } => write!(f, "{tool} {op}: {error}"),
-            ToolError::Failed(message) => write!(f, "{message}"),
+            ToolError::Failed(message) | ToolError::Denied(message) | ToolError::Missing(message) => write!(f, "{message}"),
         }
     }
 }
@@ -650,7 +713,7 @@ impl ToolHost {
             Some(g) => g.call_detached_within(CallKind::Tool, spec.budget, &what, run),
             None => crate::guard::catch(&what, run),
         }
-        .map_err(|e| ToolError::Failed(format!("{e:#}")))
+        .map_err(failed)
     }
 
     /// Stops background work of `tool` (from the tray or status bar).
@@ -663,7 +726,7 @@ impl ToolHost {
             Some(g) => g.call_detached_within(CallKind::Tool, Some(DEFAULT_OP_BUDGET), &what, run),
             None => crate::guard::catch(&what, run),
         }
-        .map_err(|e| ToolError::Failed(format!("{e:#}")))
+        .map_err(failed)
     }
 }
 

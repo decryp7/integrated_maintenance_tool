@@ -78,9 +78,11 @@ fn open(action: FileAction, target: &FileTarget) -> Result<FileOpened, String> {
 pub(crate) async fn open_source_file(state: CurrentWindow, request: OpenFileRequest) -> CmdResult<FileOpened> {
     let sources = read(&state, |ws| Ok(ws.sources())).await?;
     let target = resolve(&sources, &request).map_err(|e| e.to_string())?;
-    tauri::async_runtime::spawn_blocking(move || open(request.action, &target))
-        .await
-        .map_err(|e| e.to_string())?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || open(request.action, &target))
+            .await
+            .map_err(|e| e.to_string())?,
+    )
 }
 
 #[cfg(test)]
@@ -237,6 +239,7 @@ mod tests {
         let app = test_app_with_commands(None);
         let main = window(&app, crate::windows::MAIN);
         let dir = TempDir::new("open-source-file");
+        crate::paths::allow_under(app.handle(), crate::windows::MAIN, &dir.0);
         let folder = dir.0.clone();
         let archives = samples().join("archives").join("notify01");
         for f in ["app.log.3.gz", "notify01-logs-20261014.zip"] {
@@ -257,7 +260,7 @@ mod tests {
                 .clone()
         };
         let open = |w: &tauri::WebviewWindow<tauri::test::MockRuntime>, body| ipc(w, "open_source_file", json!({ "request": body }));
-        let err = |r: Result<serde_json::Value, serde_json::Value>| r.unwrap_err().as_str().unwrap_or_default().to_string();
+        let err = |r: Result<serde_json::Value, serde_json::Value>| r.unwrap_err()["message"].as_str().unwrap_or_default().to_string();
 
         let text = by_kind("text");
         assert_eq!(
@@ -282,7 +285,7 @@ mod tests {
 
         assert!(err(open(&main, json!({ "sourceId": 999, "action": "open" }))).contains("no longer open"));
         // Another window has its own sources: the ids of this one mean nothing there.
-        let other = window(&app, "w2");
+        let other = window(&app, "w-2");
         assert!(err(open(&other, json!({ "sourceId": text, "action": "open" }))).contains("no longer open"));
         // A removed source is no longer reachable.
         ipc(&main, "remove_source", json!({ "sourceId": text })).unwrap();

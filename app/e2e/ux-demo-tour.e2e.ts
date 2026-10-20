@@ -60,7 +60,8 @@ test.describe('demo and guided tour', () => {
     await closeWorkspace(page);
     await page.locator('imt-welcome').getByRole('button', { name: 'Try a demo' }).click();
     await expect(page.locator('imt-status-bar')).toContainText('events');
-    await expect(page.locator('imt-overview-view')).toBeVisible();
+    // The Focused layout shows the health check's headline instead of opening the Overview.
+    await expect(page.getByRole('toolbar', { name: 'Health check' })).toBeVisible();
     await expect(tour(page)).toHaveCount(0);
     // Skip by button too.
     await chooseMenu(page, 'Help', 'Take the tour');

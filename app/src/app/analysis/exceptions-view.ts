@@ -23,7 +23,7 @@ import { CoverageNote } from './coverage-note';
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
     <imt-coverage-note [query]="targets.query()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.data() ?? []; track g.fingerprint) {
           <li class="group">
@@ -62,7 +62,7 @@ import { CoverageNote } from './coverage-note';
       .list.body { padding: 0; }
       .count { width: 48px; flex: none; color: var(--text); }
       .type { flex: none; color: var(--danger-text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-      .frame { max-width: 320px; flex: none; font-size: 11px; }
+      .frame { max-width: 320px; flex: none; font-size: var(--fs-xs); }
       .group { border-bottom: 1px solid var(--border); }
       .head { border-bottom: 0; }
       .detail { padding: 0 12px 10px 38px; }

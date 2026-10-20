@@ -214,7 +214,7 @@ fn record_in_chat(
             (fresh, t)
         }
     };
-    let mut s = turn.session.lock().unwrap_or_else(|p| p.into_inner());
+    let mut s = crate::sync::lock(&turn.session);
     s.record_answer(&format!("Research: {question}"), &report.answer, report.sources(), &mut |e| {
         chats.push_event(&sid, e);
         emit(&sid, e);
@@ -235,7 +235,16 @@ pub(crate) fn start<R: Runtime>(
     let spec = spec(win.label(), &req, session.as_deref());
     let (a, w) = (app.clone(), win.clone());
     let emit = crate::ai::commands::chat_emitter(app, win.label());
-    jobs::spawn(app, spec, Controls::default(), move |ctx: &JobCtx| -> AiResult<Done<()>> {
+    // Cancel (Jobs are the one cancel authority) also clears the window's "AI is browsing" banner at once;
+    // the job ends when it next looks at its cancel flag.
+    let (h, owner) = (app.clone(), win.label().to_string());
+    let controls = Controls::cancel(move || {
+        if let Some(hub) = h.try_state::<super::BrowserState>() {
+            hub.stop_research(&owner);
+        }
+        super::driving::refresh(&h, &owner);
+    });
+    jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
         let report = run_research(&a, w.label(), &req, ctx)?;
         let sid = record_in_chat(&w, &emit, session.as_deref(), &req.question, &report)?;
         Ok(Done::new(()).with_result(JobResult::Chat { session_id: sid }))
@@ -340,19 +349,6 @@ pub async fn ai_research<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, args
     })
     .await
     .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the research did not start ({e})")))?
-}
-
-/// The Web panel's Stop while research reads pages: cancels the window's research jobs. Returns how many.
-#[tauri::command]
-pub fn browser_research_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
-    let jobs = app.try_state::<jobs::Jobs>().ok_or("IMT is not ready yet")?;
-    // The banner clears at once; the jobs end when they next look at Cancel.
-    if let Some(hub) = app.try_state::<super::BrowserState>() {
-        hub.stop_research(win.label());
-    }
-    super::driving::refresh(&app, win.label());
-    let ids = jobs.find_active(|j| j.kind == JobKind::Research && j.window() == Some(win.label()));
-    Ok(ids.into_iter().filter(|id| jobs.cancel(*id).is_ok()).count())
 }
 
 /// Retry of a research job.

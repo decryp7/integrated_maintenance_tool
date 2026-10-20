@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injector, input, output, signal, viewChild } from '@angular/core';
+import { ActiveDescendantNavigation } from '../shared/list-navigation';
 import { Completion, QlError } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { applyCompletion, applySuggestion, charToByte } from '../analysis/ql-text';
@@ -56,10 +57,10 @@ let nextId = 1;
     .wrap { position: relative; }
     .input { width: 100%; box-sizing: border-box; }
     .popup { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 4px 0; list-style: none; max-height: 200px; overflow: auto; background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 6px; box-shadow: var(--shadow); }
-    .popup li { display: flex; gap: 8px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+    .popup li { display: flex; gap: 8px; padding: 3px 10px; cursor: pointer; font-size: var(--fs-sm); }
     .popup li.active, .popup li:hover { background: var(--bg-active); }
-    .kind { color: var(--muted); width: 64px; flex: none; font-size: 11px; }
-    .err { margin-top: 3px; font-size: 11px; color: var(--danger-text); }
+    .kind { color: var(--muted); width: 64px; flex: none; font-size: var(--fs-xs); }
+    .err { margin-top: 3px; font-size: var(--fs-xs); color: var(--danger-text); }
   `,
 })
 export class QlInput {
@@ -71,7 +72,9 @@ export class QlInput {
   private readonly el = viewChild.required<ElementRef<HTMLInputElement>>('input');
   protected readonly completions = signal<Completion[]>([]);
   protected readonly error = signal<QlError | null>(null);
-  protected readonly active = signal(0);
+  /** The highlighted completion (CDK ActiveDescendantKeyManager; focus stays in the input). */
+  private readonly nav = new ActiveDescendantNavigation(computed(() => this.completions().length), inject(Injector), { wrap: true, selectFirst: true });
+  protected readonly active = this.nav.active;
   private readonly dismissed = signal(true);
   protected readonly open = computed(() => !this.dismissed() && this.completions().length > 0);
   protected readonly completionsLabel = computed(() => $localize`:@@live.qlInput.completions:${this.label()}:label: completions`);
@@ -102,12 +105,8 @@ export class QlInput {
       e.preventDefault();
       this.dismissed.set(false);
       void this.check();
-    } else if (open && e.key === 'ArrowDown') {
+    } else if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && this.nav.handle(e)) {
       e.preventDefault();
-      this.active.set((this.active() + 1) % list.length);
-    } else if (open && e.key === 'ArrowUp') {
-      e.preventDefault();
-      this.active.set((this.active() - 1 + list.length) % list.length);
     } else if (open && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
       const chosen = list[Math.min(this.active(), list.length - 1)];
@@ -124,7 +123,7 @@ export class QlInput {
     const next = applyCompletion(el.value, el.selectionStart ?? el.value.length, c.insert);
     el.value = next.text;
     el.setSelectionRange(next.cursor, next.cursor);
-    this.active.set(0);
+    this.nav.setActive(0);
     this.valueChange.emit(next.text);
     this.schedule();
   }
@@ -159,7 +158,7 @@ export class QlInput {
       if (mine !== this.seq) return;
       this.error.set(error);
       this.completions.set(completions.slice(0, 50));
-      this.active.set(0);
+      this.nav.setActive(0);
     } catch {
       if (mine === this.seq) this.completions.set([]);
     }

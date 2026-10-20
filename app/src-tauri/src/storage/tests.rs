@@ -96,7 +96,7 @@ fn one_clear_runs_at_a_time_as_a_maintenance_job() {
 fn commands_validate_what_the_ui_sends() {
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
-    let err = |v: Result<serde_json::Value, serde_json::Value>| v.unwrap_err().as_str().unwrap_or_default().to_string();
+    let err = |v: Result<serde_json::Value, serde_json::Value>| v.unwrap_err()["message"].as_str().unwrap_or_default().to_string();
     assert!(err(ipc(&main, "storage_clear", json!({ "ids": [] }))).contains("choose what to clear"));
     assert!(err(ipc(&main, "storage_clear", json!({ "ids": ["../../etc"] }))).contains("unknown storage category"));
     assert!(ipc(&main, "storage_clear", json!({ "ids": "logs" })).is_err());

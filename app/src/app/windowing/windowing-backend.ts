@@ -15,7 +15,6 @@ import {
   OPEN_ASK_EVENT,
   OpenAsk,
   OpenChoice,
-  RecentProjectEntry,
   WindowInfo,
   WINDOWS_CHANGED_EVENT,
 } from './windowing.types';
@@ -39,6 +38,8 @@ export abstract class WindowingBackend {
   abstract newWindow(): Promise<WindowInfo>;
   /** Asks to close this window; the shell applies the "on close" setting (and may emit close-requested). */
   abstract closeWindow(): Promise<void>;
+  /** Quits IMT: every window closes (File ▸ Exit, IMT ▸ Quit IMT). */
+  abstract quitApp(): Promise<void>;
   abstract listWindows(): Promise<WindowInfo[]>;
   abstract focusWindow(label: string): Promise<void>;
   abstract setWindowTitle(title: string): Promise<void>;
@@ -49,8 +50,6 @@ export abstract class WindowingBackend {
   abstract resolveOpen(choice: OpenChoice): Promise<void>;
   abstract backgroundTasks(): Promise<BackgroundTask[]>;
   abstract stopBackgroundTask(id: string): Promise<void>;
-  /** Feeds the tray's "Recent projects" menu (at most 10). */
-  abstract setRecentProjects(projects: RecentProjectEntry[]): Promise<void>;
   abstract onCloseRequested(handler: () => void): Promise<Unlisten>;
   abstract onOpenAsk(handler: (ask: OpenAsk) => void): Promise<Unlisten>;
   abstract onCapture(handler: () => void): Promise<Unlisten>;
@@ -78,6 +77,9 @@ export class TauriWindowingBackend extends WindowingBackend {
   closeWindow() {
     return this.call<void>('close_window');
   }
+  quitApp() {
+    return this.call<void>('quit_app');
+  }
   async listWindows() {
     return parseWindows(await this.call<unknown>('list_windows'));
   }
@@ -101,9 +103,6 @@ export class TauriWindowingBackend extends WindowingBackend {
   }
   stopBackgroundTask(id: string) {
     return this.call<void>('stop_background_task', { id });
-  }
-  setRecentProjects(projects: RecentProjectEntry[]) {
-    return this.call<void>('set_recent_projects', { projects });
   }
   onCloseRequested(handler: () => void) {
     return this.listen(CLOSE_REQUESTED_EVENT, () => handler());

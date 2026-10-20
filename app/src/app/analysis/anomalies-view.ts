@@ -24,9 +24,9 @@ import { TimeCursor } from './time-cursor';
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.anomalies.refresh">Refresh</button>
     </div>
     <imt-coverage-note [query]="targets.query()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Anomalies" i18n-aria-label="@@analysis.anomalies.listLabel">
-        @for (a of res.data() ?? []; track $index) {
+        @for (a of res.data() ?? []; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
           <li>
             <button class="row" type="button" (click)="open(a)" (mouseenter)="cursor.hover(a.from)" (focus)="cursor.hover(a.from)" (mouseleave)="cursor.hover(null)" (blur)="cursor.hover(null)">
               <span class="kind" aria-hidden="true">{{ icon(a.kind) }}</span>

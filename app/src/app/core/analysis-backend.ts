@@ -12,11 +12,19 @@ import {
   QlQuery,
   QueryOutcome,
   QueryProgress,
+  QueryStreamEvent,
   RequestSpan,
   StreamedQueryOutcome,
   TracesResult,
 } from './api.types';
 import { ChannelFactory, tauriChannel } from './tauri-channel';
+import { cancelJob } from '../jobs/job-cancel';
+
+/** A streamed run: its job once known, and whether a cancel was asked for. */
+interface StreamRun {
+  job: number | null;
+  cancelled: boolean;
+}
 
 /**
  * Everything the analysis views ask the engine. Injected as a class token (see
@@ -67,12 +75,37 @@ export class TauriAnalysisBackend extends AnalysisBackend {
     super();
   }
 
-  override runQueryStreaming(query: QlQuery, queryId: string, onProgress: (p: QueryProgress) => void) {
-    return this.call<StreamedQueryOutcome>('run_query_stream', { request: { query }, queryId, onProgress: this.channel(onProgress) });
+  /**
+   * The run is a job: its id is the channel's first event, and `cancelQuery` cancels that job (Jobs are
+   * the one cancel authority). A cancel that comes before the id is applied when the id arrives.
+   */
+  override async runQueryStreaming(query: QlQuery, queryId: string, onProgress: (p: QueryProgress) => void) {
+    const run: StreamRun = { job: null, cancelled: false };
+    this.runs.set(queryId, run);
+    const onEvent = (e: QueryStreamEvent) => {
+      if (e.kind === 'started') {
+        run.job = e.jobId;
+        if (run.cancelled) void cancelJob(this.call, e.jobId).catch(() => undefined);
+      } else {
+        const { kind: _kind, ...progress } = e;
+        onProgress(progress);
+      }
+    };
+    try {
+      return await this.call<StreamedQueryOutcome>('run_query_stream', { request: { query }, onProgress: this.channel(onEvent) });
+    } finally {
+      this.runs.delete(queryId);
+    }
   }
-  override cancelQuery(queryId: string) {
-    return this.call<boolean>('cancel_query', { queryId });
+  override async cancelQuery(queryId: string) {
+    const run = this.runs.get(queryId);
+    if (!run) return false;
+    run.cancelled = true;
+    if (run.job !== null) await cancelJob(this.call, run.job);
+    return true;
   }
+  /** The streamed runs in flight, by the UI's query id. */
+  private readonly runs = new Map<string, StreamRun>();
 
   runQuery(query: QlQuery) {
     return this.call<QueryOutcome>('run_query', { request: { query } });

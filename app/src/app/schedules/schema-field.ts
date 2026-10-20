@@ -65,10 +65,10 @@ let nextId = 0;
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 3px; min-width: 160px; flex: 1; }
-    .lbl { font-size: 11px; color: var(--muted); }
+    .lbl { font-size: var(--fs-xs); color: var(--muted); }
     .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); margin-top: 16px; }
-    .help { font-size: 11px; color: var(--muted); }
-    .problem { font-size: 11px; color: var(--danger-text); }
+    .help { font-size: var(--fs-xs); color: var(--muted); }
+    .problem { font-size: var(--fs-xs); color: var(--danger-text); }
     textarea { resize: vertical; }
   `,
 })

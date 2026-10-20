@@ -475,3 +475,16 @@ fn entries_serialise_for_the_ui() {
         json!({ "state": "available" })
     );
 }
+
+#[test]
+fn failures_keep_the_reason_a_tool_or_the_os_gave() {
+    let denied = anyhow::Error::new(ToolFailure::denied("run IMT elevated")).context("logman create");
+    assert_eq!(failed(denied), ToolError::Denied("logman create: run IMT elevated".into()));
+    let missing = anyhow::Error::new(ToolFailure::missing("wevtutil is not installed"));
+    assert_eq!(failed(missing), ToolError::Missing("wevtutil is not installed".into()));
+    let os = anyhow::Error::new(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "no"));
+    assert!(matches!(failed(os), ToolError::Denied(_)));
+    assert_eq!(failed(anyhow::anyhow!("boom")), ToolError::Failed("boom".into()));
+    assert_eq!(ToolError::Missing("m".into()).to_string(), "m");
+    assert_eq!(ToolFailure::denied("d").to_string(), "d");
+}

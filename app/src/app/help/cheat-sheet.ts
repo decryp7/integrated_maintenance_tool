@@ -37,13 +37,13 @@ export const PRINT_CLASS = 'imt-print-cheat-sheet';
     imt-cheat-sheet { display: flex; flex-direction: column; gap: 10px; }
     imt-cheat-sheet .cs-bar { display: flex; gap: 8px; }
     imt-cheat-sheet .cs-search { flex: 1; }
-    imt-cheat-sheet .cs-count { margin: 0; font-size: 11px; color: var(--muted); }
-    imt-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    imt-cheat-sheet .cs-count { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+    imt-cheat-sheet .cs-group h3 { margin: 6px 0 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
     imt-cheat-sheet dl { margin: 0; display: grid; gap: 2px; }
     imt-cheat-sheet .cs-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--border); }
     imt-cheat-sheet dt, imt-cheat-sheet dd { margin: 0; }
     imt-cheat-sheet dd { color: var(--text-2); }
-    imt-cheat-sheet kbd { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-3); background: var(--bg-3); color: var(--text); }
+    imt-cheat-sheet kbd { font-family: var(--font-mono); font-size: var(--fs-sm); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-3); background: var(--bg-3); color: var(--text); }
     imt-cheat-sheet .cs-none { color: var(--muted); }
     @media print {
       body.${PRINT_CLASS} * { visibility: hidden !important; }

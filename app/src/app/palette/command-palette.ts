@@ -7,6 +7,7 @@ import { formatKeybinding } from '../extensions/keybinding';
 import { ImtCommand } from '../extensions/tokens';
 import { PaletteService } from './palette.service';
 import { didYouMean } from './did-you-mean';
+import { ActiveDescendantNavigation } from '../shared/list-navigation';
 
 let nextId = 0;
 
@@ -45,7 +46,7 @@ let nextId = 0;
               [id]="optionId(i)"
               [class.active]="i === index()"
               [attr.aria-selected]="i === index()"
-              (mousemove)="index.set(i)"
+              (mousemove)="nav.setActive(i)"
               (click)="run(c)"
             >
               @if (c.category) { <span class="cat">{{ c.category }}</span> }
@@ -60,15 +61,15 @@ let nextId = 0;
     }
   `,
   styles: `
-    .backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.35); }
+    .backdrop { position: fixed; inset: 0; z-index: 200; background: var(--scrim); }
     .box { position: fixed; z-index: 201; top: 72px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); }
     .input { height: 32px; }
     .list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; display: flex; flex-direction: column; }
     .opt { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 10px; border-radius: 6px; color: var(--text-2); cursor: pointer; }
     .opt.active { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
-    .cat { color: var(--muted); font-size: 12px; }
+    .cat { color: var(--muted); font-size: var(--fs-sm); }
     .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .kbd { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+    .kbd { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); }
     .none { padding: 10px; color: var(--muted); }
   `,
 })
@@ -81,7 +82,6 @@ export class CommandPalette {
 
   protected readonly listId = `imt-palette-list-${nextId++}`;
   protected readonly query = signal('');
-  protected readonly index = signal(0);
   /** Listing only the views (View ▸ Other windows…), each shown as an entry that opens it. */
   protected readonly views = computed(() => this.palette.mode() === 'views');
   private readonly viewEntries = computed<ImtCommand[]>(() =>
@@ -114,6 +114,9 @@ export class CommandPalette {
   );
   /** What the list shows and the keyboard moves through: the matches, else the suggestions. */
   protected readonly options = computed(() => (this.results().length ? this.results() : this.suggestions()));
+  /** The highlighted option (CDK ActiveDescendantKeyManager; focus stays in the input). */
+  protected readonly nav = new ActiveDescendantNavigation(computed(() => this.options().length), this.injector, { wrap: true, selectFirst: true });
+  protected readonly index = this.nav.active;
   protected readonly activeId = computed(() => (this.options().length ? this.optionId(this.index()) : null));
   private returnFocus: HTMLElement | null = null;
 
@@ -127,7 +130,7 @@ export class CommandPalette {
         untracked(() => {
           if (!wasOpen) this.returnFocus = document.activeElement as HTMLElement | null;
           this.query.set('');
-          this.index.set(0);
+          this.nav.setActive(0);
         });
         afterNextRender(() => this.input()?.nativeElement.focus(), { injector: this.injector });
       }
@@ -145,19 +148,15 @@ export class CommandPalette {
 
   protected onInput(value: string): void {
     this.query.set(value);
-    this.index.set(0);
+    this.nav.setActive(0);
   }
 
   protected onKey(e: KeyboardEvent): void {
-    const n = this.options().length;
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault();
-        if (n) this.index.set((this.index() + 1) % n);
-        break;
       case 'ArrowUp':
         e.preventDefault();
-        if (n) this.index.set((this.index() - 1 + n) % n);
+        this.nav.handle(e);
         break;
       case 'Enter': {
         e.preventDefault();

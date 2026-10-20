@@ -4,6 +4,7 @@ Reference for everyday use: which files IMT reads, how to write a profile, the q
 internal web browser, the keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
 first walk-through, see the two-minute tour in the [README](../README.md#quick-start).
 
+- [First run and layout](#first-run-and-layout)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
 - [Query language](#query-language)
@@ -11,6 +12,51 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
+
+## First run and layout
+
+With nothing open, IMT shows the welcome page: **Open folder…**, **Open files…** or **Try a demo** (or drop
+files anywhere). After opening data you get the **Focused** layout: the timeline over the events grid, with
+the inspector sliding out from the right when you select an event.
+
+- **Filter bar** (one row): search (`.*` regex, `Aa` match case), level chips, the time range (click to
+  reset a zoom), UTC/local, *+ Add filter*, *Clear all* and **View options** with *Group by*, *Marked only*
+  and *Always show start / stop*.
+- **Timeline header**: the health check's headline, e.g. "⚠ 2 crashes · 287 errors · 1 went silent —
+  Review". *N crashes* jumps to the next crash, *N errors* shows the errors and fatal events, *N went silent*
+  shows the next silence, *Review* opens the Overview. The line is hidden when nothing is notable.
+- **Legend**: only the marker kinds that occur in the data, on one line; *+N more* shows the rest.
+- **Query bar**: `Ctrl/⌘+/` (or *Analyze ▸ Focus query bar*) opens it above the events grid.
+- **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).
+- **Set up analysis…** for a folder of several files is offered in Notifications (the bell).
+
+*View ▸ Layout ▸ Full* restores the richer default (the query bar in the default layout and the Overview
+opening after every import). The choice applies to new layouts (*Reset layout*); layouts you saved are kept.
+
+## Appearance
+
+**Settings ▸ Appearance** (`Ctrl/⌘+,`, or the palette command *Open settings: Appearance*) sets how IMT looks.
+Everything applies at once, in every window, and is kept for your user (not in projects):
+
+| Setting | Choices | Also in |
+|---|---|---|
+| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* |
+| **Colour scheme** | *System* (default, follows the operating system), *Light*, *Dark* | *View ▸ Theme*; palette *Colour scheme: …* |
+| **Density** | *Comfortable* (default) or *Compact* rows and timeline lanes | |
+| **Timeline ▸ Colour lanes by source** | on: each lane's volume in its source colour; off: neutral grey. Each theme has a default; *Use the theme's default* returns to it | |
+| **Source colours** | by file (default), by instance, off | *View ▸ Source colours* |
+
+What changes with the theme on the timeline:
+
+- **Runs** are a thin line in the lane's colour (Calm) or a labelled pill (Console). Runs that overlap on one lane,
+  such as several views open at the same time, sit on their own sub-tracks below the lane's markers, each labelled
+  with what it is; the lane grows by one thin row per sub-track.
+- **Crashes** get a dashed rule across the lanes (Calm), or a soft band and a halo (Console).
+- **Brushing** a range shows the range and its length in a floating pill in Console.
+- **Findings** in the timeline header are a sentence (Calm) or chips (Console).
+
+Markers differ by shape in every theme, so colour is never the only cue. With *reduce motion* set in the operating
+system, IMT shows no transitions.
 
 ## Supported inputs
 

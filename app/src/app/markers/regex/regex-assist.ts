@@ -45,8 +45,8 @@ export function splitByBytes(pattern: string, start: number, end: number): [stri
   `,
   styles: `
     :host { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-    .small { font-size: 11px; padding: 1px 8px; }
-    .panel { align-self: stretch; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: 12px; max-height: 220px; overflow: auto; }
+    .small { font-size: var(--fs-xs); padding: 1px 8px; }
+    .panel { align-self: stretch; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: var(--fs-sm); max-height: 220px; overflow: auto; }
     .pat { word-break: break-all; margin-bottom: 6px; }
     mark { background: var(--accent-soft); color: var(--chip-text); border-radius: 2px; }
     .outline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }

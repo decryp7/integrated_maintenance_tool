@@ -73,9 +73,9 @@ export function layoutSpans(spans: readonly ProfileSpan[], view: { from: number;
     :host { position: absolute; inset: 0; pointer-events: none; }
     .band { position: absolute; top: 50px; bottom: 0; min-width: 2px; background: color-mix(in srgb, var(--s4) 12%, transparent); border-left: 1px dashed var(--s4); border-right: 1px dashed var(--s4); }
     .band.heap { background: none; border-right: 0; }
-    .chip { pointer-events: auto; position: absolute; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 3px; border: 1px solid var(--s4); background: var(--bg-3); color: var(--text); cursor: pointer; z-index: 2; }
+    .chip { pointer-events: auto; position: absolute; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-size: var(--fs-2xs); line-height: 14px; padding: 0 5px; border-radius: 3px; border: 1px solid var(--s4); background: var(--bg-3); color: var(--text); cursor: pointer; z-index: 2; }
     .chip:hover { background: var(--bg-hover); }
-    .chip:focus-visible { outline: 2px solid var(--accent); }
+    .chip:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })
 export class ProfileSpanTrack {

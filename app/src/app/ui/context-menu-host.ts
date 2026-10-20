@@ -25,10 +25,10 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
     .menu { position: fixed; z-index: 221; min-width: 240px; padding: 4px; display: flex; flex-direction: column; }
     .item { height: 28px; display: flex; align-items: center; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: start; white-space: nowrap; }
     .item:hover:not(:disabled), .item:focus { background: var(--bg-hover); color: var(--text); outline: none; }
-    .item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .item:disabled { color: var(--faint); cursor: default; }
     .item.hinted { height: auto; min-height: 28px; padding: 4px 10px; flex-direction: column; align-items: flex-start; justify-content: center; white-space: normal; max-width: 360px; }
-    .hint { font-size: 11px; color: var(--faint); }
+    .hint { font-size: var(--fs-xs); color: var(--faint); }
   `,
 })
 export class ContextMenuHost {

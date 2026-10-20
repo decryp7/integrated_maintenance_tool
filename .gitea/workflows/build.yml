@@ -181,7 +181,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/build-sidecars.test.mjs scripts/commit-lint.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/app-icon.test.mjs app/scripts/lint-styles.test.mjs scripts/commit-lint.test.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
 
@@ -599,6 +599,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+          # Installers use the size-optimised `dist` profile (thin LTO, one codegen unit, stripped); the sidecars match.
+          IMT_CARGO_PROFILE: dist
         run: |
           npm ci
           bundles='${{ matrix.bundles }}'
@@ -607,11 +609,11 @@ jobs:
             if [ "$RUNNER_OS" = macOS ]; then bundles="app,$bundles"; fi
             mkdir -p ../target
             node -e 'process.stdout.write(JSON.stringify({ bundle: { createUpdaterArtifacts: true }, plugins: { updater: { pubkey: process.env.TAURI_UPDATER_PUBKEY } } }))' > ../target/updater.conf.json
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json -- --profile dist
           else
             echo '::warning::No updater signing secrets: this build cannot update itself.'
             unset TAURI_UPDATER_PUBKEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json -- --profile dist
           fi
 
       - name: Collect installers
@@ -621,7 +623,7 @@ jobs:
           dir="${CARGO_TARGET_DIR:-target}"
           # Git bash on Windows: turn C:\... into a path find understands.
           if command -v cygpath >/dev/null; then dir="$(cygpath -u "$dir")"; fi
-          find "$dir/release/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
+          find "$dir/dist/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
           ls -la dist
 
       # Gitea Actions supports upload/download-artifact v3.

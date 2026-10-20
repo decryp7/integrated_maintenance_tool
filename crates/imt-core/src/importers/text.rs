@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 
 pub struct TextImporter;
 
-const SNIFF_LINES: usize = 200;
+pub(crate) const SNIFF_LINES: usize = 200;
 /// Most text one event collects from continuation lines; the next line starts a new event.
 pub const MAX_EVENT_BYTES: usize = 1 << 20;
 /// Most continuation lines one event collects; the next line starts a new event.
@@ -166,7 +166,7 @@ fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Impo
 
 /// Index of the format matching the most of the first lines, earlier formats
 /// winning ties.
-fn best_format(formats: &[TextFormat], text: &str) -> Option<usize> {
+pub(crate) fn best_format(formats: &[TextFormat], text: &str) -> Option<usize> {
     let lines: Vec<&str> = first_lines(text, SNIFF_LINES).collect();
     let mut best: Option<(usize, usize)> = None;
     for (i, f) in formats.iter().enumerate() {
@@ -178,7 +178,7 @@ fn best_format(formats: &[TextFormat], text: &str) -> Option<usize> {
     best.map(|(i, _)| i)
 }
 
-fn finish(mut rec: Record, extra: String) -> Record {
+pub(crate) fn finish(mut rec: Record, extra: String) -> Record {
     if extra.trim().is_empty() {
         return rec;
     }
@@ -195,7 +195,7 @@ fn finish(mut rec: Record, extra: String) -> Record {
 
 /// `{Message:lj} {Properties:j}` renders a JSON object after the message;
 /// lift it into fields.
-fn split_trailing_properties(message: &mut String, fields: &mut Map<String, Value>) {
+pub(crate) fn split_trailing_properties(message: &mut String, fields: &mut Map<String, Value>) {
     if !message.ends_with('}') {
         return;
     }

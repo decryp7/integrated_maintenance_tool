@@ -87,6 +87,7 @@ impl<R: Runtime> UpdateEffects for TauriEffects<R> {
                         }
                     })),
                 )
+                .map(|_| ())
             }
             UpdateKind::Model => start_model_update(&self.app, u.clone()),
         }
@@ -184,7 +185,7 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> AiResult<T> + Send + 's
 }
 
 #[tauri::command]
-pub fn ai_updates_status<R: Runtime>(app: AppHandle<R>) -> AiResult<AiUpdatesStatus> {
+pub async fn ai_updates_status<R: Runtime>(app: AppHandle<R>) -> AiResult<AiUpdatesStatus> {
     Ok(updates(&app)?.status())
 }
 
@@ -209,18 +210,18 @@ pub async fn ai_updates_check<R: Runtime>(app: AppHandle<R>, kind: Option<String
 
 /// "Update": installs the update now as a download job.
 #[tauri::command]
-pub fn ai_updates_apply<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
+pub async fn ai_updates_apply<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
     updates(&app)?.apply(check_key(&key)?)
 }
 
 /// "Skip this version".
 #[tauri::command]
-pub fn ai_updates_skip<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
+pub async fn ai_updates_skip<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
     updates(&app)?.skip(check_key(&key)?)
 }
 
 /// "Later": asked again at the next check.
 #[tauri::command]
-pub fn ai_updates_later<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
+pub async fn ai_updates_later<R: Runtime>(app: AppHandle<R>, key: String) -> AiResult<AiUpdatesStatus> {
     updates(&app)?.later(check_key(&key)?)
 }

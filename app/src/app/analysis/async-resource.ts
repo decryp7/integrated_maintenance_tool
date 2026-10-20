@@ -1,9 +1,8 @@
 import { signal } from '@angular/core';
+import { failureText, isRetryable } from '../core/cmd-error';
 
 export function errorText(e: unknown): string {
-  if (typeof e === 'string') return e;
-  if (e instanceof Error) return e.message;
-  return JSON.stringify(e);
+  return failureText(e);
 }
 
 /**
@@ -14,6 +13,8 @@ export class AsyncResource<T> {
   readonly data = signal<T | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  /** Whether the last failure may pass on Retry (the engine says so). */
+  readonly retryable = signal(true);
   private seq = 0;
   private last: (() => Promise<T>) | null = null;
 
@@ -26,7 +27,10 @@ export class AsyncResource<T> {
       const value = await fn();
       if (mine === this.seq) this.data.set(value);
     } catch (e) {
-      if (mine === this.seq) this.error.set(errorText(e));
+      if (mine === this.seq) {
+        this.error.set(errorText(e));
+        this.retryable.set(isRetryable(e));
+      }
     } finally {
       if (mine === this.seq) this.loading.set(false);
     }

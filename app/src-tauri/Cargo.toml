@@ -63,6 +63,8 @@ sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
 
 [dev-dependencies]
+# TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
+ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.
 updater-base64 = { package = "base64", version = "0.22" }
 tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png"] }

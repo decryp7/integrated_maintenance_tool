@@ -7,17 +7,26 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { AdhocCharts } from '../metrics/adhoc-charts';
 import { Icon } from '../shared/icon';
 import { FacetPopover } from './facet-popover';
+import { SidebarSections } from '../shell/sidebar-sections';
 
 /** The workspace's fields with coverage and distinct counts; a field opens its facet popover or its statistics. */
 @Component({
   selector: 'imt-fields-panel',
+  host: { '[class.open]': 'sections.fieldsOpen()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, FacetPopover],
   template: `
     <div class="head">
-      <span class="section-title" i18n="@@workspace.fields.title">Fields</span>
-      <span class="faint small" i18n="@@workspace.fields.legend">coverage · distinct</span>
+      <button type="button" class="toggle" data-testid="fields-toggle" aria-controls="imt-fields-body" [attr.aria-expanded]="sections.fieldsOpen()" (click)="sections.setFieldsOpen(!sections.fieldsOpen())">
+        <imt-icon [name]="sections.fieldsOpen() ? 'chevronDown' : 'chevronRight'" [size]="12" />
+        <span class="section-title" i18n="@@workspace.fields.title">Fields</span>
+      </button>
+      @if (sections.fieldsOpen()) {
+        <span class="faint small" i18n="@@workspace.fields.legend">coverage · distinct</span>
+      }
     </div>
+    @if (sections.fieldsOpen()) {
+    <div class="body" id="imt-fields-body">
     <input class="input filter" placeholder="Filter fields" i18n-placeholder="@@workspace.fields.filterPlaceholder" aria-label="Filter fields" i18n-aria-label="@@workspace.fields.filter" [value]="fieldFilter()" (input)="fieldFilter.set($any($event.target).value)" />
     <div class="fields">
       @for (f of fields(); track f.name) {
@@ -35,6 +44,8 @@ import { FacetPopover } from './facet-popover';
         </div>
       }
     </div>
+    </div>
+    }
     @if (facetPos(); as pos) {
       <imt-facet-popover
         [field]="pos.field"
@@ -50,26 +61,32 @@ import { FacetPopover } from './facet-popover';
     }
   `,
   styles: `
-    :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    :host { min-height: 0; display: flex; flex-direction: column; }
+    :host(.open) { flex: 1; }
+    .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .toggle { display: flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+    .toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
     .head { height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .filter { margin: 0 8px 6px; flex: none; }
     .fields { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 8px; }
     .field-wrap { position: relative; display: flex; align-items: center; border-radius: 5px; }
     .field-wrap:hover { background: var(--bg-hover); }
     .field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; text-align: left; color: var(--text-2); }
     .field.grouped { background: var(--bg-active); }
-    .gmark { width: 12px; color: var(--accent); font-size: 11px; }
-    .fname { flex: 1; min-width: 0; font-size: 12px; }
+    .gmark { width: 12px; color: var(--accent-text); font-size: var(--fs-xs); }
+    .fname { flex: 1; min-width: 0; font-size: var(--fs-sm); }
     .cov { width: 40px; height: 4px; border-radius: 2px; background: var(--border-2); overflow: hidden; flex: none; }
     .cov span { display: block; height: 4px; background: var(--faint); border-radius: 2px; }
-    .distinct { width: 34px; text-align: right; font-size: 11px; }
+    .distinct { width: 34px; text-align: right; font-size: var(--fs-xs); }
     .stats { width: 20px; height: 20px; flex: none; visibility: hidden; }
     .field-wrap:hover .stats, .stats:focus-visible, .field:focus-visible + .stats { visibility: visible; }
   `,
 })
 export class FieldsPanel {
   protected readonly store = inject(WorkspaceStore);
+  /** The section starts collapsed and remembers the choice. */
+  protected readonly sections = inject(SidebarSections);
   private readonly adhocCharts = inject(AdhocCharts);
   private readonly targets = inject(AnalysisTargets);
   private readonly commands = inject(COMMAND_CONTEXT);

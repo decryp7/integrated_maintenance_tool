@@ -16,6 +16,8 @@ csv.workspace = true
 flate2.workspace = true
 getrandom.workspace = true
 globset.workspace = true
+# The event batch (ADR 0014 §3), re-exported as `imt_core::batch`.
+imt-batch = { path = "../imt-batch", features = ["serde"] }
 # Logging facade only: guard events (contained crashes, quarantines, abandoned calls) reach the app's log.
 log = { workspace = true, features = ["kv"] }
 quick-xml.workspace = true

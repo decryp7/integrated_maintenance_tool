@@ -27,19 +27,16 @@
 //! A crashed separate instance is therefore not offered for recovery.
 
 use crate::windows::{CurrentWindow, Windows, MAIN};
-use crate::{err, AppState, CmdResult, State};
+use crate::{err, CmdResult, State};
 use imt_core::project::ProjectFile;
-use imt_core::{Plugin, PluginRegistry};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 /// Command-line flag that starts IMT with built-in importers only and the default profile.
 pub const SAFE_MODE_FLAG: &str = "--safe-mode";
 const MARKER: &str = "running.marker";
-const PLUGINS_FILE: &str = "plugins.json";
 /// File name of an autosaved session (the UI recognises sessions by it).
 const SESSION_FILE: &str = "last-session.imtproj";
 const SESSIONS_DIR: &str = "sessions";
@@ -450,88 +447,6 @@ impl SessionStore {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PluginSettings {
-    #[serde(default)]
-    pub disabled: Vec<String>,
-}
-
-pub fn load_plugin_settings(dir: Option<&Path>) -> PluginSettings {
-    dir.and_then(|d| std::fs::read_to_string(d.join(PLUGINS_FILE)).ok())
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_default()
-}
-
-fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Result<()> {
-    std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(PLUGINS_FILE), serde_json::to_string_pretty(s)?)?;
-    Ok(())
-}
-
-/// Every compiled-in plugin. Add new plugins here; install order does not
-/// matter (activation follows the dependency graph).
-pub fn builtin_plugins() -> Vec<Arc<dyn Plugin>> {
-    // One list for the app and the `imt-plugin-host` binary that runs them isolated.
-    imt_plugin_host::builtins::all()
-}
-
-/// The engine's plugins: none in safe mode, else every compiled-in plugin
-/// except those the user disabled, resolved (dependencies checked, activation
-/// hooks run in dependency order).
-// The app installs `plugins_with` (it shares the tools plugin); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins(safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    plugins_with(safe_mode, disabled, &[])
-}
-
-/// [`plugins`] plus `shared`: plugins whose state is app-wide, so one value
-/// is installed in every window's registry (the tools plugin, see `AppState`).
-// The app installs `plugins_from` (isolated plugins replaced by their process); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins_with(safe_mode: bool, disabled: &[String], shared: &[Arc<dyn Plugin>]) -> anyhow::Result<PluginRegistry> {
-    plugins_from(safe_mode, disabled, builtin_plugins(), shared)
-}
-
-/// [`plugins_with`] with the built-in plugins given (some may be plugin processes, see
-/// `plugin_isolation`).
-pub fn plugins_from(
-    safe_mode: bool,
-    disabled: &[String],
-    builtins: Vec<Arc<dyn Plugin>>,
-    shared: &[Arc<dyn Plugin>],
-) -> anyhow::Result<PluginRegistry> {
-    let mut all = builtins;
-    all.extend(shared.iter().cloned());
-    install(all, safe_mode, disabled)
-}
-
-/// Installs `all` and resolves them. A plugin that fails to install does not
-/// stop IMT: the error is logged, and a plugin whose registration failed is
-/// listed as inactive with the reason (so are its dependents).
-fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    let mut registry = PluginRegistry::new();
-    if safe_mode {
-        return Ok(registry);
-    }
-    registry.disable(disabled.iter().cloned());
-    for plugin in all {
-        let id = plugin.id();
-        if let Err(e) = registry.install_shared(plugin) {
-            log::error!(Plugin = id; "Plugin not installed: {e:#}");
-        }
-    }
-    registry.resolve();
-    for p in registry.plugins() {
-        if let Some(reason) = &p.inactive_reason {
-            log::warn!(Plugin = p.id.as_str(); "Plugin inactive: {reason}");
-        }
-        for w in &p.warnings {
-            log::info!(Plugin = p.id.as_str(); "Plugin note: {w}");
-        }
-    }
-    Ok(registry)
-}
-
 /// Longest backtrace logged with a panic (bytes, cut at a line boundary).
 pub const MAX_BACKTRACE: usize = 8 * 1024;
 /// Panics logged with a backtrace per run (capturing one is slow; a panic loop must not stall IMT).
@@ -612,6 +527,13 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     });
     let a = app.clone();
     teardown_step("jobs", TEARDOWN_STEP_LIMIT, move || crate::jobs::shutdown(&a));
+    // After the jobs (their end posts messages): the debounced notifications reach the disk.
+    let a = app.clone();
+    teardown_step("notifications", TEARDOWN_STEP_LIMIT, move || {
+        if let Some(c) = a.try_state::<crate::notification_centre::NotificationCentre>() {
+            c.flush();
+        }
+    });
     if let Some(life) = app.try_state::<Lifecycle>() {
         life.end();
         log::info!("Teardown: instance marker removed");
@@ -715,13 +637,13 @@ pub struct AppStatus {
 
 /// The calling window's start-up facts. Only the main window offers crash recovery.
 #[tauri::command]
-pub fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> AppStatus {
-    AppStatus {
+pub async fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> CmdResult<AppStatus> {
+    Ok(AppStatus {
         version: env!("CARGO_PKG_VERSION"),
         safe_mode: lifecycle.safe_mode,
         previous_crash: lifecycle.previous_crash && state.label() == MAIN,
         session_available: lifecycle.session_path(state.label()).is_some(),
-    }
+    })
 }
 
 /// The relaunched process's command line, built here only (the webview sends no arguments): the flags,
@@ -750,7 +672,7 @@ pub(crate) fn session_to_reopen(state: &CurrentWindow, lifecycle: &Lifecycle, re
 /// Relaunches IMT, optionally in safe mode, reopening the calling window's autosaved session when
 /// `reopen_session` (save it first with `save_session`).
 #[tauri::command]
-pub fn restart_app<R: tauri::Runtime>(
+pub async fn restart_app<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     state: CurrentWindow,
     lifecycle: State<'_, Lifecycle>,
@@ -768,38 +690,9 @@ pub fn restart_app<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
-#[tauri::command]
-pub fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, id: String) -> CmdResult<()> {
-    // An isolated plugin's process may be quarantined too.
-    state.isolation.isolation.reset(&id);
-    for w in windows.all() {
-        w.store_read().reset_plugin(&id);
-    }
-    log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
-    crate::activity::domain_event("plugin.reset", None, &[("Plugin", &id)]);
-    Ok(())
-}
-
-/// Enables or disables a plugin from the next start (returns `true`: restart needed).
-#[tauri::command]
-pub fn plugin_set_enabled(state: State<'_, AppState>, id: String, enabled: bool) -> CmdResult<bool> {
-    let dir = state.config_dir.as_ref().ok_or("no configuration folder")?;
-    let mut s = load_plugin_settings(Some(dir));
-    s.disabled.retain(|d| *d != id);
-    if !enabled {
-        s.disabled.push(id.clone());
-    }
-    save_plugin_settings(dir, &s).map_err(err)?;
-    log::info!(Plugin = id.as_str(), Enabled = enabled; "Plugin setting changed");
-    let event = if enabled { "plugin.enabled" } else { "plugin.disabled" };
-    crate::activity::domain_event(event, None, &[("Plugin", &id)]);
-    Ok(true)
-}
-
 /// Autosaves the calling window's session (open files, profile, UI state) for crash recovery.
 #[tauri::command]
-pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
+pub async fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
     let Some(store) = &lifecycle.sessions else { return Ok(()) };
     let mut project = crate::workspace_commands::project_of(&state, "Last session".into(), ui);
     // Autosave never fails over a report: one that does not parse is left out.
@@ -808,13 +701,29 @@ pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: V
         .into_iter()
         .filter_map(|r| imt_core::report::Report::parse(r).ok())
         .collect();
-    store.save(state.label(), &project).map(|_| ()).map_err(err)
+    crate::error::lift(store.save(state.label(), &project).map(|_| ()).map_err(err))
 }
 
-/// Path of the calling window's autosaved session (open it with `open_project`), if any.
+/// Path of the calling window's autosaved session (open it with `open_project`, which it is granted to),
+/// if any.
 #[tauri::command]
-pub fn last_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> Option<String> {
-    lifecycle.session_path(state.label()).map(|p| p.to_string_lossy().into_owned())
+pub async fn last_session(
+    state: CurrentWindow,
+    grants: crate::paths::WindowGrants,
+    lifecycle: State<'_, Lifecycle>,
+) -> CmdResult<Option<String>> {
+    let Some(path) = lifecycle.session_path(state.label()) else {
+        return Ok(None);
+    };
+    Ok(grants
+        .grant(&path, crate::paths::Access::Read, crate::paths::GrantSource::Output)
+        .ok()
+        .map(|g| g.path().to_string_lossy().into_owned()))
+}
+
+/// Whether `path` is an autosaved session (IMT's own file: not a project of the recent list).
+pub fn is_session_file(path: &std::path::Path) -> bool {
+    path.file_name().is_some_and(|n| n == SESSION_FILE)
 }
 
 /// After a crash: reopens the previous run's other windows, each with its
@@ -846,6 +755,11 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::plugin_config::*;
+    use crate::test_support::Json as _;
+    use crate::test_support::Now as _;
+    use imt_core::{Plugin, PluginRegistry};
+    use std::sync::Arc;
 
     #[test]
     fn teardown_steps_are_bounded_and_say_how_they_ended() {
@@ -908,13 +822,15 @@ mod tests {
         std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n").unwrap();
         let app = test_app_with_commands(None);
         let _main = window(&app, "main");
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let state = CurrentWindow::of(app.handle(), "main").unwrap();
         block(crate::workspace_commands::open_paths(
             app.handle().clone(),
             state.clone(),
             vec![log.to_string_lossy().into_owned()],
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
         // GTK needs a display for a tray icon (the Linux CI test job has none; the smoke job does).
         if cfg!(not(target_os = "linux")) || std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some() {
@@ -1526,15 +1442,20 @@ mod tests {
         app.manage(Lifecycle::begin(Some(d.clone()), false));
         let h = app.handle().clone();
         window(&app, MAIN);
+        let grants = |label: &str| crate::paths::WindowGrants::of(&h, label);
         let life = || app.state::<Lifecycle>();
-        let status = app_status(main_window(&app), life());
+        let status = app_status(main_window(&app), life()).now().unwrap();
         assert!(status.previous_crash && status.session_available);
         // Another window does not offer crash recovery.
         let w2 = crate::windows::CurrentWindow::of(&h, "w-7").unwrap();
-        let other = app_status(w2.clone(), life());
+        let other = app_status(w2.clone(), life()).now().unwrap();
         assert!(!other.previous_crash && !other.session_available);
-        assert!(last_session(w2.clone(), life()).is_none());
-        assert!(last_session(main_window(&app), life()).unwrap().ends_with(SESSION_FILE));
+        assert!(last_session(w2.clone(), grants("w-7"), life()).now().unwrap().is_none());
+        assert!(last_session(main_window(&app), grants(MAIN), life())
+            .now()
+            .unwrap()
+            .unwrap()
+            .ends_with(SESSION_FILE));
 
         // Restoring reopens the other window with its session queued, once.
         assert_eq!(
@@ -1550,25 +1471,38 @@ mod tests {
         assert_eq!(name_of(Path::new(&restored[0])), "second");
 
         // Autosave of this run, per window.
+        crate::paths::allow_under(&h, MAIN, &samples());
         let csv = samples().join("csv").to_string_lossy().into_owned();
-        block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv])).unwrap();
+        block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv]))
+            .unwrap()
+            .json();
         save_session(
             main_window(&app),
             life(),
             serde_json::json!({ "k": 1 }),
             Some(vec![serde_json::json!({"id": "r"}), Value::Null]),
         )
+        .now()
         .unwrap();
-        save_session(w2.clone(), life(), Value::Null, None).unwrap();
-        let saved = ProjectFile::load(&last_session(main_window(&app), life()).map(PathBuf::from).unwrap()).unwrap();
+        save_session(w2.clone(), life(), Value::Null, None).now().unwrap();
+        let saved = ProjectFile::load(
+            &last_session(main_window(&app), grants(MAIN), life())
+                .now()
+                .unwrap()
+                .map(PathBuf::from)
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!((saved.sources.len(), saved.ui["k"].as_i64()), (1, Some(1)));
         assert_eq!(saved.reports.len(), 1, "an unreadable report is left out of the autosave");
-        assert!(last_session(w2, life()).is_some());
+        assert!(last_session(w2, grants("w-7"), life()).now().unwrap().is_some());
         life().forget_session("w-7");
         // Without a data folder sessions are off.
         let app2 = test_app(None);
         app2.manage(Lifecycle::begin(None, false));
-        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None).unwrap();
+        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None)
+            .now()
+            .unwrap();
         assert_eq!(
             tauri::async_runtime::block_on(restore_windows(
                 app2.handle().clone(),

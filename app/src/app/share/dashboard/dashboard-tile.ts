@@ -87,7 +87,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
         }
         @case ('alerts') {
           <ul class="list" tabindex="0" [attr.aria-label]="name()">
-            @for (a of d.items; track $index) {
+            @for (a of d.items; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
               <li><div class="meta"><span class="kind">{{ a.kind }}</span><span class="faint mono">{{ time(a.from) }}</span>@if (a.instance) {<span class="faint">· {{ a.instance }}</span>}</div><div class="detail">{{ a.message }}</div></li>
             } @empty {
               <li class="faint" i18n="@@share.dashboardTile.noAlerts">No alerts.</li>
@@ -96,7 +96,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
         }
         @case ('annotations') {
           <ul class="list" tabindex="0" [attr.aria-label]="name()">
-            @for (a of d.items; track $index) {
+            @for (a of d.items; track a.label + ':' + a.from + ':' + a.to) {
               <li><span class="kind">{{ a.label }}</span> <span class="faint mono">{{ time(a.from) }}@if (a.to !== a.from) { – {{ time(a.to) }}}</span></li>
             } @empty {
               <li class="faint" i18n="@@share.dashboardTile.noAnnotations">No annotations.</li>
@@ -110,21 +110,21 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
   `,
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-    .msg { flex: 1; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: 12px; }
+    .msg { flex: 1; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; text-align: center; padding: 8px; font-size: var(--fs-sm); }
     .err { color: var(--danger-text); }
     .stat { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 0; }
     .value { font-size: var(--tile-value-size, 28px); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
     .unit { font-size: 0.5em; font-weight: 400; color: var(--muted); }
-    .label { font-size: 11px; }
+    .label { font-size: var(--fs-xs); }
     .spark { width: 100%; height: 28px; margin-top: 4px; }
     .spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
     .chart { flex: 1; min-height: 100px; }
     .scroll { flex: 1; min-height: 0; overflow: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
     th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
     th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-2); }
-    .more { font-size: 11px; padding: 4px 6px; }
-    .list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; min-height: 0; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .more { font-size: var(--fs-xs); padding: 4px 6px; }
+    .list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; min-height: 0; font-size: var(--fs-sm); display: flex; flex-direction: column; gap: 4px; }
     .top li { position: relative; display: flex; gap: 8px; padding: 2px 4px; }
     .top .bar { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); border-radius: 2px; }
     .top .name, .top .count { position: relative; }

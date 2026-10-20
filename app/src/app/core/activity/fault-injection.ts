@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { isTauri } from '../platform';
 import { ImtView } from '../../extensions/tokens';
 
@@ -14,7 +14,7 @@ export function faultyViews(search: string = typeof location === 'undefined' ? '
 }
 
 /** A component that throws when it is created (the panel's error boundary names the view). */
-@Component({ selector: 'imt-injected-fault', template: '' })
+@Component({ selector: 'imt-injected-fault', template: '', changeDetection: ChangeDetectionStrategy.OnPush })
 export class InjectedFault {
   constructor() {
     throw new Error('Injected fault (test hook)');

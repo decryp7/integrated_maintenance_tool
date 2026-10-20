@@ -137,15 +137,15 @@ const PREVIEW_DEBOUNCE_MS = 300;
   imports: [NgTemplateOutlet],
   styles: `
     :host { display: block; }
-    .sub { font-size: 12.5px; font-weight: 600; margin: 18px 0 6px; }
+    .sub { font-size: var(--fs-md); font-weight: 600; margin: 18px 0 6px; }
     .sub .faint { font-weight: 400; }
-    h4 { margin: 0 0 6px; font-size: 12.5px; }
-    .rules { list-style: none; margin: 0 0 8px; padding: 0; font-size: 12.5px; }
+    h4 { margin: 0 0 6px; font-size: var(--fs-md); }
+    .rules { list-style: none; margin: 0 0 8px; padding: 0; font-size: var(--fs-md); }
     .rules li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
     .rules li.off { opacity: 0.6; }
     .spacer { flex: 1; }
     .check { display: inline-flex; align-items: center; gap: 4px; }
-    .form { display: flex; flex-direction: column; gap: 8px; max-width: 900px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); font-size: 12.5px; }
+    .form { display: flex; flex-direction: column; gap: 8px; max-width: 900px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); font-size: var(--fs-md); }
     .presets { display: flex; flex-wrap: wrap; gap: 4px 16px; border: 0; margin: 0; padding: 0; }
     .presets legend { padding: 0; margin-bottom: 4px; color: var(--muted); }
     .preset { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; }
@@ -155,7 +155,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
     .input.short { min-width: 120px; width: 120px; }
     .input.pattern { min-width: 260px; }
     .select { height: 26px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .sentence { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
     .err { color: var(--danger-text); }
     .warn { color: var(--warn-text); }
@@ -163,7 +163,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
     .advanced .row { margin-top: 6px; }
     .preview { min-height: 22px; }
     .counts { color: var(--text); }
-    .mini { border-collapse: collapse; margin-top: 4px; font-size: 12px; }
+    .mini { border-collapse: collapse; margin-top: 4px; font-size: var(--fs-sm); }
     .mini th, .mini td { text-align: left; padding: 2px 10px 2px 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
     .mini th { color: var(--muted); font-weight: 500; }
     .actions { display: flex; gap: 8px; }

@@ -444,6 +444,11 @@ impl PluginRegistry {
         self
     }
 
+    /// The installed importers (built-in and plugin), for stores that read files.
+    pub fn importers(&self) -> &Importers {
+        &self.importers
+    }
+
     /// Runs activation hooks in dependency order. Call once every plugin is
     /// installed; [`crate::Workspace::with_registry`] calls it too (it is idempotent).
     pub fn resolve(&self) -> &Self {

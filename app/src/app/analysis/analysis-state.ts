@@ -14,7 +14,9 @@ import { NextSteps } from '../ui/next-steps';
       <div class="state" role="alert">
         <span class="msg">{{ message }}</span>
         <span class="row">
-          <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
+          @if (retryable()) {
+            <button class="btn" type="button" (click)="retry.emit()" i18n="@@analysis.state.retry">Retry</button>
+          }
         </span>
         @if (suggest()) {
           <imt-next-steps />
@@ -40,13 +42,15 @@ import { NextSteps } from '../ui/next-steps';
     :host { display: contents; }
     .state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 28px 16px; color: var(--muted); text-align: center; }
     [role='alert'] .msg { color: var(--danger-text); }
-    .hint { max-width: 420px; font-size: 12px; color: var(--faint); }
+    .hint { max-width: 420px; font-size: var(--fs-sm); color: var(--faint); }
     .row { display: flex; gap: 8px; }
   `,
 })
 export class AnalysisState {
   readonly loading = input(false);
   readonly error = input<string | null>(null);
+  /** Whether Retry is offered (the engine says trying again as is may pass). */
+  readonly retryable = input(true);
   readonly empty = input(false);
   readonly emptyText = input($localize`:@@analysis.state.nothingToShow:Nothing to show.`);
   /** What the view needs to show something (e.g. "Pick a field on the left"). */

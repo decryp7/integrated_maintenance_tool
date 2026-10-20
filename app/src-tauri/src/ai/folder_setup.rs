@@ -63,7 +63,7 @@ fn outcome(r: Result<survey::FolderSetup, SurveyError>) -> anyhow::Result<Value>
 /// `onProgress` while it runs; Cancel is the job's (`jobs_cancel`). The validated heuristic proposals are the
 /// job's result (`jobs_wait` while the wizard is open; otherwise "Finished · View" reopens the wizard with them).
 #[tauri::command]
-pub fn folder_survey<R: Runtime>(
+pub async fn folder_survey<R: Runtime>(
     app: AppHandle<R>,
     state: CurrentWindow,
     request: Option<SurveyRequest>,
@@ -79,20 +79,22 @@ pub fn folder_survey<R: Runtime>(
     });
     let spec = JobSpec::new(JobKind::Analysis, "Survey the folder").window(state.label());
     let win = state.arc().clone();
-    crate::jobs::spawn(&app, spec, controls, move |_| {
-        let ticker = Ticker::start(control.clone(), on_progress.clone());
-        let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
-        drop(ticker);
-        let _ = on_progress.send(control.progress());
-        let out = out.map_err(crate::err)?;
-        let cancelled = out.get("cancelled").is_some();
-        Ok::<_, String>(
-            Done::new(())
-                .with_result(JobResult::FolderSurvey { outcome: out })
-                .cancelled_if(cancelled),
-        )
-    })
-    .map(|id| id.0)
+    crate::error::lift(
+        crate::jobs::spawn(&app, spec, controls, move |_| {
+            let ticker = Ticker::start(control.clone(), on_progress.clone());
+            let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
+            drop(ticker);
+            let _ = on_progress.send(control.progress());
+            let out = out.map_err(crate::err)?;
+            let cancelled = out.get("cancelled").is_some();
+            Ok::<_, String>(
+                Done::new(())
+                    .with_result(JobResult::FolderSurvey { outcome: out })
+                    .cancelled_if(cancelled),
+            )
+        })
+        .map(|id| id.0),
+    )
 }
 
 /// The active profile with `fragments` merged in, validated against the window's plugins, with its diff.
@@ -100,7 +102,7 @@ pub fn folder_survey<R: Runtime>(
 #[tauri::command]
 pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>) -> CmdResult<ComposedProfile> {
     if fragments.is_empty() || fragments.len() > MAX_FRAGMENTS {
-        return Err(format!("select 1 to {MAX_FRAGMENTS} proposals"));
+        return Err(crate::CmdError::from(format!("select 1 to {MAX_FRAGMENTS} proposals")));
     }
     let base = state.profile_doc().toml;
     read(&state, move |ws| survey::compose(ws, &base, &fragments)).await
@@ -109,6 +111,7 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
     use std::sync::Mutex;
     use tauri::ipc::InvokeResponseBody;
@@ -132,7 +135,7 @@ mod tests {
             .unwrap();
         let (ch, seen) = sink();
         // The command returns the job at once; the proposals are its result.
-        let id = folder_survey(app.handle().clone(), win.clone(), None, ch).unwrap();
+        let id = folder_survey(app.handle().clone(), win.clone(), None, ch).now().unwrap();
         let end = crate::test_support::job_end(&app, id);
         assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
         assert!(*seen.lock().unwrap() > 0, "progress was sent");

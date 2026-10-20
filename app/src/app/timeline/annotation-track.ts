@@ -60,7 +60,7 @@ export interface AnnotationHover {
     .ann.point .mark { width: 18px; height: 18px; box-sizing: border-box; align-items: center; justify-content: center; border: 1px solid var(--ann-border); border-radius: 50%; background-color: var(--bg-1); }
     .ann.point:hover .mark, .ann.point:focus-visible .mark { border-color: var(--accent); }
     .ann.point:focus-visible { outline: none; }
-    .ann.point:focus-visible .mark { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .ann.point:focus-visible .mark { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   `,
 })
 export class AnnotationTrack {

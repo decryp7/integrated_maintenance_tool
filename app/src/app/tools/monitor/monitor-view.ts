@@ -116,11 +116,11 @@ const KIND_LABEL: Record<TargetKind, string> = {
     .grow { flex: 1; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 160px; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); }
-    .problem { color: var(--danger-text); font-size: 12px; }
-    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: 12px; }
-    .warn { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .problem { color: var(--danger-text); font-size: var(--fs-sm); }
+    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
+    .warn { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); font-size: var(--fs-sm); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   `,
 })
 export class MonitorView implements OnInit {

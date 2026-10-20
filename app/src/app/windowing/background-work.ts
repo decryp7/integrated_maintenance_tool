@@ -47,13 +47,13 @@ import { BackgroundTask } from './windowing.types';
   `,
   styles: `
     :host { display: contents; }
-    .trigger { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: 11px; font-weight: 600; }
-    .trigger:hover { background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+    .trigger { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
+    .trigger:hover { background: var(--bg-hover); }
     .spin { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; border-top-color: transparent; animation: spin 1.2s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
-    .panel { position: fixed; inset-inline-end: 12px; bottom: 30px; width: 320px; padding: 10px 12px; z-index: 60; color: var(--text); font-size: 12px; white-space: normal; }
-    h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
+    .panel { position: fixed; inset-inline-end: 12px; bottom: 30px; width: 320px; padding: 10px 12px; z-index: 60; color: var(--text); font-size: var(--fs-sm); white-space: normal; }
+    h3 { margin: 0 0 8px; font-size: var(--fs-sm); font-weight: 600; }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
     progress { width: 100%; height: 6px; margin-top: 4px; accent-color: var(--accent); }

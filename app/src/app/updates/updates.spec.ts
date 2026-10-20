@@ -73,13 +73,25 @@ describe('TauriUpdatesBackend', () => {
       ['updates_status', undefined],
       ['updates_check', undefined],
       ['updates_download', undefined],
-      ['updates_cancel', undefined],
+      ['updates_status', undefined],
+      ['updates_discard', undefined],
       ['updates_install_on_quit', { enabled: true }],
       ['updates_restart', undefined],
       ['updates_open_releases', undefined],
     ]);
     expect(listened).toBe(UPDATES_EVENT);
     expect(seen.length).toBe(1);
+  });
+
+  it('cancels a download in flight through its job', async () => {
+    const calls: [string, unknown][] = [];
+    const call = (async (cmd: string, args?: unknown) => (calls.push([cmd, args]), cmd === 'updates_status' ? { downloadJob: 3 } : null)) as never;
+    await new TauriUpdatesBackend(call, async () => () => undefined).cancel();
+    expect(calls).toEqual([
+      ['updates_status', undefined],
+      ['jobs_cancel', { id: 3 }],
+      ['updates_status', undefined],
+    ]);
   });
 });
 

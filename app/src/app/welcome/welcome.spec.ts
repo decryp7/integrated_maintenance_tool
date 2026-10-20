@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
-import { LocalStorageRecentStore, RECENT_KEY, RECENT_MAX, RECENT_STORE, RecentStore } from './recent-store';
+import { RECENT_STORE, RecentStore } from './recent-store';
 import { shortPath, Welcome, WelcomeService } from './welcome';
 
 const fakePlatform = {
@@ -17,52 +17,6 @@ class MemoryRecent implements RecentStore {
   add = (paths: string[]) => void (this.items = [...paths, ...this.items.filter((p) => !paths.includes(p))]);
   clear = () => void (this.items = []);
 }
-
-describe('LocalStorageRecentStore', () => {
-  beforeEach(() => localStorage.clear());
-
-  it('keeps newest first, deduplicated and capped', () => {
-    const store = new LocalStorageRecentStore();
-    store.add(['/a', '/b']);
-    store.add(['/b', '/c']);
-    expect(store.list()).toEqual(['/b', '/c', '/a']);
-    for (let i = 0; i < 20; i++) store.add([`/p${i}`]);
-    expect(store.list()).toHaveLength(RECENT_MAX);
-    expect(store.list()[0]).toBe('/p19');
-    store.clear();
-    expect(store.list()).toEqual([]);
-  });
-
-  it('ignores incompatible, corrupt or non-string data', () => {
-    const store = new LocalStorageRecentStore();
-    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 99, paths: ['/x'] }));
-    expect(store.list()).toEqual([]);
-    localStorage.setItem(RECENT_KEY, '{nope');
-    expect(store.list()).toEqual([]);
-    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 1, paths: ['/ok', 5, null] }));
-    expect(store.list()).toEqual(['/ok']);
-    localStorage.setItem(RECENT_KEY, JSON.stringify({ version: 1, paths: 'x' }));
-    expect(store.list()).toEqual([]);
-  });
-
-  it('survives storage failures', () => {
-    const store = new LocalStorageRecentStore();
-    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('denied');
-    });
-    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('quota');
-    });
-    expect(store.list()).toEqual([]);
-    expect(() => store.add(['/a'])).not.toThrow();
-    get.mockRestore();
-    set.mockRestore();
-  });
-
-  it('is the default RECENT_STORE', () => {
-    expect(TestBed.inject(RECENT_STORE)).toBeInstanceOf(LocalStorageRecentStore);
-  });
-});
 
 describe('Welcome', () => {
   const recent = new MemoryRecent();

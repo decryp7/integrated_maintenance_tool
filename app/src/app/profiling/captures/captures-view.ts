@@ -80,10 +80,10 @@ import { PROFILING_STYLES } from '../profiling-styles';
       .cap.active { border-color: var(--accent); }
       .head { display: flex; align-items: center; gap: 6px; }
       .name { font-weight: 600; color: var(--text); }
-      .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; font-size: 11px; }
+      .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; font-size: var(--fs-xs); }
       dt { color: var(--muted); }
       dd { margin: 0; min-width: 0; }
-      .notes { margin-top: 6px; font-size: 11px; color: var(--warn-text); }
+      .notes { margin-top: 6px; font-size: var(--fs-xs); color: var(--warn-text); }
       .notes ul { margin: 2px 0 0; padding-left: 16px; color: var(--text-2); }
     `,
   ],

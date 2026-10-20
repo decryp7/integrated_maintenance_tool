@@ -82,7 +82,7 @@ impl Importer for JsonImporter {
 /// Whether `head` (the start of a file) begins with a JSON value, possibly cut off where the head
 /// ends. Text such as `[Sun Dec 04 04:47:44 2005] [error] ...` or `[2026-10-14 10:00:00] INFO` starts
 /// with a bracket too but is not JSON.
-fn starts_with_json(head: &str) -> bool {
+pub(crate) fn starts_with_json(head: &str) -> bool {
     match serde_json::Deserializer::from_str(head.trim_start()).into_iter::<Value>().next() {
         Some(Err(e)) => e.is_eof(),
         other => other.is_some(),
@@ -146,7 +146,7 @@ fn multiline_object(first: &str, lines: &mut std::iter::Enumerate<std::str::Line
 
 /// Nesting depth of JSON text fed line by line, so a multi-line object is parsed once, when it closes.
 #[derive(Default)]
-struct Depth {
+pub(crate) struct Depth {
     depth: usize,
     in_string: bool,
     escaped: bool,
@@ -154,7 +154,7 @@ struct Depth {
 
 impl Depth {
     /// Feeds one line; true when the outermost object or array closed on it.
-    fn feed(&mut self, text: &str) -> bool {
+    pub(crate) fn feed(&mut self, text: &str) -> bool {
         let mut closed = false;
         for b in text.bytes() {
             if self.in_string {
@@ -180,7 +180,7 @@ impl Depth {
     }
 }
 
-fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &TimestampParser, default_level: Level, line: u32) -> Record {
+pub(crate) fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &TimestampParser, default_level: Level, line: u32) -> Record {
     let mut rec = Record::new(line);
 
     if let Some(v) = take_first(&mut obj, &cfg.timestamp) {

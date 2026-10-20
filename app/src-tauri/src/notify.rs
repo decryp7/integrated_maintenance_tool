@@ -114,7 +114,7 @@ pub fn notify<R: Runtime>(app: &AppHandle<R>, kind: NotificationKind, seen_in_wi
     let Some(notifier) = app.try_state::<Notifier>() else {
         return false;
     };
-    if !notifier.0.lock().unwrap_or_else(|p| p.into_inner()).allow(kind, Instant::now()) {
+    if !crate::sync::lock(&notifier.0).allow(kind, Instant::now()) {
         log::debug!("notification rate-limited");
         return false;
     }

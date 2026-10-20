@@ -94,6 +94,15 @@ export interface JobsSnapshot {
   paused: PausedKind[];
 }
 
+/** What `imt://jobs` carries: the change since the window's last event (`version` follows the one before by 1): the jobs
+ * in their order by id, those new or changed in full, the paused queues. Mirrors `jobs::JobsDelta`. */
+export interface JobsDelta {
+  version: number;
+  order: number[];
+  changed: JobInfo[];
+  paused: PausedKind[];
+}
+
 /** The finished jobs saved with the project and session (UI state key `jobs`). */
 export interface JobsRecord {
   version: number;

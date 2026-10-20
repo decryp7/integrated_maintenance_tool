@@ -10,6 +10,27 @@ export const TOAST_MS = 8000;
 
 export type ReadFilter = 'all' | 'unread';
 
+/**
+ * A message of the UI's own in the centre (not the engine's), with an action that runs in the UI: e.g. "New folder?
+ * Set up analysis…". It lives for the session; its id is negative.
+ */
+export interface LocalNotice {
+  notice: Notice;
+  actionLabel: string;
+  run: () => void;
+}
+
+/** What a feature posts as a local message. `key` replaces an earlier message with the same key. */
+export interface NewLocalNotice {
+  key: string;
+  source: NoticeSource;
+  severity: Notice['severity'];
+  title: string;
+  body?: string;
+  actionLabel: string;
+  run: () => void;
+}
+
 interface NotificationsState {
   snapshot: NoticesSnapshot;
   /** Toast previews of messages just posted. */
@@ -20,9 +41,10 @@ interface NotificationsState {
   focus: number | null;
   error: string | null;
   loaded: boolean;
+  local: LocalNotice[];
 }
 
-const initial: NotificationsState = { snapshot: EMPTY_NOTICES, toasts: [], sources: [], read: 'all', focus: null, error: null, loaded: false };
+const initial: NotificationsState = { snapshot: EMPTY_NOTICES, toasts: [], sources: [], read: 'all', focus: null, error: null, loaded: false, local: [] };
 
 function message(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -41,13 +63,14 @@ export const NotificationsStore = signalStore(
   { providedIn: 'root' },
   withState<NotificationsState>(initial),
   withComputed((store) => {
+    const all = computed(() => [...store.local().map((l) => l.notice), ...store.snapshot().notices]);
     const filtered = computed(() => {
       const sources = store.sources();
-      return store.snapshot().notices.filter((n) => (!sources.length || sources.includes(n.source)) && (store.read() === 'all' || !n.read));
+      return all().filter((n) => (!sources.length || sources.includes(n.source)) && (store.read() === 'all' || !n.read));
     });
     return {
       notices: filtered,
-      unread: computed(() => store.snapshot().unread),
+      unread: computed(() => store.snapshot().unread + store.local().filter((l) => !l.notice.read).length),
       /** The filtered messages grouped by source, in the order sources first appear (newest first). */
       groups: computed(() => {
         const groups = new Map<NoticeSource, Notice[]>();
@@ -70,6 +93,8 @@ export const NotificationsStore = signalStore(
         return null;
       }
     };
+    const markLocal = (id: number) => patchState(store, (s) => ({ local: s.local.map((l) => (l.notice.id === id ? { ...l, notice: { ...l.notice, read: true } } : l)) }));
+    const removeLocal = (id: number) => patchState(store, (s) => ({ local: s.local.filter((l) => l.notice.id !== id) }));
     const dismissToast = (id: number) => {
       clearTimeout(timers.get(id));
       timers.delete(id);
@@ -98,11 +123,60 @@ export const NotificationsStore = signalStore(
         });
       },
 
-      markRead: (id: number) => run(() => backend.markRead(id)),
-      markAllRead: () => run(() => backend.markAllRead()),
+      markRead: (id: number) => (id < 0 ? Promise.resolve(markLocal(id)) : run(() => backend.markRead(id))),
+      markAllRead: () => {
+        patchState(store, (s) => ({ local: s.local.map((l) => ({ ...l, notice: { ...l.notice, read: true } })) }));
+        return run(() => backend.markAllRead());
+      },
       async dismiss(id: number): Promise<void> {
         dismissToast(id);
+        if (id < 0) {
+          removeLocal(id);
+          return;
+        }
         await run(() => backend.dismiss(id));
+      },
+
+      /** Posts (or replaces, by key) a message of the UI's own; it counts as unread until read, dismissed or acted on. */
+      postLocal(n: NewLocalNotice): void {
+        const now = Date.now();
+        const dedupeKey = 'local:' + n.key;
+        const notice: Notice = {
+          id: -++localIds,
+          source: n.source,
+          severity: n.severity,
+          title: n.title,
+          body: n.body ?? '',
+          at: now,
+          firstAt: now,
+          count: 1,
+          read: false,
+          primary: null,
+          secondary: null,
+          tertiary: null,
+          link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
+          dedupeKey,
+          scope: 'project',
+        };
+        patchState(store, (s) => ({ local: [{ notice, actionLabel: n.actionLabel, run: n.run }, ...s.local.filter((l) => l.notice.dedupeKey !== dedupeKey)] }));
+      },
+
+      /** Removes the local message with this key, if any (what it offered no longer applies). */
+      withdrawLocal(key: string): void {
+        patchState(store, (s) => ({ local: s.local.filter((l) => l.notice.dedupeKey !== 'local:' + key) }));
+      },
+
+      /** The label of a local message's action; null for the engine's messages. */
+      localAction(id: number): string | null {
+        return store.local().find((l) => l.notice.id === id)?.actionLabel ?? null;
+      },
+
+      /** Runs a local message's action; the message is done. */
+      runLocal(id: number): void {
+        const item = store.local().find((l) => l.notice.id === id);
+        if (!item) return;
+        removeLocal(id);
+        item.run();
       },
 
       dismissToast,

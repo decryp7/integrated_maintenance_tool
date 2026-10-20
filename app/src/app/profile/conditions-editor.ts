@@ -29,7 +29,7 @@ import { Icon } from '../shared/icon';
   styles: `
     :host { display: flex; flex-direction: column; gap: 4px; }
     .cond { display: grid; grid-template-columns: minmax(0, 1fr) 110px minmax(0, 1.4fr) 26px; gap: 4px; align-items: center; }
-    .none { font-size: 12px; }
+    .none { font-size: var(--fs-sm); }
     .add { align-self: flex-start; }
   `,
 })

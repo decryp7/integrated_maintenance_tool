@@ -56,9 +56,9 @@ export function evidenceSummary(e: Evidence): string {
           <button class="btn" type="button" (click)="explain(p.name)" data-testid="findings-explain" i18n="@@profiling.findings.explain">Explain with AI</button>
         }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
         <ul class="list body" aria-label="Findings" i18n-aria-label="@@profiling.findings.listLabel">
-          @for (f of res.data() ?? []; track $index) {
+          @for (f of res.data() ?? []; track f.kind + ':' + f.title) {
             <li class="finding" [attr.data-kind]="f.kind">
               <div class="head">
                 <imt-severity-badge [severity]="f.severity" />
