@@ -8,7 +8,7 @@ mod common;
 use common::{pair, ranged, sample_profile, store_with, Pair, TempDir};
 use imt_core::api::{FacetRequest, PageRequest, TimelineRequest};
 use imt_core::model::Level;
-use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, Search, SearchRequest, StoreError};
+use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, StoreError};
 use imt_core::query::FieldFilter;
 use imt_core::Profile;
 use imt_store_duck::DuckStore;
@@ -478,14 +478,6 @@ fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
     assert_eq!(again.events, 0);
     let problems = store.problems().unwrap();
     assert!(problems.iter().all(|p| p.count > 0 && p.sample_lines.len() <= 20));
-    // Full-text search is R2b's.
-    let e = store
-        .search(&SearchRequest {
-            text: "x".into(),
-            limit: 1,
-        })
-        .unwrap_err();
-    assert!(matches!(e, StoreError::Unsupported { .. }), "{e}");
     assert_eq!(store.active_profile().unwrap().name, Profile::default_profile().name);
     assert!(store.validate_profile(&Profile::default_profile()).is_ok());
     let total = store.summary().unwrap().total;

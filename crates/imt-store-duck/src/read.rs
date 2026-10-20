@@ -54,6 +54,7 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         records: r.events,
         skipped: r.skipped,
         dropped: r.dropped,
+        split_events: 0,
         step_stats: r.step_stats.clone(),
         error: None,
         from: r.from,
@@ -61,7 +62,6 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         offset_ms: 0,
         file_kind: r.file_kind,
         timestamp_issue: None,
-        split_events: 0,
     }
 }
 
@@ -428,13 +428,13 @@ impl Inner {
                     records: r.get::<_, u64>(5)? as usize,
                     skipped: r.get::<_, u64>(6)? as usize,
                     dropped: r.get::<_, u64>(7)? as usize,
+                    split_events: 0,
                     step_stats: Vec::new(),
                     error: None,
                     from: r.get(8)?,
                     to: r.get(9)?,
                     offset_ms: 0,
                     timestamp_issue: None,
-                    split_events: 0,
                 })
             })
             .map_err(engine)?;

@@ -2,14 +2,14 @@
 //! per bad line.
 
 use crate::api::Severity;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Most sample line numbers kept per problem.
 pub const MAX_SAMPLES: usize = 20;
 
 /// What went wrong while reading a source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProblemKind {
     /// A line longer than the line limit was skipped.
@@ -112,6 +112,23 @@ impl Problems {
 
     pub fn is_empty(&self) -> bool {
         self.by_kind.is_empty()
+    }
+
+    /// Adds the problems of another part of the same source (a chunk read in parallel); the samples stay
+    /// the first [`MAX_SAMPLES`] lines.
+    pub fn merge(&mut self, other: Problems) {
+        for (kind, p) in other.by_kind {
+            let mine = self.by_kind.entry(kind).or_insert_with(|| Problem {
+                kind,
+                count: 0,
+                sample_lines: Vec::new(),
+            });
+            mine.count += p.count;
+            mine.sample_lines.extend(p.sample_lines);
+            mine.sample_lines.sort_unstable();
+            mine.sample_lines.dedup();
+            mine.sample_lines.truncate(MAX_SAMPLES);
+        }
     }
 
     pub fn into_vec(self) -> Vec<Problem> {

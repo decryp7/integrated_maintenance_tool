@@ -4,6 +4,7 @@
 
 use super::batcher::{BatchedSource, RecordBatcher};
 use super::chunk::{LineReader, ReaderChunks};
+use super::parallel::Split;
 use super::plan::{plan, FilePlan, PlanKind, HEAD_BYTES};
 use super::sink::{BatchSink, ImportCancelled, NewSource, SourceReport};
 use super::{json, legacy, text};
@@ -58,6 +59,18 @@ fn read_head(reader: &mut impl Read, limit: usize) -> std::io::Result<(Vec<u8>, 
 /// Imports one file: each zip member is a source; a gzip file is one source. Members in `removed` are
 /// skipped.
 pub fn import_path(env: &ImportEnv, path: &Path, name: &str, removed: &HashSet<PathBuf>, sink: &mut dyn BatchSink) -> Vec<Outcome> {
+    import_path_with(env, path, name, removed, sink, None)
+}
+
+/// [`import_path`] that may read a large uncompressed text file in parallel chunks (`split`).
+pub(super) fn import_path_with(
+    env: &ImportEnv,
+    path: &Path,
+    name: &str,
+    removed: &HashSet<PathBuf>,
+    sink: &mut dyn BatchSink,
+    split: Option<Split<'_>>,
+) -> Vec<Outcome> {
     let path_s = path.to_string_lossy().into_owned();
     let mut file = match crate::workspace::open_with_retry(path) {
         Ok(f) => f,
@@ -93,6 +106,7 @@ pub fn import_path(env: &ImportEnv, path: &Path, name: &str, removed: &HashSet<P
             path,
             file_date,
             sink,
+            split,
         )];
     }
     // Archives are expanded in memory, as before, within the archive limits.
@@ -143,6 +157,7 @@ pub fn import_path(env: &ImportEnv, path: &Path, name: &str, removed: &HashSet<P
                 path,
                 file_date,
                 sink,
+                None,
             ))
         })
         .collect()
@@ -161,6 +176,7 @@ fn import_source<R: Read + Seek>(
     path: &Path,
     file_date: Option<chrono::NaiveDate>,
     sink: &mut dyn BatchSink,
+    split: Option<Split<'_>>,
 ) -> Outcome {
     let ctx = ImportCtx {
         profile: env.profile,
@@ -177,7 +193,17 @@ fn import_source<R: Read + Seek>(
         Err(e) => return unrecognized(&src.path, &src.name, format!("{e:#}")),
     };
     // A crash anywhere while reading one file (even in built-in code) fails only that file.
-    let caught = crate::guard::catch("IMT", || Ok(read_events(env, &ctx, &plan, &mut reader, size, id, &src.name, sink)));
+    let caught = crate::guard::catch("IMT", || {
+        let mut read = || -> Result<(BatchedSource, usize)> {
+            if let Some(split) = split.filter(|s| s.applies(&plan, size)) {
+                if let Some(r) = super::parallel::read_split(env, &ctx, &plan, path, id, &src.name, split)? {
+                    return Ok(r);
+                }
+            }
+            read_events(env, &ctx, &plan, &mut reader, size, id, &src.name, sink)
+        };
+        Ok(read())
+    });
     let result = match caught {
         Ok(Ok(r)) => Ok(r),
         Ok(Err(e)) if e.is::<ImportCancelled>() => Err(NOT_IMPORTED.to_string()),

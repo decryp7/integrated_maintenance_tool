@@ -37,7 +37,7 @@ impl PageQuery {
 }
 
 /// One event as the grid shows it.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventView {
     pub id: EventId,
@@ -57,7 +57,7 @@ pub struct EventView {
     pub markers: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageReply {
     /// Events matching the query.
@@ -69,7 +69,7 @@ pub struct PageReply {
 }
 
 /// What is loaded.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SummaryReply {
     pub total: usize,
@@ -88,7 +88,7 @@ pub struct SummaryReply {
 }
 
 /// The result of an import job.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportReport {
     /// Sources read, with their event counts.
@@ -100,7 +100,7 @@ pub struct ImportReport {
 }
 
 /// One kind of import problem in one source (or one file that was not imported).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRow {
     /// The source, when the file was imported.
@@ -139,7 +139,7 @@ impl DiagnosticRow {
 
 /// An engine-proposed fix of a diagnostic: a profile override and, for unreadable timestamps, the
 /// verified format.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticFix {
     pub title: String,
@@ -150,7 +150,7 @@ pub struct DiagnosticFix {
 }
 
 /// How much of the matching data an analysis looked at (engine review finding 16: no silent caps).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Coverage {
     /// Events the analysis's query matched.
@@ -178,7 +178,7 @@ impl Coverage {
 }
 
 /// An analysis result with its [`Coverage`].
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Analyzed<T> {
     pub result: T,
@@ -186,7 +186,7 @@ pub struct Analyzed<T> {
 }
 
 /// A proposed profile override (TOML merged over the active profile) for some sources.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickFix {
     pub profile_override: String,
@@ -195,7 +195,7 @@ pub struct QuickFix {
 }
 
 /// How a proposed fix does on the stored events it applies to: "fixes `fixed` of `checked`".
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FixEvaluation {
     pub fixed: u64,
@@ -207,7 +207,7 @@ pub struct FixEvaluation {
     pub notes: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchRequest {
     pub text: String,
@@ -215,14 +215,17 @@ pub struct SearchRequest {
     pub limit: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchReply {
+    /// Matching events (with `exact` false: candidates of which not all were checked; an upper bound).
     pub total: u64,
+    /// The first matches in time order.
     pub ids: Vec<EventId>,
+    pub exact: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexStatus {
     pub indexed: u64,

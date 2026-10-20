@@ -133,6 +133,12 @@ impl<R: Read> ReaderChunks<R> {
         }
     }
 
+    /// Numbers the first line `line` instead of 1 (a chunk that starts in the middle of a file).
+    pub fn starting_at_line(mut self, line: u32) -> ReaderChunks<R> {
+        self.next_number = line;
+        self
+    }
+
     /// Appends up to one block of bytes to `buf`.
     fn fill(&mut self) -> std::io::Result<()> {
         let len = self.buf.len();

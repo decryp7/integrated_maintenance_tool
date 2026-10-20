@@ -6,54 +6,16 @@
 
 mod common;
 
+use common::rss::{current as rss, Sampler};
 use common::{log_samples, TempDir};
 use imt_core::ports::Query;
 use imt_core::Profile;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// Worker budget while importing (ADR 0014).
 const IMPORT_BUDGET_MB: u64 = 600;
-
-fn rss() -> u64 {
-    memory_stats::memory_stats().map_or(0, |m| m.physical_mem as u64)
-}
-
-/// Polls the RSS until stopped; returns the peak.
-struct Sampler {
-    peak: Arc<AtomicU64>,
-    stop: Arc<AtomicBool>,
-    thread: Option<std::thread::JoinHandle<()>>,
-}
-
-impl Sampler {
-    fn start() -> Sampler {
-        let peak = Arc::new(AtomicU64::new(rss()));
-        let stop = Arc::new(AtomicBool::new(false));
-        let (p, s) = (peak.clone(), stop.clone());
-        let thread = std::thread::spawn(move || {
-            while !s.load(Ordering::Relaxed) {
-                p.fetch_max(rss(), Ordering::Relaxed);
-                std::thread::sleep(Duration::from_millis(20));
-            }
-        });
-        Sampler {
-            peak,
-            stop,
-            thread: Some(thread),
-        }
-    }
-
-    fn peak_mb(mut self) -> u64 {
-        self.stop.store(true, Ordering::Relaxed);
-        if let Some(t) = self.thread.take() {
-            let _ = t.join();
-        }
-        self.peak.load(Ordering::Relaxed).max(rss()) >> 20
-    }
-}
 
 fn copy_dir(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap();
@@ -92,7 +54,7 @@ fn importing_the_samples_stays_within_the_memory_budget() {
     let started = Instant::now();
     let (store, report) = common::store_with(&dir, Profile::default_profile(), &paths).unwrap();
     let elapsed = started.elapsed();
-    let peak = sampler.peak_mb();
+    let peak = sampler.take_peak_mb();
     let total = store.summary().unwrap().total;
     let rate = report.events as f64 / elapsed.as_secs_f64();
     eprintln!(

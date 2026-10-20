@@ -1,5 +1,5 @@
 //! The store's ports (ADR 0014 §1), split by responsibility so a consumer depends only on what it
-//! uses: [`Ingest`], [`Query`], [`Analysis`], [`Profiles`], [`Diagnostics`] and [`Search`].
+//! uses: [`Ingest`], [`Query`], [`Positions`], [`Analysis`], [`Profiles`], [`Diagnostics`] and [`Search`].
 //!
 //! Contract of every port:
 //! - methods take `&self`; implementations are `Send + Sync` and synchronise internally (readers run
@@ -15,7 +15,7 @@ mod session;
 
 pub use dto::{
     Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix,
-    SearchReply, SearchRequest, SummaryReply,
+    SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -42,7 +42,10 @@ pub use crate::query::Query as Filter;
 pub enum StoreError {
     /// The adapter does not offer this operation yet.
     #[error("{operation} is not available in this store yet (planned for phase {phase})")]
-    Unsupported { operation: &'static str, phase: &'static str },
+    Unsupported {
+        operation: std::borrow::Cow<'static, str>,
+        phase: std::borrow::Cow<'static, str>,
+    },
     /// The request is invalid (a bad regex, an unknown field type...); the message says what to fix.
     #[error("{0}")]
     Invalid(String),
@@ -66,7 +69,10 @@ pub enum StoreError {
 
 impl StoreError {
     pub fn unsupported(operation: &'static str, phase: &'static str) -> StoreError {
-        StoreError::Unsupported { operation, phase }
+        StoreError::Unsupported {
+            operation: operation.into(),
+            phase: phase.into(),
+        }
     }
 
     /// Whether repeating the request later can succeed.
@@ -127,6 +133,18 @@ pub trait Query: Send + Sync {
     fn check_query(&self, text: &str) -> StoreResult<Option<QlError>>;
     fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>>;
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult>;
+}
+
+/// Time-order positions of all events (unfiltered): position `p` is the `p`-th event in time order
+/// (untimed last), so an unfiltered page or an anchor is a range lookup instead of a sort. Positions are
+/// renumbered after imports and removals; events imported since have none yet.
+pub trait Positions: Send + Sync {
+    /// Ids of the events at positions `from .. from + len` (at most [`MAX_PAGE_ROWS`]), in time order.
+    fn ids_at(&self, from: u64, len: usize) -> StoreResult<Vec<EventId>>;
+    /// The position of an event, if it has one.
+    fn position_of(&self, id: EventId) -> StoreResult<Option<u64>>;
+    /// Events that have a position.
+    fn positioned(&self) -> StoreResult<u64>;
 }
 
 /// Analyses that need code over event batches (patterns, exceptions, anomalies...). Each result says
