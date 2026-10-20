@@ -13,6 +13,10 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 imt-core = { path = "../crates/imt-core" }
+imt-ipc = { path = "../crates/imt-ipc" }
+imt-plugin-api = { path = "../crates/imt-plugin-api" }
+imt-ai = { path = "../crates/imt-ai" }
+imt-ai-worker = { path = "../crates/imt-ai-worker" }
 imt-plugin-registry = { path = "../crates/imt-plugin-registry" }
 imt-plugin-windows = { path = "../crates/imt-plugin-windows" }
 imt-plugin-web = { path = "../crates/imt-plugin-web" }
@@ -219,6 +223,41 @@ bench = false
 [[bin]]
 name = "fuzz_eventlog"
 path = "fuzz_targets/fuzz_eventlog.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ipc_frame"
+path = "fuzz_targets/fuzz_ipc_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_plugin_request"
+path = "fuzz_targets/fuzz_plugin_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_plugin_reply"
+path = "fuzz_targets/fuzz_plugin_reply.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ai_request"
+path = "fuzz_targets/fuzz_ai_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_worker_http"
+path = "fuzz_targets/fuzz_worker_http.rs"
 test = false
 doc = false
 bench = false

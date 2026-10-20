@@ -7,8 +7,8 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let Some((&sel, rest)) = data.split_first() else { return };
     match sel % 3 {
-        0 => common::text_importer(&imt_plugin_web::W3cImporter, rest),
-        1 => common::text_importer(&imt_plugin_web::AccessLogImporter, rest),
-        _ => common::text_importer(&imt_plugin_web::HarImporter, rest),
+        0 => common::plugin_text(&imt_plugin_web::W3cImporter, rest),
+        1 => common::plugin_text(&imt_plugin_web::AccessLogImporter, rest),
+        _ => common::plugin_text(&imt_plugin_web::HarImporter, rest),
     }
 });
