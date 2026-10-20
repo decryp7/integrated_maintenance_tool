@@ -612,7 +612,7 @@ pub fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> AppS
 #[tauri::command]
 pub fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>, safe_mode: bool, reopen: Vec<String>) -> CmdResult<()> {
     let exe = std::env::current_exe().map_err(err)?;
-    let mut cmd = std::process::Command::new(exe);
+    let mut cmd = imt_core::process::quiet_command(exe);
     if safe_mode {
         cmd.arg(SAFE_MODE_FLAG);
     }
@@ -676,7 +676,7 @@ pub fn last_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> Op
 /// After a crash: reopens the previous run's other windows, each with its
 /// session queued (it opens it on startup). Once per run; returns how many opened.
 #[tauri::command]
-pub fn restore_windows<R: tauri::Runtime>(
+pub async fn restore_windows<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     state: CurrentWindow,
     lifecycle: State<'_, Lifecycle>,
@@ -1243,8 +1243,8 @@ mod tests {
         assert!(last_session(main_window(&app), life()).unwrap().ends_with(SESSION_FILE));
 
         // Restoring reopens the other window with its session queued, once.
-        assert_eq!(restore_windows(h.clone(), main_window(&app), life()).unwrap(), 1);
-        assert_eq!(restore_windows(h.clone(), main_window(&app), life()).unwrap(), 0);
+        assert_eq!(tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(), 1);
+        assert_eq!(tauri::async_runtime::block_on(restore_windows(h.clone(), main_window(&app), life())).unwrap(), 0);
         let restored = crate::windows::CurrentWindow::of(&h, "w-2").unwrap().take_pending();
         assert_eq!(restored.len(), 1);
         assert_eq!(name_of(Path::new(&restored[0])), "second");
@@ -1270,7 +1270,7 @@ mod tests {
         app2.manage(Lifecycle::begin(None, false));
         save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None).unwrap();
         assert_eq!(
-            restore_windows(app2.handle().clone(), main_window(&app2), app2.state::<Lifecycle>()).unwrap(),
+            tauri::async_runtime::block_on(restore_windows(app2.handle().clone(), main_window(&app2), app2.state::<Lifecycle>())).unwrap(),
             0
         );
         app2.state::<Lifecycle>().forget_session(MAIN);

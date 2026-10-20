@@ -116,6 +116,10 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 
 /// Opens a new, empty window with its own workspace; `pending` is opened by
 /// its UI on startup. Returns the window's label.
+///
+/// Commands that call it must be `async`: a window built from a synchronous command never finishes
+/// loading on Windows (WebView2 waits for the main thread the command blocks; the window stays white).
+/// `tests/window_commands.rs` enforces this.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
     let windows = app.try_state::<Windows>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
     if app.webview_windows().keys().filter(|l| !is_auxiliary(l)).count() >= MAX_WINDOWS {
@@ -370,7 +374,7 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
 
 /// Opens a new, empty window and focuses it.
 #[tauri::command]
-pub fn new_window<R: Runtime>(app: AppHandle<R>) -> CmdResult<WindowInfo> {
+pub async fn new_window<R: Runtime>(app: AppHandle<R>) -> CmdResult<WindowInfo> {
     let label = open_new(&app, Vec::new()).map_err(err)?;
     list(&app)
         .into_iter()
@@ -465,7 +469,7 @@ pub enum OpenChoice {
 /// or a new one, or drop them. The files are taken either way, so a later
 /// answer opens nothing.
 #[tauri::command]
-pub fn resolve_open<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, choice: OpenChoice) -> CmdResult<()> {
+pub async fn resolve_open<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, choice: OpenChoice) -> CmdResult<()> {
     let paths = state.take_pending_ask();
     if paths.is_empty() {
         return Ok(());
@@ -541,7 +545,7 @@ mod tests {
         let label = open_new(&h, vec!["/x".into()]).unwrap();
         assert_eq!(label, "w-2");
         assert_eq!(CurrentWindow::of(&h, &label).unwrap().take_pending(), ["/x"]);
-        let info = new_window(h.clone()).unwrap();
+        let info = tauri::async_runtime::block_on(new_window(h.clone())).unwrap();
         assert_eq!(info.label, "w-3");
         assert_eq!(info.title, DEFAULT_TITLE);
         let labels: Vec<String> = list_windows(h.clone()).into_iter().map(|w| w.label).collect();
@@ -607,14 +611,14 @@ mod tests {
         let payload: Value = serde_json::from_str(&asked.lock().unwrap()[0]).unwrap();
         assert_eq!(payload, serde_json::json!({ "count": 2, "names": ["a.log", "b"] }));
         // "This window": the paths are queued here.
-        resolve_open(h.clone(), main_window(&app), OpenChoice::Here).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Here)).unwrap();
         assert_eq!(main_window(&app).take_pending(), ["/logs/a.log", "/logs/b"]);
         // Nothing waiting: nothing happens.
-        resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow)).unwrap();
         assert_eq!(list(&h).len(), 1);
         // "New window": they go to a new window.
         ask_open(&h, MAIN, vec!["/logs/c".into()]);
-        resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow)).unwrap();
         assert_eq!(CurrentWindow::of(&h, "w-2").unwrap().take_pending(), ["/logs/c"]);
         ask_open(&h, "gone", vec![]);
     }
@@ -625,15 +629,15 @@ mod tests {
         let h = app.handle().clone();
         window(&app, MAIN);
         ask_open(&h, MAIN, vec!["/logs/a.log".into()]);
-        resolve_open(h.clone(), main_window(&app), OpenChoice::Cancel).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Cancel)).unwrap();
         // A later answer (a stale dialog, a second click) opens nothing.
-        resolve_open(h.clone(), main_window(&app), OpenChoice::Here).unwrap();
-        resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Here)).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::NewWindow)).unwrap();
         assert!(main_window(&app).take_pending().is_empty());
         assert_eq!(list(&h).len(), 1, "no new window");
         // A new ask after a cancel works as usual.
         ask_open(&h, MAIN, vec!["/logs/b".into()]);
-        resolve_open(h.clone(), main_window(&app), OpenChoice::Here).unwrap();
+        tauri::async_runtime::block_on(resolve_open(h.clone(), main_window(&app), OpenChoice::Here)).unwrap();
         assert_eq!(main_window(&app).take_pending(), ["/logs/b"]);
     }
 

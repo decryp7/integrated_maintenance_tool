@@ -424,8 +424,9 @@ pub fn dragged<R: Runtime>(app: &AppHandle<R>, label: &str) {
 
 /// Pops a panel of the calling window out into a window of its own.
 #[tauri::command]
-pub fn popout_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, request: PopoutRequest) -> CmdResult<PopoutInfo> {
-    open(&app, resolve(window.label()), request).map_err(err)
+pub async fn popout_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, request: PopoutRequest) -> CmdResult<PopoutInfo> {
+    // Async: a window must not be created from a synchronous command (it deadlocks on Windows).
+    crate::panel_windows::open(&app, resolve(window.label()), request).map_err(err)
 }
 
 /// Closes a pop-out of the calling window's group; its panel docks back into the host.

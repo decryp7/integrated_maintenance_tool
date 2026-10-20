@@ -615,7 +615,7 @@ pub fn write_activity_project(data_dir: &Path, log_dir: &Path) -> anyhow::Result
 /// Help ▸ Show activity log: opens IMT's own logs (they are CLEF, so IMT reads them) in a new window,
 /// filtered to the activity entries. Returns the new window's label.
 #[tauri::command]
-pub fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
+pub async fn open_activity_log<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
     let log_dir = crate::app_dirs::log(&app).map_err(err)?;
     let data_dir = crate::app_dirs::data(&app).map_err(err)?;
     let project = write_activity_project(&data_dir, &log_dir).map_err(err)?;
@@ -971,7 +971,7 @@ pub(crate) mod tests {
         );
         let _ = std::fs::remove_file(out);
         // A mock app has no real window to open; the project it would open is checked below.
-        let _ = open_activity_log(handle);
+        let _ = tauri::async_runtime::block_on(open_activity_log(handle));
     }
 
     #[test]

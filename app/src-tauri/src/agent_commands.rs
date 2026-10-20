@@ -243,7 +243,7 @@ pub async fn agent_run_manifest<R: Runtime>(app: AppHandle<R>, path: Option<Stri
 
 /// Opens a run's folder in a new IMT window (the window manager's usual path).
 #[tauri::command]
-pub fn agent_open_run<R: Runtime>(app: AppHandle<R>, path: Option<String>, run_id: String) -> CmdResult<String> {
+pub async fn agent_open_run<R: Runtime>(app: AppHandle<R>, path: Option<String>, run_id: String) -> CmdResult<String> {
     let dir = run_dir(path.as_deref(), &run_id, &dirs(&app)?)?;
     crate::window_manager::open_new(&app, vec![dir.to_string_lossy().into_owned()]).map_err(err)
 }
