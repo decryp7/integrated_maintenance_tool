@@ -107,6 +107,7 @@ mod tests {
             to: None,
             offset_ms: 0,
             file_kind: kind,
+            timestamp_issue: None,
         }
     }
 
