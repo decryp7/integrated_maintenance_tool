@@ -194,11 +194,10 @@ tell products apart (or `@source` after routing); there are no per-product profi
   LineFormat }`, `query::default_group_by` now delegates to `instance::instance_key_from_totals`.
 - **Instance keys read differently** where fields are missing at the ends (`WEB01` instead of `WEB01 · –`;
   `source · …` when the first field is missing). Saved instance selections in that form no longer match (IMT is
-  pre-v1; no migration). **The DuckDB read path must mirror `group_key`** (`imt-store-duck/src/sql.rs`,
-  `group_key_expr`, R2c): `CASE WHEN <none present> THEN s.name ELSE concat(CASE WHEN <first missing> THEN s.name ||
-  ' · ' ELSE '' END, regexp_replace(regexp_replace(concat(<parts>), '^(– · )+', ''), '( · –)+$', '')) END`, and
-  compute the default key with per-source field presence (its `segment_fields` catalog plus the sources' rows) or
-  keep `instance_key_from_totals` until the per-source map lands. Its differential tests compare these strings.
+  pre-v1; no migration). The DuckDB read path mirrors both: `group_key_expr` builds the same key in SQL (checked
+  against `group_key` for every combination of present and missing fields, and by the differential tests), and the
+  store chooses the default key with the same two-step rule from one grouped count of the candidate fields per
+  source (cached per data generation), with the identity fields of the sources' importers.
 - Heterogeneous folders get more accurate lanes: in `/samples`, the IMT diagnostics bundle's child processes now
   get one lane per process id, so the anomaly detector reports each plugin crash separately.
 - Throughput: per-line matching costs one `is_match` per earlier format for event lines when the dominant format

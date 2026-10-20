@@ -89,16 +89,28 @@ fn pick(
             add(f, &mut present);
         }
     }
-    // 2. Sources the fields so far do not tell apart: their own candidates (any case variant).
+    // 2. Sources the fields so far do not tell apart: their own candidates (any case variant), listed in
+    // candidate order whatever the order of the sources.
+    let covered: Vec<&FieldInfo> = present.clone();
+    let mut extra: Vec<&str> = Vec::new();
     for (i, &events) in sources.iter().enumerate() {
         let dominant = |f: &FieldInfo| events > 0 && presence.count_in(&f.name, i) * 2 >= events;
-        if events == 0 || present.iter().any(|f| f.distinct > 1 && dominant(f)) {
+        if events == 0 || covered.iter().any(|f| f.distinct > 1 && dominant(f)) {
             continue;
         }
-        for c in &candidates {
-            for f in fields.iter().filter(|f| f.name.eq_ignore_ascii_case(c) && dominant(f)) {
-                add(f, &mut present);
-            }
+        for f in fields
+            .iter()
+            .filter(|f| candidates.iter().any(|c| f.name.eq_ignore_ascii_case(c)) && dominant(f))
+        {
+            extra.push(&f.name);
+        }
+    }
+    for c in &candidates {
+        for f in fields
+            .iter()
+            .filter(|f| f.name.eq_ignore_ascii_case(c) && extra.contains(&f.name.as_str()))
+        {
+            add(f, &mut present);
         }
     }
     // Constant fields (same value everywhere) do not tell instances apart.
@@ -174,6 +186,19 @@ mod tests {
             instance_key_from_totals(&cfg(&["ProcessId", "ProcId"]), &fields, 1010, 2),
             ["ProcessId"]
         );
+    }
+
+    #[test]
+    fn the_key_does_not_depend_on_the_order_of_the_sources() {
+        // Two sources the common field does not cover, each with its own variant of a process id.
+        let fields = [info("Application", 100, 2), info("Pid", 10, 3), info("pid", 4, 2)];
+        let forward = Counts(HashMap::from([(("Application", 0), 100), (("Pid", 1), 10), (("pid", 2), 4)]));
+        let backward = Counts(HashMap::from([(("Application", 0), 100), (("pid", 1), 4), (("Pid", 2), 10)]));
+        let c = cfg(&["Application", "Pid"]);
+        let a = instance_key(&c, &[], &fields, &[100, 10, 4], &forward);
+        let b = instance_key(&c, &[], &fields, &[100, 4, 10], &backward);
+        assert_eq!(a, ["Application", "Pid", "pid"]);
+        assert_eq!(a, b);
     }
 
     #[test]
