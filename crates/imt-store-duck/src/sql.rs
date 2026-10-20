@@ -15,13 +15,47 @@ use imt_core::ql::{CmpOp, Expr, NumOp, Operand};
 use imt_core::query::CompiledQuery;
 use imt_core::row::{FieldKey, Pseudo};
 
-/// Events with their source (for `@source`).
-pub const FROM: &str = "events e JOIN sources s ON s.id = e.source";
+/// Events with their source (for `@source`): `events_wide`, so promoted `p_<key>` columns can be read.
+pub const FROM: &str = "events_wide e JOIN sources s ON s.id = e.source";
 
-/// The event columns rows are read with: everything but `raw` (left empty), which is wide and only
-/// re-deriving fields needs (events are Parquet segments; sorting or aggregating `raw` exceeds the
-/// memory limit).
-pub const ROWS: &str = "e.* REPLACE ('' AS raw)";
+/// Where a statement reads fields from: the event schema (declared columns) and the keys every segment
+/// promotes to a text column (`p_<key>`, a copy of the value in `extra`; see `crate::promote`).
+pub trait FieldSource {
+    fn events(&self) -> &EventSchema;
+    /// Whether every segment has the key as a text column (then it holds every value).
+    fn promoted_text(&self, _key: &str) -> bool {
+        false
+    }
+}
+
+impl FieldSource for EventSchema {
+    fn events(&self) -> &EventSchema {
+        self
+    }
+}
+
+impl FieldSource for std::sync::Arc<EventSchema> {
+    fn events(&self) -> &EventSchema {
+        self
+    }
+}
+
+/// The schema and the promotions of the current segments.
+#[derive(Debug, Clone)]
+pub struct Fields {
+    pub schema: std::sync::Arc<EventSchema>,
+    /// Keys promoted as text in every segment.
+    pub promoted_text: std::collections::BTreeSet<String>,
+}
+
+impl FieldSource for Fields {
+    fn events(&self) -> &EventSchema {
+        &self.schema
+    }
+    fn promoted_text(&self, key: &str) -> bool {
+        self.promoted_text.contains(key)
+    }
+}
 
 /// The wide columns a read needs: the message, and which named fields (`None`: all). The rest read
 /// as empty, so sorts and scans carry only what the analysis uses (a sort of whole rows exceeds the
@@ -62,35 +96,81 @@ fn sql_type(t: ColumnType) -> &'static str {
     }
 }
 
-/// The select list of event rows with `cols` (see [`ROWS`]).
+/// The select list of event rows with `cols`: the event schema's columns in order (never `raw`, which
+/// only re-deriving reads; promoted columns are left out), unneeded wide columns as empty values.
 pub fn row_columns(schema: &EventSchema, cols: &Columns) -> String {
-    let mut replace = vec!["'' AS raw".to_string()];
-    if !cols.message {
-        replace.push("'' AS message".into());
-    } else if let Some(cond) = &cols.message_when {
-        replace.push(format!("CASE WHEN {cond} THEN e.message ELSE '' END AS message"));
-    }
-    if let Some(fields) = &cols.fields {
-        for c in schema.declared() {
-            if !fields.contains(&c.name) {
-                replace.push(format!("CAST(NULL AS {}) AS {}", sql_type(c.ty), ident(&c.column)));
-            }
-        }
-        let keys: Vec<String> = fields.iter().filter(|f| !f.starts_with('@')).filter_map(|f| lit(f)).collect();
-        replace.push(if keys.is_empty() {
-            "CAST(map() AS MAP(VARCHAR, VARCHAR)) AS extra".into()
-        } else {
-            format!(
-                "map_from_entries(list_filter(map_entries(e.extra), lambda x: list_contains([{}], x.key))) AS extra",
-                keys.join(", ")
-            )
+    let wanted = |name: &str| cols.fields.as_ref().is_none_or(|f| f.iter().any(|x| x == name));
+    let mut out = Vec::new();
+    for field in schema.arrow().fields() {
+        let name = field.name().as_str();
+        let col = format!("e.{}", ident(name));
+        out.push(match name {
+            "raw" => "'' AS raw".to_string(),
+            "message" if !cols.message => "'' AS message".to_string(),
+            "message" => match &cols.message_when {
+                Some(cond) => format!("CASE WHEN {cond} THEN e.message ELSE '' END AS message"),
+                None => col,
+            },
+            "extra" => match &cols.fields {
+                None => col,
+                Some(fields) => {
+                    let keys: Vec<String> = fields.iter().filter(|f| !f.starts_with('@')).filter_map(|f| lit(f)).collect();
+                    if keys.is_empty() {
+                        "CAST(map() AS MAP(VARCHAR, VARCHAR)) AS extra".into()
+                    } else {
+                        format!(
+                            "map_from_entries(list_filter(map_entries(e.extra), lambda x: list_contains([{}], x.key))) AS extra",
+                            keys.join(", ")
+                        )
+                    }
+                }
+            },
+            _ => match schema.declared().iter().find(|c| c.column == name) {
+                Some(c) if !wanted(&c.name) => format!("CAST(NULL AS {}) AS {}", sql_type(c.ty), ident(name)),
+                _ => col,
+            },
         });
     }
-    format!("e.* REPLACE ({})", replace.join(", "))
+    out.join(", ")
+}
+
+/// Every event column but `raw` (see [`row_columns`]).
+pub fn rows_sql(schema: &EventSchema) -> String {
+    row_columns(schema, &Columns::all())
 }
 
 /// Sort key of time order: untimed events last.
 pub const TIME_KEY: &str = "coalesce(e.ts, 9223372036854775807)";
+
+/// [`FROM`] with each event's time-order position as `o.pos`.
+pub const FROM_POSITIONED: &str = "events_wide e JOIN sources s ON s.id = e.source JOIN ord o ON o.id = e.id";
+
+/// How statements read events in time order: through the time-order positions (`ord`, R2b) when every
+/// event has one, so the sort is on one narrow key, else by sorting on the time key and its ties.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TimeOrder {
+    pub positioned: bool,
+}
+
+impl TimeOrder {
+    /// The `FROM` clause (events with their source; and their position when positioned).
+    pub fn from(self) -> &'static str {
+        if self.positioned {
+            FROM_POSITIONED
+        } else {
+            FROM
+        }
+    }
+
+    /// The `ORDER BY` of time order, for a statement over [`TimeOrder::from`].
+    pub fn order_by(self) -> String {
+        if self.positioned {
+            "ORDER BY o.pos".into()
+        } else {
+            order_by(false)
+        }
+    }
+}
 
 /// `ORDER BY` of time order (ties by source, line, id), or its reverse.
 pub fn order_by(descending: bool) -> String {
@@ -109,7 +189,7 @@ pub fn ident(s: &str) -> String {
 }
 
 /// A finite number as a SQL `DOUBLE` literal.
-fn double(v: f64) -> Option<String> {
+pub(crate) fn double(v: f64) -> Option<String> {
     v.is_finite().then(|| format!("CAST('{v:?}' AS DOUBLE)"))
 }
 
@@ -128,7 +208,7 @@ fn contains_pattern(text: &str) -> String {
 
 /// SQL text of a field or pseudo-field, as `RowRef::text` gives it (NULL when missing); `None` when it
 /// cannot be expressed.
-pub fn text_expr(name: &str, schema: &EventSchema) -> Option<String> {
+pub fn text_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
     Some(match name {
         "@level" => {
             "CASE e.level WHEN 0 THEN 'Verbose' WHEN 1 THEN 'Debug' WHEN 2 THEN 'Information' WHEN 3 THEN 'Warning' WHEN 4 THEN 'Error' ELSE 'Fatal' END"
@@ -141,11 +221,14 @@ pub fn text_expr(name: &str, schema: &EventSchema) -> Option<String> {
         "@line" => "CAST(e.line AS VARCHAR)".into(),
         _ => {
             let key = lit(name)?;
-            match schema.declared_index(name) {
+            let events = schema.events();
+            match events.declared_index(name) {
                 Some(i) => format!(
                     "coalesce(CAST(e.{} AS VARCHAR), e.extra[{key}])",
-                    ident(&schema.declared()[i].column)
+                    ident(&events.declared()[i].column)
                 ),
+                // Every segment keeps the key in a text column: read it instead of the whole map.
+                None if schema.promoted_text(name) => format!("e.{}", ident(&crate::promote::column(name))),
                 None => format!("e.extra[{key}]"),
             }
         }
@@ -159,13 +242,14 @@ fn parse_number(text: &str) -> String {
 }
 
 /// SQL number of a field, as `RowRef::number` gives it (NULL when missing or not numeric).
-pub fn number_expr(name: &str, schema: &EventSchema) -> Option<String> {
+pub fn number_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
     Some(match name {
         "@line" => "CAST(e.line AS DOUBLE)".into(),
         n if Pseudo::parse(n).is_some() => "CAST(NULL AS DOUBLE)".into(),
         _ => {
             let key = lit(name)?;
-            match schema.declared_index(name).map(|i| &schema.declared()[i]) {
+            let events = schema.events();
+            match events.declared_index(name).map(|i| &events.declared()[i]) {
                 Some(c) if c.ty != ColumnType::Utf8 => format!(
                     "coalesce(CAST(e.{} AS DOUBLE), {})",
                     ident(&c.column),
@@ -179,7 +263,7 @@ pub fn number_expr(name: &str, schema: &EventSchema) -> Option<String> {
 
 /// SQL of the instance key (as `imt_core::query::group_key`): the fields' values joined with " · "
 /// ("–" for a missing one), or the source name when none is present; "all" without fields.
-pub fn group_key_expr(fields: &[String], schema: &EventSchema) -> Option<String> {
+pub fn group_key_expr(fields: &[String], schema: &dyn FieldSource) -> Option<String> {
     if fields.is_empty() {
         return Some("'all'".into());
     }
@@ -210,7 +294,7 @@ fn sql_op(op: CmpOp) -> &'static str {
 
 /// A query-language comparison (see `imt_core::ql::Expr::Cmp`): by severity for levels, numerically
 /// when both sides are numbers, else as text; a missing field only satisfies `!=`.
-fn cmp_sql(field: &FieldKey, op: CmpOp, rhs: &Operand, schema: &EventSchema) -> Option<String> {
+fn cmp_sql(field: &FieldKey, op: CmpOp, rhs: &Operand, schema: &dyn FieldSource) -> Option<String> {
     if let Some(level) = rhs.level {
         return Some(format!("(e.level {} {})", sql_op(op), level.index()));
     }
@@ -235,7 +319,7 @@ fn level_named(value: &str) -> Option<Level> {
 
 /// The SQL of `e` (never NULL), or `None` when SQL cannot express it exactly. `group_by` is the
 /// query's instance key (for [`Expr::Group`]).
-pub fn expr_sql(e: &Expr, schema: &EventSchema, group_by: &[String]) -> Option<String> {
+pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Option<String> {
     let text = |k: &FieldKey| text_expr(k.name(), schema);
     Some(match e {
         Expr::And(v) | Expr::Or(v) => {
@@ -394,7 +478,7 @@ impl SqlFilter {
 }
 
 /// Compiles the conjuncts of a lowered query: the SQL of those SQL expresses, and whether that is all.
-pub fn compile_query(cq: &CompiledQuery, schema: &EventSchema) -> SqlFilter {
+pub fn compile_query(cq: &CompiledQuery, schema: &dyn FieldSource) -> SqlFilter {
     let mut exact = true;
     let mut part = |exprs: &[Expr]| -> Vec<String> {
         exprs
@@ -420,7 +504,7 @@ pub fn compile(
     q: &Filter,
     default_group_by: &[String],
     marker_kinds: &[String],
-    schema: &EventSchema,
+    schema: &dyn FieldSource,
 ) -> StoreResult<(SqlFilter, CompiledQuery)> {
     if q.window.is_some() {
         return Err(StoreError::unsupported("live time windows", "6c"));

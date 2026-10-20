@@ -3,7 +3,7 @@
 //! start or stop are read (the rule's marker conditions compiled to SQL), in time order.
 
 use crate::analysis::{EventStream, MAX_ANALYSED};
-use crate::sql::{expr_sql, order_by, row_columns, Columns, FROM};
+use crate::sql::{expr_sql, row_columns, Columns, FROM};
 use crate::Inner;
 use imt_core::ports::{Analyzed, Filter, StoreError, StoreResult};
 use imt_core::query::{group_key, CompiledQuery};
@@ -103,9 +103,10 @@ impl Inner {
         };
         let cq = CompiledQuery::new(&Filter::default(), &ctx.default_group_by, &ctx.marker_kinds).map_err(invalid)?;
         let sql = format!(
-            "SELECT {} FROM {FROM} WHERE e.ts IS NOT NULL AND ({filter}) {}",
+            "SELECT {} FROM {} WHERE e.ts IS NOT NULL AND ({filter}) {}",
             row_columns(&self.schema, &Columns::all()),
-            order_by(false)
+            ctx.time.from(),
+            ctx.time.order_by()
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, MAX_ANALYSED)?;
         for r in stream.by_ref() {

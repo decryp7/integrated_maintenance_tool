@@ -4,7 +4,7 @@
 //! database per data version and canonical query (engine review finding 18).
 
 use crate::read::{count, Ctx};
-use crate::sql::{expr_sql, group_key_expr, lit, number_expr, order_by, row_columns, Columns, SqlFilter, FROM, ROWS};
+use crate::sql::{expr_sql, group_key_expr, lit, number_expr, row_columns, rows_sql, text_expr, Columns, SqlFilter, FROM};
 use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{RecordBatch, StructArray};
 use duckdb::{params, Connection, Statement};
@@ -341,11 +341,12 @@ impl Inner {
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
         let sql = format!(
-            "SELECT {} FROM {FROM} WHERE {} AND {} {}",
+            "SELECT {} FROM {} WHERE {} AND {} {}",
             self.select_list(&sf, &cq, &read.columns),
+            if read.ordered { ctx.time.from() } else { FROM },
             sf.all_sql(),
             read.extra.unwrap_or("TRUE"),
-            if read.ordered { order_by(false) } else { String::new() }
+            if read.ordered { ctx.time.order_by() } else { String::new() }
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?;
         let result = f(&mut stream, &cq);
@@ -358,7 +359,13 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", sf.all_sql(), order_by(false));
+        let sql = format!(
+            "SELECT {} FROM {} WHERE {} {}",
+            rows_sql(&self.schema),
+            ctx.time.from(),
+            sf.all_sql(),
+            ctx.time.order_by()
+        );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, limit)?;
         for r in stream.by_ref() {
             f(r);
@@ -588,7 +595,11 @@ impl Inner {
                 imt_core::spans::Per::Instance => None,
             });
             let select = row_columns(&self.schema, &Columns::only(true, per.chain(ctx.default_group_by.iter().cloned())));
-            let sql = format!("SELECT {select} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
+            let sql = format!(
+                "SELECT {select} FROM {} WHERE e.ts IS NOT NULL {}",
+                ctx.time.from(),
+                ctx.time.order_by()
+            );
             let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
             for r in stream.by_ref() {
                 let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
@@ -601,6 +612,16 @@ impl Inner {
     }
 
     pub(crate) fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
+        let buckets = req.buckets.clamp(1, 200);
+        {
+            let conn = self.conn()?;
+            let ctx = self.ctx(&conn)?;
+            let (sf, _) = self.compile(&ctx, &req.query)?;
+            let exprs = (text_expr(&req.field, &ctx.fields), number_expr(&req.field, &ctx.fields));
+            if let (true, (Some(t), Some(n))) = (sf.exact, exprs) {
+                return self.field_stats_sql(&conn, &sf, &t, &n, buckets);
+            }
+        }
         Ok(self
             .analyse(
                 &req.query,
@@ -608,6 +629,120 @@ impl Inner {
                 |rows, _| analysis::field_stats(rows, &req.field, req.buckets.clamp(1, 200)),
             )?
             .result)
+    }
+
+    /// Field statistics as SQL aggregates (no row leaves the database): counts, the numeric summary with the
+    /// engine's percentile definition (`quantile_cont` interpolates as `percentile_sorted` does), the top
+    /// values and the histogram over the engine's bin layout. Means and deviations may differ from a
+    /// sequential sum in the last digits.
+    fn field_stats_sql(&self, conn: &Connection, sf: &SqlFilter, t: &str, n: &str, buckets: usize) -> StoreResult<FieldStats> {
+        use imt_core::analysis::{HistogramBin, NumericStats, ValueCount};
+        let base = format!("SELECT {t} AS t, {n} AS n FROM {FROM} WHERE {}", sf.all_sql());
+        let row = conn
+            .query_row(
+                &format!(
+                    "SELECT count(*), count(t), count(n) FILTER (WHERE t IS NOT NULL), min(n), max(n), avg(n), stddev_pop(n),
+                            quantile_cont(n, 0.5), quantile_cont(n, 0.9), quantile_cont(n, 0.95), quantile_cont(n, 0.99)
+                     FROM ({base})"
+                ),
+                [],
+                |r| {
+                    Ok((
+                        r.get::<_, u64>(0)?,
+                        r.get::<_, u64>(1)?,
+                        r.get::<_, u64>(2)?,
+                        r.get::<_, Option<f64>>(3)?,
+                        r.get::<_, Option<f64>>(4)?,
+                        r.get::<_, Option<f64>>(5)?,
+                        r.get::<_, Option<f64>>(6)?,
+                        [
+                            r.get::<_, Option<f64>>(7)?,
+                            r.get::<_, Option<f64>>(8)?,
+                            r.get::<_, Option<f64>>(9)?,
+                            r.get::<_, Option<f64>>(10)?,
+                        ],
+                    ))
+                },
+            )
+            .map_err(engine)?;
+        let (total, count, numbers, min, max, mean, stddev, q) = row;
+        let mut top = Vec::new();
+        let mut distinct = 0usize;
+        {
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT t, count(*) AS c, count(*) OVER () FROM ({base}) WHERE t IS NOT NULL GROUP BY t ORDER BY c DESC, t LIMIT {}",
+                    imt_core::analysis::field_stats::TOP
+                ))
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)))
+                .map_err(engine)?;
+            for row in rows {
+                let (value, c, d) = row.map_err(engine)?;
+                distinct = (d as usize).min(imt_core::analysis::field_stats::MAX_DISTINCT);
+                top.push(ValueCount { value, count: c });
+            }
+        }
+        let numeric = match (count > 0 && numbers == count, min, max) {
+            (true, Some(min), Some(max)) => {
+                let histogram = match imt_core::analysis::field_stats::bin_layout(min, max, buckets) {
+                    None => vec![HistogramBin {
+                        from: min,
+                        to: max,
+                        count: numbers,
+                    }],
+                    Some((start, step, bins)) => {
+                        let mut out: Vec<HistogramBin> = (0..bins)
+                            .map(|i| HistogramBin {
+                                from: start + i as f64 * step,
+                                to: start + (i + 1) as f64 * step,
+                                count: 0,
+                            })
+                            .collect();
+                        let (s0, st) = (
+                            crate::sql::double(start).unwrap_or_else(|| "0".into()),
+                            crate::sql::double(step).unwrap_or_else(|| "1".into()),
+                        );
+                        let mut stmt = conn
+                            .prepare(&format!(
+                                "SELECT greatest(0, least(CAST(trunc((n - {s0}) / {st}) AS BIGINT), {})) AS i, count(*) FROM ({base}) WHERE n IS NOT NULL GROUP BY i",
+                                bins - 1
+                            ))
+                            .map_err(engine)?;
+                        let rows = stmt
+                            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, u64>(1)?)))
+                            .map_err(engine)?;
+                        for row in rows {
+                            let (i, c) = row.map_err(engine)?;
+                            if let Some(b) = out.get_mut(i as usize) {
+                                b.count += c;
+                            }
+                        }
+                        out
+                    }
+                };
+                Some(NumericStats {
+                    min,
+                    max,
+                    mean: mean.unwrap_or(0.0),
+                    stddev: stddev.unwrap_or(0.0),
+                    p50: q[0].unwrap_or(0.0),
+                    p90: q[1].unwrap_or(0.0),
+                    p95: q[2].unwrap_or(0.0),
+                    p99: q[3].unwrap_or(0.0),
+                    histogram,
+                })
+            }
+            _ => None,
+        };
+        Ok(FieldStats {
+            count,
+            missing: total - count,
+            distinct,
+            numeric,
+            top,
+        })
     }
 
     /// Streams a chart's events (`select` columns matching `filter`), in time order when `ordered`.
@@ -623,8 +758,12 @@ impl Inner {
         ordered: bool,
         f: &mut dyn FnMut(OwnedRow),
     ) -> StoreResult<()> {
-        let order = if ordered { order_by(false) } else { String::new() };
-        let sql = format!("SELECT {select} FROM {FROM} WHERE {filter} {order}");
+        let (from, order) = if ordered {
+            (ctx.time.from(), ctx.time.order_by())
+        } else {
+            (FROM, String::new())
+        };
+        let sql = format!("SELECT {select} FROM {from} WHERE {filter} {order}");
         let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, exact, usize::MAX)?;
         for r in stream.by_ref() {
             f(r);
@@ -659,7 +798,7 @@ impl Inner {
         let mut when_sql = vec!["e.ts IS NOT NULL".to_string()];
         let mut exact = sf.exact;
         for c in &when {
-            match expr_sql(c.expr(), &self.schema, &cq.group_by) {
+            match expr_sql(c.expr(), &ctx.fields, &cq.group_by) {
                 Some(s) => when_sql.push(s),
                 None => exact = false,
             }
@@ -702,11 +841,11 @@ impl Inner {
         let key_sql = if def.split_by.is_empty() {
             lit(&def.title)
         } else {
-            group_key_expr(&def.split_by, &self.schema)
+            group_key_expr(&def.split_by, &ctx.fields)
         };
         let value_sql = match &field {
             None => Some("CAST(1 AS DOUBLE)".to_string()),
-            Some(f) => number_expr(f, &self.schema),
+            Some(f) => number_expr(f, &ctx.fields),
         };
         if let (true, Agg::Count | Agg::Min | Agg::Max, Some(key_sql), Some(value_sql)) = (exact, agg, key_sql, value_sql) {
             let Buckets { start, bucket_ms, n } = buckets;
@@ -764,10 +903,11 @@ impl Inner {
         let mut lifecycle = Vec::new();
         if mask != 0 {
             let sql = format!(
-                "SELECT {} FROM {FROM} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
+                "SELECT {} FROM {} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
                 self.select_list(&sf, &cq, &Columns::only(false, Vec::<String>::new())),
+                ctx.time.from(),
                 sf.structural_sql(),
-                order_by(false)
+                ctx.time.order_by()
             );
             // Only the structural criteria apply to lifecycle markers.
             let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;

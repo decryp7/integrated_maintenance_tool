@@ -62,6 +62,12 @@ fn normalize(v: &Value, map: &HashMap<u64, String>) -> Value {
                     .collect(),
             )
         }
+        // Sums in SQL add in another order than the engine: compare floats to 10 significant digits.
+        Value::Number(n) if n.is_f64() => n
+            .as_f64()
+            .and_then(|f| format!("{f:.9e}").parse::<f64>().ok())
+            .and_then(serde_json::Number::from_f64)
+            .map_or_else(|| v.clone(), Value::Number),
         _ => v.clone(),
     }
 }

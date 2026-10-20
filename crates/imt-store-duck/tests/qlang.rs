@@ -11,6 +11,25 @@ use imt_core::Profile;
 use std::collections::HashMap;
 use std::ops::ControlFlow;
 
+/// A result with floats rounded to 10 significant digits (SQL sums in another order than the engine).
+fn rounded(r: QlResult) -> QlResult {
+    let round = |v: serde_json::Value| match v.as_f64() {
+        Some(f) if v.is_f64() => format!("{f:.9e}")
+            .parse::<f64>()
+            .ok()
+            .and_then(serde_json::Number::from_f64)
+            .map_or(v, serde_json::Value::Number),
+        _ => v,
+    };
+    match r {
+        QlResult::Table { columns, rows } => QlResult::Table {
+            columns,
+            rows: rows.into_iter().map(|row| row.into_iter().map(round).collect()).collect(),
+        },
+        other => other,
+    }
+}
+
 fn keys(p: &Pair) -> (HashMap<u32, String>, HashMap<u64, String>) {
     let ws =
         p.ws.records()
@@ -63,7 +82,7 @@ fn programs_run_like_the_workspace() {
                 assert_eq!(dk, wk, "{ql}: events");
                 assert!(!wk.is_empty(), "{ql} matches events");
             }
-            (w @ QlResult::Table { .. }, d) => assert_eq!(d, w, "{ql}: table"),
+            (w @ QlResult::Table { .. }, d) => assert_eq!(rounded(d), rounded(w), "{ql}: table"),
             (w, d) => panic!("{ql}: {w:?} vs {d:?}"),
         }
     }

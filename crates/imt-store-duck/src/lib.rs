@@ -67,6 +67,9 @@ impl Default for StoreOptions {
     }
 }
 
+/// Stores with at least this many events answer timelines from the pre-aggregated histogram.
+pub const PREAGGREGATE_ABOVE: u64 = 1_000_000;
+
 /// File name of the database in a store folder.
 pub const DB_FILE: &str = "data.duckdb";
 
@@ -106,6 +109,9 @@ pub(crate) struct Inner {
     options: RwLock<StoreOptions>,
     pub(crate) progress: Arc<ImportProgress>,
     pub(crate) derived: Mutex<Option<(u64, Arc<read::Derived>)>>,
+    /// From this many events on, timelines use the pre-aggregated histogram (approximate at bucket edges)
+    /// instead of grouping the events.
+    pub(crate) preaggregate_above: AtomicU64,
 }
 
 /// A connection borrowed from the pool, returned on drop.
@@ -480,6 +486,7 @@ impl DuckStore {
                 options: RwLock::new(opts),
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
+                preaggregate_above: AtomicU64::new(PREAGGREGATE_ABOVE),
             }),
         }
     }
@@ -507,6 +514,11 @@ impl DuckStore {
         let c = compact::compact(&conn, &self.inner.dir, &self.inner.schema).map_err(|e| engine(format!("{e:#}")))?;
         self.changed();
         Ok(c)
+    }
+
+    /// From how many events on timelines are answered from the histogram (tests lower it).
+    pub fn set_preaggregate_above(&self, events: u64) {
+        self.inner.preaggregate_above.store(events, Ordering::Relaxed);
     }
 
     /// Progress of the running (or last) import.

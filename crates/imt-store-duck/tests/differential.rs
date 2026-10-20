@@ -275,6 +275,58 @@ fn check_timelines(p: &Pair) {
     }
 }
 
+/// Large stores answer timelines from the minute histogram: the same lanes, totals and markers; counts
+/// per bucket may move to a neighbouring bucket (a minute is counted whole) and lane bounds are minutes.
+fn check_histogram_timelines(p: &Pair) {
+    p.duck.set_preaggregate_above(0);
+    // One lane per source (a source with events of several instances needs the events).
+    let by_source = Filter {
+        group_by: vec!["@source".into()],
+        ..Filter::default()
+    };
+    let levels = Filter {
+        levels: vec![Level::Error, Level::Warning],
+        ..by_source.clone()
+    };
+    for (name, q) in [("everything", by_source), ("levels", levels)] {
+        let req = TimelineRequest {
+            query: q,
+            buckets: 10,
+            always_show_lifecycle: true,
+        };
+        let w = p.ws.timeline(&req).unwrap();
+        let d = p.duck.timeline(&req).unwrap();
+        assert!(w.bucket_ms >= 60_000.0, "{name}: the samples span more than ten minutes");
+        assert_eq!((d.from, d.to, d.bucket_ms), (w.from, w.to, w.bucket_ms), "{name}: bounds");
+        let sum = |h: &[[u32; 6]]| {
+            h.iter().fold([0u32; 6], |mut a, b| {
+                for (x, y) in a.iter_mut().zip(b) {
+                    *x += y;
+                }
+                a
+            })
+        };
+        assert_eq!(sum(&d.histogram), sum(&w.histogram), "{name}: histogram totals");
+        // From the histogram: whole minutes per bucket, so some counts move to a neighbouring bucket.
+        assert_ne!(d.histogram, w.histogram, "{name}: the histogram path answers");
+        assert_eq!(d.lanes.len(), w.lanes.len(), "{name}: lanes");
+        for (dl, wl) in d.lanes.iter().zip(&w.lanes) {
+            assert_eq!((&dl.key, dl.total, dl.matched), (&wl.key, wl.total, wl.matched), "{name}: lane");
+            // Without a time range, lane bounds are the sources' (exact).
+            assert_eq!((dl.first, dl.last), (wl.first, wl.last), "{name}: lane bounds");
+            assert_eq!(
+                dl.density.iter().sum::<u32>(),
+                wl.density.iter().sum::<u32>(),
+                "{name}: density of {}",
+                wl.key
+            );
+            let counts = |l: &imt_core::api::Lane| l.markers.iter().map(|m| (m.kind.clone(), m.bucket, m.count)).collect::<Vec<_>>();
+            assert_eq!(counts(dl), counts(wl), "{name}: markers of {}", wl.key);
+        }
+    }
+    p.duck.set_preaggregate_above(imt_store_duck::PREAGGREGATE_ABOVE);
+}
+
 fn check_facets(p: &Pair) {
     for (name, q) in queries(p) {
         let q = ranged(p, q);
@@ -444,6 +496,7 @@ fn answers_like_the_workspace_with_the_default_profile() {
     check_anchor(&p);
     check_facets(&p);
     check_timelines(&p);
+    check_histogram_timelines(&p);
 }
 
 #[test]

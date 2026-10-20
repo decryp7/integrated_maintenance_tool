@@ -1,7 +1,7 @@
 //! The `Query` port: summary, page, timeline and facet as SQL where the filter compiles exactly, else a
 //! scan of the SQL-prefiltered events in time order through the engine's `CompiledQuery`.
 
-use crate::sql::{self, group_key_expr, order_by, text_expr, SqlFilter, FROM, ROWS, TIME_KEY};
+use crate::sql::{self, group_key_expr, order_by, rows_sql, text_expr, Fields, SqlFilter, FROM, TIME_KEY};
 use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{BooleanArray, RecordBatch, StructArray};
 use duckdb::arrow::compute::filter_record_batch;
@@ -74,6 +74,10 @@ pub(crate) struct Ctx {
     pub(crate) visible: u64,
     pub(crate) lifecycle: u64,
     pub(crate) default_group_by: Vec<String>,
+    /// Where fields are read from (declared and promoted columns).
+    pub(crate) fields: Fields,
+    /// How to read events in time order.
+    pub(crate) time: sql::TimeOrder,
 }
 
 impl Ctx {
@@ -158,6 +162,50 @@ impl Inner {
             visible: self.registry().visible_markers(&profile.markers),
             lifecycle: profile.lifecycle_mask,
             default_group_by: self.derived(conn)?.default_group_by.clone(),
+            fields: self.fields(conn)?,
+            time: sql::TimeOrder {
+                positioned: self.positioned(conn)?,
+            },
+        })
+    }
+
+    /// Whether every visible event has a time-order position (not while importing, when new events
+    /// have none until the import ends).
+    pub(crate) fn positioned(&self, conn: &Connection) -> StoreResult<bool> {
+        if self.is_importing() {
+            return Ok(false);
+        }
+        let (positions, events): (u64, u64) = conn
+            .query_row(
+                "SELECT (SELECT count(*) FROM ord), (SELECT coalesce(sum(events), 0) FROM sources WHERE ready)",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(engine)?;
+        Ok(positions > 0 && positions == events)
+    }
+
+    /// The schema and the keys every segment promotes to a text column.
+    pub(crate) fn fields(&self, conn: &Connection) -> StoreResult<Fields> {
+        let mut stmt = conn.prepare("SELECT promoted FROM segments").map_err(engine)?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(engine)?;
+        let mut common: Option<std::collections::BTreeSet<String>> = None;
+        for row in rows {
+            let p = crate::promote::Promotion::decode(&row.map_err(engine)?);
+            let text: std::collections::BTreeSet<String> = p
+                .keys
+                .into_iter()
+                .filter(|(_, t)| *t == crate::promote::PType::Text)
+                .map(|(k, _)| k)
+                .collect();
+            common = Some(match common {
+                None => text,
+                Some(c) => c.intersection(&text).cloned().collect(),
+            });
+        }
+        Ok(Fields {
+            schema: self.schema.clone(),
+            promoted_text: common.unwrap_or_default(),
         })
     }
 
@@ -181,50 +229,73 @@ impl Inner {
                 return Ok(d);
             }
         }
-        let isnum = |x: &str| format!("coalesce(isfinite(TRY_CAST(trim({x}) AS DOUBLE)), false)");
-        let mut fields = Vec::new();
-        let declared_names: HashSet<&str> = self.schema.declared().iter().map(|c| c.name.as_str()).collect();
-        for c in self.schema.declared() {
-            let Some(v) = text_expr(&c.name, &self.schema) else { continue };
-            let typed = if c.ty == imt_core::batch::ColumnType::Utf8 {
-                "FALSE".to_string()
-            } else {
-                format!("e.{} IS NOT NULL", sql::ident(&c.column))
-            };
-            let row = conn
-                .query_row(
-                    &format!(
-                        "SELECT count(v), count(DISTINCT v), count(*) FILTER (WHERE v IS NOT NULL AND NOT t AND NOT {}) FROM (SELECT {v} AS v, {typed} AS t FROM events e)",
-                        isnum("v")
-                    ),
-                    [],
-                    |r| Ok((r.get::<_, u64>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)),
-                )
+        // From the per-segment field catalog (R2b): counts are exact; the distinct count is exact when every
+        // segment has at most ten values (their top values are all listed).
+        let mut acc: BTreeMap<String, (u64, u64, u64, HashSet<String>, bool)> = BTreeMap::new();
+        {
+            let mut stmt = conn
+                .prepare("SELECT key, rows, numeric_rows, distinct_est, top_values FROM segment_fields")
                 .map_err(engine)?;
-            if row.0 > 0 {
-                fields.push((c.name.clone(), row));
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, u64>(1)?,
+                        r.get::<_, u64>(2)?,
+                        r.get::<_, u64>(3)?,
+                        r.get::<_, String>(4)?,
+                    ))
+                })
+                .map_err(engine)?;
+            for row in rows {
+                let (key, rows, numeric, distinct, top) = row.map_err(engine)?;
+                let top: Vec<(String, u64)> = serde_json::from_str(&top).unwrap_or_default();
+                let e = acc.entry(key).or_insert((0, 0, 0, HashSet::new(), true));
+                e.0 += rows;
+                e.1 += numeric;
+                e.2 += distinct;
+                e.4 &= distinct as usize <= top.len();
+                e.3.extend(top.into_iter().map(|(v, _)| v));
             }
         }
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT k, count(*), count(DISTINCT v), count(*) FILTER (WHERE NOT {}) FROM (SELECT unnest(map_keys(e.extra)) AS k, unnest(map_values(e.extra)) AS v FROM events e) GROUP BY k",
-                isnum("v")
-            ))
-            .map_err(engine)?;
-        let rows = stmt
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    (r.get::<_, u64>(1)?, r.get::<_, u64>(2)?, r.get::<_, u64>(3)?),
-                ))
+        // Keys with more values than a segment lists: counted exactly in one statement while the store is
+        // small, else estimated (the segments' estimates summed: high-cardinality values rarely repeat
+        // across segments).
+        let total = count(conn, "SELECT count(*) FROM events")?;
+        let mut exact: HashMap<String, u64> = HashMap::new();
+        if (total as u64) < self.preaggregate_above.load(std::sync::atomic::Ordering::Relaxed) {
+            let fields = self.fields(conn)?;
+            let unlisted: Vec<(&String, String)> = acc
+                .iter()
+                .filter(|(_, e)| !e.4)
+                .filter_map(|(k, _)| text_expr(k, &fields).map(|x| (k, x)))
+                .collect();
+            if !unlisted.is_empty() {
+                let select = unlisted
+                    .iter()
+                    .map(|(_, x)| format!("count(DISTINCT {x})"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut stmt = conn.prepare(&format!("SELECT {select} FROM {FROM}")).map_err(engine)?;
+                let mut rows = stmt.query([]).map_err(engine)?;
+                if let Some(r) = rows.next().map_err(engine)? {
+                    for (i, (k, _)) in unlisted.iter().enumerate() {
+                        exact.insert((*k).clone(), r.get::<_, u64>(i).map_err(engine)?);
+                    }
+                }
+            }
+        }
+        let fields: Vec<(String, (u64, u64, u64))> = acc
+            .into_iter()
+            .map(|(k, (rows, numeric, summed, values, listed))| {
+                let distinct = match exact.get(&k) {
+                    Some(n) => *n,
+                    None if listed => values.len() as u64,
+                    None => summed.min(rows).max(values.len() as u64),
+                };
+                (k, (rows, distinct, rows - numeric.min(rows)))
             })
-            .map_err(engine)?;
-        for row in rows {
-            let (k, stats) = row.map_err(engine)?;
-            if !declared_names.contains(k.as_str()) {
-                fields.push((k, stats));
-            }
-        }
+            .collect();
         let derived: HashSet<&str> = profile
             .extractors
             .iter()
@@ -242,7 +313,6 @@ impl Inner {
             })
             .collect();
         infos.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
-        let total = count(conn, "SELECT count(*) FROM events")?;
         let sources = count(conn, "SELECT count(*) FROM sources WHERE ready")?;
         let default_group_by = imt_core::query::default_group_by(&profile.profile.instance, &infos, total, sources);
         let d = Arc::new(Derived {
@@ -257,7 +327,7 @@ impl Inner {
     }
 
     pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
-        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &self.schema)
+        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &ctx.fields)
     }
 
     fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, group_by: &[String]) -> EventView {
@@ -284,7 +354,13 @@ impl Inner {
     /// Ids of the matching events in time order (the scan fallback).
     fn matching_ids(&self, conn: &Connection, ctx: &Ctx, f: &SqlFilter, cq: &CompiledQuery) -> StoreResult<Vec<u64>> {
         let mut ids = Vec::new();
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
+        let sql = format!(
+            "SELECT {} FROM {} WHERE {} {}",
+            rows_sql(&self.schema),
+            ctx.time.from(),
+            f.all_sql(),
+            ctx.time.order_by()
+        );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             ctx.each_match(&batch, cq, f.exact, &mut |row| ids.push(row.id()));
             ControlFlow::Continue(())
@@ -298,6 +374,47 @@ impl Inner {
         let (f, cq) = self.compile(&ctx, &req.query)?;
         let limit = req.rows();
         let display = |pos: usize, total: usize| if req.descending { total - 1 - pos } else { pos };
+        // No criteria: the time-order positions give the page directly (no sort).
+        if f.exact && f.structural.is_empty() && f.content.is_empty() && !self.is_importing() {
+            let total = count(&conn, "SELECT count(*) FROM ord")?;
+            let mut offset = req.offset;
+            let mut anchor_index = None;
+            if let Some(a) = req.anchor {
+                let pos: Option<u64> = conn
+                    .query_row("SELECT pos FROM ord WHERE id = ?", duckdb::params![a.0], |r| r.get(0))
+                    .ok();
+                if let Some(pos) = pos {
+                    let idx = display(pos as usize, total);
+                    anchor_index = Some(idx);
+                    offset = idx - idx % limit;
+                }
+            }
+            let offset = offset.min(total);
+            let end = (offset + limit).min(total);
+            let (lo, hi) = if req.descending {
+                (total - end, total - offset)
+            } else {
+                (offset, end)
+            };
+            let mut stmt = conn
+                .prepare("SELECT id FROM ord WHERE pos >= ? AND pos < ? ORDER BY pos")
+                .map_err(engine)?;
+            let mut wanted = stmt
+                .query_map(duckdb::params![lo as u64, hi as u64], |r| r.get::<_, u64>(0))
+                .map_err(engine)?
+                .collect::<Result<Vec<u64>, _>>()
+                .map_err(engine)?;
+            if req.descending {
+                wanted.reverse();
+            }
+            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
+            return Ok(PageReply {
+                total,
+                offset,
+                rows,
+                anchor_index,
+            });
+        }
         if f.exact {
             let w = f.all_sql();
             let total = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {w}"))?;
@@ -373,7 +490,34 @@ impl Inner {
         }
         let list: Vec<String> = ids.iter().map(u64::to_string).collect();
         let mut by_id: HashMap<u64, EventView> = HashMap::new();
-        let sql = format!("SELECT {ROWS} FROM events e WHERE e.id IN ({})", list.join(", "));
+        // Only the segments whose id blocks hold the ids are read.
+        let mut sorted: Vec<u64> = ids.to_vec();
+        sorted.sort_unstable();
+        let seg_dir = self.dir.join(crate::segments::SEGMENTS_DIR);
+        let mut files = Vec::new();
+        {
+            let mut stmt = conn.prepare("SELECT file, first_id, end_id FROM segments").map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)))
+                .map_err(engine)?;
+            for row in rows {
+                let (file, first, end) = row.map_err(engine)?;
+                let at = sorted.partition_point(|i| *i < first);
+                if sorted.get(at).is_some_and(|i| *i < end) {
+                    files.push(seg_dir.join(file).to_string_lossy().into_owned());
+                }
+            }
+        }
+        if files.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = format!(
+            "SELECT {} FROM {} e WHERE e.id IN ({}) AND {}",
+            rows_sql(&self.schema),
+            crate::schema::parquet_from(&files),
+            list.join(", "),
+            crate::schema::READY
+        );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             for r in batch.rows() {
                 by_id.insert(r.id().0, self.view(ctx, &r, group_by));
@@ -463,9 +607,9 @@ impl Inner {
         let (f, cq) = self.compile(&ctx, &req.query)?;
         let limit = req.limit.clamp(1, 1000);
         let expr = if req.field == "@group" {
-            group_key_expr(&cq.group_by, &self.schema)
+            group_key_expr(&cq.group_by, &ctx.fields)
         } else {
-            text_expr(&req.field, &self.schema)
+            text_expr(&req.field, &ctx.fields)
         };
         if let (true, Some(expr)) = (f.exact, expr) {
             let inner = format!(
@@ -506,7 +650,8 @@ impl Inner {
         }
         let mut counts: HashMap<String, usize> = HashMap::new();
         let mut total = 0;
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
+        // Counts only: no order needed.
+        let sql = format!("SELECT {} FROM {FROM} WHERE {}", rows_sql(&self.schema), f.all_sql());
         let key = FieldKeys::new().key(&req.field);
         for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
             ctx.each_match(&batch, &cq, f.exact, &mut |row| {
@@ -538,7 +683,13 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (f, cq) = self.compile(&ctx, q)?;
-        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
+        let sql = format!(
+            "SELECT {} FROM {} WHERE {} {}",
+            rows_sql(&self.schema),
+            ctx.time.from(),
+            f.all_sql(),
+            ctx.time.order_by()
+        );
         let mut failed = None;
         for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
             if f.exact {
@@ -655,10 +806,262 @@ impl Inner {
         } else {
             0
         };
-        match group_key_expr(&cq.group_by, &self.schema) {
-            Some(key) if f.exact => self.timeline_sql(&conn, &ctx, &f, &key, req, buckets, lifecycle),
+        match group_key_expr(&cq.group_by, &ctx.fields) {
+            Some(key) if f.exact => {
+                if let Some(t) = self.timeline_histogram(&conn, &ctx, &cq, &key, req, buckets, lifecycle)? {
+                    return Ok(t);
+                }
+                self.timeline_sql(&conn, &ctx, &f, &key, req, buckets, lifecycle)
+            }
             _ => self.timeline_scan(&conn, &ctx, &f, &cq, req, buckets, lifecycle),
         }
+    }
+
+    /// The instance key of each source, when every timed event of a source has the same one (cached per data
+    /// version and instance key); `None` when some source has several (then lanes need the events).
+    fn source_keys(&self, conn: &Connection, key: &str) -> StoreResult<Option<HashMap<u32, String>>> {
+        if let Some(v) = self.cache_get(conn, "source-keys", key)? {
+            if let Ok(m) = serde_json::from_str::<Option<HashMap<u32, String>>>(&v) {
+                return Ok(m);
+            }
+        }
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT e.source, {key} AS k FROM {FROM} WHERE e.ts IS NOT NULL GROUP BY ALL"
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, u32>(0)?, r.get::<_, String>(1)?)))
+            .map_err(engine)?;
+        let mut out: Option<HashMap<u32, String>> = Some(HashMap::new());
+        for row in rows {
+            let (source, k) = row.map_err(engine)?;
+            if let Some(m) = &mut out {
+                if m.insert(source, k).is_some() {
+                    out = None;
+                }
+            }
+        }
+        if let Ok(v) = serde_json::to_string(&out) {
+            self.cache_put(conn, "source-keys", key, &v)?;
+        }
+        Ok(out)
+    }
+
+    /// The timeline from the per-segment minute × level × source histogram (R2b), for large stores when
+    /// buckets are a minute or longer, the query only selects sources, a time range and levels, and each
+    /// source belongs to one lane. Counts are those of whole minutes (a bucket edge inside a minute
+    /// takes the whole minute), lane bounds are minutes. `None` when it does not apply.
+    #[allow(clippy::too_many_arguments)]
+    fn timeline_histogram(
+        &self,
+        conn: &Connection,
+        ctx: &Ctx,
+        cq: &CompiledQuery,
+        key: &str,
+        req: &TimelineRequest,
+        buckets: usize,
+        lifecycle: u64,
+    ) -> StoreResult<Option<Timeline>> {
+        let positioned = count(conn, "SELECT count(*) FROM ord")? as u64;
+        if positioned < self.preaggregate_above.load(std::sync::atomic::Ordering::Relaxed) || self.is_importing() {
+            return Ok(None);
+        }
+        let mut sources: Option<Vec<u32>> = None;
+        let mut levels: u8 = 0x3f;
+        let mut range: (Option<i64>, Option<i64>) = (None, None);
+        for e in cq.structural_exprs() {
+            match e {
+                imt_core::ql::Expr::Sources(set) => sources = Some(set.iter().copied().collect()),
+                imt_core::ql::Expr::Time { from, to } => range = (*from, *to),
+                _ => return Ok(None),
+            }
+        }
+        for e in cq.content_exprs() {
+            match e {
+                imt_core::ql::Expr::Levels(mask) => levels &= *mask,
+                _ => return Ok(None),
+            }
+        }
+        // Bounds as the event query computes them: the sources' first and last timed events.
+        let source_filter = sources
+            .as_ref()
+            .map(|s| format!(" AND id IN ({})", s.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")))
+            .unwrap_or_default();
+        let (min, max): (Option<i64>, Option<i64>) = conn
+            .query_row(
+                &format!("SELECT min(ts_from), max(ts_to) FROM sources WHERE ready{source_filter}"),
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(engine)?;
+        let (from, to, bucket_ms) = Self::bounds(req, min.or(range.0), max.or(range.1), buckets);
+        if bucket_ms < 60_000.0 {
+            return Ok(None);
+        }
+        let Some(lane_of) = self.source_keys(conn, key)? else {
+            return Ok(None);
+        };
+        let mut conds = vec![
+            "h.minute IS NOT NULL".to_string(),
+            "h.source IN (SELECT id FROM sources WHERE ready)".to_string(),
+        ];
+        if let Some(s) = &sources {
+            conds.push(format!(
+                "h.source IN ({})",
+                s.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")
+            ));
+        }
+        if let Some(f) = range.0 {
+            conds.push(format!("h.minute >= {}", f.div_euclid(60_000)));
+        }
+        if let Some(t) = range.1 {
+            conds.push(format!("h.minute <= {}", t.div_euclid(60_000)));
+        }
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT h.source, h.minute, h.level, sum(h.n) FROM histogram h WHERE {} GROUP BY ALL",
+                conds.join(" AND ")
+            ))
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((r.get::<_, u32>(0)?, r.get::<_, i64>(1)?, r.get::<_, u8>(2)?, r.get::<_, u64>(3)?))
+            })
+            .map_err(engine)?;
+        let mut lanes: Vec<Lane> = Vec::new();
+        let mut index: HashMap<String, usize> = HashMap::new();
+        let mut histogram = vec![[0u32; 6]; buckets];
+        let mut firsts: HashMap<(usize, u32), i64> = HashMap::new();
+        for row in rows {
+            let (source, minute, level, n) = row.map_err(engine)?;
+            let Some(k) = lane_of.get(&source) else { continue };
+            let i = *index.entry(k.clone()).or_insert_with_key(|k| {
+                lanes.push(Lane {
+                    key: k.clone(),
+                    first: i64::MAX,
+                    last: i64::MIN,
+                    total: 0,
+                    matched: 0,
+                    density: vec![0; buckets],
+                    markers: Vec::new(),
+                    sources: Vec::new(),
+                });
+                lanes.len() - 1
+            });
+            let start = minute * 60_000;
+            let lane = &mut lanes[i];
+            lane.first = lane.first.min(start.max(from));
+            lane.last = lane.last.max((start + 59_999).min(to));
+            lane.total += n as usize;
+            let b = ((((start - from) as f64) / bucket_ms).floor().max(0.0) as usize).min(buckets - 1);
+            if levels & (1 << level.min(5)) != 0 {
+                lane.matched += n as usize;
+                lane.density[b] += n as u32;
+                histogram[b][(level as usize).min(5)] += n as u32;
+            }
+            firsts.entry((i, source)).and_modify(|m| *m = (*m).min(start)).or_insert(start);
+        }
+        // Without a time range a lane spans its sources' first and last timed events, which are known exactly.
+        if range == (None, None) {
+            let mut bounds: HashMap<u32, (i64, i64)> = HashMap::new();
+            let mut stmt = conn
+                .prepare("SELECT id, ts_from, ts_to FROM sources WHERE ready AND ts_from IS NOT NULL AND ts_to IS NOT NULL")
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, u32>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)))
+                .map_err(engine)?;
+            for row in rows {
+                let (id, a, b) = row.map_err(engine)?;
+                bounds.insert(id, (a, b));
+            }
+            let mut exact: Vec<Option<(i64, i64)>> = vec![None; lanes.len()];
+            for &(i, source) in firsts.keys() {
+                if let Some(&(a, b)) = bounds.get(&source) {
+                    let e = exact[i].get_or_insert((a, b));
+                    *e = (e.0.min(a), e.1.max(b));
+                }
+            }
+            for (lane, e) in lanes.iter_mut().zip(exact) {
+                if let Some((a, b)) = e {
+                    (lane.first, lane.last) = (a.max(from), b.min(to));
+                }
+            }
+        }
+        let mut by_lane: Vec<Vec<(i64, u32)>> = vec![Vec::new(); lanes.len()];
+        for ((i, source), first) in firsts {
+            by_lane[i].push((first, source));
+        }
+        for (lane, mut f) in lanes.iter_mut().zip(by_lane) {
+            f.sort_unstable();
+            lane.sources = f.into_iter().take(MAX_LANE_SOURCES).map(|(_, s)| s).collect();
+        }
+        // Marker clusters from the (few) marked events, as the event query does.
+        let mut clusters: Vec<HashMap<(usize, usize), Cluster>> = (0..lanes.len()).map(|_| HashMap::new()).collect();
+        let visible = ctx.visible;
+        let any = visible | lifecycle;
+        if any != 0 {
+            let mut filter = vec!["e.ts IS NOT NULL".to_string(), format!("(e.markers & {any}::UBIGINT) <> 0")];
+            filter.extend(
+                cq.structural_exprs()
+                    .iter()
+                    .filter_map(|e| sql::expr_sql(e, &ctx.fields, &cq.group_by)),
+            );
+            let content = cq
+                .content_exprs()
+                .iter()
+                .filter_map(|e| sql::expr_sql(e, &ctx.fields, &cq.group_by))
+                .collect::<Vec<_>>();
+            let content = if content.is_empty() {
+                "TRUE".to_string()
+            } else {
+                content.join(" AND ")
+            };
+            let bucket = format!(
+                "least(greatest(CAST(trunc(CAST(e.ts - {from} AS DOUBLE) / CAST('{bucket_ms:?}' AS DOUBLE)) AS BIGINT), 0), {})",
+                buckets - 1
+            );
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT k, mask, b, n, struct_extract(f, 'ts'), struct_extract(f, 'source'), struct_extract(f, 'line'), struct_extract(f, 'id'), msg FROM (
+                       SELECT k, mask, b, count(*) AS n, min(o) AS f, arg_min(message, o) AS msg FROM (
+                         SELECT {key} AS k, {bucket} AS b, e.message AS message,
+                                struct_pack(ts := e.ts, source := e.source, line := e.line, id := e.id) AS o,
+                                CASE WHEN ({content}) THEN e.markers & {visible}::UBIGINT ELSE e.markers & {lifecycle}::UBIGINT END AS mask
+                         FROM {FROM} WHERE {})
+                       WHERE mask <> 0 GROUP BY k, mask, b)",
+                    filter.join(" AND ")
+                ))
+                .map_err(engine)?;
+            let rows = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, u64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, u64>(3)?,
+                        (r.get::<_, i64>(4)?, r.get::<_, u32>(5)?, r.get::<_, u32>(6)?, r.get::<_, u64>(7)?),
+                        r.get::<_, String>(8)?,
+                    ))
+                })
+                .map_err(engine)?;
+            for row in rows {
+                let (k, mask, b, n, first, message) = row.map_err(engine)?;
+                if let Some(&i) = index.get(&k) {
+                    let b = (b.max(0) as usize).min(buckets - 1);
+                    add_cluster(&mut clusters[i], &ctx.marker_kinds, mask, b, n as u32, first, &message);
+                }
+            }
+        }
+        let (lanes, truncated_lanes) = finish_lanes(lanes, clusters);
+        Ok(Some(Timeline {
+            from,
+            to,
+            bucket_ms,
+            histogram,
+            lanes,
+            truncated_lanes,
+        }))
     }
 
     fn bounds(req: &TimelineRequest, min: Option<i64>, max: Option<i64>, buckets: usize) -> (i64, i64, f64) {
@@ -822,9 +1225,11 @@ impl Inner {
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut cands: Vec<Candidate> = Vec::new();
         let sql = format!(
-            "SELECT {ROWS} FROM {FROM} WHERE e.ts IS NOT NULL AND {} {}",
+            "SELECT {} FROM {} WHERE e.ts IS NOT NULL AND {} {}",
+            rows_sql(&self.schema),
+            ctx.time.from(),
             f.structural_sql(),
-            order_by(false)
+            ctx.time.order_by()
         );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             let slots = BatchSlots::resolve(cq.keys(), batch.schema());
