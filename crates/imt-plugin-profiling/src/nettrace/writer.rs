@@ -369,6 +369,30 @@ pub mod payload {
         p
     }
 
+    /// `GCAllocationTick_V3` with a pointer-sized type id and address.
+    pub fn alloc_tick(bytes: u64, kind: u32, type_name: &str, ptr: usize) -> Vec<u8> {
+        let mut p = Vec::new();
+        p.extend_from_slice(&(bytes.min(u64::from(u32::MAX)) as u32).to_le_bytes());
+        p.extend_from_slice(&kind.to_le_bytes());
+        p.extend_from_slice(&0u16.to_le_bytes());
+        p.extend_from_slice(&bytes.to_le_bytes());
+        p.extend_from_slice(&0x7f00_1234u64.to_le_bytes()[..ptr]); // type id
+        utf16z(&mut p, type_name);
+        p.extend_from_slice(&0u32.to_le_bytes()); // heap index
+        p.extend_from_slice(&0x0200_0000u64.to_le_bytes()[..ptr]); // address
+        p
+    }
+
+    /// `ThreadPoolWorkerThreadAdjustmentAdjustment`.
+    pub fn pool_adjust(workers: u32, reason: u32) -> Vec<u8> {
+        let mut p = Vec::new();
+        p.extend_from_slice(&2.5f64.to_le_bytes());
+        p.extend_from_slice(&workers.to_le_bytes());
+        p.extend_from_slice(&reason.to_le_bytes());
+        p.extend_from_slice(&0u16.to_le_bytes());
+        p
+    }
+
     /// `ContentionStart_V1` / `ContentionStop`.
     pub fn contention(native: bool) -> Vec<u8> {
         let mut p = vec![u8::from(native)];

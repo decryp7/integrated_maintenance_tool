@@ -1460,7 +1460,7 @@ export type Measurement = 'sampled' | 'exact';
 export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
 export type ProfileKind = 'cpu' | 'alloc' | 'wall' | 'mixed';
 export type FrameKind = 'managed' | 'native' | 'kernel' | 'unknown';
-export type ProfileEventKind = 'gc' | 'jit' | 'exception' | 'lockWait' | 'marker';
+export type ProfileEventKind = 'gc' | 'jit' | 'exception' | 'lockWait' | 'wait' | 'marker';
 /** Values per metric; only the profile's metrics are present. */
 export type MetricValues = Partial<Record<MetricId, number>>;
 

@@ -193,6 +193,8 @@ pub enum EventKind {
     Exception,
     /// A thread waited for a lock.
     LockWait,
+    /// A thread was switched out: blocked (I/O, sleep, wait handle) or ready but preempted (ETW context switches).
+    Wait,
     /// Anything else worth a mark (process start, user markers).
     Marker,
 }
