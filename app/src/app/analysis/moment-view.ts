@@ -117,7 +117,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
           <h3 class="sec" i18n="@@analysis.moment.anomalies">Anomalies in this window</h3>
           @if (m.anomalies.length) {
             <ul class="list">
-              @for (a of m.anomalies; track $index) {
+              @for (a of m.anomalies; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
                 <li>
                   <button class="row" type="button" (click)="selectSample(a.sampleIds[0])">
                     <span aria-hidden="true">{{ icon(a.kind) }}</span><strong>{{ label(a.kind) }}</strong>

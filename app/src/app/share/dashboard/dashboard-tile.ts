@@ -87,7 +87,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
         }
         @case ('alerts') {
           <ul class="list" tabindex="0" [attr.aria-label]="name()">
-            @for (a of d.items; track $index) {
+            @for (a of d.items; track a.kind + ':' + a.instance + ':' + a.from + ':' + a.to) {
               <li><div class="meta"><span class="kind">{{ a.kind }}</span><span class="faint mono">{{ time(a.from) }}</span>@if (a.instance) {<span class="faint">· {{ a.instance }}</span>}</div><div class="detail">{{ a.message }}</div></li>
             } @empty {
               <li class="faint" i18n="@@share.dashboardTile.noAlerts">No alerts.</li>
@@ -96,7 +96,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
         }
         @case ('annotations') {
           <ul class="list" tabindex="0" [attr.aria-label]="name()">
-            @for (a of d.items; track $index) {
+            @for (a of d.items; track a.label + ':' + a.from + ':' + a.to) {
               <li><span class="kind">{{ a.label }}</span> <span class="faint mono">{{ time(a.from) }}@if (a.to !== a.from) { – {{ time(a.to) }}}</span></li>
             } @empty {
               <li class="faint" i18n="@@share.dashboardTile.noAnnotations">No annotations.</li>

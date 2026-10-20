@@ -104,9 +104,10 @@ import { AiRichText } from './rich-text';
             @for (pv of t.proposals; track $index; let pi = $index) {
               <imt-ai-proposal-card [proposal]="pv.proposal" [state]="pv.state" (applied)="store.setProposalState(ti, pi, 'applied')" (dismissed)="store.setProposalState(ti, pi, 'dismissed')" />
             }
-            @if (webSources(t).length) {
+            @let sources = webSources(t);
+            @if (sources.length) {
               <p class="sources muted"><ng-container i18n="@@ai.chat.sources">Web sources: </ng-container>
-                @for (w of webSources(t); track w.url) {<button type="button" class="link" (click)="openWeb(w.url, w.title)">{{ w.title }}</button>}
+                @for (w of sources; track w.url) {<button type="button" class="link" (click)="openWeb(w.url, w.title)">{{ w.title }}</button>}
               </p>
             }
             @for (n of t.notes; track $index) {
