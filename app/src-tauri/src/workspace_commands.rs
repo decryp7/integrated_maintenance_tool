@@ -12,9 +12,7 @@ use crate::{err, CmdResult};
 use imt_core::events::SubscriberMetrics;
 use imt_core::plugin::annotate::{AnnotationDto, AnnotationsRequest};
 use imt_core::project::ProjectFile;
-use imt_core::workspace::{
-    ChartRequest, ContextRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest, WorkspaceState,
-};
+use imt_core::workspace::{ChartRequest, ContextRequest, ExportRequest, ExtractPreviewRequest, FacetRequest, PageRequest, TimelineRequest};
 use imt_core::Profile;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -36,16 +34,29 @@ pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
     crate::error::lift(crate::jobs::run(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).await)
 }
 
-/// Like [`import_job`], without waiting: returns the job at once (applying a profile re-imports in the
-/// background while the status bar shows its progress).
-pub(crate) fn start_import<R: Runtime>(
+/// Starts an import job without waiting (returns the job at once; applying a profile re-imports in the
+/// background while the status bar shows its progress), then `then` with the value once the workspace swapped (outside its lock); a failure of
+/// `then` fails the job.
+pub(crate) fn start_import_then<R: Runtime, T: Send + 'static>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
     spec: JobSpec,
-    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<()> + Send + 'static,
+    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
+    then: impl FnOnce(T) -> CmdResult<()> + Send + 'static,
 ) -> CmdResult<u64> {
+    let work = import_work(app, state, f);
     crate::error::lift(
-        crate::jobs::spawn(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).map(|id| id.0),
+        crate::jobs::spawn(
+            app,
+            spec.window(state.label()),
+            import_controls(state),
+            move |ctx: &crate::jobs::JobCtx| {
+                let done = work(ctx)?;
+                then(done.value).map_err(|e| e.message)?;
+                Ok::<_, String>(Done::new(()).with_result(JobResult::Workspace))
+            },
+        )
+        .map(|id| id.0),
     )
 }
 
@@ -460,18 +471,8 @@ pub(crate) async fn source_context(state: CurrentWindow, request: ContextRequest
 
 /// The calling window's open files, profile and UI state as a project file.
 pub(crate) fn project_of(state: &CurrentWindow, name: String, ui: Value) -> ProjectFile {
-    let profile = state.profile_doc().toml;
     let ws = state.store_read().state();
-    ProjectFile {
-        version: imt_core::project::PROJECT_VERSION,
-        name,
-        sources: ws.roots,
-        removed: ws.removed,
-        profile,
-        ui,
-        clock: ws.offsets,
-        reports: Vec::new(),
-    }
+    crate::services::project::snapshot(name, state.profile_doc().toml, ws, ui, Vec::new())
 }
 
 /// Saves the open files, the active profile and the UI's state to a `.imtproj`.
@@ -492,11 +493,10 @@ pub(crate) async fn save_project<R: Runtime>(
     let target = grants.write(&path, &["imtproj"])?;
     let mut project = project_of(&state, name, ui);
     project.reports = crate::share::parse_reports(reports.unwrap_or_default())?;
-    let (file, check) = (target.path().to_path_buf(), path.clone());
+    let file = target.path().to_path_buf();
     let project = tauri::async_runtime::spawn_blocking(move || -> CmdResult<ProjectFile> {
         // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
-        imt_core::overwrite::check_overwrite(std::path::Path::new(&check), overwrite.unwrap_or(false))?;
-        project.save(&file).map_err(err)?;
+        crate::services::project::save(&file, &project, overwrite.unwrap_or(false))?;
         Ok(project)
     })
     .await
@@ -545,7 +545,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
     file: PathBuf,
     shown: String,
 ) -> CmdResult<Value> {
-    let project = tauri::async_runtime::spawn_blocking(move || ProjectFile::load(&file).map_err(err))
+    let project = tauri::async_runtime::spawn_blocking(move || crate::services::project::load(&file))
         .await
         .map_err(err)??;
     let profile = Profile::from_toml(&project.profile).map_err(err)?;
@@ -554,11 +554,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
         path: None,
         toml: project.profile.clone(),
     };
-    let ws_state = WorkspaceState {
-        roots: project.sources.clone(),
-        removed: project.removed.clone(),
-        offsets: project.clock.clone(),
-    };
+    let ws_state = crate::services::project::workspace_state(&project);
     let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: shown.clone() });
     let (handle, label) = (app.clone(), state.label().to_string());
     let (summary, missing) = import_job(app, state, spec, move |ws| {
@@ -569,7 +565,7 @@ pub(crate) async fn open_project_file<R: Runtime>(
     })
     .await?;
     state.set_profile_doc(doc.clone());
-    let captures = project_captures(&project.ui);
+    let captures = crate::services::project::captures(&project.ui);
     crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
     let safe = privacy::safe_path(std::path::Path::new(&shown));
@@ -589,23 +585,6 @@ pub(crate) async fn open_project_file<R: Runtime>(
         "reports": project.reports,
         "missing": missing,
     }))
-}
-
-/// Most captures a project reopens (the engine keeps at most 32 open).
-const MAX_PROJECT_CAPTURES: usize = 32;
-
-/// The profiling captures a project's UI state reopens: `ui.profiling.captures`, the one place the UI
-/// state names files (see `profiling-persistence.ts`). Opening the project is the user's choice of them.
-pub(crate) fn project_captures(ui: &Value) -> Vec<PathBuf> {
-    ui.pointer("/profiling/captures")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .filter(|p| crate::paths::parse(p).is_ok())
-        .take(MAX_PROJECT_CAPTURES)
-        .map(PathBuf::from)
-        .collect()
 }
 
 /// Turns live tail on or off for the calling window. While on, the opened
@@ -1373,6 +1352,6 @@ mod tests {
         std::fs::copy(&project, &other).unwrap();
         let e = block(open_project(app.handle().clone(), w3, g3(), OpId::default(), s(&other))).unwrap_err();
         assert!(e.contains("only reads files you choose"), "{e}");
-        assert_eq!(project_captures(&json!(null)), Vec::<PathBuf>::new());
+        assert!(crate::services::project::captures(&json!(null)).is_empty());
     }
 }

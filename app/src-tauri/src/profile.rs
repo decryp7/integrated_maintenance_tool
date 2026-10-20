@@ -1,11 +1,11 @@
-//! The active profile: loading the saved one, validation with error lines,
-//! saving (with version history) and import/export. The profile on disk is
-//! shared by all windows; each window's workspace applies its own copy (a
-//! project can carry a different one).
+//! The profile commands: thin adapters over [`crate::services::profile`] (validation with error lines,
+//! saving with version history, import/export). The profile on disk is shared by all windows; each
+//! window's workspace applies its own copy (a project can carry a different one).
 
 use crate::activity::{domain_event, privacy, OpId};
 use crate::jobs::{JobKind, JobSpec};
 use crate::paths::WindowGrants;
+use crate::services::profile::ProfileFiles;
 use crate::windows::{read, CurrentWindow};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
@@ -14,9 +14,8 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 
-pub(crate) const PROFILE_FILE: &str = "active.imtprofile.toml";
-/// Saved profile versions kept for "restore".
-const PROFILE_HISTORY: usize = 20;
+#[cfg(test)]
+use crate::services::profile::{stamp_ms, PROFILE_FILE};
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +46,11 @@ pub(crate) struct ProfileValidation {
     line: Option<usize>,
 }
 
+/// The app's profile folder.
+fn files(app_state: &AppState) -> ProfileFiles {
+    ProfileFiles::new(app_state.profile_dir.clone())
+}
+
 #[tauri::command]
 pub(crate) async fn get_profile(state: CurrentWindow) -> CmdResult<ProfileDoc> {
     Ok(state.profile_doc())
@@ -61,30 +65,24 @@ pub(crate) async fn validate_profile(state: CurrentWindow, toml: String) -> CmdR
 }
 
 pub(crate) fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
-    match Profile::from_toml(toml) {
+    match ProfileFiles::check(store, toml) {
+        Ok(_) => ProfileValidation {
+            ok: true,
+            error: None,
+            line: None,
+        },
         Err(e) => ProfileValidation {
             ok: false,
-            error: Some(e.message),
             line: e.line,
-        },
-        Ok(p) => match store.validate_profile(p) {
-            Ok(_) => ProfileValidation {
-                ok: true,
-                error: None,
-                line: None,
-            },
-            Err(e) => ProfileValidation {
-                ok: false,
-                line: imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(toml)),
-                error: Some(err(e)),
-            },
+            error: Some(e.message),
         },
     }
 }
 
-/// Saves the profile as the active one (for new windows and the next start) and applies it to the calling
-/// window: the file is checked and written now, the files are re-imported with it as a background import job
-/// (progress in the status bar, Cancel in the Jobs pane). Returns that job at once.
+/// Applies the profile to the calling window (a background import job, with progress in the status bar
+/// and Cancel in the Jobs pane; returned at once). Only when the window's workspace has swapped to it
+/// is it saved as the active one (for new windows and the next start, the previous one kept in the
+/// history) and shown as the window's profile: a failed or cancelled apply changes nothing.
 #[tauri::command]
 pub(crate) async fn save_profile<R: Runtime>(
     app: AppHandle<R>,
@@ -93,90 +91,40 @@ pub(crate) async fn save_profile<R: Runtime>(
     op: OpId,
     toml: String,
 ) -> CmdResult<u64> {
-    let profile = Profile::from_toml(&toml).map_err(|e| crate::CmdError::invalid(e.message).field("toml").line(e.line))?;
-    // Never replace a working profile on disk with one that does not compile.
-    state.store_read().validate_profile(profile.clone()).map_err(|e| {
-        let line = imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(&toml));
-        crate::CmdError::invalid(err(e)).field("toml").line(line)
-    })?;
+    // Never replace a working profile with one that does not compile.
+    let profile = ProfileFiles::check(state.store_read().as_ref(), &toml)?;
     let name = profile.name.clone();
-    let path = app_state.profile_dir.as_ref().map(|d| d.join(PROFILE_FILE));
-    if let Some(p) = &path {
-        std::fs::create_dir_all(p.parent().ok_or("invalid profile folder")?).map_err(err)?;
-        archive_profile(p);
-        std::fs::write(p, &toml).map_err(err)?;
-    }
     domain_event("profile.saved", op.as_deref(), &[("Profile", &name)]);
     let spec = JobSpec::new(JobKind::Import, format!("Apply the profile {name}"));
-    state.set_profile_doc(ProfileDoc {
-        name,
-        path: path.map(|p| p.to_string_lossy().into_owned()),
-        toml,
-    });
-    crate::workspace_commands::start_import(&app, &state, spec, move |ws| ws.set_profile(profile))
-}
-
-/// Copies the current profile into `history/` before it is replaced.
-fn archive_profile(active: &Path) {
-    let Some(dir) = active.parent().map(|d| d.join("history")) else {
-        return;
-    };
-    if !active.exists() || std::fs::create_dir_all(&dir).is_err() {
-        return;
-    }
-    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S%3f");
-    let _ = std::fs::copy(active, dir.join(format!("{stamp}.imtprofile.toml")));
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
-        .map(|r| r.flatten().map(|e| e.path()).collect())
-        .unwrap_or_default();
-    files.sort();
-    for old in files.iter().rev().skip(PROFILE_HISTORY) {
-        let _ = std::fs::remove_file(old);
-    }
-}
-
-/// Epoch ms of a history stamp (`YYYYMMDD-HHMMSSmmm`, UTC); `None` when it is not one.
-fn stamp_ms(stamp: &str) -> Option<i64> {
-    let (date_time, millis) = stamp.split_at_checked(stamp.len().checked_sub(3)?)?;
-    let t = chrono::NaiveDateTime::parse_from_str(date_time, "%Y%m%d-%H%M%S").ok()?;
-    Some(t.and_utc().timestamp_millis() + millis.parse::<i64>().ok()?)
+    let (files, win) = (files(&app_state), state.arc().clone());
+    crate::workspace_commands::start_import_then(
+        &app,
+        &state,
+        spec,
+        move |ws| ws.set_profile(profile),
+        move |()| {
+            // After the swap, outside the workspace lock.
+            let path = files.persist(&toml)?;
+            win.set_profile_doc(ProfileDoc {
+                name,
+                path: path.map(|p| p.to_string_lossy().into_owned()),
+                toml,
+            });
+            Ok(())
+        },
+    )
 }
 
 /// Previous profile versions, newest first: `[{ file, name, savedAt, savedAtMs }]`.
 #[tauri::command]
 pub(crate) async fn profile_history(app_state: State<'_, AppState>) -> CmdResult<Vec<Value>> {
-    Ok(history(&app_state))
-}
-
-fn history(app_state: &AppState) -> Vec<Value> {
-    let Some(dir) = app_state.profile_dir.as_ref().map(|d| d.join("history")) else {
-        return Vec::new();
-    };
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
-        .map(|r| r.flatten().map(|e| e.path()).collect())
-        .unwrap_or_default();
-    files.sort();
-    files
-        .iter()
-        .rev()
-        .map(|f| {
-            let toml = std::fs::read_to_string(f).unwrap_or_default();
-            let name = Profile::from_toml(&toml).map(|p| p.name).unwrap_or_else(|_| "(unreadable)".into());
-            let stem = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let saved_at = stem.split('.').next().unwrap_or("");
-            serde_json::json!({ "file": stem, "name": name, "savedAt": saved_at, "savedAtMs": stamp_ms(saved_at) })
-        })
-        .collect()
+    Ok(files(&app_state).history())
 }
 
 /// One previous version's text (not applied until saved again).
 #[tauri::command]
 pub(crate) async fn profile_version(app_state: State<'_, AppState>, file: String) -> CmdResult<ProfileDoc> {
-    let dir = app_state.profile_dir.as_ref().ok_or("no profile folder")?.join("history");
-    let version = crate::paths::child(&dir, &file).map_err(|_| "invalid version".to_string())?;
-    let toml = std::fs::read_to_string(version).map_err(err)?;
-    let name = Profile::from_toml(&toml).map_err(err)?.name;
-    Ok(ProfileDoc { name, path: None, toml })
+    files(&app_state).version(&file)
 }
 
 /// The built-in profile templates (applied only through validate + save).
@@ -190,7 +138,7 @@ pub(crate) async fn profile_templates() -> &'static [imt_core::templates::Profil
 pub(crate) async fn import_profile(grants: WindowGrants, path: String) -> CmdResult<ProfileDoc> {
     let file = grants.read_file(&path, &["toml"])?;
     let toml = std::fs::read_to_string(file.path()).map_err(err)?;
-    let profile = Profile::from_toml(&toml).map_err(err)?;
+    let profile = Profile::from_toml(&toml).map_err(|e| crate::CmdError::invalid(e.message).line(e.line))?;
     Ok(ProfileDoc {
         name: profile.name,
         path: Some(path),
@@ -200,34 +148,22 @@ pub(crate) async fn import_profile(grants: WindowGrants, path: String) -> CmdRes
 
 /// Writes the profile text to a file the user chose; an existing file only with `overwrite`.
 #[tauri::command]
-pub(crate) async fn export_profile(grants: WindowGrants, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
+pub(crate) async fn export_profile(grants: WindowGrants, op: OpId, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
     let target = grants.write(&path, &["toml"])?;
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     std::fs::write(target.path(), &toml).map_err(err)?;
     let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
-    domain_event("export.written", None, &[("Export", "profile"), ("Path", &safe), ("Bytes", &bytes)]);
+    domain_event(
+        "export.written",
+        op.as_deref(),
+        &[("Export", "profile"), ("Path", &safe), ("Bytes", &bytes)],
+    );
     Ok(())
 }
 
-/// The saved profile if it still compiles against the installed plugins,
-/// else the built-in default.
+/// The saved profile if it still compiles against the installed plugins, else the built-in default.
 pub(crate) fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Profile, ProfileDoc) {
-    if let Some(path) = dir.map(|d| d.join(PROFILE_FILE)) {
-        if let Ok(toml) = std::fs::read_to_string(&path) {
-            match Profile::from_toml(&toml) {
-                Ok(p) if store.validate_profile(p.clone()).is_ok() => {
-                    let doc = ProfileDoc {
-                        name: p.name.clone(),
-                        path: Some(path.to_string_lossy().into_owned()),
-                        toml,
-                    };
-                    return (p, doc);
-                }
-                _ => log::warn!("ignoring invalid profile {}", path.display()),
-            }
-        }
-    }
-    ProfileDoc::builtin()
+    ProfileFiles::new(dir.cloned()).load(store)
 }
 
 #[cfg(test)]
@@ -318,9 +254,15 @@ regex = '('
 
         let exported = dir.0.join("out.imtprofile.toml");
         let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
-        let refused = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None)
-            .now()
-            .unwrap_err();
+        let refused = export_profile(
+            grants(),
+            OpId::default(),
+            exported.to_string_lossy().into_owned(),
+            "name = 'Exported'".into(),
+            None,
+        )
+        .now()
+        .unwrap_err();
         assert!(refused.contains("only writes where you choose"), "{refused}");
         assert!(!exported.exists());
         crate::paths::grant(
@@ -331,9 +273,15 @@ regex = '('
             crate::paths::GrantSource::Dialog,
         )
         .unwrap();
-        export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None)
-            .now()
-            .unwrap();
+        export_profile(
+            grants(),
+            OpId::default(),
+            exported.to_string_lossy().into_owned(),
+            "name = 'Exported'".into(),
+            None,
+        )
+        .now()
+        .unwrap();
         let written = crate::tools::tests::domain_events();
         let w = written
             .iter()
@@ -341,15 +289,22 @@ regex = '('
             .expect("profile export");
         assert_eq!(w.props["Bytes"], "17");
         // Replacing the file needs the user's confirmation.
-        let again = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None)
-            .now()
-            .unwrap_err();
+        let again = export_profile(
+            grants(),
+            OpId::default(),
+            exported.to_string_lossy().into_owned(),
+            "name = 'Other'".into(),
+            None,
+        )
+        .now()
+        .unwrap_err();
         assert_eq!(
             again,
             crate::error::file_exists(format!("{} already exists; confirm to replace it", exported.display()))
         );
         export_profile(
             grants(),
+            OpId::default(),
             exported.to_string_lossy().into_owned(),
             "name = 'Exported'".into(),
             Some(true),
@@ -376,6 +331,7 @@ regex = '('
         assert!(import_profile(grants(), exported.to_string_lossy().into_owned()).now().is_err());
         assert!(export_profile(
             grants(),
+            OpId::default(),
             dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(),
             String::new(),
             None

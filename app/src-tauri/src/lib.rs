@@ -54,6 +54,7 @@ mod profile;
 mod profiling;
 mod query_cancel;
 mod recent;
+mod services;
 mod settings;
 mod share;
 mod skew_commands;
