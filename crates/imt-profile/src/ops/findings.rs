@@ -203,7 +203,12 @@ pub fn findings(target: &Side<'_>, baseline: Option<&Side<'_>>, ctx: &Context<'_
         locks(&mut b, target, k, grand, th);
         exceptions(&mut b, target, k, grand, th);
         starvation(&mut b, target, th);
+        hot_path_finding(&mut b, target);
+        jit(&mut b, target);
     }
+    // Waits and allocations have their own metrics: reported even when the default metric is empty.
+    blocking(&mut b, target);
+    allocations(&mut b, target);
     if let Some(base) = baseline {
         regressions(&mut b, base, target, th)?;
     }
@@ -279,17 +284,29 @@ fn gc(b: &mut Builder<'_>, s: &Side<'_>, k: usize, grand: u64, th: &FindingThres
             .map(|e| e.start_ns.saturating_add(e.dur_ns).min(to).saturating_sub(e.start_ns.max(from)))
             .sum();
         let share = pct(paused, (to - from).max(1));
-        if share >= th.gc_pct {
+        let longest = gc_events.iter().max_by_key(|e| e.dur_ns).map_or(0, |e| e.dur_ns);
+        if share >= th.gc_pct || longest >= LONG_GC_PAUSE_NS {
             let mut e = b.evidence(EvidenceView::Timeline);
             e.event_kind = Some(EventKind::Gc);
+            let severity = if share >= 2.0 * th.gc_pct {
+                FindingSeverity::Critical
+            } else {
+                FindingSeverity::Warning
+            };
+            let title = if share >= th.gc_pct {
+                format!("Garbage collection took {share:.1}% of the time")
+            } else {
+                format!("A garbage collection paused for {}", ms(longest))
+            };
             b.push(
                 FindingKind::GcPressure,
-                if share >= 2.0 * th.gc_pct { FindingSeverity::Critical } else { FindingSeverity::Warning },
-                format!("Garbage collection took {share:.1}% of the time"),
+                severity,
+                title,
                 format!(
-                    "{} collections paused for {} in total. Reduce allocations on hot paths (pool or reuse buffers, avoid boxing and LINQ in loops) or check for a leak growing the heap.",
+                    "{} collections paused for {} in total; the longest for {}. Reduce allocations on hot paths (pool or reuse buffers, avoid boxing and LINQ in loops), avoid large short-lived objects (they are collected with gen 2), or check for a leak growing the heap.",
                     gc_events.len(),
-                    ms(paused)
+                    ms(paused),
+                    ms(longest)
                 ),
                 Some(share),
                 e,
@@ -451,6 +468,29 @@ fn starvation(b: &mut Builder<'_>, s: &Side<'_>, th: &FindingThresholds) {
     if !p.has_time {
         return;
     }
+    // The runtime said so itself (thread-pool adjustments with reason Starvation).
+    let injected: Vec<_> = p
+        .events
+        .iter()
+        .filter(|e| e.kind == EventKind::Marker && e.label.starts_with(STARVATION_MARKER))
+        .collect();
+    if !injected.is_empty() {
+        let mut e = b.evidence(EvidenceView::Timeline);
+        e.event_kind = Some(EventKind::Marker);
+        b.push(
+            FindingKind::ThreadPoolStarvation,
+            FindingSeverity::Critical,
+            "Thread pool starvation".into(),
+            format!(
+                "The runtime added threads to the thread pool {} times because queued work was not picked up ({}). Pool threads are blocked: look for .Wait(), .Result or other blocking calls on pool threads (Blocking findings, waits in the call tree) and await instead.",
+                injected.len(),
+                injected.last().map(|e| e.label.as_str()).unwrap_or_default()
+            ),
+            None,
+            e,
+        );
+        return;
+    }
     let pool: Vec<bool> = p.threads.iter().map(|t| matches_any(&t.name, POOL_THREADS)).collect();
     if pool.iter().filter(|&&x| x).count() < 4 {
         return;
@@ -529,6 +569,238 @@ fn starvation(b: &mut Builder<'_>, s: &Side<'_>, th: &FindingThresholds) {
         Some(share),
         e,
     );
+}
+
+/// One path from a root carries this share of the total (and is this deep) to be a finding.
+const HOT_PATH_SHARE: f64 = 30.0;
+const HOT_PATH_DEPTH: usize = 3;
+/// A single GC pause this long is a finding even when GC's share is small.
+const LONG_GC_PAUSE_NS: u64 = 100_000_000;
+/// JIT time share of the capture to report.
+const JIT_PCT: f64 = 5.0;
+/// Share of thread time spent blocked (or ready, waiting for a CPU) to report.
+const BLOCKED_PCT: f64 = 20.0;
+const READY_PCT: f64 = 5.0;
+/// What the nettrace importer labels thread-pool starvation markers with.
+const STARVATION_MARKER: &str = "Thread pool starvation";
+/// Module of the synthetic leaf frames that name allocated types.
+const ALLOCATED_TYPE: &str = "(allocated type)";
+const LOH_SUFFIX: &str = "(large object heap)";
+
+fn hot_path_finding(b: &mut Builder<'_>, s: &Side<'_>) {
+    let req = HotPathRequest {
+        profile_id: b.ctx.profile_id,
+        view: b.ctx.view.clone(),
+        direction: TreeDirection::TopDown,
+        path: Vec::new(),
+        metric: Some(b.metric),
+        min_fraction: Some(HOT_PATH_SHARE / 100.0),
+    };
+    let Ok(h) = hot_path(s.profile, s.tree, &req) else { return };
+    let Some(last) = h.nodes.last() else { return };
+    let share = last.total_pct;
+    if h.path.len() < HOT_PATH_DEPTH || share < HOT_PATH_SHARE {
+        return;
+    }
+    let names: Vec<&str> = h.path.iter().map(|&f| s.profile.frames[f as usize].function.as_str()).collect();
+    let shown = if names.len() > 4 {
+        format!("{} → … → {}", names[0], names[names.len() - 2..].join(" → "))
+    } else {
+        names.join(" → ")
+    };
+    let mut e = b.evidence(EvidenceView::CallTree);
+    e.frame = h.path.last().map(|&f| frame_dto(s.profile, f));
+    e.path = h.path.clone();
+    b.push(
+        FindingKind::HotPath,
+        FindingSeverity::Info,
+        format!("Hot path: {share:.0}% under {}", names.last().copied().unwrap_or_default()),
+        format!("{shown}. The call tree opens along it; the work to optimise is at its end or in what that calls."),
+        Some(share),
+        e,
+    );
+}
+
+fn jit(b: &mut Builder<'_>, s: &Side<'_>) {
+    let jits: Vec<_> = s.profile.events.iter().filter(|e| e.kind == EventKind::Jit).collect();
+    if jits.is_empty() || s.profile.duration_ns == 0 {
+        return;
+    }
+    let total: u64 = jits.iter().map(|e| e.dur_ns).fold(0, u64::saturating_add);
+    let share = pct(total, s.profile.duration_ns);
+    if share < JIT_PCT {
+        return;
+    }
+    let mut e = b.evidence(EvidenceView::Timeline);
+    e.event_kind = Some(EventKind::Jit);
+    b.push(
+        FindingKind::JitTime,
+        if share >= 4.0 * JIT_PCT { FindingSeverity::Warning } else { FindingSeverity::Info },
+        format!("JIT compilation took {} ({share:.1}% of the capture)", ms(total)),
+        format!(
+            "{} methods were compiled during the capture. Startup and first calls pay for it: use ReadyToRun / tiered compilation, or warm up before measuring.",
+            jits.len()
+        ),
+        Some(share),
+        e,
+    );
+}
+
+fn blocking(b: &mut Builder<'_>, s: &Side<'_>) {
+    let p = s.profile;
+    let waits: Vec<_> = p.events.iter().filter(|e| e.kind == EventKind::Wait).collect();
+    if waits.is_empty() || p.duration_ns == 0 {
+        return;
+    }
+    let threads = waits
+        .iter()
+        .filter_map(|e| e.thread)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        .max(1) as u64;
+    let budget = p.duration_ns.saturating_mul(threads).max(1);
+    let ready = |e: &&crate::model::ProfileEvent| e.label.starts_with("Ready");
+    let mut by_reason: FxHashMap<&str, u64> = FxHashMap::default();
+    let (mut blocked, mut runnable) = (0u64, 0u64);
+    for e in &waits {
+        if ready(e) {
+            runnable = runnable.saturating_add(e.dur_ns);
+        } else {
+            blocked = blocked.saturating_add(e.dur_ns);
+            let reason = e.label.split(" (readied").next().unwrap_or(&e.label);
+            *by_reason.entry(reason).or_default() += e.dur_ns;
+        }
+    }
+    let blocked_pct = pct(blocked, budget).min(100.0);
+    let ready_pct = pct(runnable, budget).min(100.0);
+    let path = |b: &Builder<'_>| {
+        let req = HotPathRequest {
+            profile_id: b.ctx.profile_id,
+            view: b.ctx.view.clone(),
+            direction: TreeDirection::TopDown,
+            path: Vec::new(),
+            metric: Some(MetricId::WaitNs),
+            min_fraction: Some(0.2),
+        };
+        p.metric_index(MetricId::WaitNs)
+            .and_then(|_| hot_path(p, s.tree, &req).ok())
+            .map(|h| h.path)
+            .unwrap_or_default()
+    };
+    if blocked_pct >= BLOCKED_PCT {
+        let (top, top_ns) = by_reason
+            .iter()
+            .max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0)))
+            .map(|(r, n)| (*r, *n))
+            .unwrap_or(("", 0));
+        let mut e = b.evidence(EvidenceView::CallTree);
+        e.metric = MetricId::WaitNs;
+        e.path = path(b);
+        e.frame = e.path.last().map(|&f| frame_dto(p, f));
+        b.push(
+            FindingKind::Blocking,
+            if blocked_pct >= 60.0 { FindingSeverity::Warning } else { FindingSeverity::Info },
+            format!("Threads were blocked for {blocked_pct:.0}% of their time"),
+            format!(
+                "{} waits, {} in total on {threads} threads; most in \"{top}\" ({}). Idle pool or UI threads wait normally: follow the highlighted path to the waits on threads that should be working (I/O, locks, sleeps, sync over async).",
+                waits.len(),
+                ms(blocked),
+                ms(top_ns)
+            ),
+            Some(blocked_pct),
+            e,
+        );
+    }
+    if ready_pct >= READY_PCT {
+        let mut e = b.evidence(EvidenceView::Timeline);
+        e.event_kind = Some(EventKind::Wait);
+        b.push(
+            FindingKind::Blocking,
+            FindingSeverity::Warning,
+            format!("Threads waited {} for a CPU", ms(runnable)),
+            format!(
+                "{ready_pct:.1}% of the threads' time they were ready to run but preempted: the machine's CPUs were busy (other processes, or more busy threads than cores)."
+            ),
+            Some(ready_pct),
+            e,
+        );
+    }
+}
+
+fn allocations(b: &mut Builder<'_>, s: &Side<'_>) {
+    let p = s.profile;
+    let Some(k) = s.tree.metrics.iter().position(|m| *m == MetricId::AllocBytes) else {
+        return;
+    };
+    let total = s.tree.grand[k];
+    if total == 0 {
+        return;
+    }
+    // Self values at the synthetic type leaves, per type; and the heaviest such node (its call site).
+    let mut by_type: FxHashMap<u32, u64> = FxHashMap::default();
+    let mut best: Option<(u32, u64)> = None;
+    let mut loh = 0u64;
+    for n in 0..s.tree.len() as u32 {
+        let f = s.tree.frame[n as usize];
+        let frame = &p.frames[f as usize];
+        if frame.module.as_deref() != Some(ALLOCATED_TYPE) {
+            continue;
+        }
+        let v = s.tree.self_of(n, k);
+        *by_type.entry(f).or_default() += v;
+        if frame.function.ends_with(LOH_SUFFIX) {
+            loh = loh.saturating_add(v);
+        }
+        if best.is_none_or(|(_, bv)| v > bv) {
+            best = Some((n, v));
+        }
+    }
+    let rate = if p.duration_ns > 0 {
+        format!(" ({:.1} MB/s)", total as f64 / 1e6 / (p.duration_ns as f64 / 1e9))
+    } else {
+        String::new()
+    };
+    let mb = |v: u64| format!("{:.1} MB", v as f64 / 1e6);
+    if let Some((&top, &top_bytes)) = by_type.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0))) {
+        let mut e = b.evidence(EvidenceView::Hotspots);
+        e.metric = MetricId::AllocBytes;
+        e.frame = Some(frame_dto(p, top));
+        let site = best
+            .map(|(n, _)| s.tree.path_of(n))
+            .and_then(|path| path.len().checked_sub(2).map(|i| path[i]))
+            .map(|f| p.frames[f as usize].function.clone());
+        if let Some((n, _)) = best {
+            e.path = s.tree.path_of(n);
+        }
+        let share = pct(top_bytes, total);
+        b.push(
+            FindingKind::Allocations,
+            if share >= 50.0 { FindingSeverity::Warning } else { FindingSeverity::Info },
+            format!("{} allocated{rate}; {share:.0}% as {}", mb(total), p.frames[top as usize].function),
+            format!(
+                "Sampled allocations (about one per 100 KB).{} Reuse buffers (ArrayPool), avoid string concatenation and LINQ in hot loops, and check the callers in the call tree.",
+                site.map(|s| format!(" The heaviest call site is {s}.")).unwrap_or_default()
+            ),
+            Some(share),
+            e,
+        );
+    }
+    let loh_share = pct(loh, total);
+    if loh_share >= 10.0 {
+        let mut e = b.evidence(EvidenceView::Hotspots);
+        e.metric = MetricId::AllocBytes;
+        b.push(
+            FindingKind::Allocations,
+            FindingSeverity::Warning,
+            format!("{loh_share:.0}% of the allocations go to the large object heap"),
+            format!(
+                "{} in objects of 85,000 bytes or more. They are collected only with gen 2 and fragment the heap: pool large buffers (ArrayPool) or split them.",
+                mb(loh)
+            ),
+            Some(loh_share),
+            e,
+        );
+    }
 }
 
 fn regressions(b: &mut Builder<'_>, base: &Side<'_>, target: &Side<'_>, th: &FindingThresholds) -> Result<()> {
@@ -741,5 +1013,91 @@ mod tests {
         assert_eq!(r.severity, FindingSeverity::Critical);
         assert_eq!(r.evidence.baseline_id, Some(0));
         assert_eq!(whole(&target).to_ns, target.duration_ns);
+    }
+
+    #[test]
+    fn hot_paths_jit_long_pauses_and_starvation_markers() {
+        let p = profile(&[(0, 0, "main;serve;handle;parse", 9), (0, 1, "main;x", 1)]);
+        let f = run(&p, None);
+        let h = f.iter().find(|f| f.kind == FindingKind::HotPath).expect("a hot path");
+        assert_eq!(h.evidence.view, EvidenceView::CallTree);
+        assert_eq!(h.evidence.path.len(), 4);
+        assert!(h.title.contains("parse"), "{}", h.title);
+
+        let p = evented(&[(EventKind::Jit, 100_000), (EventKind::Jit, 50_000)], 0, false);
+        let j = run(&p, None).into_iter().find(|f| f.kind == FindingKind::JitTime).expect("JIT");
+        assert!(j.title.contains("15.0%"), "{}", j.title);
+        assert_eq!(j.evidence.event_kind, Some(EventKind::Jit));
+
+        let mut p = evented(&[(EventKind::Gc, 0)], 0, false);
+        p.duration_ns = 10_000_000_000;
+        p.events[0].dur_ns = 120_000_000;
+        let g = run(&p, None)
+            .into_iter()
+            .find(|f| f.kind == FindingKind::GcPressure)
+            .expect("a long pause");
+        assert!(g.title.contains("paused for 120.0 ms"), "{}", g.title);
+
+        let mut p = evented(&[(EventKind::Marker, 0)], 0, false);
+        p.events[0].label = "Thread pool starvation: workers raised to 12".into();
+        let s = run(&p, None)
+            .into_iter()
+            .find(|f| f.kind == FindingKind::ThreadPoolStarvation)
+            .expect("starvation");
+        assert_eq!(s.severity, FindingSeverity::Critical);
+        assert!(s.detail.contains("workers raised to 12"));
+    }
+
+    #[test]
+    fn waits_report_blocking_and_cpu_contention() {
+        let mut p = evented(&[(EventKind::Wait, 700_000), (EventKind::Wait, 100_000)], 0, false);
+        p.events[0].label = "Blocked on paging I/O (readied by thread 9)".into();
+        p.events[1].label = "Ready, waiting for a CPU (preempted)".into();
+        let f = run(&p, None);
+        let blocked: Vec<_> = f.iter().filter(|f| f.kind == FindingKind::Blocking).collect();
+        assert_eq!(blocked.len(), 2, "{blocked:?}");
+        assert!(blocked
+            .iter()
+            .any(|f| f.title.contains("blocked for 70%") && f.detail.contains("Blocked on paging I/O")));
+        assert!(blocked.iter().any(|f| f.title.contains("for a CPU")));
+        assert!(!kinds(&run(&evented(&[], 0, false), None)).contains(&FindingKind::Blocking));
+    }
+
+    #[test]
+    fn allocation_findings_name_types_call_sites_and_the_large_object_heap() {
+        let metrics = [
+            MetricInfo::new(MetricId::AllocBytes, Measurement::Sampled),
+            MetricInfo::new(MetricId::AllocCount, Measurement::Sampled),
+        ];
+        let mut b = ProfileBuilder::new("t", ProfileKind::Alloc, &metrics, Limits::default()).unwrap();
+        b.set_has_time(true).set_duration_ns(2_000_000_000);
+        let main = b.frame(FrameSpec::new("main")).unwrap();
+        let read = b.frame(FrameSpec::new("Shop.ReadAll")).unwrap();
+        let s = b
+            .frame(FrameSpec::new("System.String").module(Some(ALLOCATED_TYPE)).framework(false))
+            .unwrap();
+        let big = b
+            .frame(
+                FrameSpec::new("System.Byte[] (large object heap)")
+                    .module(Some(ALLOCATED_TYPE))
+                    .framework(false),
+            )
+            .unwrap();
+        let t = b.thread(Some(1), "").unwrap();
+        let st = b.stack(&[main, read, s]).unwrap();
+        let bt = b.stack(&[main, read, big]).unwrap();
+        b.sample(t, 1, st, &[6_000_000, 60]).unwrap();
+        b.sample(t, 2, bt, &[4_000_000, 40]).unwrap();
+        let p = b.finish().unwrap();
+        let f = run(&p, None);
+        let a: Vec<_> = f.iter().filter(|f| f.kind == FindingKind::Allocations).collect();
+        assert_eq!(a.len(), 2, "{a:?}");
+        let top = a.iter().find(|f| f.title.contains("System.String")).unwrap();
+        assert!(top.title.contains("10.0 MB allocated (5.0 MB/s)"), "{}", top.title);
+        assert!(top.detail.contains("Shop.ReadAll"), "{}", top.detail);
+        assert_eq!(top.evidence.metric, MetricId::AllocBytes);
+        assert!(a
+            .iter()
+            .any(|f| f.title.contains("40% of the allocations go to the large object heap")));
     }
 }

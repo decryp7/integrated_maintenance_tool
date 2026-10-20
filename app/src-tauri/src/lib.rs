@@ -158,6 +158,7 @@ macro_rules! commands {
             profiling::profiling_heap_dominators,
             profiling::profiling_heap_instances,
             profiling::profiling_heap_paths,
+            profiling::profiling_heap_findings,
             // Profiles
             profile::get_profile,
             profile::validate_profile,

@@ -350,6 +350,12 @@ pub async fn profiling_heap_paths(state: CurrentWindow, request: HeapPathsReques
     read(&state, move |s| s.heap_paths(&request)).await
 }
 
+/// Automatic findings over a heap snapshot (growth against `baselineId`).
+#[tauri::command]
+pub async fn profiling_heap_findings(state: CurrentWindow, request: HeapFindingsRequest) -> ProfResult<Vec<HeapFinding>> {
+    read(&state, move |s| s.heap_findings(&request)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -538,6 +544,13 @@ mod tests {
         )
         .unwrap();
         assert!(inst["totalRows"].as_u64().unwrap() >= 1);
+        let findings = invoke(
+            &w,
+            "profiling_heap_findings",
+            json!({ "request": { "snapshotId": ids[2], "baselineId": ids[0] } }),
+        )
+        .unwrap();
+        assert!(!findings.as_array().unwrap().is_empty(), "{findings}");
 
         let net = invoke(&w, "profiling_open", json!({ "path": sample("orders.nettrace") })).unwrap();
         assert!(net["hasTime"].as_bool().unwrap());

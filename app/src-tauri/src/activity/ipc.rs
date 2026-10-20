@@ -99,6 +99,7 @@ const QUERIES: &[&str] = &[
     "profiling_heap_dominators",
     "profiling_heap_instances",
     "profiling_heap_paths",
+    "profiling_heap_findings",
     "get_profile",
     "validate_profile",
     "profile_history",
