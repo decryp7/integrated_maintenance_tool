@@ -920,6 +920,7 @@ mod tests {
             from: None,
             to: None,
             offset_ms: 0,
+            file_kind: Default::default(),
             timestamp_issue: None,
         };
         assert_eq!(timestamp_notice(&source), None);
