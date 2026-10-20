@@ -99,6 +99,8 @@ export interface MenuState {
   theme: 'system' | 'dark' | 'light';
   /** What the source colour marker stands for (View › Source colours); default by file. */
   sourceColors?: 'source' | 'instance' | 'off';
+  /** View › Layout: what the window opens by itself; default focused. */
+  layoutMode?: 'focused' | 'full';
   timezone: 'utc' | 'local';
   markedOnly: boolean;
   undoLabel: string | null;
@@ -365,6 +367,10 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
       cmd('view.theme.system', $localize`:@@shell.menu.view.theme.system:System`, state.theme === 'system'),
       cmd('view.theme.dark', $localize`:@@shell.menu.view.theme.dark:Dark`, state.theme === 'dark'),
       cmd('view.theme.light', $localize`:@@shell.menu.view.theme.light:Light`, state.theme === 'light'),
+    ]),
+    sub('view.layout', $localize`:@@shell.menu.view.layout:Layout`, [
+      cmd('view.layout.focused', $localize`:@@shell.menu.view.layout.focused:Focused`, (state.layoutMode ?? 'focused') === 'focused'),
+      cmd('view.layout.full', $localize`:@@shell.menu.view.layout.full:Full`, state.layoutMode === 'full'),
     ]),
     sub('view.sourceColors', $localize`:@@shell.menu.view.sourceColors:Source colours`, [
       cmd('view.sourceColors.source', $localize`:@@shell.menu.view.sourceColors.source:By file`, (state.sourceColors ?? 'source') === 'source'),

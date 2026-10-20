@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { Citation } from '../ai.types';
-import { Block, Inline, parseMarkdown } from './markdown';
+import { Block, IncrementalMarkdown, Inline } from './markdown';
 
 /**
  * Renders a model answer from the safe Markdown subset with text bindings only (no `innerHTML`), with
@@ -59,7 +59,9 @@ export class AiRichText {
   readonly query = output<string>();
   readonly link = output<{ url: string; title: string }>();
 
-  protected readonly blocks = computed(() => parseMarkdown(this.text(), this.citations()));
+  /** While an answer streams in, only its last open block is parsed again (closed blocks are kept). */
+  private readonly markdown = new IncrementalMarkdown();
+  protected readonly blocks = computed(() => this.markdown.parse(this.text(), this.citations()));
 
   protected asInlines(v: unknown): Inline[] {
     return v as Inline[];

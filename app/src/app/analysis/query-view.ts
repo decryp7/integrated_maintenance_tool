@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChild } from '@angular/core';
 import { ClickOutside } from '../shared/click-outside';
+import { ActiveDescendantNavigation } from '../shared/list-navigation';
 import { Completion, QueryProgress } from '../core/api.types';
 import { formatKeybinding } from '../extensions/keybinding';
 import { applyCompletion, applySuggestion, charToByte, errorSpan, highlight } from './ql-text';
@@ -166,7 +167,9 @@ export class QueryView {
   protected readonly runningText = $localize`:@@analysis.queryView.running:Running…`;
   protected readonly focused = signal(false);
   protected readonly dismissed = signal(false);
-  protected readonly active = signal(0);
+  /** The highlighted completion (CDK ActiveDescendantKeyManager; focus stays in the input). */
+  private readonly nav = new ActiveDescendantNavigation(computed(() => this.session.completions().length), inject(Injector), { wrap: true, selectFirst: true });
+  protected readonly active = this.nav.active;
   protected readonly historyOpen = signal(false);
   protected readonly scroll = signal(0);
 
@@ -191,7 +194,7 @@ export class QueryView {
 
   protected onInput(): void {
     this.dismissed.set(false);
-    this.active.set(0);
+    this.nav.setActive(0);
     const el = this.el();
     this.session.edit(el.value, charToByte(el.value, el.selectionStart ?? el.value.length));
     this.sync();
@@ -213,12 +216,8 @@ export class QueryView {
       e.preventDefault();
       this.dismissed.set(false);
       void this.session.complete(this.cursorBytes());
-    } else if (open && e.key === 'ArrowDown') {
+    } else if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.altKey && this.nav.handle(e)) {
       e.preventDefault();
-      this.active.set((this.active() + 1) % completions.length);
-    } else if (open && e.key === 'ArrowUp') {
-      e.preventDefault();
-      this.active.set((this.active() - 1 + completions.length) % completions.length);
     } else if (open && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
       const picked = completions[Math.min(this.active(), completions.length - 1)];
@@ -246,7 +245,7 @@ export class QueryView {
     el.value = next.text;
     el.setSelectionRange(next.cursor, next.cursor);
     this.dismissed.set(false);
-    this.active.set(0);
+    this.nav.setActive(0);
     this.session.edit(next.text, charToByte(next.text, next.cursor));
     this.sync();
     el.focus();

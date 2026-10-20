@@ -52,35 +52,7 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </div>
 
-      <div class="anchor" (imtClickOutside)="groupOpen.set(false)">
-        <button class="btn tall" (click)="groupOpen.set(!groupOpen())" [attr.aria-expanded]="groupOpen()">
-          <imt-icon name="group" [size]="14" />
-          <span class="muted" i18n="@@workspace.filterBar.groupBy">Group by</span>
-          <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span>
-          <imt-icon name="chevronDown" [size]="12" />
-        </button>
-        @if (groupOpen()) {
-          <div class="popover group-pop">
-            <div class="faint small" i18n="@@workspace.filterBar.groupHelp">Instance key — events with equal values form one timeline lane.</div>
-            <div class="chosen">
-              @for (g of store.effectiveGroupBy(); track g; let i = $index) {
-                <span class="chip"><span class="mono">{{ i + 1 }}. {{ g }}</span>
-                  <button class="x" [attr.aria-label]="removeLabel(g)" (click)="removeGroupField(g)" [attr.title]="removeLabel(g)">×</button></span>
-              }
-            </div>
-            <div class="opts">
-              @for (f of groupCandidates(); track f) {
-                <button class="opt mono" (click)="addGroupField(f)">+ {{ f }}</button>
-              }
-            </div>
-            <div class="pop-actions">
-              <button class="btn ghost" (click)="store.setGroupBy([]); groupOpen.set(false)" i18n="@@workspace.filterBar.profileDefault">Use profile default</button>
-            </div>
-          </div>
-        }
-      </div>
-
-      <button class="btn tall" (click)="store.hasRange() && zoom.fit()" [title]="rangeTitle()">
+      <button class="btn tall range" (click)="store.hasRange() && zoom.fit()" [title]="rangeTitle()">
         <span class="mono">{{ rangeLabel() }}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
@@ -88,25 +60,6 @@ const OP_LABELS: Record<FilterOp, string> = {
         }
       </button>
       <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
-    </div>
-
-    <div class="row">
-      @for (f of q().filters; track $index; let i = $index) {
-        <span class="chip">
-          <span class="mono field">{{ f.field }}</span>
-          <span class="muted">{{ opLabel(f.op) }}</span>
-          @if (f.op !== 'exists' && f.op !== 'missing') { <span class="mono">{{ f.value }}</span> }
-          <button class="x" [attr.aria-label]="removeFilterLabel(f.field)" (click)="store.removeFilter(i)" [attr.title]="removeFilterLabel(f.field)">×</button>
-        </span>
-      }
-      @for (g of q().groups; track g) {
-        <span class="chip">
-          <span class="muted" i18n="@@workspace.filterBar.instance">instance</span>
-          <span class="mono">{{ g }}</span>
-          <button class="x" [attr.aria-label]="removeInstanceLabel(g)" (click)="store.toggleGroup(g)" [attr.title]="removeInstanceLabel(g)">×</button>
-        </span>
-      }
-
       <div class="anchor" (imtClickOutside)="addOpen.set(false)">
         <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
@@ -139,26 +92,82 @@ const OP_LABELS: Record<FilterOp, string> = {
         <button class="btn ghost pill" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
       <span class="spacer"></span>
-      <imt-switch class="opt" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</imt-switch>
-      <imt-switch class="opt" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</imt-switch>
+      <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
+        <button class="btn tall" data-testid="view-options" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
+          <imt-icon name="group" [size]="14" />
+          <span i18n="@@workspace.filterBar.viewOptions">View options</span>
+          <imt-icon name="chevronDown" [size]="12" />
+        </button>
+        @if (optionsOpen()) {
+          <div class="popover options-pop" id="imt-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
+            <div class="opt-section">
+              <div class="opt-head"><span class="muted" i18n="@@workspace.filterBar.groupBy">Group by</span> <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span></div>
+              <div class="faint small" i18n="@@workspace.filterBar.groupHelp">Instance key — events with equal values form one timeline lane.</div>
+              <div class="chosen">
+                @for (g of store.effectiveGroupBy(); track g; let i = $index) {
+                  <span class="chip"><span class="mono">{{ i + 1 }}. {{ g }}</span>
+                    <button class="x" [attr.aria-label]="removeLabel(g)" (click)="removeGroupField(g)" [attr.title]="removeLabel(g)">×</button></span>
+                }
+              </div>
+              <div class="opts" role="group" aria-label="Add a field to the group-by" i18n-aria-label="@@workspace.filterBar.groupCandidates">
+                @for (f of groupCandidates(); track f) {
+                  <button class="opt mono" (click)="addGroupField(f)">+ {{ f }}</button>
+                }
+              </div>
+              <div class="pop-actions">
+                <button class="btn ghost" (click)="store.setGroupBy([])" i18n="@@workspace.filterBar.profileDefault">Use profile default</button>
+              </div>
+            </div>
+            <div class="opt-section switches">
+              <imt-switch class="sw" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</imt-switch>
+              <imt-switch class="sw" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</imt-switch>
+            </div>
+          </div>
+        }
+      </div>
     </div>
+
+    @if (q().filters.length || q().groups.length) {
+    <div class="row" role="group" aria-label="Filters" i18n-aria-label="@@workspace.filterBar.filters">
+      @for (f of q().filters; track $index; let i = $index) {
+        <span class="chip">
+          <span class="mono field">{{ f.field }}</span>
+          <span class="muted">{{ opLabel(f.op) }}</span>
+          @if (f.op !== 'exists' && f.op !== 'missing') { <span class="mono">{{ f.value }}</span> }
+          <button class="x" [attr.aria-label]="removeFilterLabel(f.field)" (click)="store.removeFilter(i)" [attr.title]="removeFilterLabel(f.field)">×</button>
+        </span>
+      }
+      @for (g of q().groups; track g) {
+        <span class="chip">
+          <span class="muted" i18n="@@workspace.filterBar.instance">instance</span>
+          <span class="mono">{{ g }}</span>
+          <button class="x" [attr.aria-label]="removeInstanceLabel(g)" (click)="store.toggleGroup(g)" [attr.title]="removeInstanceLabel(g)">×</button>
+        </span>
+      }
+
+    </div>
+    }
   `,
   styles: `
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .search { flex: 1; min-width: 260px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
+    .row:first-child { flex-wrap: nowrap; }
+    .search { flex: 1; min-width: 200px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
     .search:focus-within { border-color: var(--accent); }
     .search.invalid { border-color: var(--lvl-error); }
     .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: 12px; color: var(--text); }
     .toggle { height: 20px; padding: 0 5px; font-size: 10px; border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
     .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-    .levels { display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
+    .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: 12px; cursor: pointer; }
     .lvl:last-child { border-right: 0; }
     .lvl.on { background: var(--bg-active); color: var(--text); }
     .lvl .code, .lvl .faint { font-size: 11px; }
-    .tall { height: 30px; }
-    .pill { height: 24px; border-radius: 12px; }
+    .tall { height: 30px; flex: none; }
+    /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
+    .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
+    .range .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pill { height: 24px; border-radius: 12px; flex: none; }
     .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: 11px; cursor: pointer; }
     .anchor { position: relative; }
     .chip .field { color: var(--chip-text); }
@@ -166,7 +175,11 @@ const OP_LABELS: Record<FilterOp, string> = {
     .x:hover { color: var(--text); }
     .spacer { flex: 1; }
     .opt { color: var(--muted); padding: 2px 4px; white-space: nowrap; }
-    .group-pop { top: 34px; left: 0; width: 320px; display: flex; flex-direction: column; gap: 8px; }
+    .options-pop { top: 34px; right: 0; width: 340px; display: flex; flex-direction: column; gap: 12px; }
+    .opt-section { display: flex; flex-direction: column; gap: 8px; }
+    .opt-head { display: flex; gap: 6px; align-items: baseline; font-size: 12px; }
+    .switches { border-top: 1px solid var(--border); padding-top: 10px; }
+    .sw { color: var(--muted); }
     .chosen { display: flex; flex-wrap: wrap; gap: 6px; }
     .opts { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
     .opt { text-align: left; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 0 6px; }
@@ -182,7 +195,7 @@ export class FilterBar {
   protected readonly zoom = inject(TimelineZoom);
   protected readonly levels = LEVELS;
   protected readonly ops: FilterOp[] = ['eq', 'ne', 'contains', 'notContains', 'matches', 'exists', 'missing', 'gt', 'lt'];
-  protected readonly groupOpen = signal(false);
+  protected readonly optionsOpen = signal(false);
   protected readonly addOpen = signal(false);
   protected readonly newField = signal('');
   protected readonly newOp = signal<FilterOp>('eq');

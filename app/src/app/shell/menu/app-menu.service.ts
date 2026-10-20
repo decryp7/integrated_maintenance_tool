@@ -1,4 +1,6 @@
 import { SettingsStore } from '../../settings/settings.store';
+import { LayoutModeStore } from '../../core/workspace/layout-mode';
+import { SidebarSections } from '../sidebar-sections';
 import { afterNextRender, computed, inject, Injectable, InjectionToken, Injector } from '@angular/core';
 import { isTauri } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -34,6 +36,8 @@ export class AppMenu {
   private readonly panelWindows = inject(PANEL_WINDOWS, { optional: true });
   private readonly injector = inject(Injector);
   private readonly prefs = inject(SettingsStore);
+  private readonly layout = inject(LayoutModeStore);
+  private readonly sections = inject(SidebarSections);
   readonly mode = inject(MENU_MODE);
 
   readonly menus = computed<TopMenu[]>(() => {
@@ -47,6 +51,7 @@ export class AppMenu {
       sidebarOpen: this.store.sidebarOpen(),
       theme: this.store.theme(),
       sourceColors: this.prefs.sourceColors(),
+      layoutMode: this.layout.mode(),
       timezone: this.store.timezone(),
       markedOnly: this.store.markedOnly(),
       undoLabel: this.undo.undoLabel(),
@@ -75,9 +80,10 @@ export class AppMenu {
     }
   }
 
-  /** Shows the sidebar (if hidden) and puts the focus in the fields filter. */
+  /** Shows the sidebar (if hidden) with the Fields section expanded and puts the focus in the fields filter. */
   private showFields(): void {
     if (!this.store.sidebarOpen()) this.store.toggleSidebar();
+    this.sections.setFieldsOpen(true);
     afterNextRender(() => document.querySelector<HTMLInputElement>('imt-fields-panel input.filter, imt-fields-panel input[aria-label="Filter fields"]')?.focus(), { injector: this.injector });
   }
 }

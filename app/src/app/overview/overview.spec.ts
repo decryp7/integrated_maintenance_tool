@@ -1,3 +1,4 @@
+import { LAYOUT_MODE_KEY, LayoutModeStore } from '../core/workspace/layout-mode';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, FakeDock, pluginInfo, provideFakeDock, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { ExceptionGroup, Finding, WorkspaceSummary } from '../core/api.types';
@@ -266,9 +267,23 @@ describe('OverviewView', () => {
 describe('provideOverview', () => {
   afterEach(() => localStorage.removeItem(OVERVIEW_AUTO_OPEN_KEY));
 
-  it('registers the view and command, and opens the view after each import unless turned off', async () => {
+  afterEach(() => localStorage.removeItem(LAYOUT_MODE_KEY));
+
+  it('does not open the view after an import in the Focused layout (the default)', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
+    TestBed.inject(OverviewAutoOpen);
+    const store = TestBed.inject(WorkspaceStore);
+    await settle();
+    await store.openPaths(['/x.log']);
+    await settle();
+    expect(dock.calls).toEqual([]);
+  });
+
+  it('registers the view and command, and in the Full layout opens the view after each import unless turned off', async () => {
+    const dock = new FakeDock();
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock), provideOverview()] });
+    TestBed.inject(LayoutModeStore).set('full');
     TestBed.inject(OverviewAutoOpen);
     const store = TestBed.inject(WorkspaceStore);
     await settle();

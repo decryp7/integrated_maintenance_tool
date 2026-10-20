@@ -4,6 +4,7 @@ import { DockService } from '../dock/dock.service';
 import { provideImtPlugin } from '../extensions/provide';
 import { ImtView } from '../extensions/tokens';
 import { OverviewPrefs } from './overview-prefs';
+import { LayoutModeStore } from '../core/workspace/layout-mode';
 
 export const OVERVIEW_VIEW = 'overview';
 
@@ -19,12 +20,16 @@ export const OVERVIEW_VIEWS: ImtView[] = [
   },
 ];
 
-/** Opens the overview after every successful open of files or folders, unless the user turned it off. */
+/**
+ * In the Full layout, opens the overview after every successful open of files or folders, unless the user turned it
+ * off. The Focused layout shows its headline in the timeline header instead (`OverviewHeadline`).
+ */
 @Injectable({ providedIn: 'root' })
 export class OverviewAutoOpen {
   private readonly store = inject(WorkspaceStore);
   private readonly dock = inject(DockService);
   private readonly prefs = inject(OverviewPrefs);
+  private readonly layout = inject(LayoutModeStore);
 
   constructor() {
     let seen = this.store.importVersion();
@@ -33,7 +38,7 @@ export class OverviewAutoOpen {
       if (version === seen) return;
       seen = version;
       untracked(() => {
-        if (this.prefs.autoOpen()) this.dock.show(OVERVIEW_VIEW);
+        if (this.layout.full() && this.prefs.autoOpen()) this.dock.show(OVERVIEW_VIEW);
       });
     });
   }

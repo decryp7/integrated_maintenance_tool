@@ -30,7 +30,7 @@ import { localizeDecimal } from '../i18n/locale';
       </button>
     </div>
     <div class="state">
-      @if (store.busy(); as busy) {
+      @if (store.busyLabel(); as busy) {
         <span class="spinner" aria-hidden="true"></span><span>{{ busy }}</span>
       } @else if (store.summary(); as s) {
         <span class="dot" style="background: var(--mk-start)"></span>
@@ -76,7 +76,8 @@ export class TitleBar {
   protected onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
     const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-    if (e.key === '/' && !typing) {
+    // A bare '/' focuses the search box; Ctrl/⌘+/ is a command (focus the query bar).
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing) {
       e.preventDefault();
       this.store.focusSearch();
       return;

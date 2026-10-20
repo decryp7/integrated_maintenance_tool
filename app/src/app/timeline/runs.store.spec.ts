@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ViewRequests } from '../core/view-requests';
 import { RunsReply } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
@@ -130,7 +131,8 @@ describe('TimelineAnnotations runs', () => {
     await settle(undefined, 6);
     expect(ws.query().groups).toEqual([run.instance]);
     expect(ws.query().from).toBe(run.from);
-    expect(dock.calls).toContain('show:events');
+    // The annotations ask for the events grid; the dock policy shows it.
+    expect(TestBed.inject(ViewRequests).request()?.id).toBe('events');
     expect(ws.anchor()?.id).toBe(run.run?.start?.id);
     expect(TestBed.inject(DockService)).toBe(dock);
   });

@@ -11,10 +11,10 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await expect(input).toHaveCount(0);
 }
 
-/** Opens the Query view (a tab next to the events grid) and returns its input. */
+/** Opens the query bar (Ctrl/⌘+/: the Focused layout does not open it by itself) and returns its input. */
 export async function openQuery(page: Page) {
-  await page.getByRole('tab', { name: 'Query', exact: true }).click();
   const input = page.getByRole('combobox', { name: 'Query' });
+  if (!(await input.isVisible())) await page.keyboard.press('ControlOrMeta+/');
   await expect(input).toBeVisible();
   return input;
 }

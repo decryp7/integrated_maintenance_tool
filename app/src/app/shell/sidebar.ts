@@ -75,12 +75,8 @@ function shortPath(path: string): string {
         }
       } @empty {
         <div class="empty">
+          <!-- Opening is offered once, on the welcome page (and by the buttons above). -->
           <p i18n="@@shell.sidebar.empty.none">No files open.</p>
-          <div class="open-row">
-            <button class="btn primary" (click)="store.pickAndOpen(true)" i18n="@@shell.sidebar.empty.openFolder">Open folder…</button>
-            <button class="btn" (click)="store.pickAndOpen(false)" i18n="@@shell.sidebar.empty.openFiles">Open files…</button>
-          </div>
-          <p class="faint small" i18n="@@shell.sidebar.empty.drop">Or drop log files anywhere in the window. Any extension works: the format is detected from the content.</p>
         </div>
       }
       @for (u of unrecognized(); track u.path) {
@@ -93,9 +89,10 @@ function shortPath(path: string): string {
       }
     </div>
 
-    <div class="divider"></div>
-
-    <imt-fields-panel />
+    @if (sources().length) {
+      <div class="divider"></div>
+      <imt-fields-panel />
+    }
 
     <ng-template #file let-s let-member="member">
       <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
@@ -142,7 +139,6 @@ function shortPath(path: string): string {
     .src-error { margin: 0 6px 4px 27px; font-size: 11px; color: var(--danger-text); }
     .empty { padding: 8px 6px; color: var(--muted); }
     .empty p { margin: 4px 0 10px; }
-    .open-row { display: flex; gap: 6px; margin-bottom: 8px; }
     .divider { height: 1px; background: var(--border); margin: 6px 0; flex: none; }
     .src.member { padding-inline-start: 24px; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

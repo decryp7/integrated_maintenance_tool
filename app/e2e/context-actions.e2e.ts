@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { openApp, parseCount } from './app';
+import { expandFields, openApp, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 
 /** Selects the first occurrence of `pattern` in the inspector message, like dragging over it. */
@@ -117,6 +117,7 @@ test.describe('context actions from data', () => {
   });
 
   test('fields panel charts a numeric field in Metrics', async ({ page }) => {
+    await expandFields(page);
     await page.locator('imt-sidebar .field').filter({ hasText: 'ElapsedMs' }).click();
     await page.getByRole('button', { name: 'Chart this field' }).click();
     await expect(page.getByRole('tab', { name: 'Metrics', selected: true })).toBeVisible();

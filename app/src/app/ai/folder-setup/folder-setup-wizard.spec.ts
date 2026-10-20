@@ -12,7 +12,8 @@ import { AiBackend } from '../ai-backend';
 import { AiStatusStore } from '../ai-status.store';
 import { JobOutcome } from '../../jobs/jobs.types';
 import { FolderSetupBackend, TauriFolderSetupBackend } from './folder-setup-backend';
-import { FolderSetupHint } from './folder-setup-hint';
+import { FOLDER_SETUP_NOTICE, FolderSetupNotice } from './folder-setup-notice';
+import { NotificationsStore } from '../../notifications/notifications.store';
 import { FolderSetupStore } from './folder-setup.store';
 import { FolderSetupWizard } from './folder-setup-wizard';
 import { mockJobs } from '../../jobs/mock-jobs';
@@ -151,27 +152,32 @@ describe('FolderSetupPreview', () => {
 describe('folder set-up hint, command and backends', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('the hint appears after the user opens several files and opens the wizard', async () => {
+  it('offers the set-up in the notification centre after the user opens several files, and runs the wizard from there', async () => {
     const { workspace } = setup();
     const ws = TestBed.inject(WorkspaceStore);
     await ws.init();
-    const fixture = TestBed.createComponent(FolderSetupHint);
-    fixture.detectChanges();
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[data-testid="folder-setup-hint"]')).toBeNull();
+    TestBed.inject(FolderSetupNotice);
+    const notices = TestBed.inject(NotificationsStore);
+    const unread = notices.unread();
+    TestBed.tick();
+    expect(notices.localAction(-1)).toBeNull();
     await ws.openPaths(['/logs']);
-    fixture.detectChanges();
-    expect(el.querySelector('[data-testid="folder-setup-hint"]')).toBeTruthy();
+    TestBed.tick();
+    const posted = notices.notices().find((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE)!;
+    expect(posted.title).toBe('New folder? Set up analysis');
+    expect(notices.unread()).toBe(unread + 1);
+    expect(notices.localAction(posted.id)).toBe('Set up analysis…');
     const open = vi.spyOn(TestBed.inject(FolderSetupLauncher), 'open').mockImplementation(() => undefined);
-    el.querySelector<HTMLButtonElement>('[data-testid="folder-setup-hint-open"]')!.click();
-    fixture.detectChanges();
+    notices.runLocal(posted.id);
     expect(open).toHaveBeenCalled();
-    expect(el.querySelector('[data-testid="folder-setup-hint"]')).toBeNull();
+    expect(notices.notices().some((n) => n.id === posted.id)).toBe(false);
+    // A new open offers it again (once); dismissing it removes it.
     await ws.openPaths(['/more']);
-    fixture.detectChanges();
-    el.querySelector<HTMLButtonElement>('button[aria-label="Dismiss"]')!.click();
-    fixture.detectChanges();
-    expect(el.querySelector('[data-testid="folder-setup-hint"]')).toBeNull();
+    TestBed.tick();
+    const again = notices.notices().filter((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE);
+    expect(again).toHaveLength(1);
+    await notices.dismiss(again[0]!.id);
+    expect(notices.notices().some((n) => n.dedupeKey === 'local:' + FOLDER_SETUP_NOTICE)).toBe(false);
     expect(workspace).toBeTruthy();
   });
 

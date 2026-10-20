@@ -4,7 +4,7 @@ import { ImtBackend } from '../core/backend';
 import { describeError, Logger } from '../core/logger';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
-import { DockService, PANEL } from '../dock/dock.service';
+import { ViewRequests } from '../core/view-requests';
 import { ConsumerGate } from '../core/panel-visibility';
 import { annotationKinds } from './annotation-layout';
 import { TimelineZoom } from './zoom';
@@ -25,7 +25,8 @@ export class TimelineAnnotations {
   private readonly logger = inject(Logger);
   private readonly zoom = inject(TimelineZoom);
   private readonly cursor = inject(TimeCursor);
-  private readonly dock = inject(DockService);
+  /** Asks for the events grid without depending on the dock. */
+  private readonly views = inject(ViewRequests);
 
   readonly items = signal<AnnotationDto[]>([]);
   /** Why the last request failed (shown inline with Retry); null when fine. */
@@ -74,7 +75,7 @@ export class TimelineAnnotations {
     if (this.ws.textInput() !== query.text) this.ws.setTextInput(query.text);
     this.zoom.apply(range);
     this.cursor.select(range);
-    this.dock.show(PANEL.events);
+    this.views.show('events');
     const event = a.run?.start ?? a.run?.stop;
     if (event) this.ws.jumpTo(event.id);
     this.logger.info('ui.timeline', 'Run shown', { Kind: a.kind, Status: a.run?.status ?? '' });
@@ -151,7 +152,7 @@ export class TimelineAnnotations {
     if (this.ws.textInput() !== query.text) this.ws.setTextInput(query.text);
     this.zoom.apply({ from, to });
     this.cursor.select({ from, to });
-    this.dock.show(PANEL.events);
+    this.views.show('events');
     this.logger.info('ui.timeline', 'Annotation evidence shown', { Kind: a.kind, Owner: a.owner });
   }
 }

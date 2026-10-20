@@ -2,7 +2,7 @@ import { ImtActivityItem } from '../extensions/tokens';
 import { LiveTail } from '../workspace/live-tail';
 import { LiveFollow } from './live-follow.store';
 
-/** The Live tail toggle in the activity bar: pressed while live tail is on, with a pulsing dot while following. */
+/** The Live tail toggle in the activity bar: pressed while live tail is on, with a pulsing dot while following; shown while there are files to follow. */
 export function liveActivityItems(live: LiveTail, follow: InstanceType<typeof LiveFollow>): ImtActivityItem[] {
   return [
     {
@@ -13,7 +13,8 @@ export function liveActivityItems(live: LiveTail, follow: InstanceType<typeof Li
       toggle: true,
       active: () => live.enabled(),
       pulse: () => follow.active(),
-      disabled: () => (live.available() ? null : $localize`:@@live.activity.unavailable:Open files first to follow them live`),
+      // Only with files open (File ▸ Live tail and the View menu stay available).
+      when: () => live.available(),
       run: { command: 'live.toggle' },
     },
   ];
