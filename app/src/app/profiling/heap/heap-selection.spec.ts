@@ -9,10 +9,10 @@ describe('HeapSelection', () => {
     return TestBed.inject(HeapSelection);
   };
 
-  it('starts on the types tab with nothing selected', () => {
+  it('starts on the findings tab with nothing selected', () => {
     const s = make();
-    expect([s.tab(), s.typeName(), s.object()]).toEqual(['types', null, null]);
-    expect(HEAP_TABS.map((t) => t.id)).toEqual(['types', 'diff', 'growth', 'dominators', 'instances']);
+    expect([s.tab(), s.typeName(), s.object()]).toEqual(['findings', null, null]);
+    expect(HEAP_TABS.map((t) => t.id)).toEqual(['findings', 'types', 'diff', 'growth', 'dominators', 'instances']);
   });
 
   it('showInstances selects the type, clears the object and switches tab', () => {
