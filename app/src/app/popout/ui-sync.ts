@@ -16,6 +16,8 @@ export interface SyncedValue<T = unknown> {
   apply(value: unknown): void;
   /** `fromHost`: only the host's changes are shared (data versions, live state the engine owns). Default: both ways. */
   direction?: 'both' | 'fromHost';
+  /** Values that change on every pointer move are sent at most once per this many ms (the latest one wins). */
+  throttleMs?: number;
 }
 
 /** A command a pop-out asks its host to run (global undo, showing a view in the main layout). */
@@ -40,6 +42,8 @@ export class UiSync {
   private synced = false;
   private helloTimer: ReturnType<typeof setInterval> | null = null;
   private label = '';
+  /** Keys inside their throttle window, and whether a change arrived during it. */
+  private readonly throttled = new Map<string, { timer: ReturnType<typeof setTimeout>; changed: boolean }>();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stop());
@@ -126,6 +130,8 @@ export class UiSync {
 
   stop(): void {
     this.stopGreeting();
+    for (const t of this.throttled.values()) clearTimeout(t.timer);
+    this.throttled.clear();
     this.synced = false;
     this.effects.forEach((e) => e.destroy());
     this.effects = [];
@@ -139,9 +145,28 @@ export class UiSync {
   private local(v: SyncedValue, value: unknown): void {
     const engine = this.engine;
     if (!engine) return;
-    if (!engine.shouldSend(v.key, value)) return;
     if (v.direction === 'fromHost' && !engine.isHost) return;
+    // Nobody to tell (a host without pop-outs): skip the work. A pop-out opened later takes the host's snapshot.
+    if (this.port?.hasPeers?.() === false) {
+      engine.forgetValue(v.key);
+      return;
+    }
+    const open = this.throttled.get(v.key);
+    if (open) {
+      open.changed = true;
+      return;
+    }
+    if (!engine.shouldSend(v.key, value)) return;
     this.send({ t: 'state', key: v.key, value });
+    // A throttled value went out: later changes wait for the end of its window, then the latest one is sent.
+    if (v.throttleMs) {
+      const timer = setTimeout(() => {
+        const ended = this.throttled.get(v.key);
+        this.throttled.delete(v.key);
+        if (ended?.changed && this.engine === engine) this.local(v, untracked(() => v.read()));
+      }, v.throttleMs);
+      this.throttled.set(v.key, { timer, changed: false });
+    }
   }
 
   private send(body: SyncBody): void {

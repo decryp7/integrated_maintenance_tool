@@ -9,6 +9,9 @@ import { GridDensity, SettingsStore, SOURCE_COLOR_MODES, SourceColorMode } from 
 import { LiveTail } from '../workspace/live-tail';
 import { SyncedValue } from './ui-sync';
 
+/** The time cursor follows the pointer: other windows get it at most this often. */
+export const CURSOR_SYNC_MS = 50;
+
 const THEMES: readonly ThemeMode[] = ['system', 'dark', 'light'];
 const ZONES: readonly TimeZoneMode[] = ['utc', 'local'];
 const DATE_FORMATS: readonly DateFormat[] = ['readable', 'iso'];
@@ -76,7 +79,7 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         for (const c of want) store.addColumn(c);
       },
     },
-    { key: 'cursor', read: () => cursor.hovered(), apply: (v) => cursor.hover(typeof v === 'number' ? v : null) },
+    { key: 'cursor', read: () => cursor.hovered(), apply: (v) => cursor.hover(typeof v === 'number' ? v : null), throttleMs: CURSOR_SYNC_MS },
     { key: 'range', read: () => cursor.selection(), apply: (v) => cursor.select(sharedRange(v)) },
     {
       key: 'follow',

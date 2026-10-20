@@ -113,10 +113,15 @@ describe('TauriEventPort', () => {
     ]);
   });
 
-  it('posts nothing without targets', () => {
+  it('posts nothing without targets, and says it has no peers then', () => {
     const { port, emitTo } = make(true, []);
+    expect(port.hasPeers()).toBe(false);
     port.post(msg);
     expect(emitTo).not.toHaveBeenCalled();
+    const open = make(true);
+    expect(open.port.hasPeers()).toBe(true);
+    open.port.close();
+    expect(open.port.hasPeers()).toBe(false);
   });
 
   it('ignores emit failures', async () => {

@@ -14,6 +14,8 @@ export interface SyncPort {
   listen(handler: (message: unknown) => void): () => void;
   /** True when messages only reach the host, which must forward pop-out messages to the other pop-outs. */
   readonly needsRelay: boolean;
+  /** False when no other window can receive a message now (a host without pop-outs); absent when it is not known. */
+  hasPeers?(): boolean;
   close(): void;
 }
 
@@ -64,6 +66,10 @@ export class TauriEventPort implements SyncPort {
     isHost: boolean,
   ) {
     this.needsRelay = isHost;
+  }
+
+  hasPeers(): boolean {
+    return !this.closed && this.targets().length > 0;
   }
 
   post(message: SyncMessage): void {
