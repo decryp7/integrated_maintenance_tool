@@ -8,7 +8,15 @@ import { RunsEditor } from './runs-editor';
 
 /** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
 async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
-  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  // The import's progress is polled on a timer: advance the fake clock instead of waiting for wall time,
+  // which a loaded CI machine stretches past any fixed limit.
+  await vi.waitFor(
+    async () => {
+      await vi.advanceTimersByTimeAsync(250);
+      expect(TestBed.inject(WorkspaceStore).busy()).toBeNull();
+    },
+    { timeout: 20_000, interval: 20 },
+  );
   await settle(fixture);
 }
 
