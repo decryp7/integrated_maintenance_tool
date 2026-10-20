@@ -169,3 +169,107 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 3. **Batch 6c**: switch the app to the new ports, remove `Workspace`, the window lock and the old `ProjectFile`;
    all commands async with the guard test; the remaining importers and binary importers.
 4. **Batch 6d**: the Problems pane with quick fixes and the AI fix (UI on top of the diagnostics port).
+
+## Implementation notes (R2a, 2026-10-20)
+
+Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps using `LogStore` until 6c.
+
+### What exists
+
+- **`crates/imt-batch`** (Arrow 58, no `imt-core` dependency; re-exported as `imt_core::batch`): `EventId(u64)`,
+  `SourceId(u32)`, `TsState {Parsed, Inherited, Untimed}` and `EventTime` (a timestamp and its state cannot
+  disagree), `LevelCode`, `EventSchema`, `EventBatchBuilder` → `PendingBatch` (no ids) → `assign_ids` →
+  `EventBatch` (validated: at most 8,192 rows, required columns non-null, level and state codes valid, `ts` null
+  exactly when untimed), `BatchRow` accessors.
+- **Schema as built**: `id u64, ts i64?, ts_state u8, level u8, source u32, line u32, byte_offset u64, message,
+  template?, exception?, markers u64, raw`, then one column per extractor field declared with a type
+  (`f_<name>`: `string` → VARCHAR, `integer` → BIGINT, `number`/`bytes`/`duration` → DOUBLE, `bool` → BOOLEAN;
+  case-insensitive duplicates and more than 64 go to `extra`), then `extra MAP(VARCHAR, VARCHAR)`. A value that
+  does not fit its declared column's type is kept in `extra` as text. `byte_offset` is new (for source context).
+- **`imt_core::row`**: `RowRef` with interned keys (`FieldKeys`/`FieldKey`; `BatchSlots` resolves a key to its
+  column or `extra` once per batch) for `RecordRow` and `ArrowRow`; `to_record(&BatchRow) -> Record`.
+- **`imt_core::ingest`**: `ReaderChunks` (8 MiB reads, whole lines, exact byte offsets for UTF-8 and UTF-16, lines
+  over `MAX_LINE_LEN` skipped without being buffered), `LineReader` (look-ahead that can be given back),
+  `FilePlan` (1 MiB sniff: encoding, importer, text format, day order, time-only, JSON shape, splittable) and
+  `scan_chunk_starts`, streaming text and JSON importers, a `legacy` adapter (CSV, plugin text and binary
+  importers), `RecordBatcher`, `BatchSink`, per-source `Problems` (line too long, event too large, line not parsed,
+  timestamp unparsed: counts and at most 20 sample lines), `MAX_EVENT_BYTES` = 8 MiB, and
+  `import_path`/`import_files`/`files_to_read`. Text before a file's first event is one untimed event.
+- **`imt_core::ports`** (every method `&self`, `Send + Sync`, owned DTOs, `StoreError {Unsupported {operation,
+  phase}, Invalid, NotFound, Busy, Cancelled, Io, Engine}`):
+  - `Ingest`: `open(&[PathBuf]) -> ImportSession`, `reload`, `refresh(&[PathBuf])`, `remove_source(SourceId)`,
+    `clear`, `restore(&WorkspaceState)`, `append_tail(&[PathBuf]) -> usize`. `ImportSession`: `progress()`,
+    `cancel()`, `is_finished()`, `wait() -> ImportReport` (a crashed job is an error, not a panic).
+  - `Query`: `summary() -> SummaryReply`, `page(&PageQuery) -> PageReply` (`EventView` rows; `anchor:
+    Option<EventId>`), `timeline(&TimelineRequest) -> Timeline`, `facet(&FacetRequest) -> Facet`,
+    `scan(&Filter, &mut dyn FnMut(&EventBatch) -> ControlFlow<()>)`, `chart`, `field_stats`, `source_context`,
+    `run_query`, `check_query`, `complete_query`, `export`.
+  - `Analysis`: `patterns`, `exception_groups`, `anomalies`, `compare`, `correlate -> Vec<EventId>`, `traces`,
+    `requests`, `moment`, `overview`, `runs`.
+  - `Profiles`: `active_profile`, `validate_profile`, `set_profile -> ImportSession`, `preview_parse`,
+    `preview_extractor`.
+  - `Diagnostics`: `problems() -> Vec<DiagnosticRow>`, `evaluate_fix(&QuickFix) -> FixEvaluation`.
+  - `Search`: `search(&SearchRequest) -> SearchReply` (ids), `index_status()`.
+- **`crates/imt-store-duck`** (not a workspace member: its own `[workspace]` and `Cargo.lock`; the prebuilt
+  libduckdb 1.5.6 comes from `scripts/fetch-libduckdb.sh` with pinned SHA-256s): tables `meta` (format version
+  1, declared columns, next ids, so ids are never reused), `sources`, `diagnostics`, `marker_kinds` (bits per
+  generation) and `events`; one writer per import with the Arrow appender; `memory_limit` 256 MB with a `tmp`
+  spill folder. Implemented: `Ingest::open` (sequential), `remove_source`, `clear`; `Query::{summary, page,
+  timeline, facet, scan}`; `Profiles::{active_profile, validate_profile}`; `Diagnostics::problems`;
+  `DuckStore::open` refuses a newer format with a message. Everything else returns `Unsupported` naming R2b, R2c
+  or 6c.
+- **Queries**: time range, levels, plain text (`ILIKE`/`LIKE`), sources and markers compile to SQL (values as
+  escaped literals; text containing NUL never enters SQL). Regex text, field filters, instance selection and the
+  query language scan the SQL-prefiltered events in time order through the existing `CompiledQuery`. Timeline
+  (lanes, density, histogram, first sources, marker clusters) and facets are SQL aggregates on the SQL path and the
+  in-memory algorithm on the scan path. Time order is `coalesce(ts, i64::MAX), source, line, id`.
+- **Tests**: differential tests against `Workspace` on `/samples` with the default and the sample profile (page
+  totals and rows in both directions and at deep offsets, anchors, the source filter, timelines at 10 and 400
+  buckets, facets including `@group`, the field list, the instance key, unrecognised files); a peak-RSS test of
+  importing the samples (`IMT_BENCH_COPIES=n` for larger runs); unit tests for chunking, plans, batching,
+  validation and the writer.
+
+### Deviations from the decision (keep or revisit)
+
+- **Importers push records, not Arrow batches.** They emit `ParsedEvent` (record, raw text, byte offset) into the
+  `RecordBatcher`, because `profile.ingest` (extractors, pipeline, markers) still runs on `Record`s. Once these are
+  ported to `RowRef` (R2c) the batcher can derive fields on the batch.
+- **Pipeline steps run per batch** (at most 8,192 events), not per file: `dedupe` collapses repeats within a batch.
+- **Paging uses `ORDER BY … LIMIT/OFFSET`** (the scan fallback collects matching ids); R2b adds a time-order `pos`
+  column so deep pages and anchors become range lookups.
+- **Arrow 58 here, Arrow 60 in the plugin SDK**: duckdb-rs 1.10506 links Arrow 58; R3 must pick one (upgrade
+  duckdb-rs when it moves, or convert at the plugin edge).
+- **`extra` is text**: JSON numbers and booleans in undeclared fields come back as strings (`value_number` still
+  reads numbers; a JSON `true` is no longer numeric). In SQL, floats of declared columns are rendered by DuckDB
+  (`1e+20` where serde writes `1e20`), and plain-text search folds case with `ILIKE`, not with Unicode regex folding.
+- **Writes are grouped**: a commit costs 45–580 ms on the test VM, so the writer commits every 32 batches or 1 s,
+  across source boundaries (readers see an import's progress about once a second); an aborted source's rows are
+  deleted. `checkpoint_threshold` is 1 GB while importing and an import ends with `CHECKPOINT` (frequent automatic
+  checkpoints rewrote the table and made imports 3× slower).
+- **Kept from the old import for now**: archives are expanded in memory (within the archive caps), JSON arrays and
+  single objects are read whole, legacy importers get the whole decoded file (raw text is cut by line numbers;
+  binary events have no raw text). Not yet in the store: clock offsets, `timestamp_issue`, live-tail seeds, the
+  redacted view, plugin annotators. `FilePlan::chunks` is computed by `scan_chunk_starts` but not used yet.
+- **Ids in old DTOs**: `Record.id`, `MarkerCluster.id` and `PageRequest.anchor` are `u32`; conversions from
+  `EventId` saturate until 6c widens them.
+
+### Measured (R2a: sequential, release build, Windows VM shared with other builds)
+
+- `/samples` (31 sources, 28,161 events, 9.8 MB): parsing alone about 97k events/s; the full import into DuckDB
+  3.2 s (8.8k events/s) including the final checkpoint; peak RSS 79 MB.
+- 20 copies (563,220 events, 195 MB): parsing alone 84–125k events/s; the full import 18–30k events/s (31 s with the
+  final checkpoint, 19 s without); peak RSS 334 MB (budget 600 MB). Commits and the checkpoint take most of the
+  time: the writer, not parsing, is the bottleneck.
+
+### Next
+
+- **R2b**: the parallel parse pipeline (rayon, bounded queues of 4 batches, chunk starts moved to event starts),
+  the store worker over `imt-ipc` with supervisor and caps, the Tantivy index fed from the batches, `refresh`, the
+  `pos` column, and a faster writer (transactions large enough for DuckDB to write row groups directly instead of
+  the WAL, checkpoints in the background, `raw` stored only when it differs from `message`) to reach the 3× target;
+  the 10M-event benchmark and RSS test in CI (needs libduckdb in CI; then `imt-store-duck` becomes a member).
+- **R2c**: analysis, charts, field stats and the query language on SQL and batch scans (port `Condition`, extractors,
+  transforms and analyses to `RowRef`), classified profile changes re-derived from `raw`, diagnostics with
+  quick-fix evaluation and `timestamp_issue`, untimed events in the UI (`tsState` in `api.types.ts`), projects as
+  `.imt` folders and `.imtz` archives (one archive module; the database streamed under its own limits), clock
+  offsets, and source context by `byte_offset`.
