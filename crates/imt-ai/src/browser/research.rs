@@ -832,18 +832,18 @@ mod tests {
                 "results",
                 "three results",
                 vec![
-                    link(1, "Settings", "https://duckduckgo.com/settings"),
+                    link(1, "Settings", "https://www.google.com/preferences"),
                     link(
                         2,
                         "Ad: buy now",
-                        "https://duckduckgo.com/y.js?ad_provider=x&u3=https%3A%2F%2Fshop.example%2F",
+                        "https://www.google.com/aclk?sa=l&adurl=https%3A%2F%2Fshop.example%2F",
                     ),
                     link(3, "Result 1", &r(1)),
                     // The engine's redirect link to result 2: unwrapped to its address.
                     link(
                         4,
                         "Result 2",
-                        "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fsite2.example.org%2Fanswer&rut=abc",
+                        "https://www.google.com/url?q=https%3A%2F%2Fsite2.example.org%2Fanswer&sa=U",
                     ),
                     link(5, "Result 1 again", &format!("{}#top", r(1))),
                     link(6, "Result 3", &r(3)),
