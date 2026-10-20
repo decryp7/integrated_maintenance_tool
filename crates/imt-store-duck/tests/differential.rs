@@ -8,7 +8,7 @@ mod common;
 use common::{log_samples, sample_profile, store_with, TempDir};
 use imt_core::api::{FacetRequest, PageRequest, TimelineRequest};
 use imt_core::model::Level;
-use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, Search, SearchRequest, StoreError};
+use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, StoreError};
 use imt_core::query::FieldFilter;
 use imt_core::{Profile, Workspace};
 use imt_store_duck::DuckStore;
@@ -421,12 +421,6 @@ fn reports_problems_refuses_what_is_not_built_yet_and_reopens() {
     let problems = store.problems().unwrap();
     assert!(problems.iter().all(|p| p.count > 0 && p.sample_lines.len() <= 20));
     for e in [
-        store
-            .search(&SearchRequest {
-                text: "x".into(),
-                limit: 1,
-            })
-            .unwrap_err(),
         store.reload().map(|_| ()).unwrap_err(),
         store.set_profile(Profile::default_profile()).map(|_| ()).unwrap_err(),
     ] {

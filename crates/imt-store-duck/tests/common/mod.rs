@@ -2,6 +2,9 @@
 
 #![allow(dead_code)]
 
+pub mod corpus;
+pub mod rss;
+
 use imt_core::ports::{Ingest, StoreResult};
 use imt_core::{PluginRegistry, Profile};
 use imt_store_duck::DuckStore;
@@ -49,9 +52,13 @@ impl Drop for TempDir {
     }
 }
 
-/// A store in `dir` with the samples imported.
+/// A store in `dir` with `paths` imported (`IMT_PARSE_THREADS` sets the parse threads).
 pub fn store_with(dir: &TempDir, profile: Profile, paths: &[PathBuf]) -> StoreResult<(DuckStore, imt_core::ports::ImportReport)> {
-    let store = DuckStore::create(&dir.0, profile, PluginRegistry::new())?;
+    let mut opts = imt_store_duck::StoreOptions::default();
+    if let Some(n) = std::env::var("IMT_PARSE_THREADS").ok().and_then(|v| v.parse().ok()) {
+        opts.parse_threads = n;
+    }
+    let store = DuckStore::create_with(&dir.0, profile, PluginRegistry::new(), opts)?;
     let report = store.open(paths)?.wait()?;
     Ok((store, report))
 }

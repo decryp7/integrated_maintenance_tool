@@ -20,8 +20,14 @@ anyhow = "1.0"
 duckdb = { version = "=1.10506.1", features = ["appender-arrow"] }
 log = "0.4"
 serde_json = { version = "1.0", features = ["preserve_order"] }
+# Event segments: zstd Parquet written by the parse threads (Apache-2.0); the Arrow version of duckdb-rs.
+parquet = { version = "58", default-features = false, features = ["arrow", "zstd"] }
+rayon = "1.12"
+# Full-text index (MIT).
+tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4-compression"] }
 
 [dev-dependencies]
 # Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
 memory-stats = "1.2"
 getrandom = "0.3"
+chrono = "0.4"
