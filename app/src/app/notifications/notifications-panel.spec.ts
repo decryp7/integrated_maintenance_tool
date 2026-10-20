@@ -25,6 +25,7 @@ function notice(p: Partial<Notice> & { id: number }): Notice {
     read: false,
     primary: null,
     secondary: null,
+    tertiary: null,
     link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null },
     dedupeKey: null,
     scope: 'project',
@@ -165,6 +166,19 @@ describe('NotificationsPanel', () => {
     at([...row.querySelectorAll('button')], 1).click();
     await settle(f);
     expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 5 }), { type: 'showJobs' });
+  });
+
+  it('offers a third action when the message has one', async () => {
+    const key = 'runtime:vulkan@b11700';
+    const { f, actions } = setup([
+      notice({ id: 9, source: 'ai', title: 'AI runtime update', primary: { type: 'updateAi', key }, secondary: { type: 'laterAiUpdate', key }, tertiary: { type: 'skipAiUpdate', key } }),
+    ]);
+    await render(f);
+    const buttons = [...el(f, '[data-testid=notice-9]').querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(buttons).toEqual(['Update', 'Later', 'Skip this version', 'Mark read', 'Dismiss']);
+    el<HTMLButtonElement>(f, '[data-testid=notice-tertiary-9]').click();
+    await settle(f);
+    expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 9 }), { type: 'skipAiUpdate', key });
   });
 
   it('shows an action failure inline and clears it after a success', async () => {

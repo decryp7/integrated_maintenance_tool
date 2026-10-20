@@ -178,6 +178,28 @@ failed, when you turn agent mode off, or when you close the browser or its IMT w
 IMT, not of the web page: a page cannot show, hide or press it. On Linux with Wayland the bar may not sit
 exactly over the browser window, since Wayland does not let apps place windows; the title still says it.
 
+## AI runtime and model updates
+
+IMT checks for newer **inference runtimes** (the llama.cpp builds that run the model) and newer revisions or
+quantisations of your **models**. Only what IMT's built-in lists pin is ever offered: a runtime update is the
+newer llama.cpp release this version of IMT pins (each file checked against its SHA-256), a model update is a
+model-list entry that replaces a file you have, confirmed with the model host before it is offered.
+
+*Settings ▸ AI* sets what happens for each kind:
+
+- **Automatic** downloads and verifies the update in the background, as a job in the Jobs pane. The installed
+  version keeps working until the new one is verified, and a running chat is never interrupted: an update
+  found during a chat waits for it to finish, and a new model replaces the active one only between chats.
+- **Ask** (the default) shows a message with **Update**, **Later** (ask again at the next check) and **Skip
+  this version** (never offer this version again; *Update* in Settings still installs it).
+- **Manual** only checks when you choose **Check now** in *Settings ▸ AI ▸ Updates*.
+
+*Check for AI updates every (hours)* sets how often IMT checks (daily by default). Settings shows when it last
+checked and when it checks next. A check or update that fails because the computer is offline or a proxy
+blocks it does not interrupt you: the reason is shown in Settings and IMT tries again later (after 5 minutes,
+then less and less often, at most once per interval). When a proxy intercepts HTTPS, **Download manually**
+there works as described under [Troubleshooting](#behind-a-corporate-proxy-zscaler-etc).
+
 ## Keyboard shortcuts
 
 `Mod` is `Ctrl` on Windows/Linux and `⌘` on macOS.
