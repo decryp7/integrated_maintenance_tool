@@ -455,7 +455,7 @@ Licence expressions (packages):
 - rustls-pki-types 1.15.1 — MIT OR Apache-2.0 [MIT-208]
 - rustls-platform-verifier 0.7.1 — MIT OR Apache-2.0 [MIT-105]
 - rustls-platform-verifier-android 0.2.0 — MIT OR Apache-2.0 [MIT-5]
-- rustls-webpki 0.103.15 — ISC [ISC-8]
+- rustls-webpki 0.103.16 — ISC [ISC-8]
 - rustversion 1.0.23 — MIT OR Apache-2.0 [MIT-52]
 - rustybuzz 0.20.1 — MIT [MIT-261, MIT-53]
 - ryu 1.0.23 — Apache-2.0 OR BSL-1.0 [Apache-2.0-10]
@@ -625,8 +625,8 @@ Licence expressions (packages):
 - web_atoms 0.2.6 — MIT OR Apache-2.0 [MIT-60]
 - webkit2gtk 2.0.2 — MIT [MIT-45]
 - webkit2gtk-sys 2.0.2 — MIT [MIT-50]
-- webpki-root-certs 1.0.9 — CDLA-Permissive-2.0 [CDLA-Permissive-2.0-1]
-- webpki-roots 1.0.9 — CDLA-Permissive-2.0 [CDLA-Permissive-2.0-1]
+- webpki-root-certs 1.0.10 — CDLA-Permissive-2.0 [CDLA-Permissive-2.0-1]
+- webpki-roots 1.0.10 — CDLA-Permissive-2.0 [CDLA-Permissive-2.0-1]
 - webview2-com 0.39.1 — MIT [MIT-5]
 - webview2-com-macros 0.8.1 — MIT [MIT-5]
 - webview2-com-sys 0.39.1 — MIT [MIT-5]
@@ -4058,7 +4058,7 @@ Used by (7):
 ### CDLA-Permissive-2.0-1
 
 Used by (2):
-  webpki-root-certs 1.0.9, webpki-roots 1.0.9
+  webpki-root-certs 1.0.10, webpki-roots 1.0.10
 
     # Community Data License Agreement - Permissive - Version 2.0
 
@@ -4326,7 +4326,7 @@ Used by (1):
 ### ISC-8
 
 Used by (1):
-  rustls-webpki 0.103.15
+  rustls-webpki 0.103.16
 
     Except as otherwise noted, this project is licensed under the following
     (ISC-style) terms:
