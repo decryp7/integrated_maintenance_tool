@@ -80,9 +80,9 @@ struct Chunks<'c> {
 const WINDOW_EVENTS: u64 = 100_000;
 
 impl<'c> Chunks<'c> {
-    /// The windows of time over every event: `e.ts` ranges with about [`WINDOW_EVENTS`] events each, then
-    /// the untimed events.
-    fn windows(conn: &Connection, per: u64) -> StoreResult<Vec<String>> {
+    /// The windows of time over every event: `e.ts` ranges with about `per` of the `matched` events each
+    /// (assuming they spread like all events), then the untimed events.
+    fn windows(conn: &Connection, per: u64, matched: u64) -> StoreResult<Vec<String>> {
         let mut stmt = conn
             .prepare(
                 "SELECT minute, sum(n) FROM histogram WHERE minute IS NOT NULL AND source IN (SELECT id FROM sources WHERE ready) GROUP BY minute ORDER BY minute",
@@ -93,6 +93,8 @@ impl<'c> Chunks<'c> {
             .map_err(engine)?
             .collect::<duckdb::Result<Vec<_>>>()
             .map_err(engine)?;
+        let all: u64 = minutes.iter().map(|m| m.1).sum();
+        let per = (per as u128 * all as u128 / matched.max(1) as u128).clamp(per as u128, u64::MAX as u128) as u64;
         Ok(time_windows(&minutes, per))
     }
 
@@ -257,7 +259,7 @@ impl<'c> EventStream<'c> {
         let windows = if total <= per {
             vec!["TRUE".to_string()]
         } else {
-            Chunks::windows(conn, per)?
+            Chunks::windows(conn, per, total)?
         };
         let mut chunks = Chunks {
             conn,
