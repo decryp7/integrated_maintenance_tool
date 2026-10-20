@@ -464,6 +464,18 @@ export interface SampleSource {
   fileName?: string | null;
 }
 
+/** Explain, summarise, root causes: an answer that runs in the background ("Explanation ready · View"). */
+export type NarrativeRequest = { op: 'explain'; recordId: number } | { op: 'summarize'; from: number; to: number } | { op: 'rootCauses' };
+
+/** `ai_start`: a use case as a background AI job (app/src-tauri/src/ai/requests.rs `AiRequest`, tagged by `op`). */
+export type AiStartRequest =
+  | NarrativeRequest
+  | { op: 'regex'; lines: string[]; intent: string | null }
+  | { op: 'profile'; recordId: number | null; sample: string | null; fileName: string | null }
+  | { op: 'pipeline' | 'markers' | 'extractors'; goal: string; recordId: number | null; sample: string | null }
+  | { op: 'query'; question: string }
+  | { op: 'folderSetup'; request: unknown };
+
 /** `ai_research` arguments (app/src-tauri/src/browser/research.rs `ResearchArgs`). */
 export interface ResearchArgs {
   question?: string | null;

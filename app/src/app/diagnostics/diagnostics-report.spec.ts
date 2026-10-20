@@ -8,6 +8,9 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ImtEvents } from '../extensions/events';
 import { CommandContext } from '../extensions/tokens';
 import { OverwriteGuard } from '../ui/overwrite-guard';
+import { mockJobs } from '../jobs/mock-jobs';
+import { NotificationsStore } from '../notifications/notifications.store';
+import { at } from '../../testing/must';
 import { DiagnosticsCommands } from './diagnostics-commands';
 import { diagnosticsFileName, DiagnosticsExport } from './diagnostics-export.service';
 import { DiagnosticsReportService, DIAGNOSTICS_REPORT_VIEW } from './diagnostics-report.service';
@@ -347,7 +350,7 @@ describe('DiagnosticsExport', () => {
     expect(diagnosticsFileName(new Date(2026, 9, 5, 7, 8, 9))).toBe('imt-diagnostics-20261005-070809.zip');
   });
 
-  it('saves the report without a description and says where', async () => {
+  it('starts saving the report as a job at once, says so in a toast and in the status, and the job writes the file', async () => {
     const { backend, target } = setup();
     const save = vi.spyOn(backend, 'saveReport');
     const exporter = TestBed.inject(DiagnosticsExport);
@@ -356,8 +359,14 @@ describe('DiagnosticsExport', () => {
     expect(target.asked[0]?.name).toMatch(/^imt-diagnostics-\d{8}-\d{6}\.zip$/);
     expect(target.asked[0]?.title).toBe('Save diagnostics');
     expect(exporter.status()?.kind).toBe('saved');
-    expect(exporter.status()?.text).toMatch(/^Saved diagnostics \(\d+ files\) to \/out\/diag\.zip$/);
+    expect(exporter.status()?.text).toBe('Saving diagnostics to /out/diag.zip; a message tells you when the file is ready.');
     expect(exporter.busy()).toBe(false);
+    const job = await at(save.mock.results, 0).value;
+    expect(job).toEqual(expect.any(Number));
+    const toast = at(TestBed.inject(NotificationsStore).toasts(), 0);
+    expect([toast.severity, toast.title, toast.primary]).toEqual(['info', 'Saving diagnostics — running in Jobs', { type: 'showJobs' }]);
+    const end = await mockJobs().wait(job);
+    expect([end.state, end.result, end.message]).toEqual(['done', { type: 'file', path: '/out/diag.zip' }, expect.stringMatching(/^\d+ files zipped\.$/)]);
     exporter.dismiss();
     expect(exporter.status()).toBeNull();
   });

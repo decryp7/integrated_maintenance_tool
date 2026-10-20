@@ -4,7 +4,7 @@ import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 import { isTauri } from '../../core/platform';
 import { MockStorageBackend } from './mock-storage-backend';
-import { StorageCategoryId, StorageClearResult, StorageUsage } from './storage.types';
+import { StorageCategoryId, StorageUsage } from './storage.types';
 
 /**
  * What Settings ▸ Storage asks the engine. Sizes, what may be removed and the removal itself are decided
@@ -16,7 +16,8 @@ export abstract class StorageBackend {
   /** What IMT stores, per category (computed off the UI thread, bounded). */
   abstract usage(): Promise<StorageUsage>;
   /** Clears the categories (as a background task); reports what was freed and what stayed. */
-  abstract clear(ids: StorageCategoryId[]): Promise<StorageClearResult>;
+  /** Starts clearing as a background maintenance job; resolves with the job at once (its result: what was cleared). */
+  abstract clear(ids: StorageCategoryId[]): Promise<number>;
   /** Shows a category's folder in the file manager; resolves with its path. */
   abstract reveal(id: StorageCategoryId): Promise<string>;
 }
@@ -31,7 +32,7 @@ export class TauriStorageBackend extends StorageBackend {
     return this.call<StorageUsage>('storage_usage');
   }
   clear(ids: StorageCategoryId[]) {
-    return this.call<StorageClearResult>('storage_clear', { ids });
+    return this.call<number>('storage_clear', { ids });
   }
   reveal(id: StorageCategoryId) {
     return this.call<string>('storage_reveal', { id });

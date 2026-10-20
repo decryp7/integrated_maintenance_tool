@@ -9,7 +9,6 @@ use super::requests::{self, AiRequest};
 use super::{AiState, CHAT_EVENT, SETUP_EVENT, STATUS_EVENT};
 use crate::jobs::{self, Controls, Done, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState};
-use imt_ai::assistant::{FolderRefinement, Narrative, Proposal};
 use imt_ai::chat::{export_markdown, suggested_prompts, ChatContext, ChatEnv, ChatEvent, ChatHistoryRecord, ChatRecord, Envelope};
 use imt_ai::hardware::Hardware;
 use imt_ai::recommend::{Recommendation, Recommendations};
@@ -52,11 +51,6 @@ fn check_session_id(id: &str) -> Ai<&str> {
         return Err(AiCmdError::invalid("unknown chat"));
     }
     Ok(id)
-}
-
-/// Runs a use case as an AI job of the calling window and waits for its answer.
-async fn use_case<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, req: AiRequest) -> Ai<requests::AiOutcome> {
-    requests::run(app, win.arc(), req).await
 }
 
 /// A window's workspace for the assistant: every visit is one short read lock (see `imt_ai::StoreAccess`).
@@ -294,107 +288,21 @@ pub fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
 }
 
 // ---- use cases ----
-// Each runs as an AI job (one at a time, queued FIFO); the command waits for its answer. Proposals go out
-// as the tagged `Proposal` (`"kind": "pipeline"`, ...), never as the bare struct: the UI picks the evidence
-// and the Apply action by `kind` (api contract: `Proposal` in app/src/app/ai/ai.types.ts).
+// Every use case runs as a background AI job (one at a time, queued FIFO): `ai_start` returns the job at once, its
+// answer is the job's result (`jobs_result`, or `jobs_wait` while a dialog shows its progress), and a notification
+// with View tells the user when it is ready. Proposals go out as the tagged `Proposal` (`"kind": "pipeline"`, ...):
+// the UI picks the evidence and the Apply action by `kind` (api contract: `Proposal` in app/src/app/ai/ai.types.ts).
 
+/// Starts a use case as a background AI job and returns its id at once. `request` is an `AiRequest` (`op`:
+/// `explain`, `summarize`, `rootCauses`, `regex`, `profile`, `pipeline`, `markers`, `extractors`, `query`,
+/// `folderSetup`); arguments are checked before anything is queued. Chat turns use `ai_chat_send`.
 #[tauri::command]
-pub async fn ai_propose_regex<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    lines: Vec<String>,
-    intent: Option<String>,
-) -> Ai<Proposal> {
-    use_case(&app, &win, AiRequest::Regex { lines, intent }).await?.proposal()
-}
-
-#[tauri::command]
-pub async fn ai_propose_profile<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    record_id: Option<u32>,
-    sample: Option<String>,
-    file_name: Option<String>,
-) -> Ai<Proposal> {
-    use_case(
-        &app,
-        &win,
-        AiRequest::Profile {
-            record_id,
-            sample,
-            file_name,
-        },
-    )
-    .await?
-    .proposal()
-}
-
-#[tauri::command]
-pub async fn ai_propose_pipeline<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    goal: String,
-    record_id: Option<u32>,
-    sample: Option<String>,
-) -> Ai<Proposal> {
-    use_case(&app, &win, AiRequest::Pipeline { goal, record_id, sample })
-        .await?
-        .proposal()
-}
-
-#[tauri::command]
-pub async fn ai_propose_markers<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    goal: String,
-    record_id: Option<u32>,
-    sample: Option<String>,
-) -> Ai<Proposal> {
-    use_case(&app, &win, AiRequest::Markers { goal, record_id, sample })
-        .await?
-        .proposal()
-}
-
-#[tauri::command]
-pub async fn ai_propose_extractors<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    goal: String,
-    record_id: Option<u32>,
-    sample: Option<String>,
-) -> Ai<Proposal> {
-    use_case(&app, &win, AiRequest::Extractors { goal, record_id, sample })
-        .await?
-        .proposal()
-}
-
-#[tauri::command]
-pub async fn ai_nl_to_query<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, question: String) -> Ai<Proposal> {
-    use_case(&app, &win, AiRequest::Query { question }).await?.proposal()
-}
-
-#[tauri::command]
-pub async fn ai_explain_event<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record_id: u32) -> Ai<Narrative> {
-    use_case(&app, &win, AiRequest::Explain { record_id }).await?.narrative()
-}
-
-#[tauri::command]
-pub async fn ai_summarize<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, from: i64, to: i64) -> Ai<Narrative> {
-    use_case(&app, &win, AiRequest::Summarize { from, to }).await?.narrative()
-}
-
-#[tauri::command]
-pub async fn ai_root_causes<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<Narrative> {
-    use_case(&app, &win, AiRequest::RootCauses).await?.narrative()
-}
-
-/// "Improve with AI" in the folder set-up, as an AI job (the survey request as the UI sent it).
-pub(crate) async fn refine_folder_setup<R: Runtime>(
-    app: &AppHandle<R>,
-    win: &CurrentWindow,
-    request: Option<Value>,
-) -> Ai<FolderRefinement> {
-    use_case(app, win, AiRequest::FolderSetup { request }).await?.folder()
+pub fn ai_start<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: Value) -> Ai<u64> {
+    let req: AiRequest = serde_json::from_value(request).map_err(|e| AiCmdError::invalid(format!("not a request: {e}")))?;
+    if matches!(req, AiRequest::Chat { .. }) {
+        return Err(AiCmdError::invalid("chat turns start with ai_chat_send"));
+    }
+    requests::start_use_case(&app, win.arc(), req).map(|id| id.0)
 }
 
 /// Stops this window's use cases: the running ones fail with `cancelled`, the waiting ones are dropped
@@ -402,7 +310,7 @@ pub(crate) async fn refine_folder_setup<R: Runtime>(
 #[tauri::command]
 pub fn ai_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<usize> {
     core(&app)?;
-    Ok(win.ai.cancel_ops() + requests::cancel_queued(&app, win.label()))
+    Ok(requests::cancel_use_cases(&app, win.label()))
 }
 
 // ---- chat ----
@@ -702,7 +610,7 @@ pub(super) fn check_link(url: &str) -> Ai<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use imt_ai::assistant::Proposal;
     use imt_ai::assistant::QueryProposal;
 
     #[test]

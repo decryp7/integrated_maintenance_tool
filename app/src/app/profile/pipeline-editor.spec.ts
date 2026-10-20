@@ -9,6 +9,12 @@ import { ProfileDraft } from './profile-draft';
 import { ProfileForm } from './profile-form';
 import { at } from '../../testing/must';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 const platform = { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined };
 const wait = (ms = 360) => new Promise((r) => setTimeout(r, ms));
 
@@ -120,6 +126,7 @@ describe('PipelineEditor', () => {
     await wait();
     await draft.save();
     await settle(fixture);
+    await applied(fixture);
     expect(el(fixture, '.stat').textContent).toBe('11 in → 11 out (±0)');
     store.applySummary({ ...store.summary()!, pipeline: [{ index: 0, step: 'script', input: 11, output: 11, errors: 3 }] });
     await settle(fixture);
@@ -221,6 +228,7 @@ describe('PipelineEditor', () => {
     await wait();
     await draft.save();
     await settle(fixture);
+    await applied(fixture);
     expect(store.summary()!.pipeline).toEqual([{ index: 0, step: 'drop', input: 11, output: 10 }]);
     expect(el(fixture, '.stat').textContent).toBe('11 in → 10 out (−1)');
     typeInto(el<HTMLInputElement>(fixture, '[aria-label="Value"]'), 'Info');

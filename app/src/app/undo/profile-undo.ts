@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UndoStack } from './undo-stack';
@@ -25,15 +24,15 @@ export class ProfileUndo {
    * Saves `toml` as the active profile (the engine validates it and re-imports), announces it and records
    * the change. Rejects with the engine's message when the profile is refused; nothing is recorded then.
    */
-  async save(label: string, toml: string): Promise<WorkspaceSummary> {
+  async save(label: string, toml: string): Promise<number> {
     const before = (await this.backend.getProfile()).toml;
-    const summary = await this.backend.saveProfile(toml);
-    this.store.profileSaved(summary);
+    const job = await this.backend.saveProfile(toml);
+    void this.store.applyProfile(job);
     this.record(label, before, toml);
-    return summary;
+    return job;
   }
 
   private async apply(toml: string): Promise<void> {
-    this.store.profileSaved(await this.backend.saveProfile(toml));
+    void this.store.applyProfile(await this.backend.saveProfile(toml));
   }
 }

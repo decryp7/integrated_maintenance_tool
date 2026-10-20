@@ -62,5 +62,6 @@ test('exports can be redacted with a preview of what is masked', async ({ page }
   await dialog.getByLabel("Redact with the profile's rules").check();
   await expect(dialog.locator('imt-redaction-summary')).toContainText('events change');
   await dialog.getByRole('button', { name: 'Export…' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Exported' })).toContainText('(redacted,');
+  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export events' });
+  await expect(done).toContainText('(redacted,', { timeout: 15_000 });
 });

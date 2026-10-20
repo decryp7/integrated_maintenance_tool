@@ -21,7 +21,8 @@ export type NoticeAction =
   | { type: 'resetAi' }
   | { type: 'installUpdate' }
   | { type: 'showAlert'; alertId: string }
-  | { type: 'showJobs' };
+  | { type: 'showJobs' }
+  | { type: 'showInFolder'; jobId: number };
 
 export interface NoticeLink {
   window: string | null;

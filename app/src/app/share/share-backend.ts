@@ -1,7 +1,6 @@
 import { invoke } from '../core/activity/ipc';
 import {
   BundleEstimate,
-  BundleManifest,
   BundleOpened,
   BundleOptions,
   Finding,
@@ -10,7 +9,6 @@ import {
   RedactionPreviewRequest,
   RedactionSummary,
   RedactionSummaryRequest,
-  ReportExported,
   ReportExportRequest,
   TileData,
   TileRequest,
@@ -33,14 +31,15 @@ export abstract class ShareBackend {
   abstract redactionSummary(request: RedactionSummaryRequest): Promise<RedactionSummary>;
   /** One dashboard tile evaluated over the window's query. */
   abstract dashboardTile(request: TileRequest): Promise<TileData>;
-  /** Writes a report as self-contained HTML or PDF. */
-  abstract exportReport(request: ReportExportRequest): Promise<ReportExported>;
+  /** Writes a report as self-contained HTML or PDF as a background export job; resolves with the job at once. */
+  abstract exportReport(request: ReportExportRequest): Promise<number>;
   /** Saves a chart or timeline image (PNG data URL or SVG markup) to a path chosen in the save dialog. */
   abstract saveVisual(request: VisualRequest): Promise<VisualSaved>;
   /** What a bundle with `options` would contain. */
   abstract estimateBundle(options: BundleOptions): Promise<BundleEstimate>;
-  /** Writes a shareable `.imtz` bundle; never replaces an existing file unless `overwrite`. */
-  abstract createBundle(options: BundleOptions, path: string, overwrite?: boolean): Promise<BundleManifest>;
+  /** Writes a shareable `.imtz` bundle as a background export job (resolves with it at once); never replaces an
+   * existing file unless `overwrite`. */
+  abstract createBundle(options: BundleOptions, path: string, overwrite?: boolean): Promise<number>;
   /** Opens a `.imtz` read-only (extracted to a temporary folder). */
   abstract openBundle(path: string): Promise<BundleOpened>;
   /** The automatic health check over the events of a query, most severe first (report findings). */
@@ -67,7 +66,7 @@ export class TauriShareBackend extends ShareBackend {
     return this.call<TileData>('dashboard_tile', { request });
   }
   exportReport(request: ReportExportRequest) {
-    return this.call<ReportExported>('export_report', { request });
+    return this.call<number>('export_report', { request });
   }
   saveVisual(request: VisualRequest) {
     return this.call<VisualSaved>('save_visual', { request });
@@ -76,7 +75,7 @@ export class TauriShareBackend extends ShareBackend {
     return this.call<BundleEstimate>('estimate_bundle', { options });
   }
   createBundle(options: BundleOptions, path: string, overwrite = false) {
-    return this.call<BundleManifest>('create_bundle', overwrite ? { options, path, overwrite } : { options, path });
+    return this.call<number>('create_bundle', overwrite ? { options, path, overwrite } : { options, path });
   }
   openBundle(path: string) {
     return this.call<BundleOpened>('open_bundle', { path });

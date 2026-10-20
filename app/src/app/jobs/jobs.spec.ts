@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeContext } from '../analysis/test-setup';
 import { AiLauncher } from '../ai/ai-launcher';
 import { ChatStore } from '../ai/chat/chat.store';
+import { FolderSetupStore } from '../ai/folder-setup/folder-setup.store';
 import { FolderSetupLauncher } from '../ai/folder-setup/provide-folder-setup';
+import { SettingsDialogService } from '../settings/settings-dialog';
+import { StorageStore } from '../settings/storage/storage.store';
+import { STORAGE_ID } from '../settings/storage/storage.types';
 import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { PANEL } from '../dock/dock.service';
@@ -59,6 +63,8 @@ class FakeJobs extends JobsBackend {
   markSeen = vi.fn<JobsBackend['markSeen']>(async () => true);
   result = vi.fn<JobsBackend['result']>(async () => null);
   reveal = vi.fn<JobsBackend['reveal']>(async () => '/p');
+  wait = vi.fn<JobsBackend['wait']>(async (id) => ({ id, state: 'done', result: null, error: null, message: null }));
+  unwait = vi.fn<JobsBackend['unwait']>(async () => undefined);
   record = vi.fn<JobsBackend['record']>(async (): Promise<JobsRecord> => ({ version: 1, jobs: [] }));
   restore = vi.fn<JobsBackend['restore']>(async (): Promise<RestoredJobs> => ({ snapshot: EMPTY_JOBS, warning: null }));
   onChange = vi.fn<JobsBackend['onChange']>(async (h) => {
@@ -102,6 +108,8 @@ describe('TauriJobsBackend', () => {
       [() => b.markSeen(6), 'jobs_mark_seen', { id: 6 }],
       [() => b.result(7), 'jobs_result', { id: 7 }],
       [() => b.reveal(8), 'jobs_reveal', { id: 8 }],
+      [() => b.wait(8), 'jobs_wait', { id: 8 }],
+      [() => b.unwait(8), 'jobs_unwait', { id: 8 }],
       [() => b.record(), 'jobs_record', undefined],
       [() => b.restore({ version: 1 }), 'jobs_restore', { record: { version: 1 } }],
     ];
@@ -463,6 +471,67 @@ describe('MockJobs', () => {
     await running.done;
   });
 
+  it('wait resolves with the outcome and a waited job posts no message', async () => {
+    const m = new MockJobs(opts({ attentionMs: 100_000 }));
+    const g = gate();
+    const job = m.start({ kind: 'ai', title: 'Ask' }, g.work);
+    const waiting = m.wait(job.id);
+    g.resolve();
+    await job.done;
+    const end = await waiting;
+    expect([end.id, end.state, end.error]).toEqual([job.id, 'done', null]);
+    expect((await m.list()).jobs.every((j) => !j.unseen)).toBe(true);
+    expect((await mockNotifications().list()).notices).toEqual([]);
+  });
+
+  it('wait returns the whole result and the job message, also for a job that already ended', async () => {
+    const m = new MockJobs(opts({ visibleMs: 0 }));
+    const result: JobResult = { type: 'proposal', proposal: { kind: 'query', ql: 'a' } };
+    const job = m.start({ kind: 'ai', title: 'Ask' }, async (ctx) => {
+      ctx.message('Done thinking.');
+      return { value: 1, result };
+    });
+    await job.done;
+    expect(await m.wait(job.id)).toEqual({ id: job.id, state: 'done', result, error: null, message: 'Done thinking.' });
+    // Nobody waited, so the user is told: the results the user asked for always notify.
+    expect(at((await mockNotifications().list()).notices, 0).primary).toEqual({ type: 'reviewProposals', jobId: job.id });
+  });
+
+  it('wait reports a failed job and an unknown one as cancelled', async () => {
+    const m = new MockJobs(opts());
+    const job = m.start({ kind: 'export', title: 'E' }, async () => Promise.reject(new Error('disk full')));
+    const waiting = m.wait(job.id);
+    await job.done.catch(() => undefined);
+    const end = await waiting;
+    expect([end.state, end.error]).toEqual(['failed', 'disk full']);
+    expect((await m.wait(9999)).state).toBe('cancelled');
+  });
+
+  it('unwait releases the waiters so the job tells the user when it ends', async () => {
+    const m = new MockJobs(opts());
+    const g = gate();
+    const job = m.start({ kind: 'ai', title: 'Ask' }, g.work);
+    const waiting = m.wait(job.id);
+    await m.unwait(job.id);
+    expect((await waiting).state).toBe('running');
+    g.resolve();
+    await job.done;
+    await m.unwait(12345);
+    expect((await mockNotifications().list()).notices).toHaveLength(0);
+  });
+
+  it('notifies a finished file job with Show in folder as the primary action and the job message as body', async () => {
+    const m = new MockJobs(opts({ visibleMs: 100_000, attentionMs: 100_000 }));
+    const job = m.start({ kind: 'export', title: 'Export a.csv' }, async (ctx) => {
+      ctx.message('Exported 12 events.');
+      return { value: 1, result: { type: 'file', path: '/out/a.csv' } };
+    });
+    await job.done;
+    const notice = at((await mockNotifications().list()).notices, 0);
+    expect(notice.primary).toEqual({ type: 'showInFolder', jobId: job.id });
+    expect(notice.body).toBe('Exported 12 events.');
+  });
+
   it('caps the finished history at 100 jobs', async () => {
     const m = new MockJobs(opts());
     for (let i = 0; i < 105; i++) await m.run({ kind: 'export', title: `j${i}` }, async () => ({ value: i }));
@@ -715,7 +784,10 @@ describe('JobViewer', () => {
     const ctx = new FakeContext();
     const ai = { showNarrative: vi.fn(async () => undefined), showProposal: vi.fn(async () => undefined), openModels: vi.fn(async () => undefined) };
     const chat = { select: vi.fn(async () => undefined) };
-    const folder = { open: vi.fn() };
+    const folder = { open: vi.fn(), show: vi.fn() };
+    const folderStore = { addRefinement: vi.fn(), showSurvey: vi.fn() };
+    const storage = { showResult: vi.fn() };
+    const settings = { open: vi.fn() };
     const ws = { patchQuery: vi.fn() };
     const fake = new FakeJobs();
     TestBed.configureTestingModule({
@@ -725,6 +797,9 @@ describe('JobViewer', () => {
         { provide: AiLauncher, useValue: ai },
         { provide: ChatStore, useValue: chat },
         { provide: FolderSetupLauncher, useValue: folder },
+        { provide: FolderSetupStore, useValue: folderStore },
+        { provide: StorageStore, useValue: storage },
+        { provide: SettingsDialogService, useValue: settings },
         { provide: WorkspaceStore, useValue: ws },
       ],
     });
@@ -732,12 +807,12 @@ describe('JobViewer', () => {
       fake.result.mockResolvedValueOnce(result);
       return TestBed.inject(JobViewer).view({ id: 5, title, resultType });
     };
-    return { ctx, ai, chat, folder, ws, fake, view };
+    return { ctx, ai, chat, folder, folderStore, storage, settings, ws, fake, view };
   }
 
-  it('reveals an export file without asking for a result', async () => {
+  it('reveals an export file (Show in folder) without asking for a result', async () => {
     const { fake, view, ctx } = setup();
-    expect(await view(null, 'file')).toBeNull();
+    expect(await view({ type: 'file', path: '/x' }, 'file')).toBeNull();
     expect(fake.reveal).toHaveBeenCalledWith(5);
     expect(fake.result).not.toHaveBeenCalled();
     expect(ctx.calls).toEqual([]);
@@ -759,13 +834,33 @@ describe('JobViewer', () => {
     expect(ai.showProposal).toHaveBeenCalledWith(proposal, 'Write');
   });
 
-  it('opens the folder set-up for a folder proposal or view', async () => {
-    const { ai, folder, view, ctx } = setup();
-    await view({ type: 'proposal', proposal: { kind: 'folderSetup' } });
+  it('adds a folder set-up proposal to the wizard and reopens it; a folder set-up view starts a survey', async () => {
+    const { ai, folder, folderStore, view, ctx } = setup();
+    const proposal = { kind: 'folderSetup', proposals: [], skipped: [], notes: [] };
+    await view({ type: 'proposal', proposal });
+    expect(folderStore.addRefinement).toHaveBeenCalledWith(proposal);
+    expect(folder.show).toHaveBeenCalledTimes(1);
+    expect(folder.open).not.toHaveBeenCalled();
     await view({ type: 'view', view: 'folderSetup', ql: null });
-    expect(folder.open).toHaveBeenCalledTimes(2);
+    expect(folder.open).toHaveBeenCalledTimes(1);
     expect(ai.showProposal).not.toHaveBeenCalled();
     expect(ctx.calls).toEqual([]);
+  });
+
+  it('shows a finished folder survey in the wizard', async () => {
+    const { folder, folderStore, view } = setup();
+    const outcome = { cancelled: true };
+    expect(await view({ type: 'folderSurvey', outcome }, 'folderSurvey', 'Survey')).toBeNull();
+    expect(folderStore.showSurvey).toHaveBeenCalledWith(outcome);
+    expect(folder.show).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows what a finished storage clear freed in Settings at Storage', async () => {
+    const { storage, settings, view } = setup();
+    const result = { freedBytes: 3, categories: [], cancelled: false };
+    expect(await view({ type: 'storage', result }, 'storage', 'Clear')).toBeNull();
+    expect(storage.showResult).toHaveBeenCalledWith(result);
+    expect(settings.open).toHaveBeenCalledWith(STORAGE_ID);
   });
 
   it('selects the chat of a turn', async () => {

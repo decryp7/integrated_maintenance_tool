@@ -10,7 +10,6 @@ import {
   RedactionPreviewRequest,
   RedactionSummary,
   RedactionSummaryRequest,
-  ReportExported,
   ReportExportRequest,
   TileData,
   TileRequest,
@@ -181,24 +180,26 @@ export class MockShareBackend extends ShareBackend {
     return { kind: 'stat', value: n !== null && Number.isFinite(n) ? n : null, text: total.value === null ? '' : String(total.value), label: total.label, unit, sparkline };
   }
 
-  async exportReport(request: ReportExportRequest): Promise<ReportExported> {
+  async exportReport(request: ReportExportRequest): Promise<number> {
     if (!request.report.id) throw new Error('not a valid report: a report needs an id');
     if (!request.path.toLowerCase().endsWith(`.${request.format}`)) throw new Error(`the file must end in .${request.format}`);
     const counts: Record<string, number> = {};
-    let hits = [] as ReportExported['redaction'];
     if (request.redact) {
       const r = new MockRedactor(mockRedactCfg(await this.profileModel()), 'report');
       r.apply(JSON.stringify(request.report), counts);
-      hits = r.hits(counts);
     }
+    const masked = Object.values(counts).reduce((a, b) => a + b, 0);
     this.files.write(request.path, request.overwrite);
-    // The file is checked first (like the engine); writing it is an export job.
-    return mockJobs().run({ kind: 'export', title: `Export report ${fileName(request.path)}`, link: { type: 'path', path: request.path } }, async (ctx) => {
+    // The file is checked first (like the engine); writing it is an export job, returned at once.
+    const job = mockJobs().start({ kind: 'export', title: `Export report ${fileName(request.path)}`, link: { type: 'path', path: request.path } }, async (ctx) => {
       await mockSteps(ctx, mockExportMs());
       const bytes = JSON.stringify(request.report).length;
       this.written.push({ path: request.path, kind: request.format, bytes });
-      return { value: { path: request.path, bytes, redaction: hits }, result: { type: 'file', path: request.path } };
+      ctx.message(request.redact ? `Report written (${masked} values redacted).` : 'Report written.');
+      return { value: bytes, result: { type: 'file', path: request.path } };
     });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 
   async saveVisual(request: VisualRequest): Promise<VisualSaved> {
@@ -220,7 +221,7 @@ export class MockShareBackend extends ShareBackend {
     return { files, bytes: logs + reports + 4000, events, parts: [{ name: 'profile', bytes: 4000 }, { name: options.content === 'events' ? 'events' : 'logs', bytes: logs }, { name: 'reports', bytes: reports }], skipped: [] };
   }
 
-  async createBundle(options: BundleOptions, path: string, overwrite = false): Promise<BundleManifest> {
+  async createBundle(options: BundleOptions, path: string, overwrite = false): Promise<number> {
     if (!path.toLowerCase().endsWith('.imtz')) throw new Error('the file must end in .imtz');
     this.files.write(path, overwrite);
     const est = await this.estimateBundle(options);
@@ -237,12 +238,15 @@ export class MockShareBackend extends ShareBackend {
       entries: [{ path: 'project.imtproj', kind: 'project', bytes: 1200, sha256: '0'.repeat(64) }],
       skipped: [],
     };
-    return mockJobs().run({ kind: 'export', title: `Share bundle ${fileName(path)}`, link: { type: 'path', path } }, async (ctx) => {
+    const job = mockJobs().start({ kind: 'export', title: `Share bundle ${fileName(path)}`, link: { type: 'path', path } }, async (ctx) => {
       await mockSteps(ctx, mockExportMs());
       this.bundles.set(path, { options: structuredClone(options), manifest });
       this.written.push({ path, kind: 'imtz', bytes: est.bytes });
+      ctx.message(options.redact ? 'Bundle written, redacted (5 values).' : 'Bundle written.');
       return { value: manifest, result: { type: 'file', path } };
     });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 
   /** Findings derived from the mock anomalies, unrecognised files and plugin problems (the engine's health check covers much more). */

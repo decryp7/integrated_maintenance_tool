@@ -240,6 +240,10 @@ pub enum JobResult {
         #[serde(rename = "fileName")]
         file_name: Option<String>,
     },
+    /// The folder survey's proposals: View reopens the set-up wizard with them.
+    FolderSurvey { outcome: Value },
+    /// What clearing IMT's storage freed and kept: View opens Settings ▸ Storage with it.
+    Storage { result: Value },
 }
 
 impl JobResult {
@@ -248,7 +252,10 @@ impl JobResult {
 
     pub fn bounded(self) -> Option<JobResult> {
         let size = match &self {
-            JobResult::Narrative { narrative: v } | JobResult::Proposal { proposal: v } => v.to_string().len(),
+            JobResult::Narrative { narrative: v }
+            | JobResult::Proposal { proposal: v }
+            | JobResult::FolderSurvey { outcome: v }
+            | JobResult::Storage { result: v } => v.to_string().len(),
             _ => 0,
         };
         (size <= Self::MAX_PAYLOAD_BYTES).then_some(self)

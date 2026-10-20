@@ -748,28 +748,24 @@ pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Cmd
     Ok(store.dir().to_string_lossy().into_owned())
 }
 
-/// Zips the chosen snapshots and the recent IMT log to `path` (chosen in the save dialog).
+/// Zips the chosen snapshots and the recent IMT log to `path` (chosen in the save dialog) as a background
+/// export job; returns the job at once ("Show in folder" when the zip is there).
 #[tauri::command]
-pub async fn export_diagnostics<R: tauri::Runtime>(
+pub fn export_diagnostics<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     path: String,
     ids: Vec<String>,
     overwrite: Option<bool>,
-) -> CmdResult<usize> {
+) -> CmdResult<u64> {
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let store = store(&app)?;
     let target = PathBuf::from(&path);
     let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
-    let result = crate::jobs::JobResult::File { path: path.clone() };
-    let count = crate::jobs::run(&app, spec, Default::default(), move |_| {
-        store
-            .export(&ids, Path::new(&path))
-            .map(|n| crate::jobs::Done::new(n).with_result(result))
-            .map_err(|e| e.to_string())
+    crate::jobs::start_file(&app, spec, &target, move |_| {
+        let count = store.export(&ids, Path::new(&path)).map_err(|e| e.to_string())?;
+        log::info!(Files = count as u64; "Diagnostics exported");
+        Ok(format!("{count} files zipped."))
     })
-    .await?;
-    log::info!(Files = count as u64; "Diagnostics exported");
-    Ok(count)
 }
 
 #[cfg(test)]
@@ -1268,7 +1264,7 @@ mod tests {
 
     #[test]
     fn commands_run_against_a_mock_app() {
-        let app = tauri::test::mock_app();
+        let app = crate::test_support::test_app(None);
         let handle = app.handle().clone();
         let image = STANDARD.encode(png(20));
         let saved = save_snapshot(&handle, "main", image.clone(), "image/png".into(), ctx("cmd")).unwrap();
@@ -1280,20 +1276,11 @@ mod tests {
         let bad = save_snapshot(&handle, "main", "AAAA".into(), "image/png".into(), ctx("bad"));
         assert!(bad.is_err());
         let out = std::env::temp_dir().join(format!("imt-snap-cmd-{}.zip", std::process::id()));
-        let n = tauri::async_runtime::block_on(export_diagnostics(
-            handle.clone(),
-            out.to_string_lossy().into(),
-            vec![saved.id.clone()],
-            Some(true),
-        ))
-        .unwrap();
-        assert!(n >= 2);
-        let refused = tauri::async_runtime::block_on(export_diagnostics(
-            handle.clone(),
-            out.to_string_lossy().into(),
-            vec![saved.id.clone()],
-            None,
-        ));
+        let job = export_diagnostics(handle.clone(), out.to_string_lossy().into(), vec![saved.id.clone()], Some(true)).unwrap();
+        let line = crate::test_support::job_done(&app, job);
+        let n: usize = line.split(' ').next().unwrap().parse().unwrap();
+        assert!(n >= 2, "{line}");
+        let refused = export_diagnostics(handle.clone(), out.to_string_lossy().into(), vec![saved.id.clone()], None);
         assert_eq!(
             refused.unwrap_err(),
             format!("{} already exists; confirm to replace it", out.display())

@@ -20,6 +20,7 @@ import { AiLauncher } from './ai-launcher';
 import * as lazy from './ai-lazy';
 import { AiStatusStore } from './ai-status.store';
 import { AiStatus, ChatHistoryRecord } from './ai.types';
+import { NotificationsStore } from '../notifications/notifications.store';
 import { Injector } from '@angular/core';
 import { aiCommands, aiRecordMenu, aiViews, offerSetupOnFirstRun, provideAi, rangeToSummarize } from './provide-ai';
 import { at } from '../../testing/must';
@@ -90,9 +91,6 @@ describe('AiLauncher', () => {
     await l.openSetup();
     await l.openSetup('m1');
     await l.openModels();
-    await l.explainEvent(7);
-    await l.summarize(1, 2);
-    await l.rootCauses();
     await l.askQuery('errors');
     await l.propose('markers', { recordId: 3 }, 'timeouts');
     await l.propose('pipeline', { recordId: null }, '', { chooseKind: true });
@@ -101,13 +99,33 @@ describe('AiLauncher', () => {
       [lazy.AiSetupWizard, 'Set up the AI assistant', {}],
       [lazy.AiSetupWizard, 'Set up the AI assistant', { modelId: 'm1' }],
       [lazy.AiModelManager, 'AI models', undefined],
-      [lazy.AiNarrativeDialog, 'Explain event 7', { kind: 'explain', recordId: 7 }],
-      [lazy.AiNarrativeDialog, 'Summarize this range', { kind: 'summarize', from: 1, to: 2 }],
-      [lazy.AiNarrativeDialog, 'Likely root causes', { kind: 'rootCauses' }],
       [lazy.AiQueryDialog, 'Ask AI to write a query', { initial: 'errors' }],
       [lazy.AiProposeDialog, 'Propose markers', { kind: 'markers', source: { recordId: 3 }, initialGoal: 'timeouts', chooseKind: false }],
       [lazy.AiProposeDialog, 'Propose profile changes', { kind: 'pipeline', source: { recordId: null }, initialGoal: '', chooseKind: true }],
     ]);
+  });
+
+  it('starts explain, summarise and root causes in the background, with a toast and no dialog', async () => {
+    const { l, open } = await launcher();
+    const backend = TestBed.inject(AiBackend);
+    const start = vi.spyOn(backend, 'start');
+    const toasts = TestBed.inject(NotificationsStore);
+    await l.explainEvent(7);
+    await l.summarize(1, 2);
+    await l.rootCauses();
+    expect(start.mock.calls.map(([r]) => r)).toEqual([{ op: 'explain', recordId: 7 }, { op: 'summarize', from: 1, to: 2 }, { op: 'rootCauses' }]);
+    expect(open).not.toHaveBeenCalled();
+    expect(toasts.toasts().map((t) => t.title)).toEqual([
+      'Explaining event #7 — running in Jobs',
+      'Summarizing the range — running in Jobs',
+      'Looking for root causes — running in Jobs',
+    ]);
+    expect(toasts.toasts()[0]?.primary).toEqual({ type: 'showJobs' });
+    // A request that does not start says why.
+    start.mockRejectedValueOnce(new AiError('busy', '20 ai jobs are already waiting'));
+    await l.explainEvent(8);
+    const last = toasts.toasts().at(-1);
+    expect([last?.severity, last?.title, last?.body]).toEqual(['error', 'The AI request did not start', '20 ai jobs are already waiting']);
   });
 
   it('resolves a suggested regex with the pattern the user accepted', async () => {

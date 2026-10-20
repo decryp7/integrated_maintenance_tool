@@ -130,25 +130,25 @@ pub fn restart_elevated<R: tauri::Runtime>(app: tauri::AppHandle<R>, reopen: Vec
 /// or an unrecognised file), for the format wizard. Other paths are refused so
 /// the webview cannot read arbitrary files.
 #[tauri::command]
-pub fn read_file_head(state: CurrentWindow, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
-    let summary = state.store_read().summary();
-    let known = summary
-        .sources
-        .iter()
-        .map(|s| s.path.as_str())
-        .chain(summary.unrecognized.iter().map(|u| u.path.as_str()));
-    if !known.into_iter().any(|p| p == path) {
-        return Err("only files in the workspace can be previewed".into());
-    }
-    let limit = max_bytes.unwrap_or(64 * 1024).clamp(1, MAX_HEAD_BYTES);
-    let mut bytes = Vec::with_capacity(limit);
-    use std::io::Read;
-    std::fs::File::open(Path::new(&path))
-        .map_err(err)?
-        .take(limit as u64)
-        .read_to_end(&mut bytes)
-        .map_err(err)?;
-    imt_core::importers::decode(&bytes).ok_or_else(|| "this file is binary".to_string())
+pub async fn read_file_head(state: CurrentWindow, path: String, max_bytes: Option<usize>) -> CmdResult<String> {
+    // Async (off the main thread): the workspace lock may be held by an import, and the file read may be slow.
+    crate::windows::read(&state, move |store| {
+        let summary = store.summary();
+        let known = summary
+            .sources
+            .iter()
+            .map(|s| s.path.as_str())
+            .chain(summary.unrecognized.iter().map(|u| u.path.as_str()));
+        if !known.into_iter().any(|p| p == path) {
+            anyhow::bail!("only files in the workspace can be previewed");
+        }
+        let limit = max_bytes.unwrap_or(64 * 1024).clamp(1, MAX_HEAD_BYTES);
+        let mut bytes = Vec::with_capacity(limit);
+        use std::io::Read;
+        std::fs::File::open(Path::new(&path))?.take(limit as u64).read_to_end(&mut bytes)?;
+        imt_core::importers::decode(&bytes).ok_or_else(|| anyhow::anyhow!("this file is binary"))
+    })
+    .await
 }
 
 #[cfg(windows)]

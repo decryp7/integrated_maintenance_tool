@@ -48,7 +48,7 @@ import { mockBrowserTurn } from './mock-ai-browser';
 import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { JobLink, JobResult } from '../../jobs/jobs.types';
 import { mockLeaks, runMockResearch, startMockResearch, wantsResearch, webCitations } from './mock-ai-research';
-import { ResearchArgs, ResearchStarted } from '../../ai/ai.types';
+import { AiStartRequest, ResearchArgs, ResearchStarted } from '../../ai/ai.types';
 
 /** Operations `mockAiFail` may name: their calls reject with an engine error. */
 export const AI_FAILABLE = [
@@ -173,14 +173,14 @@ export class MockAiBackend extends AiBackend {
   }
 
   /** A use case as an AI job (one at a time, visible in the Jobs pane), like the engine; no model fails at once. */
-  private aiJob<T>(op: AiFailable, title: string, link: JobLink | null, f: () => T, result: (v: T) => JobResult | null): Promise<T> {
+  private aiJob<T>(op: AiFailable, title: string, link: JobLink | null, f: () => T, result: (v: T) => JobResult | null, doneTitle?: string): Promise<T> {
     if (this.mode !== 'ready' || !this.activeFile)
       return this.later(() => {
         this.needModel(op);
         return f();
       }, 0);
     return mockJobs()
-      .run({ kind: 'ai', title, link }, async (ctx) => {
+      .run({ kind: 'ai', title, link, doneTitle }, async (ctx) => {
         await mockSteps(ctx, this.stepMs * 4, 4);
         this.needModel(op);
         const value = f();
@@ -537,7 +537,7 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [recordId], queries: ['level >= error'] },
         usage: { inputTokens: 900, outputTokens: 80 },
       };
-    }, narrative);
+    }, narrative, 'Explanation ready');
   }
   summarize(from: number, to: number) {
     return this.aiJob('summarize', 'Summarize a time range', { type: 'range', from, to }, (): Narrative => {
@@ -548,7 +548,7 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [fatal], queries: [] },
         usage: { inputTokens: 1200, outputTokens: 60 },
       };
-    }, narrative);
+    }, narrative, 'Summary ready');
   }
   rootCauses() {
     return this.aiJob('rootCauses', 'Find likely root causes', null, (): Narrative => {
@@ -563,7 +563,7 @@ export class MockAiBackend extends AiBackend {
         evidence: { recordIds: [fatal, error], queries: ['level >= error'] },
         usage: { inputTokens: 2400, outputTokens: 120 },
       };
-    }, narrative);
+    }, narrative, 'Root causes ready');
   }
   /** "Research this" / "Research…": a research job whose answer becomes a chat turn, or a search text to confirm. */
   async research(args: ResearchArgs): Promise<ResearchStarted> {
@@ -593,6 +593,44 @@ export class MockAiBackend extends AiBackend {
     this.emitChat(c, { type: 'done', text, citations, usage: { inputTokens: 0, outputTokens: 0 }, notes: [] });
     c.record.turns.push({ user, assistant: text, citations, proposals: [], web: citations.flatMap((x) => (x.kind === 'web' ? [{ title: x.title, url: x.url }] : [])), cancelled: false, usage: { inputTokens: 0, outputTokens: 0 } } as TurnRecord);
     return c.record.id;
+  }
+
+  /** Every use case as a background AI job: resolves with the job's id at once, or rejects when it cannot start. */
+  async start(request: AiStartRequest): Promise<number> {
+    const before = mockJobs().nextId();
+    const answer: Promise<unknown> = this.useCase(request);
+    if (mockJobs().nextId() === before) {
+      // No job: it did not start (no model, invalid arguments); say why.
+      await answer;
+      throw new AiError('engine', 'the request did not start');
+    }
+    answer.catch(() => undefined);
+    return before;
+  }
+
+  private useCase(r: AiStartRequest): Promise<unknown> {
+    switch (r.op) {
+      case 'explain':
+        return this.explainEvent(r.recordId);
+      case 'summarize':
+        return this.summarize(r.from, r.to);
+      case 'rootCauses':
+        return this.rootCauses();
+      case 'regex':
+        return this.proposeRegex(r.lines);
+      case 'profile':
+        return this.proposeProfile(r);
+      case 'pipeline':
+        return this.proposePipeline(r.goal, r);
+      case 'markers':
+        return this.proposeMarkers(r.goal, r);
+      case 'extractors':
+        return this.proposeExtractors(r.goal, r);
+      case 'query':
+        return this.nlToQuery(r.question);
+      case 'folderSetup':
+        return Promise.reject(new AiError('invalid', 'the folder set-up starts its own AI job'));
+    }
   }
 
   /** Stops the window's use cases (running and waiting), not its chat turns. */

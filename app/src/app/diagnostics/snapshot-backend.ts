@@ -19,6 +19,7 @@ export abstract class SnapshotBackend {
   abstract openFolder(): Promise<string>;
   /** Zips the chosen snapshots and the recent IMT log to `path`; resolves to the number of files. */
   /** Zips the snapshots; never replaces an existing file unless `overwrite`. */
+  /** Zips the snapshots and the recent log as a background export job; resolves with the job at once. */
   abstract exportDiagnostics(path: string, ids: string[], overwrite?: boolean): Promise<number>;
   /** Whether automatic snapshots are on (the shared diagnostics setting). */
   abstract automaticEnabled(): Promise<boolean>;
@@ -26,7 +27,7 @@ export abstract class SnapshotBackend {
   abstract onEngineError(handler: (error: EngineError) => void): Promise<Unlisten>;
   /** What a problem report would contain, for the user to review before saving. */
   abstract reportPreview(description: string): Promise<ProblemReportPreview>;
-  /** Writes the problem report zip to `path`; never replaces an existing file unless `overwrite`. Resolves to the number of files. */
+  /** Writes the problem report as a background export job; resolves with the job at once. */
   abstract saveReport(path: string, description: string, overwrite?: boolean): Promise<number>;
   /** Opens IMT's own logs in a new window, filtered to the activity entries (Help ▸ Show activity log). Resolves to the window label. */
   abstract openActivityLog(): Promise<string>;

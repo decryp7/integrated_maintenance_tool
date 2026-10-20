@@ -20,7 +20,7 @@ test.describe('templates gallery', () => {
 
     await dialog.getByRole('button', { name: 'Use this' }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('status').filter({ hasText: 'Applied the NLog default layout template' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Applying the NLog default layout template' })).toBeVisible();
     await expect(editor.locator('.bar .name')).toHaveText('NLog default layout');
   });
 

@@ -23,6 +23,8 @@ import { REPORT_VIEWS } from './report.views';
 import { ReportStore } from './report.store';
 import { ReportView } from './report-view';
 import { at } from '../../../testing/must';
+import { mockJobs } from '../../jobs/mock-jobs';
+import { NotificationsStore } from '../../notifications/notifications.store';
 
 const def: ChartDef = { id: 'cpu', title: 'CPU %', y: 'avg(cpu)', bucket: '1m', splitBy: [], type: 'line', unit: '%' };
 const ctx = () => {
@@ -278,7 +280,7 @@ describe('ReportExportDialog', () => {
   }
 
   it('previews redaction, exports HTML with the chosen theme and closes', async () => {
-    const { f, closed, share, store, picks } = await dialog(true);
+    const { f, closed, share, picks } = await dialog(true);
     const box = el<HTMLInputElement>(f, 'input[type=checkbox]');
     expect(box.checked).toBe(true);
     expect(el(f, '[aria-label="Redaction preview"]').textContent).toMatch(/In the report text: .*1 × email/);
@@ -290,12 +292,18 @@ describe('ReportExportDialog', () => {
     await settle(f, 6);
     expect(picks).toEqual(['my-report.html']);
     expect(spy.mock.calls[0]?.[0]).toMatchObject({ format: 'html', path: '/out/my-report.html', redact: true, theme: 'dark' });
-    expect(store.notice()).toMatch(/^Exported the report to my-report\.html \(\d+ values? redacted\)$/);
+    // Written by a job: the call returned its id at once, a toast says so, the dialog closes.
+    const job = await at(spy.mock.results, 0).value;
+    expect(job).toEqual(expect.any(Number));
+    expect(at(TestBed.inject(NotificationsStore).toasts(), 0).title).toBe('Exporting the report to my-report.html — running in Jobs');
     expect(closed).toEqual(['closed']);
+    const end = await mockJobs().wait(job);
+    expect([end.state, end.result]).toEqual(['done', { type: 'file', path: '/out/my-report.html' }]);
+    expect(end.message).toMatch(/^Report written \(\d+ values redacted\)\.$/);
   });
 
   it('exports PDF without redaction, and shows failures and rule errors inline', async () => {
-    const { f, share, store, closed } = await dialog(false);
+    const { f, share, closed } = await dialog(false);
     const box = el<HTMLInputElement>(f, 'input[type=checkbox]');
     expect(box.checked).toBe(false);
     expect(all(f, '[aria-label="Redaction preview"]')).toHaveLength(0);
@@ -306,7 +314,7 @@ describe('ReportExportDialog', () => {
     expect(el(f, '[role=alert]').textContent).toContain('locked');
     buttonByText(f, 'Export…').click();
     await settle(f, 6);
-    expect(store.notice()).toBe('Exported the report to my-report.pdf');
+    expect(TestBed.inject(NotificationsStore).toasts().at(-1)?.title).toBe('Exporting the report to my-report.pdf — running in Jobs');
     expect(closed).toHaveLength(1);
 
     vi.spyOn(share, 'previewRedaction').mockRejectedValueOnce('bad rules').mockResolvedValueOnce({ before: '', after: '', hits: [{ rule: 'email', count: 0 }], error: null });

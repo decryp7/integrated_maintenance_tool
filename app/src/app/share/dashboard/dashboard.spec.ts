@@ -6,6 +6,7 @@ import { TileCfg, TileData, TileRequest } from '../../core/api.types';
 import { ImtBackend } from '../../core/backend';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { WorkspaceStore } from '../../core/workspace.store';
+import { mockJobs } from '../../jobs/mock-jobs';
 import { MockAnalysisBackend, recordsFrom } from '../../analysis/mock/mock-analysis-backend';
 import { CommandContext } from '../../extensions/tokens';
 import { DialogService, DIALOG_REF } from '../../ui/dialog.service';
@@ -19,6 +20,12 @@ import { addTile, bottomOf, clampTile, moveTile, overlaps, placeTile, removeTile
 import { cellText, DashboardTile, sparkPoints } from './dashboard-tile';
 import { DashboardView, tileKeyAction } from './dashboard-view';
 import { at } from '../../../testing/must';
+
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
 
 const charts = new FakeECharts();
 
@@ -174,6 +181,7 @@ describe('DashboardStore', () => {
     ds.remove('extra-tile-2');
     expect(ds.announcement()).toMatch(/removed/);
     expect(await ds.save()).toBe(true);
+    await applied();
     expect(ds.editing()).toBe(false);
     const saved = at(store.summary()!.dashboards, 0);
     expect(saved.title).toBe('Health');
@@ -197,11 +205,13 @@ describe('DashboardStore', () => {
     expect(ds.editing()).toBe(true);
     ds.remove('bad');
     expect(await ds.save()).toBe(true);
+    await applied();
     expect(store.summary()!.dashboards.map((d) => d.id)).toEqual(['orderservice-health', 'ops-wall']);
     expect(ds.current()?.id).toBe('ops-wall');
     ds.startEdit();
     ds.setTitle('Ops');
     await ds.save();
+    await applied();
     expect(store.summary()!.dashboards.map((d) => d.title)).toEqual(['OrderService health', 'Ops']);
   });
 
@@ -482,7 +492,7 @@ describe('DashboardView', () => {
 
   it('explains when the profile has no dashboards', async () => {
     const backend = tinyBackend();
-    await backend.saveProfile('name = "x"');
+    await mockJobs().wait(await backend.saveProfile('name = "x"'));
     await setup(backend);
     const fixture = TestBed.createComponent(DashboardView);
     await settle(fixture);

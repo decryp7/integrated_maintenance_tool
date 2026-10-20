@@ -558,23 +558,25 @@ pub async fn problem_report_preview<R: tauri::Runtime>(
         .map_err(err)
 }
 
-/// Writes the problem report to `path` (chosen in the save dialog). Refuses to replace a file unless
-/// `overwrite`. Returns the number of files in the zip.
+/// Writes the problem report to `path` (chosen in the save dialog) as a background export job and returns
+/// the job at once ("Show in folder" when the zip is there). Refuses to replace a file unless `overwrite`.
 #[tauri::command]
-pub async fn save_problem_report<R: tauri::Runtime>(
+pub fn save_problem_report<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     path: String,
     description: Option<String>,
     overwrite: Option<bool>,
-) -> CmdResult<usize> {
+) -> CmdResult<u64> {
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    // What the report shows is gathered now (the steps up to the click), the zip is written in the job.
     let inputs = inputs(&app);
-    let count = tauri::async_runtime::spawn_blocking(move || write(&inputs, description.as_deref().unwrap_or(""), Path::new(&path)))
-        .await
-        .map_err(err)?
-        .map_err(err)?;
-    log::info!(Files = count as u64; "Problem report saved");
-    Ok(count)
+    let target = PathBuf::from(&path);
+    let spec = crate::jobs::export_spec("Save problem report", None, &target);
+    crate::jobs::start_file(&app, spec, &target, move |_| {
+        let count = write(&inputs, description.as_deref().unwrap_or(""), Path::new(&path)).map_err(err)?;
+        log::info!(Files = count as u64; "Problem report saved");
+        Ok(format!("{count} files zipped."))
+    })
 }
 
 /// File name of the project Help ▸ Show activity log opens (rewritten each time).
@@ -959,16 +961,17 @@ pub(crate) mod tests {
         assert!(!p.system_info["plugins"].as_array().unwrap().is_empty());
         let out = std::env::temp_dir().join(format!("imt-report-cmd-{}.zip", std::process::id()));
         let _ = std::fs::remove_file(&out);
-        let n = tauri::async_runtime::block_on(save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None)).unwrap();
-        assert!(n >= 5);
-        let refused = tauri::async_runtime::block_on(save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None));
+        let job = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None).unwrap();
+        let line = crate::test_support::job_done(&app, job);
+        let n: usize = line.split(' ').next().unwrap().parse().unwrap();
+        assert!(n >= 5, "{line}");
+        let refused = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None);
         assert_eq!(
             refused.unwrap_err(),
             format!("{} already exists; confirm to replace it", out.display())
         );
-        assert!(
-            tauri::async_runtime::block_on(save_problem_report(handle.clone(), out.to_string_lossy().into(), None, Some(true))).is_ok()
-        );
+        let again = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, Some(true)).unwrap();
+        crate::test_support::job_done(&app, again);
         let _ = std::fs::remove_file(out);
         // A mock app has no real window to open; the project it would open is checked below.
         let _ = tauri::async_runtime::block_on(open_activity_log(handle));

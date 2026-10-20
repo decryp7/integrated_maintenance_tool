@@ -90,6 +90,11 @@ pub enum NoticeAction {
     },
     /// Opens the Jobs pane.
     ShowJobs,
+    /// Shows a job's file in Finder or Explorer.
+    ShowInFolder {
+        #[serde(rename = "jobId")]
+        job_id: u64,
+    },
 }
 
 /// What a message refers to.

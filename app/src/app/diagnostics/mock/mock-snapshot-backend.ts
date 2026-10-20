@@ -1,5 +1,6 @@
 import { FILE_EXISTS_SUFFIX, WorkspaceSummary } from '../../core/api.types';
 import { SnapshotBackend, Unlisten } from '../snapshot-backend';
+import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { EngineError, ProblemReportPreview, SnapshotContext, SnapshotInfo, SnapshotSaveResult } from '../../core/api.types';
 import { activity } from '../../core/activity/runtime';
 import { Breadcrumb } from '../../core/activity/types';
@@ -74,7 +75,19 @@ export class MockSnapshotBackend extends SnapshotBackend {
   async exportDiagnostics(path: string, ids: string[], overwrite = false) {
     if (!overwrite && this.exports.some((x) => x.path === path)) throw new Error(`${path}${FILE_EXISTS_SUFFIX}`);
     this.exports.push({ path, ids });
-    return ids.length * 2 + 1;
+    return this.fileJob('Export diagnostics to', path, `${ids.length * 2 + 1} files zipped.`);
+  }
+
+  /** Like the engine: the zip is written by an export job, returned at once. */
+  private fileJob(title: string, path: string, summary: string): number {
+    const name = path.split(/[\\/]/).pop() ?? path;
+    const job = mockJobs().start({ kind: 'export', title: `${title} ${name}`, link: { type: 'path', path }, appWide: true }, async (ctx) => {
+      await mockSteps(ctx, 200, 4);
+      ctx.message(summary);
+      return { value: null, result: { type: 'file', path } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
   }
   async automaticEnabled() {
     return this.enabled;
@@ -112,7 +125,8 @@ export class MockSnapshotBackend extends SnapshotBackend {
   async saveReport(path: string, description: string, overwrite = false) {
     if (!overwrite && this.reports.some((r) => r.path === path)) throw new Error(`${path}${FILE_EXISTS_SUFFIX}`);
     this.reports.push({ path, description });
-    return (await this.reportPreview(description)).entries.length;
+    const files = (await this.reportPreview(description)).entries.length;
+    return this.fileJob('Save problem report', path, `${files} files zipped.`);
   }
   /** Times the activity log was opened (a browser has no second window). */
   activityLogOpened = 0;

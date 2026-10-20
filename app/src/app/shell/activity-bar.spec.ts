@@ -235,15 +235,15 @@ describe('ActivityBar', () => {
     });
     await settle(fixture);
     const names = labels(fixture);
-    expect(names.indexOf('Example plugin')).toBe(names.indexOf('Analysis') + 1);
+    expect(names.indexOf('Example plugin, 3')).toBe(names.indexOf('Analysis') + 1);
     expect(names).not.toContain('Broken plugin');
     expect(names).toContain('Broken badge');
     expect(names).toContain('Settings');
-    expect(button(fixture, 'Example plugin').querySelector('.badge')?.textContent).toBe('3');
+    expect(button(fixture, 'Example plugin, 3').querySelector('.badge')?.textContent).toBe('3');
     expect(button(fixture, 'Broken badge').querySelector('.badge')).toBeNull();
     count.set(0);
     await settle(fixture);
-    expect(button(fixture, 'Example plugin').querySelector('.badge')?.textContent).toBe('0');
+    expect(button(fixture, 'Example plugin, 0').querySelector('.badge')?.textContent).toBe('0');
     expect(testLogger().entries.filter((e) => e.message === 'Activity item failed').length).toBe(2);
   });
 

@@ -9,6 +9,12 @@ import { MarkerEditor } from './marker-editor';
 import { MarkerRuleX } from './markers.types';
 import { at } from '../../testing/must';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 const slow = [{ field: '@message', op: 'matches' as const, value: 'Slow request' }];
 
 async function mount(inputs: Record<string, unknown> = {}, backend: MockBackend = tinyBackend(), extra: Provider[] = []) {
@@ -42,6 +48,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(saved).toHaveBeenCalled();
     const rule = (await rules(backend)).find((r) => r.kind === 'slow-requests')!;
     expect(rule).toMatchObject({ label: 'Slow requests', description: 'Requests over the SLA', badge: '1', shape: 'hexagon', color: '#3987e5', lifecycle: true, when: slow });
@@ -65,6 +72,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     const rule = at((await rules(backend)), 0);
     expect(rule.icon).toBe('rocket');
     expect(rule).not.toHaveProperty('badge');
@@ -97,6 +105,7 @@ describe('MarkerEditor', () => {
     expect(el(fixture, '.current imt-marker-glyph').innerHTML).not.toContain('script');
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     const model = parseProfile((await backend.getProfile()).toml);
     expect(model['icon']).toEqual([{ name: 'Acme-Logo', svg }]);
     expect(at(model.marker as MarkerRuleX[], 0).icon).toBe('Acme-Logo');
@@ -118,6 +127,7 @@ describe('MarkerEditor', () => {
     await settle(fixture, 6);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(await rules(backend)).toBeTruthy();
     // A second editor sees the saved icon in the profile and can pick it without importing.
     TestBed.resetTestingModule();
@@ -165,6 +175,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Save marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     const list = await rules(backend);
     const i = list.findIndex((r) => r.kind === 'error');
     expect(i).toBe(4);
@@ -211,6 +222,7 @@ describe('MarkerEditor', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(at((await rules(backend)), 0).when).toEqual([{ field: '@level', op: 'eq', value: 'Error' }]);
   });
 

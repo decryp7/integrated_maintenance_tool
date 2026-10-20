@@ -1,7 +1,8 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { DialogService } from '../ui/dialog.service';
 import { AiStatusStore } from './ai-status.store';
-import { Narrative, ProfileChangeKind, Proposal, ResearchArgs, SampleSource } from './ai.types';
+import { Narrative, NarrativeRequest, ProfileChangeKind, Proposal, ResearchArgs, SampleSource } from './ai.types';
+import { JobFollow } from '../jobs/job-follow';
 import { AiBackend, toAiError } from './ai-backend';
 
 /** What a "Propose …" entry point asks for. */
@@ -47,22 +48,29 @@ export class AiLauncher {
     this.dialogs.open(m.AiModelManager, { title: $localize`:@@ai.launcher.title.models:AI models`, width: 820 });
   }
 
-  async explainEvent(recordId: number): Promise<void> {
-    if (!(await this.ensureModel())) return;
-    const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.explainEvent:Explain event ${recordId}:id:`, width: 680, inputs: { kind: 'explain', recordId } });
+  /** "Explain this event" runs in the background: a toast says so, "Explanation ready · View" opens the answer. */
+  explainEvent(recordId: number): Promise<void> {
+    return this.startNarrative({ op: 'explain', recordId }, $localize`:@@ai.launcher.started.explain:Explaining event #${recordId}:id: — running in Jobs`);
   }
 
-  async summarize(from: number, to: number): Promise<void> {
-    if (!(await this.ensureModel())) return;
-    const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.summarize:Summarize this range`, width: 680, inputs: { kind: 'summarize', from, to } });
+  summarize(from: number, to: number): Promise<void> {
+    return this.startNarrative({ op: 'summarize', from, to }, $localize`:@@ai.launcher.started.summarize:Summarizing the range — running in Jobs`);
   }
 
-  async rootCauses(): Promise<void> {
+  rootCauses(): Promise<void> {
+    return this.startNarrative({ op: 'rootCauses' }, $localize`:@@ai.launcher.started.rootCauses:Looking for root causes — running in Jobs`);
+  }
+
+  /** Queues the request as an AI job and returns at once; the user keeps working. */
+  private async startNarrative(request: NarrativeRequest, started: string): Promise<void> {
     if (!(await this.ensureModel())) return;
-    const m = await this.lazy();
-    this.dialogs.open(m.AiNarrativeDialog, { title: $localize`:@@ai.launcher.title.rootCauses:Likely root causes`, width: 680, inputs: { kind: 'rootCauses' } });
+    const follow = this.injector.get(JobFollow);
+    try {
+      await this.injector.get(AiBackend).start(request);
+      follow.started(started);
+    } catch (e) {
+      follow.notStarted($localize`:@@ai.launcher.startFailed:The AI request did not start`, toAiError(e).message);
+    }
   }
 
   /**

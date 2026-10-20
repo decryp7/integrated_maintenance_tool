@@ -13,6 +13,12 @@ import { LiveRulesProfile } from './live-rules.profile';
 import { QL_CHECK_MS, QlInput } from './ql-input';
 import { at } from '../../testing/must';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 class FakeAnalysis {
   error: QlError | null = null;
   completions: Completion[] = [
@@ -111,6 +117,7 @@ describe('LiveRulesProfile and the rules editor', () => {
     expect((await profile.validate({ ...draft, rules: [newRule(0)] })).ok).toBe(true);
     const version = store.profileVersion();
     expect((await profile.save({ ...draft, rules: [newRule(0)] })).ok).toBe(true);
+    await applied();
     expect(store.profileVersion()).toBe(version + 1);
     expect(parseProfile((await backend.getProfile()).toml)['live']).toMatchObject({ rule: [{ name: 'rule 1', threshold: 5 }] });
     vi.spyOn(backend, 'getProfile').mockRejectedValueOnce('disk gone');

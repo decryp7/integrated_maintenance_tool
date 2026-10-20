@@ -5,7 +5,7 @@ import { Logger, withFailureLogging } from '../../core/logger';
 import { isTauri } from '../../core/platform';
 import { ChannelFactory, tauriChannel } from '../../core/tauri-channel';
 import { toAiError } from '../ai-backend';
-import { ComposedProfile, FolderRefinement, Fragment, SurveyOutcome, SurveyProgress, SurveyRequest } from './folder-setup.types';
+import { ComposedProfile, Fragment, SurveyProgress, SurveyRequest } from './folder-setup.types';
 
 /**
  * The engine operations behind "Set up analysis for this folder…". Injected as a class token: the Tauri
@@ -13,16 +13,14 @@ import { ComposedProfile, FolderRefinement, Fragment, SurveyOutcome, SurveyProgr
  */
 @Injectable({ providedIn: 'root', useFactory: () => createFolderSetupBackend() })
 export abstract class FolderSetupBackend {
-  /** Surveys the open files and returns validated heuristic proposals; cancellable with `cancelSurvey(surveyId)`. */
-  abstract survey(surveyId: string, onProgress: (p: SurveyProgress) => void, request?: SurveyRequest): Promise<SurveyOutcome>;
-  /** Asks the survey `surveyId` to stop; false when it is not running (any more). */
-  abstract cancelSurvey(surveyId: string): Promise<boolean>;
+  /** Starts surveying the open files as a background analysis job and resolves with it at once; progress arrives on
+   * `onProgress`, the validated proposals are the job's result (`folderSurvey`). Cancel is the job's. */
+  abstract survey(onProgress: (p: SurveyProgress) => void, request?: SurveyRequest): Promise<number>;
   /** The active profile with `fragments` merged in, validated by the engine, with its diff. Saves nothing. */
   abstract compose(fragments: Fragment[]): Promise<ComposedProfile>;
-  /** AI proposals (validated by the engine). Rejects with an `AiError` (`unavailable`, `noModel`, `cancelled`...). */
-  abstract refineWithAi(request?: SurveyRequest): Promise<FolderRefinement>;
-  /** Stops a running AI refinement. */
-  abstract cancelAi(): Promise<void>;
+  /** Starts AI proposals (validated by the engine) as a background AI job and resolves with it at once; the result
+   * is a `folderSetup` proposal. Rejects at once with an `AiError` (`unavailable`, `noModel`...). */
+  abstract refineWithAi(request?: SurveyRequest): Promise<number>;
 }
 
 /** Talks to the Rust core through Tauri commands (contract: `folder-setup.types.ts`). */
@@ -35,24 +33,18 @@ export class TauriFolderSetupBackend extends FolderSetupBackend {
     super();
   }
 
-  survey(surveyId: string, onProgress: (p: SurveyProgress) => void, request?: SurveyRequest) {
-    return this.call<SurveyOutcome>('folder_survey', { surveyId, request: request ?? null, onProgress: this.channel(onProgress) });
-  }
-  cancelSurvey(surveyId: string) {
-    return this.call<boolean>('folder_survey_cancel', { surveyId });
+  survey(onProgress: (p: SurveyProgress) => void, request?: SurveyRequest) {
+    return this.call<number>('folder_survey', { request: request ?? null, onProgress: this.channel(onProgress) });
   }
   compose(fragments: Fragment[]) {
     return this.call<ComposedProfile>('folder_setup_compose', { fragments });
   }
   async refineWithAi(request?: SurveyRequest) {
     try {
-      return await this.call<FolderRefinement>('ai_refine_folder_setup', { request: request ?? null });
+      return await this.call<number>('ai_start', { request: { op: 'folderSetup', request: request ?? null } });
     } catch (e) {
       throw toAiError(e);
     }
-  }
-  async cancelAi() {
-    await this.call<number>('ai_cancel');
   }
 }
 
@@ -67,20 +59,14 @@ function lazyMock(injector: Injector): FolderSetupBackend {
   let loaded: Promise<FolderSetupBackend> | null = null;
   const get = () => (loaded ??= import('./mock-folder-setup-backend').then((m) => m.createMockFolderSetupBackend(injector)));
   return new (class extends FolderSetupBackend {
-    survey(id: string, onProgress: (p: SurveyProgress) => void, request?: SurveyRequest) {
-      return get().then((b) => b.survey(id, onProgress, request));
-    }
-    cancelSurvey(id: string) {
-      return get().then((b) => b.cancelSurvey(id));
+    survey(onProgress: (p: SurveyProgress) => void, request?: SurveyRequest) {
+      return get().then((b) => b.survey(onProgress, request));
     }
     compose(fragments: Fragment[]) {
       return get().then((b) => b.compose(fragments));
     }
     refineWithAi(request?: SurveyRequest) {
       return get().then((b) => b.refineWithAi(request));
-    }
-    cancelAi() {
-      return get().then((b) => b.cancelAi());
     }
   })();
 }

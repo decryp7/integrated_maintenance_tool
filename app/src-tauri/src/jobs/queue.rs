@@ -155,8 +155,21 @@ fn clean(s: &str, max: usize) -> String {
 pub fn needs_attention(job: &Job) -> bool {
     match job.state() {
         // A research answer is always news ("Research finished · View answer").
+        // So is an AI answer started in the background (explain, summarise, root causes): nobody waits for it.
         JobState::Done => {
-            job.kind == JobKind::Research || job.run_ms(i64::MIN) >= ATTENTION_AFTER_MS || job.age_ms(i64::MIN) >= ATTENTION_AFTER_MS
+            job.kind == JobKind::Research
+                || matches!(
+                    job.result,
+                    Some(
+                        JobResult::Narrative { .. }
+                            | JobResult::Proposal { .. }
+                            | JobResult::File { .. }
+                            | JobResult::FolderSurvey { .. }
+                            | JobResult::Storage { .. }
+                    )
+                )
+                || job.run_ms(i64::MIN) >= ATTENTION_AFTER_MS
+                || job.age_ms(i64::MIN) >= ATTENTION_AFTER_MS
         }
         JobState::Failed => job.kind != JobKind::Analysis || job.age_ms(i64::MIN) >= VISIBLE_AFTER_MS,
         _ => false,
@@ -177,6 +190,8 @@ fn result_type(r: &JobResult) -> &'static str {
         JobResult::Workspace => "workspace",
         JobResult::View { .. } => "view",
         JobResult::Model { .. } => "model",
+        JobResult::FolderSurvey { .. } => "folderSurvey",
+        JobResult::Storage { .. } => "storage",
     }
 }
 

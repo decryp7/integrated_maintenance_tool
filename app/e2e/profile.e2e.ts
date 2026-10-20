@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 import { initialTotal, openApp } from './app';
+import { openAppWith } from './mock-url';
 import { showProfileEditor } from './menu-support';
 
 async function openProfile(page: Page) {
@@ -70,6 +71,23 @@ test.describe('profile editor', () => {
 
     // The workspace was re-imported with the saved profile.
     await page.getByRole('tab', { name: /^Timeline/ }).click();
+    await expect(page.locator('imt-events-grid .bar .total')).toHaveText(all);
+  });
+
+  test('applying a profile returns at once and re-imports as an import job', async ({ page }) => {
+    await openAppWith(page, '?mockJobsVisibleMs=0');
+    const all = await initialTotal(page);
+    await showProfileEditor(page);
+    await expect(page.locator('imt-profile-editor .bar .good')).toBeVisible();
+    await page.getByRole('navigation', { name: 'Profile sections' }).getByRole('button', { name: /^General/ }).click();
+    await page.getByLabel('Profile name').fill('Job profile');
+    await page.getByRole('button', { name: 'Save & apply' }).click();
+    // Saved at once; the re-import is a job in the Jobs pane, and the workspace follows it.
+    await expect(page.locator('imt-profile-editor .bar .name')).toHaveText('Job profile');
+    await page.locator('[data-activity-id="jobs"]').click();
+    await expect(page.locator('imt-jobs-panel li').filter({ hasText: 'Apply the profile Job profile' })).toContainText('Done');
+    // The Jobs pane shares the bottom panel with the events grid.
+    await page.getByRole('tab', { name: 'Events', exact: true }).click();
     await expect(page.locator('imt-events-grid .bar .total')).toHaveText(all);
   });
 });

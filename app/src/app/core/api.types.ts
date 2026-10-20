@@ -14,11 +14,11 @@
  *   query_chart            { request: ChartRequest }       -> ChartData
  *   get_profile            {}                              -> ProfileDoc
  *   validate_profile       { toml: string }                -> ProfileValidation
- *   save_profile           { toml: string }                -> WorkspaceSummary   (applies + re-imports)
+ *   save_profile           { toml: string }                -> number   (checks and saves now; the re-import is that import job)
  *   preview_extractor      { request: ExtractPreviewRequest } -> ExtractPreview
  *   import_profile         { path: string }                -> ProfileDoc   (read + validated; applied only by save_profile)
  *   export_profile         { path: string, toml: string }  -> void
- *   export_events          { request: ExportRequest }      -> ExportResult  (built-in formats "csv" and "clef")
+ *   export_events          { request: ExportRequest }      -> number   (an export job; built-in formats "csv" and "clef")
  *   source_context         { request: ContextRequest }     -> SourceContext (original lines around an event)
  *   read_file_head         { path: string, maxBytes?: number } -> string   (only files in the workspace)
  *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview
@@ -98,6 +98,7 @@ export interface FileOpened {
   with: 'editor' | 'defaultApp' | 'fileManager';
   path: string;
 }
+
 
 /**
  * A source whose timestamps could not be read: more than 5 % of its events, or all of its first 20 (Rust
@@ -331,13 +332,6 @@ export interface ExportRequest {
   overwrite?: boolean;
 }
 
-export interface ExportResult {
-  format: string;
-  path: string;
-  events: number;
-  /** Matches per redaction rule (empty when not redacted). */
-  redactions?: Record<string, number>;
-}
 
 /**
  * Fields of records produced by the "registry" importer (Windows .reg exports).
@@ -349,19 +343,11 @@ export interface RegistryFields {
   Key: string;
   /** "(Default)" for the unnamed value; absent on key lines. */
   ValueName?: string;
-  ValueType?:
-    | 'REG_SZ'
-    | 'REG_DWORD'
-    | 'REG_QWORD'
-    | 'REG_BINARY'
-    | 'REG_MULTI_SZ'
-    | 'REG_EXPAND_SZ'
-    | 'DELETE';
+  ValueType?: 'REG_SZ' | 'REG_DWORD' | 'REG_QWORD' | 'REG_BINARY' | 'REG_MULTI_SZ' | 'REG_EXPAND_SZ' | 'DELETE';
   Data?: string | number;
 }
 
-export type FilterOp =
-  'eq' | 'ne' | 'contains' | 'notContains' | 'matches' | 'exists' | 'missing' | 'gt' | 'lt';
+export type FilterOp = 'eq' | 'ne' | 'contains' | 'notContains' | 'matches' | 'exists' | 'missing' | 'gt' | 'lt';
 
 export interface FieldFilter {
   field: string;
@@ -618,8 +604,7 @@ export interface ParsePreview {
 // ---- Regex assistance -----------------------------------------------------------------------
 
 /** What an inferred group captures (crates/imt-core/src/regex_assist.rs `InferredGroup.kind`). */
-export type GroupKind =
-  'number' | 'decimal' | 'guid' | 'ipv4' | 'hex' | 'timestamp' | 'word' | 'token' | 'text';
+export type GroupKind = 'number' | 'decimal' | 'guid' | 'ipv4' | 'hex' | 'timestamp' | 'word' | 'token' | 'text';
 
 export interface InferredGroup {
   name: string;
@@ -723,8 +708,7 @@ export interface ExceptionGroup {
   sampleIds: number[];
 }
 
-export type AnomalyKind =
-  'errorSpike' | 'silence' | 'crash' | 'slowOutlier' | 'rateChange' | 'memoryGrowth';
+export type AnomalyKind = 'errorSpike' | 'silence' | 'crash' | 'slowOutlier' | 'rateChange' | 'memoryGrowth';
 
 export interface Anomaly {
   kind: AnomalyKind;
@@ -922,13 +906,13 @@ export interface MomentSummary {
  *   read_error_snapshot    { id }                 -> string (data: URL)
  *   delete_error_snapshot  { id }                 -> void
  *   open_snapshots_folder  {}                     -> string (folder path)
- *   export_diagnostics     { path, ids }          -> number (files written)
+ *   export_diagnostics     { path, ids }          -> number (the export job writing the zip)
  *   diagnostics_settings   {}                     -> { snapshots: { enabled: boolean } }
  * Event "imt://error" carries an EngineError.
  *
  * Problem reports and the activity log (app/src-tauri/src/activity/report.rs):
  *   problem_report_preview { description? }               -> ProblemReportPreview
- *   save_problem_report    { path, description?, overwrite? } -> number (files in the zip)
+ *   save_problem_report    { path, description?, overwrite? } -> number (the export job writing the zip)
  *   open_activity_log      {}                              -> string (label of the new window showing IMT's own logs,
  *                                                             filtered to SourceContext = "IMT.Activity")
  */
@@ -936,8 +920,7 @@ export interface MomentSummary {
 export type * from '../diagnostics/diagnostics-report.types';
 
 /** Why a snapshot was taken. */
-export type SnapshotReason =
-  'unhandled-error' | 'panel-failed' | 'backend-failed' | 'engine-error' | 'manual';
+export type SnapshotReason = 'unhandled-error' | 'panel-failed' | 'backend-failed' | 'engine-error' | 'manual';
 
 /** What the UI sends with an image. */
 export interface SnapshotContext {
@@ -1009,8 +992,7 @@ export interface ProblemReportPreview {
 }
 
 /** `plugin-inactive`: a plugin stopped running (a dependency became unavailable or activation failed). */
-export type EngineErrorKind =
-  'plugin-crash' | 'plugin-quarantined' | 'plugin-inactive' | 'import-crash';
+export type EngineErrorKind = 'plugin-crash' | 'plugin-quarantined' | 'plugin-inactive' | 'import-crash';
 
 /** Payload of the `imt://error` event: a failure the engine contained. */
 export interface EngineError {
@@ -1339,9 +1321,7 @@ export interface RunsReply {
 }
 
 /** What starts or stops a run in the Runs editor: existing marker kinds, or a text pattern (saving creates a marker rule). */
-export type SpanTrigger =
-  | { type: 'markers'; kinds: string[] }
-  | { type: 'pattern'; pattern: string; caseSensitive?: boolean };
+export type SpanTrigger = { type: 'markers'; kinds: string[] } | { type: 'pattern'; pattern: string; caseSensitive?: boolean };
 
 /** A candidate `[[span]]` rule. `per` is "instance" or "field:<Name>". */
 export interface SpanDraft {
@@ -1359,8 +1339,7 @@ export interface SpanPreviewRequest {
   draft: SpanDraft;
 }
 
-export type SpanField =
-  'kind' | 'label' | 'start' | 'stop' | 'per' | 'color' | 'maxDuration' | 'general';
+export type SpanField = 'kind' | 'label' | 'start' | 'stop' | 'per' | 'color' | 'maxDuration' | 'general';
 
 export interface SpanIssue {
   field: SpanField;
@@ -1454,8 +1433,7 @@ export interface SuggestResult {
 // ---------------------------------------------------------------------------------------------
 
 /** What kind of failure a profiling command reports (act on the code, show the message). */
-export type ProfilingErrorCode =
-  'notACapture' | 'io' | 'limit' | 'unsupported' | 'invalid' | 'notFound';
+export type ProfilingErrorCode = 'notACapture' | 'io' | 'limit' | 'unsupported' | 'invalid' | 'notFound';
 
 /** The rejection of every profiling command. */
 export interface ProfilingError {
@@ -1473,15 +1451,7 @@ export interface SniffResult {
 }
 
 /** What a metric counts. `calls` and `maxCallNs` are per node (not inclusive). */
-export type MetricId =
-  | 'samples'
-  | 'timeNs'
-  | 'calls'
-  | 'allocCount'
-  | 'allocBytes'
-  | 'exceptions'
-  | 'waitNs'
-  | 'maxCallNs';
+export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs';
 /** `sampled` values are statistical estimates (label them so); `exact` were all recorded. */
 export type Measurement = 'sampled' | 'exact';
 export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
@@ -1922,13 +1892,7 @@ export interface FindingsRequest {
   thresholds?: FindingThresholds;
 }
 
-export type ProfileFindingKind =
-  | 'topSelf'
-  | 'gcPressure'
-  | 'lockContention'
-  | 'exceptionHotPath'
-  | 'threadPoolStarvation'
-  | 'regression';
+export type ProfileFindingKind = 'topSelf' | 'gcPressure' | 'lockContention' | 'exceptionHotPath' | 'threadPoolStarvation' | 'regression';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
 
@@ -2122,10 +2086,10 @@ export interface HeapPaths {
 //   preview_redaction  { request }               -> RedactionPreview
 //   redaction_summary  { request }               -> RedactionSummary
 //   dashboard_tile     { request: TileRequest }  -> TileData
-//   export_report      { request }               -> ReportExported
+//   export_report      { request }               -> number (the export job)
 //   save_visual        { request }               -> VisualSaved
 //   estimate_bundle    { options }               -> BundleEstimate
-//   create_bundle      { options, path }         -> BundleManifest
+//   create_bundle      { options, path }         -> number (the export job)
 //   open_bundle        { path }                  -> BundleOpened
 // ---------------------------------------------------------------------------------------------
 
@@ -2240,14 +2204,7 @@ export interface RedactionSummary {
 
 /** What a dashboard tile shows (`[[dashboard.tile]] type`). */
 export type TileKind = 'chart' | 'stat' | 'table' | 'top' | 'alerts' | 'annotations';
-export const TILE_KINDS: readonly TileKind[] = [
-  'chart',
-  'stat',
-  'table',
-  'top',
-  'alerts',
-  'annotations',
-];
+export const TILE_KINDS: readonly TileKind[] = ['chart', 'stat', 'table', 'top', 'alerts', 'annotations'];
 
 /** `[[dashboard.tile]]` (keys are the same in the profile TOML and on the wire). Position and size are in grid units. */
 export interface TileCfg {
@@ -2296,14 +2253,7 @@ export type SparkPoint = [number, number | null];
 
 export type TileData =
   | { kind: 'chart'; data: ChartData }
-  | {
-      kind: 'stat';
-      value: number | null;
-      text: string;
-      label: string;
-      unit: string | null;
-      sparkline: SparkPoint[];
-    }
+  | { kind: 'stat'; value: number | null; text: string; label: string; unit: string | null; sparkline: SparkPoint[] }
   | { kind: 'table'; columns: string[]; rows: unknown[][]; truncated: boolean }
   | { kind: 'top'; facet: Facet }
   | { kind: 'alerts'; items: Anomaly[] }
@@ -2321,30 +2271,9 @@ export interface ReportAnnotation {
 export type ReportBlock =
   | { id: string; type: 'text'; markdown: string }
   | { id: string; type: 'events'; caption?: string; ids: number[] }
-  | {
-      id: string;
-      type: 'chart';
-      caption?: string;
-      title?: string;
-      spec?: ChartDef | null;
-      svg?: string | null;
-    }
-  | {
-      id: string;
-      type: 'timeline';
-      caption?: string;
-      svg?: string | null;
-      from?: number | null;
-      to?: number | null;
-    }
-  | {
-      id: string;
-      type: 'table';
-      caption?: string;
-      query?: string;
-      columns: string[];
-      rows: unknown[][];
-    }
+  | { id: string; type: 'chart'; caption?: string; title?: string; spec?: ChartDef | null; svg?: string | null }
+  | { id: string; type: 'timeline'; caption?: string; svg?: string | null; from?: number | null; to?: number | null }
+  | { id: string; type: 'table'; caption?: string; query?: string; columns: string[]; rows: unknown[][] }
   | { id: string; type: 'finding'; severity: string; title: string; detail: string }
   | { id: string; type: 'annotations'; caption?: string; items: ReportAnnotation[] };
 
@@ -2379,13 +2308,6 @@ export interface ReportExportRequest {
   theme: ExportTheme;
   /** Replace an existing file (see `ExportRequest.overwrite`). */
   overwrite?: boolean;
-}
-
-export interface ReportExported {
-  path: string;
-  bytes: number;
-  /** Matches per redaction rule (empty when not redacted). */
-  redaction: RuleHits[];
 }
 
 /** A chart or timeline image to save: a `data:image/png;base64,` URL, or SVG markup (sanitised by the engine). */

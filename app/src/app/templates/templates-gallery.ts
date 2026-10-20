@@ -9,7 +9,6 @@ import { SettingsStore } from '../settings/settings.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { ProfileUndo } from '../undo/profile-undo';
 import { bestTemplate, groupTemplates, ratioLabel, readRatio } from './templates';
-import { groupedNumber } from '../i18n/locale';
 
 /** How much of the user's file the engine previews. */
 export const TEMPLATE_HEAD_BYTES = 32 * 1024;
@@ -276,10 +275,9 @@ export class TemplatesGallery implements OnInit {
         this.applyError.set(`${prefix}${v.error ?? $localize`:@@templates.gallery.invalid:the profile is not valid`}`);
         return;
       }
-      const summary = await this.undo.save($localize`:@@templates.gallery.undoLabel:profile template`, t.toml);
+      await this.undo.save($localize`:@@templates.gallery.undoLabel:profile template`, t.toml);
       const name = t.name;
-      const total = groupedNumber(summary.total);
-      this.store.setNotice($localize`:@@templates.gallery.applied:Applied the ${name}:name: template: ${total}:total: events`);
+      this.store.setNotice($localize`:@@templates.gallery.applyingNotice:Applying the ${name}:name: template; the files are re-imported with it.`);
       this.ref.close(true);
     } catch (e) {
       this.applyError.set(describeError(e));

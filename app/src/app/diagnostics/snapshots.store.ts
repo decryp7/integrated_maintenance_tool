@@ -3,6 +3,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { describeError } from '../core/logger';
 import { plural } from '../i18n/locale';
+import { JobFollow } from '../jobs/job-follow';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { ExportTarget } from './export-target';
 import { SnapshotBackend } from './snapshot-backend';
@@ -30,7 +31,7 @@ export const SnapshotsStore = signalStore(
     current: computed(() => s.items().find((i) => i.id === s.open()) ?? null),
     allSelected: computed(() => s.items().length > 0 && s.selected().length === s.items().length),
   })),
-  withMethods((store, backend = inject(SnapshotBackend), service = inject(ErrorSnapshotService), target = inject(ExportTarget), overwrite = inject(OverwriteGuard)) => {
+  withMethods((store, backend = inject(SnapshotBackend), service = inject(ErrorSnapshotService), target = inject(ExportTarget), overwrite = inject(OverwriteGuard), follow = inject(JobFollow)) => {
     const fail = (e: unknown) => patchState(store, { error: describeError(e), info: null });
     const loadImage = async (id: string) => {
       if (store.images()[id]) return;
@@ -95,13 +96,14 @@ export const SnapshotsStore = signalStore(
         try {
           const path = await target.pickZip('imt-diagnostics.zip');
           if (path) {
-            const files = await overwrite.write(path, (replace) => backend.exportDiagnostics(path, ids, replace));
-            if (files !== null) {
+            const job = await overwrite.write(path, (replace) => backend.exportDiagnostics(path, ids, replace));
+            if (job !== null) {
               const n = ids.length;
+              follow.started($localize`:@@diagnostics.snapshots.started:Exporting diagnostics — running in Jobs`);
               patchState(store, {
                 info: plural(n, {
-                  one: $localize`:@@diagnostics.snapshots.exported.one:Exported ${n}:count: snapshot (${files}:files: files) to ${path}:path:`,
-                  other: $localize`:@@diagnostics.snapshots.exported.other:Exported ${n}:count: snapshots (${files}:files: files) to ${path}:path:`,
+                  one: $localize`:@@diagnostics.snapshots.exporting.one:Exporting ${n}:count: snapshot to ${path}:path:; a message tells you when the file is ready.`,
+                  other: $localize`:@@diagnostics.snapshots.exporting.other:Exporting ${n}:count: snapshots to ${path}:path:; a message tells you when the file is ready.`,
                 }),
               });
             }

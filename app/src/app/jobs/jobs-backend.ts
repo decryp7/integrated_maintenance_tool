@@ -4,7 +4,7 @@ import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
-import { JobResult, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
+import { JobOutcome, JobResult, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
 
 export const JOBS_EVENT = 'imt://jobs';
 
@@ -26,6 +26,11 @@ export abstract class JobsBackend {
   abstract result(id: number): Promise<JobResult | null>;
   /** Shows an export's file in Finder or Explorer; resolves with its path. */
   abstract reveal(id: number): Promise<string>;
+  /** Waits for the job to end (a dialog following it): its state and whole result. A job someone waits for
+   * posts no message when it ends; the waiter shows the outcome. */
+  abstract wait(id: number): Promise<JobOutcome>;
+  /** Stops waiting (the dialog closed): the job tells the user when it is done. */
+  abstract unwait(id: number): Promise<void>;
   abstract record(): Promise<JobsRecord>;
   abstract restore(record: unknown): Promise<RestoredJobs>;
   abstract onChange(handler: (s: JobsSnapshot) => void): Promise<Unlisten>;
@@ -63,6 +68,12 @@ export class TauriJobsBackend implements JobsBackend {
   }
   reveal(id: number) {
     return this.call<string>('jobs_reveal', { id });
+  }
+  wait(id: number) {
+    return this.call<JobOutcome>('jobs_wait', { id });
+  }
+  unwait(id: number) {
+    return this.call<void>('jobs_unwait', { id });
   }
   record() {
     return this.call<JobsRecord>('jobs_record');

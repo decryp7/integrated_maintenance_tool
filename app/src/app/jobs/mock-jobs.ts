@@ -1,7 +1,7 @@
 import { mockNotifications } from '../notifications/mock-notifications';
 import { Unlisten } from '../windowing/window-events';
 import { JobsBackend } from './jobs-backend';
-import { JobInfo, JobKind, JobLink, JobProgress, JobResult, JobsRecord, JobsSnapshot, JobState, RestoredJobs } from './jobs.types';
+import { JobInfo, JobKind, JobLink, JobOutcome, JobProgress, JobResult, JobsRecord, JobsSnapshot, JobState, RestoredJobs } from './jobs.types';
 
 /** What a mock job's work sees. */
 export interface MockJobCtx {
@@ -19,6 +19,8 @@ export interface MockJobSpec {
   appWide?: boolean;
   cancellable?: boolean;
   retryable?: boolean;
+  /** The message title when it is done ("Explanation ready"). */
+  doneTitle?: string;
 }
 
 /** A job's work: resolves with the caller's value and the result View opens. */
@@ -34,6 +36,8 @@ export class MockJobCancelled extends Error {
 /** The engine's rules, mimicked (see app/src-tauri/src/jobs/queue.rs). */
 const LIMITS: Record<JobKind, number> = { ai: 1, research: 1, analysis: 3, import: 1, export: 2, download: 2, collection: 1, maintenance: 1 };
 const QUEUE_CAP = 20;
+/** Results the user asked for and waits to see: their job always tells when it is done (engine: queue.rs). */
+const ATTENTION_RESULTS = new Set<string>(['narrative', 'proposal', 'file', 'folderSurvey', 'storage']);
 const HISTORY_CAP = 100;
 
 export interface MockJobsOptions {
@@ -61,6 +65,7 @@ interface Entry {
   start: (() => void) | null;
   cancel: () => void;
   rerun: (() => Promise<unknown>) | null;
+  doneTitle?: string;
 }
 
 /**
@@ -71,6 +76,8 @@ export class MockJobs implements JobsBackend {
   private entries: Entry[] = [];
   private next = 1;
   private readonly handlers = new Set<(s: JobsSnapshot) => void>();
+  /** Who waits for a job's end (a dialog following it). */
+  private readonly waiters = new Map<number, ((o: JobOutcome) => void)[]>();
   private ticker: ReturnType<typeof setInterval> | null = null;
 
   constructor(readonly options: MockJobsOptions = mockJobsOptionsFromSearch(typeof window === 'undefined' ? '' : window.location.search)) {}
@@ -124,7 +131,14 @@ export class MockJobs implements JobsBackend {
     const finishedAt = Date.now();
     const ran = e.info.startedAt === null ? 0 : finishedAt - e.info.startedAt;
     const age = finishedAt - e.info.queuedAt;
-    const attention = (state === 'done' && (e.info.kind === 'research' || Math.max(ran, age) >= this.options.attentionMs)) || (state === 'failed' && (e.info.kind !== 'analysis' || age >= this.options.visibleMs));
+    const waiters = this.waiters.get(e.info.id) ?? [];
+    this.waiters.delete(e.info.id);
+    // A dialog still waiting shows the outcome itself: no message, nothing unseen.
+    const attended = waiters.length > 0;
+    const attention =
+      !attended &&
+      ((state === 'done' && (e.info.kind === 'research' || ATTENTION_RESULTS.has(result?.type ?? '') || Math.max(ran, age) >= this.options.attentionMs)) ||
+        (state === 'failed' && (e.info.kind !== 'analysis' || age >= this.options.visibleMs)));
     e.info = { ...e.info, ...extra, state, finishedAt, unseen: attention };
     e.result = result;
     if (state === 'done' && e.info.progress.fraction !== null) e.info.progress = { ...e.info.progress, fraction: 1 };
@@ -133,6 +147,7 @@ export class MockJobs implements JobsBackend {
     const finished = this.entries.filter((x) => x.info.finishedAt !== null);
     if (finished.length > HISTORY_CAP) this.entries = this.entries.filter((x) => x !== finished[0]);
     if (attention) this.notify(e, state);
+    for (const w of waiters) w(this.outcome(e));
     this.pump();
     this.emit();
   }
@@ -140,12 +155,20 @@ export class MockJobs implements JobsBackend {
   private notify(e: Entry, state: JobState): void {
     const ok = state === 'done';
     const jobId = e.info.id;
-    const primary = ok ? (e.result?.type === 'proposal' ? { type: 'reviewProposals' as const, jobId } : { type: 'viewJob' as const, jobId }) : e.info.retryable ? { type: 'retryJob' as const, jobId } : { type: 'showJobs' as const };
+    const primary = ok
+      ? e.result?.type === 'proposal'
+        ? { type: 'reviewProposals' as const, jobId }
+        : e.result?.type === 'file'
+          ? { type: 'showInFolder' as const, jobId }
+          : { type: 'viewJob' as const, jobId }
+      : e.info.retryable
+        ? { type: 'retryJob' as const, jobId }
+        : { type: 'showJobs' as const };
     mockNotifications().post({
       source: 'job',
       severity: ok ? 'success' : 'error',
-      title: ok && e.info.kind === 'research' ? `Research finished: ${e.info.title.replace(/^Research: /, '')}` : `${ok ? 'Finished' : 'Failed'}: ${e.info.title}`,
-      body: ok ? `Took ${Math.round(((e.info.finishedAt ?? 0) - (e.info.startedAt ?? 0)) / 1000)} s.` : (e.info.error ?? ''),
+      title: ok && e.doneTitle ? e.doneTitle : ok && e.info.kind === 'research' ? `Research finished: ${e.info.title.replace(/^Research: /, '')}` : `${ok ? 'Finished' : 'Failed'}: ${e.info.title}`,
+      body: ok && e.doneTitle ? e.info.title : ok && e.info.message ? e.info.message : ok ? `Took ${Math.round(((e.info.finishedAt ?? 0) - (e.info.startedAt ?? 0)) / 1000)} s.` : (e.info.error ?? ''),
       primary,
       secondary: ok ? null : { type: 'showJobs' },
       dedupeKey: `job:${jobId}`,
@@ -157,6 +180,15 @@ export class MockJobs implements JobsBackend {
   /** Runs `work` as a job (queued by kind) and resolves with its value; a cancelled job rejects with `MockJobCancelled`. */
   run<T>(spec: MockJobSpec, work: MockWork<T>): Promise<T> {
     return this.start(spec, work).done;
+  }
+
+  private outcome(e: Entry): JobOutcome {
+    return { id: e.info.id, state: e.info.state, result: e.result, error: e.info.error, message: e.info.message };
+  }
+
+  /** The id the next job gets. */
+  nextId(): number {
+    return this.next;
   }
 
   /** Cancels the active jobs matching `pred`; returns how many. */
@@ -201,6 +233,7 @@ export class MockJobs implements JobsBackend {
         result: null,
         start: null,
         rerun: null,
+        doneTitle: spec.doneTitle,
         cancel: () => {
           cancelled = true;
           if (entry.info.state === 'queued') {
@@ -319,6 +352,20 @@ export class MockJobs implements JobsBackend {
     e.info = { ...e.info, unseen: false };
     this.emit();
     return e.result.path;
+  }
+
+  async wait(id: number): Promise<JobOutcome> {
+    const e = this.entries.find((x) => x.info.id === id);
+    if (!e) return { id, state: 'cancelled', result: null, error: null, message: null };
+    if (e.info.finishedAt !== null) return this.outcome(e);
+    return new Promise<JobOutcome>((resolve) => this.waiters.set(id, [...(this.waiters.get(id) ?? []), resolve]));
+  }
+
+  async unwait(id: number): Promise<void> {
+    const waiting = this.waiters.get(id) ?? [];
+    this.waiters.delete(id);
+    const e = this.entries.find((x) => x.info.id === id);
+    for (const w of waiting) w(e ? this.outcome(e) : { id, state: 'interrupted', result: null, error: null, message: null });
   }
 
   async record(): Promise<JobsRecord> {

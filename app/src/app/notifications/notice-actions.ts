@@ -34,6 +34,8 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.showAlert:Show`;
     case 'showJobs':
       return $localize`:@@notifications.action.showJobs:Show in Jobs`;
+    case 'showInFolder':
+      return $localize`:@@notifications.action.showInFolder:Show in folder`;
   }
 }
 
@@ -48,7 +50,8 @@ export class NoticeActions {
   /** Runs `action` of `notice`; resolves with an error message when it failed. */
   async run(notice: Notice, action: NoticeAction): Promise<string | null> {
     const store = this.injector.get(NotificationsStore);
-    void store.markRead(notice.id);
+    // Toasts of the UI's own (negative ids) are not messages of the centre.
+    if (notice.id > 0) void store.markRead(notice.id);
     try {
       return await this.perform(action);
     } catch (e) {
@@ -70,6 +73,9 @@ export class NoticeActions {
         return null;
       case 'showJobs':
         ctx.showView(JOBS_VIEW);
+        return null;
+      case 'showInFolder':
+        await this.injector.get(JobsBackend).reveal(a.jobId);
         return null;
       case 'resetPlugin':
         await this.injector.get(LifecycleBackend).pluginReset(a.pluginId);

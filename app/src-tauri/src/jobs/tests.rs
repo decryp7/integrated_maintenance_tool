@@ -127,11 +127,14 @@ fn long_jobs_post_a_message_and_view_opens_their_result() {
     wait_until("done", || jobs(&app).state_of(id) == Some(JobState::Done));
     let job = listed(&main)[0].clone();
     assert_eq!((job["unseen"].as_bool(), job["resultType"].as_str()), (Some(true), Some("file")));
+    // The message is posted right after the job ends.
+    wait_until("the message", || {
+        ipc(&main, "notifications_list", json!({})).unwrap()["unread"] == 1
+    });
     let notices = ipc(&main, "notifications_list", json!({})).unwrap();
-    assert_eq!(notices["unread"], 1);
     let n = &notices["notices"][0];
     assert_eq!((n["source"].as_str(), n["severity"].as_str()), (Some("job"), Some("success")));
-    assert_eq!(n["primary"], json!({"type": "viewJob", "jobId": id.0}));
+    assert_eq!(n["primary"], json!({"type": "showInFolder", "jobId": id.0}));
     assert_eq!(n["title"], "Finished: Export report report.html");
     // View: the file is revealed (only the one the job wrote) and the job counts as seen.
     assert_eq!(ipc(&main, "jobs_reveal", json!({"id": id.0})).unwrap(), file.display().to_string());
@@ -144,6 +147,41 @@ fn long_jobs_post_a_message_and_view_opens_their_result() {
 }
 
 #[test]
+fn a_dialog_that_follows_a_job_gets_its_outcome_and_no_message_is_posted() {
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    let (id, release) = gated_export(&app, "main", "Export followed.csv");
+    clock(&app).advance(queue::ATTENTION_AFTER_MS);
+    // The dialog waits for it over IPC (on its own thread, as the UI's promise).
+    let w = main.clone();
+    let waiter = std::thread::spawn(move || ipc(&w, "jobs_wait", json!({ "id": id.0 })).unwrap());
+    wait_until("the dialog to wait", || jobs(&app).waited(id));
+    release.send(Ok(Some(JobResult::File { path: "x.csv".into() }))).unwrap();
+    let outcome = waiter.join().unwrap();
+    assert_eq!(
+        (outcome["state"].as_str(), outcome["result"]["type"].as_str()),
+        (Some("done"), Some("file"))
+    );
+    // It showed the outcome: nothing unseen, no message.
+    assert_eq!(listed(&main)[0]["unseen"], false);
+    assert_eq!(ipc(&main, "notifications_list", json!({})).unwrap()["unread"], 0);
+
+    // A dialog that closes stops following: the job then tells the user itself.
+    let (id, release) = gated_export(&app, "main", "Export left.csv");
+    let w = main.clone();
+    let waiter = std::thread::spawn(move || ipc(&w, "jobs_wait", json!({ "id": id.0 })).unwrap());
+    wait_until("the dialog to wait", || jobs(&app).waited(id));
+    ipc(&main, "jobs_unwait", json!({ "id": id.0 })).unwrap();
+    assert_eq!(waiter.join().unwrap()["state"], "running");
+    clock(&app).advance(queue::ATTENTION_AFTER_MS);
+    release.send(Ok(Some(JobResult::File { path: "y.csv".into() }))).unwrap();
+    wait_until("the message", || {
+        ipc(&main, "notifications_list", json!({})).unwrap()["unread"] == 1
+    });
+    assert!(ipc(&main, "jobs_unwait", json!({ "id": 999 })).is_err(), "unknown jobs are refused");
+}
+
+#[test]
 fn failures_always_ask_for_attention_with_retry() {
     let app = test_app_with_commands(None);
     let main = window(&app, "main");
@@ -151,6 +189,10 @@ fn failures_always_ask_for_attention_with_retry() {
     wait_until("running", || jobs(&app).state_of(id) == Some(JobState::Running));
     release.send(Err("the disk is full".into())).unwrap();
     wait_until("failed", || jobs(&app).state_of(id) == Some(JobState::Failed));
+    // The message is posted right after the job ends.
+    wait_until("the message", || {
+        ipc(&main, "notifications_list", json!({})).unwrap()["unread"] == 1
+    });
     let n = ipc(&main, "notifications_list", json!({})).unwrap()["notices"][0].clone();
     assert_eq!(
         (n["severity"].as_str(), n["body"].as_str()),

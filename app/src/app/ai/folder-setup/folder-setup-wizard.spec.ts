@@ -10,10 +10,12 @@ import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { buttonByText, MemoryLogger, settle } from '../../../testing/helpers';
 import { AiBackend } from '../ai-backend';
 import { AiStatusStore } from '../ai-status.store';
+import { JobOutcome } from '../../jobs/jobs.types';
 import { FolderSetupBackend, TauriFolderSetupBackend } from './folder-setup-backend';
 import { FolderSetupHint } from './folder-setup-hint';
 import { FolderSetupStore } from './folder-setup.store';
 import { FolderSetupWizard } from './folder-setup-wizard';
+import { mockJobs } from '../../jobs/mock-jobs';
 import { MockFolderSetupBackend, naiveDiff, snippet } from './mock-folder-setup-backend';
 import { FolderSetupPreview } from './proposal-preview';
 import { folderSetupCommands, FolderSetupLauncher, hasOpenFiles } from './provide-folder-setup';
@@ -108,7 +110,9 @@ describe('FolderSetupWizard', () => {
     const store = TestBed.inject(FolderSetupStore);
     const backend = TestBed.inject(FolderSetupBackend);
     const fixture = TestBed.createComponent(FolderSetupWizard);
-    vi.spyOn(backend, 'survey').mockResolvedValueOnce({ cancelled: true });
+    const outcome = (state: JobOutcome['state']): JobOutcome => ({ id: 77, state, result: null, error: null, message: null });
+    vi.spyOn(backend, 'survey').mockResolvedValueOnce(77);
+    vi.spyOn(mockJobs(), 'wait').mockResolvedValueOnce(outcome('cancelled'));
     await store.start();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('The survey was cancelled');
@@ -171,7 +175,7 @@ describe('folder set-up hint, command and backends', () => {
     expect(workspace).toBeTruthy();
   });
 
-  it('the command needs open files; the launcher opens the dialog and stops a running survey on close', async () => {
+  it('the command needs open files; the launcher opens the dialog and only detaches from a running survey on close (the job goes on)', async () => {
     setup();
     const ws = TestBed.inject(WorkspaceStore);
     expect(hasOpenFiles(ws)).toBe(false);
@@ -186,30 +190,41 @@ describe('folder set-up hint, command and backends', () => {
     vi.spyOn(dialogs, 'open').mockImplementation(() => ({ close: () => undefined, closed: new Promise<undefined>((r) => (close = () => r(undefined))) }));
     const store = TestBed.inject(FolderSetupStore);
     const cancel = vi.spyOn(store, 'cancel');
-    const cancelAi = vi.spyOn(store, 'cancelAi');
-    vi.spyOn(TestBed.inject(FolderSetupBackend), 'survey').mockReturnValue(new Promise(() => undefined));
+    const detach = vi.spyOn(store, 'detach');
+    const jobs = mockJobs();
+    const unwait = vi.spyOn(jobs, 'unwait');
+    vi.spyOn(jobs, 'wait').mockReturnValueOnce(new Promise(() => undefined));
+    vi.spyOn(TestBed.inject(FolderSetupBackend), 'survey').mockResolvedValue(5);
     void cmd!.run({} as never);
     expect(store.phase()).toBe('surveying');
+    await settle();
+    expect(store.surveyJob()).toBe(5);
     close();
     await settle();
-    expect(cancel).toHaveBeenCalled();
-    expect(cancelAi).not.toHaveBeenCalled();
+    expect(detach).toHaveBeenCalled();
+    expect(unwait).toHaveBeenCalledWith(5);
+    expect(cancel).not.toHaveBeenCalled();
+    expect(store.phase()).toBe('idle');
+    // show() reopens the wizard on what the store holds, without starting a survey.
+    const open = vi.spyOn(dialogs, 'open');
+    open.mockClear();
+    launcher.show();
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(store.phase()).toBe('idle');
   });
 
   it('the Tauri backend sends the documented commands', async () => {
     const call = vi.fn().mockResolvedValue({});
     const channel = vi.fn().mockReturnValue('channel');
     const b = new TauriFolderSetupBackend(call as never, channel as never);
-    await b.survey('s1', () => undefined);
-    expect(call).toHaveBeenLastCalledWith('folder_survey', { surveyId: 's1', request: null, onProgress: 'channel' });
-    await b.cancelSurvey('s1');
-    expect(call).toHaveBeenLastCalledWith('folder_survey_cancel', { surveyId: 's1' });
+    await b.survey(() => undefined);
+    expect(call).toHaveBeenLastCalledWith('folder_survey', { request: null, onProgress: 'channel' });
     await b.compose([{ kind: 'instanceKey', key: ['A'] }]);
     expect(call).toHaveBeenLastCalledWith('folder_setup_compose', { fragments: [{ kind: 'instanceKey', key: ['A'] }] });
     await b.refineWithAi({ maxEvents: 10 });
-    expect(call).toHaveBeenLastCalledWith('ai_refine_folder_setup', { request: { maxEvents: 10 } });
-    await b.cancelAi();
-    expect(call).toHaveBeenLastCalledWith('ai_cancel');
+    expect(call).toHaveBeenLastCalledWith('ai_start', { request: { op: 'folderSetup', request: { maxEvents: 10 } } });
+    await b.refineWithAi();
+    expect(call).toHaveBeenLastCalledWith('ai_start', { request: { op: 'folderSetup', request: null } });
     call.mockRejectedValueOnce({ code: 'noModel', message: 'no model' });
     await expect(b.refineWithAi()).rejects.toMatchObject({ code: 'noModel', message: 'no model' });
   });
@@ -223,11 +238,14 @@ describe('folder set-up hint, command and backends', () => {
     expect(c.savedQueries).toEqual([{ name: 'Q', ql: 'level >= error' }]);
     await workspace.saveProfile(c.toml);
     await expect(b.compose([marker])).rejects.toThrow('already has a marker named "x1"');
-    expect(await b.cancelSurvey('none')).toBe(false);
     expect(naiveDiff('a\nb\nc', 'a\nx\nc').map((d) => d.op)).toEqual(['same', 'remove', 'add', 'same']);
     expect(snippet([{ kind: 'savedQuery', name: 'Q', ql: 'x' }, { kind: 'instanceKey', key: ['A'] }])).toContain('# Saved query "Q": x');
     const summary = await workspace.workspaceSummary();
     vi.spyOn(workspace, 'workspaceSummary').mockResolvedValueOnce({ ...summary, sources: [] });
-    await expect(b.survey('s', () => undefined)).rejects.toThrow('open a folder');
+    // The survey is a job that returns at once; it fails inside the job with the reason.
+    const id = await b.survey(() => undefined);
+    expect(typeof id).toBe('number');
+    const end = await mockJobs().wait(id);
+    expect([end.state, end.error]).toEqual(['failed', 'nothing is open: open a folder first']);
   });
 });

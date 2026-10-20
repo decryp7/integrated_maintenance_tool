@@ -1,8 +1,20 @@
 import { TestBed } from '@angular/core/testing';
 import { MemoryLogger } from '../../../testing/helpers';
+import { mockJobs } from '../../jobs/mock-jobs';
 import { Logger } from '../../core/logger';
 import { MockStorageBackend, mockCategories } from './mock-storage-backend';
 import { StorageBackend, TauriStorageBackend } from './storage-backend';
+import { StorageClearResult } from './storage.types';
+
+/** Starts a clear, checks it returned the job at once, and waits for the job's result. */
+async function cleared(b: MockStorageBackend, ids: Parameters<MockStorageBackend['clear']>[0]): Promise<StorageClearResult> {
+  const id = await b.clear(ids);
+  expect(typeof id).toBe('number');
+  const end = await mockJobs().wait(id);
+  expect(end.state).toBe('done');
+  expect(end.result?.type).toBe('storage');
+  return (end.result as { type: 'storage'; result: StorageClearResult }).result;
+}
 
 describe('TauriStorageBackend', () => {
   it('maps every method to its command', async () => {
@@ -38,9 +50,20 @@ describe('MockStorageBackend', () => {
     expect(u.totalBytes).toBe(mockCategories().reduce((n, c) => n + c.bytes, 0));
   });
 
+  it('starts the clear as a maintenance job that is running when it returns, with a message for the user', async () => {
+    const b = new MockStorageBackend();
+    b.clearMs = 20;
+    const id = await b.clear(['logs']);
+    const running = (await mockJobs().list()).jobs.find((j) => j.id === id);
+    expect(running).toBeUndefined(); // not shown before the engine's 2 s grace
+    const end = await mockJobs().wait(id);
+    expect(end.state).toBe('done');
+    expect(end.message).toMatch(/^Freed /);
+  });
+
   it('frees what is clearable and keeps the rest with a reason', async () => {
     const b = new MockStorageBackend();
-    const r = await b.clear(['webview-cache', 'logs', 'logs', 'stores']);
+    const r = await cleared(b, ['webview-cache', 'logs', 'logs', 'stores']);
     expect(r.categories.map((c) => c.id)).toEqual(['webview-cache', 'logs', 'stores']);
     expect(r.categories[0]?.skipped[0]?.reason).toContain('in use');
     expect(r.categories[1]?.skipped[0]?.reason).toBe('IMT is writing to it');
@@ -54,7 +77,7 @@ describe('MockStorageBackend', () => {
   it('reports a category that cannot be cleared', async () => {
     const b = new MockStorageBackend();
     (b as unknown as { categories: ReturnType<typeof mockCategories> }).categories[4]!.clearable = false;
-    const r = await b.clear(['ai-models']);
+    const r = await cleared(b, ['ai-models']);
     expect(r.categories[0]?.error).toBeTruthy();
   });
 

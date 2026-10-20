@@ -5,6 +5,7 @@ import { MockBackend } from './mock-backend';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveSim, mockFamily, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { mockDurationMs, validateLiveSection } from './mock-live-profile';
 import { at } from '../../../testing/must';
+import { mockJobs } from '../../jobs/mock-jobs';
 
 describe('mock live tail helpers', () => {
   it('derives log families like the engine', () => {
@@ -243,8 +244,8 @@ describe('MockBackend live tail', () => {
     expect((await b.queryFacet({ query: windowed, field: '@level', limit: 10 })).total).toBe(page.total);
     const chart = await b.queryChart({ query: windowed, chartId: null, def: { id: 'x', title: 'x', y: 'count()', bucket: 'auto', splitBy: [], type: 'bar', unit: '' }, buckets: 10 });
     expect(chart.to - chart.from).toBeLessThanOrEqual(150_000);
-    expect((await b.exportEvents({ query: windowed, format: 'csv', path: '/x.csv' })).events).toBe(page.total);
-    await b.saveProfile('name = "w"\n[live]\nclock = "wall"\n');
+    expect((await mockJobs().wait(await b.exportEvents({ query: windowed, format: 'csv', path: '/x.csv' }))).message).toBe(`Exported ${page.total} events.`);
+    await mockJobs().wait(await b.saveProfile('name = "w"\n[live]\nclock = "wall"\n'));
     expect((await b.queryPage({ query: windowed, offset: 0, limit: 1, descending: false })).total).toBe(0);
 
     const summary = await b.openPathsLive(['/var/log/new.log', '/var/log/new.log'], true);

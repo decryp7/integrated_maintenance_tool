@@ -56,7 +56,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
           type="button"
           class="act"
           [attr.data-activity-id]="item.id"
-          [attr.aria-label]="item.label"
+          [attr.aria-label]="ariaLabel(item)"
           [title]="tooltip(item)"
           [attr.aria-keyshortcuts]="keys(item)"
           [cdkMenuTriggerFor]="flyout"
@@ -73,7 +73,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
           type="button"
           class="act"
           [attr.data-activity-id]="item.id"
-          [attr.aria-label]="item.label"
+          [attr.aria-label]="ariaLabel(item)"
           [title]="tooltip(item)"
           [attr.aria-keyshortcuts]="keys(item)"
           [attr.aria-pressed]="item.toggle ? items.isActive(item) : null"
@@ -247,6 +247,15 @@ export class ActivityBar {
   /** A fly-out button is highlighted while one of its views is open. */
   protected anyChecked(item: ImtActivityItem): boolean {
     return this.items.menu(item).some((e) => e.checked);
+  }
+
+  /**
+   * The button's name with its badge ("Notifications, 2"): the count it shows is part of its name (WCAG 2.5.3). Not in
+   * parentheses: name-in-label checks (axe) ignore parentheticals, so "Notifications (2)" would not contain the visible "2".
+   */
+  protected ariaLabel(item: ImtActivityItem): string {
+    const badge = this.items.badge(item);
+    return badge === null ? item.label : $localize`:Activity bar button name with its badge@@shell.activityBar.labelBadge:${item.label}:label:, ${badge}:badge:`;
   }
 
   /** "Label (Ctrl+B)", with the reason when the item is inert. */

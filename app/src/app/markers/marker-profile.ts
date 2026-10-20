@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -8,7 +7,8 @@ import { parseProfile, stringifyProfile } from '../profile/toml';
 import { RuleRow, SaveFailure } from './markers.types';
 import { readRows } from './marker-rules';
 
-export type CommitResult = { ok: true; summary: WorkspaceSummary } | { ok: false; failure: SaveFailure };
+/** Saved: `job` re-imports the files with the new profile (the workspace follows it). */
+export type CommitResult = { ok: true; job: number } | { ok: false; failure: SaveFailure };
 
 /**
  * Loads the active profile, applies a change to a copy, validates it in the engine and saves it
@@ -41,10 +41,10 @@ export class MarkerProfile {
         const excerpt = line ? (toml.split('\n')[line - 1]?.trim().slice(0, 160) ?? null) : null;
         return { ok: false, failure: { message: validation.error ?? $localize`:@@markers.profile.invalid:The profile is not valid.`, line, excerpt } };
       }
-      const summary = await this.backend.saveProfile(toml);
-      this.store.profileSaved(summary);
+      const job = await this.backend.saveProfile(toml);
+      void this.store.applyProfile(job);
       this.undo.record(label, before, toml);
-      return { ok: true, summary };
+      return { ok: true, job };
     } catch (e) {
       return { ok: false, failure: { message: e instanceof Error ? e.message : String(e), line: null, excerpt: null } };
     }
