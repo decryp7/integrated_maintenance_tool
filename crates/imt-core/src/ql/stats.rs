@@ -47,17 +47,17 @@ impl NumAcc {
 
     fn finish(self) -> Value {
         match self {
-            NumAcc::Sum(s) => number(s),
+            NumAcc::Sum(s) => json_number(s),
             NumAcc::Avg(_, 0) | NumAcc::Min(None) | NumAcc::Max(None) => Value::Null,
-            NumAcc::Avg(s, n) => number(s / n as f64),
-            NumAcc::Min(Some(v)) | NumAcc::Max(Some(v)) => number(v),
+            NumAcc::Avg(s, n) => json_number(s / n as f64),
+            NumAcc::Min(Some(v)) | NumAcc::Max(Some(v)) => json_number(v),
             NumAcc::Percentile(p, mut vals) => {
                 if vals.is_empty() {
                     return Value::Null;
                 }
                 vals.sort_by(f64::total_cmp);
                 let rank = ((p / 100.0) * vals.len() as f64).ceil() as usize;
-                number(vals[rank.clamp(1, vals.len()) - 1])
+                json_number(vals[rank.clamp(1, vals.len()) - 1])
             }
         }
     }
@@ -100,8 +100,9 @@ impl Acc {
     }
 }
 
-/// Whole numbers become JSON integers, everything else a float (NaN/inf become null).
-fn number(f: f64) -> Value {
+/// Whole numbers become JSON integers, everything else a float (NaN/inf become null): how `stats` writes
+/// its numbers (stores that aggregate in SQL use it too).
+pub fn json_number(f: f64) -> Value {
     if f.fract() == 0.0 && f.abs() < 1e15 {
         Value::from(f as i64)
     } else {

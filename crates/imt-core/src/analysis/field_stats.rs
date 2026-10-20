@@ -7,7 +7,8 @@ use std::collections::HashMap;
 
 /// Distinct values tracked before further new values are ignored.
 pub const MAX_DISTINCT: usize = 10_000;
-const TOP: usize = 20;
+/// Most frequent values listed.
+pub const TOP: usize = 20;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -115,26 +116,35 @@ fn nice_step(raw: f64) -> f64 {
         .unwrap_or(10.0 * mag)
 }
 
+/// The bins of a histogram over `min..=max` with round edges and at most `buckets` bins: `(start, step,
+/// bins)`, or `None` when all values are equal (one bin). A value `x` falls in bin
+/// `((x - start) / step) as usize` (at most `bins - 1`). Shared with stores that count bins in SQL.
+pub fn bin_layout(min: f64, max: f64, buckets: usize) -> Option<(f64, f64, usize)> {
+    if max == min {
+        return None;
+    }
+    let buckets = buckets.max(1);
+    let mut step = nice_step((max - min) / buckets as f64);
+    loop {
+        let start = (min / step).floor() * step;
+        let bins = ((max - start) / step).floor() as usize + 1;
+        if bins <= buckets {
+            return Some((start, step, bins));
+        }
+        step = nice_step(step * 1.01);
+    }
+}
+
 /// Histogram of a sorted slice with round bin edges and at most `buckets` bins.
 fn histogram(v: &[f64], buckets: usize) -> Vec<HistogramBin> {
     let (min, max) = (v[0], v[v.len() - 1]);
-    if max == min {
+    let Some((start, step, bins)) = bin_layout(min, max, buckets) else {
         return vec![HistogramBin {
             from: min,
             to: max,
             count: v.len() as u64,
         }];
-    }
-    let mut step = nice_step((max - min) / buckets as f64);
-    let (mut start, mut bins);
-    loop {
-        start = (min / step).floor() * step;
-        bins = ((max - start) / step).floor() as usize + 1;
-        if bins <= buckets {
-            break;
-        }
-        step = nice_step(step * 1.01);
-    }
+    };
     let mut out: Vec<HistogramBin> = (0..bins)
         .map(|i| HistogramBin {
             from: start + i as f64 * step,
@@ -147,4 +157,22 @@ fn histogram(v: &[f64], buckets: usize) -> Vec<HistogramBin> {
         out[i].count += 1;
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bin_layout;
+
+    #[test]
+    fn bins_have_round_edges_and_cover_the_range() {
+        assert_eq!(bin_layout(3.0, 3.0, 10), None);
+        assert_eq!(bin_layout(0.0, 95.0, 10), Some((0.0, 10.0, 10)));
+        let (start, step, bins) = bin_layout(13.0, 987.0, 20).unwrap();
+        assert!(
+            start <= 13.0 && start + step * bins as f64 > 987.0 && bins <= 20,
+            "{start} {step} {bins}"
+        );
+        // Zero buckets ask for one.
+        assert_eq!(bin_layout(0.0, 1.0, 0).map(|b| b.2), Some(1));
+    }
 }

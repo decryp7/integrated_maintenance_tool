@@ -187,7 +187,7 @@ pub fn run_rows<R: RowRef>(program: &Program, rows: &mut dyn Iterator<Item = R>,
         .collect();
     let keep = |row: &R| program.filter.matches_event(row) && wheres.iter().all(|f| f.matches_event(row));
     let mut stages = program.stages[leading..].iter().peekable();
-    let mut state = match stages.peek() {
+    let state = match stages.peek() {
         Some(Stage::Stats { aggs, by }) => {
             stages.next();
             let matched = control.watch(rows).filter(|r| keep(r)).map(OwnedEvent);
@@ -201,6 +201,21 @@ pub fn run_rows<R: RowRef>(program: &Program, rows: &mut dyn Iterator<Item = R>,
             State::Events { items, fields: None }
         }
     };
+    finish(state, stages, control)
+}
+
+/// Applies `stages` to a result table (e.g. one a store aggregated in SQL for the program's first
+/// `stats`), as [`run_rows`] does after its `stats`.
+pub fn run_table(columns: Vec<String>, rows: Vec<Vec<Value>>, stages: &[Stage], control: &QueryControl) -> Result<QlResult, RunError> {
+    finish::<crate::row::OwnedRow>(State::Table { columns, rows }, stages.iter(), control)
+}
+
+/// Applies the remaining `stages` to `state` and returns the result.
+fn finish<'a, R: RowRef>(
+    mut state: State<R>,
+    stages: impl Iterator<Item = &'a Stage>,
+    control: &QueryControl,
+) -> Result<QlResult, RunError> {
     for stage in stages {
         state = state.apply(stage, control)?;
         control.check()?;
@@ -264,5 +279,38 @@ mod tests {
                 "{ql}"
             );
         }
+    }
+
+    #[test]
+    fn run_table_applies_the_stages_after_a_first_stats() {
+        let program = super::super::parse("| stats count() as n by N | sort n desc | head 2").unwrap();
+        let rows = vec![
+            vec![serde_json::json!("a"), serde_json::json!(1)],
+            vec![serde_json::json!("b"), serde_json::json!(3)],
+            vec![serde_json::json!("c"), serde_json::json!(2)],
+        ];
+        let columns = vec!["N".to_string(), "n".to_string()];
+        let control = QueryControl::new();
+        let out = super::run_table(columns.clone(), rows.clone(), &program.stages[1..], &control).unwrap();
+        assert_eq!(
+            out,
+            QlResult::Table {
+                columns: columns.clone(),
+                rows: vec![rows[1].clone(), rows[2].clone()],
+            }
+        );
+        // No further stages: the table as given; a cancel stops between stages.
+        assert_eq!(
+            super::run_table(columns.clone(), rows.clone(), &[], &control).unwrap(),
+            QlResult::Table {
+                columns: columns.clone(),
+                rows: rows.clone()
+            }
+        );
+        control.cancel();
+        assert!(matches!(
+            super::run_table(columns, rows, &program.stages[1..], &control),
+            Err(RunError::Cancelled)
+        ));
     }
 }
