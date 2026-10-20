@@ -97,7 +97,7 @@ import { MenuNode, TopMenu } from './menu-model';
     .menu {
       min-width: 240px; max-width: min(420px, calc(100vw - 16px)); max-height: calc(100vh - 56px); overflow-y: auto; overscroll-behavior: contain;
       display: flex; flex-direction: column; padding: 4px; border-radius: 8px;
-      background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: 13px;
+      background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: var(--fs-md);
     }
     .menu:focus { outline: none; }
     .item {
@@ -108,11 +108,11 @@ import { MenuNode, TopMenu } from './menu-model';
     .item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
     .check { width: 14px; flex: none; text-align: center; color: var(--accent); }
     .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+    .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-xs); }
     .chevron { flex: none; margin-inline-start: 24px; color: var(--muted); }
     .sep { flex: none; height: 1px; margin: 4px 6px; background: var(--border-2); }
     .group { display: flex; flex-direction: column; }
-    .group-label { padding: 6px 10px 2px 28px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .group-label { padding: 6px 10px 2px 28px; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   `,
 })
 export class MenuBar {

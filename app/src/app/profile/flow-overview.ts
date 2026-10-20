@@ -35,8 +35,8 @@ interface Stage {
     .stage { display: flex; align-items: center; gap: 4px; }
     .node { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 4px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--text); cursor: pointer; text-align: left; }
     .node:hover { background: var(--bg-hover); }
-    .title { font-weight: 600; font-size: 12px; }
-    .detail { font-size: 11px; color: var(--muted); }
+    .title { font-weight: 600; font-size: var(--fs-sm); }
+    .detail { font-size: var(--fs-xs); color: var(--muted); }
     .arrow { color: var(--faint); padding: 0 4px; }
   `,
 })

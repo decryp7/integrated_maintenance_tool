@@ -176,10 +176,10 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     </ng-template>
   `,
   styles: `
-    :host { width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; background: var(--bg-0); border-inline-end: 1px solid var(--border); overflow: hidden; }
+    :host { width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; background: var(--activity-bg); border-inline-end: 1px solid var(--border); overflow: hidden; }
     .act { position: relative; width: 36px; height: 36px; flex: none; border-radius: 8px; border: 0; background: transparent; color: var(--faint); display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .act:hover { color: var(--text); }
-    .act:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; color: var(--text); }
+    .act:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; color: var(--text); }
     .act.on { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .act[aria-disabled='true'] { opacity: 0.45; cursor: default; }
     .act[aria-disabled='true']:hover { color: var(--faint); }
@@ -189,12 +189,12 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
     .badge {
       position: absolute; bottom: 2px; inset-inline-end: 1px; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 7px;
-      background: var(--accent); color: var(--accent-ink); font-size: 9px; font-weight: 600; line-height: 14px; text-align: center;
+      background: var(--accent); color: var(--accent-ink); font-size: var(--fs-2xs); font-weight: 600; line-height: 14px; text-align: center;
     }
     .menu {
       min-width: 220px; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain;
       display: flex; flex-direction: column; padding: 4px; border-radius: 8px;
-      background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: 13px;
+      background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text-2); font-size: var(--fs-md);
     }
     .menu:focus { outline: none; }
     .mi {
@@ -207,7 +207,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     .check { width: 14px; flex: none; display: inline-flex; color: var(--accent); }
     .mi-icon { color: var(--muted); }
     .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+    .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-xs); }
   `,
 })
 export class ActivityBar {

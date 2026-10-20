@@ -98,13 +98,13 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
     DIALOG_FORM_STYLES,
     `
       section { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
-      h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--text); }
+      h3 { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
       input { height: 26px; padding: 0 8px; border: 1px solid var(--border-2); border-radius: 5px; background: var(--bg); color: var(--text); font: inherit; }
       input[aria-invalid='true'] { border-color: var(--danger-text); }
-      .hint, .small { font-size: 11.5px; }
+      .hint, .small { font-size: var(--fs-xs); }
       .ellipsis { display: inline-block; max-width: 320px; vertical-align: bottom; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .suggestion { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-      .conf { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-2); }
+      .conf { margin-left: 6px; font-size: var(--fs-xs); padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-2); }
       .conf.high { border-color: var(--ok-text, var(--accent)); }
       .conf.low { border-color: var(--warn-text); color: var(--warn-text); }
     `,

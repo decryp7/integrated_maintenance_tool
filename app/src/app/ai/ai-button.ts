@@ -26,7 +26,7 @@ import { AiStatusStore } from './ai-status.store';
   styles: `
     :host { display: contents; }
     .ai-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-    .spark { color: var(--accent); font-size: 11px; }
+    .spark { color: var(--accent); font-size: var(--fs-xs); }
   `,
 })
 export class AiButton {

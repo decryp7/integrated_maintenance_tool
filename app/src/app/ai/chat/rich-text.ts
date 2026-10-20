@@ -44,10 +44,10 @@ import { Block, IncrementalMarkdown, Inline } from './markdown';
     ul, ol { margin: 0 0 8px; padding-left: 20px; }
     li { margin: 2px 0; }
     code { background: var(--code-bg); padding: 0 3px; border-radius: 3px; font-size: 0.92em; }
-    pre { background: var(--code-bg); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0 0 8px; font-size: 12px; white-space: pre; }
+    pre { background: var(--code-bg); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 0 0 8px; font-size: var(--fs-sm); white-space: pre; }
     pre code { background: none; padding: 0; }
     .cite { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-    .cite:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+    .cite:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 2px; }
     .cite.q { color: inherit; background: var(--code-bg); padding: 0 3px; border-radius: 3px; text-decoration: none; border-bottom: 1px dashed var(--accent); }
     .cite.unverified { color: var(--muted); text-decoration-style: dotted; }
   `,

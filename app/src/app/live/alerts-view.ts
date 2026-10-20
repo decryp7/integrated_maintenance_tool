@@ -84,16 +84,16 @@ import { activeLocale } from '../i18n/locale';
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .filters { display: flex; gap: 4px; flex-wrap: wrap; }
-    .chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
     .chip[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
     .spacer { flex: 1; }
-    .small { font-size: 11px; }
-    .mutes { flex: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .small { font-size: var(--fs-xs); }
+    .mutes { flex: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
     .mute { color: var(--text-2); }
     .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; margin-left: 4px; }
-    .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .list { flex: 1; min-height: 0; overflow: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
     th { position: sticky; top: 0; background: var(--bg-2); text-align: left; font-weight: 600; color: var(--muted); padding: 5px 8px; border-bottom: 1px solid var(--border); }
     td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-2); }
     .msg { color: var(--text); min-width: 200px; }

@@ -144,7 +144,7 @@ import { plural } from '../i18n/locale';
     .scroll:focus-visible { outline-offset: -2px; }
     section { display: flex; flex-direction: column; gap: 8px; }
     h2 { margin: 0; }
-    .sub { margin: 4px 0 0; font-size: 12px; color: var(--text-2); }
+    .sub { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--text-2); }
     .intro { margin: 0; color: var(--text-2); line-height: 1.5; }
     .grid { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-start; }
     .card { border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-2); padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; margin: 0; }
@@ -153,11 +153,11 @@ import { plural } from '../i18n/locale';
     .inline { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
     .grow { flex: 1; }
     .spacer { flex: 1; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     .col { min-width: 160px; }
-    .problem { color: var(--danger-text); font-size: 12px; }
-    .err { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--danger-text); background: var(--bg-3); color: var(--danger-text); font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
-    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: 12px; }
+    .problem { color: var(--danger-text); font-size: var(--fs-sm); }
+    .err { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--danger-text); background: var(--bg-3); color: var(--danger-text); font-size: var(--fs-sm); display: flex; flex-direction: column; gap: 2px; }
+    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
     .scroll { scroll-padding-bottom: 56px; }
     .footer { position: sticky; bottom: 0; z-index: 1; background: var(--bg-1); padding: 8px 0; margin-top: 4px; border-top: 1px solid var(--border); align-items: center; }
   `,

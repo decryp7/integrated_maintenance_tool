@@ -9,7 +9,7 @@ import { handOffText, leakText } from './browser-text';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `@for (s of segments(); track $index) {@if (s.leak) {<mark [class]="s.leak" [title]="label(s)">{{ s.text }}<span class="sr-only"> ({{ label(s) }})</span></mark>} @else {{{ s.text }}}}`,
   styles: `
-    :host { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+    :host { font-family: var(--font-mono); font-size: var(--fs-sm); overflow-wrap: anywhere; }
     mark { background: color-mix(in srgb, var(--warn-text) 20%, transparent); color: var(--text); border-radius: 3px; padding: 0 2px; outline: 1px solid var(--warn-text); }
     mark.private { background: transparent; outline-style: dashed; }
   `,
@@ -77,7 +77,7 @@ function askHeading(kind: AgentApprovalView['request']['ask']['kind'], site: str
   styles: `
     .card { border: 1px solid var(--border-3); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; background: var(--bg-1); }
     p { margin: 0; }
-    .small { font-size: 12px; }
+    .small { font-size: var(--fs-sm); }
     .warn { color: var(--warn-text); }
     .row { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
   `,
@@ -123,7 +123,7 @@ export class AgentApprovalCard {
   styles: `
     .card { border: 1px solid var(--border-3); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
     p { margin: 0; }
-    .small { font-size: 12px; }
+    .small { font-size: var(--fs-sm); }
     .row { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
   `,
 })
@@ -158,7 +158,7 @@ export class LinkCard {
   styles: `
     .card { border: 1px solid var(--border-3); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
     p { margin: 0; }
-    .small { font-size: 12px; }
+    .small { font-size: var(--fs-sm); }
     .warn { color: var(--warn-text); }
     .row { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
   `,
@@ -185,7 +185,7 @@ export class ResearchOfferCard {
   `,
   styles: `
     .paused { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border-left: 3px solid var(--accent); background: var(--bg-1); }
-    p { margin: 0; font-size: 12px; }
+    p { margin: 0; font-size: var(--fs-sm); }
   `,
 })
 export class AgentPaused {

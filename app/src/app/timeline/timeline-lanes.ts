@@ -126,10 +126,10 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
     .lane-label { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 0 10px 0 12px; border: 0; border-left: 2px solid transparent; background: transparent; cursor: pointer; text-align: left; min-width: 0; }
     .lane-label:hover { background: var(--bg-hover); }
     .lane-label.filtered { border-left-color: var(--accent); background: var(--bg-active); }
-    .key { font-size: 12px; color: var(--text); max-width: 100%; min-width: 0; }
+    .key { font-size: var(--fs-sm); color: var(--text); max-width: 100%; min-width: 0; }
     .key-row { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
-    .more-src { font-size: 10px; }
-    .meta { font-size: 11px; max-width: 100%; }
+    .more-src { font-size: var(--fs-2xs); }
+    .meta { font-size: var(--fs-xs); max-width: 100%; }
     .track { height: 32px; }
     .baseline { position: absolute; left: 0; right: 0; top: 16px; height: 1px; background: var(--grid-line); }
     .bar { position: absolute; top: 7px; height: 18px; min-width: 2px; background: var(--lane-bar); border: 1px solid var(--lane-border); border-radius: 4px; }
@@ -142,9 +142,9 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
     .marker:focus-visible { outline: none; }
     .glyph { position: absolute; top: 0; height: 32px; width: 16px; margin-left: -8px; display: flex; align-items: center; justify-content: center; }
     .marker:hover .glyph.primary imt-marker-glyph, .glyph:hover imt-marker-glyph { transform: scale(1.35); }
-    .marker:focus-visible .glyph.primary { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .count { position: absolute; left: 17px; top: 2px; font-size: 9px; padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
-    .truncated { padding: 6px 14px; font-size: 12px; }
+    .marker:focus-visible .glyph.primary { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .count { position: absolute; left: 17px; top: 2px; font-size: var(--fs-2xs); padding: 0 2px; border-radius: 2px; color: var(--text-2); background: var(--bg-1); pointer-events: none; }
+    .truncated { padding: 6px 14px; font-size: var(--fs-sm); }
   `,
 })
 export class TimelineLanes {

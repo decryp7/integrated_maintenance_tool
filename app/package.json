@@ -7,7 +7,7 @@
     "build": "node scripts/build-info.mjs build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "lint": "ng lint",
+    "lint": "ng lint && node scripts/lint-styles.mjs",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium webkit",
     "e2e:tauri:build": "tauri build --debug --no-bundle",

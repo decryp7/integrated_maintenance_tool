@@ -113,7 +113,7 @@ export const AI_CHAT_VIEW_ID = 'ai-chat';
   styles: `
     .research { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--accent); border-radius: 6px; margin-bottom: 8px; }
     .research .grow { flex: 1; }
-    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; background: var(--bg-2); }
+    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: var(--fs-md); background: var(--bg-2); }
     .bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
     .address { display: flex; flex: 1; gap: 6px; min-width: 0; }
     .address .input { flex: 1; min-width: 80px; }
@@ -121,17 +121,17 @@ export const AI_CHAT_VIEW_ID = 'ai-chat';
     .body { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
     .page p { margin: 0; }
     .title { font-weight: 600; overflow-wrap: anywhere; }
-    .url { font-size: 11px; overflow-wrap: anywhere; }
+    .url { font-size: var(--fs-xs); overflow-wrap: anywhere; }
     .actions, .row { display: flex; gap: 6px; flex-wrap: wrap; }
     .empty { margin: 0; line-height: 1.5; }
     .agent { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); }
     .notice, .confirm { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); display: flex; flex-direction: column; gap: 6px; }
     .notice p, .confirm p { margin: 0; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
     .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; margin-left: 6px; }
-    .link:focus-visible { outline: 2px solid var(--accent); }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })
 export class WebPanel implements OnInit {

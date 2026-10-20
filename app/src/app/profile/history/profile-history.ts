@@ -70,8 +70,8 @@ import { lineDiff, stampToMs } from './line-diff';
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 14px; gap: 10px; overflow: auto; }
     p { margin: 0 0 6px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .err { color: var(--danger-text); font-size: 12px; }
+    .muted { color: var(--muted); font-size: var(--fs-sm); }
+    .err { color: var(--danger-text); font-size: var(--fs-sm); }
     .state { padding: 12px 0; }
     .empty p:first-child { color: var(--text); }
     .cols { display: grid; grid-template-columns: 260px 1fr; gap: 14px; min-height: 0; flex: 1; }
@@ -79,12 +79,12 @@ import { lineDiff, stampToMs } from './line-diff';
     .ver { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-2); cursor: pointer; text-align: left; font: inherit; }
     .ver:hover { background: var(--bg-hover); color: var(--text); }
     .ver.on { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
-    .ver:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    .when { font-size: 12px; }
-    .vname { font-size: 11px; color: var(--muted); }
+    .ver:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .when { font-size: var(--fs-sm); }
+    .vname { font-size: var(--fs-xs); color: var(--muted); }
     .detail { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
-    .summary { font-size: 12px; color: var(--text-2); }
-    .diff { margin: 0; padding: 6px 0; flex: 1; min-height: 120px; max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: 11.5px; line-height: 1.5; }
+    .summary { font-size: var(--fs-sm); color: var(--text-2); }
+    .diff { margin: 0; padding: 6px 0; flex: 1; min-height: 120px; max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg); font-size: var(--fs-xs); line-height: 1.5; }
     .l { display: block; padding: 0 8px; white-space: pre-wrap; word-break: break-word; }
     .l.removed { background: color-mix(in srgb, var(--danger-text) 14%, transparent); }
     .l.added { background: color-mix(in srgb, var(--ok) 16%, transparent); }

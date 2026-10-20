@@ -174,11 +174,11 @@ import { AiRichText } from './rich-text';
     </form>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; }
+    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: var(--fs-md); }
     .bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .bar .select { max-width: 220px; }
     .spacer { flex: 1; }
-    .engine { font-size: 11px; }
+    .engine { font-size: var(--fs-xs); }
     .setup { padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
     .setup p { margin: 0 0 8px; }
     .log { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
@@ -189,23 +189,23 @@ import { AiRichText } from './rich-text';
     .answer { display: flex; flex-direction: column; gap: 8px; }
     .answer.neutral imt-ai-rich-text { color: var(--muted); font-style: italic; }
     .tools { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
-    .tool { font-size: 11px; }
+    .tool { font-size: var(--fs-xs); }
     .tool.running { opacity: 0.8; }
     .tool.err { border-color: var(--lvl-error); }
     .sum { color: var(--text-2); }
     .thinking { margin: 0; }
-    .sources, .note, .step { margin: 0; font-size: 12px; }
+    .sources, .note, .step { margin: 0; font-size: var(--fs-sm); }
     .sources .link { margin-left: 6px; }
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
-    .banner { padding: 4px 12px; font-size: 12px; }
+    .banner { padding: 4px 12px; font-size: var(--fs-sm); }
     .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
-    .link:focus-visible { outline: 2px solid var(--accent); }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); }
     .context { padding: 4px 8px 0; }
-    .ctx { cursor: pointer; font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ctx-list { border: 1px solid var(--border); border-radius: 6px; margin: 4px 0 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+    .ctx { cursor: pointer; font-size: var(--fs-xs); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ctx-list { border: 1px solid var(--border); border-radius: 6px; margin: 4px 0 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); }
     .ctx-item.off { color: var(--muted); }
-    .small { margin: 4px 0 0; font-size: 11px; }
+    .small { margin: 4px 0 0; font-size: var(--fs-xs); }
     .composer { display: flex; gap: 6px; padding: 8px; align-items: flex-end; }
     .composer textarea { flex: 1; resize: vertical; min-height: 38px; font-family: inherit; }
   `,

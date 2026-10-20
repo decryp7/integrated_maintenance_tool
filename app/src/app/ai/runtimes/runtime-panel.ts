@@ -265,10 +265,10 @@ import {
     }
     h4 {
       margin: 4px 0 0;
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .intro {
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .list {
       list-style: none;
@@ -306,7 +306,7 @@ import {
       flex-wrap: wrap;
     }
     .facts {
-      font-size: 12px;
+      font-size: var(--fs-sm);
       color: var(--text-2);
       overflow-wrap: anywhere;
     }
@@ -350,7 +350,7 @@ import {
       display: flex;
       gap: 8px;
       align-items: center;
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .progress {
       display: flex;
@@ -371,7 +371,7 @@ import {
     }
     .note {
       color: var(--muted);
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .note.warn {
       color: var(--lvl-warn);

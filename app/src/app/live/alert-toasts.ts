@@ -34,17 +34,17 @@ import { SeverityBadge } from './severity-badge';
   styles: `
     :host { position: fixed; right: 16px; bottom: 32px; z-index: 1900; pointer-events: none; }
     .stack { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-    .toast { pointer-events: auto; position: relative; width: 380px; max-width: calc(100vw - 32px); padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+    .toast { pointer-events: auto; position: relative; width: 380px; max-width: calc(100vw - 32px); padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-md); }
     .toast.critical { border-left-color: var(--lvl-fatal); }
     .toast.warning { border-left-color: var(--lvl-warn); }
     .head { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .kind { white-space: nowrap; }
-    .inst { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 11px; }
-    .time { margin-left: auto; font-size: 11px; white-space: nowrap; }
+    .inst { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: var(--fs-xs); }
+    .time { margin-left: auto; font-size: var(--fs-xs); white-space: nowrap; }
     .msg { color: var(--text-2); line-height: 1.4; overflow-wrap: anywhere; }
     .actions { display: flex; gap: 6px; }
-    .x { all: unset; position: absolute; top: 6px; right: 8px; cursor: pointer; color: var(--text-2); font-size: 16px; line-height: 1; }
-    .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .x { all: unset; position: absolute; top: 6px; right: 8px; cursor: pointer; color: var(--text-2); font-size: var(--fs-lg); line-height: 1; }
+    .x:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   `,
 })
 export class AlertToasts {

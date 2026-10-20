@@ -196,7 +196,7 @@ const ENGINE_STATE: Record<string, string> = {
     }
     h3 {
       margin: 0 0 6px;
-      font-size: 13px;
+      font-size: var(--fs-md);
     }
     p {
       margin: 0 0 4px;
@@ -239,7 +239,7 @@ const ENGINE_STATE: Record<string, string> = {
       flex-wrap: wrap;
     }
     .facts {
-      font-size: 12px;
+      font-size: var(--fs-sm);
       color: var(--text-2);
       overflow-wrap: anywhere;
     }

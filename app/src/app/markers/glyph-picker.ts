@@ -87,12 +87,12 @@ const MODES: { id: GlyphMode; label: string }[] = [
     .tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
     .panel { display: flex; flex-direction: column; gap: 8px; min-height: 96px; }
     .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     .shapes, .grid { display: flex; flex-wrap: wrap; gap: 4px; max-height: 150px; overflow: auto; }
     .pick { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); color: var(--text-2); cursor: pointer; }
     .pick[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
     .current { display: flex; align-items: center; gap: 8px; }
-    .err { color: var(--danger-text); font-size: 12px; }
+    .err { color: var(--danger-text); font-size: var(--fs-sm); }
   `,
 })
 export class GlyphPicker {

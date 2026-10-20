@@ -104,7 +104,7 @@ import { TreeStore } from './tree.store';
     `
       .tight { padding: 0; }
       table.grid td, table.grid th { padding-top: 2px; padding-bottom: 2px; }
-      tr[role='row'][tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      tr[role='row'][tabindex]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
       td.fn { max-width: 640px; }
       .fnwrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
       .tw { width: 12px; flex: none; cursor: pointer; color: var(--muted); }

@@ -18,7 +18,7 @@ let tagIds = 0;
   template: `<span class="m" [class.sampled]="m() === 'sampled'" [attr.title]="help()" [attr.data-measurement]="m()" aria-hidden="true">{{ glyph() }}</span><span class="sr">{{ srLabel() }}</span>`,
   styles: `
     :host { display: inline-flex; }
-    .m { font-family: var(--font-mono); font-size: 10px; min-width: 12px; text-align: center; padding: 0 3px; border-radius: 3px; border: 1px solid var(--border-3); color: var(--text-2); cursor: help; }
+    .m { font-family: var(--font-mono); font-size: var(--fs-2xs); min-width: 12px; text-align: center; padding: 0 3px; border-radius: 3px; border: 1px solid var(--border-3); color: var(--text-2); cursor: help; }
     .m.sampled { border-style: dashed; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   `,
@@ -40,7 +40,7 @@ export class MeasurementTag {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MeasurementTag],
   template: `<span class="lg" i18n="@@profiling.legend.sampled"><imt-measurement m="sampled" /> sampled estimate</span><span class="lg" i18n="@@profiling.legend.exact"><imt-measurement m="exact" /> exact</span>`,
-  styles: `:host { display: inline-flex; gap: 10px; font-size: 11px; color: var(--muted); } .lg { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }`,
+  styles: `:host { display: inline-flex; gap: 10px; font-size: var(--fs-xs); color: var(--muted); } .lg { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }`,
 })
 export class MeasurementLegend {}
 
@@ -59,7 +59,7 @@ export class MeasurementLegend {}
     }
   `,
   styles: `
-    .notes { display: flex; gap: 10px; align-items: baseline; padding: 4px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-2); color: var(--warn-text); }
+    .notes { display: flex; gap: 10px; align-items: baseline; padding: 4px 12px; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); background: var(--bg-2); color: var(--warn-text); }
     .notes strong { white-space: nowrap; }
     ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; color: var(--text-2); }
   `,
@@ -155,7 +155,7 @@ const RECURSION: { id: RecursionMode; label: string }[] = [
       :host { display: block; flex: none; }
       .jmc { display: flex; flex-direction: column; gap: 6px; padding: 6px 12px 8px; border-bottom: 1px solid var(--border); background: var(--bg-2); }
       .col { display: flex; flex-direction: column; gap: 4px; }
-      textarea { font: inherit; font-family: var(--font-mono); font-size: 12px; color: var(--text); background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 4px; padding: 4px 6px; max-width: 520px; }
+      textarea { font: inherit; font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text); background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 4px; padding: 4px 6px; max-width: 520px; }
       .row-btns { display: flex; gap: 6px; }
     `,
   ],

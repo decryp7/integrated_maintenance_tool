@@ -85,7 +85,7 @@ import { TourOverlay } from './onboarding/tour-overlay';
     .drop {
       position: fixed; inset: 12px; z-index: 90; border: 2px dashed var(--accent); border-radius: 12px;
       background: var(--accent-soft); display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: var(--text); pointer-events: none;
+      font-size: var(--fs-lg); color: var(--text); pointer-events: none;
     }
   `,
 })

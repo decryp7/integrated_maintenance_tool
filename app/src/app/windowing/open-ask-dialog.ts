@@ -63,7 +63,7 @@ export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     p { margin: 0; }
-    .names { margin: 0; padding: 6px 10px; list-style: none; max-height: 180px; overflow: auto; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); font-size: 12px; }
+    .names { margin: 0; padding: 6px 10px; list-style: none; max-height: 180px; overflow: auto; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); font-size: var(--fs-sm); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
   `,
 })

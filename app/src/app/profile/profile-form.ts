@@ -246,12 +246,12 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
     .nav-item:hover { background: var(--bg-hover); }
     .nav-item.on { background: var(--bg-sel); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .body { flex: 1; min-width: 0; overflow: auto; padding: 16px 20px 40px; display: flex; flex-direction: column; gap: 10px; max-width: 1100px; }
-    h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+    h2 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
     .help { margin: 0; color: var(--muted); line-height: 1.5; max-width: 760px; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--muted); }
     .lbl.row, .row { flex-direction: row; align-items: center; gap: 6px; display: flex; }
     .narrow { max-width: 240px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
     .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }

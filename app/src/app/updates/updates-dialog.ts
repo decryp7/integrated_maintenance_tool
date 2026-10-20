@@ -128,18 +128,18 @@ export function releaseDate(iso: string | null): string {
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
     p { margin: 0; }
-    .current { font-size: 12px; }
+    .current { font-size: var(--fs-sm); }
     .msg { font-weight: 600; }
     .next { color: var(--text-2); line-height: 1.45; }
-    .meta { font-size: 12px; }
-    .notes { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); font-size: 12.5px; line-height: 1.45; }
+    .meta { font-size: var(--fs-sm); }
+    .notes { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); font-size: var(--fs-md); line-height: 1.45; }
     progress { width: 100%; }
-    .quit { display: flex; gap: 6px; align-items: center; font-size: 12.5px; }
+    .quit { display: flex; gap: 6px; align-items: center; font-size: var(--fs-md); }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .err { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--danger, var(--lvl-error)); border-radius: 6px; background: var(--bg-3); }
     .err .msg { color: var(--danger-text); }
-    .detail { font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; }
-    .auto { font-size: 11.5px; line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
+    .detail { font-family: var(--font-mono); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+    .auto { font-size: var(--fs-xs); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
   `,
 })
 export class UpdatesDialog {

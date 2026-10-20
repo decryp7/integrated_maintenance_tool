@@ -119,7 +119,7 @@ const STATUS_LABEL = {
       .pane.table { flex: 2; }
       .tight { padding: 0; }
       .fn { max-width: 460px; }
-      .crumbs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; padding: 4px 12px; font-size: 12px; }
+      .crumbs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; padding: 4px 12px; font-size: var(--fs-sm); }
       .current { color: var(--text); font-weight: 600; }
       .sep { color: var(--faint); }
       .more { margin: 8px 12px; }

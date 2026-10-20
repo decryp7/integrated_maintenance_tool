@@ -39,10 +39,10 @@ import { parseMarkdown } from './markdown';
   `,
   imports: [NgTemplateOutlet],
   styles: `
-    :host { display: block; font-size: 13px; line-height: 1.5; }
+    :host { display: block; font-size: var(--fs-md); line-height: 1.5; }
     p, ul, ol, blockquote, pre { margin: 0 0 6px; }
     .h { font-weight: 600; }
-    .h1 { font-size: 16px; } .h2 { font-size: 15px; } .h3 { font-size: 14px; }
+    .h1 { font-size: var(--fs-lg); } .h2 { font-size: var(--fs-lg); } .h3 { font-size: var(--fs-lg); }
     blockquote { padding-left: 8px; border-left: 3px solid var(--border-3); color: var(--muted); }
     pre, code { font-family: var(--font-mono); background: var(--bg-3); border-radius: 3px; }
     pre { padding: 6px; white-space: pre-wrap; }

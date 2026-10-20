@@ -24,7 +24,7 @@ import { JobsStore } from './jobs.store';
     :host { display: flex; flex-direction: column; gap: 2px; }
     .wait { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .line { color: var(--text-muted, inherit); }
-    .hint { margin: 0; font-size: 12px; color: var(--text-muted, inherit); }
+    .hint { margin: 0; font-size: var(--fs-sm); color: var(--text-muted, inherit); }
     .err { margin: 0; color: var(--danger-text, var(--lvl-error)); }
   `,
 })

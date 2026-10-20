@@ -65,20 +65,20 @@ import { SidebarSections } from '../shell/sidebar-sections';
     :host(.open) { flex: 1; }
     .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     .toggle { display: flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
-    .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+    .toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
     .head { height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .filter { margin: 0 8px 6px; flex: none; }
     .fields { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 8px; }
     .field-wrap { position: relative; display: flex; align-items: center; border-radius: 5px; }
     .field-wrap:hover { background: var(--bg-hover); }
     .field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; text-align: left; color: var(--text-2); }
     .field.grouped { background: var(--bg-active); }
-    .gmark { width: 12px; color: var(--accent); font-size: 11px; }
-    .fname { flex: 1; min-width: 0; font-size: 12px; }
+    .gmark { width: 12px; color: var(--accent); font-size: var(--fs-xs); }
+    .fname { flex: 1; min-width: 0; font-size: var(--fs-sm); }
     .cov { width: 40px; height: 4px; border-radius: 2px; background: var(--border-2); overflow: hidden; flex: none; }
     .cov span { display: block; height: 4px; background: var(--faint); border-radius: 2px; }
-    .distinct { width: 34px; text-align: right; font-size: 11px; }
+    .distinct { width: 34px; text-align: right; font-size: var(--fs-xs); }
     .stats { width: 20px; height: 20px; flex: none; visibility: hidden; }
     .field-wrap:hover .stats, .stats:focus-visible, .field:focus-visible + .stats { visibility: visible; }
   `,

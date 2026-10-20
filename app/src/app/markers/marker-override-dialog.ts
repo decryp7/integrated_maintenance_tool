@@ -54,7 +54,7 @@ import { OverrideStyle, PluginKindRow, styleProblems } from './marker-overrides'
       .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
       .presets { display: flex; gap: 4px; }
       .swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border-3); padding: 0; cursor: pointer; }
-      .swatch[aria-pressed='true'] { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .swatch[aria-pressed='true'] { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
       .err { color: var(--danger-text); }
       .actions { display: flex; justify-content: flex-end; gap: 8px; }
     `,

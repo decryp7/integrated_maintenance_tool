@@ -80,13 +80,13 @@ import { MarkerHover } from './timeline-lanes';
   `,
   styles: `
     .spacer { flex: 1; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .tip { position: fixed; width: 340px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; line-height: 1.45; }
     .tip-head { display: flex; align-items: center; gap: 8px; }
     .tip-desc { color: var(--text); }
     .tip-msg { color: var(--text-2); }
     .warn-text { color: var(--warn-text); }
-    .run-status { font-size: 11px; }
+    .run-status { font-size: var(--fs-xs); }
   `,
 })
 export class TimelineTooltips {

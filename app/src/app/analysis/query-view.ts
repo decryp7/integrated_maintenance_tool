@@ -113,12 +113,12 @@ export function progressText(p: QueryProgress | null): string | null {
     </div>
   `,
   styles: `
-    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; padding: 8px 12px; background: var(--bg-1); color: var(--text-2); font-size: 12px; }
+    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; padding: 8px 12px; background: var(--bg-1); color: var(--text-2); font-size: var(--fs-sm); }
     .qbar { display: flex; gap: 8px; align-items: center; }
     .editor { position: relative; flex: 1; min-width: 0; height: 30px; border: 1px solid var(--border-3); border-radius: 5px; background: var(--bg-3); }
     .editor:focus-within { border-color: var(--accent); }
     .editor.invalid { border-color: var(--danger-text); }
-    .mirror, .qinput { position: absolute; inset: 0; padding: 0 9px; font: 13px/28px var(--font-mono); white-space: pre; }
+    .mirror, .qinput { position: absolute; inset: 0; padding: 0 9px; font: var(--fs-md)/28px var(--font-mono); white-space: pre; }
     .mirror { overflow: hidden; pointer-events: none; }
     .shift { display: inline-block; }
     .qinput { width: 100%; box-sizing: border-box; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--text); }
@@ -136,14 +136,14 @@ export function progressText(p: QueryProgress | null): string | null {
     .popup { position: absolute; z-index: 20; top: 32px; left: 0; min-width: 260px; max-width: 520px; max-height: 240px; overflow: auto; margin: 0; padding: 4px 0; list-style: none; background: var(--bg-3); border: 1px solid var(--border-3); border-radius: 6px; box-shadow: var(--shadow); }
     .popup li { display: flex; gap: 10px; align-items: baseline; padding: 4px 10px; cursor: pointer; }
     .popup li.active, .popup li:hover { background: var(--bg-sel); }
-    .kind { width: 58px; flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .kind { width: 58px; flex: none; font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
     .anchor { position: relative; }
     .history { right: 0; left: auto; width: 480px; }
     .history li { padding: 0; }
-    .history .item { all: unset; box-sizing: border-box; width: 100%; padding: 4px 10px; cursor: pointer; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history .item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .history .item { all: unset; box-sizing: border-box; width: 100%; padding: 4px 10px; cursor: pointer; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history .item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .history .clear { border-top: 1px solid var(--border); font-family: var(--font-sans); color: var(--muted); }
-    .status { min-height: 16px; font-size: 12px; }
+    .status { min-height: 16px; font-size: var(--fs-sm); }
     .err-msg { color: var(--danger-text); }
     .muted { color: var(--muted); }
     .applied code, .muted code { color: var(--text); }

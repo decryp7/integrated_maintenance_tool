@@ -49,22 +49,22 @@ import { AiLauncher } from '../ai/ai-launcher';
     </div>
   `,
   styles: `
-    .bar { padding: 4px 8px 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+    .bar { padding: 4px 8px 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
     .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .spacer { flex: 1; }
-    .mode { font-size: 10.5px; padding: 0 7px; border-radius: 8px; border: 1px solid var(--accent); color: var(--text); }
+    .mode { font-size: var(--fs-2xs); padding: 0 7px; border-radius: 8px; border: 1px solid var(--accent); color: var(--text); }
     .toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
     .sources { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
     .src { max-width: 100%; }
     .src .ellipsis { max-width: 220px; }
-    .tag { font-size: 10px; color: var(--warn-text); }
+    .tag { font-size: var(--fs-2xs); color: var(--warn-text); }
     p { margin: 0; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .note { color: var(--muted); }
     .hint { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
     .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
-    .link:focus-visible { outline: 2px solid var(--accent); }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })
 export class ChatBrowserBar {

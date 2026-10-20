@@ -104,20 +104,20 @@ function segments(sample: ExtractSample, colorOf: (name: string) => string): Seg
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-    .pattern { font-size: 12px; line-height: 1.6; }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--muted); }
+    .pattern { font-size: var(--fs-sm); line-height: 1.6; }
     .outputs-head, .preview-head { display: flex; align-items: center; gap: 10px; }
     .outputs { display: grid; grid-template-columns: 110px 100px 1fr 1fr 1fr 26px; gap: 4px; align-items: center; }
-    .th { font-size: 11px; color: var(--faint); }
-    .cap { padding: 2px 6px; border-radius: 3px; width: fit-content; font-size: 12px; color: var(--text); }
-    .span-all { grid-column: 1 / -1; font-size: 12px; }
-    .stat { font-size: 12px; color: var(--warn-text); }
+    .th { font-size: var(--fs-xs); color: var(--faint); }
+    .cap { padding: 2px 6px; border-radius: 3px; width: fit-content; font-size: var(--fs-sm); color: var(--text); }
+    .span-all { grid-column: 1 / -1; font-size: var(--fs-sm); }
+    .stat { font-size: var(--fs-sm); color: var(--warn-text); }
     .stat.ok { color: var(--ok); }
-    .err { color: var(--danger-text); font-size: 12px; }
-    .samples { padding: 8px 10px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border); font-size: 11px; line-height: 1.8; color: var(--muted); overflow-x: auto; max-height: 260px; }
+    .err { color: var(--danger-text); font-size: var(--fs-sm); }
+    .samples { padding: 8px 10px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border); font-size: var(--fs-xs); line-height: 1.8; color: var(--muted); overflow-x: auto; max-height: 260px; }
     .sample { white-space: pre; }
     .hl { color: var(--text); border-radius: 2px; }
-    .values { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 11px; }
+    .values { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: var(--fs-xs); }
     .values .k { color: var(--muted); }
     .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border-3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }

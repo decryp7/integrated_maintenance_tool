@@ -143,16 +143,16 @@ function timelineSource(): TimelineSource {
     .row { display: flex; align-items: stretch; }
     .label { width: ${LABEL_W}px; flex: none; }
     .plot { flex: 1; min-width: 0; position: relative; margin-right: 14px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .hist-row .label { display: flex; align-items: flex-end; padding: 0 14px 2px; }
     .hist { display: block; width: 100%; height: ${HIST_H}px; }
     .axis { height: 20px; border-bottom: 1px solid var(--border); }
-    .tick { position: absolute; top: 3px; transform: translateX(-50%); font-size: 10px; color: var(--faint); white-space: nowrap; }
+    .tick { position: absolute; top: 3px; transform: translateX(-50%); font-size: var(--fs-2xs); color: var(--faint); white-space: nowrap; }
     .overlay { position: absolute; top: 0; bottom: 0; pointer-events: none; }
     .brush { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-left: 1px solid var(--accent); border-right: 1px solid var(--accent); }
     .fatal-line { position: absolute; top: ${HIST_H}px; bottom: 0; width: 0; border-left: 1px dashed var(--mk-fatal); opacity: 0.55; }
     .cursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--border-3); }
-    .cursor-label { position: absolute; top: ${HIST_H + 2}px; left: 4px; font-size: 10px; padding: 1px 4px; border-radius: 3px; background: var(--tooltip-bg); border: 1px solid var(--border-3); color: var(--text-2); white-space: nowrap; }
+    .cursor-label { position: absolute; top: ${HIST_H + 2}px; left: 4px; font-size: var(--fs-2xs); padding: 1px 4px; border-radius: 3px; background: var(--tooltip-bg); border: 1px solid var(--border-3); color: var(--text-2); white-space: nowrap; }
   `,
 })
 export class TimelinePanel {

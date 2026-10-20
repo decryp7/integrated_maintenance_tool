@@ -27,7 +27,7 @@ import { AiRichText } from '../chat/rich-text';
     :host { display: flex; flex-direction: column; gap: 10px; }
     .answer { max-height: 55vh; overflow-y: auto; }
     .answer.neutral { color: var(--muted); font-style: italic; }
-    .note, .small { margin: 0; font-size: 12px; }
+    .note, .small { margin: 0; font-size: var(--fs-sm); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
   `,
 })

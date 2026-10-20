@@ -140,18 +140,18 @@ export function parseLimit(text: string): number | null {
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .controls { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-    .lbl { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-xs); color: var(--muted); }
     .num { width: 110px; }
-    .err { color: var(--danger-text); padding: 6px 12px; font-size: 12px; }
-    .totals { flex: none; display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 6px 12px; font-size: 12px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+    .err { color: var(--danger-text); padding: 6px 12px; font-size: var(--fs-sm); }
+    .totals { flex: none; display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 6px 12px; font-size: var(--fs-sm); color: var(--text-2); border-bottom: 1px solid var(--border); }
     .totals .bad { color: var(--danger-text); }
     .list { flex: 1; min-height: 0; overflow: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
     th { position: sticky; top: 0; background: var(--bg-2); text-align: left; font-weight: 600; color: var(--muted); padding: 5px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
     td { padding: 4px 8px; border-bottom: 1px solid var(--border); color: var(--text-2); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .r { text-align: right; }
     .nowrap { white-space: nowrap; }
-    .state { display: inline-block; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-2); font-size: 11px; }
+    .state { display: inline-block; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border-2); font-size: var(--fs-xs); }
     .state.rotated, .state.truncated { border-color: var(--warn-text); color: var(--warn-text); }
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }

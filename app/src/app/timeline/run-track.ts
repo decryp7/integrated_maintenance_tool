@@ -75,7 +75,7 @@ export interface RunHover {
     .run.st-open { border-right-style: none; border-top-right-radius: 0; border-bottom-right-radius: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--run-color) 18%, transparent) 55%, transparent); border-image: linear-gradient(90deg, color-mix(in srgb, var(--run-color) 75%, transparent) 55%, transparent) 1; }
     /* No stop seen: hatched, ending in a warning glyph. */
     .run.st-noStop { border-style: dashed; background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--run-color) 35%, transparent) 0 1px, transparent 1px 6px); }
-    .still { position: absolute; top: 9px; margin-right: 4px; padding: 0 3px; font-size: 10px; line-height: 14px; white-space: nowrap; color: var(--text-2); background: var(--bg-1); border-radius: 3px; pointer-events: none; z-index: 0; }
+    .still { position: absolute; top: 9px; margin-right: 4px; padding: 0 3px; font-size: var(--fs-2xs); line-height: 14px; white-space: nowrap; color: var(--text-2); background: var(--bg-1); border-radius: 3px; pointer-events: none; z-index: 0; }
     .warn { position: absolute; right: -8px; top: 50%; width: 16px; height: 16px; margin-top: -8px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
     .glyph-bg { fill: var(--bg-1); stroke: var(--warn-text); stroke-width: 1.4; stroke-linejoin: round; }
     .glyph-fg { fill: none; stroke: var(--warn-text); stroke-width: 1.6; stroke-linecap: round; }

@@ -43,7 +43,7 @@ import { Segments } from './chat-cards';
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; }
     p { margin: 0; }
-    .small { font-size: 11.5px; }
+    .small { font-size: var(--fs-xs); }
     .warn { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
     .flagged { border: 1px solid var(--warn-text); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }

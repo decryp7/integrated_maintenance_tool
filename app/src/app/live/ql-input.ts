@@ -57,10 +57,10 @@ let nextId = 1;
     .wrap { position: relative; }
     .input { width: 100%; box-sizing: border-box; }
     .popup { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 4px 0; list-style: none; max-height: 200px; overflow: auto; background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 6px; box-shadow: var(--shadow); }
-    .popup li { display: flex; gap: 8px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+    .popup li { display: flex; gap: 8px; padding: 3px 10px; cursor: pointer; font-size: var(--fs-sm); }
     .popup li.active, .popup li:hover { background: var(--bg-active); }
-    .kind { color: var(--muted); width: 64px; flex: none; font-size: 11px; }
-    .err { margin-top: 3px; font-size: 11px; color: var(--danger-text); }
+    .kind { color: var(--muted); width: 64px; flex: none; font-size: var(--fs-xs); }
+    .err { margin-top: 3px; font-size: var(--fs-xs); color: var(--danger-text); }
   `,
 })
 export class QlInput {

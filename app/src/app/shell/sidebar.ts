@@ -124,32 +124,32 @@ function shortPath(path: string): string {
     :host { width: 272px; flex: none; display: flex; flex-direction: column; background: var(--bg-2); border-inline-end: 1px solid var(--border); min-height: 0; }
     .head { height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; }
     .tools { display: flex; gap: 2px; }
-    .small { font-size: 11px; }
+    .small { font-size: var(--fs-xs); }
     .sources { padding: 0 8px 4px; max-height: 40%; overflow: auto; flex: none; }
     .src { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
     /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
     .src .name { flex: 1; min-width: 6ch; }
-    .src .count { font-size: 11px; color: var(--faint); width: 38px; text-align: end; }
+    .src .count { font-size: var(--fs-xs); color: var(--faint); width: 38px; text-align: end; }
     .src .rm { width: 20px; height: 20px; visibility: hidden; }
     .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
     .src.dim { color: var(--faint); font-style: italic; }
     .src.dim imt-icon { opacity: 0.6; }
-    .setup { height: 20px; padding: 0 6px; font-size: 11px; font-style: normal; }
-    .src-error { margin: 0 6px 4px 27px; font-size: 11px; color: var(--danger-text); }
+    .setup { height: 20px; padding: 0 6px; font-size: var(--fs-xs); font-style: normal; }
+    .src-error { margin: 0 6px 4px 27px; font-size: var(--fs-xs); color: var(--danger-text); }
     .empty { padding: 8px 6px; color: var(--muted); }
     .empty p { margin: 4px 0 10px; }
     .divider { height: 1px; background: var(--border); margin: 6px 0; flex: none; }
     .src.member { padding-inline-start: 24px; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .group .expander { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: start; }
-    .group .expander:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
-    .newest { margin: -4px 6px 2px 46px; font-size: 11px; }
-    .state { flex: none; font-size: 10px; padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-2); color: var(--text-2); }
+    .group .expander:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 4px; }
+    .newest { margin: -4px 6px 2px 46px; font-size: var(--fs-xs); }
+    .state { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-2); color: var(--text-2); }
     .state.rotated, .state.truncated { border-color: var(--warn-text); color: var(--warn-text); }
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
-    .skew { flex: none; font-size: 10px; padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
+    .skew { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
 export class Sidebar {

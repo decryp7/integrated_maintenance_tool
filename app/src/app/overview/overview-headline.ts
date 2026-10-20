@@ -103,7 +103,7 @@ export class OverviewHeadlineStore {
     }
   `,
   styles: `
-    .headline { flex: none; display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+    .headline { flex: none; display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; }
     .warn { color: var(--warn-text); flex: none; }
     /* 24px targets (WCAG 2.5.8) on a compact line. */
     .count, .review { min-height: 24px; border: 0; background: transparent; padding: 0 4px; border-radius: 4px; font: inherit; color: inherit; cursor: pointer; }
@@ -111,7 +111,7 @@ export class OverviewHeadlineStore {
     .count.bad { color: var(--danger-text); }
     .review { color: var(--chip-text); text-decoration: underline; }
     .count:hover, .review:hover { background: var(--bg-hover); }
-    .count:focus-visible, .review:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .count:focus-visible, .review:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   `,
 })
 export class OverviewHeadline {
