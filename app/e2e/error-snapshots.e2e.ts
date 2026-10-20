@@ -81,9 +81,12 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
   await expect(detail).toContainText('e2e boom');
   await expect(detail.getByRole('img', { name: /Screenshot/ })).toBeVisible();
 
-  // Export asks for a destination (the browser build uses a default name) and reports the result.
+  // Export asks for a destination (the browser build uses a default name); a job writes the zip and its message
+  // reports the result.
   await view.getByRole('button', { name: 'Export diagnostics…' }).click();
-  await expect(view.getByRole('status')).toContainText('Exported 1 snapshot');
+  await expect(view.getByRole('status')).toContainText('Exporting 1 snapshot');
+  const exported = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export diagnostics to' });
+  await expect(exported).toContainText('files zipped.', { timeout: 15_000 });
 
   await view.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(view.locator('[data-testid=snapshot-card]')).toHaveCount(0);

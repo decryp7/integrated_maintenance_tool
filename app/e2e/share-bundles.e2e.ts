@@ -23,7 +23,9 @@ test('shares the workspace as a bundle and opens a bundle read-only', async ({ p
   await expect(dialog.getByRole('status')).toContainText('files');
   await dialog.getByRole('button', { name: 'Save bundle…' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: 'Bundle written' })).toContainText('Case 42.imtz');
+  // A job writes the bundle; its message names the file.
+  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Share bundle Case 42.imtz' });
+  await expect(done).toContainText('Bundle written, redacted', { timeout: 15_000 });
   const written = await page.evaluate(() => (globalThis as unknown as { __imtMockShareWritten: { path: string; kind: string }[] }).__imtMockShareWritten);
   expect(written.some((w) => w.kind === 'imtz' && w.path.endsWith('.imtz'))).toBe(true);
 

@@ -11,9 +11,12 @@ test.describe('lifecycle banners and elevation', () => {
     await expect(page.locator('imt-title-bar + imt-lifecycle-banners')).toHaveCount(1);
     await expect(page.locator('imt-title-bar').getByTestId('project-title')).toContainText('Untitled');
     await expectNoSeriousViolations(page, testInfo, 'safe-mode-banner');
-    // Save diagnostics… asks where to save (the browser build takes the suggested name) and reports the result.
+    // Save diagnostics… asks where to save (the browser build takes the suggested name); a job writes the zip and its
+    // message reports the result.
     await banner.getByTestId('save-diagnostics').click();
-    await expect(page.getByTestId('diagnostics-export-status')).toContainText(/Saved diagnostics \(\d+ files\) to imt-diagnostics-\d{8}-\d{6}\.zip/);
+    await expect(page.getByTestId('diagnostics-export-status')).toContainText(/Saving diagnostics to imt-diagnostics-\d{8}-\d{6}\.zip/);
+    const saved = page.getByTestId('notice-toast').filter({ hasText: /Finished: .*imt-diagnostics-\d{8}-\d{6}\.zip/ });
+    await expect(saved).toContainText('files zipped.', { timeout: 15_000 });
     await page.getByTestId('diagnostics-export-status').getByRole('button', { name: 'Dismiss' }).click();
     await banner.getByRole('button', { name: 'Restart normally' }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'Could not restart' })).toHaveCount(0);
