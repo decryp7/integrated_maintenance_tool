@@ -29,6 +29,7 @@ mod demo;
 mod dev_overrides;
 mod diagnostics;
 mod engine_errors;
+mod file_commands;
 mod insights;
 mod instance;
 mod jobs;
@@ -38,6 +39,7 @@ mod logging;
 mod menu;
 mod notification_centre;
 mod notify;
+mod opener;
 mod panel_windows;
 mod plugin_isolation;
 mod pointer;
@@ -86,6 +88,7 @@ macro_rules! commands {
             workspace_commands::preview_extractor,
             workspace_commands::export_events,
             workspace_commands::source_context,
+            file_commands::open_source_file,
             workspace_commands::take_pending_open,
             workspace_commands::set_live,
             workspace_commands::import_progress,

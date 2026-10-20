@@ -32,10 +32,6 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, Runtime};
 use walk::Budget;
 
-/// Id of the background task while a clear runs.
-/// How long the OS file manager may run before it is killed.
-const OPENER_TIMEOUT: Duration = Duration::from_secs(30);
-
 /// The AI engine as the storage view sees it.
 struct AiAdapter(Arc<AiCore>);
 
@@ -266,36 +262,9 @@ pub async fn storage_reveal<R: Runtime>(app: AppHandle<R>, id: String) -> CmdRes
     Ok(dir.to_string_lossy().into_owned())
 }
 
-/// Starts the OS file manager on `dir` without waiting; a helper thread reaps it (killing it after
-/// [`OPENER_TIMEOUT`]).
+/// Starts the OS file manager on `dir` without waiting (see [`crate::opener`]).
 fn open_in_file_manager(dir: &std::path::Path) -> std::io::Result<()> {
-    use std::process::Stdio;
-    let opener = if cfg!(target_os = "macos") {
-        "open"
-    } else if cfg!(windows) {
-        "explorer"
-    } else {
-        "xdg-open"
-    };
-    let mut child = imt_core::process::quiet_command(opener)
-        .arg(dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
-    let deadline = Instant::now() + OPENER_TIMEOUT;
-    std::thread::Builder::new().name("imt-opener".into()).spawn(move || loop {
-        match child.try_wait() {
-            Ok(Some(_)) => return,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
-            _ => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return;
-            }
-        }
-    })?;
-    Ok(())
+    crate::opener::start(&crate::opener::open_folder(crate::opener::Os::CURRENT, dir))
 }
 
 #[cfg(test)]

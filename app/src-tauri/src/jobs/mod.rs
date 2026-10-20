@@ -389,7 +389,8 @@ pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
         return Err(format!("{path} no longer exists"));
     }
     jobs.mark_seen(JobId(id));
-    crate::snapshots::reveal_file(&p).map_err(|e| format!("could not show the file ({e}); it is at {path}"))?;
+    crate::opener::start(&crate::opener::reveal(crate::opener::Os::CURRENT, &p))
+        .map_err(|e| format!("could not show the file ({e}); it is at {path}"))?;
     Ok(path)
 }
 

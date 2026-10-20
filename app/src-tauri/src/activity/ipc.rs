@@ -199,6 +199,7 @@ const MUTATIONS: &[&str] = &[
     "open_snapshots_folder",
     "storage_clear",
     "storage_reveal",
+    "open_source_file",
     "export_diagnostics",
     "set_diagnostics_settings",
     "restart_elevated",
