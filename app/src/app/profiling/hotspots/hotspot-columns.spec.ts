@@ -28,7 +28,7 @@ describe('hotspotColumns', () => {
   it('offers every column for a full instrumented profile', () => {
     const all = (Object.keys(UNITS) as MetricId[]).map((id) => metric(id, 'exact'));
     const cols = hotspotColumns(summary(all), 'timeNs', 'Type');
-    expect(ids(cols)).toEqual(['name', 'self-timeNs', 'total-timeNs', 'selfPct', 'totalPct', 'total-samples', 'self-calls', 'avg', 'self-maxCallNs', 'self-allocCount', 'self-allocBytes', 'self-exceptions', 'self-waitNs']);
+    expect(ids(cols)).toEqual(['name', 'self-timeNs', 'total-timeNs', 'selfPct', 'totalPct', 'total-samples', 'self-calls', 'avg', 'self-maxCallNs', 'self-allocCount', 'self-allocBytes', 'self-exceptions', 'self-waitNs', 'self-liveBytes']);
   });
 
   it('labels each column sampled or exact from the profile MetricDto', () => {

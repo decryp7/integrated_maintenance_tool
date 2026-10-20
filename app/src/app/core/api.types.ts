@@ -2598,3 +2598,68 @@ export interface EtlConverted {
   path: string;
   notes: string[];
 }
+
+// ---- Native profiling (plugin net.decryptology.native; tools `native-profiler` and `native-profiler.etw`;
+// Rust: crates/imt-plugin-native, ADR 0022) ----
+
+/** A process that can be profiled (Rust `NativeProcess`). */
+export interface NativeProcess {
+  pid: number;
+  name: string;
+  path: string | null;
+  /** `x86`, `x64`, `arm64` when known. */
+  arch: string | null;
+  /** The sampler can open it; otherwise only ETW (administrator) records it. */
+  accessible: boolean;
+}
+
+/** `sampling`: suspend-and-sample, no rights needed; `etw`: ETW in the plugin's elevated process. */
+export type NativeCaptureMode = 'sampling' | 'etw';
+
+/** `defaults` of `native-profiler` (the settings' symbol options and the sampling bounds). */
+export interface NativeDefaults {
+  symbolPath: string;
+  /** Downloads from the Microsoft symbol server are allowed (off by default). */
+  symbolServer: boolean;
+  rateHz: number;
+  maxRateHz: number;
+  maxDurationSec: number;
+  /** False off Windows. */
+  supported: boolean;
+}
+
+/** `start` of either tool (Rust `request::Raw`): `rateHz` for sampling only, `heap` for ETW only. */
+export interface NativeCaptureRequest {
+  pid: number;
+  /** null/absent = until stopped. 1..3600. */
+  durationSec?: number | null;
+  /** Samples per second per thread, 1..1000 (sampling). */
+  rateHz?: number;
+  /** Record heap allocations with their stacks (ETW). */
+  heap?: boolean;
+  /** Folders with PDBs, separated by `;`. */
+  symbolPath?: string;
+  symbolServer?: boolean;
+}
+
+export type NativeCaptureState = 'recording' | 'stopping' | 'done' | 'failed' | 'cancelled';
+
+/** A capture (Rust `CaptureStatus`). */
+export interface NativeCaptureStatus {
+  id: string;
+  pid: number;
+  processName: string;
+  mode: NativeCaptureMode;
+  state: NativeCaptureState;
+  elapsedMs: number;
+  bytes: number;
+  /** Samples taken so far (sampling). */
+  samples: number;
+  /** The NetTrace file once done; open it with `profiling_open`. */
+  path: string | null;
+  error: string | null;
+  /** The error is missing rights. */
+  needsElevation: boolean;
+  truncated: boolean;
+  notes: string[];
+}
