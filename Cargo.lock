@@ -2860,6 +2860,7 @@ dependencies = [
  "arrow-array 58.4.0",
  "arrow-buffer 58.4.0",
  "arrow-schema 58.4.0",
+ "serde",
  "thiserror 2.0.21",
 ]
 
@@ -2900,6 +2901,7 @@ dependencies = [
  "flate2",
  "getrandom 0.3.4",
  "globset",
+ "imt-batch",
  "insta",
  "log",
  "proptest",

@@ -13,6 +13,8 @@ chrono = "0.4.45"
 csv = "1.4"
 flate2 = "1.1"
 getrandom = "0.3"
+# The event batch (ADR 0014 §3), re-exported as `imt_core::batch`.
+imt-batch = { path = "../imt-batch", features = ["serde"] }
 globset = "0.4.20"
 # Logging facade only: guard events (contained crashes, quarantines, abandoned calls) reach the app's log.
 log = { version = "0.4", features = ["kv"] }

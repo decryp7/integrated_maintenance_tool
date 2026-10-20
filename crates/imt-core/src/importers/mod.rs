@@ -15,6 +15,9 @@ use std::path::Path;
 pub use self::csv::CsvImporter;
 pub use self::json::JsonImporter;
 pub use self::text::TextImporter;
+// Shared with the streaming importers (`crate::ingest`).
+pub(crate) use self::json::{to_record as json_to_record, Depth as JsonDepth};
+pub(crate) use self::text::{best_format as text_best_format, finish as text_finish, split_trailing_properties};
 
 /// Lines longer than this (4 MiB) are skipped and counted, so one corrupt
 /// line cannot blow up memory in later processing.
@@ -174,23 +177,28 @@ pub fn decode(bytes: &[u8]) -> Option<String> {
     } else {
         String::from_utf8_lossy(bytes).into_owned()
     };
-    let sample: String = text.chars().take(8192).collect();
-    let control = sample
-        .chars()
-        .filter(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t' | '\x0c'))
-        .count();
-    if control > sample.len() / 100 + 2 {
+    if looks_binary(&text) {
         return None;
     }
     Some(text)
 }
 
-fn utf16(bytes: &[u8], f: fn([u8; 2]) -> u16) -> String {
+/// Whether decoded text is binary data: too many control characters in its first 8192 characters.
+pub(crate) fn looks_binary(text: &str) -> bool {
+    let sample: String = text.chars().take(8192).collect();
+    let control = sample
+        .chars()
+        .filter(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t' | '\x0c'))
+        .count();
+    control > sample.len() / 100 + 2
+}
+
+pub(crate) fn utf16(bytes: &[u8], f: fn([u8; 2]) -> u16) -> String {
     let units: Vec<u16> = bytes.as_chunks::<2>().0.iter().map(|c| f([c[0], c[1]])).collect();
     String::from_utf16_lossy(&units)
 }
 
-fn looks_utf16le(bytes: &[u8]) -> bool {
+pub(crate) fn looks_utf16le(bytes: &[u8]) -> bool {
     let n = bytes.len().min(512) & !1;
     n >= 8 && bytes[..n].iter().skip(1).step_by(2).filter(|b| **b == 0).count() * 10 > n / 2 * 9
 }

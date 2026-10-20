@@ -5,6 +5,7 @@ use std::fmt;
 /// A stable event identity: assigned once by the store's writer, never reused or renumbered.
 /// It is not the event's position in time order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 pub struct EventId(pub u64);
 
 impl fmt::Display for EventId {
@@ -15,6 +16,7 @@ impl fmt::Display for EventId {
 
 /// A stable source (file or archive member) identity within one store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(transparent))]
 pub struct SourceId(pub u32);
 
 impl fmt::Display for SourceId {
@@ -26,6 +28,7 @@ impl fmt::Display for SourceId {
 /// Where an event's timestamp came from (ADR 0014 §5). Stored as `u8` in the `ts_state` column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(rename_all = "camelCase"))]
 pub enum TsState {
     /// Read from the event itself.
     Parsed = 0,
