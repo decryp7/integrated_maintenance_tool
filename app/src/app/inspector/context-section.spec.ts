@@ -3,7 +3,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } 
 import { RecordView } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { EMPTY_QUERY } from '../core/workspace.store';
-import { ContextSection } from './context-section';
+import { CONTEXT_SETTLE_MS, ContextSection } from './context-section';
 import { at } from '../../testing/must';
 
 describe('ContextSection', () => {
@@ -15,6 +15,12 @@ describe('ContextSection', () => {
     await settle(fixture);
     return { fixture, backend, rows };
   }
+
+  /** Waits until a newly selected event's context is fetched. */
+  const rest = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+    await new Promise((r) => setTimeout(r, CONTEXT_SETTLE_MS + 30));
+    await settle(fixture);
+  };
 
   const open = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
     el<HTMLButtonElement>(fixture, 'button.toggle').click();
@@ -70,7 +76,7 @@ describe('ContextSection', () => {
     buttonByText(fixture, 'More').click();
     await settle(fixture);
     fixture.componentRef.setInput('record', rows[5]);
-    await settle(fixture);
+    await rest(fixture);
     expect(spy).toHaveBeenLastCalledWith({ recordId: at(rows, 5).id, before: 10, after: 10 });
     expect(spy.mock.calls.filter((c) => c[0].recordId === at(rows, 5).id && c[0].before !== 10)).toHaveLength(0);
     expect(text(fixture)).toContain('±10 lines');
@@ -80,7 +86,7 @@ describe('ContextSection', () => {
     const { fixture, rows } = await render(3);
     await open(fixture);
     fixture.componentRef.setInput('record', rows[4]);
-    await settle(fixture);
+    await rest(fixture);
     expect(at(all(fixture, '.line.hit'), 0).textContent).toContain(String(at(rows, 4).line));
   });
 
@@ -151,5 +157,31 @@ describe('ContextSection', () => {
     clientHeight.mockRestore();
     void (null as unknown as RecordView);
     void (null as unknown as ImtBackend);
+  });
+
+  it('fetches the context of a newly selected event once the selection rests', async () => {
+    const backend = tinyBackend();
+    const spy = vi.spyOn(backend, 'sourceContext');
+    const { fixture, rows } = await render(3, backend);
+    await open(fixture);
+    expect(spy).toHaveBeenCalledTimes(1);
+    // Holding an arrow key: five events pass within the settle time; only the last one is asked for.
+    for (const i of [4, 5, 6, 7, 8]) {
+      fixture.componentRef.setInput('record', rows[i]);
+      await settle(fixture);
+    }
+    expect(spy).toHaveBeenCalledTimes(1);
+    await new Promise((r) => setTimeout(r, CONTEXT_SETTLE_MS + 30));
+    await settle(fixture);
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenLastCalledWith({ recordId: at(rows, 8).id, before: 10, after: 10 });
+    expect(all(fixture, '.line.hit')).toHaveLength(1);
+    // Closing cancels a pending fetch.
+    fixture.componentRef.setInput('record', rows[9]);
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, 'button.toggle').click();
+    await settle(fixture);
+    await new Promise((r) => setTimeout(r, CONTEXT_SETTLE_MS + 30));
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

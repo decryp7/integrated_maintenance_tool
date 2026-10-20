@@ -6,6 +6,7 @@ import { GridSelection } from '../../grid/grid-selection';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
 import { ChatEventEnvelope, SessionInfo } from '../ai.types';
+import { FrameThrottle } from '../../shared/throttle';
 import { AgentApprovalState, ALL_CONTEXT, buildContext, ContextSources, ContextToggles, reduceTurn, startTurn, turnFromRecord, TurnView } from './chat-model';
 
 interface ChatState {
@@ -53,6 +54,21 @@ export const ChatStore = signalStore(
     const setTurns = (id: string, f: (t: TurnView[]) => TurnView[]) => patchState(store, (s) => ({ turns: { ...s.turns, [id]: f(s.turns[id] ?? []) } }));
     const fail = (e: unknown) => patchState(store, { error: toAiError(e).message });
 
+    // Streamed text arrives a few characters at a time: fold it into the turn once per frame, not once per token (each
+    // fold re-parses and re-renders the answer). Any other event first applies the text before it, keeping the order.
+    const pendingText = new Map<string, string>();
+    const textFrame = new FrameThrottle();
+    const flushText = () => {
+      textFrame.cancel();
+      for (const [id, text] of pendingText) {
+        setTurns(id, (turns) => {
+          const last = turns.at(-1);
+          return last?.running ? [...turns.slice(0, -1), reduceTurn(last, { type: 'delta', text })] : turns;
+        });
+      }
+      pendingText.clear();
+    };
+
     const refreshSessions = async () => {
       const sessions = await backend.chatSessions();
       patchState(store, { sessions });
@@ -77,6 +93,12 @@ export const ChatStore = signalStore(
           if (e.seq <= (store.lastSeq()[id] ?? 0)) return;
           patchState(store, (s) => ({ lastSeq: { ...s.lastSeq, [id]: e.seq } }));
         }
+        if (e.type === 'delta') {
+          pendingText.set(id, (pendingText.get(id) ?? '') + e.text);
+          textFrame.run(flushText);
+          return;
+        }
+        flushText();
         // An answer recorded outside a turn (a research from a Research button): read the chat again.
         // (Not after a turn that ended with an error the user still sees: its own late `done` must not hide it.)
         const lastTurn = store.turns()[id]?.at(-1);
@@ -124,6 +146,7 @@ export const ChatStore = signalStore(
         }
         if (!store.turns()[id]?.at(-1)?.running) setTurns(id, (t) => [...t, startTurn('…')]);
         for (const e of events) methods.onEvent({ ...e, sessionId: id });
+        flushText();
       },
 
       async select(id: string): Promise<void> {

@@ -34,11 +34,14 @@ import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToSc
 import { NextSteps } from '../ui/next-steps';
 import { SourceColors } from '../sources/source-colors.store';
 import { stripeBackground } from '../sources/source-colors';
+import { Debouncer } from '../shared/throttle';
 
 /** Row heights for the two grid densities (px). */
 const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
 const HEADER_H = 28;
 const PAGE = 500;
+/** Pages for the rows in view are fetched once scrolling has paused this long. */
+export const SCROLL_IDLE_MS = 50;
 const OVERSCAN = 8;
 /** Pages kept in memory; the ones farthest from the viewport are dropped first. */
 const MAX_PAGES = 40;
@@ -254,6 +257,8 @@ export class EventsGrid {
   private inflight = new Set<number>();
   private stale = new Set<number>();
   private failed = new Set<number>();
+  /** When the user last scrolled (pages wait until scrolling pauses). */
+  private scrolledAt = Number.NEGATIVE_INFINITY;
   private generation = 0;
   private query: Query | null = null;
   private queryKey = '';
@@ -318,11 +323,19 @@ export class EventsGrid {
       });
     });
 
-    // Fill in pages the viewport needs.
+    // Fill in pages the viewport needs; while the user scrolls, only once scrolling pauses: dragging the scrollbar
+    // through a million rows must not ask the engine for every page it passes. Other changes (data, a jump) fetch at once.
+    const idle = new Debouncer(SCROLL_IDLE_MS);
+    destroyRef.onDestroy(() => idle.cancel());
     effect(() => {
-      const rows = this.visible();
+      const missing = this.visible().some((v) => !v.row);
+      if (!missing) return;
       untracked(() => {
-        for (const v of rows) if (!v.row) this.ensurePage(Math.floor(v.index / PAGE));
+        if (performance.now() - this.scrolledAt < SCROLL_IDLE_MS) idle.run(() => this.fillVisible());
+        else {
+          idle.cancel();
+          this.fillVisible();
+        }
       });
     });
 
@@ -416,8 +429,13 @@ export class EventsGrid {
     for (const page of wanted) this.ensurePage(page);
   }
 
+  /** Fetches the pages of the rows in view that are not loaded (a page that failed waits for Retry). */
+  private fillVisible(): void {
+    for (const v of this.visible()) if (!v.row) this.ensurePage(Math.floor(v.index / PAGE));
+  }
+
   private ensurePage(page: number): void {
-    if (this.inflight.has(page) || (this.pages.has(page) && !this.stale.has(page))) return;
+    if (this.failed.has(page) || this.inflight.has(page) || (this.pages.has(page) && !this.stale.has(page))) return;
     void this.fetchPage(page, this.descending);
   }
 
@@ -534,6 +552,7 @@ export class EventsGrid {
   protected onScroll(): void {
     const el = this.viewport()?.nativeElement;
     if (!el) return;
+    this.scrolledAt = performance.now();
     const g = this.geometry();
     const s = el.scrollTop;
     // Our own writes round to whole pixels; reading them back would lose the row-exact position.

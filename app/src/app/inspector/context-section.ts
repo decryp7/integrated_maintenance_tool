@@ -1,7 +1,8 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, input, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input, signal, untracked, viewChild } from '@angular/core';
 import { RecordView, SourceContext } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { describeError } from '../core/logger';
+import { Debouncer } from '../shared/throttle';
 
 /** Lines shown on each side of the event at first, and the steps "More" takes up to the cap (the engine caps at 500). */
 export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
@@ -10,6 +11,9 @@ export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
  * "Context": the original lines of the file around the selected event, fetched from the engine on demand
  * (only while the section is open). The event's own line is highlighted.
  */
+/** The context of a newly selected event is fetched once the selection has rested this long. */
+export const CONTEXT_SETTLE_MS = 120;
+
 @Component({
   selector: 'imt-context-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,15 +82,22 @@ export class ContextSection {
   private readonly box = viewChild<ElementRef<HTMLElement>>('box');
   private seq = 0;
   private shownId = -1;
+  /** The selection moved to another event since the last load (its context waits until the selection settles). */
+  private moved = false;
 
   constructor() {
-    // A different event starts again from the default size; closing the section cancels any request.
+    const settle = new Debouncer(CONTEXT_SETTLE_MS);
+    inject(DestroyRef).onDestroy(() => settle.cancel());
+    // A different event starts again from the default size; closing the section cancels any request. Opening the
+    // section or showing more loads at once; moving the selection (holding an arrow key in the grid) loads once it
+    // rests, so passing events are never asked for.
     effect(() => {
       const open = this.open();
       const id = this.record().id;
       const radius = this.radius();
       untracked(() => {
         if (id !== this.shownId) {
+          if (this.shownId !== -1) this.moved = true;
           this.shownId = id;
           this.data.set(null);
           if (radius !== CONTEXT_STEPS[0]) {
@@ -94,8 +105,15 @@ export class ContextSection {
             return;
           }
         }
-        if (open) void this.load();
-        else this.seq++;
+        settle.cancel();
+        if (!open) {
+          this.moved = false;
+          this.seq++;
+        } else if (this.moved) {
+          this.moved = false;
+          this.seq++;
+          settle.run(() => void this.load());
+        } else void this.load();
       });
     });
   }

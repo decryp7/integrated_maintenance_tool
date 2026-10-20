@@ -85,6 +85,35 @@ describe('ChatStore', () => {
     expect(store.activeTurns()[0]?.text).toBe(text);
   });
 
+  it('folds streamed text once per frame, before any other event', async () => {
+    const { store, backend } = setup();
+    await store.init();
+    const id = store.activeId()!;
+    vi.spyOn(backend, 'chatSend').mockResolvedValueOnce(1);
+    await store.send('q');
+    const states = new Set<unknown>([store.turns()]);
+    for (let i = 1; i <= 40; i++) {
+      store.onEvent({ sessionId: id, seq: i, type: 'delta', text: `t${i} ` });
+      states.add(store.turns());
+    }
+    // Before: a new turns state (a re-parse and re-render of the answer) per token, 40 here.
+    expect(states.size).toBe(1);
+    expect(at(store.activeTurns(), 0).text).toBe('');
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    states.add(store.turns());
+    expect(states.size).toBe(2);
+    expect(at(store.activeTurns(), 0).text).toMatch(/^t1 t2 .* t40 $/);
+    // Text still waiting is applied before the next event, in order.
+    store.onEvent({ sessionId: id, seq: 41, type: 'delta', text: 'before the tool' });
+    store.onEvent({ sessionId: id, seq: 42, type: 'toolStarted', name: 'run_query', args: '{}' });
+    expect(at(store.activeTurns(), 0).text).toBe('');
+    expect(at(store.activeTurns(), 0).tools).toHaveLength(1);
+    store.onEvent({ sessionId: id, seq: 43, type: 'delta', text: 'after' });
+    store.onEvent({ sessionId: id, seq: 44, type: 'error', message: 'stopped', cancelled: true });
+    expect(at(store.activeTurns(), 0).text).toBe('after');
+    expect(store.running()).toBe(false);
+  });
+
   it('shows a failed send and removes the pending turn', async () => {
     const { store, backend } = setup();
     await store.init();
