@@ -2,7 +2,7 @@
 //! so the collection logic can be tested with a fake.
 
 use std::io::Read;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -56,7 +56,7 @@ fn drain<R: Read + Send + 'static>(r: R, cap: u64) -> std::thread::JoinHandle<Ve
 
 impl CommandRunner for SystemRunner {
     fn run(&self, program: &str, args: &[String], timeout: Duration) -> Result<CommandOutput, CommandError> {
-        let mut child = Command::new(program)
+        let mut child = imt_core::process::quiet_command(program)
             .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

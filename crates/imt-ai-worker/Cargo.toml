@@ -23,6 +23,7 @@ test = false
 
 [dependencies]
 imt-ai = { path = "../imt-ai" }
+imt-core = { path = "../imt-core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 getrandom = "0.3"

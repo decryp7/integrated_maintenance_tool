@@ -31,10 +31,10 @@ fn every_isolable_builtin_passes_the_conformance_kit() {
 fn the_host_binary_refuses_unknown_plugins() {
     let report = run_binary(host(), &["--plugin".into(), "no.such.plugin".into()], Options::default());
     assert!(!report.passed());
-    let out = std::process::Command::new(host()).arg("--list").output().unwrap();
+    let out = imt_core::process::quiet_command(host()).arg("--list").output().unwrap();
     let text = String::from_utf8(out.stdout).unwrap();
     assert!(text.contains("net.decryptology.web"), "{text}");
-    let status = std::process::Command::new(host()).status().unwrap();
+    let status = imt_core::process::quiet_command(host()).status().unwrap();
     assert_eq!(status.code(), Some(2));
 }
 

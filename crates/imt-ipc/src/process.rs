@@ -155,6 +155,8 @@ impl ChildProcess {
     /// Starts the program with a piped stdin (its lifeline), no stdout, and stderr captured into its child
     /// log when the spec names one (discarded otherwise).
     pub fn spawn(spec: &SpawnSpec) -> Result<ChildProcess, IpcError> {
+        // The one spawner outside imt-core (this crate stands alone); it sets CREATE_NO_WINDOW below.
+        #[allow(clippy::disallowed_methods)]
         let mut cmd = Command::new(&spec.exe);
         cmd.args(&spec.args)
             .stdin(Stdio::piped())

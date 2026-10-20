@@ -328,7 +328,7 @@ fn nothing_is_left_behind() {
         use std::io::Write;
         let endpoint = imt_ai::worker::endpoint::PrivateEndpoint::create().unwrap();
         let token = imt_ai::worker::endpoint::new_token().unwrap();
-        let mut child = std::process::Command::new(fake_worker_exe())
+        let mut child = imt_core::process::quiet_command(fake_worker_exe())
             .envs(no_profile())
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::null())

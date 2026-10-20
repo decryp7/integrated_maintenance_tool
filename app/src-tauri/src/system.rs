@@ -215,7 +215,7 @@ mod tests {
     #[cfg(not(windows))]
     #[test]
     fn the_process_check_matches_the_effective_user() {
-        let out = std::process::Command::new("id").arg("-u").output().unwrap();
+        let out = imt_core::process::quiet_command("id").arg("-u").output().unwrap();
         let root = String::from_utf8_lossy(&out.stdout).trim() == "0";
         assert_eq!(process_elevated(), root);
     }

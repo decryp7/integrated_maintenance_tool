@@ -5,7 +5,7 @@
 use crate::error::{AiError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 /// One accelerator a build reported.
@@ -82,17 +82,12 @@ pub struct BuildsReport {
 
 /// Runs `worker --list-builds` with `env` (see `AiSettings::worker_env`) and returns its report.
 pub fn list_builds(worker: &Path, env: &[(String, String)], timeout: Duration) -> Result<BuildsReport> {
-    let mut cmd = Command::new(worker);
+    let mut cmd = imt_core::process::quiet_command(worker);
     cmd.arg("--list-builds")
         .envs(env.iter().map(|(k, v)| (k, v)))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
     let mut child = cmd
         .spawn()
         .map_err(|e| AiError::Engine(format!("cannot run the AI worker ({}): {e}", worker.display())))?;

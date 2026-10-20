@@ -1,6 +1,8 @@
 fn main() {
     // The commit this binary is built from, on every log line and problem report (see `activity::build_commit`).
     // Missing git (a source tarball) is fine: the value is then "unknown".
+    // A build script runs no console windows on users' machines; the quiet spawner is not needed here.
+    #[allow(clippy::disallowed_methods)]
     let commit = std::process::Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
         .output()

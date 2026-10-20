@@ -213,7 +213,7 @@ pub(crate) mod tests {
         #[cfg(windows)]
         {
             std::os::windows::fs::symlink_dir(target, link).is_ok()
-                || std::process::Command::new("cmd")
+                || imt_core::process::quiet_command("cmd")
                     .args(["/C", "mklink", "/J"])
                     .arg(link)
                     .arg(target)

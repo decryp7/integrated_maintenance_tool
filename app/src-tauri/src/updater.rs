@@ -447,7 +447,7 @@ pub fn on_exit<R: Runtime>(app: &AppHandle<R>) {
         crate::instance::release(app);
         match tauri::process::current_binary(&app.env()) {
             Ok(exe) => {
-                if let Err(e) = std::process::Command::new(exe).spawn() {
+                if let Err(e) = imt_core::process::quiet_command(exe).spawn() {
                     log::error!("Could not start IMT again after the update: {e}");
                 }
             }

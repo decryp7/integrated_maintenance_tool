@@ -1,7 +1,7 @@
 //! Running external tools (`relog`, `logman`) behind a small trait, so callers can be tested with a fake.
 
 use std::io::{self, Read};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -41,7 +41,7 @@ fn drain<R: Read + Send + 'static>(mut pipe: R) -> thread::JoinHandle<String> {
 
 impl CommandRunner for SystemRunner {
     fn run(&self, program: &str, args: &[String], timeout: Duration) -> io::Result<CommandOutput> {
-        let mut child = Command::new(program)
+        let mut child = imt_core::process::quiet_command(program)
             .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

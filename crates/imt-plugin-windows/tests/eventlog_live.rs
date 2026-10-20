@@ -21,7 +21,7 @@ mod live {
     use imt_plugin_windows::eventlog::{system, Channel, Follower, FollowerConfig};
     use serde_json::json;
     use std::path::{Path, PathBuf};
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
@@ -52,7 +52,7 @@ mod live {
 
     /// Writes an Application event with `eventcreate`; false when it cannot.
     fn write_event(description: &str) -> bool {
-        let child = Command::new("eventcreate")
+        let child = imt_core::process::quiet_command("eventcreate")
             .args([
                 "/T",
                 "INFORMATION",

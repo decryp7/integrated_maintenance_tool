@@ -2,7 +2,6 @@
 //! builds), no window. Checks the exit codes, the printed path and the zip.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 fn temp(tag: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!("imt-export-cli-{tag}-{}", std::process::id()));
@@ -12,7 +11,7 @@ fn temp(tag: &str) -> PathBuf {
 }
 
 fn run(root: &Path, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_imt-app"))
+    imt_core::process::quiet_command(env!("CARGO_BIN_EXE_imt-app"))
         .args(args)
         .env("IMT_DATA_DIR", root)
         .current_dir(root)

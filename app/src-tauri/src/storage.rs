@@ -277,7 +277,7 @@ fn open_in_file_manager(dir: &std::path::Path) -> std::io::Result<()> {
     } else {
         "xdg-open"
     };
-    let mut child = std::process::Command::new(opener)
+    let mut child = imt_core::process::quiet_command(opener)
         .arg(dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

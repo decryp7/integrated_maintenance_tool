@@ -19,7 +19,7 @@ fn the_example_plugin_conforms() {
 #[test]
 fn the_cli_checks_a_plugin_and_reports_usage_errors() {
     let cli = env!("CARGO_BIN_EXE_imt-plugin-check");
-    let out = std::process::Command::new(cli)
+    let out = imt_core::process::quiet_command(cli)
         .arg(toy())
         .args([
             "--fuzz",
@@ -37,9 +37,9 @@ fn the_cli_checks_a_plugin_and_reports_usage_errors() {
     assert_eq!(out.status.code(), Some(0), "{text}");
     assert!(text.contains("0 failed"), "{text}");
     for bad in [&["--grant", "root"][..], &["--fuzz"][..], &[][..], &["--help"][..]] {
-        let s = std::process::Command::new(cli).args(bad).output().unwrap();
+        let s = imt_core::process::quiet_command(cli).args(bad).output().unwrap();
         assert_eq!(s.status.code(), Some(2), "{bad:?}");
     }
-    let s = std::process::Command::new(cli).arg("/no/such/plugin").output().unwrap();
+    let s = imt_core::process::quiet_command(cli).arg("/no/such/plugin").output().unwrap();
     assert_eq!(s.status.code(), Some(1));
 }

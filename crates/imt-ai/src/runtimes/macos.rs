@@ -8,7 +8,7 @@
 
 use crate::error::{AiError, Result};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 /// A command line.
@@ -38,7 +38,7 @@ pub fn plan(dir: &Path, files: &[String]) -> (Vec<Argv>, Vec<(Argv, Argv)>) {
 /// Runs a tool with a timeout; `Ok(true)` when it succeeded.
 fn run(argv: &[String], timeout: Duration) -> Result<bool> {
     let Some((exe, args)) = argv.split_first() else { return Ok(false) };
-    let mut child = Command::new(exe)
+    let mut child = imt_core::process::quiet_command(exe)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

@@ -664,17 +664,17 @@ fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) -> std::io:
 /// The file manager command that shows `file` selected (Finder, Explorer; on Linux its folder).
 pub(crate) fn reveal_command(file: &Path) -> std::process::Command {
     if cfg!(target_os = "macos") {
-        let mut cmd = std::process::Command::new("open");
+        let mut cmd = imt_core::process::quiet_command("open");
         cmd.arg("-R").arg(file);
         cmd
     } else if cfg!(windows) {
-        let mut cmd = std::process::Command::new("explorer");
+        let mut cmd = imt_core::process::quiet_command("explorer");
         let mut arg = std::ffi::OsString::from("/select,");
         arg.push(file);
         cmd.arg(arg);
         cmd
     } else {
-        let mut cmd = std::process::Command::new("xdg-open");
+        let mut cmd = imt_core::process::quiet_command("xdg-open");
         cmd.arg(file.parent().unwrap_or(file));
         cmd
     }
@@ -809,7 +809,7 @@ pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Cmd
     } else {
         "xdg-open"
     };
-    let mut cmd = std::process::Command::new(opener);
+    let mut cmd = imt_core::process::quiet_command(opener);
     cmd.arg(store.dir());
     spawn_detached(cmd, OPENER_TIMEOUT).map_err(|e| format!("could not open the folder ({e}); it is at {}", store.dir().display()))?;
     Ok(store.dir().to_string_lossy().into_owned())
@@ -1392,22 +1392,22 @@ mod tests {
 
     #[test]
     fn spawn_detached_reports_a_missing_program() {
-        let cmd = std::process::Command::new("imt-definitely-not-a-program");
+        let cmd = imt_core::process::quiet_command("imt-definitely-not-a-program");
         assert!(spawn_detached(cmd, Duration::from_secs(1)).is_err());
     }
 
     #[cfg(unix)]
     #[test]
     fn spawn_detached_returns_at_once_and_stops_a_hung_helper() {
-        let mut cmd = std::process::Command::new("sleep");
+        let mut cmd = imt_core::process::quiet_command("sleep");
         cmd.arg("30");
         let started = Instant::now();
         spawn_detached(cmd, Duration::from_millis(200)).unwrap();
         assert!(started.elapsed() < Duration::from_secs(2), "must not wait for the helper");
-        let mut ok = std::process::Command::new("true");
+        let mut ok = imt_core::process::quiet_command("true");
         ok.arg("x");
         spawn_detached(ok, Duration::from_secs(5)).unwrap();
-        let mut failing = std::process::Command::new("false");
+        let mut failing = imt_core::process::quiet_command("false");
         failing.arg("x");
         spawn_detached(failing, Duration::from_secs(5)).unwrap();
         // Give the reaper threads time to run their exit/timeout paths.

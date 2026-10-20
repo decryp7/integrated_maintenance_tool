@@ -13,6 +13,8 @@ use std::io::{BufRead, BufReader, Read};
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
+
+use imt_core::process::{quiet_command_with, BELOW_NORMAL_PRIORITY_CLASS};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -216,7 +218,8 @@ pub fn random_key() -> String {
 
 /// A command for llama-server with the empty environment and no window.
 pub fn command(exe: &Path, args: &[String]) -> Command {
-    let mut cmd = Command::new(exe);
+    // No console window; below-normal priority on Windows (on Unix the priority is inherited from the worker).
+    let mut cmd = quiet_command_with(exe, BELOW_NORMAL_PRIORITY_CLASS);
     cmd.args(args).stdin(Stdio::null()).env_clear();
     for k in KEPT_ENV {
         if let Some(v) = std::env::var_os(k) {
@@ -236,12 +239,6 @@ pub fn command(exe: &Path, args: &[String]) -> Command {
                 cmd.env("LD_LIBRARY_PATH", joined);
             }
         }
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS (on Unix the priority is inherited from the worker).
-        cmd.creation_flags(0x0800_0000 | 0x0000_4000);
     }
     cmd
 }
@@ -614,7 +611,7 @@ mod tests {
     #[test]
     fn exits_are_forwarded_in_the_child_log_wire_form() {
         assert_eq!(exit_words(None), "stopped");
-        let ok = std::process::Command::new(std::env::current_exe().unwrap())
+        let ok = imt_core::process::quiet_command(std::env::current_exe().unwrap())
             .arg("--list")
             .stdout(Stdio::null())
             .status()

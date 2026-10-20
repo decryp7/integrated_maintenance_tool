@@ -24,6 +24,7 @@ pub mod overwrite;
 pub mod patterns;
 pub mod pipeline;
 pub mod plugin;
+pub mod process;
 pub mod profile;
 pub mod project;
 pub mod ql;
