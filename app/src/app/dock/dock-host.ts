@@ -165,6 +165,20 @@ export const HOVER_HIDE_MS = 300;
     .imt-guide-center::after { content: ''; width: 14px; height: 14px; border: 2px solid var(--accent); border-radius: 2px; }
     .imt-guide.hot { background: var(--accent); color: var(--accent-ink); }
     .imt-guide-center.hot::after { border-color: var(--accent-ink); }
+    /* The cue of a tab dragged off the drop zones: a ghost of the floating panel (or new window) and the hint. */
+    .imt-float-cue {
+      position: fixed; z-index: 1001; pointer-events: none; display: flex; align-items: flex-start; justify-content: center;
+      padding-top: 10px; border: 2px dashed var(--accent); border-radius: 6px; background: var(--accent-soft);
+      box-shadow: var(--shadow); animation: imt-float-cue-in 120ms ease-out;
+    }
+    .imt-float-cue[hidden] { display: none; }
+    .imt-float-cue[data-outcome='window'] { border-style: solid; }
+    .imt-float-cue-hint {
+      padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap;
+      background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+    @keyframes imt-float-cue-in { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .imt-float-cue { animation: none; } }
     .imt-dockview .dv-drop-target-anchor, .imt-dockview .dv-drop-target-selection {
       border: 2px dashed var(--accent) !important; background-color: var(--accent-soft) !important; border-radius: 2px;
     }

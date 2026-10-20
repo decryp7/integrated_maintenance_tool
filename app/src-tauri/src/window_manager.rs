@@ -128,13 +128,14 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
     let label = windows.next_label();
     let state = windows.get_or_create(&label)?;
     state.queue(pending);
-    let built = crate::dev_overrides::apply(WebviewWindowBuilder::new(app, &label, WebviewUrl::default()))
-        .title(DEFAULT_TITLE)
-        .inner_size(1440.0, 900.0)
-        .min_inner_size(1100.0, 680.0)
-        .resizable(true)
-        .focused(true)
-        .build();
+    let built = crate::native_feel::build(
+        WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
+            .title(DEFAULT_TITLE)
+            .inner_size(1440.0, 900.0)
+            .min_inner_size(1100.0, 680.0)
+            .resizable(true)
+            .focused(true),
+    );
     if let Err(e) = built {
         windows.remove(&label);
         anyhow::bail!("could not open a window: {e}");

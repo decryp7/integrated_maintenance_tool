@@ -5,7 +5,13 @@
 use std::path::{Path, PathBuf};
 
 /// Calls that build a window (directly or through IMT's window helpers).
-const WINDOW_BUILDERS: &[&str] = &["open_new(", "WebviewWindowBuilder", "panel_windows::open(", "window::open("];
+const WINDOW_BUILDERS: &[&str] = &[
+    "open_new(",
+    "WebviewWindowBuilder",
+    "native_feel::build(",
+    "panel_windows::open(",
+    "window::open(",
+];
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).unwrap().flatten() {

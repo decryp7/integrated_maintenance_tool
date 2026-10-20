@@ -123,13 +123,7 @@ export function moveTab(d: TabDrag, client: Point, screen: Point): TabDrag {
   return { ...d, last: client, lastScreen: screen, dragging };
 }
 
-/**
- * The tab was released (or the pointer capture lost): pop it out when it was dragged and let go outside the
- * window (`margin` px beyond its edge), at the screen point of the release.
- */
-export function releaseTab(d: TabDrag, client: Point, screen: Point, viewport: { width: number; height: number }, margin = 0): { popOut: string; at: Point } | null {
-  const moved = moveTab(d, client, screen);
-  if (!moved.dragging) return null;
-  const outside = client.x < -margin || client.y < -margin || client.x > viewport.width + margin || client.y > viewport.height + margin;
-  return outside ? { popOut: d.id, at: screen } : null;
+/** Is a client point outside the window (`margin` px beyond its edge)? Released there, a dragged tab pops out. */
+export function outsideViewport(client: Point, viewport: { width: number; height: number }, margin = 0): boolean {
+  return client.x < -margin || client.y < -margin || client.x > viewport.width + margin || client.y > viewport.height + margin;
 }

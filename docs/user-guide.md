@@ -178,6 +178,15 @@ export as CSV. The full grammar is in
 | `Mod+,` | Settings |
 | `Alt+←` / `Alt+→` | Previous / next time range |
 | `↑` / `↓` | Move through the events grid |
+| `Esc` (while dragging a tab) | Cancel the drag |
+
+Browser keys such as `F5`/`Mod+R` (reload), `Mod+F` (find, unless IMT binds it), `Mod+P` (print),
+`Mod` `+`/`-`/`0` (page zoom) and `Alt+←`/`Alt+→` as browser back/forward do nothing in IMT's windows
+(IMT's own bindings, such as the time-range history above, still work). Release builds also turn off
+the developer tools (`F12`, `Mod+Shift+I`).
+
+To float a panel, drag its tab off the docking guides and release it where the **Release to float**
+ghost shows; release it outside the window (**Release to open in a new window**) to pop it out.
 
 ## Command line
 

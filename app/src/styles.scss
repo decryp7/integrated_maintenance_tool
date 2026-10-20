@@ -274,6 +274,43 @@ textarea {
   color: inherit;
 }
 
+/* Desktop feel: the chrome (buttons, tabs, menus, toolbars, bars) does not select like web-page text; content
+   (log text, inspector values, text fields) does. */
+button,
+label,
+[role='button'],
+[role='tab'],
+[role='tablist'],
+[role='toolbar'],
+[role='menubar'],
+[role='menu'],
+[role='menuitem'],
+[role='menuitemcheckbox'],
+[role='menuitemradio'],
+[role='columnheader'],
+imt-title-bar,
+imt-popout-title-bar,
+imt-status-bar,
+imt-activity-bar,
+.dv-tabs-and-actions-container,
+.imt-dock-actions,
+.section-title,
+.btn,
+.icon-btn {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable],
+[role='gridcell'],
+[role='textbox'],
+.imt-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
