@@ -1,178 +1,53 @@
 /* IMT global theme. Colours are tokens; components only use var(--…). */
 
 /* Fonts are bundled (offline desktop app; CSP allows no remote resources). */
-@use '@fontsource/ibm-plex-sans/latin-400' as ibm-plex-sans-400;
-@use '@fontsource/ibm-plex-sans/latin-500' as ibm-plex-sans-500;
-@use '@fontsource/ibm-plex-sans/latin-600' as ibm-plex-sans-600;
+/* Calm: Inter + JetBrains Mono. Console: Geist + Geist Mono. A face is only downloaded when a theme uses it. */
+@use '@fontsource/inter/latin-400' as inter-400;
+@use '@fontsource/inter/latin-500' as inter-500;
+@use '@fontsource/inter/latin-600' as inter-600;
+@use '@fontsource/inter/latin-700' as inter-700;
 @use '@fontsource/jetbrains-mono/latin-400' as jetbrains-mono-400;
 @use '@fontsource/jetbrains-mono/latin-500' as jetbrains-mono-500;
+@use '@fontsource/geist-sans/latin-400' as geist-400;
+@use '@fontsource/geist-sans/latin-500' as geist-500;
+@use '@fontsource/geist-sans/latin-600' as geist-600;
+@use '@fontsource/geist-sans/latin-700' as geist-700;
+@use '@fontsource/geist-mono/latin-400' as geist-mono-400;
+@use '@fontsource/geist-mono/latin-500' as geist-mono-500;
 @use '@angular/material' as mat;
 
+/* The tokens (colours, type, spacing, radii, motion, sizes) are not defined here: a theme is data
+   (app/src/app/theme, ADR 0018) and ThemeService sets its tokens on <html> as custom properties, with data-theme,
+   data-scheme, data-density and one data-* attribute per trait. Until it runs, the page follows the system colours. */
 :root {
-  color-scheme: dark;
-  --bg-0: #0b0d12;
-  --bg-1: #0f1117;
-  --bg-2: #12151d;
-  --bg-3: #151821;
-  --bg-hover: #171b25;
-  --bg-active: #1a2030;
-  --bg-sel: #1a2438;
-  --border: #1e2230;
-  --border-2: #232838;
-  --border-3: #2e3547;
-  --text: #e3e6ee;
-  --text-2: #c9ceda;
-  /* Text tokens meet WCAG AA (4.5:1) on every surface token. */
-  --muted: #a4abbc;
-  --faint: #8a91a3;
-  --fainter: #868d9f;
-  --accent: #4c8dff;
-  --accent-ink: #0b0d12;
-  --accent-soft: rgba(76, 141, 255, 0.1);
-  --chip-bg: #172033;
-  --chip-border: #263452;
-  --chip-text: #9cc0ff;
-  --lane-bar: #171c28;
-  --lane-border: #232a3b;
-  --density: #33405a;
-  --grid-line: #1c2130;
-  --tooltip-bg: #1a1f2b;
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --code-bg: #0b0d12;
-  --ok: #8fd9bd;
-  --danger-text: #ff8a8f;
-  --warn-text: #e9ae3f;
-
-  --lvl-verbose: #5b6478;
-  --lvl-debug: #5b6478;
-  --lvl-info: #7c8aa5;
-  --lvl-warn: #e9ae3f;
-  --lvl-error: #f2545b;
-  --lvl-fatal: #ff4fa3;
-  --hist-info: #3a4256;
-  /* Share of a highlight rule's colour mixed into a grid row (dark surfaces need a little more to show). */
-  --row-hl-tint: 16%;
-
-  --mk-start: #3fbf7f;
-  --mk-stop: #a7b0c2;
-  --mk-fatal: #ff4fa3;
-  --mk-exception: #ff7a59;
-  --mk-error: #f2545b;
-  --mk-warning: #e9ae3f;
-
-  /* Plugin annotation bands on the timeline (severity also has an icon and a pattern). */
-  --ann-critical: rgba(242, 84, 91, 0.16);
-  --ann-critical-border: rgba(242, 84, 91, 0.55);
-  --ann-warning: rgba(233, 174, 63, 0.14);
-  --ann-warning-border: rgba(233, 174, 63, 0.55);
-  --ann-info: rgba(76, 141, 255, 0.12);
-  --ann-info-border: rgba(76, 141, 255, 0.5);
-
-  /* Categorical series (dark surfaces --bg-1..--bg-3): every pair separates under protan/deutan/tritan
-     simulation (OKLab ΔE ≥ 8) and normal vision (≥ 15), each ≥ 3:1 against the surfaces. Checked by
-     app/src/app/tools/monitor/palette.spec.ts; change them only with that spec green. */
-  --s1: #1795fa;
-  --s2: #db551d;
-  --s3: #0a9068;
-  --s4: #b16ec0;
-  --s-other: #5b6478;
-
-  /* Source / instance markers on log lines, the Explorer, the inspector and timeline lanes (pattern repeats past 4).
-     All pairs separate under protan/deutan/tritan simulation and normal vision, each >= 3:1 on every row and panel
-     surface (--bg-1..--bg-3, --bg-hover, --bg-active, --bg-sel). Checked by app/src/app/sources/source-colors.spec.ts. */
-  --src-1: #1795fa;
-  --src-2: #db551d;
-  --src-3: #0a9068;
-  --src-4: #b16ec0;
-
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  color-scheme: light dark;
 }
 
-@mixin light-tokens {
-  color-scheme: light;
-  --bg-0: #e9ecf1;
-  --bg-1: #ffffff;
-  --bg-2: #f6f7f9;
-  --bg-3: #ffffff;
-  --bg-hover: #eef1f6;
-  --bg-active: #e6ecf7;
-  --bg-sel: #dfe9fb;
-  --border: #e1e4ea;
-  --border-2: #d6dae2;
-  --border-3: #c5cbd6;
-  --text: #1b1f29;
-  --text-2: #333a48;
-  --muted: #4b5262;
-  --faint: #596172;
-  --fainter: #5e6677;
-  --accent: #2f6fe0;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(47, 111, 224, 0.1);
-  --chip-bg: #e8effc;
-  --chip-border: #c7d7f5;
-  --chip-text: #1f55b8;
-  --lane-bar: #eef1f6;
-  --lane-border: #d6dae2;
-  --density: #a9b7d3;
-  --grid-line: #e8ebf0;
-  --tooltip-bg: #ffffff;
-  --shadow: 0 12px 32px rgba(20, 30, 50, 0.18);
-  --code-bg: #f3f5f8;
-  --ok: #0f6d49;
-  --danger-text: #b8262e;
-  --warn-text: #8f5d00;
-
-  --lvl-verbose: #9aa1b0;
-  --lvl-debug: #9aa1b0;
-  --lvl-info: #6b7a99;
-  --lvl-warn: #c98500;
-  --lvl-error: #d63a42;
-  --lvl-fatal: #c2257a;
-  --hist-info: #c5ccda;
-  --row-hl-tint: 12%;
-
-  --mk-start: #188a57;
-  --mk-stop: #7d8698;
-  --mk-fatal: #c2257a;
-  --mk-exception: #e0582f;
-  --mk-error: #d63a42;
-  --mk-warning: #c98500;
-
-  --ann-critical: rgba(214, 58, 66, 0.12);
-  --ann-critical-border: rgba(214, 58, 66, 0.6);
-  --ann-warning: rgba(201, 133, 0, 0.12);
-  --ann-warning-border: rgba(201, 133, 0, 0.6);
-  --ann-info: rgba(47, 111, 224, 0.1);
-  --ann-info-border: rgba(47, 111, 224, 0.5);
-
-  /* Categorical series (light surfaces), validated like the dark ones. */
-  --s1: #3869bb;
-  --s2: #e65f2a;
-  --s3: #29a077;
-  --s4: #a664fe;
-  --s-other: #9aa1b0;
-
-  /* Source markers (light surfaces, including hovered and selected rows), validated like the dark ones. */
-  --src-1: #1c89de;
-  --src-2: #e85033;
-  --src-3: #034728;
-  --src-4: #773891;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    @include light-tokens;
+/* Reduced motion: no decorative animation or transition; the duration tokens collapse (they beat the inline tokens). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms !important;
+    --dur-med: 0ms !important;
+    --dur-slow: 0ms !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-:root[data-theme='light'] {
-  @include light-tokens;
+/* Trait: tabular figures where the theme asks for them (counts and times line up). */
+:root[data-numerals='tabular'] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Angular Material theme: Material 3 system tokens (--mat-sys-*) resolve to IMT's tokens, so any
-   Material component follows IMT's look in both themes. The mapping is declared once; it follows
-   the theme because the IMT tokens it reads are redefined on :root by `light-tokens`. */
+   Material component follows IMT's look in every theme and scheme. The mapping is declared once; it follows
+   the theme because ThemeService redefines the IMT tokens it reads on :root. */
 :root {
   /* Typography, shape and state layers from Material, in IMT's font. No colour palette is
      generated: every colour role is mapped below. */
@@ -240,8 +115,8 @@
 
   --mat-sys-outline: var(--border-3);
   --mat-sys-outline-variant: var(--border-2);
-  --mat-sys-shadow: rgba(0, 0, 0, 0.45);
-  --mat-sys-scrim: rgba(0, 0, 0, 0.5);
+  --mat-sys-shadow: var(--scrim);
+  --mat-sys-scrim: var(--scrim);
 
   --mat-sys-level0: none;
   --mat-sys-level1: var(--shadow);
@@ -263,7 +138,7 @@ body {
   background: var(--bg-1);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 button,
@@ -312,7 +187,7 @@ textarea,
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -322,7 +197,7 @@ textarea,
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-3);
-  border-radius: 5px;
+  border-radius: var(--r-2);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -335,7 +210,7 @@ textarea,
 }
 
 .section-title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -355,11 +230,11 @@ textarea,
   align-items: center;
   gap: 6px;
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: var(--r-2);
   border: 1px solid var(--border-3);
   background: var(--bg-3);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   cursor: pointer;
   white-space: nowrap;
   &:hover {
@@ -402,7 +277,7 @@ textarea,
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--faint);
   cursor: pointer;
@@ -417,11 +292,11 @@ textarea,
 .select {
   height: 28px;
   padding: 0 8px;
-  border-radius: 5px;
+  border-radius: var(--r-2);
   border: 1px solid var(--border-2);
   background: var(--bg-3);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   outline: none;
   min-width: 0;
   &:focus {
@@ -444,13 +319,13 @@ textarea.input {
   border-radius: 12px;
   background: var(--chip-bg);
   border: 1px solid var(--chip-border);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
 .badge {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--bg-active);
@@ -462,11 +337,11 @@ textarea.input {
   position: absolute;
   z-index: 50;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   background: var(--tooltip-bg);
   border: 1px solid var(--border-3);
   box-shadow: var(--shadow);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .dot {
@@ -517,13 +392,13 @@ textarea.input {
 /* Dockview theme: maps dockview's variables onto the IMT tokens (follows dark/light automatically). */
 .imt-dockview {
   --dv-group-view-background-color: var(--bg-1);
-  --dv-tabs-and-actions-container-background-color: var(--bg-0);
-  --dv-tabs-and-actions-container-height: 34px;
-  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tabs-and-actions-container-background-color: var(--tabs-bg);
+  --dv-tabs-and-actions-container-height: var(--tab-h);
+  --dv-tabs-and-actions-container-font-size: var(--fs-md);
   --dv-activegroup-visiblepanel-tab-background-color: var(--bg-1);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg-0);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--tabs-bg);
   --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg-1);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg-0);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--tabs-bg);
   --dv-activegroup-visiblepanel-tab-color: var(--text);
   --dv-activegroup-hiddenpanel-tab-color: var(--muted);
   --dv-inactivegroup-visiblepanel-tab-color: var(--muted);
@@ -541,19 +416,38 @@ textarea.input {
   --dv-floating-box-shadow: var(--shadow);
   --dv-floating-border: 1px solid var(--border-3);
   --dv-floating-titlebar-height: 6px;
-  --dv-tab-font-size: 13px;
+  --dv-tab-font-size: var(--fs-md);
   --dv-tabs-container-scrollbar-color: var(--border-3);
   --dv-context-menu-background-color: var(--tooltip-bg);
   --dv-context-menu-color: var(--text);
   color-scheme: inherit;
   font-family: var(--font-sans);
 
-  .dv-tab { color: var(--muted); }
-  .dv-tab.dv-active-tab { color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
-  .dv-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .dv-tab { color: var(--muted); transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease); }
+  .dv-tab:hover { color: var(--text-2); }
+  /* The active tab is underlined at the bottom, joining it to its panel. */
+  .dv-tab.dv-active-tab { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+  .dv-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
   .dv-tabs-and-actions-container { border-bottom: 1px solid var(--border); }
   .dv-groupview { background: var(--bg-1); }
   .dv-groupview:focus-within .dv-tab.dv-active-tab { color: var(--text); }
+}
+
+/* Trait surface = cards: each group is a soft card on the canvas, its tabs are pills in the card's header. Only leaf
+   views get the gap (a split inside a split would double it); dockview's geometry stays as it is. */
+:root[data-surface='cards'] .imt-dockview {
+  --dv-tabs-and-actions-container-background-color: var(--bg-1);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg-1);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg-1);
+  --dv-separator-border: transparent;
+  --dv-sash-color: transparent;
+  background: var(--bg-0);
+
+  .dv-view:has(> .dv-groupview) { padding: 3px; }
+  .dv-groupview { border-radius: var(--r-3); border: 1px solid var(--border); box-shadow: var(--shadow-1); overflow: hidden; }
+  .dv-tabs-and-actions-container { border-bottom-color: var(--border); padding: 0 var(--s-1); }
+  .dv-tab { margin: 5px 2px; padding: 0; border-radius: var(--r-2); }
+  .dv-tab.dv-active-tab { box-shadow: none; background: var(--bg-active); }
 }
 
 .imt-panel {
@@ -574,7 +468,7 @@ textarea.input {
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--muted);
   display: inline-flex;
@@ -583,9 +477,9 @@ textarea.input {
   cursor: pointer;
 }
 .imt-dock-action:hover { background: var(--bg-hover); color: var(--text); }
-.imt-dock-action:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.imt-dock-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
 .imt-tab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 8px 0 12px; white-space: nowrap; }
-.imt-tab-close { width: 16px; height: 16px; line-height: 15px; text-align: center; border-radius: 4px; font-size: 14px; color: var(--faint); visibility: hidden; }
+.imt-tab-close { width: 16px; height: 16px; line-height: 15px; text-align: center; border-radius: 4px; font-size: var(--fs-lg); color: var(--faint); visibility: hidden; }
 .dv-tab:hover .imt-tab-close, .dv-tab.dv-active-tab .imt-tab-close, .dv-tab:focus-visible .imt-tab-close { visibility: visible; }
 .imt-tab-close:hover { background: var(--bg-hover); color: var(--text); }

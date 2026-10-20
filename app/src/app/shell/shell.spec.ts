@@ -67,9 +67,11 @@ describe('TitleBar', () => {
     await choose(fixture, 'View', 'Inspector');
     expect(dock.calls).toContain('toggle:inspector');
     await choose(fixture, 'View', 'Theme', 'Light');
-    expect(store.theme()).toBe('light');
+    expect(store.scheme()).toBe('light');
     await choose(fixture, 'View', 'Theme', 'System');
-    expect(store.theme()).toBe('system');
+    expect(store.scheme()).toBe('system');
+    await choose(fixture, 'View', 'Theme', 'Console');
+    expect(store.theme()).toBe('console');
     await choose(fixture, 'Analyze', 'Marked events only');
     expect(store.markedOnly()).toBe(true);
     await choose(fixture, 'Analyze', 'Clear all filters');
@@ -178,7 +180,7 @@ describe('TitleBar', () => {
     chosen('view:metrics');
     expect(dock.calls).toContain('toggle:metrics');
     // Unchanged menus are not sent again; a change is.
-    TestBed.inject(WorkspaceStore).setTheme('dark');
+    TestBed.inject(WorkspaceStore).setScheme('dark');
     await settle(fixture);
     expect(sent.length).toBe(2);
     await settle(fixture);

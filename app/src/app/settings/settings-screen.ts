@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
 import { EngineSettingsStore } from './engine-settings.store';
+import { AppearanceSettings } from './appearance-settings';
 import { GeneralSettings } from './general-settings';
 import { SettingFieldControl } from './setting-field';
 import { SettingsFiles } from './settings-files';
 import { StorageSettings } from './storage/storage-settings';
 import { STORAGE_ID } from './storage/storage.types';
-import { fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
+import { APPEARANCE_ID, fieldMatches, GENERAL_ID, GROUPS, statusLabel } from './settings-model';
 import { SettingField, SettingsSection } from './settings.types';
 
 /**
@@ -18,7 +19,7 @@ import { SettingField, SettingsSection } from './settings.types';
 @Component({
   selector: 'imt-settings-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GeneralSettings, SettingFieldControl, AiSettingsExtras, StorageSettings],
+  imports: [GeneralSettings, AppearanceSettings, SettingFieldControl, AiSettingsExtras, StorageSettings],
   host: { '(keydown.escape)': 'onEscape($event)' },
   template: `
     <div class="top">
@@ -49,6 +50,7 @@ import { SettingField, SettingsSection } from './settings.types';
     <div class="main">
       <nav aria-label="Settings sections" i18n-aria-label="@@settings.screen.nav.label">
         <button class="nav" type="button" [attr.aria-current]="isSelected(general) ? 'page' : null" (click)="store.select(general)" i18n="Settings section|Name of the first settings section@@settings.screen.general">General</button>
+        <button class="nav" type="button" [attr.aria-current]="isSelected(appearance) ? 'page' : null" (click)="store.select(appearance)" data-testid="settings-nav-appearance" i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</button>
         <button class="nav" type="button" [attr.aria-current]="isSelected(storage) ? 'page' : null" (click)="store.select(storage)" i18n="Settings section|What IMT keeps on disk@@settings.storage.nav">Storage</button>
         @for (g of navGroups(); track g.id) {
           <div class="group" role="presentation">{{ g.title }}</div>
@@ -93,8 +95,12 @@ import { SettingField, SettingsSection } from './settings.types';
           }
         } @else if (isSelected(general)) {
           <h3 i18n="Settings section|Name of the first settings section@@settings.screen.general">General</h3>
-          <p class="desc" i18n="@@settings.screen.general.desc">Appearance and display preferences of this window. They apply immediately.</p>
+          <p class="desc" i18n="@@settings.screen.general.desc">Display preferences of this window. They apply immediately.</p>
           <imt-general-settings (layoutReset)="close()" />
+        } @else if (isSelected(appearance)) {
+          <h3 i18n="Settings section|Theme, colour scheme and density@@settings.screen.appearance">Appearance</h3>
+          <p class="desc" i18n="@@settings.screen.appearance.desc">Theme, colour scheme and density of every window. They apply immediately.</p>
+          <imt-appearance-settings />
         } @else if (isSelected(storage)) {
           <imt-storage-settings />
         } @else if (store.current(); as s) {
@@ -171,10 +177,10 @@ import { SettingField, SettingsSection } from './settings.types';
     .nav:hover { background: var(--bg-hover); }
     .nav[aria-current='page'] { background: var(--bg-active); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
     .nav .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .group { margin-top: 10px; padding: 0 8px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .group { margin-top: 10px; padding: 0 8px 2px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
     .content { flex: 1; min-width: 0; overflow: auto; padding-inline-end: 4px; }
-    h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+    h3 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
     .content > h3:not(:first-child) { margin-top: 16px; }
     .section-head { display: flex; align-items: center; gap: 8px; }
     .spacer { flex: 1; }
@@ -191,6 +197,7 @@ export class SettingsScreen {
   private readonly ref = inject(DIALOG_REF, { optional: true });
   protected readonly general = GENERAL_ID;
   protected readonly storage = STORAGE_ID;
+  protected readonly appearance = APPEARANCE_ID;
   protected readonly cancelLabel = $localize`:@@settings.screen.cancel:Cancel`;
   protected readonly closeLabel = $localize`:Button that closes the settings dialog@@settings.screen.close:Close`;
 

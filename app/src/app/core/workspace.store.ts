@@ -9,7 +9,7 @@ import { WorkspaceDataStore } from './workspace/workspace-data.store';
 
 export { EMPTY_QUERY } from './workspace/query.store';
 export { loadPrefs, savePrefs } from './workspace/ui-prefs.store';
-export type { ThemeMode } from './workspace/ui-prefs.store';
+export type { SchemeMode, ThemeId } from './workspace/ui-prefs.store';
 export type { WorkspaceBusy } from './workspace/status.store';
 
 /**
@@ -100,11 +100,15 @@ export class WorkspaceStore {
   readonly timezone = this.prefs.timezone;
   readonly alwaysShowLifecycle = this.prefs.alwaysShowLifecycle;
   readonly theme = this.prefs.theme;
+  readonly scheme = this.prefs.scheme;
+  readonly lanesBySource = this.prefs.lanesBySource;
   readonly descending = this.prefs.descending;
   readonly extraColumns = this.prefs.extraColumns;
   readonly setTimezone = this.prefs.setTimezone;
   readonly setAlwaysShowLifecycle = this.prefs.setAlwaysShowLifecycle;
   readonly setTheme = this.prefs.setTheme;
+  readonly setScheme = this.prefs.setScheme;
+  readonly setLanesBySource = this.prefs.setLanesBySource;
   readonly toggleSort = this.prefs.toggleSort;
   readonly addColumn = this.prefs.addColumn;
   readonly removeColumn = this.prefs.removeColumn;

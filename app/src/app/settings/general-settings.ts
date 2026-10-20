@@ -1,17 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { DateFormat, TimeZoneMode } from '../core/format';
-import { ThemeMode, WorkspaceStore } from '../core/workspace.store';
+import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
 import { LanguageService } from '../i18n/language.service';
 import { LanguageChoice } from '../i18n/locale';
 import { OverviewPrefs } from '../overview/overview-prefs';
 import { HelpHint } from '../ui/help-hint';
-import { GridDensity, SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
-import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
+import { SettingsStore } from './settings.store';
 
 /**
- * UI-only preferences (kept in the browser): language (applied after a restart), theme, time zone, date format,
- * density, overview. Everything but the language applies immediately.
+ * UI-only preferences (kept in the browser): language (applied after a restart), time zone, date format, lifecycle
+ * markers, overview, layout. Everything but the language applies immediately. The look is in Appearance.
  */
 @Component({
   selector: 'imt-general-settings',
@@ -30,14 +29,6 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
       }
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.general.theme">Theme</legend>
-      <div class="seg">
-        @for (t of themes; track t) {
-          <button class="btn" type="button" [class.active]="store.theme() === t" [attr.aria-pressed]="store.theme() === t" (click)="store.setTheme(t)">{{ themeLabels[t] }}</button>
-        }
-      </div>
-    </fieldset>
-    <fieldset>
       <legend i18n="@@settings.general.timeZone">Time zone</legend>
       <div class="seg">
         @for (z of zones; track z.id) {
@@ -50,22 +41,6 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
       <div class="seg">
         @for (f of dateFormats; track f.id) {
           <button class="btn" type="button" [class.active]="settings.dateFormat() === f.id" [attr.aria-pressed]="settings.dateFormat() === f.id" (click)="settings.setDateFormat(f.id)">{{ f.label }}</button>
-        }
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend i18n="@@settings.general.density">Grid density</legend>
-      <div class="seg">
-        @for (d of densities; track d) {
-          <button class="btn" type="button" [class.active]="settings.density() === d" [attr.aria-pressed]="settings.density() === d" (click)="settings.setDensity(d)">{{ densityLabels[d] }}</button>
-        }
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend i18n="@@settings.general.sourceColors">Source colours <imt-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
-      <div class="seg" data-testid="source-colors">
-        @for (m of sourceColorModes; track m) {
-          <button class="btn" type="button" [class.active]="settings.sourceColors() === m" [attr.aria-pressed]="settings.sourceColors() === m" (click)="settings.setSourceColors(m)">{{ sourceColorLabels[m] }}</button>
         }
       </div>
     </fieldset>
@@ -86,12 +61,12 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
   styles: `
     :host { display: flex; flex-direction: column; gap: 14px; }
     fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-    legend { padding: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    legend { padding: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
     .seg { display: flex; gap: 4px; flex-wrap: wrap; }
     .seg .btn { text-transform: capitalize; }
     .row { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
     .lang { align-self: flex-start; min-width: 200px; }
-    .pending { margin: 0; color: var(--text-2); font-size: 12px; }
+    .pending { margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
     .link { border: 0; background: none; padding: 0; color: var(--text); cursor: pointer; text-decoration: underline; }
   `,
 })
@@ -109,12 +84,6 @@ export class GeneralSettings {
     { id: 'en', label: 'English', lang: 'en' },
     { id: 'pseudo', label: $localize`:Language option, a generated test language with accented, longer text@@settings.general.language.pseudo:Pseudo`, lang: null },
   ];
-  protected readonly themes: ThemeMode[] = ['system', 'dark', 'light'];
-  protected readonly themeLabels: Record<ThemeMode, string> = {
-    system: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.system:system`,
-    dark: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.dark:dark`,
-    light: $localize`:Theme option (capitalised by CSS)@@settings.general.theme.light:light`,
-  };
   protected readonly zones: { id: TimeZoneMode; label: string }[] = [
     { id: 'utc', label: 'UTC' },
     { id: 'local', label: $localize`:Time zone option, the computer's time zone@@settings.general.timeZone.local:Local` },
@@ -123,11 +92,4 @@ export class GeneralSettings {
     { id: 'readable', label: $localize`:Date format option@@settings.general.dateFormat.readable:Readable` },
     { id: 'iso', label: 'ISO' },
   ];
-  protected readonly sourceColorModes = SOURCE_COLOR_MODES;
-  protected readonly sourceColorLabels = SOURCE_COLOR_LABELS;
-  protected readonly densities: GridDensity[] = ['comfortable', 'compact'];
-  protected readonly densityLabels: Record<GridDensity, string> = {
-    comfortable: $localize`:Grid density option (capitalised by CSS)@@settings.general.density.comfortable:comfortable`,
-    compact: $localize`:Grid density option (capitalised by CSS)@@settings.general.density.compact:compact`,
-  };
 }

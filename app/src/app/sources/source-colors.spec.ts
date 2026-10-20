@@ -1,48 +1,35 @@
-import { readFileSync } from 'node:fs';
+import { resolveTokens } from '../theme/theme-tokens';
+import { BUILT_IN_THEMES } from '../theme/themes';
+import { SCHEMES } from '../theme/theme.types';
 import { CVD_KINDS, deltaE, paletteProblems, worstCvdDelta } from '../tools/monitor/cvd';
 import { InstanceSlots, SOURCE_COLOR_VARS, stripeBackground, swatchAt } from './source-colors';
 
 /**
- * Gate on the source-marker tokens (`--src-1`…`--src-4` in styles.scss): in both themes every pair separates under
+ * Gate on every theme's source-marker tokens (`--src-1`…`--src-4`): in both schemes every pair separates under
  * protanopia, deuteranopia and tritanopia (Machado 2009, OKLab ΔE ≥ 8) and normal vision (ΔE ≥ 15), and every colour
  * has non-text contrast ≥ 3:1 against every surface a marker is drawn on: the panels and the grid rows, hovered,
  * active and selected (WCAG 1.4.11).
  */
-const STYLES = readFileSync('src/styles.scss', 'utf8');
 const SURFACES = ['bg-1', 'bg-2', 'bg-3', 'bg-hover', 'bg-active', 'bg-sel'];
 
-function theme(block: string): { colors: string[]; surfaces: string[] } {
-  const t = new Map([...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})\s*;/gi)].map((m) => [m[1] ?? '', (m[2] ?? '').toLowerCase()]));
-  const pick = (names: string[]) => names.map((n) => t.get(n) ?? `missing --${n}`);
-  return { colors: pick(SOURCE_COLOR_VARS.map((_, i) => `src-${i + 1}`)), surfaces: pick(SURFACES) };
-}
-
-const lightStart = STYLES.indexOf('@mixin light-tokens');
-const DARK = theme(STYLES.slice(STYLES.indexOf(':root {'), lightStart));
-const LIGHT = theme(STYLES.slice(lightStart, STYLES.indexOf('@media (prefers-color-scheme: light)')));
-
 describe('source marker palette', () => {
-  it('is read from the stylesheet, four colours per theme', () => {
-    for (const t of [DARK, LIGHT]) {
-      expect(t.colors).toHaveLength(4);
-      expect([...t.colors, ...t.surfaces].every((c) => /^#[0-9a-f]{6}$/.test(c))).toBe(true);
+  for (const theme of BUILT_IN_THEMES) {
+    for (const scheme of SCHEMES) {
+      it(`passes the all-pairs colour-vision and 3:1 contrast gate (${theme.id} ${scheme})`, () => {
+        const tokens = resolveTokens(theme, scheme, 'comfortable');
+        const pick = (names: string[]) => names.map((n) => tokens[n] ?? `missing --${n}`);
+        const colors = pick(SOURCE_COLOR_VARS.map((_, i) => `src-${i + 1}`));
+        expect(colors).toHaveLength(4);
+        expect(paletteProblems(colors, pick(SURFACES))).toEqual([]);
+        colors.forEach((a, i) =>
+          colors.slice(i + 1).forEach((b) => {
+            for (const kind of CVD_KINDS) expect(deltaE(a, b, kind)).toBeGreaterThanOrEqual(8);
+            expect(worstCvdDelta(a, b, CVD_KINDS)).toBeGreaterThanOrEqual(8);
+            expect(deltaE(a, b)).toBeGreaterThanOrEqual(15);
+          }),
+        );
+      });
     }
-  });
-
-  for (const [name, t] of [
-    ['dark', DARK],
-    ['light', LIGHT],
-  ] as const) {
-    it(`passes the all-pairs colour-vision and 3:1 contrast gate in the ${name} theme`, () => {
-      expect(paletteProblems(t.colors, t.surfaces)).toEqual([]);
-      t.colors.forEach((a, i) =>
-        t.colors.slice(i + 1).forEach((b) => {
-          for (const kind of CVD_KINDS) expect(deltaE(a, b, kind)).toBeGreaterThanOrEqual(8);
-          expect(worstCvdDelta(a, b, CVD_KINDS)).toBeGreaterThanOrEqual(8);
-          expect(deltaE(a, b)).toBeGreaterThanOrEqual(15);
-        }),
-      );
-    });
   }
 
   it('the check catches a confusable pair and a low-contrast colour', () => {

@@ -74,7 +74,7 @@ describe('EventsGrid', () => {
   it('follows the density and date format settings', async () => {
     const { fixture } = await render();
     const settings = TestBed.inject(SettingsStore);
-    expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('26px');
+    expect(fixture.nativeElement.style.getPropertyValue('--row-h')).toBe('24px');
     expect(at(rows(fixture), 0).querySelector('.time')?.textContent).toMatch(/^\d+ \w{3} /);
     settings.setDensity('compact');
     settings.setDateFormat('iso');
@@ -388,7 +388,7 @@ describe('EventsGrid', () => {
 });
 
 describe('EventsGrid at scale', { timeout: 30_000 }, () => {
-  const ROW = 26;
+  const ROW = 24;
   const BIG = 50_000_000;
   let restore: PropertyDescriptor | undefined;
   beforeAll(() => {

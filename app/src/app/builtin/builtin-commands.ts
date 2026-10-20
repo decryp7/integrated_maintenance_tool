@@ -8,6 +8,7 @@ import { ImtCommand } from '../extensions/tokens';
 import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
 import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
 import { CLEAR_CACHE_COMMAND, STORAGE_ID } from '../settings/storage/storage.types';
+import { APPEARANCE_ID } from '../settings/settings-model';
 import { AboutService } from '../about/about-dialog';
 import { TimelineZoom } from '../timeline/zoom';
 import { WelcomeService } from '../welcome/welcome';
@@ -48,12 +49,15 @@ export class BuiltinCommands {
     { id: 'help.notices', title: $localize`:@@builtin.cmd.help.notices:Third-party notices`, category: $localize`:@@builtin.category.help:Help`, run: () => this.about.open() },
     { id: 'settings.open', title: $localize`:@@builtin.cmd.settings.open:Open settings`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+,', run: () => this.settings.open() },
     { id: CLEAR_CACHE_COMMAND, title: $localize`:@@settings.storage.cmd.clearCache:Clear cache…`, category: $localize`:@@builtin.category.help:Help`, run: () => this.settings.open(STORAGE_ID) },
+    { id: 'settings.appearance', title: $localize`:@@builtin.cmd.settings.appearance:Open settings: Appearance`, category: $localize`:@@builtin.category.view:View`, run: () => this.settings.open(APPEARANCE_ID) },
     { id: SETTINGS_DIAGNOSTICS_COMMAND, title: $localize`:@@builtin.cmd.settings.diagnostics:Open settings: Diagnostics`, category: $localize`:@@builtin.category.view:View`, run: () => this.settings.open(DIAGNOSTICS_SECTION) },
     { id: 'view.toggleSidebar', title: $localize`:@@builtin.cmd.view.toggleSidebar:Toggle sidebar`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+B', run: () => this.store.toggleSidebar() },
     { id: 'view.resetLayout', title: $localize`:@@builtin.cmd.view.resetLayout:Reset layout`, category: $localize`:@@builtin.category.view:View`, run: () => this.dock.reset() },
-    { id: 'view.theme.system', title: $localize`:@@builtin.cmd.view.theme.system:Theme: system`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('system') },
-    { id: 'view.theme.dark', title: $localize`:@@builtin.cmd.view.theme.dark:Theme: dark`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('dark') },
-    { id: 'view.theme.light', title: $localize`:@@builtin.cmd.view.theme.light:Theme: light`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('light') },
+    { id: 'view.theme.calm', title: $localize`:@@builtin.cmd.view.theme.calm:Theme: Calm`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('calm') },
+    { id: 'view.theme.console', title: $localize`:@@builtin.cmd.view.theme.console:Theme: Console`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('console') },
+    { id: 'view.scheme.system', title: $localize`:@@builtin.cmd.view.scheme.system:Colour scheme: system`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('system') },
+    { id: 'view.scheme.dark', title: $localize`:@@builtin.cmd.view.scheme.dark:Colour scheme: dark`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('dark') },
+    { id: 'view.scheme.light', title: $localize`:@@builtin.cmd.view.scheme.light:Colour scheme: light`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setScheme('light') },
     { id: 'view.layout.focused', title: $localize`:@@builtin.cmd.view.layout.focused:Layout: focused`, category: $localize`:@@builtin.category.view:View`, run: () => this.layout.set('focused') },
     { id: 'view.layout.full', title: $localize`:@@builtin.cmd.view.layout.full:Layout: full`, category: $localize`:@@builtin.category.view:View`, run: () => this.layout.set('full') },
     { id: 'view.sourceColors.source', title: $localize`:@@builtin.cmd.view.sourceColors.source:Source colours: by file`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('source') },
