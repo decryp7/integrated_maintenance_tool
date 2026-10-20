@@ -692,168 +692,168 @@
         <source>Web sources: </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">108,109</context>
+          <context context-type="linenumber">109,110</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.stopped" datatype="html">
         <source>Stopped.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">116,118</context>
+          <context context-type="linenumber">117,119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.askAgain" datatype="html">
         <source>Ask again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">119,121</context>
+          <context context-type="linenumber">120,122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">127,129</context>
+          <context context-type="linenumber">128,130</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.context.chip" datatype="html">
         <source> Context: <x id="INTERPOLATION" equiv-text="{{ contextSummary() }}"/> </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">139,140</context>
+          <context context-type="linenumber">140,141</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.context.legend" datatype="html">
         <source>What is sent with your question</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">143,144</context>
+          <context context-type="linenumber">144,145</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.context.note" datatype="html">
         <source>The engine checks these and reads the events itself. Nothing leaves this computer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">150,152</context>
+          <context context-type="linenumber">151,153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.input.label" datatype="html">
         <source>Ask about the logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">156,158</context>
+          <context context-type="linenumber">157,159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.input.placeholder" datatype="html">
         <source>Ask about the logs…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">162,163</context>
+          <context context-type="linenumber">163,164</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.stop" datatype="html">
         <source>Stop</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">170,171</context>
+          <context context-type="linenumber">171,172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.send" datatype="html">
         <source>Send</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">172,174</context>
+          <context context-type="linenumber">173,175</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.queuedHint" datatype="html">
         <source>the AI answers one request at a time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">224</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.context.none" datatype="html">
         <source>nothing selected</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">246</context>
+          <context context-type="linenumber">247</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.engine.unavailable" datatype="html">
         <source>AI unavailable</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">251</context>
+          <context context-type="linenumber">252</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.engine.noModel" datatype="html">
         <source>no model</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">252</context>
+          <context context-type="linenumber">253</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.session.untitled" datatype="html">
         <source>New chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">280</context>
+          <context context-type="linenumber">281</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.session.answering" datatype="html">
         <source><x id="title" equiv-text="title"/> (answering…)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">281</context>
+          <context context-type="linenumber">282</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.agentStep" datatype="html">
         <source>Step <x id="step" equiv-text="step"/> of <x id="limit" equiv-text="limit"/>: <x id="action" equiv-text="toolLabel(&apos;browser_&apos; + action)"/> <x id="site" equiv-text="where"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">302</context>
+          <context context-type="linenumber">303</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.continueTask" datatype="html">
         <source>Continue.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">340</context>
+          <context context-type="linenumber">341</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.notApplied" datatype="html">
         <source>Not applied: <x id="error" equiv-text="err"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">365</context>
+          <context context-type="linenumber">366</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.applied" datatype="html">
         <source>Applied <x id="query" equiv-text="ql"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">365</context>
+          <context context-type="linenumber">366</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.export.dialogTitle" datatype="html">
         <source>Export chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">383</context>
+          <context context-type="linenumber">384</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.exported" datatype="html">
         <source>Exported to <x id="path" equiv-text="written"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">387</context>
+          <context context-type="linenumber">388</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.notExported" datatype="html">
         <source>Not exported: <x id="error" equiv-text="toAiError(e).message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">389</context>
+          <context context-type="linenumber">390</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.citations.queryFailed" datatype="html">
@@ -8835,7 +8835,7 @@
         <source>The view &quot;<x id="id" equiv-text="id"/>&quot; is not available. Close this tab or reset the layout.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/angular-panel.ts</context>
-          <context context-type="linenumber">231</context>
+          <context context-type="linenumber">232</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.commands.category" datatype="html">
@@ -15591,28 +15591,28 @@
         <source>Copied</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.copyPath" datatype="html">
         <source>Copy path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">122</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.error.read" datatype="html">
         <source>Registry could not be read: <x id="detail" equiv-text="e instanceof Error ? e.message : String(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">153</context>
+          <context context-type="linenumber">155</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.error.clipboard" datatype="html">
         <source>Clipboard is not available.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">230</context>
+          <context context-type="linenumber">232</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.view.title" datatype="html">
@@ -18345,7 +18345,7 @@
         <source>No callees: all of its time is self time.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/butterfly/butterfly-view.ts</context>
-          <context context-type="linenumber">64,67</context>
+          <context context-type="linenumber">64,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.butterfly.noCapture" datatype="html">
@@ -18398,7 +18398,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">278</context>
+          <context context-type="linenumber">282</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-model.ts</context>
@@ -18864,21 +18864,21 @@
         <source>Choose a baseline profile to compare with.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/compare/compare-view.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.compare.openSecondHint" datatype="html">
         <source>Open a second profile to use as the baseline.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/compare/compare-view.ts</context>
-          <context context-type="linenumber">150</context>
+          <context context-type="linenumber">158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.compare.flameLabel" datatype="html">
         <source>Differential flame graph of <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/compare/compare-view.ts</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">228</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.findings.view.hotspots" datatype="html">
@@ -19109,119 +19109,119 @@
         <source>no module</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">145</context>
+          <context context-type="linenumber">150</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.otherModules" datatype="html">
         <source>Other modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">163</context>
+          <context context-type="linenumber">168</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.noData" datatype="html">
         <source>No data.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">167</context>
+          <context context-type="linenumber">172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.summary" datatype="html">
         <source><x id="frames" equiv-text="frames"/> frames, <x id="levels" equiv-text="levels"/> levels</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">170</context>
+          <context context-type="linenumber">175</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.truncated" datatype="html">
         <source>truncated: more frames than the limit, zoom in for detail</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">171</context>
+          <context context-type="linenumber">176</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.ariaLabel" datatype="html">
         <source><x id="label" equiv-text="label"/>. <x id="summary" equiv-text="summary"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">177</context>
+          <context context-type="linenumber">182</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.help.flame" datatype="html">
         <source>Arrow keys move between frames (Up to a callee, Down to the caller, Left and Right to neighbours); Enter zooms in, Escape zooms out, Home goes to the top frame.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">181</context>
+          <context context-type="linenumber">186</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.help.icicle" datatype="html">
         <source>Arrow keys move between frames (Down to a callee, Up to the caller, Left and Right to neighbours); Enter zooms in, Escape zooms out, Home goes to the top frame.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">182</context>
+          <context context-type="linenumber">187</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.framesLimited" datatype="html">
         <source>Frames in view (<x id="count" equiv-text="count"/>, largest <x id="limit" equiv-text="limit"/> listed)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">188</context>
+          <context context-type="linenumber">193</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.frames" datatype="html">
         <source>Frames in view (<x id="count" equiv-text="count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">189</context>
+          <context context-type="linenumber">194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.announce.change" datatype="html">
         <source>, change <x id="change" equiv-text="change"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">196</context>
+          <context context-type="linenumber">201</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.announce.matched" datatype="html">
         <source>, matches the search</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">197</context>
+          <context context-type="linenumber">202</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.announce" datatype="html">
         <source><x id="name" equiv-text="name"/>, depth <x id="depth" equiv-text="depth"/>, total <x id="total" equiv-text="total"/>, <x id="share" equiv-text="share"/>, self <x id="self" equiv-text="self"/><x id="delta" equiv-text="delta"/><x id="matched" equiv-text="matched"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">203</context>
+          <context context-type="linenumber">208</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.zoomTo" datatype="html">
         <source>Zoom to <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">283</context>
+          <context context-type="linenumber">287</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.tip.totalAll" datatype="html">
         <source>Total <x id="value" equiv-text="value"/> (<x id="share" equiv-text="share"/> of all)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">290</context>
+          <context context-type="linenumber">294</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.tip.totalZoomed" datatype="html">
         <source>Total <x id="value" equiv-text="value"/> (<x id="share" equiv-text="share"/> of the zoomed frame)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">291</context>
+          <context context-type="linenumber">295</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.measurementValues" datatype="html">
         <source><x id="kind" equiv-text="kind"/> values</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">316</context>
+          <context context-type="linenumber">320</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.kind.managed" datatype="html">
@@ -19501,7 +19501,7 @@
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-diff.ts</context>
-          <context context-type="linenumber">38,41</context>
+          <context context-type="linenumber">38,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDiff.openSecond" datatype="html">
@@ -19655,14 +19655,14 @@
         <source>Loading children of @<x id="object" equiv-text="k"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapDominators.whyLabel" datatype="html">
         <source>Why is <x id="type" equiv-text="typeName"/> @<x id="object" equiv-text="object"/> alive?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-dominators.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">124</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapGrowth.snapshots" datatype="html">
@@ -19928,35 +19928,35 @@
         <source>Types</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-selection.ts</context>
-          <context context-type="linenumber">6</context>
+          <context context-type="linenumber">7</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.tab.diff" datatype="html">
         <source>Compare snapshots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-selection.ts</context>
-          <context context-type="linenumber">7</context>
+          <context context-type="linenumber">8</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.tab.growth" datatype="html">
         <source>Growth</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-selection.ts</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="linenumber">9</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.tab.dominators" datatype="html">
         <source>Dominator tree</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-selection.ts</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">10</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.tab.instances" datatype="html">
         <source>Instances and paths</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-selection.ts</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">11</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.searchPlaceholder" datatype="html">
@@ -20005,7 +20005,7 @@
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">33,36</context>
+          <context context-type="linenumber">33,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.loadMore" datatype="html">
@@ -20019,35 +20019,35 @@
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.count" datatype="html">
         <source>Count</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.bytes" datatype="html">
         <source>Bytes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.col.retained" datatype="html">
         <source>Retained</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heapTypes.instancesOf" datatype="html">
         <source>Instances of <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-types.ts</context>
-          <context context-type="linenumber">87</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.title" datatype="html">
@@ -20089,14 +20089,14 @@
         <source><x id="objects" equiv-text="objects"/> objects · <x id="types" equiv-text="types"/> types · <x id="bytes" equiv-text="bytes"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-view.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.heap.summaryNoGraph" datatype="html">
         <source><x id="objects" equiv-text="objects"/> objects · <x id="types" equiv-text="types"/> types · <x id="bytes" equiv-text="bytes"/> · no object graph (types only)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/heap/heap-view.ts</context>
-          <context context-type="linenumber">89</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.hotspots.help.name" datatype="html">
@@ -31996,7 +31996,7 @@
         <source>Keep running in tray</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/windowing/close-prompt.ts</context>
-          <context context-type="linenumber">33,37</context>
+          <context context-type="linenumber">33,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.closePrompt.failed" datatype="html">
