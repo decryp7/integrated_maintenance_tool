@@ -266,6 +266,9 @@ pub struct OpSpec {
     /// marked hung; `None` means unlimited.
     #[serde(rename = "budgetMs", serialize_with = "millis")]
     pub budget: Option<Duration>,
+    /// A read-only status operation the UI polls: the shell runs it through the quiet `tool_poll`
+    /// (not logged per call) and refuses `tool_poll` for any other operation.
+    pub poll: bool,
 }
 
 fn millis<S: serde::Serializer>(d: &Option<Duration>, s: S) -> std::result::Result<S::Ok, S::Error> {
@@ -283,6 +286,7 @@ impl OpSpec {
             title: title.into(),
             args: Schema::object(),
             budget: Some(DEFAULT_OP_BUDGET),
+            poll: false,
         }
     }
 
@@ -293,6 +297,12 @@ impl OpSpec {
 
     pub fn budget(mut self, budget: Option<Duration>) -> OpSpec {
         self.budget = budget;
+        self
+    }
+
+    /// Marks a read-only status operation that may be polled (see [`OpSpec::poll`]).
+    pub fn polling(mut self) -> OpSpec {
+        self.poll = true;
         self
     }
 }

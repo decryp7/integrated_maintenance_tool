@@ -220,6 +220,8 @@ command_table! {
     Query [WINDOW] => system::read_file_head,
     Query [WINDOW] => tools::tools_list,
     Mutation [WINDOW] limit MIB => tools::tool_invoke,
+    Quiet [WINDOW] limit 64 * 1024 => tools::tool_poll,
+    Query [WINDOW] limit 4 * 1024 => tools::tool_task_job,
     Query [WINDOW] => agent_commands::agent_schema,
     Query [WINDOW] => agent_commands::agent_config_load,
     Query [WINDOW] limit MIB => agent_commands::agent_config_validate,

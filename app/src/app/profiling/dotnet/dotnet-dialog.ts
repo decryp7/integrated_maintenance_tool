@@ -100,7 +100,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
     @if (store.selected()?.needsElevation) {
       <imt-tool-error [message]="elevationText" (dismissed)="store.dismissError()" />
     }
-    <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+    <imt-tool-error [message]="store.error()" [code]="store.errorCode()" (dismissed)="store.dismissError()" />
 
     @if (store.captures().length) {
       <h3 class="section-title" i18n="@@profiling.dotnet.captures">Captures</h3>
@@ -131,7 +131,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+    :host { display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-md); }
     .bar, .row, .head, .foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .bar .input { flex: 1; }
     .procs, .caps { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid var(--border-2); border-radius: 6px; }
@@ -140,7 +140,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
     .proc:focus-visible { outline: 2px solid var(--accent); }
     .name { font-weight: 600; color: var(--text); }
     .cmd { flex-basis: 100%; }
-    .tag { border: 1px solid var(--border-2); border-radius: 10px; padding: 0 6px; font-size: 11px; color: var(--text-2); }
+    .tag { border: 1px solid var(--border-2); border-radius: 10px; padding: 0 6px; font-size: var(--fs-xs); color: var(--text-2); }
     .tag.warn { border-color: var(--lvl-warn); color: var(--text); }
     .kinds { border: 1px solid var(--border-2); border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; }
     .kind { display: flex; gap: 8px; align-items: flex-start; }
@@ -148,7 +148,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
     .num { width: 80px; }
     .spacer { flex: 1; }
     .cap { padding: 6px 8px; border-bottom: 1px solid var(--border-2); }
-    .note { margin: 2px 0 0; font-size: 12px; }
+    .note { margin: 2px 0 0; font-size: var(--fs-sm); }
     .foot { justify-content: space-between; }
   `,
 })

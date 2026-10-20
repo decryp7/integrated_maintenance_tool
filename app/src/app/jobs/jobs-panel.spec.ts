@@ -207,7 +207,7 @@ describe('JobsPanel', () => {
     const { f } = setup(sample());
     await render(f);
     const chip = (k: string) => el<HTMLButtonElement>(f, `[data-testid=jobs-kind-${k}]`);
-    expect(all(f, '.chip').map((c) => c.textContent)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Maintenance']);
+    expect(all(f, '.chip').map((c) => c.textContent)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Capture', 'Maintenance']);
     expect(chip('ai').getAttribute('aria-pressed')).toBe('false');
     chip('export').click();
     f.detectChanges();

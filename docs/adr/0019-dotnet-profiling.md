@@ -79,6 +79,12 @@ disallowed in many production environments.
    separate resolver step over the same image-load records (planned with the native profiler).
 10. **Shell and UI.** Captures and `.etl` conversions run as cancellable Jobs with a size cap and a duration cap; the
     UI ("Profile .NET process…") is problem-first: engine-computed findings link into the existing views.
+    With ADR 0016: a capture is a Job of kind `capture` (several run at once, beside a diagnostics collection);
+    cancelling it is `jobs_cancel` on its job (found with `tool_task_job`), which discards the file, while the
+    tool's `stop` operation keeps it. The dialog polls the tool's `status` through the quiet `tool_poll` (only
+    operations a tool declares pollable). Missing ETW rights are a typed `ToolFailure::denied`, so the command fails
+    with the `denied` code and the "Restart as administrator" hint; finished files are tool outputs the window may
+    open.
 11. **Robustness.** Decoders never panic (fuzz targets for every new decoder), every table and file is bounded,
     connect/read/rundown steps have timeouts, every failure path (access denied, refused connection, garbage reply,
     peer closing mid-stream, size limit, timeout, truncated `.etl`) has a test. The Windows glue type-checks on CI

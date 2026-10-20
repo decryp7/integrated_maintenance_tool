@@ -1,4 +1,5 @@
 import { DotnetCaptureRequest, DotnetCaptureStatus, DotnetProcess, EtlConverted, EtlProcess } from '../../core/api.types';
+import { CmdError } from '../../core/cmd-error';
 import { DotnetBackend } from './dotnet-backend';
 
 /** Demo captures open these (the profiling mock knows them). */
@@ -52,6 +53,8 @@ export class MockDotnetBackend extends DotnetBackend {
       this.started.set(id, { at: this.now(), durationMs: r.kind === 'heap' ? 1500 : r.durationSec ? r.durationSec * 1000 : null });
     }
     this.list.unshift(status);
+    // Like the real tool: missing rights are a typed failure (the capture stays listed as failed).
+    if (status.needsElevation) throw new CmdError({ code: 'denied', message: status.error ?? '', retryable: false, hint: 'Restart IMT as administrator, then try again.' });
     return { ...status };
   }
 

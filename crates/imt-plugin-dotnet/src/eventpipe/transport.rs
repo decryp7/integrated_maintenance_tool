@@ -27,7 +27,11 @@ impl Connector for SystemConnector {
         loop {
             match std::fs::OpenOptions::new().read(true).write(true).open(&path) {
                 Ok(f) => return Ok(Box::new(f)),
-                // ERROR_FILE_NOT_FOUND: no such port (not .NET Core, or exited).
+                // ERROR_FILE_NOT_FOUND: no listening instance. Between accepting one connection and listening again
+                // the runtime has none (a busy machine widens that gap): retry until the deadline, then the port is gone.
+                Err(e) if e.raw_os_error() == Some(2) && Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(50));
+                }
                 Err(e) if e.raw_os_error() == Some(2) => return Err(DotnetError::NotFound { pid }),
                 Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return Err(DotnetError::Denied),
                 // ERROR_PIPE_BUSY: every instance is in use; the runtime creates another soon.

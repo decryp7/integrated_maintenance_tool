@@ -5,15 +5,15 @@
 //! |---|---|---|
 //! | `processes` | — | `DotnetProcess[]` |
 //! | `start` | `DotnetCaptureRequest` | `DotnetCaptureStatus` (a running capture is a tool task → a Job) |
-//! | `status` | — | `DotnetCaptureStatus[]` |
-//! | `stop` / `cancel` | `{ id }` | `DotnetCaptureStatus` |
+//! | `status` | — | `{ captures: DotnetCaptureStatus[], outputs }` (polled with the quiet `tool_poll`) |
+//! | `stop` | `{ id }` | `DotnetCaptureStatus` (kept; cancel is the Job's: `jobs_cancel`) |
 //! | `etl-processes` | `{ path }` | `EtlProcess[]` (Windows) |
 //! | `etl-convert` | `{ path, pid }` | `{ path, notes }`: a NetTrace to open with `profiling_open` |
 
 use super::captures::{Captures, Request};
 use crate::Limits;
 use anyhow::{anyhow, bail, Context, Result};
-use imt_core::plugin::tools::{OpSpec, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+use imt_core::plugin::tools::{OpSpec, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ use std::time::Duration;
 /// The tool id.
 pub const TOOL_ID: &str = "dotnet-profiler";
 /// Task kind hint (the shell lists such tasks as Jobs).
-pub const TASK_KIND: &str = "dotnet-capture";
+pub const TASK_KIND: &str = "capture";
 /// Largest `.etl` file converted.
 pub const MAX_ETL_BYTES: u64 = 8 << 30;
 const MAX_PATH: usize = 4096;
@@ -56,6 +56,10 @@ impl DotnetTool {
         let req: Request = serde_json::from_value(args).context("invalid capture request")?;
         let dir = Self::out_dir(ctx, "dotnet")?;
         let status = self.captures.start(req, &dir, self.limits).map_err(|e| anyhow!(e))?;
+        if status.needs_elevation {
+            // Typed, so the shell answers with the "denied" code and the restart-as-administrator hint.
+            return Err(anyhow!(ToolFailure::denied(status.error.clone().unwrap_or_default())));
+        }
         if self.captures.is_running(&status.id) {
             ctx.task_started(ToolTask {
                 id: status.id.clone(),
@@ -200,9 +204,8 @@ impl Tool for DotnetTool {
                     .field("kind", Schema::one_of(["cpu", "allocations", "heap"]))
                     .optional("durationSec", Schema::int(1, super::captures::MAX_DURATION_SEC as i64)),
             ))
-            .op(OpSpec::new("status", "List captures").args(Schema::object()))
+            .op(OpSpec::new("status", "List captures").args(Schema::object()).polling())
             .op(OpSpec::new("stop", "Stop a capture").args(id_arg()).budget(long))
-            .op(OpSpec::new("cancel", "Cancel a capture").args(id_arg()).budget(long))
             .op(OpSpec::new("etl-processes", "List the processes in an .etl trace")
                 .args(Schema::object().field("path", Schema::text(MAX_PATH)))
                 .budget(Some(Duration::from_secs(1800))))
@@ -221,16 +224,14 @@ impl Tool for DotnetTool {
             "start" => self.start(args, ctx),
             "status" => {
                 self.captures.reap();
-                Ok(json!(self.captures.list()))
+                let captures = self.captures.list();
+                // Finished files are tool outputs: the shell lets this window open them.
+                let outputs: Vec<&str> = captures.iter().filter_map(|c| c.path.as_deref()).collect();
+                Ok(json!({ "captures": captures, "outputs": outputs }))
             }
-            "stop" | "cancel" => {
+            "stop" => {
                 let id = args.get("id").and_then(Value::as_str).unwrap_or_default();
-                let s = if op == "stop" {
-                    self.captures.stop(id)
-                } else {
-                    self.captures.cancel(id)
-                };
-                Ok(serde_json::to_value(s.map_err(|e| anyhow!(e))?)?)
+                Ok(serde_json::to_value(self.captures.stop(id).map_err(|e| anyhow!(e))?)?)
             }
             "etl-processes" => self.etl_processes(args),
             "etl-convert" => self.etl_convert(args, ctx),
@@ -238,13 +239,14 @@ impl Tool for DotnetTool {
         }
     }
 
-    /// Stop from the Jobs pane or the tray: a capture is stopped and kept; a conversion is cancelled.
+    /// Cancel from the Jobs pane (`jobs_cancel`, the one cancel authority): a capture is stopped at once and its
+    /// file deleted; a conversion is cancelled. Stopping a capture and keeping it is the `stop` operation.
     fn stop(&self, task: &str, _ctx: &ToolCtx) -> Result<()> {
         if let Some(flag) = self.conversions.lock().unwrap_or_else(|p| p.into_inner()).get(task) {
             flag.store(true, std::sync::atomic::Ordering::Relaxed);
             return Ok(());
         }
-        self.captures.stop(task).map(|_| ()).map_err(|e| anyhow!(e))
+        self.captures.cancel(task).map(|_| ()).map_err(|e| anyhow!(e))
     }
 }
 
@@ -275,7 +277,9 @@ mod tests {
     fn describes_valid_ops() {
         let info = tool(None).describe();
         assert!(info.check().is_ok(), "{:?}", info.check());
-        assert_eq!(info.ops.len(), 7);
+        assert_eq!(info.ops.len(), 6);
+        assert!(info.ops.iter().any(|o| o.name == "status" && o.poll));
+        assert!(info.ops.iter().filter(|o| o.poll).count() == 1);
     }
 
     #[test]
@@ -292,12 +296,16 @@ mod tests {
         let id = s["id"].as_str().unwrap().to_string();
         assert_eq!(s["state"], "recording");
         assert!(t.invoke("start", json!({"pid": 10, "kind": "cpu"}), &ctx).is_err());
-        assert_eq!(t.invoke("status", json!({}), &ctx).unwrap().as_array().unwrap().len(), 1);
-        // Stop from the Jobs pane keeps the capture.
-        t.stop(&id, &ctx).unwrap();
+        assert_eq!(
+            t.invoke("status", json!({}), &ctx).unwrap()["captures"].as_array().unwrap().len(),
+            1
+        );
+        // The stop operation keeps the capture; its file is a tool output.
+        t.invoke("stop", json!({"id": id}), &ctx).unwrap();
         let st = t.invoke("status", json!({}), &ctx).unwrap();
-        assert_eq!(st[0]["state"], "done");
-        assert!(st[0]["path"].as_str().unwrap().contains("captures"));
+        assert_eq!(st["captures"][0]["state"], "done");
+        assert!(st["captures"][0]["path"].as_str().unwrap().contains("captures"));
+        assert_eq!(st["outputs"][0], st["captures"][0]["path"]);
         let start = std::time::Instant::now();
         while !sink.0.lock().unwrap().iter().any(|e| e.starts_with("finished")) && start.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(20));
@@ -305,8 +313,13 @@ mod tests {
         let events = sink.0.lock().unwrap().clone();
         assert_eq!(events, [format!("started {id} {TASK_KIND}"), format!("finished {id}")]);
         let s = t.invoke("start", json!({"pid": 11, "kind": "heap"}), &ctx).unwrap();
-        let c = t.invoke("cancel", json!({"id": s["id"]}), &ctx).unwrap();
-        assert_eq!(c["state"], "cancelled");
+        // Cancel from the Jobs pane discards the capture.
+        t.stop(s["id"].as_str().unwrap(), &ctx).unwrap();
+        assert_eq!(t.invoke("status", json!({}), &ctx).unwrap()["captures"][0]["state"], "cancelled");
+        assert!(
+            t.invoke("cancel", json!({"id": s["id"]}), &ctx).is_err(),
+            "no cancel operation: Jobs cancel"
+        );
         assert!(t.invoke("stop", json!({"id": "nope"}), &ctx).is_err());
         assert!(t.invoke("bogus", json!({}), &ctx).is_err());
         assert!(t.stop("nope", &ctx).is_err());
@@ -324,7 +337,7 @@ mod tests {
         while !sink.0.lock().unwrap().iter().any(|e| e.starts_with("finished")) && start.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(t.invoke("status", json!({}), &ctx).unwrap()[0]["state"], "done");
+        assert_eq!(t.invoke("status", json!({}), &ctx).unwrap()["captures"][0]["state"], "done");
         assert_eq!(s["kind"], "cpu");
         let no_dir = ToolCtx::new(None, Arc::new(NoTasks));
         assert!(t
@@ -332,6 +345,21 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("data folder"));
+    }
+
+    #[test]
+    fn missing_rights_are_a_typed_denied_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = ToolCtx::new(Some(dir.path().to_path_buf()), Arc::new(NoTasks));
+        let f = fake(None);
+        f.deny.store(true, std::sync::atomic::Ordering::SeqCst);
+        let t = DotnetTool::new(Captures::new(f), Limits::default());
+        let e = t.invoke("start", json!({"pid": 10, "kind": "cpu"}), &ctx).unwrap_err();
+        let failure = e.downcast_ref::<ToolFailure>().expect("a typed failure");
+        assert_eq!(*failure, ToolFailure::denied(failure.message.clone()));
+        assert!(failure.message.contains("administrator"));
+        // The failed capture is still listed.
+        assert_eq!(t.invoke("status", json!({}), &ctx).unwrap()["captures"][0]["state"], "failed");
     }
 
     #[test]

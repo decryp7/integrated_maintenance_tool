@@ -778,7 +778,7 @@ describe('JobsStore', () => {
 
 describe('jobs-text', () => {
   it('names every kind and state', () => {
-    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Maintenance']);
+    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Capture', 'Maintenance']);
     expect((['queued', 'running', 'done', 'failed', 'cancelled', 'interrupted'] as const).map(stateLabel)).toEqual(['Queued', 'Running', 'Done', 'Failed', 'Cancelled', 'Interrupted']);
   });
 

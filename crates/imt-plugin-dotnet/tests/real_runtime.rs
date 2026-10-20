@@ -102,8 +102,14 @@ fn run(exe: &Path) -> Target {
     let mut line = String::new();
     BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
     let pid: u32 = line.trim().strip_prefix("READY ").expect("READY line").parse().unwrap();
-    // Let the runtime open its diagnostics port and the workers warm up.
+    // Let the workers warm up; a .NET Core target also needs its diagnostics port answering (slow on a busy machine).
     std::thread::sleep(Duration::from_millis(1500));
+    if !exe.extension().is_some_and(|e| e == "exe") || exe.with_extension("dll").exists() {
+        let t = std::time::Instant::now();
+        while imt_plugin_dotnet::eventpipe::process_info(pid, Duration::from_secs(5)).is_err() && t.elapsed() < Duration::from_secs(60) {
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    }
     Target(child, pid)
 }
 
@@ -120,7 +126,7 @@ fn functions(p: &Profile) -> Vec<String> {
 
 fn limits() -> Limits {
     Limits {
-        connect_timeout: Duration::from_secs(10),
+        connect_timeout: Duration::from_secs(30),
         ..Limits::default()
     }
 }
