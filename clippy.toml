@@ -2,5 +2,5 @@
 # so none opens a console window on Windows. Tests and build scripts may allow this lint.
 disallowed-methods = [
     { path = "std::process::Command::new", reason = "use imt_core::process::quiet_command: it opens no console window on Windows" },
-    { path = "tokio::process::Command::new", reason = "use imt_core::process::quiet_command: it opens no console window on Windows" },
+    { path = "tokio::process::Command::new", allow-invalid = true, reason = "use imt_core::process::quiet_command: it opens no console window on Windows" },
 ]
