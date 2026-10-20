@@ -1,12 +1,15 @@
 import { $, browser, expect } from '@wdio/globals';
-import { chooseMenu, waitForEvents, waitForShell } from '../support/app';
+import { chooseMenu, waitForShell } from '../support/app';
 
 // Regression: Help ▸ Show activity log opened a white window on Windows (the command that built the window was
 // synchronous, and WebView2 never finished loading it). The new window must load IMT and show its own log.
 describe('real app: activity log', () => {
   it('Help ▸ Show activity log opens a working window with IMT’s log', async () => {
     await waitForShell();
-    await waitForEvents(); // the start-up import settles (it re-renders the menus)
+    // The start-up import settles (it re-renders the menus). The grid, not the timeline: the layout restored from the
+    // previous spec can leave the timeline in a background tab, and hidden panels are not rendered.
+    await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
+    await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
     const main = await browser.getWindowHandle();
     const before = await browser.getWindowHandles();
 

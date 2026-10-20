@@ -22,8 +22,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 2 : 0,
-  // Three on CI: each shard's container shares a runner host with other jobs, so not one per core.
-  workers: CI ? 3 : undefined,
+  // Two on CI: each shard's container shares a runner host with other jobs; three made WebKit tests time out.
+  workers: CI ? 2 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL: `http://localhost:${PORT}`,
