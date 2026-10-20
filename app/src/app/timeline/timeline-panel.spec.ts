@@ -5,7 +5,9 @@ import { Lane } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { mockJobs } from '../jobs/mock-jobs';
 import { MarkerVm, mergeMarkers } from './marker-layout';
-import { stableLaneOrder, TimelinePanel } from './timeline-panel';
+import { TimelinePanel } from './timeline-panel';
+import { orderLanes } from './lane-order';
+import { SelectionStore } from '../core/workspace/selection.store';
 import { TimelineZoom } from './zoom';
 import { AnalysisTargets } from '../analysis/analysis-targets';
 import { TimeCursor } from '../analysis/time-cursor';
@@ -35,12 +37,16 @@ describe('timeline geometry', () => {
     expect(mergeMarkers([], 1)).toEqual([]);
   });
 
-  it('keeps lane order stable while zoomed', () => {
-    const order = new Map<string, number>();
+  it('keeps lane order stable while zoomed, without mutating the order it is given', () => {
     const full = [lane('a', 1), lane('b', 2), lane('c', 3)];
-    expect(stableLaneOrder(full, order, true).map((l) => l.key)).toEqual(['a', 'b', 'c']);
+    const first = orderLanes(full, new Map(), true);
+    expect(first.lanes.map((l) => l.key)).toEqual(['a', 'b', 'c']);
+    const before = new Map(first.order);
     const zoomed = [lane('c', 0), lane('new', -1), lane('a', 5)];
-    expect(stableLaneOrder(zoomed, order, false).map((l) => l.key)).toEqual(['a', 'c', 'new']);
+    const next = orderLanes(zoomed, first.order, false);
+    expect(next.lanes.map((l) => l.key)).toEqual(['a', 'c', 'new']);
+    expect(next.order).toEqual(before);
+    expect(zoomed.map((l) => l.key)).toEqual(['c', 'new', 'a']);
   });
 });
 
@@ -313,8 +319,7 @@ describe('TimelinePanel', () => {
     });
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(TimelinePanel);
-    const store = TestBed.inject(WorkspaceStore);
-    const jump = vi.spyOn(store, 'jumpTo');
+    const jump = vi.spyOn(TestBed.inject(SelectionStore), 'jumpTo');
     await settle(fixture);
     const lane0 = at(all(fixture, '.lane'), 0);
     const targets = lane0.querySelectorAll<HTMLButtonElement>('.marker');

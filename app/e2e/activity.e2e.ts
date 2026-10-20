@@ -55,8 +55,11 @@ test('a user journey is logged once per operation, in order, with triggers and w
   await chooseMenu(page, 'File', 'Close workspace');
   await page.locator('imt-welcome').getByRole('button', { name: 'Try a demo' }).click();
   await expect(page.locator('imt-status-bar')).toContainText('events');
+  // The demo offers the guided tour (it may appear a moment after the data): skip it.
   const tour = page.getByTestId('tour');
-  if (await tour.isVisible()) await page.keyboard.press('Escape');
+  await expect(tour).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(tour).toHaveCount(0);
 
   // Filter with words that must never reach the log.
   await page.getByPlaceholder(/Search messages/).fill('needle-secret-words');

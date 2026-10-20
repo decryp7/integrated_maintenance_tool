@@ -100,6 +100,7 @@ mod tests {
             importer: "text".into(),
             records: 1,
             skipped: 0,
+            split_events: 0,
             dropped: 0,
             step_stats: Vec::new(),
             error: None,

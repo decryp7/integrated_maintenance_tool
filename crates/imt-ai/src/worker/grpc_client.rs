@@ -88,6 +88,8 @@ impl GrpcTransport {
         let mut spec = SpawnSpec::new(exe.clone(), "the AI engine");
         spec.args = args.to_vec();
         spec.env = env.to_vec();
+        // An empty environment but what llama-server and the GPU drivers need (it passes them on).
+        spec.keep_env = super::WORKER_ENV;
         spec.endpoint_prefix = "imt-ai".into();
         spec.connect_window = CONNECT_WINDOW;
         spec.log = Some(worker_log());

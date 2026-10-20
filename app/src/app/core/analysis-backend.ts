@@ -1,5 +1,6 @@
 import { invoke } from './activity/ipc';
 import {
+  AnalysisCoverage,
   Anomaly,
   Comparison,
   Completion,
@@ -50,6 +51,10 @@ export abstract class AnalysisBackend {
   cancelQuery(_queryId: string): Promise<boolean> {
     return Promise.resolve(false);
   }
+  /** How many of the matching events the analyses look at, of how many; null when the backend cannot say. */
+  analysisCoverage(_query: QlQuery): Promise<AnalysisCoverage | null> {
+    return Promise.resolve(null);
+  }
 }
 
 /** Talks to the Rust core through Tauri commands (see `api.types.ts` for the contract). */
@@ -83,6 +88,9 @@ export class TauriAnalysisBackend extends AnalysisBackend {
   }
   queryExceptions(query: QlQuery) {
     return this.call<ExceptionGroup[]>('query_exceptions', { request: { query } });
+  }
+  override analysisCoverage(query: QlQuery) {
+    return this.call<AnalysisCoverage>('analysis_coverage', { request: { query } });
   }
   queryAnomalies(query: QlQuery) {
     return this.call<Anomaly[]>('query_anomalies', { request: { query } });

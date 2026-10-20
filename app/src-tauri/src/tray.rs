@@ -172,6 +172,11 @@ pub fn set_available<R: Runtime>(app: &AppHandle<R>, on: bool) {
 
 /// Creates the tray icon. A failure (no tray on this desktop) is logged and IMT runs without one.
 pub fn create<R: Runtime>(app: &AppHandle<R>) {
+    // Without a taskbar (a service session, a CI runner) the tray calls would have nowhere to go.
+    if !host_available() {
+        log::info!("No taskbar to hold a tray icon; IMT runs without one");
+        return;
+    }
     if let Err(e) = build(app) {
         log::warn!("no system tray icon: {e}");
         return;
@@ -180,6 +185,23 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) {
         t.available.store(true, Ordering::SeqCst);
     }
     refresh(app);
+}
+
+/// Whether the desktop has somewhere to show a tray icon: on Windows the taskbar's window exists (it does
+/// not in session 0 or without Explorer). Elsewhere, and in tests (the mock runtime has its own tray), the
+/// platform reports failures itself.
+fn host_available() -> bool {
+    #[cfg(all(windows, not(test)))]
+    {
+        use windows::core::w;
+        use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
+        // SAFETY: a plain lookup with constant, NUL-terminated class names; nothing is retained.
+        unsafe { FindWindowW(w!("Shell_TrayWnd"), windows::core::PCWSTR::null()) }.is_ok_and(|h| !h.is_invalid())
+    }
+    #[cfg(any(not(windows), test))]
+    {
+        true
+    }
 }
 
 fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
@@ -228,8 +250,14 @@ fn to_menu<R: Runtime>(app: &AppHandle<R>, model: &[MenuEntry]) -> tauri::Result
     Ok(menu)
 }
 
-/// Rebuilds the menu and tooltip when what they show changed. Never fails.
+/// Rebuilds the menu and tooltip when what they show changed, on the main thread soon (coalesced, never
+/// waited for: see [`crate::ui_dispatch`]). Never fails; callable from any thread.
 pub fn refresh<R: Runtime>(app: &AppHandle<R>) {
+    crate::ui_dispatch::post(app, crate::ui_dispatch::Slot::Tray, refresh_now);
+}
+
+/// [`refresh`] on the calling thread (the main thread: tray and window getters wait for it).
+fn refresh_now<R: Runtime>(app: &AppHandle<R>) {
     let Some(state) = app.try_state::<TrayState>() else { return };
     if !state.available.load(Ordering::SeqCst) {
         return;

@@ -40,6 +40,11 @@ pub fn is_build_id(id: &str) -> bool {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-')
 }
 
+/// The number of a llama.cpp release tag (`b11669` → 11669), to order releases.
+pub fn tag_number(tag: &str) -> Option<u64> {
+    tag.strip_prefix('b').filter(|n| !n.is_empty()).and_then(|n| n.parse().ok())
+}
+
 /// What a build accelerates with, for the UI.
 pub fn label(id: &str) -> String {
     match id {
@@ -132,6 +137,14 @@ mod tests {
         assert_eq!(try_order(&ids(&["cpu"]), &BuildChoice::Fixed("vulkan".into())), ids(&["cpu"]));
         assert!(try_order(&[], &BuildChoice::Auto).is_empty());
         assert!(try_order(&ids(&["future-npu"]), &BuildChoice::Auto).is_empty());
+    }
+
+    #[test]
+    fn tags_are_numbered() {
+        assert_eq!(tag_number("b11669"), Some(11669));
+        assert_eq!(tag_number("b"), None);
+        assert_eq!(tag_number("v1"), None);
+        assert_eq!(tag_number("bx"), None);
     }
 
     #[test]

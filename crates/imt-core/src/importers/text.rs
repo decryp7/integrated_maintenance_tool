@@ -13,6 +13,18 @@ use serde_json::{Map, Value};
 pub struct TextImporter;
 
 pub(crate) const SNIFF_LINES: usize = 200;
+/// Most text one event collects from continuation lines; the next line starts a new event.
+pub const MAX_EVENT_BYTES: usize = 1 << 20;
+/// Most continuation lines one event collects; the next line starts a new event.
+pub const MAX_EVENT_LINES: usize = 10_000;
+/// Field of an event that continues an event cut at [`MAX_EVENT_BYTES`] or [`MAX_EVENT_LINES`]: the line
+/// the original event starts on. The workspace counts these per source (`SourceInfo::split_events`).
+pub const CONTINUED_FIELD: &str = "ContinuedFromLine";
+
+/// How many of `records` continue an event that was cut (see [`CONTINUED_FIELD`]).
+pub fn split_events(records: &[Record]) -> usize {
+    records.iter().filter(|r| r.fields.contains_key(CONTINUED_FIELD)).count()
+}
 
 impl Importer for TextImporter {
     fn id(&self) -> &'static str {
@@ -57,6 +69,11 @@ fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Impo
     let mut out = Imported::default();
     let mut current: Option<Record> = None;
     let mut extra = String::new();
+    // Continuation lines in `extra`, and the line the current event (or the one it continues) starts on.
+    let mut extra_lines = 0usize;
+    let mut event_start = 0u32;
+    // Text a continuation event already holds in its message.
+    let mut held = 0usize;
     let mut date = ctx.file_date;
     let mut last_ts: Option<i64> = None;
 
@@ -67,11 +84,23 @@ fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Impo
             continue;
         }
         let Some(caps) = fmt.regex.captures(line) else {
-            if current.is_some() {
+            let size = held + extra.len();
+            let full = size > 0 && (size + 1 + line.len() > MAX_EVENT_BYTES || extra_lines >= MAX_EVENT_LINES);
+            if let Some(rec) = current.take_if(|_| full) {
+                // Too big for one event: the rest continues in a new one (same time and level).
+                let mut next = Record::new(i as u32 + 1);
+                (next.ts, next.level) = (rec.ts, rec.level);
+                next.fields.insert(CONTINUED_FIELD.into(), Value::from(event_start));
+                next.message = line.to_string();
+                out.records.push(finish(rec, std::mem::take(&mut extra)));
+                (extra_lines, held) = (0, line.len());
+                current = Some(next);
+            } else if current.is_some() {
                 if !extra.is_empty() {
                     extra.push('\n');
                 }
                 extra.push_str(line);
+                extra_lines += 1;
             } else if !line.trim().is_empty() {
                 out.skipped += 1;
             }
@@ -80,6 +109,8 @@ fn parse(ctx: &ImportCtx, fmt: &TextFormat, sample: &str, content: &str) -> Impo
         if let Some(rec) = current.take() {
             out.records.push(finish(rec, std::mem::take(&mut extra)));
         }
+        (extra_lines, held) = (0, 0);
+        event_start = i as u32 + 1;
 
         let mut rec = Record::new(i as u32 + 1);
         for name in &names {
@@ -195,6 +226,36 @@ mod tests {
         };
         assert!(TextImporter.sniff(&ctx, content) > 0);
         TextImporter.import(&ctx, content).unwrap()
+    }
+
+    #[test]
+    fn huge_multi_line_events_are_split() {
+        let profile = "";
+        let mut content = String::from("2026-10-14 08:00:00.000 +00:00 [INF] start\n");
+        for _ in 0..MAX_EVENT_LINES + 5 {
+            content.push_str("  more\n");
+        }
+        content.push_str("2026-10-14 08:00:01.000 +00:00 [INF] next\n");
+        let out = import(profile, &content);
+        assert_eq!(out.records.len(), 3, "the event, its continuation and the next event");
+        let (first, rest) = (&out.records[0], &out.records[1]);
+        assert!(!first.fields.contains_key(CONTINUED_FIELD));
+        assert_eq!(rest.fields.get(CONTINUED_FIELD), Some(&Value::from(1)));
+        assert_eq!((rest.ts, rest.level), (first.ts, first.level));
+        assert_eq!(rest.line as usize, MAX_EVENT_LINES + 2);
+        assert!(!out.records[2].fields.contains_key(CONTINUED_FIELD));
+        // By size: continuation lines of 600 KB, so each one after the first starts a new event.
+        let big = "x".repeat(600 << 10);
+        let content = format!("2026-10-14 08:00:00.000 +00:00 [INF] start\n{big}\n{big}\n{big}\n");
+        let out = import(profile, &content);
+        assert_eq!(out.records.len(), 3);
+        assert!(out.records.iter().all(|r| r.message.len() <= MAX_EVENT_BYTES + 64));
+        assert_eq!(
+            out.records[2].fields.get(CONTINUED_FIELD),
+            Some(&Value::from(1)),
+            "still the original start"
+        );
+        assert_eq!(split_events(&out.records), 2);
     }
 
     #[test]

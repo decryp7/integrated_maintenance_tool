@@ -27,6 +27,12 @@ test('a debug host build has no --release and reads target/debug', () => {
   assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'debug', 'imt-ai-worker')]);
 });
 
+test('a custom profile (dist) passes --profile and reads target/<profile>', () => {
+  const plan = sidecarPlan({ target: host, host, profile: 'dist', targetDir });
+  assert.deepEqual(plan.builds, [['build', ...select, '--profile', 'dist']]);
+  assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'dist', 'imt-ai-worker.exe')]);
+});
+
 test('a cross build keeps --target and its own folder', () => {
   const plan = sidecarPlan({ target: 'aarch64-pc-windows-msvc', host, profile: 'release', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select, '--target', 'aarch64-pc-windows-msvc', '--release']]);

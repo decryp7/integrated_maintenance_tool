@@ -9,8 +9,8 @@ use crate::notify::{notify, NotificationKind};
 use crate::windows::{emit_to_window, read, write, write_reporting, CurrentWindow, WindowState, Windows};
 use crate::{err, CmdResult};
 use imt_core::workspace::{
-    AlertTarget, FileWatcher, LiveTail, OpenOptions, TailOptions, TailReport, WatchMode, WatchPreference, WatchSettings, WatchSignal,
-    WatchSink, WatcherFactory,
+    AlertTarget, FileWatcher, LiveTail, OpenOptions, StopToken, TailOptions, TailReport, WatchMode, WatchPreference, WatchSettings,
+    WatchSignal, WatchSink, WatcherFactory,
 };
 use notify_debouncer_mini::notify;
 use serde::{Deserialize, Serialize};
@@ -237,14 +237,14 @@ pub(crate) fn alert_notice(alert: &imt_core::workspace::LiveAlert) -> crate::not
 }
 
 /// Turns a window's live tail on (replacing a running session) or off;
-/// returns how many folders are watched.
+/// returns how many folders are watched. Never waits for a batch in flight: stopping a session only
+/// sets its stop token (see [`LiveTail`]), and the workspace is touched without holding the session lock.
 pub(crate) fn set<R: Runtime>(app: &AppHandle<R>, state: &Arc<WindowState>, enabled: bool, options: LiveOptions) -> CmdResult<usize> {
     let label = state.label().to_string();
-    let mut running = state.live.lock();
-    // Stops the previous session (its worker finishes the batch in flight).
-    *running = None;
+    // Stops the previous session; its batch in flight, if any, sees the stop token and applies nothing.
+    let previous = state.live.lock().take();
+    drop(previous);
     if !enabled {
-        drop(running);
         if let Some(tasks) = app.try_state::<BackgroundTasks>() {
             tasks.remove(&task_id(&label));
         }
@@ -265,23 +265,30 @@ pub(crate) fn set<R: Runtime>(app: &AppHandle<R>, state: &Arc<WindowState>, enab
     // Weak: the session lives inside the window state and must not keep it alive.
     let weak: Weak<WindowState> = Arc::downgrade(state);
     let owner = label.clone();
-    let live = LiveTail::start(
+    let stop = StopToken::default();
+    let batch_stop = stop.clone();
+    let live = LiveTail::start_with(
         &roots,
         settings,
         Arc::new(NotifyFactory),
         Box::new(move |paths| {
-            if let Some(state) = weak.upgrade() {
-                let report = apply_changes(&state, &paths);
+            if batch_stop.is_stopped() {
+                return;
+            }
+            let Some(state) = weak.upgrade() else { return };
+            if let Some(report) = apply_unless_stopped(&state, &paths, &batch_stop) {
                 emit_report(&handle, &owner, &report);
             }
+            release_off_worker(state);
         }),
         // Paths stay out of the logs; the reason is enough to diagnose.
         Box::new(|_root, why| log::warn!(Reason = why; "Live tail falls back to polling")),
+        stop,
     );
     let watched = live.roots().iter().filter(|r| r.mode != WatchMode::Off).count();
     let polling = live.roots().iter().filter(|r| r.mode == WatchMode::Polling).count();
-    *running = Some(live);
-    drop(running);
+    let replaced = state.live.lock().replace(live);
+    drop(replaced);
     register_task(app, &label);
     log::info!(Watched = watched as u64, Polling = polling as u64; "Live tail on");
     Ok(watched)
@@ -325,9 +332,36 @@ pub(crate) fn stop<R: Runtime>(app: &AppHandle<R>, label: &str) {
     emit_to_window(app, label, STOPPED_EVENT, ());
 }
 
+/// [`apply_changes`] unless the session stopped, checked again once the write lock is held (an import may
+/// have held it for long). `None`: stopped, nothing applied.
+fn apply_unless_stopped(state: &WindowState, paths: &[PathBuf], stop: &StopToken) -> Option<TailReport> {
+    let mut ws = state.store_write();
+    if stop.is_stopped() {
+        return None;
+    }
+    Some(refresh(&mut **ws, paths))
+}
+
+/// Lets go of the window state from the live tail worker: when the window closed meanwhile, this is the
+/// last reference, and the workspace is dropped on a thread of its own rather than on the worker.
+fn release_off_worker(state: Arc<WindowState>) {
+    if Arc::strong_count(&state) > 1 {
+        return;
+    }
+    // If no thread can start, the state is dropped here (dropping a session never blocks).
+    let _ = std::thread::Builder::new()
+        .name("imt-window-drop".into())
+        .spawn(move || drop(state));
+}
+
 /// Reads what changed in `paths`; a failure is logged and reported as no change.
+#[cfg(test)]
 pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
-    state.store_write().refresh_tail(paths).unwrap_or_else(|e| {
+    refresh(&mut **state.store_write(), paths)
+}
+
+fn refresh(ws: &mut dyn imt_core::LogStore, paths: &[PathBuf]) -> TailReport {
+    ws.refresh_tail(paths).unwrap_or_else(|e| {
         log::warn!(Files = paths.len() as u64; "Live tail refresh failed: {}", crate::activity::privacy::redact(&format!("{e:#}")));
         TailReport::default()
     })
@@ -383,8 +417,9 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     let options = OpenOptions {
         start_at_end: start_at_end.unwrap_or(false),
     };
+    let paths = crate::workspace_commands::open_request(paths)?;
     let summary = write_reporting(&app, &state, move |ws| {
-        ws.open_with(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(), &options)?;
+        ws.open_with(&paths, &options)?;
         let summary = ws.summary();
         log::info!(Sources = summary.sources.len() as u64, StartAtEnd = options.start_at_end; "Workspace opened for live tail");
         serde_json::to_value(summary).map_err(anyhow::Error::from)
@@ -457,7 +492,7 @@ mod tests {
         let app = test_app(None);
         let st = || main_window(&app);
         opened(&app, "main", &dir.0);
-        assert_eq!(set_live(app.handle().clone(), st(), true, None).unwrap(), 1);
+        assert_eq!(block(set_live(app.handle().clone(), st(), true, None)).unwrap(), 1);
         assert!(st().live.is_running());
         // Listed as background work for this window.
         let tasks = app.state::<BackgroundTasks>().list();
@@ -483,7 +518,7 @@ mod tests {
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "events");
         assert_eq!(status["totals"]["records"], 2);
-        assert_eq!(set_live(app.handle().clone(), st(), false, None).unwrap(), 0);
+        assert_eq!(block(set_live(app.handle().clone(), st(), false, None)).unwrap(), 0);
         assert!(!st().live.is_running());
         assert!(app.state::<BackgroundTasks>().list().is_empty());
         let status = block(tail_status(st())).unwrap();
@@ -504,6 +539,42 @@ mod tests {
         assert!(apply_changes(&st(), &[]).is_empty());
     }
 
+    /// The tray (main thread) and `set_live` stop a session without waiting for its batch in flight, which
+    /// may itself wait for an import holding the workspace; the stopped session then applies nothing.
+    #[test]
+    fn stopping_while_an_import_holds_the_workspace_returns_at_once() {
+        let dir = TempDir::new("live-stop-locked");
+        let log = dir.0.join("a.log");
+        std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n").unwrap();
+        let app = test_app(None);
+        let state = opened(&app, "main", &dir.0);
+        block(set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
+        let import = state.store_write();
+        std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n").unwrap();
+        // Long enough for the watcher's batch to reach the workspace lock.
+        std::thread::sleep(Duration::from_millis(600));
+        let started = std::time::Instant::now();
+        stop(app.handle(), "main");
+        assert!(started.elapsed() < Duration::from_secs(1), "the tray did not wait");
+        assert!(!state.live.is_running());
+        drop(import);
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(state.store_read().summary().total, 1, "a stopped session applies nothing");
+        // Again through the command, with a session restarted.
+        block(set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
+        let import = state.store_write();
+        let started = std::time::Instant::now();
+        let handle = app.handle().clone();
+        let window = state.clone();
+        let off = std::thread::spawn(move || block(set_live(handle, window, false, None)));
+        while !off.is_finished() && started.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(off.is_finished(), "stopping returned while the workspace was held");
+        drop(import);
+        assert_eq!(off.join().unwrap().unwrap(), 0);
+    }
+
     /// Events go to the owning window only, and the tray can stop a window's live tail.
     #[test]
     fn events_reach_the_owning_window_only_and_the_tray_stops_live_tail() {
@@ -520,7 +591,7 @@ mod tests {
             }
         }
         let main = opened(&app, "main", &dir.0);
-        set_live(app.handle().clone(), main.clone(), true, None).unwrap();
+        block(set_live(app.handle().clone(), main.clone(), true, None)).unwrap();
         std::fs::write(
             dir.0.join("a.log"),
             "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n",
@@ -577,7 +648,7 @@ mod tests {
             "watch": "polling", "pollIntervalMs": 5, "detectEveryMs": 999_999_999u64, "carryFlushMs": 300
         }))
         .unwrap();
-        set_live(app.handle().clone(), st(), true, Some(options)).unwrap();
+        block(set_live(app.handle().clone(), st(), true, Some(options))).unwrap();
         let on = live_state(st());
         assert!(on.enabled);
         assert_eq!(on.options.watch, WatchPreference::Polling);
@@ -585,12 +656,12 @@ mod tests {
         assert_eq!(on.options.tail.detect_every_ms, imt_core::workspace::MAX_DETECT_EVERY_MS);
         assert_eq!(on.options.tail.carry_flush_ms, 300);
         // Off keeps the options for the next start.
-        set_live(app.handle().clone(), st(), false, None).unwrap();
+        block(set_live(app.handle().clone(), st(), false, None)).unwrap();
         let off = live_state(st());
         assert!(!off.enabled);
         assert_eq!(off.options, on.options);
         // Stopped from the tray: off.
-        set_live(app.handle().clone(), st(), true, None).unwrap();
+        block(set_live(app.handle().clone(), st(), true, None)).unwrap();
         assert!(live_state(st()).enabled);
         assert_eq!(live_state(st()).options.poll_interval_ms, Some(DEFAULT_POLL_MS));
         stop(app.handle(), "main");
@@ -629,7 +700,7 @@ mod tests {
         let st = || main_window(&app);
         opened(&app, "main", &dir.0);
         let options: LiveOptions = serde_json::from_value(serde_json::json!({ "watch": "polling", "pollIntervalMs": 100 })).unwrap();
-        assert_eq!(set_live(app.handle().clone(), st(), true, Some(options)).unwrap(), 1);
+        assert_eq!(block(set_live(app.handle().clone(), st(), true, Some(options))).unwrap(), 1);
         std::thread::sleep(Duration::from_millis(300));
         let mut f = std::fs::OpenOptions::new().append(true).open(&file).unwrap();
         std::io::Write::write_all(&mut f, b"2026-10-14 10:00:01 INFO second\n").unwrap();
@@ -640,7 +711,7 @@ mod tests {
         assert_eq!(st().store_read().summary().total, 2);
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "polling");
-        set_live(app.handle().clone(), st(), false, None).unwrap();
+        block(set_live(app.handle().clone(), st(), false, None)).unwrap();
     }
 
     #[test]

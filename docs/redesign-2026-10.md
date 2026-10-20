@@ -129,6 +129,15 @@ ADR 0014 stands. The engine review adds what it must also decide:
   stop per lane with arrow keys between markers.
 - **Mocks become fixtures** validated against the golden JSON from R4, not a second engine.
 
+## R6: themes and the timeline (ADR 0018, about 2 days)
+
+- **Theme engine:** token sets plus traits, density as its own setting, Settings ▸ Appearance.
+- **Calm (default) and Console** themes, light and dark, with bundled fonts; Precision follows after the engine
+  switch (6c), which provides per-lane error counts and source line numbers.
+- **No hard-coded styles:** component styles use tokens only, enforced by lint.
+- **Timeline redesign** from tokens and traits; overlapping spans as stacked, labelled sub-tracks.
+- **Checks per theme and scheme:** colour-vision and contrast checks, axe, and screenshot tests.
+
 ## Order and estimate (2 agents at a time)
 
 | Phase | Depends on | Estimate | Visible result |
@@ -138,6 +147,7 @@ ADR 0014 stands. The engine review adds what it must also decide:
 | R3 (batch 7) | R2's batch type | about 2 days | sandboxed plugins and workers, one IPC stack, smaller builds |
 | R4 | R3 | about 2 days | typed contract, safe commands, one config and error model |
 | R5 | R2, R4 | about 2 days | cancellable, coalesced requests; engine-owned rules |
+| R6 themes + timeline | R5 | about 2 days | three switchable themes (two first); a polished timeline with stacked spans |
 | 6b Problems pane | R2, R5 | about 1 day | diagnostics with quick fixes and AI fix |
 
 About 11 working days in total, plus CI rounds. R0 starts as soon as batch 5 is merged.

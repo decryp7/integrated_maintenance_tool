@@ -1,5 +1,11 @@
 # Persistent store spike: DuckDB vs. DataFusion + Parquet (with Tantivy)
 
+> **Historical.** This records a finished measurement; it does not describe the current design. The
+> engine direction is [ADR 0014](adr/0014-database-first-engine.md) and the plan in
+> [redesign-2026-10.md](redesign-2026-10.md). The spike crate stays (outside the workspace) only until
+> phase R2 has moved its reusable parts (libduckdb fetch, Tantivy schema in `fts.rs`, the corpus
+> generator in `corpus.rs`, the RSS guard in `rss.rs`) into the new store crates; then it is deleted.
+
 The roadmap's Phase 6 *persistent store* (data larger than RAM, instant reopen, background
 indexing with progress and cancel, SQL console) asked for a spike before a decision. This page
 records how it was measured and what came out. The decision is in

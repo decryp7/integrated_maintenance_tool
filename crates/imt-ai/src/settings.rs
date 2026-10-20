@@ -3,6 +3,7 @@
 //! The Hugging Face access token is deliberately not a setting: it is never written to disk.
 
 use crate::runtimes::builds::is_build_id;
+use crate::updates::UpdatePolicy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -81,7 +82,16 @@ pub struct AiSettings {
     pub inference_build: String,
     /// A llama-server executable to use instead of the bundled builds (advanced).
     pub llama_server_path: Option<String>,
+    /// What to do when a newer pinned inference runtime is available.
+    pub runtime_updates: UpdatePolicy,
+    /// What to do when a newer revision of an installed catalog model is available.
+    pub model_updates: UpdatePolicy,
+    /// Hours between automatic update checks.
+    pub update_check_hours: u32,
 }
+
+/// The default hours between update checks (daily).
+pub const DEFAULT_UPDATE_CHECK_HOURS: u32 = 24;
 
 impl Default for AiSettings {
     fn default() -> Self {
@@ -101,6 +111,9 @@ impl Default for AiSettings {
             models_dir: None,
             inference_build: AUTO_BUILD.into(),
             llama_server_path: None,
+            runtime_updates: UpdatePolicy::Ask,
+            model_updates: UpdatePolicy::Ask,
+            update_check_hours: DEFAULT_UPDATE_CHECK_HOURS,
         }
     }
 }
@@ -121,6 +134,7 @@ impl AiSettings {
             0.2
         };
         self.threads = self.threads.min(256);
+        self.update_check_hours = self.update_check_hours.clamp(1, 24 * 30);
         self.max_download_gb = self.max_download_gb.clamp(1, 200);
         if let GpuOffload::Layers(n) = self.gpu_offload {
             self.gpu_offload = GpuOffload::Layers(n.min(1000));
@@ -160,6 +174,19 @@ impl AiSettings {
             env.push(("IMT_LLAMA_SERVER".to_string(), p.trim().to_string()));
         }
         env
+    }
+
+    /// Seconds between automatic update checks.
+    pub fn update_interval_secs(&self) -> u64 {
+        u64::from(self.update_check_hours.clamp(1, 24 * 30)) * 3600
+    }
+
+    /// The update policy for `kind`.
+    pub fn update_policy(&self, kind: crate::updates::UpdateKind) -> UpdatePolicy {
+        match kind {
+            crate::updates::UpdateKind::Runtime => self.runtime_updates,
+            crate::updates::UpdateKind::Model => self.model_updates,
+        }
     }
 
     /// Problems the user should fix (clamping cannot repair them).
@@ -252,6 +279,9 @@ pub fn schema() -> Value {
         f("max_download_gb", "Largest download (GB)", "Refuse model files larger than this.", "int", json!(d.max_download_gb), json!({"min": 1, "max": 200}), false),
         f("models_dir", "Models folder", "Where downloaded models are stored. Empty uses the app data folder.", "path", Value::Null, json!({}), true),
         f("inference_build", "Inference build", "Which llama-server build runs the model. Automatic picks the best one that works on this computer: CUDA with an NVIDIA GPU, else Vulkan, else the CPU (Metal on Apple Silicon). If the chosen build cannot start, IMT falls back to the next one and says so.", "enum", json!(AUTO_BUILD), json!({"options": ["auto", "cpu", "vulkan", "cuda-13", "cuda-12", "rocm", "sycl", "sycl-fp32", "openvino", "metal"], "optionsSource": "aiInferenceBuilds"}), true),
+        f("runtime_updates", "Inference runtime updates", "When IMT pins a newer llama.cpp build than the one installed. Automatic downloads and verifies it in the background (the installed build keeps working until the new one is verified, and a running chat is never interrupted); Ask tells you and offers Update, Later and Skip this version; Manual only looks when you choose Check now.", "enum", json!(d.runtime_updates.as_str()), json!({"options": ["automatic", "ask", "manual"]}), false),
+        f("model_updates", "Model updates", "When the model list has a newer revision or quantisation of an installed model. Automatic downloads and verifies it in the background and switches to it only when no chat is running; Ask tells you; Manual only looks when you choose Check now.", "enum", json!(d.model_updates.as_str()), json!({"options": ["automatic", "ask", "manual"]}), false),
+        f("update_check_hours", "Check for AI updates every (hours)", "How often IMT checks for runtime and model updates (not with Manual). A check that fails because the computer is offline or a proxy blocks it is retried later without interrupting you.", "int", json!(d.update_check_hours), json!({"min": 1, "max": 720}), false),
         f("llama_server_path", "Custom llama-server", "Advanced: a llama-server executable to use instead of the inference runtimes IMT downloads. Empty uses the downloaded builds.", "file", Value::Null, json!({}), true),
     ])
 }
@@ -292,11 +322,13 @@ mod tests {
             hf_endpoint: " ".into(),
             inference_build: "../x".into(),
             llama_server_path: Some(" ".into()),
+            update_check_hours: 0,
             ..AiSettings::default()
         }
         .clamp();
         assert_eq!(s.inference_build, "auto");
         assert!(s.llama_server_path.is_none());
+        assert_eq!(s.update_check_hours, 1, "0 hours becomes 1");
         assert_eq!(
             (s.context_length, s.max_tokens, s.threads, s.idle_unload_minutes, s.max_download_gb),
             (1024, 512, 256, 1440, 1)
@@ -350,6 +382,25 @@ mod tests {
             ..AiSettings::default()
         };
         assert_eq!(bad.validate().len(), 2);
+    }
+
+    #[test]
+    fn update_policies_and_interval() {
+        use crate::updates::UpdateKind;
+        let d = AiSettings::default();
+        assert_eq!(d.update_policy(UpdateKind::Runtime), UpdatePolicy::Ask);
+        assert_eq!(d.update_interval_secs(), 86_400);
+        let s: AiSettings =
+            serde_json::from_str(r#"{"runtime_updates":"automatic","model_updates":"bogus","update_check_hours":99999}"#).unwrap();
+        let s = s.clamp();
+        assert_eq!(s.update_policy(UpdateKind::Runtime), UpdatePolicy::Automatic);
+        assert_eq!(
+            s.update_policy(UpdateKind::Model),
+            UpdatePolicy::Ask,
+            "unknown words mean the default"
+        );
+        assert_eq!(s.update_interval_secs(), 720 * 3600);
+        assert!(serde_json::to_string(&s).unwrap().contains(r#""runtime_updates":"automatic""#));
     }
 
     #[test]

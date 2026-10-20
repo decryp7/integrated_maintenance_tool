@@ -42,7 +42,9 @@ async function panelMenu(page: Page, name: string) {
 test.describe('VS-style docking', () => {
   // These start from the fuller arrangement (the inspector docked, Metrics tabbed with the timeline) that the
   // minimal default no longer opens.
+  // The docking mechanics are checked on the Full layout (timeline, query bar and events in three groups).
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('imt.layout.mode.v1', 'full'));
     await openApp(page);
     await ensureInspector(page);
     await openView(page, 'metrics');
@@ -50,7 +52,17 @@ test.describe('VS-style docking', () => {
 
   test('dragging a tab onto the left edge guide docks it along the whole left edge', async ({ page, browserName }) => {
     const dock = await box(page, '.imt-dock-mount');
-    await dragTabTo(page, 'Metrics', dock.x + 10 + 16, dock.y + dock.height / 2);
+    // A point of the left guide (32px, centred) that is not on a group's tab strip: a release over a tab strip tabs the
+    // panel into that group even while the edge guide is lit (see the R5 report).
+    const x = dock.x + 10 + 16;
+    const y = await page.evaluate(
+      ({ x, mid }) => {
+        for (let d = 0; d <= 14; d += 2) for (const y of [mid - d, mid + d]) if (!document.elementFromPoint(x, y)?.closest('.dv-tabs-and-actions-container')) return y;
+        return mid;
+      },
+      { x, mid: dock.y + dock.height / 2 },
+    );
+    await dragTabTo(page, 'Metrics', x, y);
     await expect(page.locator('.imt-guide-left.hot')).toHaveCount(1);
     await expect(page.locator('.imt-guide-edges .imt-guide')).toHaveCount(4);
     if (browserName === 'chromium') await page.screenshot({ path: `${SCREENSHOTS}/docking-guides-edge.png` });

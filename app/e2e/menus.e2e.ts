@@ -7,7 +7,8 @@ import { chooseMenu, menubar, menuItem, openMenu, openMenuPath } from './menu-su
 // default layout. Also runs against the production build with the Tauri CSP.
 
 const tabNames = async (page: Page) => (await page.getByRole('tab').locator('.imt-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
-const CORE_TABS = ['Events', 'Query', 'Registry', 'Timeline'];
+/** The Focused layout (the default): the query bar opens on demand. */
+const CORE_TABS = ['Events', 'Registry', 'Timeline'];
 const inspectorTab = (page: Page) => page.locator('.imt-ah-tab[data-ah-id="inspector"]');
 
 function watchProblems(page: Page): string[] {

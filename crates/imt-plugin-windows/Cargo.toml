@@ -1,25 +1,27 @@
 [package]
 name = "imt-plugin-windows"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 
 [dependencies]
 imt-core = { path = "../imt-core" }
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
+anyhow.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
 evtx = { version = "0.12", default-features = false }
-quick-xml = "0.42"
-chrono = "0.4"
-csv = "1.4"
+quick-xml.workspace = true
+chrono.workspace = true
+csv.workspace = true
 minidump = "0.27"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_EventLog", "Win32_System_Threading"] }
+windows = { workspace = true, features = ["Win32_System_EventLog"] }
 
 [dev-dependencies]
 # Snapshot tests of the importers against /samples (tests/samples.rs, snapshots in tests/snapshots/).
-insta = { version = "1", features = ["yaml"] }
-proptest = "1"
+insta.workspace = true
+proptest.workspace = true

@@ -34,9 +34,72 @@ allow = [
 ]
 
 [bans]
-multiple-versions = "allow"
+# Duplicate versions are reported, not fatal: most come from upstream stacks we can't move. The ones below are
+# known and accepted (the older version each time), with the crate that still needs it; a new duplicate shows up
+# as a warning so it gets a look (and a line here, or a fix) in the change that introduces it.
+multiple-versions = "warn"
 wildcards = "deny"
 allow-wildcard-paths = true
+skip = [
+  # Tauri, wry and the gtk-rs/webkit stack (Linux) pin older releases.
+  { crate = "base64@0.21.7", reason = "swift-rs (Tauri, macOS)" },
+  { crate = "base64@0.22.1", reason = "tauri-plugin-updater (its Error::Base64), wry, usvg, tonic" },
+  { crate = "sha2@0.10.9", reason = "tauri-codegen, wry" },
+  { crate = "digest@0.10.7", reason = "sha2 0.10 (Tauri)" },
+  { crate = "block-buffer@0.10.4", reason = "sha2 0.10 (Tauri)" },
+  { crate = "crypto-common@0.1.7", reason = "sha2 0.10 (Tauri)" },
+  { crate = "cpufeatures@0.2.17", reason = "sha2 0.10 (Tauri)" },
+  { crate = "getrandom@0.2.17", reason = "ring, const-random" },
+  { crate = "getrandom@0.3.4", reason = "tauri, ahash, rand_core 0.9" },
+  { crate = "r-efi@5.3.0", reason = "getrandom 0.3" },
+  { crate = "rand_core@0.9.5", reason = "rand 0.9 (tauri-plugin-notification)" },
+  { crate = "jni@0.21.1", reason = "tao, wry, tauri (Android only)" },
+  { crate = "jni-sys@0.3.1", reason = "jni 0.21 (Android only)" },
+  { crate = "core-foundation@0.9.4", reason = "system-configuration (macOS)" },
+  { crate = "bitflags@1.3.2", reason = "webkit2gtk, javascriptcore-rs, png 0.17, winstructs (evtx)" },
+  { crate = "thiserror@1.0.69", reason = "gtk-rs 0.18, jni 0.21, ndk, winstructs (evtx)" },
+  { crate = "thiserror-impl@1.0.69", reason = "thiserror 1" },
+  { crate = "heck@0.4.1", reason = "glib-macros 0.18" },
+  { crate = "proc-macro-crate@1.3.1", reason = "gtk3-macros 0.18" },
+  { crate = "proc-macro-crate@2.0.2", reason = "glib-macros 0.18" },
+  { crate = "toml@0.8.2", reason = "system-deps (gtk-rs build scripts)" },
+  { crate = "toml_edit@0.19.15", reason = "proc-macro-crate 1 (gtk-rs)" },
+  { crate = "toml_edit@0.20.2", reason = "proc-macro-crate 2, toml 0.8 (gtk-rs)" },
+  { crate = "toml_datetime@0.6.3", reason = "toml 0.8 / toml_edit 0.19-0.20 (gtk-rs)" },
+  { crate = "serde_spanned@0.6.9", reason = "toml 0.8 (gtk-rs)" },
+  { crate = "winnow@0.5.40", reason = "toml_edit 0.19-0.20 (gtk-rs)" },
+  { crate = "cargo_metadata@0.14.2", reason = "skeptic (build-time, via the gtk-rs/tauri stack)" },
+  { crate = "pulldown-cmark@0.9.6", reason = "skeptic" },
+  { crate = "indexmap@1.9.3", reason = "serde_with (Tauri)" },
+  { crate = "hashbrown@0.12.3", reason = "indexmap 1" },
+  { crate = "hashbrown@0.15.5", reason = "petgraph (prost-build)" },
+  { crate = "foldhash@0.1.5", reason = "hashbrown 0.15" },
+  { crate = "darling@0.20.11", reason = "derive_builder (Tauri)" },
+  { crate = "darling_core@0.20.11", reason = "darling 0.20" },
+  { crate = "darling_macro@0.20.11", reason = "darling 0.20" },
+  { crate = "syn@1.0.109", reason = "num-derive 0.3 (winstructs), proc-macro-error" },
+  { crate = "syn@2.0.119", reason = "most proc macros are still on syn 2" },
+  # The Windows bindings: each upstream picks its own windows-sys.
+  { crate = "windows-sys@0.45.0", reason = "jni 0.21 (Android only)" },
+  { crate = "windows-sys@0.52.0", reason = "ring" },
+  { crate = "windows-sys@0.60.2", reason = "notify, rfd" },
+  # PDF and SVG output: svg2pdf/usvg/tiny-skia (typst) lag behind.
+  { crate = "miniz_oxide@0.8.9", reason = "svg2pdf, png" },
+  { crate = "png@0.17.16", reason = "tiny-skia, ico" },
+  { crate = "kurbo@0.11.3", reason = "usvg 0.45, svgtypes (svg2pdf pins usvg 0.45)" },
+  # Event logs and minidumps.
+  { crate = "num-derive@0.3.3", reason = "winstructs (evtx)" },
+  # The gRPC stack (protox, prost-reflect) is removed in R3 (docs/redesign-2026-10.md).
+  { crate = "logos@0.15.1", reason = "protox-parse" },
+  { crate = "logos-codegen@0.15.1", reason = "logos 0.15" },
+  { crate = "logos-derive@0.15.1", reason = "logos 0.15" },
+]
+skip-tree = [
+  # windows-targets and the windows_* import libraries follow windows-sys; one entry per old windows-sys.
+  { crate = "windows-targets@0.42.2", reason = "windows-sys 0.45 (jni 0.21)" },
+  { crate = "windows-targets@0.52.6", reason = "windows-sys 0.52 (ring)" },
+  { crate = "windows-targets@0.53.5", reason = "windows-sys 0.60 (notify, rfd)" },
+]
 
 [sources]
 unknown-registry = "deny"

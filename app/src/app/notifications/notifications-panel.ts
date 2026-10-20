@@ -51,11 +51,17 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <p class="body">{{ n.body }}</p>
             }
             <div class="actions">
+              @if (store.localAction(n.id); as label) {
+                <button type="button" class="btn small primary" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
+              }
               @if (n.primary; as a) {
                 <button type="button" class="btn small primary" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
               }
               @if (n.secondary; as a) {
                 <button type="button" class="btn small" (click)="act(n, a)">{{ actionLabel(a) }}</button>
+              }
+              @if (n.tertiary; as a) {
+                <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-tertiary-' + n.id">{{ actionLabel(a) }}</button>
               }
               @if (!n.read) {
                 <button type="button" class="btn ghost small" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" i18n="@@notifications.panel.markRead">Mark read</button>

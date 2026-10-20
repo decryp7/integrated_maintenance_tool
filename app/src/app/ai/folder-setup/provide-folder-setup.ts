@@ -1,4 +1,5 @@
-import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } from '@angular/core';
+import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideEnvironmentInitializer } from '@angular/core';
+import { FolderSetupNotice } from './folder-setup-notice';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtActivityItem, ImtCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
@@ -54,6 +55,8 @@ export function provideFolderSetup(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: IMT_COMMANDS, multi: true, useFactory: () => folderSetupCommands(inject(FolderSetupLauncher), inject(WorkspaceStore)) },
     { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => folderSetupActivityItems(inject(WorkspaceStore)) },
+    // After a folder is opened: a message in the notification centre offers the set-up.
+    provideEnvironmentInitializer(() => inject(FolderSetupNotice)),
   ]);
 }
 

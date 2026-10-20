@@ -180,6 +180,8 @@ pub type WindowFactory = Box<dyn Fn(&str) -> anyhow::Result<WindowState> + Send 
 /// The registry of window states, keyed by window label. Managed as Tauri state.
 pub struct Windows {
     map: RwLock<BTreeMap<String, Arc<WindowState>>>,
+    /// Held while a window's state is built (outside `map`'s lock, so lookups never wait for a build).
+    creating: Mutex<()>,
     /// Labels of windows that were closed: a late command must not bring them back.
     closed: Mutex<HashSet<String>>,
     factory: WindowFactory,
@@ -192,6 +194,7 @@ impl Windows {
     pub fn new(factory: WindowFactory) -> Windows {
         Windows {
             map: RwLock::default(),
+            creating: Mutex::default(),
             closed: Mutex::default(),
             factory,
             next: AtomicU32::new(2),
@@ -209,14 +212,16 @@ impl Windows {
         if let Some(w) = self.get(label) {
             return Ok(w);
         }
+        // One build at a time (no window is built twice); lookups and other windows' commands go on.
+        let _building = self.creating.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(w) = self.get(label) {
+            return Ok(w);
+        }
         if self.closed.lock().unwrap_or_else(|p| p.into_inner()).contains(label) {
             anyhow::bail!("this window was closed");
         }
-        let mut map = self.map.write().unwrap_or_else(|p| p.into_inner());
-        if let Some(w) = map.get(label) {
-            return Ok(w.clone());
-        }
         let state = Arc::new((self.factory)(label)?);
+        let mut map = self.map.write().unwrap_or_else(|p| p.into_inner());
         map.insert(label.to_string(), state.clone());
         log::info!(Windows = map.len() as u64; "Window workspace created");
         Ok(state)
@@ -360,6 +365,8 @@ pub fn queue_open<R: Runtime>(app: &tauri::AppHandle<R>, label: &str, paths: Vec
     if paths.is_empty() {
         return;
     }
+    // Files from the command line, a second launch or the OS were chosen by the user.
+    crate::paths::grant_read_all(app, label, &paths, crate::paths::GrantSource::CommandLine);
     match CurrentWindow::of(app, label) {
         Ok(win) => {
             win.queue(paths);
@@ -445,6 +452,33 @@ pub(crate) mod tests {
             let progress = ws.progress();
             Ok(WindowState::new(label, Box::new(ws), progress, ProfileDoc::default()))
         })
+    }
+
+    /// Building a window's state (plugins, profile: slow) happens outside the registry lock.
+    #[test]
+    fn lookups_do_not_wait_while_a_window_is_built() {
+        let (entered, building) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel::<()>();
+        let released = Mutex::new(released);
+        let inner = factory();
+        let windows = Arc::new(Windows::new(Box::new(move |label| {
+            if label == "slow" {
+                let _ = entered.send(());
+                let _ = released.lock().unwrap().recv_timeout(std::time::Duration::from_secs(10));
+            }
+            inner(label)
+        })));
+        windows.get_or_create(MAIN).unwrap();
+        let w = windows.clone();
+        let slow = std::thread::spawn(move || w.get_or_create("slow").map(|s| s.label().to_string()));
+        building.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+        let started = std::time::Instant::now();
+        assert!(windows.get(MAIN).is_some());
+        assert_eq!(windows.all().len(), 1);
+        assert!(started.elapsed() < std::time::Duration::from_secs(1), "the registry lock was free");
+        release.send(()).unwrap();
+        assert_eq!(slow.join().unwrap().unwrap(), "slow");
+        assert!(Arc::ptr_eq(&windows.get("slow").unwrap(), &windows.get_or_create("slow").unwrap()));
     }
 
     #[test]

@@ -22,8 +22,9 @@ const MAX_STDERR_LINE: u64 = 8 * 1024;
 /// How long the standard error reader waits for the OS to publish an exit status after end of output.
 const EXIT_WAIT: Duration = Duration::from_secs(2);
 
-/// Environment variables a child started with [`SpawnSpec::clear_env`] still gets: what the OS and the
-/// runtime need, and the coverage profile path so instrumented test builds can report.
+/// Environment variables every child gets by default ([`SpawnSpec::keep_env`]): what the OS and the
+/// runtime need, and the coverage profile path so instrumented test builds can report. Nothing else of
+/// IMT's environment (tokens, proxies, user variables) reaches a child unless it is named.
 pub const KEPT_ENV: &[&str] = &[
     "PATH",
     "SystemRoot",
@@ -50,8 +51,9 @@ pub struct SpawnSpec {
     pub args: Vec<String>,
     /// Extra environment.
     pub env: Vec<(String, String)>,
-    /// Start from an empty environment (plus [`KEPT_ENV`] and `env`), so the child learns nothing ambient.
-    pub clear_env: bool,
+    /// The only variables of IMT's environment the child inherits (default [`KEPT_ENV`]); every child
+    /// starts from an empty environment plus these and `env`, so it learns nothing ambient.
+    pub keep_env: &'static [&'static str],
     /// Working directory (default: inherited).
     pub current_dir: Option<PathBuf>,
     /// Names the process in messages: "the AI engine", "plugin \"x\"".
@@ -75,7 +77,7 @@ impl SpawnSpec {
             exe: exe.into(),
             args: Vec::new(),
             env: Vec::new(),
-            clear_env: false,
+            keep_env: KEPT_ENV,
             current_dir: None,
             label: label.into(),
             endpoint_prefix: "imt-ipc".into(),
@@ -166,12 +168,10 @@ impl ChildProcess {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(if spec.log.is_some() { Stdio::piped() } else { Stdio::null() });
-        if spec.clear_env {
-            cmd.env_clear();
-            for k in KEPT_ENV {
-                if let Some(v) = std::env::var_os(k) {
-                    cmd.env(k, v);
-                }
+        cmd.env_clear();
+        for k in spec.keep_env {
+            if let Some(v) = std::env::var_os(k) {
+                cmd.env(k, v);
             }
         }
         cmd.envs(spec.env.iter().map(|(k, v)| (k, v)));

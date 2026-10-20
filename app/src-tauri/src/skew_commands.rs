@@ -97,9 +97,11 @@ mod tests {
             .contains("too many"));
         // The offset is saved with the project and restored when it is opened.
         let project = dir.0.join("skew.imtproj");
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let path = project.to_string_lossy().into_owned();
         block(crate::workspace_commands::save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             path.clone(),
             "Skew".into(),

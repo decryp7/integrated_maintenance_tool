@@ -119,10 +119,19 @@ const NUMBERED = /^\s*\d{1,3}[.)]\s+(.*)$/;
 const HEADING = /^(#{1,4})\s+(.*)$/;
 const FENCE = /^\s*```/;
 
+/** The text that is rendered: cut at MAX_RENDER_CHARS, line ends normalised. */
+function renderable(source: string): string {
+  const text = source.length > MAX_RENDER_CHARS ? `${source.slice(0, MAX_RENDER_CHARS)}…` : source;
+  return text.replace(/\r\n?/g, '\n');
+}
+
 /** Parses an answer (possibly still streaming: an unclosed code fence is shown as code). */
 export function parseMarkdown(source: string, citations: readonly Citation[] = []): Block[] {
-  const text = source.length > MAX_RENDER_CHARS ? `${source.slice(0, MAX_RENDER_CHARS)}…` : source;
-  const links = linksOf(citations);
+  return parseBlocks(renderable(source), citations, linksOf(citations));
+}
+
+/** Parses normalised text into blocks. */
+function parseBlocks(text: string, citations: readonly Citation[], links: Links): Block[] {
   const blocks: Block[] = [];
   let para: string[] = [];
   let list: { kind: 'ul' | 'ol'; items: Inline[][] } | null = null;
@@ -134,7 +143,7 @@ export function parseMarkdown(source: string, citations: readonly Citation[] = [
     if (list) blocks.push(list);
     list = null;
   };
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
     if (FENCE.test(line)) {
@@ -180,6 +189,62 @@ export function parseMarkdown(source: string, citations: readonly Citation[] = [
   flushPara();
   flushList();
   return blocks;
+}
+
+/**
+ * Where the closed blocks of `text` end, scanning from `from` (a block boundary): just after the last blank line that is
+ * not inside a code fence. Nothing after such a line can change the blocks before it (a blank line ends paragraphs
+ * and lists, and the fence state there is known), so they can be kept while the rest streams in.
+ */
+export function closedUpTo(text: string, from = 0): number {
+  let inFence = false;
+  let end = from;
+  let at = from;
+  for (;;) {
+    const nl = text.indexOf('\n', at);
+    if (nl < 0) return end;
+    const line = text.slice(at, nl);
+    if (FENCE.test(line)) inFence = !inFence;
+    else if (!inFence && !line.trim()) end = nl + 1;
+    at = nl + 1;
+  }
+}
+
+/**
+ * Parses a streaming answer incrementally: blocks before the last closed boundary are parsed once and kept; only the
+ * last, still open part is parsed again as text arrives. The result equals `parseMarkdown` of the whole text. A text
+ * that does not extend the previous one (or new citations) starts over.
+ */
+export class IncrementalMarkdown {
+  private text = '';
+  private closedEnd = 0;
+  private closed: Block[] = [];
+  private citations: readonly Citation[] | null = null;
+  private links: Links = linksOf([]);
+  /** Characters parsed in the last call (for tests and diagnostics). */
+  lastParsed = 0;
+
+  parse(source: string, citations: readonly Citation[] = []): Block[] {
+    const text = renderable(source);
+    if (citations !== this.citations || !text.startsWith(this.text.slice(0, this.closedEnd))) {
+      this.citations = citations;
+      this.links = linksOf(citations);
+      this.closedEnd = 0;
+      this.closed = [];
+    }
+    this.text = text;
+    this.lastParsed = 0;
+    const end = closedUpTo(text, this.closedEnd);
+    if (end > this.closedEnd) {
+      const segment = text.slice(this.closedEnd, end);
+      this.closed = [...this.closed, ...parseBlocks(segment, citations, this.links)];
+      this.lastParsed += segment.length;
+      this.closedEnd = end;
+    }
+    const tail = text.slice(this.closedEnd);
+    this.lastParsed += tail.length;
+    return tail ? [...this.closed, ...parseBlocks(tail, citations, this.links)] : this.closed;
+  }
 }
 
 /** "Not found in the logs" answers are shown neutrally (not as an error or a finding). */

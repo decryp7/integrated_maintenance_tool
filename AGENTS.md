@@ -135,7 +135,7 @@ The app reads untrusted, possibly huge files and renders their content:
 - Coverage targets: `imt-core` ≥ 99% lines (`cargo llvm-cov -p imt-core --summary-only`),
   Angular ≥ 80% lines overall and near 100% for stores, services and pure utilities.
 - End-to-end engine behaviour is tested against `/samples` (`crates/imt-core/tests`).
-  Regenerate samples with `python3 samples/generate.py`; don't hand-edit them.
+  Regenerate samples with `cargo xtask gen-samples`; don't hand-edit them.
 - UI tests are layered: unit/component tests (Vitest + TestBed) for logic and components;
   Playwright end-to-end flows against the browser build with the mock backend (Chromium and
   WebKit); a few WebdriverIO + `tauri-driver` smoke tests of the real app (Windows/Linux only).

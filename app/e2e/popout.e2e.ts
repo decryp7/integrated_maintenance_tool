@@ -1,4 +1,5 @@
 import { BrowserContext, expect, Page, test } from '@playwright/test';
+import { openQuery } from './analysis-support';
 import { ensureInspector, gridTotal, initialTotal, openApp, openView, parseCount } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { runCommand } from './analysis-support';
@@ -47,6 +48,7 @@ test.describe('pop-out windows', () => {
 
   test('a query changed in the pop-out filters the host grid', async ({ page, context }) => {
     const before = parseCount(await initialTotal(page));
+    await openQuery(page);
     const popup = await popOut(page, context, 'Query');
     const input = popup.getByRole('combobox', { name: 'Query' });
     await input.click();

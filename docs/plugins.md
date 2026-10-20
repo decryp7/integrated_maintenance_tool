@@ -409,10 +409,12 @@ the plugin, so its hooks are not called (everything else works the same).
 
 ### Services
 
-Inter-plugin APIs are Rust traits in small, separately versioned API crates (`crates/imt-api-*`).
-`crates/imt-api-perf` is the example: `trait CounterSource` (live performance counters), its
-service id and version, and `contract_tests(&dyn CounterSource)`, which every provider must pass
-in a `#[test]`.
+Inter-plugin APIs are Rust traits in small, separately versioned API crates (`crates/imt-api-*`,
+added when a second plugin actually consumes a service). Such a crate holds the trait, its service
+id and version, and a `contract_tests(&dyn Trait)` function that every provider must pass in a
+`#[test]`. The example below uses a hypothetical `imt-api-perf` crate with `trait CounterSource`
+(live performance counters); the engine's own tests use the same pattern (`imt-core`'s
+`tests/plugin_graph.rs`).
 
 ```rust
 // Provider, in register():

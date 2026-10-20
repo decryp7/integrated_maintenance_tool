@@ -36,7 +36,7 @@ describe('WorkspaceStore', () => {
 
   it('loads the summary and the timeline on init', async () => {
     const store = setup();
-    expect(store.busy()).toBe('Loading workspace…');
+    expect(store.busy()).toEqual({ kind: 'op', label: 'Loading workspace…' });
     await settle();
     expect(store.busy()).toBeNull();
     expect(store.summary()?.total).toBe(11);
@@ -337,7 +337,7 @@ describe('WorkspaceStore', () => {
       const job = await backend.saveProfile('name = "Applied profile"\n');
       expect(job).toEqual(expect.any(Number));
       const done = store.applyProfile(job);
-      expect(store.busy()).toBe('Applying the profile…');
+      expect(store.busy()).toEqual({ kind: 'import', label: 'Applying the profile…', jobId: job });
       await done;
       expect(store.busy()).toBeNull();
       expect(store.error()).toBeNull();

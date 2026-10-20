@@ -36,7 +36,18 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.showJobs:Show in Jobs`;
     case 'showInFolder':
       return $localize`:@@notifications.action.showInFolder:Show in folder`;
+    case 'updateAi':
+      return $localize`:@@notifications.action.updateAi:Update`;
+    case 'laterAiUpdate':
+      return $localize`:@@notifications.action.laterAiUpdate:Later`;
+    case 'skipAiUpdate':
+      return $localize`:@@notifications.action.skipAiUpdate:Skip this version`;
   }
+}
+
+/** Actions that answer the message: once done it is dismissed (an AI update was installed, put off or skipped). */
+function answers(a: NoticeAction): boolean {
+  return a.type === 'updateAi' || a.type === 'laterAiUpdate' || a.type === 'skipAiUpdate';
 }
 
 /**
@@ -53,7 +64,9 @@ export class NoticeActions {
     // Toasts of the UI's own (negative ids) are not messages of the centre.
     if (notice.id > 0) void store.markRead(notice.id);
     try {
-      return await this.perform(action);
+      const err = await this.perform(action);
+      if (!err && answers(action) && notice.id > 0) await store.dismiss(notice.id);
+      return err;
     } catch (e) {
       return e instanceof Error ? e.message : typeof e === 'string' ? e : $localize`:@@notifications.action.failed:That did not work.`;
     }
@@ -105,6 +118,15 @@ export class NoticeActions {
         const { UpdatesStore } = await import('../updates/updates.store');
         await this.injector.get(UpdatesStore).download();
         return null;
+      }
+      case 'updateAi':
+      case 'laterAiUpdate':
+      case 'skipAiUpdate': {
+        const { AiUpdatesStore } = await import('../ai/updates/ai-updates.store');
+        const updates = this.injector.get(AiUpdatesStore);
+        const ok = a.type === 'updateAi' ? await updates.apply(a.key) : a.type === 'laterAiUpdate' ? await updates.later(a.key) : await updates.skip(a.key);
+        if (a.type === 'updateAi' && ok) ctx.showView(JOBS_VIEW);
+        return ok ? null : updates.error();
       }
       case 'showAlert': {
         const [{ AlertsStore }, { LiveAlerts }] = await Promise.all([import('../live/alerts.store'), import('../live/live-alerts')]);

@@ -1,9 +1,10 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { CHANGE_KINDS, ChangeKind, DiffRow, SnapshotFile, ValueDto } from '../core/config-diff.types';
 import { makeGeometry, scrollToTop, visibleWindow } from '../grid/scroll-map';
 import { baseName } from '../tools/tool-errors';
 import { ConfigDiffStore } from './config-diff.store';
+import { ActiveDescendantNavigation } from '../shared/list-navigation';
 
 /** Height of one diff row, px. */
 export const ROW_H = 24;
@@ -317,6 +318,11 @@ export class ConfigDiffView {
   private readonly scrollTop = signal(0);
   private readonly viewportH = signal(400);
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Moves the selected row (CDK ActiveDescendantKeyManager: focus stays on the tree, which names the row). */
+  private readonly nav = new ActiveDescendantNavigation(this.store.total, inject(Injector), {
+    homeAndEnd: true,
+    pageDelta: () => Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1),
+  });
 
   protected readonly formatNames = computed(() => this.store.formats().map((f) => f.name).join(', '));
   protected readonly geometry = computed(() => makeGeometry(this.store.total(), ROW_H, this.viewportH()));
@@ -400,22 +406,18 @@ export class ConfigDiffView {
     let next: number;
     switch (e.key) {
       case 'ArrowDown':
-        next = cur === null ? 0 : Math.min(total - 1, cur + 1);
-        break;
       case 'ArrowUp':
-        next = cur === null ? 0 : Math.max(0, cur - 1);
-        break;
       case 'Home':
-        next = 0;
-        break;
       case 'End':
-        next = total - 1;
-        break;
       case 'PageDown':
-        next = Math.min(total - 1, (cur ?? 0) + Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1));
-        break;
       case 'PageUp':
-        next = Math.max(0, (cur ?? 0) - Math.max(1, Math.floor(this.viewportH() / ROW_H) - 1));
+        // Nothing selected yet: the arrows start at the first row.
+        if (cur === null && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) next = 0;
+        else {
+          this.nav.sync(cur ?? 0);
+          if (!this.nav.handle(e)) return;
+          next = this.nav.active();
+        }
         break;
       case 'ArrowRight':
       case 'ArrowLeft':

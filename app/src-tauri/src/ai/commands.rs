@@ -546,7 +546,11 @@ pub async fn ai_chat_export_markdown<R: Runtime>(
         .chats
         .get(&session_id)
         .ok_or_else(|| AiCmdError::not_found("this chat no longer exists"))?;
-    let target = markdown_target(&path, overwrite.unwrap_or(false))?;
+    // Only where the user chose to save (the save dialog granted it to this window).
+    let granted = crate::paths::WindowGrants::of(&app, win.label())
+        .write(&path, &["md", "markdown"])
+        .map_err(AiCmdError::invalid)?;
+    let target = markdown_target(&granted.path().to_string_lossy(), overwrite.unwrap_or(false))?;
     blocking(move || {
         let tmp = target.with_extension("md.tmp");
         std::fs::write(&tmp, export_markdown(&record))

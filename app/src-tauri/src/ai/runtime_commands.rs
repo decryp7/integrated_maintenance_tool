@@ -10,7 +10,7 @@ use super::{RUNTIME_EVENT, STATUS_EVENT};
 use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label;
-use imt_ai::runtimes::RuntimeOverview;
+use imt_ai::runtimes::{InstalledRuntime, RuntimeOverview};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -84,12 +84,27 @@ fn archive_path(path: &str) -> AiResult<PathBuf> {
     Ok(canon)
 }
 
+/// Runs after an install ended (successfully or not), e.g. to retire the build an update replaced.
+pub(crate) type AfterInstall = Box<dyn FnOnce(&AiResult<InstalledRuntime>) + Send>;
+
 fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<()> {
+    start_install_with(app, id, archives, None, None)
+}
+
+/// [`start_install`] with the job's title and a hook that runs when the install ended.
+pub(crate) fn start_install_with<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+    archives: Vec<PathBuf>,
+    title: Option<String>,
+    after: Option<AfterInstall>,
+) -> AiResult<()> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
     let verb = if archives.is_empty() { "Downloading" } else { "Installing" };
-    let spec = JobSpec::new(JobKind::Download, format!("{verb} the {} inference runtime", label(&id)))
+    let title = title.unwrap_or_else(|| format!("{verb} the {} inference runtime", label(&id)));
+    let spec = JobSpec::new(JobKind::Download, title)
         .link(JobLink::Model { id: id.clone() })
         .retry_with(serde_json::json!({"op": "runtime", "runtimeId": id}));
     let c = core.clone();
@@ -134,6 +149,9 @@ fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBu
             }
         }
         let _ = app.emit(RUNTIME_EVENT, RuntimeEvent::of_result(&id, &result));
+        if let Some(after) = after {
+            after(&result);
+        }
         emit_status(&app, &core);
         result.map(|_| Done::new(()).with_result(JobResult::Model { file_name: None }))
     });

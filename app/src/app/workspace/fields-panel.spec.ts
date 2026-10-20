@@ -1,3 +1,4 @@
+import { FIELDS_OPEN_KEY } from '../shell/sidebar-sections';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
 import { AnalysisTargets } from '../analysis/analysis-targets';
@@ -8,6 +9,9 @@ import { FieldsPanel } from './fields-panel';
 import { at } from '../../testing/must';
 
 describe('Sidebar fields with the facet popover', () => {
+  // The Fields section starts collapsed; these tests use it expanded.
+  beforeEach(() => localStorage.setItem(FIELDS_OPEN_KEY, 'true'));
+  afterEach(() => localStorage.removeItem(FIELDS_OPEN_KEY));
   async function render(backend = tinyBackend()) {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideFakeDock()] });
     const fixture = TestBed.createComponent(Sidebar);
@@ -49,15 +53,35 @@ describe('Sidebar fields with the facet popover', () => {
     expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
   });
 
-  it('copes with an empty workspace and a filter that matches nothing', async () => {
+  it('hides the Fields section in an empty workspace, and copes with a filter that matches nothing', async () => {
     const { fixture, store } = await render(new MockBackend({ latency: false, dataset: () => ({ sources: [], unrecognized: [], records: [] }) }));
     expect(all(fixture, '.field')).toHaveLength(0);
     expect(text(fixture)).toContain('No files open');
-    typeInto(el<HTMLInputElement>(fixture, 'input.filter'), 'zzz');
-    await settle(fixture);
-    expect(all(fixture, '.field')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    TestBed.resetTestingModule();
+    const loaded = await render();
+    typeInto(el<HTMLInputElement>(loaded.fixture, 'input.filter'), 'zzz');
+    await settle(loaded.fixture);
+    expect(all(loaded.fixture, '.field')).toHaveLength(0);
     expect(store.summary()?.total).toBe(0);
   });
+
+  it('starts collapsed when the user has not chosen, and remembers the choice', async () => {
+    localStorage.removeItem(FIELDS_OPEN_KEY);
+    const { fixture } = await render();
+    const toggle = el<HTMLButtonElement>(fixture, '[data-testid=fields-toggle]');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.nativeElement.querySelector('input.filter')).toBeNull();
+    toggle.click();
+    await settle(fixture);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(all(fixture, '.field').length).toBeGreaterThan(3);
+    expect(localStorage.getItem(FIELDS_OPEN_KEY)).toBe('true');
+    toggle.click();
+    await settle(fixture);
+    expect(localStorage.getItem(FIELDS_OPEN_KEY)).toBe('false');
+  });
+
 
   it('shows 0% coverage while no events exist', async () => {
     const { fixture, store } = await render();
@@ -68,6 +92,9 @@ describe('Sidebar fields with the facet popover', () => {
 });
 
 describe('FieldsPanel statistics action', () => {
+  // The Fields section starts collapsed; these tests use it expanded.
+  beforeEach(() => localStorage.setItem(FIELDS_OPEN_KEY, 'true'));
+  afterEach(() => localStorage.removeItem(FIELDS_OPEN_KEY));
   it('offers an accessible Statistics… button per field that opens the field statistics view', async () => {
     const dock = new FakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(dock)] });

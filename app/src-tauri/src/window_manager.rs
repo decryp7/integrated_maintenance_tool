@@ -108,9 +108,12 @@ pub fn list<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowInfo> {
     out
 }
 
-/// Tells every window and the tray that the window list changed.
+/// Tells every window and the tray that the window list changed (on the main thread soon, coalesced:
+/// the window getters in [`list`] wait for it).
 pub fn changed<R: Runtime>(app: &AppHandle<R>) {
-    let _ = app.emit(WINDOWS_EVENT, list(app));
+    crate::ui_dispatch::post(app, crate::ui_dispatch::Slot::WindowList, |app| {
+        let _ = app.emit(WINDOWS_EVENT, list(app));
+    });
     crate::tray::refresh(app);
 }
 
@@ -127,6 +130,7 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
     }
     let label = windows.next_label();
     let state = windows.get_or_create(&label)?;
+    crate::paths::grant_read_all(app, &label, &pending, crate::paths::GrantSource::CommandLine);
     state.queue(pending);
     let built = crate::native_feel::build(
         WebviewWindowBuilder::new(app, &label, WebviewUrl::default())
@@ -200,7 +204,7 @@ pub fn quit<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.try_state::<Windows>() {
         w.set_exiting();
     }
-    log::info!("Quit requested");
+    log::info!(Windows = app.webview_windows().len() as u64; "Quit requested");
     app.exit(0);
 }
 
@@ -299,7 +303,16 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
             panel_windows::dragged(app, label);
         }
         WindowEvent::Resized(_) if panel_windows::is_popout(label) => panel_windows::moved(app, label),
-        WindowEvent::Destroyed => destroyed(app, label),
+        // Dropped files are the user's choice: commands of this window may read them.
+        WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
+            crate::paths::grant_read_all(app, label, paths, crate::paths::GrantSource::Drop);
+        }
+        WindowEvent::Destroyed => {
+            if !panel_windows::is_popout(label) {
+                crate::paths::grants(app).forget(label);
+            }
+            destroyed(app, label)
+        }
         _ => {}
     }
 }
@@ -357,17 +370,24 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if crate::browser::is_banner_label(label) {
         return;
     }
+    log::info!(Window = label; "Window destroyed");
     panel_windows::close_all_of(app, label);
     crate::browser::owner_destroyed(app, label);
     let Some(windows) = app.try_state::<Windows>() else { return };
     let exiting = windows.exiting();
-    // Dropping the state stops its live tail and frees the workspace.
-    drop(windows.remove(label));
-    if let Some(tasks) = app.try_state::<BackgroundTasks>() {
-        tasks.remove_window(label);
-    }
-    crate::jobs::forget_window(app, label);
-    crate::notification_centre::forget_window(app, label);
+    // Off the main thread and bounded (see `lifecycle::teardown_step`): dropping the state stops its live
+    // tail, deactivates its plugins and frees the workspace; the registries notify the tray and windows.
+    use crate::lifecycle::{teardown_step, TEARDOWN_STEP_LIMIT};
+    let state = windows.remove(label);
+    teardown_step("window state", TEARDOWN_STEP_LIMIT, move || drop(state));
+    let (handle, owner) = (app.clone(), label.to_string());
+    teardown_step("window registries", TEARDOWN_STEP_LIMIT, move || {
+        if let Some(tasks) = handle.try_state::<BackgroundTasks>() {
+            tasks.remove_window(&owner);
+        }
+        crate::jobs::forget_window(&handle, &owner);
+        crate::notification_centre::forget_window(&handle, &owner);
+    });
     if !exiting {
         if let Some(life) = app.try_state::<crate::lifecycle::Lifecycle>() {
             life.forget_session(label);

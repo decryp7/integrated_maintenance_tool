@@ -1,6 +1,7 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ImportProgress } from '../core/api.types';
-import { isImportBusyLabel, WorkspaceStore } from '../core/workspace.store';
+import { WorkspaceStore } from '../core/workspace.store';
+import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { UxBackend } from '../core/ux-backend';
 
 /** How often progress is read while an import runs. */
@@ -14,19 +15,16 @@ export interface PartialImport {
   total: number;
 }
 
-/** True for the store's busy labels of work that imports files (open, re-import), in any language. */
-export function isImportLabel(busy: string | null): boolean {
-  return !!busy && (isImportBusyLabel(busy) || /^(Opening|Re-importing)/.test(busy));
-}
-
 /**
- * Follows the engine's import progress while the workspace is opening or re-importing files: polls
- * `import_progress`, offers Cancel, and remembers a cancelled import so a "partially imported" banner can
- * say what was read.
+ * Follows the engine's import progress while the workspace imports files (its busy state is an import: open,
+ * re-import, profile apply): polls `import_progress`, offers Cancel, and remembers a cancelled import so a
+ * "partially imported" banner can say what was read. The import job's progress events carry a fraction and file
+ * counts but not the current file or the bytes the toast shows, so the poll stays until the job reports them.
  */
 @Injectable({ providedIn: 'root' })
 export class ImportProgressService {
   private readonly store = inject(WorkspaceStore);
+  private readonly status = inject(WorkspaceStatusStore);
   private readonly backend = inject(UxBackend);
 
   /** Latest progress of the running import; null when none runs. */
@@ -44,7 +42,7 @@ export class ImportProgressService {
 
   constructor() {
     effect(() => {
-      const importing = isImportLabel(this.store.busy());
+      const importing = this.status.importing();
       untracked(() => (importing ? this.start() : this.stop()));
     });
     inject(DestroyRef).onDestroy(() => this.clearTimers());

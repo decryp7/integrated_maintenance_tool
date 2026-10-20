@@ -2,6 +2,7 @@
 
 mod annotate;
 mod bundle;
+mod cache_key;
 mod chart;
 mod context;
 mod dashboard;
@@ -22,8 +23,9 @@ pub use crate::api::*;
 pub use tail::{
     duration_ms, family, group_of, identity_of, initial_mode, is_network_path, mode_of, AlertMutes, AlertRuleCfg, AlertTarget, BatchFn,
     Clock, Coalescer, DeletedFiles, FallbackFn, FileIdentity, FileWatcher, LiveAlert, LiveCfg, LiveRules, LiveTail, OpenOptions, Retention,
-    RotatedSource, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow, WatchMode,
-    WatchPreference, WatchSettings, WatchSignal, WatchSink, WatchedRoot, WatcherFactory, MAX_DETECT_EVERY_MS, MAX_MUTES, MAX_MUTE_MS,
+    RotatedSource, StopToken, TailFileChange, TailFileState, TailFileStatus, TailOptions, TailReport, TailStatus, TailTotals, TimeWindow,
+    WatchMode, WatchPreference, WatchSettings, WatchSignal, WatchSink, WatchedRoot, WatcherFactory, MAX_DETECT_EVERY_MS, MAX_MUTES,
+    MAX_MUTE_MS,
 };
 
 use crate::chart::ChartDef;
@@ -201,7 +203,8 @@ pub struct Workspace {
     load_ms: u64,
     /// Matching ids of recent queries, updated incrementally on append.
     cache: Mutex<tail::MatchCache>,
-    anomaly_cache: Mutex<Option<(String, Vec<crate::analysis::Anomaly>)>>,
+    /// The anomalies of the last query, keyed by generation, record count and the resolved query.
+    anomaly_cache: Mutex<Option<(cache_key::CacheKey, Vec<crate::analysis::Anomaly>)>>,
     /// The pattern miner of the last patterns query, fed only new records.
     pattern_cache: Mutex<Option<tail::PatternCache>>,
     progress: Arc<ImportProgress>,
@@ -209,6 +212,8 @@ pub struct Workspace {
     field_index: tail::FieldIndex,
     /// Bumped whenever existing record ids or contents change (not on pure appends).
     generation: u64,
+    /// Bumped whenever the profile is replaced (caches never compare profile pointers).
+    profile_revision: u64,
     /// Live tail: per-file read positions, options, alert state.
     tail: tail::TailBook,
     /// Clock-skew offsets by source path, applied to timestamps on import.
@@ -257,6 +262,7 @@ impl Workspace {
             progress: Arc::new(ImportProgress::default()),
             field_index: tail::FieldIndex::default(),
             generation: 0,
+            profile_revision: 0,
             tail: tail::TailBook::default(),
             offsets: crate::skew::ClockOffsets::default(),
             view_redaction: None,
@@ -384,6 +390,7 @@ impl Workspace {
         });
         self.marker_kinds = compiled.markers.iter().map(|m| m.kind.clone()).collect();
         self.profile = Arc::new(compiled);
+        self.profile_revision += 1;
         self.refresh_view_redaction()?;
         self.reload()
     }
@@ -436,6 +443,7 @@ impl Workspace {
             name: compiled.profile.name.clone(),
         });
         self.profile = Arc::new(compiled);
+        self.profile_revision += 1;
         self.refresh_view_redaction()?;
         self.reset();
         self.removed = state.removed.iter().map(PathBuf::from).collect();
@@ -525,6 +533,7 @@ impl Workspace {
                     let (from, to) = time_range(&loaded.imported.records);
                     if let Some(s) = self.sources.last_mut() {
                         s.records = loaded.imported.records.len();
+                        s.split_events = crate::importers::text::split_events(&loaded.imported.records);
                         (s.from, s.to) = (from, to);
                         s.offset_ms = offset;
                         s.file_kind = file_kind;
@@ -578,6 +587,7 @@ impl Workspace {
             importer,
             records: 0,
             skipped,
+            split_events: 0,
             dropped,
             step_stats,
             error: None,
@@ -647,13 +657,13 @@ impl Workspace {
     /// Like [`matching`](Self::matching), checking `control` between batches of records (stage
     /// `Matching` of its progress). A cancelled run fails with [`crate::ql::Cancelled`] and is not cached.
     pub fn matching_with(&self, q: &Query, control: &crate::ql::QueryControl) -> Result<Arc<Vec<u32>>> {
-        let key = serde_json::to_string(q)?;
+        let key = cache_key::CacheKey::of(self.generation, q)?;
         let resolved = self.resolve_window(q).into_owned();
         if let Some(ids) = self
             .cache
             .lock()
             .unwrap_or_else(|p| p.into_inner())
-            .get(&key, &resolved, &self.records)
+            .get(key, &resolved, &self.records)
         {
             return Ok(ids);
         }

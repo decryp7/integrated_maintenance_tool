@@ -5,6 +5,7 @@
 
 use crate::activity::{domain_event, privacy, OpId};
 use crate::jobs::{JobKind, JobSpec};
+use crate::paths::WindowGrants;
 use crate::windows::{read, CurrentWindow};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
@@ -188,8 +189,9 @@ pub(crate) fn profile_templates() -> &'static [imt_core::templates::ProfileTempl
 
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
-pub(crate) fn import_profile(path: String) -> CmdResult<ProfileDoc> {
-    let toml = std::fs::read_to_string(&path).map_err(err)?;
+pub(crate) fn import_profile(grants: WindowGrants, path: String) -> CmdResult<ProfileDoc> {
+    let file = grants.read_file(&path, &["toml"])?;
+    let toml = std::fs::read_to_string(file.path()).map_err(err)?;
     let profile = Profile::from_toml(&toml).map_err(err)?;
     Ok(ProfileDoc {
         name: profile.name,
@@ -200,9 +202,10 @@ pub(crate) fn import_profile(path: String) -> CmdResult<ProfileDoc> {
 
 /// Writes the profile text to a file the user chose; an existing file only with `overwrite`.
 #[tauri::command]
-pub(crate) fn export_profile(path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
+pub(crate) fn export_profile(grants: WindowGrants, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
+    let target = grants.write(&path, &["toml"])?;
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
-    std::fs::write(&path, &toml).map_err(err)?;
+    std::fs::write(target.path(), &toml).map_err(err)?;
     let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
     domain_event("export.written", None, &[("Export", "profile"), ("Path", &safe), ("Bytes", &bytes)]);
     Ok(())
@@ -291,7 +294,19 @@ mod tests {
         assert_eq!(load_profile(None, &fresh()).1.path, None);
 
         let exported = dir.0.join("out.imtprofile.toml");
-        export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap();
+        let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
+        let refused = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap_err();
+        assert!(refused.contains("only writes where you choose"), "{refused}");
+        assert!(!exported.exists());
+        crate::paths::grant(
+            app.handle(),
+            "main",
+            &exported,
+            crate::paths::Access::Write,
+            crate::paths::GrantSource::Dialog,
+        )
+        .unwrap();
+        export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap();
         let written = crate::tools::tests::domain_events();
         let w = written
             .iter()
@@ -299,15 +314,38 @@ mod tests {
             .expect("profile export");
         assert_eq!(w.props["Bytes"], "17");
         // Replacing the file needs the user's confirmation.
-        let again = export_profile(exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None).unwrap_err();
+        let again = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None).unwrap_err();
         assert_eq!(again, format!("{} already exists; confirm to replace it", exported.display()));
-        export_profile(exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), Some(true)).unwrap();
-        let imported = import_profile(exported.to_string_lossy().into_owned()).unwrap();
+        export_profile(
+            grants(),
+            exported.to_string_lossy().into_owned(),
+            "name = 'Exported'".into(),
+            Some(true),
+        )
+        .unwrap();
+        // Reading needs an open grant (a save grant is not one).
+        let refused = import_profile(grants(), exported.to_string_lossy().into_owned()).unwrap_err();
+        assert!(refused.contains("only reads files you choose"), "{refused}");
+        crate::paths::grant(
+            app.handle(),
+            "main",
+            &exported,
+            crate::paths::Access::Read,
+            crate::paths::GrantSource::Dialog,
+        )
+        .unwrap();
+        let imported = import_profile(grants(), exported.to_string_lossy().into_owned()).unwrap();
         assert_eq!(imported.name, "Exported");
-        assert!(import_profile(dir.0.join("missing.toml").to_string_lossy().into_owned()).is_err());
+        assert!(import_profile(grants(), dir.0.join("missing.toml").to_string_lossy().into_owned()).is_err());
         std::fs::write(&exported, "[parse").unwrap();
-        assert!(import_profile(exported.to_string_lossy().into_owned()).is_err());
-        assert!(export_profile(dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(), String::new(), None).is_err());
+        assert!(import_profile(grants(), exported.to_string_lossy().into_owned()).is_err());
+        assert!(export_profile(
+            grants(),
+            dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(),
+            String::new(),
+            None
+        )
+        .is_err());
     }
 
     #[test]

@@ -218,7 +218,7 @@ fn plugin_errors_are_classified() {
     assert_eq!(kind(E::MissingSignedVersion, Step::Download), "signatureInvalid");
     assert_eq!(kind(E::SignatureUtf8("x".into()), Step::Download), "signatureInvalid");
     assert_eq!(
-        kind(E::Base64(base64::DecodeError::InvalidLength(3)), Step::Download),
+        kind(E::Base64(updater_base64::DecodeError::InvalidLength(3)), Step::Download),
         "signatureInvalid"
     );
     assert_eq!(

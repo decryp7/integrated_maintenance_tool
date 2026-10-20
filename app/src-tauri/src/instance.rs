@@ -19,6 +19,15 @@ pub const NEW_INSTANCE_FLAG: &str = "--new-instance";
 pub const NEW_WINDOW_FLAG: &str = "--new-window";
 /// Command-line arguments are capped (a hostile caller cannot make IMT open millions of paths).
 const MAX_PATHS: usize = 256;
+/// Ends the flags: every later argument is a path, even one that looks like a flag.
+pub const END_OF_FLAGS: &str = "--";
+
+/// The arguments before [`END_OF_FLAGS`]: the only ones read as flags (`--export-diagnostics`,
+/// `--isolated`, `--safe-mode`, ...), so a path after it never switches on a mode.
+pub fn flags<S: AsRef<str>>(args: &[S]) -> &[S] {
+    let end = args.iter().position(|a| a.as_ref() == END_OF_FLAGS).unwrap_or(args.len());
+    &args[..end]
+}
 
 /// What a command line asks for.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -33,23 +42,32 @@ pub struct LaunchArgs {
 /// Parses arguments (without the program name). Unknown flags are ignored.
 pub fn parse_args<I: IntoIterator<Item = String>>(args: I, cwd: Option<&Path>) -> LaunchArgs {
     let mut out = LaunchArgs::default();
+    let mut paths_only = false;
     for arg in args {
         match arg.as_str() {
+            a if paths_only => {
+                if !a.is_empty() && !a.contains('\0') && out.paths.len() < MAX_PATHS {
+                    out.paths.push(resolve(a, cwd));
+                }
+            }
+            END_OF_FLAGS => paths_only = true,
             NEW_INSTANCE_FLAG => out.new_instance = true,
             NEW_WINDOW_FLAG => out.new_window = true,
             SAFE_MODE_FLAG => out.safe_mode = true,
             a if a.starts_with('-') || a.is_empty() || a.contains('\0') => {}
-            a if out.paths.len() < MAX_PATHS => {
-                let p = PathBuf::from(a);
-                out.paths.push(match cwd {
-                    Some(dir) if p.is_relative() => dir.join(p),
-                    _ => p,
-                });
-            }
+            a if out.paths.len() < MAX_PATHS => out.paths.push(resolve(a, cwd)),
             _ => {}
         }
     }
     out
+}
+
+fn resolve(arg: &str, cwd: Option<&Path>) -> PathBuf {
+    let p = PathBuf::from(arg);
+    match cwd {
+        Some(dir) if p.is_relative() => dir.join(p),
+        _ => p,
+    }
 }
 
 /// Whether this process joins the single-instance group (and hands its
@@ -196,6 +214,16 @@ mod tests {
         let many: Vec<String> = (0..1000).map(|i| format!("/p{i}")).collect();
         assert_eq!(parse_args(many, None).paths.len(), MAX_PATHS);
         assert!(parse_args(args(&["a\0b"]), None).paths.is_empty());
+    }
+
+    #[test]
+    fn everything_after_the_end_of_flags_is_a_path() {
+        let a = parse_args(args(&["--new-window", "--", "--safe-mode", "/x.log", "", "a\0b"]), None);
+        assert!(a.new_window && !a.safe_mode);
+        assert_eq!(a.paths, [PathBuf::from("--safe-mode"), PathBuf::from("/x.log")]);
+        assert_eq!(flags(&["--isolated", "--", "--export-diagnostics"]), ["--isolated"]);
+        assert_eq!(flags(&["a", "b"]), ["a", "b"]);
+        assert!(flags::<&str>(&[]).is_empty());
     }
 
     #[test]

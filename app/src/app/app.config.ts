@@ -32,6 +32,7 @@ import { provideUpdates } from './updates/provide-updates';
 import { provideJobs } from './jobs/provide-jobs';
 import { provideNotifications } from './notifications/provide-notifications';
 import { provideNativeFeel } from './core/native-feel';
+import { provideWorkspace } from './core/workspace/provide-workspace';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -41,6 +42,7 @@ export const appConfig: ApplicationConfig = {
     provideErrorLogging(),
     provideDiagnostics(),
     provideBackend(),
+    provideWorkspace(),
     provideImtBuiltins(),
     provideImtPlugin(REGISTRY_PLUGIN),
     provideMarkers(),

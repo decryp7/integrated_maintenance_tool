@@ -111,6 +111,21 @@ fn copy_hashing(src: &Path, dest: &Path, progress: &Progress) -> Result<String> 
     Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// The release whose builds the worker uses: the pinned one when any of its builds is installed, else the newest
+/// older release that has builds (an update keeps it until the pinned build is installed and verified), else
+/// the pinned one (nothing installed yet: the worker says so).
+pub fn usable_tag(installed: &[InstalledRuntime], pinned: &str) -> String {
+    if installed.iter().any(|r| r.tag == pinned) {
+        return pinned.to_string();
+    }
+    let limit = super::builds::tag_number(pinned).unwrap_or(u64::MAX);
+    installed
+        .iter()
+        .filter_map(|r| super::builds::tag_number(&r.tag).filter(|n| *n < limit).map(|n| (n, &r.tag)))
+        .max_by_key(|(n, _)| *n)
+        .map_or_else(|| pinned.to_string(), |(_, t)| t.clone())
+}
+
 struct BusyGuard<'a> {
     set: &'a Mutex<HashSet<String>>,
     key: String,
@@ -404,6 +419,21 @@ mod tests {
         assert_eq!(s.list("b2").len(), 1);
         assert!(matches!(s.delete("b1", "vulkan"), Err(AiError::NotFound(_))));
         assert!(matches!(s.delete("..", "cpu"), Err(AiError::Refused(_))));
+    }
+
+    #[test]
+    fn the_worker_keeps_an_older_release_until_the_pinned_one_is_installed() {
+        let rt = |tag: &str, id: &str| InstalledRuntime {
+            id: id.into(),
+            tag: tag.into(),
+            dir: PathBuf::new(),
+            bytes: 1,
+            current: tag == "b200",
+        };
+        assert_eq!(usable_tag(&[], "b200"), "b200");
+        assert_eq!(usable_tag(&[rt("b100", "cpu"), rt("b150", "vulkan")], "b200"), "b150");
+        assert_eq!(usable_tag(&[rt("b100", "cpu"), rt("b200", "cpu")], "b200"), "b200");
+        assert_eq!(usable_tag(&[rt("b300", "cpu")], "b200"), "b200", "never a newer, unpinned release");
     }
 
     fn asset(name: &str, data: &[u8]) -> super::super::catalog::RuntimeAsset {

@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { CaptureSummary, FrameDto } from '../core/api.types';
 import { isTauri } from '../core/platform';
+import { nativePick as hostPick } from '../core/native-dialog';
 import { errorText } from '../analysis/async-resource';
 import { ProfilingBackend } from './profiling-backend';
 import { plural } from '../i18n/locale';
@@ -12,10 +13,7 @@ import { browserMocks } from '../core/mock-registry';
 
 /* v8 ignore start: the native dialog exists only inside Tauri */
 async function nativePick(): Promise<string[]> {
-  const { open } = await import('@tauri-apps/plugin-dialog');
-  const result = await open({ multiple: true, directory: false, title: $localize`:@@profiling.captures.dialogTitle:Open profile or heap snapshot` });
-  if (result === null) return [];
-  return Array.isArray(result) ? result : [result];
+  return hostPick({ kind: 'openFiles', title: $localize`:@@profiling.captures.dialogTitle:Open profile or heap snapshot` });
 }
 /* v8 ignore stop */
 
