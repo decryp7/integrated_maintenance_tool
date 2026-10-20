@@ -18,7 +18,7 @@ import { titleWithCount } from './notifications-text';
   template: `
     <div class="stack" role="region" aria-label="New notifications" i18n-aria-label="@@notifications.toasts.region" aria-live="polite">
       @for (t of store.toasts(); track t.id) {
-        <div class="toast" [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)">
+        <div class="toast" [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
           <strong class="title">{{ titleWithCount(t) }}</strong>
           @if (t.body) {
             <div class="body">{{ t.body }}</div>
@@ -79,5 +79,13 @@ export class NotificationToasts {
     this.store.dismissToast(t.id);
     this.store.setFocus(t.id);
     this.ctx.showView(NOTIFICATIONS_VIEW);
+  }
+
+  /** The pointer or focus left a toast: once neither is on it, its timer runs again. */
+  protected leave(id: number, e: MouseEvent | FocusEvent): void {
+    const toast = e.currentTarget as HTMLElement;
+    const focusStays = e instanceof FocusEvent ? toast.contains(e.relatedTarget as Node | null) : toast.contains(document.activeElement);
+    const pointerStays = e instanceof FocusEvent && toast.matches(':hover');
+    if (!focusStays && !pointerStays) this.store.releaseToast(id);
   }
 }
