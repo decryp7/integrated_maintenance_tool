@@ -720,7 +720,7 @@ impl DuckStore {
 impl Search for DuckStore {
     /// Words of `text` (all required), case-insensitive and split on punctuation; the first `limit` hits
     /// (default 1,000, at most 10,000) in time order. A quoted phrase must also appear as written (ignoring
-    /// case) in the message, raw text or exception; up to 5,000 candidates are checked, beyond that the
+    /// case) in the message, raw text or exception; up to 1,000 candidates are checked, beyond that the
     /// total is not exact. Only indexed segments are searched ([`Search::index_status`] tells how far
     /// indexing is).
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {

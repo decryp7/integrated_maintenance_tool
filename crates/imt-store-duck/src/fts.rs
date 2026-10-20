@@ -61,7 +61,7 @@ pub fn split_phrases(text: &str) -> (String, Vec<String>) {
 }
 
 /// Candidates checked for phrases at most; beyond, the total is the candidate count (not exact).
-pub const MAX_VERIFY: usize = 5_000;
+pub const MAX_VERIFY: usize = 1_000;
 
 /// Hits returned by default and at most.
 pub const DEFAULT_HITS: usize = 1000;
