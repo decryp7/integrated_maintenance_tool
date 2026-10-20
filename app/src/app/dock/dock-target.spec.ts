@@ -1,4 +1,4 @@
-import { DRAG_THRESHOLD, hitDockTarget, moveTab, popoutDragReduce, PopoutDrag, pressTab, releaseTab, screenToClient, SETTLE_MS, targetPreview } from './dock-target';
+import { DRAG_THRESHOLD, hitDockTarget, moveTab, popoutDragReduce, PopoutDrag, outsideViewport, pressTab, screenToClient, SETTLE_MS, targetPreview } from './dock-target';
 import { at } from '../../testing/must';
 
 const root = { x: 0, y: 0, width: 800, height: 600 };
@@ -86,18 +86,17 @@ describe('popoutDragReduce (a pop-out dragged over its host)', () => {
 
 describe('tab drag out (pointer)', () => {
   const vp = { width: 1000, height: 800 };
-  it('is a drag only past the threshold, and pops out only when released outside the window', () => {
+  it('is a drag only past the threshold, and knows when the pointer left the window', () => {
     const d = pressTab('metrics', { x: 10, y: 10 }, { x: 110, y: 110 });
     expect(moveTab(d, { x: 10 + DRAG_THRESHOLD - 1, y: 10 }, { x: 0, y: 0 }).dragging).toBe(false);
     const dragged = moveTab(d, { x: 10 + DRAG_THRESHOLD, y: 10 }, { x: 0, y: 0 });
     expect(dragged.dragging).toBe(true);
-    expect(releaseTab(d, { x: -40, y: 10 }, { x: 60, y: 110 }, vp)).toEqual({ popOut: 'metrics', at: { x: 60, y: 110 } });
-    expect(releaseTab(dragged, { x: 500, y: 400 }, { x: 0, y: 0 }, vp)).toBeNull();
-    expect(releaseTab(dragged, { x: 500, y: 801 }, { x: 5, y: 6 }, vp)).toEqual({ popOut: 'metrics', at: { x: 5, y: 6 } });
-    expect(releaseTab(dragged, { x: 1001, y: 400 }, { x: 5, y: 6 }, vp)).not.toBeNull();
-    expect(releaseTab(dragged, { x: 500, y: -1 }, { x: 5, y: 6 }, vp)).not.toBeNull();
-    expect(releaseTab(dragged, { x: -5, y: 400 }, { x: 5, y: 6 }, vp, 10)).toBeNull();
-    // A click (no movement) never pops out, even at the edge.
-    expect(releaseTab(pressTab('x', { x: 0, y: 0 }, { x: 0, y: 0 }), { x: 0, y: 0 }, { x: 0, y: 0 }, vp)).toBeNull();
+    expect(outsideViewport({ x: -40, y: 10 }, vp)).toBe(true);
+    expect(outsideViewport({ x: 500, y: 400 }, vp)).toBe(false);
+    expect(outsideViewport({ x: 500, y: 801 }, vp)).toBe(true);
+    expect(outsideViewport({ x: 1001, y: 400 }, vp)).toBe(true);
+    expect(outsideViewport({ x: 500, y: -1 }, vp)).toBe(true);
+    expect(outsideViewport({ x: -5, y: 400 }, vp, 10)).toBe(false);
+    expect(outsideViewport({ x: 0, y: 0 }, vp)).toBe(false);
   });
 });

@@ -194,6 +194,47 @@ describe('DockService VS-style features', () => {
     expect(await dock.popOut('')).toBe(false);
   });
 
+  it('floats a tab released off the drop zones, with a cue while dragging that clears on drop zones and release', async () => {
+    const dock = setup();
+    const root = { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    container.getBoundingClientRect = () => root;
+    // jsdom has no hit testing; dockview's own pointer drag asks for it once the drag starts.
+    Object.defineProperty(document, 'elementsFromPoint', { value: () => [], configurable: true });
+    Object.defineProperty(document, 'elementFromPoint', { value: () => null, configurable: true });
+    onTestFinished(() => {
+      delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+      delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+    });
+    const ghost = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+    const pointer = (type: string, target: EventTarget, x: number, y: number) =>
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y, screenX: x, screenY: y }));
+    expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('float');
+    expect(dock.tabDropOutcome('metrics', { x: 26, y: 300 })).toBe('dock');
+    expect(dock.tabDropOutcome('metrics', { x: -20, y: 300 })).toBe('window');
+    expect(dock.tabDropOutcome('nope', { x: 400, y: 300 })).toBe('none');
+    pointer('pointerdown', tabOf('metrics'), 10, 10);
+    pointer('pointermove', window, 400, 300);
+    expect(ghost().hidden).toBe(false);
+    expect(ghost().textContent).toBe('Release to float');
+    pointer('pointermove', window, 26, 300);
+    expect(ghost().hidden).toBe(true);
+    pointer('pointermove', window, -20, 300);
+    expect(ghost().textContent).toBe('Release to open in a new window');
+    pointer('pointermove', window, 400, 300);
+    pointer('pointerup', window, 400, 300);
+    expect(ghost().hidden).toBe(true);
+    await new Promise((r) => setTimeout(r));
+    const group = api(dock).getPanel('metrics')!.group;
+    expect(group.api.location.type).toBe('floating');
+    expect(windows.calls.some((c) => c.startsWith('popOut:metrics'))).toBe(false);
+    // The only panel of a floating group does not float again (dockview moves the group itself).
+    expect(dock.tabDropOutcome('metrics', { x: 400, y: 300 })).toBe('none');
+    expect(dock.floatAt('metrics', { x: 400, y: 300 })).toBe(false);
+    expect(dock.floatAt('nope', { x: 400, y: 300 })).toBe(false);
+    dock.detach();
+    expect(document.querySelector('.imt-float-cue')).toBeNull();
+  });
+
   it('shows guides for and docks a panel dropped from outside dockview (a pop-out over the window)', () => {
     const dock = setup();
     const root = { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;

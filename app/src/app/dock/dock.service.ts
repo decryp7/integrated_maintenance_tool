@@ -9,7 +9,8 @@ import { ContextMenuService } from '../ui/context-menu.service';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { AutoHideEvent, AutoHideItem, autoHideReduce, AutoHideState, EMPTY_AUTO_HIDE } from './auto-hide';
 import { adjacentNeighbour, atEdge, DockSlot, isLayoutTarget, nearestSide, Point, Rect, resolveGuideDrop } from './dock-geometry';
-import { DockTarget, GroupBox, hitDockTarget, targetPreview } from './dock-target';
+import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
+import { FLOAT_MAX, FloatCue, floatSize, ghostRect, TabDropOutcome, tabDropOutcome } from './float-cue';
 import { TabDragOut } from './tab-drag-out';
 import { DropGuides } from './drop-guides';
 import { FullScreenPrefs, OsWindow } from './os-window';
@@ -27,7 +28,8 @@ export const PANEL = { timeline: 'timeline', events: 'events', inspector: 'inspe
 const PERSIST_DELAY_MS = 250;
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
-const FLOAT_SIZE = { width: 560, height: 380 };
+/** Size of a group floated with the "Float panel" button. */
+const FLOAT_SIZE = FLOAT_MAX;
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
 const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
 
@@ -250,8 +252,20 @@ export class DockService {
       e.preventDefault();
       this.openPanelMenu(id, e.target as HTMLElement, { x: e.clientX, y: e.clientY });
     };
-    // A tab dragged out of the window pops out where it is released (pointer events: see `dndStrategy`).
-    const tabDrag = new TabDragOut(container, (id, at) => void this.popOut(id, at));
+    // A tab dragged off the drop zones floats where it is released, or pops out when released outside the window
+    // (pointer events: see `dndStrategy`); a cue shows which while dragging.
+    const cue = new FloatCue();
+    const tabDrag = new TabDragOut(container, {
+      outcome: (id, p) => this.tabDropOutcome(id, p),
+      popOut: (id, at) => void this.popOut(id, at),
+      // After dockview has finished its own (target-less) end of the drag.
+      float: (id, p) => void setTimeout(() => this.floatAt(id, p)),
+      cue: (id, p, outcome) => {
+        const rect = this.cueRect(id, p, outcome);
+        if (rect) cue.show(outcome, rect);
+        else cue.hide();
+      },
+    });
     container.addEventListener('keydown', onKey);
     container.addEventListener('contextmenu', onContextMenu);
     const guides = new DropGuides(container);
@@ -260,6 +274,7 @@ export class DockService {
       { dispose: () => container.removeEventListener('keydown', onKey) },
       { dispose: () => container.removeEventListener('contextmenu', onContextMenu) },
       tabDrag,
+      cue,
       guides,
       observeFloatingAria(container),
       keepGroupsUnscrolled(container),
@@ -498,6 +513,54 @@ export class DockService {
     return this.popOut(this.api?.activePanel?.id ?? '');
   }
 
+  /* ------------------------------------------- a tab dragged off the drop zones */
+
+  /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, else it floats or pops out. */
+  tabDropOutcome(id: string, p: Point): TabDropOutcome {
+    const container = this.container;
+    const root = container ? rectOf(container) : null;
+    const under = document.elementFromPoint?.(p.x, p.y) ?? null;
+    const onStrip = !!under?.closest('.dv-tabs-and-actions-container') && !!container?.contains(under);
+    const onGuide = !!root && !!hitDockTarget(p, root, this.groupBoxes(true));
+    return tabDropOutcome({
+      inside: !outsideViewport(p, { width: window.innerWidth, height: window.innerHeight }),
+      overDropZone: onStrip || onGuide,
+      canFloat: this.canFloat(id),
+      canPopOut: this.windows()?.canPopOut() ?? false,
+    });
+  }
+
+  /** Can this panel float by dragging (docked, or one of several tabs of a floating group)? */
+  private canFloat(id: string): boolean {
+    const group = this.api?.getPanel(id)?.group;
+    if (!group) return false;
+    const where = group.api.location.type;
+    return where === 'grid' || (where === 'floating' && group.panels.length > 1);
+  }
+
+  /** The ghost of the drag cue: the floating panel (inside the dock) or the new window (at the window's edge). */
+  private cueRect(id: string, p: Point, outcome: TabDropOutcome): Rect | null {
+    const panel = this.panelRect(id);
+    if (outcome === 'float') {
+      const root = this.container ? rectOf(this.container) : null;
+      return root ? ghostRect(p, floatSize(panel), root) : null;
+    }
+    if (outcome === 'window') return ghostRect(p, panel ?? floatSize(null), { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
+    return null;
+  }
+
+  /** Floats a panel where a dragged tab was released (the ghost's place). */
+  floatAt(id: string, p: Point): boolean {
+    const api = this.api;
+    const panel = api?.getPanel(id);
+    const root = this.container ? rectOf(this.container) : null;
+    if (!api || !panel || !root || !this.canFloat(id)) return false;
+    const r = ghostRect(p, floatSize(this.panelRect(id)), root);
+    api.addFloatingGroup(panel.group.panels.length > 1 ? panel : panel.group, { x: r.x - root.x, y: r.y - root.y, width: r.width, height: r.height });
+    panel.api.setActive();
+    return true;
+  }
+
   /* ------------------------------------------- drops from outside dockview */
 
   /** The guide under a point (client coordinates): where a pop-out dropped there would dock. */
@@ -530,9 +593,11 @@ export class DockService {
     return true;
   }
 
-  private groupBoxes(): GroupBox[] {
-    return (this.api?.groups ?? [])
-      .filter((g) => g.api.location.type === 'grid')
+  /** The groups' content boxes: docked ones, and with `floating` the floating ones first (they are on top). */
+  private groupBoxes(floating = false): GroupBox[] {
+    const groups = this.api?.groups ?? [];
+    const on = (type: string) => groups.filter((g) => g.api.location.type === type);
+    return [...(floating ? on('floating') : []), ...on('grid')]
       .map((g) => ({ id: g.id, rect: rectOf(g.element.querySelector('.dv-content-container')) }))
       .filter((g): g is GroupBox => !!g.rect);
   }

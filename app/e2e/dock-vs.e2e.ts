@@ -72,12 +72,13 @@ test.describe('VS-style docking', () => {
     await expect(groups(page)).toHaveCount(4);
   });
 
-  test('a released drag away from any guide does not move the panel', async ({ page }) => {
+  test('a released drag away from any guide floats the panel there instead of docking it', async ({ page }) => {
     const content = await box(page, '.dv-groupview:has(imt-events-grid) .dv-content-container');
     await dragTabTo(page, 'Metrics', content.x + 40, content.y + content.height - 20);
+    await expect(page.locator('.imt-float-cue')).toHaveText('Release to float');
     await page.mouse.up();
-    await expect(groupOf(page, 'Timeline')).toContainText('Metrics');
-    await expect(groups(page)).toHaveCount(4);
+    await expect(page.locator('.dv-resize-container').getByRole('tab', { name: 'Metrics', exact: true })).toBeVisible();
+    await expect(groupOf(page, 'Timeline')).not.toContainText('Metrics');
   });
 
   test('auto hide: the inspector collapses to a side bar, slides out on hover, hides on Escape, pins back', async ({ page, browserName }) => {
