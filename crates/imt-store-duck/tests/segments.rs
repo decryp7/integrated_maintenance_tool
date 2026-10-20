@@ -97,7 +97,7 @@ fn removal_hides_at_once_and_compaction_reclaims() {
     assert_eq!(store.summary().unwrap().total, 78);
     assert_eq!(store.positioned().unwrap(), 78);
     assert_eq!(files(&dir).len(), before - 1);
-    // A source that is a small part of a merged segment stays in it, hidden.
+    // A source that is a small part of a merged segment is rewritten out of it (exact catalog and histogram).
     let src = store
         .summary()
         .unwrap()
@@ -107,7 +107,25 @@ fn removal_hides_at_once_and_compaction_reclaims() {
         .unwrap();
     store.remove_source(SourceId(src.id)).unwrap();
     assert_eq!(store.summary().unwrap().total, 76);
-    assert_eq!(store.compact().unwrap(), imt_store_duck::Compaction::default());
+    assert_eq!(
+        store.compact().unwrap(),
+        imt_store_duck::Compaction::default(),
+        "nothing left to do"
+    );
+    let glob = dir.0.join(SEGMENTS_DIR).join("*.parquet").to_string_lossy().replace('\\', "/");
+    assert_eq!(
+        store
+            .bench_sql(&format!("SELECT 1 FROM read_parquet('{glob}') WHERE source = {}", src.id))
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        store
+            .bench_sql(&format!("SELECT 1 FROM histogram WHERE source = {}", src.id))
+            .unwrap(),
+        0
+    );
+    assert_eq!(store.bench_sql("SELECT sum(n) FROM histogram HAVING sum(n) = 76").unwrap(), 1);
     // Removing everything leaves no file behind.
     store.clear().unwrap();
     assert_eq!(store.summary().unwrap().total, 0);
@@ -157,4 +175,28 @@ fn copy(from: &std::path::Path, to: &std::path::Path) {
             std::fs::copy(e.path(), to.join(e.file_name())).unwrap();
         }
     }
+}
+
+#[test]
+fn refresh_rereads_changed_files_and_reads_new_ones() {
+    let logs = TempDir::new("refresh-logs");
+    let a = logs.0.join("a.log");
+    let b = logs.0.join("b.log");
+    std::fs::write(&a, "2026-10-14 10:00:00 INFO a1\n").unwrap();
+    std::fs::write(&b, "2026-10-14 10:00:00 INFO b1\n2026-10-14 10:00:01 INFO b2\n").unwrap();
+    let dir = TempDir::new("refresh");
+    let store = DuckStore::create(&dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    assert_eq!(store.summary().unwrap().total, 3);
+    // a grows, b is deleted, c is new.
+    std::fs::write(&a, "2026-10-14 10:00:00 INFO a1\n2026-10-14 10:00:02 WARN a2\n").unwrap();
+    std::fs::remove_file(&b).unwrap();
+    std::fs::write(logs.0.join("c.log"), "2026-10-14 10:00:03 INFO c1\n").unwrap();
+    store.refresh(&[a.clone(), b.clone()]).unwrap().wait().unwrap();
+    let s = store.summary().unwrap();
+    assert_eq!(s.total, 3, "a1, a2, c1");
+    let mut names: Vec<String> = s.sources.iter().map(|x| x.name.rsplit('/').next().unwrap().to_string()).collect();
+    names.sort();
+    assert_eq!(names, ["a.log", "c.log"]);
+    assert_eq!(store.positioned().unwrap(), 3);
 }

@@ -3,6 +3,7 @@
 //! turn a position range into a short scan. It is rebuilt at the end of every import and after a source is
 //! removed; events imported since have no position until then ([`Positions::positioned`] tells).
 
+use crate::schema::{canonical_columns, parquet_from, READY};
 use crate::segments::SEGMENTS_DIR;
 use crate::{engine, lock, DuckStore};
 use duckdb::arrow::array::{RecordBatch, StructArray};
@@ -53,41 +54,65 @@ impl Positions for DuckStore {
 }
 
 impl DuckStore {
-    /// The visible events with these ids, in id order, as batches (the second phase of a page: positions
-    /// or search give the ids, this fetches the rows). Only the segments whose id blocks hold the ids are
-    /// read; at most [`MAX_PAGE_ROWS`] ids.
-    pub fn rows(&self, ids: &[EventId]) -> StoreResult<Vec<EventBatch>> {
+    /// The sorted ids (at most [`MAX_PAGE_ROWS`]) and the segment files that hold them; `None` for none.
+    fn files_for(&self, conn: &Connection, ids: &[EventId]) -> StoreResult<Option<(Vec<String>, Vec<u64>)>> {
         let mut ids: Vec<u64> = ids.iter().map(|i| i.0).take(MAX_PAGE_ROWS).collect();
         ids.sort_unstable();
         ids.dedup();
         if ids.is_empty() {
-            return Ok(Vec::new());
+            return Ok(None);
         }
-        let conn = self.inner.conn()?;
         let seg_dir = self.inner.dir.join(SEGMENTS_DIR);
         let mut files = Vec::new();
-        {
-            let mut stmt = conn
-                .prepare("SELECT file, first_id, end_id FROM segments ORDER BY first_id")
-                .map_err(engine)?;
-            let rows = stmt
-                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)))
-                .map_err(engine)?;
-            for row in rows {
-                let (file, first, end) = row.map_err(engine)?;
-                let at = ids.partition_point(|i| *i < first);
-                if ids.get(at).is_some_and(|i| *i < end) {
-                    files.push(format!("'{}'", seg_dir.join(file).to_string_lossy().replace('\'', "''")));
-                }
+        let mut stmt = conn
+            .prepare("SELECT file, first_id, end_id FROM segments ORDER BY first_id")
+            .map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?, r.get::<_, u64>(2)?)))
+            .map_err(engine)?;
+        for row in rows {
+            let (file, first, end) = row.map_err(engine)?;
+            let at = ids.partition_point(|i| *i < first);
+            if ids.get(at).is_some_and(|i| *i < end) {
+                files.push(seg_dir.join(file).to_string_lossy().into_owned());
             }
         }
-        if files.is_empty() {
+        Ok((!files.is_empty()).then_some((files, ids)))
+    }
+
+    /// The lower-cased text (message, raw text and exception) of the visible events with these ids, for
+    /// checking phrases; at most [`MAX_PAGE_ROWS`] ids.
+    pub(crate) fn texts(&self, ids: &[EventId]) -> StoreResult<Vec<(EventId, String)>> {
+        let conn = self.inner.conn()?;
+        let Some((files, ids)) = self.files_for(&conn, ids)? else {
             return Ok(Vec::new());
-        }
+        };
         let list: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
         let sql = format!(
-            "SELECT * FROM read_parquet([{}]) WHERE id IN ({}) AND source IN (SELECT id FROM sources WHERE ready) ORDER BY id",
-            files.join(", "),
+            "SELECT id, lower(concat_ws(chr(10), message, raw, exception)) FROM {} WHERE id IN ({}) AND {READY}",
+            parquet_from(&files),
+            list.join(", ")
+        );
+        let mut stmt = conn.prepare(&sql).map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| Ok((EventId(r.get::<_, u64>(0)?), r.get::<_, String>(1)?)))
+            .map_err(engine)?;
+        rows.map(|r| r.map_err(engine)).collect()
+    }
+
+    /// The visible events with these ids, in id order, as batches (the second phase of a page: positions
+    /// or search give the ids, this fetches the rows). Only the segments whose id blocks hold the ids are
+    /// read; at most [`MAX_PAGE_ROWS`] ids.
+    pub fn rows(&self, ids: &[EventId]) -> StoreResult<Vec<EventBatch>> {
+        let conn = self.inner.conn()?;
+        let Some((files, ids)) = self.files_for(&conn, ids)? else {
+            return Ok(Vec::new());
+        };
+        let list: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
+        let sql = format!(
+            "SELECT {} FROM {} WHERE id IN ({}) AND {READY} ORDER BY id",
+            canonical_columns(&self.inner.schema),
+            parquet_from(&files),
             list.join(", ")
         );
         let mut stmt = conn.prepare(&sql).map_err(engine)?;

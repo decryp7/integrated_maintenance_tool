@@ -47,6 +47,8 @@ fn finds_words_across_punctuation_and_follows_the_data() {
     assert_eq!(search(&store, "graphic builder"), 11, "10 text events and the JSON one");
     assert_eq!(search(&store, "GRAPHIC.BUILDER failed"), 10);
     assert_eq!(search(&store, "\"builder failed\""), 10, "a phrase");
+    assert_eq!(search(&store, "failed builder"), 10, "words in any order");
+    assert_eq!(search(&store, "\"failed builder\""), 0, "a phrase is checked on the rows");
     assert_eq!(search(&store, "handled"), 500);
     assert_eq!(search(&store, "nothing-like-this"), 0);
     assert!(

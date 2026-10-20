@@ -2,11 +2,16 @@
 //! [`SEGMENT_ROWS`] rows under `<store>/segments/`, written by the parse threads in parallel and listed in
 //! the `segments` table. Each segment owns a contiguous block of event ids (`first_id .. end_id`), so the
 //! ids of a segment are dense and a lookup by id prunes to one file; unused ids at a block's end are never
-//! handed out again.
+//! handed out again. A segment rewritten by compaction keeps its rows' ids and spans the blocks it merged.
+//!
+//! While writing, a segment decides its promoted fields from its first batch ([`crate::promote`]) and
+//! collects its field catalog and minute histogram ([`crate::stats`]).
 //!
 //! A segment is written to `<name>.tmp` and renamed when complete, so a crash leaves no half-written file
 //! that a query could read; files that are not in the manifest are deleted when the store is opened.
 
+use crate::promote::Promotion;
+use crate::stats::{Bucket, FieldStat, SegmentStats};
 use anyhow::{Context, Result};
 use imt_core::batch::{EventBatch, EventSchema};
 use parquet::arrow::ArrowWriter;
@@ -15,6 +20,7 @@ use parquet::file::properties::WriterProperties;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Rows of a full segment (16 batches); also the size of the id block a segment reserves.
@@ -49,42 +55,49 @@ pub fn file_name(first_id: u64, generation: u64) -> String {
 pub struct Segment {
     pub file: String,
     pub first_id: u64,
-    /// One past the last id of the block.
+    /// One past the last id of the blocks it spans.
     pub end_id: u64,
     pub rows: u64,
     /// Sources with rows in the segment.
     pub sources: BTreeSet<u32>,
+    pub promotion: Promotion,
+    pub fields: Vec<FieldStat>,
+    pub histogram: Vec<(Bucket, u64)>,
 }
 
-/// A segment being written by one parse thread.
+/// A segment being written (by one parse thread, or by compaction).
 pub struct SegmentWriter {
     dir: PathBuf,
     file: String,
-    writer: ArrowWriter<File>,
+    schema: Arc<EventSchema>,
+    /// Created with the first batch, which decides the promoted fields.
+    writer: Option<(ArrowWriter<File>, Promotion)>,
     first_id: u64,
     next_id: u64,
     end_id: u64,
     rows: u64,
     sources: BTreeSet<u32>,
+    stats: SegmentStats,
     opened: Instant,
 }
 
 impl SegmentWriter {
     /// Starts a segment in `dir` for the ids `first_id .. end_id`.
-    pub fn create(dir: &Path, schema: &EventSchema, first_id: u64, end_id: u64, generation: u64) -> Result<SegmentWriter> {
+    pub fn create(dir: &Path, schema: &Arc<EventSchema>, first_id: u64, end_id: u64, generation: u64) -> Result<SegmentWriter> {
         let file = file_name(first_id, generation);
         let tmp = dir.join(&file).with_extension(TMP);
-        let f = File::create(&tmp).with_context(|| format!("creating {}", tmp.display()))?;
-        let writer = ArrowWriter::try_new(f, schema.arrow().clone(), Some(props())).context("starting a segment")?;
+        File::create(&tmp).with_context(|| format!("creating {}", tmp.display()))?;
         Ok(SegmentWriter {
             dir: dir.to_path_buf(),
             file,
-            writer,
+            schema: schema.clone(),
+            writer: None,
             first_id,
             next_id: first_id,
             end_id,
             rows: 0,
             sources: BTreeSet::new(),
+            stats: SegmentStats::default(),
             opened: Instant::now(),
         })
     }
@@ -117,9 +130,30 @@ impl SegmentWriter {
     pub fn write(&mut self, batch: &EventBatch) -> Result<Vec<u32>> {
         let n = batch.num_rows() as u64;
         anyhow::ensure!(n <= self.remaining(), "a batch of {n} rows does not fit the segment's id block");
-        self.writer.write(batch.record_batch()).context("writing a segment")?;
+        let new = self.append(batch)?;
         self.next_id += n;
-        self.rows += n;
+        Ok(new)
+    }
+
+    /// Appends a batch that keeps its ids (compaction; ids within `first_id .. end_id`).
+    pub fn write_existing(&mut self, batch: &EventBatch) -> Result<()> {
+        self.append(batch).map(drop)
+    }
+
+    fn append(&mut self, batch: &EventBatch) -> Result<Vec<u32>> {
+        if self.writer.is_none() {
+            let promotion = Promotion::decide(batch);
+            let tmp = self.dir.join(&self.file).with_extension(TMP);
+            let f = File::create(&tmp).with_context(|| format!("creating {}", tmp.display()))?;
+            let w = ArrowWriter::try_new(f, promotion.schema(&self.schema), Some(props())).context("starting a segment")?;
+            self.writer = Some((w, promotion));
+        }
+        let Some((w, promotion)) = self.writer.as_mut() else {
+            unreachable!("created above")
+        };
+        w.write(&promotion.apply(batch)?).context("writing a segment")?;
+        self.stats.add(batch);
+        self.rows += batch.num_rows() as u64;
         let mut new = Vec::new();
         let mut last = None;
         for r in batch.rows() {
@@ -137,16 +171,29 @@ impl SegmentWriter {
     /// Finishes the file and moves it into place.
     pub fn close(self) -> Result<Segment> {
         let tmp = self.dir.join(&self.file).with_extension(TMP);
-        let f = self.writer.into_inner().context("finishing a segment")?;
-        f.sync_all().ok();
-        drop(f);
+        let promotion = match self.writer {
+            Some((w, promotion)) => {
+                let f = w.into_inner().context("finishing a segment")?;
+                f.sync_all().ok();
+                promotion
+            }
+            None => {
+                // Nothing written: an empty segment with the plain schema.
+                let f = File::create(&tmp)?;
+                ArrowWriter::try_new(f, self.schema.arrow().clone(), Some(props()))?.close()?;
+                Promotion::default()
+            }
+        };
         std::fs::rename(&tmp, self.dir.join(&self.file)).with_context(|| format!("moving {} into place", tmp.display()))?;
         Ok(Segment {
+            fields: self.stats.fields(),
+            histogram: self.stats.histogram(),
             file: self.file,
             first_id: self.first_id,
             end_id: self.end_id,
             rows: self.rows,
             sources: self.sources,
+            promotion,
         })
     }
 
@@ -178,7 +225,6 @@ pub fn sweep(dir: &Path, listed: &BTreeSet<String>) -> Vec<PathBuf> {
 mod tests {
     use super::*;
     use imt_core::batch::{EventBatchBuilder, EventId, EventTime, LevelCode, NewEvent, SourceId};
-    use std::sync::Arc;
 
     pub(crate) fn batch(schema: &Arc<EventSchema>, source: u32, n: usize, first: u64) -> EventBatch {
         let mut b = EventBatchBuilder::new(schema.clone());
@@ -214,8 +260,13 @@ mod tests {
         assert!(dir.join(file_name(100, 0)).with_extension(TMP).is_file(), "written as .tmp");
         let seg = w.close().unwrap();
         assert_eq!((seg.first_id, seg.end_id, seg.rows), (100, 110, 6));
+        assert_eq!(seg.promotion.keys, [("K".to_string(), crate::promote::PType::Text)]);
+        assert_eq!(seg.fields.len(), 1);
+        assert_eq!(seg.histogram.iter().map(|(_, n)| n).sum::<u64>(), 6);
         assert!(dir.join(&seg.file).is_file());
-        // A discarded segment leaves nothing; files not listed are swept.
+        // An empty segment is a valid file; a discarded one leaves nothing; files not listed are swept.
+        let empty = SegmentWriter::create(&dir, &schema, 300, 310, 0).unwrap().close().unwrap();
+        assert_eq!(empty.rows, 0);
         SegmentWriter::create(&dir, &schema, 200, 210, 0).unwrap().discard();
         std::fs::write(dir.join("stray.tmp"), b"x").unwrap();
         assert!(sweep(&dir, &[seg.file.clone()].into()).is_empty());

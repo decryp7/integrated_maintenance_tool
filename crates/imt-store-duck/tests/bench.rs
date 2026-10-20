@@ -136,17 +136,6 @@ fn interactive_operations_at_scale() {
             .rows
             .len() as u64
     });
-    time("page middle, ORDER BY OFFSET (R2a)", &mut || {
-        store
-            .page(&PageQuery {
-                limit: 500,
-                offset: total as usize / 2,
-                ..Default::default()
-            })
-            .unwrap()
-            .rows
-            .len() as u64
-    });
     let errors = imt_core::query::Query {
         levels: vec![Level::Error, Level::Fatal],
         ..Default::default()
@@ -188,6 +177,36 @@ fn interactive_operations_at_scale() {
             .bench_sql("SELECT count(x), min(x), max(x), avg(x), quantile_cont(x, [0.5, 0.95, 0.99]) FROM (SELECT TRY_CAST(extra['Elapsed'] AS DOUBLE) AS x FROM events)")
             .unwrap()
     });
+    // The write-side catalog (segment fields, histograms) and promoted columns, as R2c will read them.
+    for (name, sql) in [
+        (
+            "field list from the catalog",
+            "SELECT key, sum(rows), sum(numeric_rows), max(distinct_est) FROM segment_fields GROUP BY key",
+        ),
+        (
+            "timeline 1000 buckets from the histogram",
+            "WITH h AS (SELECT * FROM histogram WHERE minute IS NOT NULL AND source IN (SELECT id FROM sources WHERE ready)), b AS (SELECT min(minute) lo, max(minute) hi FROM h) SELECT least(999, CAST(floor((minute - lo) * 1000.0 / greatest(hi - lo + 1, 1)) AS BIGINT)) k, level, sum(n) FROM h, b GROUP BY k, level",
+        ),
+        (
+            "level and source counts from the histogram",
+            "SELECT level, source, sum(n) FROM histogram WHERE source IN (SELECT id FROM sources WHERE ready) GROUP BY level, source",
+        ),
+        (
+            "facet MachineName, promoted column",
+            "SELECT \"p_MachineName\" v, count(*) n FROM events_wide WHERE v IS NOT NULL GROUP BY v ORDER BY n DESC LIMIT 50",
+        ),
+        (
+            "field stats Elapsed, promoted column",
+            "SELECT count(x), min(x), max(x), avg(x), quantile_cont(x, [0.5, 0.95, 0.99]) FROM (SELECT TRY_CAST(\"p_Elapsed\" AS DOUBLE) AS x FROM events_wide)",
+        ),
+        ("errors total", "SELECT count(*) FROM events WHERE level >= 4"),
+        (
+            "errors page ids (two-phase, first phase)",
+            "SELECT id FROM events WHERE level >= 4 ORDER BY coalesce(ts, 9223372036854775807), source, line, id LIMIT 500",
+        ),
+    ] {
+        time(name, &mut || store.bench_sql(sql).unwrap());
+    }
     time("text total, ILIKE", &mut || {
         let q = imt_core::query::Query {
             text: "timeout".into(),
@@ -201,6 +220,15 @@ fn interactive_operations_at_scale() {
             })
             .unwrap()
             .total as u64
+    });
+    time("phrase total + 100 ids, Tantivy + check", &mut || {
+        store
+            .search(&SearchRequest {
+                text: "\"timed out\"".into(),
+                limit: 100,
+            })
+            .unwrap()
+            .total
     });
     time("text total + 100 ids, Tantivy", &mut || {
         store

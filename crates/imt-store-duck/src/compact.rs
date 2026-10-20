@@ -4,12 +4,16 @@
 //! a reader sees either the old or the new files. Old files a reader still has open (Windows refuses to
 //! delete them) go to `trash` and are deleted later.
 
-use crate::segments::{file_name, SEGMENTS_DIR, SEGMENT_ROWS};
-use crate::writer::{meta_u64, refresh_view, segment_files, set_meta};
-use anyhow::{Context, Result};
+use crate::schema::{canonical_columns, parquet_from, READY};
+use crate::segments::{Segment, SegmentWriter, SEGMENTS_DIR, SEGMENT_ROWS};
+use crate::writer::{delete_segment, insert_segment, meta_u64, refresh_view, segment_files, set_meta};
+use anyhow::Result;
+use duckdb::arrow::array::{RecordBatch, StructArray};
 use duckdb::{params, Connection};
+use imt_core::batch::{EventBatch, EventSchema, BATCH_ROWS};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 /// Small segments (under half full) tolerated before they are merged.
 pub const MAX_SMALL_SEGMENTS: usize = 32;
@@ -88,8 +92,43 @@ fn delete_or_trash(conn: &Connection, path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Writes the live rows of `group` (in id order) into one new segment, through the segment writer, so its
+/// promoted fields, field catalog and histogram are computed as for an import.
+fn rewrite(conn: &Connection, seg_dir: &Path, schema: &Arc<EventSchema>, group: &[&Listed], generation: u64) -> Result<Segment> {
+    let first_id = group.iter().map(|l| l.first_id).min().unwrap_or(0);
+    let end_id = group.iter().map(|l| l.end_id).max().unwrap_or(0);
+    let files: Vec<String> = group.iter().map(|l| seg_dir.join(&l.file).to_string_lossy().into_owned()).collect();
+    let sql = format!(
+        "SELECT {} FROM {} WHERE {READY} ORDER BY id",
+        canonical_columns(schema),
+        parquet_from(&files)
+    );
+    let mut w = SegmentWriter::create(seg_dir, schema, first_id, end_id, generation)?;
+    let written = (|| -> Result<()> {
+        let mut stmt = conn.prepare(&sql)?;
+        let _ = stmt.stream_arrow([])?;
+        while let Some(chunk) = stmt.step()? {
+            let rb = RecordBatch::from(&chunk as &StructArray);
+            let mut offset = 0;
+            while offset < rb.num_rows() {
+                let len = (rb.num_rows() - offset).min(BATCH_ROWS);
+                w.write_existing(&EventBatch::try_new(schema.clone(), rb.slice(offset, len))?)?;
+                offset += len;
+            }
+        }
+        Ok(())
+    })();
+    match written {
+        Ok(()) => w.close(),
+        Err(e) => {
+            w.discard();
+            Err(e.context("rewriting segments"))
+        }
+    }
+}
+
 /// Compacts the segments of the store in `dir`. Run while nothing writes (the store's write lock).
-pub(crate) fn compact(conn: &Connection, dir: &Path) -> Result<Compaction> {
+pub(crate) fn compact(conn: &Connection, dir: &Path, schema: &Arc<EventSchema>) -> Result<Compaction> {
     empty_trash(conn)?;
     let live = live_rows(conn, dir)?;
     let listed: Vec<Listed> = {
@@ -115,10 +154,11 @@ pub(crate) fn compact(conn: &Connection, dir: &Path) -> Result<Compaction> {
     for l in &listed {
         conn.execute("UPDATE segments SET live = ? WHERE file = ?", params![l.live, l.file])?;
     }
-    let garbage = |l: &Listed| l.live < l.rows.div_ceil(2);
+    // Rows of removed or aborted sources: rewritten, so the catalog and histograms stay exact.
+    let garbage = |l: &Listed| l.live < l.rows;
     let small = |l: &Listed| l.rows < SEGMENT_ROWS / 2;
     // Every import leaves up to one partial segment per parse thread: small segments are merged only once
-    // there are many of them; segments with garbage are always rewritten.
+    // there are many of them.
     let smalls = listed.iter().filter(|l| small(l)).count();
     let merge_small = smalls > MAX_SMALL_SEGMENTS;
     let candidates: Vec<&Listed> = listed.iter().filter(|l| garbage(l) || (merge_small && small(l))).collect();
@@ -142,43 +182,30 @@ pub(crate) fn compact(conn: &Connection, dir: &Path) -> Result<Compaction> {
     let mut done = Compaction::default();
     for group in groups.into_iter().filter(|g| !g.is_empty()) {
         let live: u64 = group.iter().map(|l| l.live).sum();
-        let first_id = group.iter().map(|l| l.first_id).min().unwrap_or(0);
-        let end_id = group.iter().map(|l| l.end_id).max().unwrap_or(0);
         let generation = meta_u64(conn, "file_generation") + 1;
         set_meta(conn, "file_generation", generation)?;
-        let new = file_name(first_id, generation);
-        if live > 0 {
-            let tmp = seg_dir.join(&new).with_extension("tmp");
-            let list = group
-                .iter()
-                .map(|l| format!("'{}'", seg_dir.join(&l.file).to_string_lossy().replace('\'', "''")))
-                .collect::<Vec<_>>()
-                .join(", ");
-            conn.execute_batch(&format!(
-                "COPY (SELECT * FROM read_parquet([{list}]) WHERE source IN (SELECT id FROM sources WHERE ready) ORDER BY id) TO '{}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 65536)",
-                tmp.to_string_lossy().replace('\'', "''")
-            ))
-            .context("rewriting segments")?;
-            std::fs::rename(&tmp, seg_dir.join(&new))?;
-        }
+        let new = if live > 0 {
+            Some(rewrite(conn, &seg_dir, schema, &group, generation)?)
+        } else {
+            None
+        };
         conn.execute_batch("BEGIN TRANSACTION")?;
         let swapped = (|| -> Result<()> {
             for l in &group {
-                conn.execute("DELETE FROM segments WHERE file = ?", params![l.file])?;
+                delete_segment(conn, &l.file)?;
             }
-            if live > 0 {
-                conn.execute(
-                    "INSERT INTO segments VALUES (?, ?, ?, ?, ?, ?)",
-                    params![new, first_id, end_id, live, live, group[0].indexed],
-                )?;
+            if let Some(seg) = &new {
+                insert_segment(conn, seg, seg.rows, group[0].indexed)?;
             }
-            refresh_view(conn, dir)
+            refresh_view(conn, dir, schema)
         })();
         match swapped {
             Ok(()) => conn.execute_batch("COMMIT")?,
             Err(e) => {
                 let _ = conn.execute_batch("ROLLBACK");
-                let _ = std::fs::remove_file(seg_dir.join(&new));
+                if let Some(seg) = &new {
+                    let _ = std::fs::remove_file(seg_dir.join(&seg.file));
+                }
                 return Err(e);
             }
         }

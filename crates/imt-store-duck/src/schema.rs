@@ -57,7 +57,9 @@ CREATE TABLE sources (
   ts_from BIGINT, ts_to BIGINT, bytes UBIGINT NOT NULL DEFAULT 0, ready BOOLEAN NOT NULL DEFAULT FALSE);
 CREATE TABLE diagnostics (source UINTEGER NOT NULL, kind VARCHAR NOT NULL, severity VARCHAR NOT NULL, count UBIGINT NOT NULL, samples VARCHAR NOT NULL);
 CREATE TABLE marker_kinds (generation UBIGINT NOT NULL, bit UTINYINT NOT NULL, kind VARCHAR NOT NULL, owner VARCHAR NOT NULL);
-CREATE TABLE segments (file VARCHAR PRIMARY KEY, first_id UBIGINT NOT NULL, end_id UBIGINT NOT NULL, rows UBIGINT NOT NULL, live UBIGINT NOT NULL, indexed BOOLEAN NOT NULL DEFAULT FALSE);
+CREATE TABLE segments (file VARCHAR PRIMARY KEY, first_id UBIGINT NOT NULL, end_id UBIGINT NOT NULL, rows UBIGINT NOT NULL, live UBIGINT NOT NULL, indexed BOOLEAN NOT NULL DEFAULT FALSE, promoted VARCHAR NOT NULL DEFAULT '[]');
+CREATE TABLE segment_fields (file VARCHAR NOT NULL, key VARCHAR NOT NULL, rows UBIGINT NOT NULL, numeric_rows UBIGINT NOT NULL, distinct_est UBIGINT NOT NULL, top_values VARCHAR NOT NULL);
+CREATE TABLE histogram (file VARCHAR NOT NULL, minute BIGINT, level UTINYINT NOT NULL, source UINTEGER NOT NULL, n UBIGINT NOT NULL);
 CREATE TABLE trash (path VARCHAR PRIMARY KEY);
 CREATE TABLE ord (pos UBIGINT NOT NULL, id UBIGINT NOT NULL);
 CREATE TABLE events_empty (
@@ -67,19 +69,47 @@ CREATE TABLE events_empty (
     )
 }
 
-/// `CREATE OR REPLACE VIEW events` over the segment files `files` (absolute paths).
-pub fn events_view(files: &[String]) -> String {
-    let from = if files.is_empty() {
-        "events_empty".to_string()
-    } else {
-        let list = files
-            .iter()
-            .map(|f| format!("'{}'", f.replace('\'', "''")))
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!("read_parquet([{list}])")
-    };
-    format!("CREATE OR REPLACE VIEW events AS SELECT * FROM {from} WHERE source IN (SELECT id FROM sources WHERE ready)")
+/// `read_parquet` over segment files (absolute paths), columns matched by name (segments promote
+/// different fields).
+pub fn parquet_from(files: &[String]) -> String {
+    let list = files
+        .iter()
+        .map(|f| format!("'{}'", f.replace('\'', "''")))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("read_parquet([{list}], union_by_name = true)")
+}
+
+/// The event columns in [`EventSchema`] order (what `SELECT e.*` on `events` returns); promoted `p_`
+/// columns are left out (they repeat values that `extra` holds too).
+pub fn canonical_columns(schema: &EventSchema) -> String {
+    schema
+        .arrow()
+        .fields()
+        .iter()
+        .map(|f| ident(f.name()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Rows of ready sources only.
+pub const READY: &str = "source IN (SELECT id FROM sources WHERE ready)";
+
+/// `CREATE OR REPLACE VIEW` statements of `events` (the event schema; read-only) and `events_wide` (every
+/// stored column, the promoted `p_<key>` ones included, for fast access to promoted fields) over the
+/// segment files `files` (absolute paths).
+pub fn events_view(schema: &EventSchema, files: &[String]) -> String {
+    if files.is_empty() {
+        return "CREATE OR REPLACE VIEW events AS SELECT * FROM events_empty;
+CREATE OR REPLACE VIEW events_wide AS SELECT * FROM events_empty;"
+            .to_string();
+    }
+    let from = parquet_from(files);
+    format!(
+        "CREATE OR REPLACE VIEW events AS SELECT {} FROM {from} WHERE {READY};
+CREATE OR REPLACE VIEW events_wide AS SELECT * FROM {from} WHERE {READY};",
+        canonical_columns(schema)
+    )
 }
 
 /// The declared columns as stored in `meta` (`name\ttype` lines).
@@ -121,7 +151,11 @@ mod tests {
         assert!(decode_declared("").unwrap().declared().is_empty());
         let ddl = ddl(&s);
         assert!(ddl.contains("\"f_C\" DOUBLE") && ddl.contains("\"f_D\" BOOLEAN"), "{ddl}");
-        assert!(events_view(&[]).contains("FROM events_empty"));
-        assert!(events_view(&["C:/it's/a.parquet".into()]).contains("read_parquet(['C:/it''s/a.parquet'])"));
+        let plain = EventSchema::plain();
+        assert!(events_view(&plain, &[]).contains("FROM events_empty"));
+        let v = events_view(&plain, &["C:/it's/a.parquet".into()]);
+        assert!(v.contains("read_parquet(['C:/it''s/a.parquet'], union_by_name = true)"), "{v}");
+        assert!(v.contains("CREATE OR REPLACE VIEW events_wide"), "{v}");
+        assert!(canonical_columns(&plain).ends_with("\"raw\", \"extra\""));
     }
 }

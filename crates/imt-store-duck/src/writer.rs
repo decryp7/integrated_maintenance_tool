@@ -44,10 +44,41 @@ pub(crate) fn segment_files(conn: &Connection, dir: &Path) -> Result<Vec<String>
         .collect::<Result<Vec<_>>>()
 }
 
-/// Recreates the `events` view over the listed segments.
-pub(crate) fn refresh_view(conn: &Connection, dir: &Path) -> Result<()> {
+/// Recreates the `events` and `events_wide` views over the listed segments.
+pub(crate) fn refresh_view(conn: &Connection, dir: &Path, schema: &EventSchema) -> Result<()> {
     let files = segment_files(conn, dir)?;
-    conn.execute_batch(&events_view(&files)).context("updating the events view")
+    conn.execute_batch(&events_view(schema, &files)).context("updating the events view")
+}
+
+/// Lists a closed segment with its field catalog and histogram (inside the caller's transaction).
+pub(crate) fn insert_segment(conn: &Connection, seg: &Segment, live: u64, indexed: bool) -> Result<()> {
+    conn.execute(
+        "INSERT INTO segments (file, first_id, end_id, rows, live, indexed, promoted) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        params![seg.file, seg.first_id, seg.end_id, seg.rows, live, indexed, seg.promotion.encode()],
+    )?;
+    let mut app = conn.appender("segment_fields")?;
+    for f in &seg.fields {
+        app.append_row(params![seg.file, f.key, f.rows, f.numeric_rows, f.distinct, f.top])?;
+    }
+    app.flush()?;
+    let mut app = conn.appender("histogram")?;
+    for (b, n) in &seg.histogram {
+        app.append_row(params![seg.file, b.minute, b.level, b.source, n])?;
+    }
+    app.flush()?;
+    Ok(())
+}
+
+/// Unlists a segment and its catalog rows (inside the caller's transaction).
+pub(crate) fn delete_segment(conn: &Connection, file: &str) -> Result<()> {
+    for sql in [
+        "DELETE FROM segments WHERE file = ?",
+        "DELETE FROM segment_fields WHERE file = ?",
+        "DELETE FROM histogram WHERE file = ?",
+    ] {
+        conn.execute(sql, params![file])?;
+    }
+    Ok(())
 }
 
 /// Lists a finished source as ready, with its diagnostics.
@@ -191,10 +222,7 @@ impl SegmentSink {
         conn.execute_batch("BEGIN TRANSACTION")?;
         let done = (|| -> Result<()> {
             for seg in &segs {
-                conn.execute(
-                    "INSERT INTO segments (file, first_id, end_id, rows, live) VALUES (?, ?, ?, ?, ?)",
-                    params![seg.file, seg.first_id, seg.end_id, seg.rows, seg.rows],
-                )?;
+                insert_segment(&conn, seg, seg.rows, false)?;
                 for s in &seg.sources {
                     if let Some(st) = sources.get_mut(&SourceId(*s)) {
                         st.open = st.open.saturating_sub(1);
@@ -207,7 +235,7 @@ impl SegmentSink {
                 set_meta(&conn, "next_id", ids.event)?;
                 set_meta(&conn, "next_source", ids.source as u64)?;
             }
-            refresh_view(&conn, &self.dir)
+            refresh_view(&conn, &self.dir, &self.schema)
         })();
         match done {
             Ok(()) => conn.execute_batch("COMMIT")?,
@@ -352,7 +380,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let c = Connection::open(dir.join("data.duckdb")).unwrap();
         c.execute_batch(&crate::schema::ddl(&EventSchema::plain())).unwrap();
-        refresh_view(&c, &dir).unwrap();
+        refresh_view(&c, &dir, &EventSchema::plain()).unwrap();
         (dir, c)
     }
 

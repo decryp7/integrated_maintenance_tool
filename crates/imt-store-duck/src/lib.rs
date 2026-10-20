@@ -8,10 +8,12 @@
 mod compact;
 mod fts;
 mod pos;
+pub mod promote;
 mod read;
 mod schema;
 pub mod segments;
 mod sql;
+pub mod stats;
 mod writer;
 
 pub use compact::Compaction;
@@ -19,7 +21,7 @@ pub use schema::FORMAT_VERSION;
 
 use duckdb::{params, Config, Connection};
 use imt_core::api::{UnrecognizedFile, WorkspaceState};
-use imt_core::batch::{EventSchema, SourceId};
+use imt_core::batch::{EventId, EventSchema, SourceId};
 use imt_core::ingest::{self, ImportEnv, Outcome, ParallelOptions, ProblemKind};
 use imt_core::ports::{
     DiagnosticRow, Diagnostics, FixEvaluation, ImportReport, ImportSession, IndexStatus, Ingest, Profiles, QuickFix, Search, SearchReply,
@@ -34,7 +36,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// DuckDB's memory limit (ADR 0014 memory budget); it spills to the store's `tmp` folder beyond it.
-pub const MEMORY_LIMIT: &str = "256MB";
+pub const MEMORY_LIMIT: &str = "192MB";
 
 /// DuckDB's query threads by default: each holds row groups being read, so more threads need more of
 /// the memory limit (a sort over 24 threads ran out of 256 MB in the bake-off).
@@ -144,7 +146,7 @@ impl Inner {
     /// complete without them; the next change retries).
     fn maintain(&self, conn: &Connection) {
         let tc = std::time::Instant::now();
-        match compact::compact(conn, &self.dir) {
+        match compact::compact(conn, &self.dir, &self.schema) {
             Ok(c) if c.replaced > 0 => log::info!("compacted {} segments into {}", c.replaced, c.written),
             Ok(_) => {}
             Err(e) => log::warn!("segment compaction failed: {e:#}"),
@@ -272,15 +274,20 @@ fn open_db(dir: &Path, opts: &StoreOptions) -> StoreResult<Connection> {
         .and_then(|c| c.threads(opts.duck_threads.max(1) as i64))
         .and_then(|c| c.with("temp_directory", tmp.to_string_lossy()))
         .and_then(|c| c.enable_autoload_extension(false))
-        // Fewer checkpoints while importing: each one rewrote the growing table (3x slower imports).
+        // The catalog is small; a checkpoint at the end of each change is enough.
         .and_then(|c| c.with("checkpoint_threshold", "1GB"))
         .map_err(engine)?;
-    Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)
+    let conn = Connection::open_with_flags(dir.join(DB_FILE), config).map_err(engine)?;
+    // Segment footers are parsed once, not per query (a setting of the Parquet reader, so set after opening).
+    if let Err(e) = conn.execute_batch("SET GLOBAL parquet_metadata_cache = true") {
+        log::warn!("Parquet metadata cache unavailable: {e}");
+    }
+    Ok(conn)
 }
 
 /// After opening: drops what a crash left (unlisted segment files, the trash) and points the `events`
 /// view at this folder's segments (the store may have been moved or unpacked elsewhere).
-fn recover(conn: &Connection, dir: &Path) -> anyhow::Result<()> {
+fn recover(conn: &Connection, dir: &Path, schema: &EventSchema) -> anyhow::Result<()> {
     let listed: std::collections::BTreeSet<String> = {
         let mut stmt = conn.prepare("SELECT file FROM segments")?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
@@ -298,7 +305,7 @@ fn recover(conn: &Connection, dir: &Path) -> anyhow::Result<()> {
         log::warn!("could not delete {}", left.display());
     }
     compact::empty_trash(conn)?;
-    writer::refresh_view(conn, dir)
+    writer::refresh_view(conn, dir, schema)
 }
 
 fn invalid(e: anyhow::Error) -> StoreError {
@@ -330,7 +337,7 @@ impl DuckStore {
         let conn = open_db(dir, &opts)?;
         let schema = ingest::schema_for(&compiled);
         conn.execute_batch(&schema::ddl(&schema)).map_err(engine)?;
-        conn.execute_batch(&schema::events_view(&[])).map_err(engine)?;
+        conn.execute_batch(&schema::events_view(&schema, &[])).map_err(engine)?;
         for (k, v) in [
             ("format_version", FORMAT_VERSION.to_string()),
             ("declared", schema::encode_declared(&schema)),
@@ -375,7 +382,7 @@ impl DuckStore {
                 "this project was saved by an older preview of IMT (store format {version}); open its log files again"
             )));
         }
-        recover(&conn, dir).map_err(|e| engine(format!("{e:#}")))?;
+        recover(&conn, dir, &schema).map_err(|e| engine(format!("{e:#}")))?;
         Ok(Self::with(dir, conn, schema, compiled, registry, opts))
     }
 
@@ -444,7 +451,7 @@ impl DuckStore {
         self.idle()?;
         let _writing = lock(&self.inner.write_lock);
         let conn = self.inner.conn()?;
-        let c = compact::compact(&conn, &self.inner.dir).map_err(|e| engine(format!("{e:#}")))?;
+        let c = compact::compact(&conn, &self.inner.dir, &self.inner.schema).map_err(|e| engine(format!("{e:#}")))?;
         self.changed();
         Ok(c)
     }
@@ -509,8 +516,54 @@ impl Ingest for DuckStore {
         Err(StoreError::unsupported("reload", "R2c"))
     }
 
-    fn refresh(&self, _changed: &[PathBuf]) -> StoreResult<ImportSession> {
-        Err(StoreError::unsupported("refresh", "R2b"))
+    /// Changed files (and the members of changed archives) are read again, deleted ones dropped, and new
+    /// files under the opened folders read.
+    fn refresh(&self, changed: &[PathBuf]) -> StoreResult<ImportSession> {
+        self.idle()?;
+        {
+            let _writing = lock(&self.inner.write_lock);
+            let conn = self.inner.conn()?;
+            let mut gone = Vec::new();
+            for p in changed {
+                // A deleted file cannot be canonicalised: its folder is.
+                let p = std::fs::canonicalize(p).unwrap_or_else(|_| match (p.parent().map(std::fs::canonicalize), p.file_name()) {
+                    (Some(Ok(dir)), Some(name)) => dir.join(name),
+                    _ => p.clone(),
+                });
+                let path = p.to_string_lossy().into_owned();
+                let member = format!("{path}{}%", imt_core::archive::ENTRY_SEPARATOR.replace('%', "\\%"));
+                let mut stmt = conn
+                    .prepare("SELECT id FROM sources WHERE path = ? OR path LIKE ? ESCAPE '\\'")
+                    .map_err(engine)?;
+                let ids = stmt
+                    .query_map(params![path, member], |r| r.get::<_, u32>(0))
+                    .map_err(engine)?
+                    .collect::<duckdb::Result<Vec<_>>>()
+                    .map_err(engine)?;
+                gone.extend(ids);
+                write_lock(&self.inner.state)
+                    .unrecognized
+                    .retain(|u| u.path != path && !u.path.starts_with(&format!("{path}{}", imt_core::archive::ENTRY_SEPARATOR)));
+            }
+            if !gone.is_empty() {
+                let list = gone.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+                conn.execute_batch(&format!(
+                    "BEGIN TRANSACTION; DELETE FROM diagnostics WHERE source IN ({list}); DELETE FROM sources WHERE id IN ({list}); COMMIT;"
+                ))
+                .map_err(engine)?;
+                if let Some(f) = &self.inner.fts {
+                    for id in &gone {
+                        if let Err(e) = f.delete_source(*id) {
+                            log::warn!("could not remove source {id} from the full-text index: {e:#}");
+                        }
+                    }
+                }
+                self.changed();
+            }
+        }
+        // Reading the opened roots again reads what is not in the store: the changed and the new files.
+        let roots: Vec<PathBuf> = read_lock(&self.inner.state).roots.iter().filter(|r| r.exists()).cloned().collect();
+        self.open(&roots)
     }
 
     fn remove_source(&self, id: SourceId) -> StoreResult<()> {
@@ -548,10 +601,10 @@ impl Ingest for DuckStore {
         let _writing = lock(&self.inner.write_lock);
         let files = writer::segment_files(&conn, &self.inner.dir).map_err(|e| engine(format!("{e:#}")))?;
         conn.execute_batch(
-            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM sources; COMMIT;",
+            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM sources; COMMIT;",
         )
         .map_err(engine)?;
-        writer::refresh_view(&conn, &self.inner.dir).map_err(|e| engine(format!("{e:#}")))?;
+        writer::refresh_view(&conn, &self.inner.dir, &self.inner.schema).map_err(|e| engine(format!("{e:#}")))?;
         if let Some(f) = &self.inner.fts {
             if let Err(e) = f.clear() {
                 log::warn!("could not clear the full-text index: {e:#}");
@@ -665,22 +718,47 @@ impl DuckStore {
 }
 
 impl Search for DuckStore {
-    /// Words of `text` (all required; quotes for phrases), case-insensitive and split on punctuation; the
-    /// first `limit` hits (default 1,000, at most 10,000) in time order. Only indexed segments are searched
-    /// ([`Search::index_status`] tells how far indexing is).
+    /// Words of `text` (all required), case-insensitive and split on punctuation; the first `limit` hits
+    /// (default 1,000, at most 10,000) in time order. A quoted phrase must also appear as written (ignoring
+    /// case) in the message, raw text or exception; up to 5,000 candidates are checked, beyond that the
+    /// total is not exact. Only indexed segments are searched ([`Search::index_status`] tells how far
+    /// indexing is).
     fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply> {
         let limit = if req.limit == 0 {
             fts::DEFAULT_HITS
         } else {
             req.limit.min(fts::MAX_HITS)
         };
-        let (total, ids) = self
-            .fts()?
-            .shared
-            .fts
-            .search(&req.text, limit)
-            .map_err(|e| engine(format!("{e:#}")))?;
-        Ok(SearchReply { total, ids })
+        let index = &self.fts()?.shared.fts;
+        let (words, phrases) = fts::split_phrases(&req.text);
+        if phrases.is_empty() {
+            let (total, ids) = index.search(&words, limit).map_err(|e| engine(format!("{e:#}")))?;
+            return Ok(SearchReply { total, ids, exact: true });
+        }
+        // The index has no positions: its hits hold every word; the phrases are checked on the rows.
+        let (candidates, ids) = index.search(&words, fts::MAX_VERIFY).map_err(|e| engine(format!("{e:#}")))?;
+        let mut matched = Vec::new();
+        let mut verified = 0u64;
+        for chunk in ids.chunks(imt_core::ports::MAX_PAGE_ROWS) {
+            let ok: HashSet<EventId> = self
+                .texts(chunk)?
+                .into_iter()
+                .filter(|(_, text)| phrases.iter().all(|p| text.contains(p.as_str())))
+                .map(|(id, _)| id)
+                .collect();
+            for id in chunk.iter().filter(|id| ok.contains(*id)) {
+                verified += 1;
+                if matched.len() < limit {
+                    matched.push(*id);
+                }
+            }
+        }
+        let exact = candidates as usize <= ids.len();
+        Ok(SearchReply {
+            total: if exact { verified } else { candidates },
+            ids: matched,
+            exact,
+        })
     }
 
     fn index_status(&self) -> StoreResult<IndexStatus> {

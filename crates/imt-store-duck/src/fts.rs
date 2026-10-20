@@ -26,7 +26,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 use tantivy::collector::{Count, TopDocs};
 use tantivy::query::QueryParser;
-use tantivy::schema::{Field, Schema, FAST, INDEXED, TEXT};
+use tantivy::schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, INDEXED};
 use tantivy::{doc, Index, IndexReader, IndexWriter, Order, ReloadPolicy, Term};
 
 /// Folder of the index in a store folder.
@@ -35,6 +35,33 @@ pub const INDEX_DIR: &str = "index";
 /// Heap of the index writer (ADR 0014 memory budget), shared by its threads.
 pub const WRITER_HEAP: usize = 64 << 20;
 const WRITER_THREADS: usize = 2;
+
+/// Phrases (`"..."`) of a search and the words to ask the index for: every word of the text, the phrases'
+/// included, so the index returns a superset that the phrases are then checked on.
+pub fn split_phrases(text: &str) -> (String, Vec<String>) {
+    let mut words = String::with_capacity(text.len());
+    let mut phrases = Vec::new();
+    let mut rest = text;
+    while let Some(open) = rest.find('"') {
+        let after = &rest[open + 1..];
+        let Some(close) = after.find('"') else { break };
+        words.push_str(&rest[..open]);
+        words.push(' ');
+        let phrase = after[..close].trim();
+        words.push_str(phrase);
+        words.push(' ');
+        if !phrase.is_empty() {
+            phrases.push(phrase.to_lowercase());
+        }
+        rest = &after[close + 1..];
+    }
+    // An unbalanced quote is just a character.
+    words.push_str(&rest.replace('"', " "));
+    (words.trim().to_string(), phrases)
+}
+
+/// Candidates checked for phrases at most; beyond, the total is the candidate count (not exact).
+pub const MAX_VERIFY: usize = 5_000;
 
 /// Hits returned by default and at most.
 pub const DEFAULT_HITS: usize = 1000;
@@ -54,7 +81,13 @@ fn schema() -> (Schema, Fields) {
     let source = b.add_u64_field("source", INDEXED);
     let seg = b.add_u64_field("seg", INDEXED);
     b.add_i64_field("ts", FAST);
-    let text = b.add_text_field("text", TEXT);
+    // Words and their counts, no positions (half the size): phrases are checked on the rows.
+    let words = TextOptions::default().set_indexing_options(
+        TextFieldIndexing::default()
+            .set_tokenizer("default")
+            .set_index_option(IndexRecordOption::WithFreqs),
+    );
+    let text = b.add_text_field("text", words);
     (b.build(), Fields { id, source, seg, text })
 }
 
@@ -74,8 +107,11 @@ pub fn segment_key(file: &str) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x0100_0000_01b3))
 }
 
+/// Layout version of the index (2: no positions); an index of another version is rebuilt.
+const LAYOUT: u32 = 2;
+
 fn payload(epoch: u64) -> String {
-    format!("fts_epoch={epoch}")
+    format!("fts_epoch={epoch};layout={LAYOUT}")
 }
 
 /// An opened index.
@@ -131,13 +167,14 @@ impl Fts {
         self.reader.searcher().num_docs()
     }
 
-    /// Hits of `text` (every word required, lenient syntax) and the ids of the first `limit`, in time order.
+    /// Hits of `text` (every word required, lenient syntax) and the ids of the first `limit` (at most
+    /// [`MAX_VERIFY`]), in time order.
     pub fn search(&self, text: &str, limit: usize) -> Result<(u64, Vec<EventId>)> {
         let searcher = self.reader.searcher();
         let mut qp = QueryParser::for_index(&self.index, vec![self.f.text]);
         qp.set_conjunction_by_default();
         let (query, _errors) = qp.parse_query_lenient(text);
-        let top = TopDocs::with_limit(limit.clamp(1, MAX_HITS)).order_by_fast_field::<i64>("ts", Order::Asc);
+        let top = TopDocs::with_limit(limit.clamp(1, MAX_HITS.max(MAX_VERIFY))).order_by_fast_field::<i64>("ts", Order::Asc);
         let (count, hits) = searcher.search(&query, &(Count, top))?;
         let mut ids = Vec::with_capacity(hits.len());
         for (_ts, addr) in hits {
@@ -370,5 +407,20 @@ fn run(s: &FtsShared, dir: &Path, conn: &Connection, write_lock: &Mutex<()>, epo
                 .unwrap_or_else(|p| p.into_inner().0);
         }
         *woken = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn phrases_are_split_from_words() {
+        assert_eq!(split_phrases("a b"), ("a b".to_string(), vec![]));
+        let (w, p) = split_phrases("x \"Builder  Failed\" y \"\"");
+        assert_eq!(p, ["builder  failed"]);
+        assert!(w.contains("Builder  Failed") && w.starts_with('x') && w.ends_with('y'), "{w}");
+        assert_eq!(split_phrases("unbalanced \"quote"), ("unbalanced  quote".to_string(), vec![]));
+        assert_ne!(segment_key("a"), segment_key("b"));
     }
 }
