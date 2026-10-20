@@ -129,6 +129,7 @@ pub async fn run_query_stream<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
     use imt_core::query::Query;
     use std::sync::{Arc, Mutex as StdMutex};
@@ -161,8 +162,9 @@ mod tests {
     fn opened() -> tauri::App<tauri::test::MockRuntime> {
         let app = test_app(None);
         main_window(&app).queue(crate::instance::existing(&[samples().join("serilog-clef")]));
-        let pending =
-            crate::workspace_commands::take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap();
+        let pending = crate::workspace_commands::take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+            .now()
+            .unwrap();
         block(crate::workspace_commands::open_paths(
             app.handle().clone(),
             main_window(&app),

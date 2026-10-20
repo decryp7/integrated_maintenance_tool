@@ -405,7 +405,7 @@ pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
 }
 
 #[tauri::command]
-pub fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<JobsSnapshot> {
+pub async fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<JobsSnapshot> {
     Ok(service(&app)?.snapshot(Some(win.label())))
 }
 
@@ -420,7 +420,7 @@ pub async fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: 
 
 #[tauri::command]
 /// Runs a failed, cancelled or interrupted job again; returns the new job (null when the window starts it).
-pub fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<u64>> {
+pub async fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<u64>> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     crate::error::lift(jobs.retry(JobId(id)).map(|j| j.map(|j| j.0)))
@@ -440,7 +440,7 @@ pub async fn jobs_clear_finished<R: Runtime>(app: AppHandle<R>, win: CurrentWind
 
 /// The user viewed a job's result: its unseen mark goes.
 #[tauri::command]
-pub fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<bool> {
+pub async fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<bool> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     Ok(jobs.mark_seen(JobId(id)))
@@ -448,7 +448,7 @@ pub fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64
 
 /// What View opens. Marks the job seen.
 #[tauri::command]
-pub fn jobs_result<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<JobResult>> {
+pub async fn jobs_result<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<JobResult>> {
     let jobs = service(&app)?;
     let job = owned(&jobs, &win, id)?;
     jobs.mark_seen(JobId(id));
@@ -474,7 +474,7 @@ pub async fn jobs_wait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u6
 
 /// The dialog that waited for job `id` closed: the job goes on and tells the user when it is done.
 #[tauri::command]
-pub fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
+pub async fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     jobs.unwait(JobId(id));
@@ -483,7 +483,7 @@ pub fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
 
 /// Shows an export's file in the OS file manager (only the file the job wrote); returns its path.
 #[tauri::command]
-pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<String> {
+pub async fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<String> {
     let jobs = service(&app)?;
     let job = owned(&jobs, &win, id)?;
     let Some(JobResult::File { path }) = job.result else {
@@ -501,7 +501,7 @@ pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
 
 /// The window's finished jobs for its project and session (`JobsRecord` v1).
 #[tauri::command]
-pub fn jobs_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<persist::JobsRecord> {
+pub async fn jobs_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<persist::JobsRecord> {
     Ok(service(&app)?.record(win.label()))
 }
 
@@ -514,7 +514,7 @@ pub struct RestoredJobs {
 
 /// Replaces the window's history with a saved one; unfinished jobs come back as interrupted.
 #[tauri::command]
-pub fn jobs_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> CmdResult<RestoredJobs> {
+pub async fn jobs_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> CmdResult<RestoredJobs> {
     let jobs = service(&app)?;
     let warning = jobs.restore(win.label(), record.as_ref());
     Ok(RestoredJobs {

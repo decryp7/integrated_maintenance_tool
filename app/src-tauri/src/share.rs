@@ -328,6 +328,7 @@ pub(crate) async fn open_bundle<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, job_done, main_window, samples, test_app, TempDir};
     use serde_json::json;
     use tauri::Manager;
@@ -437,7 +438,9 @@ mod tests {
         let toml = "name = 'Shared'\n[redact]\ndetectors = ['email', 'ipv4']\n";
         crate::test_support::job_done(
             &app,
-            crate::profile::save_profile(app.handle().clone(), app.state(), main_window(&app), OpId::default(), toml.into()).unwrap(),
+            crate::profile::save_profile(app.handle().clone(), app.state(), main_window(&app), OpId::default(), toml.into())
+                .now()
+                .unwrap(),
         );
         (app, d)
     }

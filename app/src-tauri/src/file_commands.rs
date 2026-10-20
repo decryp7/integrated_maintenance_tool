@@ -285,7 +285,7 @@ mod tests {
 
         assert!(err(open(&main, json!({ "sourceId": 999, "action": "open" }))).contains("no longer open"));
         // Another window has its own sources: the ids of this one mean nothing there.
-        let other = window(&app, "w2");
+        let other = window(&app, "w-2");
         assert!(err(open(&other, json!({ "sourceId": text, "action": "open" }))).contains("no longer open"));
         // A removed source is no longer reachable.
         ipc(&main, "remove_source", json!({ "sourceId": text })).unwrap();

@@ -1,16 +1,22 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions for every IMT window (main, and w-2, w-3, ... opened later) and for panels popped out of them (p-main-1, p-w-2-3, ...); set-fullscreen backs Window > Full screen",
+  "description": "enables the default permissions for every IMT window (main, and w-2, w-3, ... opened later) and for panels popped out of them (p-main-1, p-w-2-3, ...); the core permissions are the ones the UI uses (events; monitors, bounds and maximised state for pop-out placement; set-fullscreen backs Window > Full screen), listed one by one instead of core:default",
   "windows": [
     "main",
     "w-*",
     "p-*"
   ],
   "permissions": [
-    "core:default",
+    "core:event:default",
+    "core:window:allow-available-monitors",
+    "core:window:allow-primary-monitor",
+    "core:window:allow-outer-position",
+    "core:window:allow-outer-size",
+    "core:window:allow-scale-factor",
+    "core:window:allow-is-maximized",
+    "core:window:allow-set-fullscreen",
     "dialog:allow-message",
-    "log:default",
-    "core:window:allow-set-fullscreen"
+    "log:default"
   ]
 }

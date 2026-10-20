@@ -91,7 +91,7 @@ pub(super) fn sample_of(store: StoreRef<'_>, record_id: Option<u32>, sample: Opt
 // ---- status, hardware, catalog, set-up ----
 
 #[tauri::command]
-pub fn ai_status<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
+pub async fn ai_status<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
     Ok(core(&app)?.status())
 }
 
@@ -190,8 +190,8 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
 pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::Job) -> Result<Option<JobId>, String> {
     let req = job.request.clone().unwrap_or_default();
     let r = match (req["op"].as_str(), req["modelId"].as_str(), req["runtimeId"].as_str()) {
-        (Some("model"), Some(id), _) => ai_setup_run(app.clone(), id.to_string()),
-        (Some("runtime"), _, Some(id)) => super::runtime_commands::ai_runtime_install(app.clone(), id.to_string()),
+        (Some("model"), Some(id), _) => setup_run(app.clone(), id.to_string()),
+        (Some("runtime"), _, Some(id)) => super::runtime_commands::install(app.clone(), id.to_string(), vec![]),
         _ => return Err("this download cannot be run again".into()),
     };
     r.map(|id| Some(JobId(id))).map_err(|e| e.message)
@@ -201,7 +201,12 @@ pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::
 /// (returned; `jobs_cancel` stops it). Progress arrives as `imt://ai-setup` events ending in `ready`,
 /// `failed` or `cancelled`.
 #[tauri::command]
-pub fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
+pub async fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
+    setup_run(app, model_id)
+}
+
+/// Starts a set-up job (what `ai_setup_run` does).
+pub(crate) fn setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
     let core = core(&app)?;
     let entry = core
         .catalog()
@@ -229,7 +234,7 @@ pub async fn ai_models<R: Runtime>(app: AppHandle<R>) -> Ai<Vec<ModelDto>> {
 
 /// Loads an installed model and makes it active (same events as the set-up), as a job (returned).
 #[tauri::command]
-pub fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<u64> {
+pub async fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<u64> {
     let core = core(&app)?;
     if !imt_ai::catalog::is_safe_file_name(&file_name) {
         return Err(AiCmdError::invalid(format!("'{file_name}' is not a model file name")));
@@ -279,7 +284,7 @@ pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::pa
 
 /// Lets the engine run again after it was switched off for the session (quarantine) or a load failed.
 #[tauri::command]
-pub fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
+pub async fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
     let core = core(&app)?;
     core.reset();
     // The paused AI queue goes on.
@@ -300,7 +305,7 @@ pub fn ai_reset<R: Runtime>(app: AppHandle<R>) -> Ai<AiStatus> {
 /// `explain`, `summarize`, `rootCauses`, `regex`, `profile`, `pipeline`, `markers`, `extractors`, `query`,
 /// `folderSetup`); arguments are checked before anything is queued. Chat turns use `ai_chat_send`.
 #[tauri::command]
-pub fn ai_start<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: Value) -> Ai<u64> {
+pub async fn ai_start<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: Value) -> Ai<u64> {
     let req: AiRequest = serde_json::from_value(request).map_err(|e| AiCmdError::invalid(format!("not a request: {e}")))?;
     if matches!(req, AiRequest::Chat { .. }) {
         return Err(AiCmdError::invalid("chat turns start with ai_chat_send"));
@@ -311,7 +316,7 @@ pub fn ai_start<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: Valu
 /// Stops this window's use cases: the running ones fail with `cancelled`, the waiting ones are dropped
 /// (chat turns have their own Stop). Returns how many.
 #[tauri::command]
-pub fn ai_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<usize> {
+pub async fn ai_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<usize> {
     core(&app)?;
     Ok(requests::cancel_use_cases(&app, win.label()))
 }
@@ -328,13 +333,13 @@ pub struct ChatEventDto {
 }
 
 #[tauri::command]
-pub fn ai_chat_sessions<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<Vec<SessionInfo>> {
+pub async fn ai_chat_sessions<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<Vec<SessionInfo>> {
     core(&app)?;
     Ok(win.ai.chats.list())
 }
 
 #[tauri::command]
-pub fn ai_chat_new<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<SessionInfo> {
+pub async fn ai_chat_new<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<SessionInfo> {
     core(&app)?;
     let id = win.ai.chats.create().map_err(AiCmdError::busy)?;
     Ok(SessionInfo {
@@ -346,7 +351,7 @@ pub fn ai_chat_new<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<Sess
 }
 
 #[tauri::command]
-pub fn ai_chat_get<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<ChatRecord> {
+pub async fn ai_chat_get<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<ChatRecord> {
     core(&app)?;
     win.ai
         .chats
@@ -355,7 +360,7 @@ pub fn ai_chat_get<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id
 }
 
 #[tauri::command]
-pub fn ai_chat_delete<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
+pub async fn ai_chat_delete<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
     core(&app)?;
     // The chat's browser access, pages and waiting approvals end with it.
     crate::browser::forget_chat(&app, win.label(), &session_id);
@@ -381,7 +386,7 @@ pub(crate) fn chat_emitter<R: Runtime>(app: &AppHandle<R>, label: &str) -> Emit 
 /// Starts a turn as an AI job and returns the job's id at once. The answer streams as `imt://ai-chat`
 /// events to this window once the job runs (while it waits, the Jobs pane shows its place in the queue).
 #[tauri::command]
-pub fn ai_chat_send<R: Runtime>(
+pub async fn ai_chat_send<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
     session_id: String,
@@ -464,7 +469,7 @@ fn emit_error(emit: &Emit, sid: &str, message: &str) {
 }
 
 #[tauri::command]
-pub fn ai_chat_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
+pub async fn ai_chat_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> Ai<bool> {
     core(&app)?;
     // A browser step waiting for approval is denied: nothing runs after Stop.
     crate::browser::deny_waiting(&app, win.label(), &session_id);
@@ -475,14 +480,19 @@ pub fn ai_chat_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session
 
 /// Events after `seq` (resume after a reload); null when too old to resume (reload the chat with `ai_chat_get`).
 #[tauri::command]
-pub fn ai_chat_events_since<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String, seq: u64) -> Ai<Option<Vec<Envelope>>> {
+pub async fn ai_chat_events_since<R: Runtime>(
+    app: AppHandle<R>,
+    win: CurrentWindow,
+    session_id: String,
+    seq: u64,
+) -> Ai<Option<Vec<Envelope>>> {
     core(&app)?;
     Ok(win.ai.chats.events_since(&session_id, seq))
 }
 
 /// Every chat of this window, as saved in projects and sessions (`ChatHistoryRecord` v1).
 #[tauri::command]
-pub fn ai_chat_history<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<ChatHistoryRecord> {
+pub async fn ai_chat_history<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> Ai<ChatHistoryRecord> {
     core(&app)?;
     Ok(win.ai.chats.history())
 }
@@ -497,7 +507,7 @@ pub struct RestoreResult {
 
 /// Replaces this window's chats with saved ones (project or session); damaged or newer records give none.
 #[tauri::command]
-pub fn ai_chat_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> Ai<RestoreResult> {
+pub async fn ai_chat_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> Ai<RestoreResult> {
     core(&app)?;
     let (history, warning) = ChatHistoryRecord::from_value(record.as_ref());
     win.ai.chats.restore(history);
@@ -577,7 +587,7 @@ pub async fn ai_suggested_prompts<R: Runtime>(app: AppHandle<R>, win: CurrentWin
 /// Opens a web source of a chat answer in the system browser. Only https links the chat actually showed
 /// (a web citation or a suggested search) are opened; anything else from the webview is refused.
 #[tauri::command]
-pub fn ai_open_link<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url: String) -> Ai<()> {
+pub async fn ai_open_link<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url: String) -> Ai<()> {
     core(&app)?;
     check_link(&url)?;
     if !win.ai.chats.knows_url(&url) {

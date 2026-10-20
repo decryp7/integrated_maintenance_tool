@@ -66,7 +66,7 @@ pub struct BrowserStateDto {
 }
 
 #[tauri::command]
-pub fn browser_state<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<BrowserStateDto> {
+pub async fn browser_state<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<BrowserStateDto> {
     let hub = hub(&app)?;
     let s = hub.settings();
     Ok(BrowserStateDto {
@@ -160,7 +160,7 @@ pub async fn browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) ->
 
 /// Opens the page shown (or a popup it asked for) in the system browser; any other address is refused.
 #[tauri::command]
-pub fn browser_open_external<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url: String) -> CmdResult<()> {
+pub async fn browser_open_external<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url: String) -> CmdResult<()> {
     let u = WebUrl::parse(&url).map_err(err)?;
     if !hub(&app)?.may_open_externally(win.label(), &url) {
         return Err("refused: only the page shown or a window it asked to open can be opened".into());
@@ -203,13 +203,13 @@ pub async fn browser_capture<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
 }
 
 #[tauri::command]
-pub fn browser_sources<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<Vec<SourceInfo>> {
+pub async fn browser_sources<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<Vec<SourceInfo>> {
     let chat = chat_of(&win, &session_id)?;
     Ok(hub(&app)?.attachments(win.label(), &chat).iter().map(SourceInfo::from).collect())
 }
 
 #[tauri::command]
-pub fn browser_discard_sources<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<Vec<SourceInfo>> {
+pub async fn browser_discard_sources<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<Vec<SourceInfo>> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     hub.discard_attachments(win.label(), &chat);
@@ -244,7 +244,7 @@ fn status_changed<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str, hub: 
 }
 
 #[tauri::command]
-pub fn browser_chat_status<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
+pub async fn browser_chat_status<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     Ok(chat_status(&app, win.label(), &chat, &hub))
@@ -252,7 +252,12 @@ pub fn browser_chat_status<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, se
 
 /// "Let AI read the browser" for one chat (off by default; ends with the chat).
 #[tauri::command]
-pub fn browser_set_read_along<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String, on: bool) -> CmdResult<ChatStatusDto> {
+pub async fn browser_set_read_along<R: Runtime>(
+    app: AppHandle<R>,
+    win: CurrentWindow,
+    session_id: String,
+    on: bool,
+) -> CmdResult<ChatStatusDto> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     hub.chat(win.label(), &chat).set_read_along(on);
@@ -266,7 +271,12 @@ pub fn browser_set_read_along<R: Runtime>(app: AppHandle<R>, win: CurrentWindow,
 
 /// Agent mode for one chat (off by default; ends with the chat). Turning it on starts a new task.
 #[tauri::command]
-pub fn browser_set_agent<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String, on: bool) -> CmdResult<ChatStatusDto> {
+pub async fn browser_set_agent<R: Runtime>(
+    app: AppHandle<R>,
+    win: CurrentWindow,
+    session_id: String,
+    on: bool,
+) -> CmdResult<ChatStatusDto> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     let c = hub.chat(win.label(), &chat);
@@ -288,7 +298,7 @@ pub fn browser_set_agent<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, sess
 /// Stop: agent mode ends at once, a waiting approval is denied and a page load is stopped. The user has
 /// the browser to themselves again.
 #[tauri::command]
-pub fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
+pub async fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     hub.chat(win.label(), &chat).stop();
@@ -305,7 +315,7 @@ pub fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, ses
 
 /// "Continue" after the step cap: another batch of steps for the same task.
 #[tauri::command]
-pub fn browser_agent_continue<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
+pub async fn browser_agent_continue<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, session_id: String) -> CmdResult<ChatStatusDto> {
     let chat = chat_of(&win, &session_id)?;
     let hub = hub(&app)?;
     let c = hub.chat(win.label(), &chat);
@@ -318,7 +328,7 @@ pub fn browser_agent_continue<R: Runtime>(app: AppHandle<R>, win: CurrentWindow,
 
 /// The user's answer on an approval card.
 #[tauri::command]
-pub fn browser_agent_respond<R: Runtime>(
+pub async fn browser_agent_respond<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
     session_id: String,

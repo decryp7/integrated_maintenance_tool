@@ -669,7 +669,7 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) {
 
 /// The UI's menus for the native menu bar (macOS). Elsewhere the model is validated and ignored.
 #[tauri::command]
-pub fn set_app_menu<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, menu: MenuModelDto) -> CmdResult<()> {
+pub async fn set_app_menu<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, menu: MenuModelDto) -> CmdResult<()> {
     let model = parse(menu).map_err(crate::err)?;
     if !cfg!(target_os = "macos") {
         return Ok(());
@@ -685,6 +685,7 @@ pub fn set_app_menu<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, men
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use serde_json::json;
 
     fn model(v: serde_json::Value) -> Result<AppMenu, MenuError> {
@@ -994,13 +995,13 @@ mod tests {
         let main = window(&app, crate::windows::MAIN);
         let bad: MenuModelDto =
             serde_json::from_value(json!({ "menus": [{ "id": "f", "label": "F", "items": [item("a", "x"), item("a", "y")] }] })).unwrap();
-        let err = set_app_menu(app.handle().clone(), main.as_ref().window(), bad).unwrap_err();
+        let err = set_app_menu(app.handle().clone(), main.as_ref().window(), bad).now().unwrap_err();
         assert!(err.contains("used twice"), "{err}");
         #[cfg(not(target_os = "macos"))]
         {
             let good: MenuModelDto =
                 serde_json::from_value(json!({ "menus": [{ "id": "f", "label": "F", "items": [item("a", "x")] }] })).unwrap();
-            assert_eq!(set_app_menu(app.handle().clone(), main.as_ref().window(), good), Ok(()));
+            assert_eq!(set_app_menu(app.handle().clone(), main.as_ref().window(), good).now(), Ok(()));
         }
     }
 }

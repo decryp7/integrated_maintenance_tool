@@ -63,7 +63,7 @@ fn outcome(r: Result<survey::FolderSetup, SurveyError>) -> anyhow::Result<Value>
 /// `onProgress` while it runs; Cancel is the job's (`jobs_cancel`). The validated heuristic proposals are the
 /// job's result (`jobs_wait` while the wizard is open; otherwise "Finished · View" reopens the wizard with them).
 #[tauri::command]
-pub fn folder_survey<R: Runtime>(
+pub async fn folder_survey<R: Runtime>(
     app: AppHandle<R>,
     state: CurrentWindow,
     request: Option<SurveyRequest>,
@@ -111,6 +111,7 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
     use std::sync::Mutex;
     use tauri::ipc::InvokeResponseBody;
@@ -134,7 +135,7 @@ mod tests {
             .unwrap();
         let (ch, seen) = sink();
         // The command returns the job at once; the proposals are its result.
-        let id = folder_survey(app.handle().clone(), win.clone(), None, ch).unwrap();
+        let id = folder_survey(app.handle().clone(), win.clone(), None, ch).now().unwrap();
         let end = crate::test_support::job_end(&app, id);
         assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
         assert!(*seen.lock().unwrap() > 0, "progress was sent");

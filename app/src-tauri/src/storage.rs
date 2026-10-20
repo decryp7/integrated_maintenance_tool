@@ -207,7 +207,7 @@ pub async fn storage_usage<R: Runtime>(app: AppHandle<R>) -> CmdResult<StorageUs
 /// once: Settings may be closed meanwhile. What was freed and what stayed, per category, is the job's result
 /// (`jobs_wait`; "Finished · View" opens Settings ▸ Storage with it).
 #[tauri::command]
-pub fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) -> CmdResult<u64> {
+pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) -> CmdResult<u64> {
     let ids = plan::parse_ids(&ids)?;
     let job = Job::begin(&app)?;
     let started = Instant::now();

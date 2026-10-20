@@ -89,14 +89,14 @@ impl AiCore {
 
 /// The files to download by hand for a model or a runtime build, with their sizes and SHA-256.
 #[tauri::command]
-pub fn ai_manual_download<R: Runtime>(app: AppHandle<R>, kind: ManualKind, id: String) -> AiResult<ManualDownload> {
+pub async fn ai_manual_download<R: Runtime>(app: AppHandle<R>, kind: ManualKind, id: String) -> AiResult<ManualDownload> {
     core(&app)?.manual_download(kind, &id)
 }
 
 /// Opens file `index` of a manual download in the system browser. The address is computed here from the
 /// catalogs; nothing the webview sends is opened.
 #[tauri::command]
-pub fn ai_manual_download_open<R: Runtime>(app: AppHandle<R>, kind: ManualKind, id: String, index: usize) -> AiResult<()> {
+pub async fn ai_manual_download_open<R: Runtime>(app: AppHandle<R>, kind: ManualKind, id: String, index: usize) -> AiResult<()> {
     let url = core(&app)?.manual_download_url(kind, &id, index)?;
     crate::activity::domain_event("ai.manualDownload", None, &[("Id", id.as_str())]);
     open::that_detached(&url).map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot open your browser: {e}")))

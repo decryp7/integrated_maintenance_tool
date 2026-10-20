@@ -199,7 +199,7 @@ fn granted(grants: &WindowGrants, path: Option<String>, access: crate::paths::Ac
 }
 
 #[tauri::command]
-pub fn agent_schema() -> AgentSchema {
+pub async fn agent_schema() -> AgentSchema {
     schema()
 }
 
@@ -286,6 +286,7 @@ pub async fn agent_open_run<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::TempDir;
     use imt_agent::run::{create_run_dir, write_manifest, RunReason};
 
@@ -417,6 +418,6 @@ mod tests {
         // An invalid saved config is reported.
         std::fs::write(d.config.join(CONFIG_NAME), "version = 1").unwrap();
         assert!(runs(None, &d).unwrap_err().contains("agent.outputDir"));
-        assert_eq!(agent_schema().version, imt_agent::CONFIG_VERSION);
+        assert_eq!(agent_schema().now().version, imt_agent::CONFIG_VERSION);
     }
 }

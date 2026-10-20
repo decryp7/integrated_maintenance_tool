@@ -388,7 +388,7 @@ pub(crate) async fn tail_status(state: CurrentWindow) -> CmdResult<Value> {
 /// (as last given to `set_live`, with defaults filled in and values clamped).
 /// The UI restores its live controls from it (e.g. after a webview reload).
 #[tauri::command]
-pub(crate) fn live_state(state: CurrentWindow) -> LiveState {
+pub(crate) async fn live_state(state: CurrentWindow) -> LiveState {
     state.live.state()
 }
 
@@ -438,6 +438,7 @@ pub(crate) async fn open_paths_live<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
 
     #[test]
     fn options_and_settings() {
@@ -642,7 +643,7 @@ mod tests {
         let app = test_app(None);
         let st = || main_window(&app);
         // Never started: off, with the defaults resolved.
-        let fresh = live_state(st());
+        let fresh = live_state(st()).now();
         assert!(!fresh.enabled);
         assert_eq!(fresh.options.poll_interval_ms, Some(DEFAULT_POLL_MS));
         assert_eq!(fresh.options.tail, TailOptions::default());
@@ -657,7 +658,7 @@ mod tests {
         }))
         .unwrap();
         block(set_live(app.handle().clone(), st(), true, Some(options))).unwrap();
-        let on = live_state(st());
+        let on = live_state(st()).now();
         assert!(on.enabled);
         assert_eq!(on.options.watch, WatchPreference::Polling);
         assert_eq!(on.options.poll_interval_ms, Some(100));
@@ -665,15 +666,15 @@ mod tests {
         assert_eq!(on.options.tail.carry_flush_ms, 300);
         // Off keeps the options for the next start.
         block(set_live(app.handle().clone(), st(), false, None)).unwrap();
-        let off = live_state(st());
+        let off = live_state(st()).now();
         assert!(!off.enabled);
         assert_eq!(off.options, on.options);
         // Stopped from the tray: off.
         block(set_live(app.handle().clone(), st(), true, None)).unwrap();
-        assert!(live_state(st()).enabled);
-        assert_eq!(live_state(st()).options.poll_interval_ms, Some(DEFAULT_POLL_MS));
+        assert!(live_state(st()).now().enabled);
+        assert_eq!(live_state(st()).now().options.poll_interval_ms, Some(DEFAULT_POLL_MS));
         stop(app.handle(), "main");
-        assert!(!live_state(st()).enabled);
+        assert!(!live_state(st()).now().enabled);
     }
 
     /// Alerts are muted in the window's engine; invalid mutes are refused with a message.

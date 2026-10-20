@@ -129,14 +129,13 @@ pub fn install<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let Some(state) = app.try_state::<crate::AppState>() else { return };
     let handle = app.clone();
     state.isolation.set_on_quarantine(Box::new(move |id| {
-        let current = crate::settings::settings_sections(handle.clone())
-            .ok()
+        let current = Some(crate::settings::overview(&handle))
             .and_then(|o| o.sections.into_iter().find(|s| s.section.id == SECTION))
             .map(|s| s.values)
             .unwrap_or_else(|| json!({}));
         let mut values = current.as_object().cloned().unwrap_or_default();
         values.insert(format!("isolate.{id}"), json!(true));
-        if let Err(e) = crate::settings::set_settings(handle.clone(), SECTION.into(), Value::Object(values)) {
+        if let Err(e) = crate::settings::apply_section(&handle, SECTION, Value::Object(values)) {
             log::error!(Plugin = id; "Could not save the isolation setting: {e}");
         }
     }));
@@ -227,8 +226,8 @@ pub fn status(iso: &AppIsolation) -> IsolationStatus {
 
 /// How each plugin runs in this session (in process, isolated, or isolated but unavailable).
 #[tauri::command]
-pub fn plugin_isolation_status(state: tauri::State<'_, crate::AppState>) -> IsolationStatus {
-    status(&state.isolation)
+pub async fn plugin_isolation_status(state: tauri::State<'_, crate::AppState>) -> crate::CmdResult<IsolationStatus> {
+    Ok(status(&state.isolation))
 }
 
 #[cfg(test)]

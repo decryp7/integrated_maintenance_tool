@@ -217,7 +217,7 @@ fn set_frame<R: Runtime>(_browser: &WebviewWindow<R>, _driving: bool) {}
 
 /// Who drives the caller's browser now (the banner and the Web panel start from it, then follow the events).
 #[tauri::command]
-pub fn browser_driving<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<Option<AiDriver>> {
+pub async fn browser_driving<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<Option<AiDriver>> {
     Ok(hub(&app).and_then(|h| h.ai_driver(win.label())))
 }
 

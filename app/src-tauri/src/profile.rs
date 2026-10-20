@@ -48,7 +48,7 @@ pub(crate) struct ProfileValidation {
 }
 
 #[tauri::command]
-pub(crate) fn get_profile(state: CurrentWindow) -> CmdResult<ProfileDoc> {
+pub(crate) async fn get_profile(state: CurrentWindow) -> CmdResult<ProfileDoc> {
     Ok(state.profile_doc())
 }
 
@@ -86,7 +86,7 @@ pub(crate) fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
 /// window: the file is checked and written now, the files are re-imported with it as a background import job
 /// (progress in the status bar, Cancel in the Jobs pane). Returns that job at once.
 #[tauri::command]
-pub(crate) fn save_profile<R: Runtime>(
+pub(crate) async fn save_profile<R: Runtime>(
     app: AppHandle<R>,
     app_state: State<'_, AppState>,
     state: CurrentWindow,
@@ -144,7 +144,11 @@ fn stamp_ms(stamp: &str) -> Option<i64> {
 
 /// Previous profile versions, newest first: `[{ file, name, savedAt, savedAtMs }]`.
 #[tauri::command]
-pub(crate) fn profile_history(app_state: State<'_, AppState>) -> Vec<Value> {
+pub(crate) async fn profile_history(app_state: State<'_, AppState>) -> CmdResult<Vec<Value>> {
+    Ok(history(&app_state))
+}
+
+fn history(app_state: &AppState) -> Vec<Value> {
     let Some(dir) = app_state.profile_dir.as_ref().map(|d| d.join("history")) else {
         return Vec::new();
     };
@@ -167,7 +171,7 @@ pub(crate) fn profile_history(app_state: State<'_, AppState>) -> Vec<Value> {
 
 /// One previous version's text (not applied until saved again).
 #[tauri::command]
-pub(crate) fn profile_version(app_state: State<'_, AppState>, file: String) -> CmdResult<ProfileDoc> {
+pub(crate) async fn profile_version(app_state: State<'_, AppState>, file: String) -> CmdResult<ProfileDoc> {
     let dir = app_state.profile_dir.as_ref().ok_or("no profile folder")?.join("history");
     let version = crate::paths::child(&dir, &file).map_err(|_| "invalid version".to_string())?;
     let toml = std::fs::read_to_string(version).map_err(err)?;
@@ -177,13 +181,13 @@ pub(crate) fn profile_version(app_state: State<'_, AppState>, file: String) -> C
 
 /// The built-in profile templates (applied only through validate + save).
 #[tauri::command]
-pub(crate) fn profile_templates() -> &'static [imt_core::templates::ProfileTemplate] {
+pub(crate) async fn profile_templates() -> &'static [imt_core::templates::ProfileTemplate] {
     imt_core::templates::TEMPLATES
 }
 
 /// Reads a profile file chosen by the user (not applied until saved).
 #[tauri::command]
-pub(crate) fn import_profile(grants: WindowGrants, path: String) -> CmdResult<ProfileDoc> {
+pub(crate) async fn import_profile(grants: WindowGrants, path: String) -> CmdResult<ProfileDoc> {
     let file = grants.read_file(&path, &["toml"])?;
     let toml = std::fs::read_to_string(file.path()).map_err(err)?;
     let profile = Profile::from_toml(&toml).map_err(err)?;
@@ -196,7 +200,7 @@ pub(crate) fn import_profile(grants: WindowGrants, path: String) -> CmdResult<Pr
 
 /// Writes the profile text to a file the user chose; an existing file only with `overwrite`.
 #[tauri::command]
-pub(crate) fn export_profile(grants: WindowGrants, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
+pub(crate) async fn export_profile(grants: WindowGrants, path: String, toml: String, overwrite: Option<bool>) -> CmdResult<()> {
     let target = grants.write(&path, &["toml"])?;
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     std::fs::write(target.path(), &toml).map_err(err)?;
@@ -229,6 +233,7 @@ pub(crate) fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Prof
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, test_app, TempDir};
     use imt_core::Workspace;
     use tauri::Manager;
@@ -240,7 +245,7 @@ mod tests {
         let st = || main_window(&app);
         let shared = || app.state::<AppState>();
 
-        let doc = get_profile(st()).unwrap();
+        let doc = get_profile(st()).now().unwrap();
         assert_eq!((doc.path, doc.name.as_str()), (None, "Default (Serilog)"));
 
         let win = st();
@@ -258,7 +263,9 @@ mod tests {
         drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
-        let bad = save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into()).unwrap_err();
+        let bad = save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into())
+            .now()
+            .unwrap_err();
         assert_eq!(
             (bad.code, bad.field.as_deref(), bad.line),
             (crate::ErrorCode::Invalid, Some("toml"), Some(1))
@@ -276,6 +283,7 @@ regex = '('
 "
             .into(),
         )
+        .now()
         .unwrap_err();
         assert_eq!(rule.line, Some(4), "{rule:?}");
         let _log = crate::activity::test_capture();
@@ -286,6 +294,7 @@ regex = '('
             OpId(Some("op-profile".into())),
             "name = 'Saved'".into(),
         )
+        .now()
         .unwrap();
         crate::test_support::job_done(&app, job);
         let summary = block(crate::workspace_commands::workspace_summary(st())).unwrap();
@@ -294,7 +303,7 @@ regex = '('
             "Saved"
         );
         assert_eq!(summary["profileName"], "Saved");
-        let doc = get_profile(st()).unwrap();
+        let doc = get_profile(st()).now().unwrap();
         assert_eq!(doc.name, "Saved");
         let saved = PathBuf::from(doc.path.unwrap());
         assert!(saved.exists());
@@ -308,7 +317,9 @@ regex = '('
 
         let exported = dir.0.join("out.imtprofile.toml");
         let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
-        let refused = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap_err();
+        let refused = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None)
+            .now()
+            .unwrap_err();
         assert!(refused.contains("only writes where you choose"), "{refused}");
         assert!(!exported.exists());
         crate::paths::grant(
@@ -319,7 +330,9 @@ regex = '('
             crate::paths::GrantSource::Dialog,
         )
         .unwrap();
-        export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None).unwrap();
+        export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Exported'".into(), None)
+            .now()
+            .unwrap();
         let written = crate::tools::tests::domain_events();
         let w = written
             .iter()
@@ -327,7 +340,9 @@ regex = '('
             .expect("profile export");
         assert_eq!(w.props["Bytes"], "17");
         // Replacing the file needs the user's confirmation.
-        let again = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None).unwrap_err();
+        let again = export_profile(grants(), exported.to_string_lossy().into_owned(), "name = 'Other'".into(), None)
+            .now()
+            .unwrap_err();
         assert_eq!(
             again,
             crate::error::file_exists(format!("{} already exists; confirm to replace it", exported.display()))
@@ -338,9 +353,10 @@ regex = '('
             "name = 'Exported'".into(),
             Some(true),
         )
+        .now()
         .unwrap();
         // Reading needs an open grant (a save grant is not one).
-        let refused = import_profile(grants(), exported.to_string_lossy().into_owned()).unwrap_err();
+        let refused = import_profile(grants(), exported.to_string_lossy().into_owned()).now().unwrap_err();
         assert!(refused.contains("only reads files you choose"), "{refused}");
         crate::paths::grant(
             app.handle(),
@@ -350,17 +366,20 @@ regex = '('
             crate::paths::GrantSource::Dialog,
         )
         .unwrap();
-        let imported = import_profile(grants(), exported.to_string_lossy().into_owned()).unwrap();
+        let imported = import_profile(grants(), exported.to_string_lossy().into_owned()).now().unwrap();
         assert_eq!(imported.name, "Exported");
-        assert!(import_profile(grants(), dir.0.join("missing.toml").to_string_lossy().into_owned()).is_err());
+        assert!(import_profile(grants(), dir.0.join("missing.toml").to_string_lossy().into_owned())
+            .now()
+            .is_err());
         std::fs::write(&exported, "[parse").unwrap();
-        assert!(import_profile(grants(), exported.to_string_lossy().into_owned()).is_err());
+        assert!(import_profile(grants(), exported.to_string_lossy().into_owned()).now().is_err());
         assert!(export_profile(
             grants(),
             dir.0.join("no/such/dir/x.toml").to_string_lossy().into_owned(),
             String::new(),
             None
         )
+        .now()
         .is_err());
     }
 
@@ -376,11 +395,12 @@ regex = '('
                 OpId::default(),
                 "name = 'Memory only'".into(),
             )
+            .now()
             .unwrap(),
         );
         let summary = block(crate::workspace_commands::workspace_summary(main_window(&app))).unwrap();
         assert_eq!(summary["profileName"], "Memory only");
-        assert_eq!(get_profile(main_window(&app)).unwrap().path, None);
+        assert_eq!(get_profile(main_window(&app)).now().unwrap().path, None);
     }
 
     #[test]
@@ -397,30 +417,33 @@ regex = '('
             OpId::default(),
             "[[pipeline]]\nstep='plugin'\nid='nope'".into()
         )
+        .now()
         .is_err());
         assert!(!dir.0.join(PROFILE_FILE).exists());
         for name in ["One", "Two", "Three"] {
             crate::test_support::job_done(
                 &app,
-                save_profile(app.handle().clone(), shared(), st(), OpId::default(), format!("name = '{name}'")).unwrap(),
+                save_profile(app.handle().clone(), shared(), st(), OpId::default(), format!("name = '{name}'"))
+                    .now()
+                    .unwrap(),
             );
         }
-        let history = profile_history(shared());
+        let history = profile_history(shared()).now().unwrap();
         assert_eq!(history.len(), 2, "the first save had nothing to archive");
         assert_eq!(history[0]["name"], "Two");
         let at = history[0]["savedAtMs"].as_i64().unwrap();
         assert!((chrono::Utc::now().timestamp_millis() - at).abs() < 60_000, "saved just now");
         let file = history[1]["file"].as_str().unwrap().to_string();
-        assert_eq!(profile_version(shared(), file).unwrap().name, "One");
-        assert!(profile_version(shared(), "../x".into()).is_err());
+        assert_eq!(profile_version(shared(), file).now().unwrap().name, "One");
+        assert!(profile_version(shared(), "../x".into()).now().is_err());
         let none = test_app(None);
-        assert!(profile_history(none.state::<AppState>()).is_empty());
-        assert!(profile_version(none.state::<AppState>(), "x".into()).is_err());
+        assert!(profile_history(none.state::<AppState>()).now().unwrap().is_empty());
+        assert!(profile_version(none.state::<AppState>(), "x".into()).now().is_err());
     }
 
     #[test]
     fn templates_are_listed_with_their_samples() {
-        let list = serde_json::to_value(profile_templates()).unwrap();
+        let list = serde_json::to_value(profile_templates().now()).unwrap();
         let list = list.as_array().unwrap();
         assert!(list.len() >= 13);
         assert!(list

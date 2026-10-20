@@ -308,7 +308,7 @@ pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
 /// (unsupported platform or inactive/quarantined plugin, with the reason).
 /// Empty in safe mode.
 #[tauri::command]
-pub fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
+pub async fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
     window.tools.as_ref().map(ToolHost::list).unwrap_or_default()
 }
 

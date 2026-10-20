@@ -419,23 +419,23 @@ pub async fn quit_app<R: Runtime>(app: AppHandle<R>) -> CmdResult<()> {
 
 /// Closes the calling window as its close button does (the close setting applies).
 #[tauri::command]
-pub fn close_window<R: Runtime>(window: Window<R>) -> CmdResult<()> {
+pub async fn close_window<R: Runtime>(window: Window<R>) -> CmdResult<()> {
     crate::error::lift(window.close().map_err(err))
 }
 
 #[tauri::command]
-pub fn list_windows<R: Runtime>(app: AppHandle<R>) -> Vec<WindowInfo> {
+pub async fn list_windows<R: Runtime>(app: AppHandle<R>) -> Vec<WindowInfo> {
     list(&app)
 }
 
 #[tauri::command]
-pub fn focus_window<R: Runtime>(app: AppHandle<R>, label: String) -> CmdResult<()> {
+pub async fn focus_window<R: Runtime>(app: AppHandle<R>, label: String) -> CmdResult<()> {
     reveal(&app, &label)
 }
 
 /// Sets the calling window's title (the UI shows the project name there).
 #[tauri::command]
-pub fn set_window_title<R: Runtime>(app: AppHandle<R>, window: Window<R>, state: CurrentWindow, title: String) -> CmdResult<()> {
+pub async fn set_window_title<R: Runtime>(app: AppHandle<R>, window: Window<R>, state: CurrentWindow, title: String) -> CmdResult<()> {
     let title = clean_title(&title);
     if state.title() == title {
         return Ok(());
@@ -455,7 +455,7 @@ pub enum CloseChoice {
 
 /// The user's answer to `imt://close-requested`; with `remember` it becomes the setting.
 #[tauri::command]
-pub fn resolve_close<R: Runtime>(
+pub async fn resolve_close<R: Runtime>(
     app: AppHandle<R>,
     window: Window<R>,
     state: CurrentWindow,
@@ -470,7 +470,7 @@ pub fn resolve_close<R: Runtime>(
             CloseChoice::Tray => OnClose::Tray,
         };
         // A failure to save must not keep the window from closing.
-        match crate::settings::set_settings(app.clone(), WINDOW_SECTION.into(), prefs.to_json()) {
+        match crate::settings::apply_section(&app, WINDOW_SECTION, prefs.to_json()) {
             Ok(r) if r.applied => {}
             Ok(_) => log::warn!("the close choice could not be remembered"),
             Err(e) => log::warn!("the close choice could not be remembered: {e}"),
@@ -522,6 +522,7 @@ pub async fn resolve_open<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, c
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{main_window, test_app, window};
     use std::sync::{Arc, Mutex};
     use tauri::Listener;
@@ -583,12 +584,12 @@ mod tests {
         let info = tauri::async_runtime::block_on(new_window(h.clone())).unwrap();
         assert_eq!(info.label, "w-3");
         assert_eq!(info.title, DEFAULT_TITLE);
-        let labels: Vec<String> = list_windows(h.clone()).into_iter().map(|w| w.label).collect();
+        let labels: Vec<String> = list_windows(h.clone()).now().into_iter().map(|w| w.label).collect();
         assert_eq!(labels, ["main", "w-2", "w-3"]);
         assert!(*changes.lock().unwrap() >= 2, "every window hears about new windows");
         assert_eq!(target(&h).as_deref(), Some("w-3"), "the newest window has the focus");
-        focus_window(h.clone(), "w-2".into()).unwrap();
-        assert!(focus_window(h.clone(), "w-99".into()).is_err());
+        focus_window(h.clone(), "w-2".into()).now().unwrap();
+        assert!(focus_window(h.clone(), "w-99".into()).now().is_err());
 
         // Titles reach the window list.
         let w2 = window(&app, "w-2");
@@ -598,6 +599,7 @@ mod tests {
             CurrentWindow::of(&h, "w-2").unwrap(),
             "Incident — IMT".into(),
         )
+        .now()
         .unwrap();
         set_window_title(
             h.clone(),
@@ -605,6 +607,7 @@ mod tests {
             CurrentWindow::of(&h, "w-2").unwrap(),
             "Incident — IMT".into(),
         )
+        .now()
         .unwrap();
         assert!(list(&h).iter().any(|w| w.title == "Incident — IMT"));
 
@@ -704,7 +707,9 @@ mod tests {
         assert_eq!(*requested.lock().unwrap(), 1);
         assert!(main_window(&app).close_asked.load(Ordering::SeqCst));
         // "Keep running in tray", remembered.
-        resolve_close(h.clone(), w.clone(), main_window(&app), CloseChoice::Tray, true).unwrap();
+        resolve_close(h.clone(), w.clone(), main_window(&app), CloseChoice::Tray, true)
+            .now()
+            .unwrap();
         assert!(!main_window(&app).close_asked.load(Ordering::SeqCst));
         assert_eq!(app.state::<SharedPrefs>().get().on_close, OnClose::Tray);
         // Now closing hides without asking.
@@ -713,7 +718,7 @@ mod tests {
         // With another visible window, closing just closes.
         let other = open_new(&h, vec![]).unwrap();
         assert_eq!(close_requested(&h, &window(&app, &other).as_ref().window()), CloseDecision::Close);
-        close_window(w.clone()).unwrap();
+        close_window(w.clone()).now().unwrap();
         // While quitting, every close goes through.
         app.state::<Windows>().set_exiting();
         assert_eq!(close_requested(&h, &w), CloseDecision::Close);

@@ -207,8 +207,8 @@ impl BackgroundTasks {
 
 /// The running background work, for the status bar.
 #[tauri::command]
-pub fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> Vec<TaskInfo> {
-    tasks.list()
+pub async fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> crate::CmdResult<Vec<TaskInfo>> {
+    Ok(tasks.list())
 }
 
 /// Stops a background task (off the UI thread: stopping may join a worker or run `logman`).

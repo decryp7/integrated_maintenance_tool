@@ -316,12 +316,12 @@ fn changed<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &
 }
 
 #[tauri::command]
-pub fn notifications_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesSnapshot> {
+pub async fn notifications_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesSnapshot> {
     Ok(centre(&app)?.snapshot(win.label()))
 }
 
 #[tauri::command]
-pub fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
+pub async fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
     let c = centre(&app)?;
     let done = c.mark_read(win.label(), NoticeId(id));
     changed(&app, &c, win.label(), true);
@@ -329,7 +329,7 @@ pub fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow
 }
 
 #[tauri::command]
-pub fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
+pub async fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
     let c = centre(&app)?;
     let n = c.mark_all_read(win.label());
     changed(&app, &c, win.label(), true);
@@ -337,7 +337,7 @@ pub fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
 }
 
 #[tauri::command]
-pub fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
+pub async fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
     let c = centre(&app)?;
     let done = c.dismiss(win.label(), NoticeId(id));
     changed(&app, &c, win.label(), true);
@@ -346,7 +346,7 @@ pub fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
 
 /// The window's project messages for saving (`NoticesRecord` v1).
 #[tauri::command]
-pub fn notifications_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesRecord> {
+pub async fn notifications_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesRecord> {
     Ok(centre(&app)?.record(win.label()))
 }
 
@@ -359,7 +359,7 @@ pub struct RestoredNotices {
 
 /// Replaces the window's project messages with saved ones (a damaged or newer record gives none).
 #[tauri::command]
-pub fn notifications_restore<R: Runtime>(
+pub async fn notifications_restore<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
     record: Option<Value>,

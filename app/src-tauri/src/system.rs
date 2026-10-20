@@ -117,7 +117,7 @@ pub(crate) fn process_elevated() -> bool {
 /// when `reopen_session`, and exits this instance. Elsewhere: an error. The command line is built in Rust
 /// ([`crate::lifecycle::relaunch_args`]): nothing the webview sends reaches the elevated process.
 #[tauri::command]
-pub fn restart_elevated<R: tauri::Runtime>(
+pub async fn restart_elevated<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     state: CurrentWindow,
     lifecycle: State<'_, crate::lifecycle::Lifecycle>,

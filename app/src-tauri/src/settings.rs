@@ -869,7 +869,7 @@ fn build<R: Runtime>(app: &AppHandle<R>) -> SettingsService {
         let state = handle
             .try_state::<AppState>()
             .ok_or_else(|| anyhow::anyhow!("the app is not ready"))?;
-        lifecycle::plugin_set_enabled(state, id.to_string(), enabled)
+        lifecycle::set_plugin_enabled(&state, id.to_string(), enabled, None)
             .map(|_| ())
             .map_err(|e| anyhow::anyhow!(e))
     });
@@ -927,24 +927,44 @@ pub fn builtins(
 }
 
 #[tauri::command]
-pub fn settings_sections<R: Runtime>(app: AppHandle<R>) -> CmdResult<SettingsOverview> {
-    Ok(service(&app).overview())
+pub async fn settings_sections<R: Runtime>(app: AppHandle<R>) -> CmdResult<SettingsOverview> {
+    Ok(overview(&app))
+}
+
+/// Every section with its values (what `settings_sections` answers), for the shell's own callers.
+pub fn overview<R: Runtime>(app: &AppHandle<R>) -> SettingsOverview {
+    service(app).overview()
 }
 
 #[tauri::command]
-pub fn set_settings<R: Runtime>(app: AppHandle<R>, section: String, values: Value) -> CmdResult<SetResult> {
+pub async fn set_settings<R: Runtime>(
+    app: AppHandle<R>,
+    op: crate::activity::OpId,
+    section: String,
+    values: Value,
+) -> CmdResult<SetResult> {
+    apply_in(&app, &section, values, op.as_deref())
+}
+
+/// Validates and applies a section's values (what `set_settings` does), for the shell's own callers.
+pub fn apply_section<R: Runtime>(app: &AppHandle<R>, section: &str, values: Value) -> CmdResult<SetResult> {
+    apply_in(app, section, values, None)
+}
+
+fn apply_in<R: Runtime>(app: &AppHandle<R>, section: &str, values: Value, op: Option<&str>) -> CmdResult<SetResult> {
+    let (app, section) = (app.clone(), section.to_string());
     let result = service(&app).set(&section, &values)?;
     if result.applied {
-        settings_changed("settings.changed", &section, &values);
+        settings_changed("settings.changed", &section, &values, op);
     }
     Ok(result)
 }
 
 #[tauri::command]
-pub fn reset_settings<R: Runtime>(app: AppHandle<R>, section: String) -> CmdResult<SetResult> {
+pub async fn reset_settings<R: Runtime>(app: AppHandle<R>, op: crate::activity::OpId, section: String) -> CmdResult<SetResult> {
     let result = service(&app).reset(&section)?;
     if result.applied {
-        settings_changed("settings.reset", &section, &Value::Null);
+        settings_changed("settings.reset", &section, &Value::Null, op.as_deref());
     }
     Ok(result)
 }
@@ -954,18 +974,18 @@ const MAX_LOGGED_KEYS: usize = 12;
 
 /// The `settings.changed` domain event: the section and the names of the changed keys, never their values
 /// (a value may be a secret or a path).
-fn settings_changed(event: &str, section: &str, values: &Value) {
+fn settings_changed(event: &str, section: &str, values: &Value, op: Option<&str>) {
     let keys: Vec<&str> = values
         .as_object()
         .map(|o| o.keys().map(String::as_str).take(MAX_LOGGED_KEYS).collect())
         .unwrap_or_default();
     let keys = keys.join(",");
     let section: String = section.chars().take(MAX_ID_LEN).collect();
-    crate::activity::domain_event(event, None, &[("Section", &section), ("Fields", &keys)]);
+    crate::activity::domain_event(event, op, &[("Section", &section), ("Fields", &keys)]);
 }
 
 #[tauri::command]
-pub fn export_settings<R: Runtime>(
+pub async fn export_settings<R: Runtime>(
     app: AppHandle<R>,
     grants: crate::paths::WindowGrants,
     path: String,
@@ -980,7 +1000,7 @@ pub fn export_settings<R: Runtime>(
 }
 
 #[tauri::command]
-pub fn import_settings<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> CmdResult<ImportResult> {
+pub async fn import_settings<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> CmdResult<ImportResult> {
     let path = grants.read_file(&path, &["json"])?.path().to_path_buf();
     let result = service(&app).import(&path)?;
     log::info!(Applied = result.applied.len() as u64, Rejected = result.rejected.len() as u64; "Settings imported");
@@ -992,6 +1012,7 @@ pub fn import_settings<R: Runtime>(app: AppHandle<R>, grants: crate::paths::Wind
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use imt_core::guard::QUARANTINE_AFTER;
     use imt_core::{Plugin, PluginRegistry};
     use std::sync::atomic::AtomicUsize;
@@ -1582,14 +1603,28 @@ pub(crate) mod tests {
         let h = app.handle().clone();
         assert_eq!(live_tail_debounce(&h), DEFAULT_LIVE_TAIL_DEBOUNCE);
         init(&h);
-        let o = settings_sections(h.clone()).unwrap();
+        let o = settings_sections(h.clone()).now().unwrap();
         assert!(o.sections.iter().any(|s| s.section.id == "net.decryptology.windows"));
         assert!(!o.safe_mode);
         // The plugin switch goes through `lifecycle::plugin_set_enabled`.
-        let r = set_settings(h.clone(), PLUGINS_SECTION.into(), json!({ "net.decryptology.web": false })).unwrap();
+        let r = set_settings(
+            h.clone(),
+            crate::activity::OpId::default(),
+            PLUGINS_SECTION.into(),
+            json!({ "net.decryptology.web": false }),
+        )
+        .now()
+        .unwrap();
         assert!(r.applied && r.restart_required);
         assert_eq!(lifecycle::load_plugin_settings(Some(&t.0)).disabled, ["net.decryptology.web"]);
-        set_settings(h.clone(), WORKSPACE_SECTION.into(), json!({ "liveTailDebounce": 400 })).unwrap();
+        set_settings(
+            h.clone(),
+            crate::activity::OpId::default(),
+            WORKSPACE_SECTION.into(),
+            json!({ "liveTailDebounce": 400 }),
+        )
+        .now()
+        .unwrap();
         assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
         // A domain event names the section and the changed fields, never their values.
         let changed = crate::tools::tests::domain_events();
@@ -1604,17 +1639,19 @@ pub(crate) mod tests {
         assert!(!format!("{changed:?}").contains("400"));
         let out = t.0.join("export.json").to_string_lossy().into_owned();
         let grants = || crate::paths::WindowGrants::of(&h, "main");
-        let refused = export_settings(h.clone(), grants(), out.clone(), None).unwrap_err();
+        let refused = export_settings(h.clone(), grants(), out.clone(), None).now().unwrap_err();
         assert!(refused.contains("only writes where you choose"), "{refused}");
         crate::paths::allow_under(&h, "main", &t.0);
-        export_settings(h.clone(), grants(), out.clone(), None).unwrap();
+        export_settings(h.clone(), grants(), out.clone(), None).now().unwrap();
         assert_eq!(
-            export_settings(h.clone(), grants(), out.clone(), None).unwrap_err(),
+            export_settings(h.clone(), grants(), out.clone(), None).now().unwrap_err(),
             crate::error::file_exists(format!("{out} already exists; confirm to replace it"))
         );
-        export_settings(h.clone(), grants(), out.clone(), Some(true)).unwrap();
-        reset_settings(h.clone(), WORKSPACE_SECTION.into()).unwrap();
-        let r = import_settings(h.clone(), grants(), out).unwrap();
+        export_settings(h.clone(), grants(), out.clone(), Some(true)).now().unwrap();
+        reset_settings(h.clone(), crate::activity::OpId::default(), WORKSPACE_SECTION.into())
+            .now()
+            .unwrap();
+        let r = import_settings(h.clone(), grants(), out).now().unwrap();
         assert!(r.applied.contains(&WORKSPACE_SECTION.to_string()));
         let events = crate::tools::tests::domain_events();
         assert!(events
@@ -1622,26 +1659,33 @@ pub(crate) mod tests {
             .any(|c| c.props["Operation"] == "settings.reset" && c.props.get("Section").is_some_and(|s| s == WORKSPACE_SECTION)));
         assert!(events.iter().any(|c| c.props["Operation"] == "settings.imported"));
         assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
-        assert!(export_settings(h.clone(), grants(), "relative.json".into(), None).is_err());
-        assert!(import_settings(h.clone(), grants(), t.0.join("none.json").to_string_lossy().into_owned()).is_err());
+        assert!(export_settings(h.clone(), grants(), "relative.json".into(), None).now().is_err());
+        assert!(
+            import_settings(h.clone(), grants(), t.0.join("none.json").to_string_lossy().into_owned())
+                .now()
+                .is_err()
+        );
         let bad = t.0.join("bad.json");
         std::fs::write(&bad, "[]").unwrap();
-        assert!(import_settings(h.clone(), grants(), bad.to_string_lossy().into_owned()).is_err());
+        assert!(import_settings(h.clone(), grants(), bad.to_string_lossy().into_owned())
+            .now()
+            .is_err());
         // While an import holds the workspace, the status is read without waiting for it.
         {
             let state = crate::test_support::main_window(&app);
             let _busy = state.workspace.write().unwrap();
-            assert!(!settings_sections(h.clone()).unwrap().sections.is_empty());
+            assert!(!settings_sections(h.clone()).now().unwrap().sections.is_empty());
         }
         // The plugin sections come from the workspace's registry (nothing is quarantined here).
-        let web = settings_sections(h.clone()).unwrap();
+        let web = settings_sections(h.clone()).now().unwrap();
         assert_eq!(view(&web, "net.decryptology.windows").status, SectionStatus::Active);
         let failing = export_settings(
             h.clone(),
             grants(),
             t.0.join("missing/dir/x.json").to_string_lossy().into_owned(),
             None,
-        );
+        )
+        .now();
         assert!(failing.is_err());
     }
 
@@ -1651,7 +1695,7 @@ pub(crate) mod tests {
         use tauri::test::{mock_builder, mock_context, noop_assets};
         let app = mock_builder().build(mock_context(noop_assets())).unwrap();
         let h = app.handle().clone();
-        let o = settings_sections(h.clone()).unwrap();
+        let o = settings_sections(h.clone()).now().unwrap();
         assert!(o.sections.iter().any(|s| s.section.id == DIAGNOSTICS_SECTION));
         // Without a workspace there are no plugins: no plugin sections and nothing to switch.
         assert!(!o
@@ -1659,7 +1703,14 @@ pub(crate) mod tests {
             .iter()
             .any(|s| s.group == SectionGroup::Plugins && s.section.id != PLUGINS_SECTION));
         assert!(view(&o, PLUGINS_SECTION).section.fields.is_empty());
-        let r = set_settings(h.clone(), PLUGINS_SECTION.into(), json!({ "net.decryptology.web": false })).unwrap();
+        let r = set_settings(
+            h.clone(),
+            crate::activity::OpId::default(),
+            PLUGINS_SECTION.into(),
+            json!({ "net.decryptology.web": false }),
+        )
+        .now()
+        .unwrap();
         assert!(!r.restart_required);
     }
 }

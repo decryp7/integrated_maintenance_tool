@@ -656,13 +656,13 @@ pub struct AppStatus {
 
 /// The calling window's start-up facts. Only the main window offers crash recovery.
 #[tauri::command]
-pub fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> AppStatus {
-    AppStatus {
+pub async fn app_status(state: CurrentWindow, lifecycle: State<'_, Lifecycle>) -> CmdResult<AppStatus> {
+    Ok(AppStatus {
         version: env!("CARGO_PKG_VERSION"),
         safe_mode: lifecycle.safe_mode,
         previous_crash: lifecycle.previous_crash && state.label() == MAIN,
         session_available: lifecycle.session_path(state.label()).is_some(),
-    }
+    })
 }
 
 /// The relaunched process's command line, built here only (the webview sends no arguments): the flags,
@@ -691,7 +691,7 @@ pub(crate) fn session_to_reopen(state: &CurrentWindow, lifecycle: &Lifecycle, re
 /// Relaunches IMT, optionally in safe mode, reopening the calling window's autosaved session when
 /// `reopen_session` (save it first with `save_session`).
 #[tauri::command]
-pub fn restart_app<R: tauri::Runtime>(
+pub async fn restart_app<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     state: CurrentWindow,
     lifecycle: State<'_, Lifecycle>,
@@ -711,20 +711,25 @@ pub fn restart_app<R: tauri::Runtime>(
 
 /// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
 #[tauri::command]
-pub fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, id: String) -> CmdResult<()> {
+pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, op: crate::activity::OpId, id: String) -> CmdResult<()> {
     // An isolated plugin's process may be quarantined too.
     state.isolation.isolation.reset(&id);
     for w in windows.all() {
         w.store_read().reset_plugin(&id);
     }
     log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
-    crate::activity::domain_event("plugin.reset", None, &[("Plugin", &id)]);
+    crate::activity::domain_event("plugin.reset", op.as_deref(), &[("Plugin", &id)]);
     Ok(())
 }
 
 /// Enables or disables a plugin from the next start (returns `true`: restart needed).
 #[tauri::command]
-pub fn plugin_set_enabled(state: State<'_, AppState>, id: String, enabled: bool) -> CmdResult<bool> {
+pub async fn plugin_set_enabled(state: State<'_, AppState>, op: crate::activity::OpId, id: String, enabled: bool) -> CmdResult<bool> {
+    set_plugin_enabled(&state, id, enabled, op.as_deref())
+}
+
+/// Enables or disables a plugin from the next start (what `plugin_set_enabled` does); `true`: restart needed.
+pub fn set_plugin_enabled(state: &AppState, id: String, enabled: bool, op: Option<&str>) -> CmdResult<bool> {
     let dir = state.config_dir.as_ref().ok_or("no configuration folder")?;
     let mut s = load_plugin_settings(Some(dir));
     s.disabled.retain(|d| *d != id);
@@ -734,13 +739,13 @@ pub fn plugin_set_enabled(state: State<'_, AppState>, id: String, enabled: bool)
     save_plugin_settings(dir, &s).map_err(err)?;
     log::info!(Plugin = id.as_str(), Enabled = enabled; "Plugin setting changed");
     let event = if enabled { "plugin.enabled" } else { "plugin.disabled" };
-    crate::activity::domain_event(event, None, &[("Plugin", &id)]);
+    crate::activity::domain_event(event, op, &[("Plugin", &id)]);
     Ok(true)
 }
 
 /// Autosaves the calling window's session (open files, profile, UI state) for crash recovery.
 #[tauri::command]
-pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
+pub async fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
     let Some(store) = &lifecycle.sessions else { return Ok(()) };
     let mut project = crate::workspace_commands::project_of(&state, "Last session".into(), ui);
     // Autosave never fails over a report: one that does not parse is left out.
@@ -755,12 +760,18 @@ pub fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: V
 /// Path of the calling window's autosaved session (open it with `open_project`, which it is granted to),
 /// if any.
 #[tauri::command]
-pub fn last_session(state: CurrentWindow, grants: crate::paths::WindowGrants, lifecycle: State<'_, Lifecycle>) -> Option<String> {
-    let path = lifecycle.session_path(state.label())?;
-    grants
+pub async fn last_session(
+    state: CurrentWindow,
+    grants: crate::paths::WindowGrants,
+    lifecycle: State<'_, Lifecycle>,
+) -> CmdResult<Option<String>> {
+    let Some(path) = lifecycle.session_path(state.label()) else {
+        return Ok(None);
+    };
+    Ok(grants
         .grant(&path, crate::paths::Access::Read, crate::paths::GrantSource::Output)
         .ok()
-        .map(|g| g.path().to_string_lossy().into_owned())
+        .map(|g| g.path().to_string_lossy().into_owned()))
 }
 
 /// Whether `path` is an autosaved session (IMT's own file: not a project of the recent list).
@@ -797,6 +808,7 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
 
     #[test]
     fn teardown_steps_are_bounded_and_say_how_they_ended() {
@@ -1445,14 +1457,16 @@ mod tests {
         window(&app, MAIN);
         let grants = |label: &str| crate::paths::WindowGrants::of(&h, label);
         let life = || app.state::<Lifecycle>();
-        let status = app_status(main_window(&app), life());
+        let status = app_status(main_window(&app), life()).now().unwrap();
         assert!(status.previous_crash && status.session_available);
         // Another window does not offer crash recovery.
         let w2 = crate::windows::CurrentWindow::of(&h, "w-7").unwrap();
-        let other = app_status(w2.clone(), life());
+        let other = app_status(w2.clone(), life()).now().unwrap();
         assert!(!other.previous_crash && !other.session_available);
-        assert!(last_session(w2.clone(), grants("w-7"), life()).is_none());
+        assert!(last_session(w2.clone(), grants("w-7"), life()).now().unwrap().is_none());
         assert!(last_session(main_window(&app), grants(MAIN), life())
+            .now()
+            .unwrap()
             .unwrap()
             .ends_with(SESSION_FILE));
 
@@ -1479,17 +1493,27 @@ mod tests {
             serde_json::json!({ "k": 1 }),
             Some(vec![serde_json::json!({"id": "r"}), Value::Null]),
         )
+        .now()
         .unwrap();
-        save_session(w2.clone(), life(), Value::Null, None).unwrap();
-        let saved = ProjectFile::load(&last_session(main_window(&app), grants(MAIN), life()).map(PathBuf::from).unwrap()).unwrap();
+        save_session(w2.clone(), life(), Value::Null, None).now().unwrap();
+        let saved = ProjectFile::load(
+            &last_session(main_window(&app), grants(MAIN), life())
+                .now()
+                .unwrap()
+                .map(PathBuf::from)
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!((saved.sources.len(), saved.ui["k"].as_i64()), (1, Some(1)));
         assert_eq!(saved.reports.len(), 1, "an unreadable report is left out of the autosave");
-        assert!(last_session(w2, grants("w-7"), life()).is_some());
+        assert!(last_session(w2, grants("w-7"), life()).now().unwrap().is_some());
         life().forget_session("w-7");
         // Without a data folder sessions are off.
         let app2 = test_app(None);
         app2.manage(Lifecycle::begin(None, false));
-        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None).unwrap();
+        save_session(main_window(&app2), app2.state::<Lifecycle>(), Value::Null, None)
+            .now()
+            .unwrap();
         assert_eq!(
             tauri::async_runtime::block_on(restore_windows(
                 app2.handle().clone(),

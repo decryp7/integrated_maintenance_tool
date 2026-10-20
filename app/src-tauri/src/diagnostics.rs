@@ -168,12 +168,12 @@ pub struct SettingsApplied {
 }
 
 #[tauri::command]
-pub fn diagnostics_settings(state: State<'_, AppState>) -> CmdResult<DiagnosticsSettings> {
+pub async fn diagnostics_settings(state: State<'_, AppState>) -> CmdResult<DiagnosticsSettings> {
     Ok(load(state.config_dir.as_deref()))
 }
 
 #[tauri::command]
-pub fn set_diagnostics_settings(state: State<'_, AppState>, settings: DiagnosticsSettings) -> CmdResult<SettingsApplied> {
+pub async fn set_diagnostics_settings(state: State<'_, AppState>, settings: DiagnosticsSettings) -> CmdResult<SettingsApplied> {
     let dir = state.config_dir.as_ref().ok_or("no configuration folder")?;
     let before = load(Some(dir));
     let settings = settings.clamped();

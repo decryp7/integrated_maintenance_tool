@@ -357,7 +357,7 @@ pub(crate) async fn preview_extractor(state: CurrentWindow, request: ExtractPrev
 
 /// Progress of the running import (readable while the import holds the workspace).
 #[tauri::command]
-pub(crate) fn import_progress(state: CurrentWindow) -> imt_core::workspace::ProgressSnapshot {
+pub(crate) async fn import_progress(state: CurrentWindow) -> imt_core::workspace::ProgressSnapshot {
     state.progress.snapshot()
 }
 
@@ -398,7 +398,7 @@ pub(crate) async fn preview_spans(
 /// Delivery counters of the plugins' event subscribers (plugin health).
 /// Reads the event bus only, so it answers while an import runs.
 #[tauri::command]
-pub(crate) fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
+pub(crate) async fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
     state.event_metrics()
 }
 
@@ -627,7 +627,7 @@ pub(crate) async fn set_live<R: Runtime>(
 /// with `open_project`, others with `open_paths`. Only Rust queues them, so they are granted to the
 /// window as they are handed over.
 #[tauri::command]
-pub(crate) fn take_pending_open(state: CurrentWindow, grants: crate::paths::WindowGrants) -> CmdResult<Vec<String>> {
+pub(crate) async fn take_pending_open(state: CurrentWindow, grants: crate::paths::WindowGrants) -> CmdResult<Vec<String>> {
     let pending = state.take_pending();
     for p in &pending {
         let _ = grants.grant(
@@ -642,6 +642,7 @@ pub(crate) fn take_pending_open(state: CurrentWindow, grants: crate::paths::Wind
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app, window, TempDir};
     use crate::windows::{queue_open, Windows};
     use imt_core::query::Query;
@@ -654,7 +655,9 @@ mod tests {
     fn opened(dir: Option<PathBuf>, paths: &[PathBuf]) -> tauri::App<MockRuntime> {
         let app = test_app(dir);
         main_window(&app).queue(crate::instance::existing(paths));
-        let pending = take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap();
+        let pending = take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+            .now()
+            .unwrap();
         block(open_paths(app.handle().clone(), main_window(&app), pending)).unwrap();
         app
     }
@@ -847,7 +850,7 @@ mod tests {
         assert!(block(annotations(other, AnnotationsRequest::default())).unwrap().is_empty());
 
         // The built-in plugins subscribe to nothing yet; metrics are a list either way.
-        let metrics = plugin_events(main_window(&app));
+        let metrics = plugin_events(main_window(&app)).now();
         assert!(metrics.iter().all(|m| !m.plugin.is_empty()));
     }
 
@@ -905,6 +908,7 @@ mod tests {
                 OpId::default(),
                 "name = 'Project profile'".into(),
             )
+            .now()
             .unwrap(),
         );
         let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
@@ -958,7 +962,9 @@ mod tests {
         assert!(st().project().is_none());
         crate::test_support::job_done(
             &app,
-            crate::profile::save_profile(app.handle().clone(), shared(), st(), OpId::default(), "name = 'Other'".into()).unwrap(),
+            crate::profile::save_profile(app.handle().clone(), shared(), st(), OpId::default(), "name = 'Other'".into())
+                .now()
+                .unwrap(),
         );
         let opened = block(open_project(
             app.handle().clone(),
@@ -975,7 +981,7 @@ mod tests {
         assert_eq!(opened["summary"]["profileName"], "Project profile");
         assert!(opened["summary"]["total"].as_u64().unwrap() > 0);
         assert_eq!(opened["missing"].as_array().unwrap().len(), 0);
-        assert_eq!(crate::profile::get_profile(st()).unwrap().name, "Project profile");
+        assert_eq!(crate::profile::get_profile(st()).now().unwrap().name, "Project profile");
         let missing = dir.0.join("nope.imtproj").to_string_lossy().into_owned();
         assert!(block(open_project(
             app.handle().clone(),
@@ -1207,6 +1213,7 @@ mod tests {
         ]));
         assert_eq!(
             take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+                .now()
                 .unwrap()
                 .len(),
             1,
@@ -1214,13 +1221,16 @@ mod tests {
         );
         assert!(
             take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+                .now()
                 .unwrap()
                 .is_empty()
         );
         queue_open(app.handle(), "main", vec!["/a/b.imtproj".into()]);
         queue_open(app.handle(), "main", vec![]);
         assert_eq!(
-            take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main")).unwrap(),
+            take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
+                .now()
+                .unwrap(),
             ["/a/b.imtproj"]
         );
         // A closed window's queue cannot be recreated.
