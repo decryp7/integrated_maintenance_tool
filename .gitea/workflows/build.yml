@@ -18,6 +18,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Line tables only (file:line in backtraces, no variable info): smaller debug builds and caches and much less
+  # memory when linking the test binaries. The test profile inherits this from dev.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 # A newer push to the same branch (or pull request) supersedes the run still going; tags have their own ref,
 # so releases are never cancelled by later pushes.
@@ -98,16 +101,16 @@ jobs:
           $SUDO apt-get update
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake
 
+      # Only the downloaded crates: the test build folder was 5.6-10 GB, took 72-163 s to restore or save and
+      # evicted the other jobs' caches on the shared runners. A new key so the old target caches are not restored.
       - uses: actions/cache/restore@v4
         id: cargo-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-            !target/debug/incremental
-          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: test-${{ runner.os }}-
+          key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: test-registry-${{ runner.os }}-
 
       # nextest runs every test in its own process, in parallel across crates, and reports every failure;
       # .config/nextest.toml serialises (and retries) the tests that time real child processes.
@@ -118,17 +121,14 @@ jobs:
       - name: Doc tests
         run: cargo test --workspace --doc
 
-      # Saved only when the dependencies changed (no exact hit): the workspace's own crates rebuild anyway, and
-      # uploading the whole target folder on every run cost about a minute per job.
+      # Saved only when the dependencies changed (no exact hit).
       - uses: actions/cache/save@v4
         if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-            !target/debug/incremental
-          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
   licences:
     name: licences, notices + commits
