@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { WorkspaceStore } from './core/workspace.store';
 import { ActivityBar } from './shell/activity-bar';
 import { Sidebar } from './shell/sidebar';
@@ -14,24 +14,25 @@ import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
-import { FolderSetupHint } from './ai/folder-setup/folder-setup-hint';
 
 @Component({
   selector: 'imt-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay, FolderSetupHint],
+  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, Icon, ImportToast, PartialImportBanner, TourOverlay],
   template: `
     <imt-title-bar />
     <imt-lifecycle-banners />
     <imt-partial-import-banner />
-    <imt-folder-setup-hint />
     <div class="body">
       <imt-activity-bar />
       @if (store.sidebarOpen()) {
         <imt-sidebar />
       }
       <main class="center">
-        <imt-filter-bar />
+        <!-- Nothing to filter until data is open: the welcome page is the whole first screen. -->
+        @if (hasData()) {
+          <imt-filter-bar />
+        }
         <div class="stage">
           <imt-dock-host />
           @if (welcome.visible()) {
@@ -91,4 +92,5 @@ import { FolderSetupHint } from './ai/folder-setup/folder-setup-hint';
 export class App {
   protected readonly store = inject(WorkspaceStore);
   protected readonly welcome = inject(WelcomeService);
+  protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
 }

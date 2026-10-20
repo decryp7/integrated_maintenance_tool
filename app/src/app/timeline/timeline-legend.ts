@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { AnnotationDto, MarkerKind } from '../core/api.types';
 import { formatDateTime } from '../core/format';
 import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
@@ -12,6 +12,10 @@ import { TIMELINE_SOURCE } from './timeline-source';
 
 /** At most this many annotations are listed in the Evidence menu (the rest: zoom in). */
 const MAX_ANN_MENU = 50;
+/** Marker kinds shown before "+N more". */
+export const LEGEND_COLLAPSED = 6;
+
+let legendSeq = 0;
 
 /**
  * The legend above the lanes: marker kinds (click shows only that kind), runs and annotation kinds (click hides or
@@ -23,10 +27,10 @@ const MAX_ANN_MENU = 50;
   imports: [MarkerGlyph, SeverityBadge],
   host: { style: 'display: contents' },
   template: `
-    @if (markerKinds().length > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
+    @if (legendItems().length > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
       <div class="legend-row">
-        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0">
-          @for (k of legendItems(); track k.kind.kind) {
+        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [id]="listId" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
+          @for (k of shownItems(); track k.kind.kind) {
             <button
               type="button"
               class="lg"
@@ -36,6 +40,11 @@ const MAX_ANN_MENU = 50;
               (click)="toggleKind(k.kind.kind, k.active)"
             ><span class="pill"><imt-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
             @if (k.descId; as id) { <span class="sr" [id]="id">{{ k.title }}</span> }
+          }
+          @if (legendItems().length > collapsedCount) {
+            <button type="button" class="lg more" data-testid="legend-more" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
+              <span class="pill">{{ expanded() ? fewerLabel : moreLabel(hidden()) }}</span>
+            </button>
           }
         </div>
         @if (ann.runKinds().length) {
@@ -116,6 +125,9 @@ const MAX_ANN_MENU = 50;
     .lg:focus-visible .pill { outline: 2px solid var(--accent); outline-offset: 1px; }
     .lg:hover .pill { background: var(--bg-hover); }
     .lg[aria-pressed='true'] .pill { border-color: var(--accent); background: var(--accent-soft); }
+    /* One line; clipped sideways only, so the 24px hit areas (which overhang by 2px) are not cut. */
+    .legend.collapsed { flex-wrap: nowrap; overflow-x: clip; }
+    .more .pill { color: var(--chip-text); }
     .lg-title { font-weight: 600; color: var(--text-2); white-space: nowrap; }
     .legend.filtering .lg[aria-pressed='false'], .ann-legend .lg[aria-pressed='false'], .run-legend .lg[aria-pressed='false'] { opacity: 0.5; text-decoration: line-through; }
     .run-legend .lg[aria-pressed='true'] .pill { border-color: transparent; background: transparent; }
@@ -140,11 +152,29 @@ export class TimelineLegend {
   protected readonly showRunsTitle = $localize`:@@timeline.legend.showRuns:Show the runs between start and stop markers`;
 
   protected readonly markerKinds = computed(() => this.data.summary()?.markerKinds ?? []);
+  protected readonly listId = `timeline-legend-${++legendSeq}`;
+  /** The full list of marker kinds in the data is shown ("+N more" was pressed). */
+  protected readonly expanded = signal(false);
+  protected readonly collapsedCount = LEGEND_COLLAPSED;
+  protected readonly fewerLabel = $localize`:@@timeline.legend.fewer:Show fewer`;
 
-  /** The marker kinds with their state: pressed when the timeline shows only that kind. */
+  /** Events per marker kind in the current timeline (the engine's clusters), to list only kinds that occur. */
+  private readonly occurring = computed(() => {
+    const counts = new Map<string, number>();
+    for (const lane of this.src.timeline()?.lanes ?? []) for (const m of lane.markers) counts.set(m.kind, (counts.get(m.kind) ?? 0) + m.count);
+    return counts;
+  });
+
+  /**
+   * The marker kinds that occur in the data (or that the timeline is restricted to), most frequent first, with their
+   * state: pressed when the timeline shows only that kind.
+   */
   protected readonly legendItems = computed(() => {
     const m = this.src.markers();
-    return this.markerKinds().map((kind: MarkerKind) => {
+    const counts = this.occurring();
+    const present = this.markerKinds().filter((k) => counts.has(k.kind) || m.includes(k.kind));
+    const order = (k: MarkerKind) => (m.includes(k.kind) ? Number.MAX_SAFE_INTEGER : (counts.get(k.kind) ?? 0));
+    return [...present].sort((a, b) => order(b) - order(a)).map((kind: MarkerKind) => {
       const description = styleOf(kind).description;
       return {
         kind,
@@ -154,6 +184,14 @@ export class TimelineLegend {
       };
     });
   });
+
+  /** One line until expanded. */
+  protected readonly shownItems = computed(() => (this.expanded() ? this.legendItems() : this.legendItems().slice(0, LEGEND_COLLAPSED)));
+  protected readonly hidden = computed(() => this.legendItems().length - this.shownItems().length);
+
+  protected moreLabel(n: number): string {
+    return $localize`:@@timeline.legend.more:+${n}:count: more`;
+  }
 
   /** Clicking a legend item shows only that marker's events; clicking again clears it. */
   protected toggleKind(kind: string, active: boolean): void {

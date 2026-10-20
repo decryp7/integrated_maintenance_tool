@@ -4,6 +4,7 @@ Reference for everyday use: which files IMT reads, how to write a profile, the q
 internal web browser, the keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
 first walk-through, see the two-minute tour in the [README](../README.md#quick-start).
 
+- [First run and layout](#first-run-and-layout)
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
 - [Query language](#query-language)
@@ -11,6 +12,26 @@ first walk-through, see the two-minute tour in the [README](../README.md#quick-s
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
+
+## First run and layout
+
+With nothing open, IMT shows the welcome page: **Open folder…**, **Open files…** or **Try a demo** (or drop
+files anywhere). After opening data you get the **Focused** layout: the timeline over the events grid, with
+the inspector sliding out from the right when you select an event.
+
+- **Filter bar** (one row): search (`.*` regex, `Aa` match case), level chips, the time range (click to
+  reset a zoom), UTC/local, *+ Add filter*, *Clear all* and **View options** with *Group by*, *Marked only*
+  and *Always show start / stop*.
+- **Timeline header**: the health check's headline, e.g. "⚠ 2 crashes · 287 errors · 1 went silent —
+  Review". *N crashes* jumps to the next crash, *N errors* shows the errors and fatal events, *N went silent*
+  shows the next silence, *Review* opens the Overview. The line is hidden when nothing is notable.
+- **Legend**: only the marker kinds that occur in the data, on one line; *+N more* shows the rest.
+- **Query bar**: `Ctrl/⌘+/` (or *Analyze ▸ Focus query bar*) opens it above the events grid.
+- **Sidebar**: the Explorer; the **Fields** section starts collapsed (click its header; IMT remembers).
+- **Set up analysis…** for a folder of several files is offered in Notifications (the bell).
+
+*View ▸ Layout ▸ Full* restores the richer default (the query bar in the default layout and the Overview
+opening after every import). The choice applies to new layouts (*Reset layout*); layouts you saved are kept.
 
 ## Supported inputs
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openApp } from './app';
+import { openApp, openViewOptions } from './app';
 
 test('changing group-by alters the lane labels', async ({ page }) => {
   await openApp(page);
@@ -7,7 +7,8 @@ test('changing group-by alters the lane labels', async ({ page }) => {
   await expect(lanes).toHaveCount(7);
   await expect(lanes.first()).toContainText(/\d{3,4}$/); // ends in a ProcessId
 
-  await page.getByRole('button', { name: /Group by/ }).click();
+  // Group by is under the filter bar's View options.
+  await openViewOptions(page);
   await page.getByRole('button', { name: 'Remove ProcessId' }).click();
   await expect(lanes).toHaveCount(5);
   await expect(lanes.filter({ hasText: /\d{3,4}$/ })).toHaveCount(0);

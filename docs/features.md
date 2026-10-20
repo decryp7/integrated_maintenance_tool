@@ -409,12 +409,27 @@ release builds. IMT's own shortcuts and `Ctrl`+wheel zoom on the timeline still 
 menus and bars do not select like text; log messages, inspector values and fields do. Images and
 links cannot be dragged out of the window.
 
-The default layout is minimal: the timeline, and the events grid with the query bar. The inspector
-waits at the right edge and slides out when you select an event (pin it to keep it docked); views for
-what you just opened (a registry export, a profile capture, a diagnostics report) open by themselves.
-Everything else is one click away on the **activity bar** on the left: Explorer, Search, Timeline,
-*Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*,
-*AI*, *Tools ▸* and the profile editor. Plugins can add their own buttons to it.
+The first run is focused. With nothing open, the window shows only the welcome page (open a folder or files,
+or try the demo) and the Explorer; the filter bar and the Fields section appear once data is open. After
+opening data, the default layout is the timeline over the events grid. The inspector waits at the right edge
+and slides out when you select an event (pin it to keep it docked); views for what you just opened (a registry
+export, a profile capture, a diagnostics report) open by themselves. The Overview, the query bar and Metrics
+stay one click away: the timeline header shows the health check's headline on one line ("⚠ 2 crashes · 287
+errors · 1 went silent — Review"; each count jumps to or filters those events, *Review* opens the Overview),
+`Ctrl/⌘+/` opens the query bar, and the **activity bar** on the left offers Explorer, Search, Timeline,
+*Analysis ▸* (patterns, anomalies, exceptions, Moment, compare, traces, runs, …), Metrics, *Live tail*, *AI*,
+*Tools ▸* and the profile editor. Buttons that need data (Search, Timeline, Analysis, Metrics, Live tail) appear
+once data is open; everything stays reachable from the View menu. Plugins can add their own buttons.
+
+The filter bar is one row: search, level chips, the time range, *+ Add filter* and **View options** (group by,
+*Marked only*, *Always show start / stop*); field and instance filters appear as chips on a second row while
+there are any. The timeline legend lists only the marker kinds in the data, on one line, with *+N more* for the
+rest. The Fields section of the sidebar starts collapsed and remembers whether you opened it. After opening a
+folder of several files, *Set up analysis…* is offered as a message in Notifications (the bell), not as a banner.
+
+*View ▸ Layout* switches between **Focused** (the default) and **Full**, where the query bar is part of the
+default layout and the Overview opens after every import, as in earlier versions. The switch applies to new
+layouts (*Reset layout*, a new window); a layout you saved or arranged is never changed by it.
 
 ## Windows, tray and notifications
 
@@ -502,9 +517,10 @@ Theme follows the system by default, or choose **Theme: dark/light** in the comm
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
   guided tour of the timeline, grid, query bar, Moment view, markers and overview.
-- **Overview after every import:** a health check lists crashes, error spikes, exceptions, unread lines,
-  files that could not be opened (with the reason) and plugins with problems, each with a button to jump
-  to the time, show the events or fix the cause. It can be turned off.
+- **Overview:** a health check lists crashes, error spikes, exceptions, unread lines, files that could not
+  be opened (with the reason) and plugins with problems, each with a button to jump to the time, show the
+  events or fix the cause. Its headline is on the timeline header; in the Full layout the Overview opens after
+  every import (which can be turned off).
 - **Import progress with Cancel:** files, bytes, the current file and the time left; a cancelled import
   says clearly what was not read, and *Re-import all* loads the rest.
 - **Undo and redo** for user edits; changes to the profile are undone by saving the previous version

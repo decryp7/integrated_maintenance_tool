@@ -76,7 +76,8 @@ export class TitleBar {
   protected onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
     const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-    if (e.key === '/' && !typing) {
+    // A bare '/' focuses the search box; Ctrl/⌘+/ is a command (focus the query bar).
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing) {
       e.preventDefault();
       this.store.focusSearch();
       return;

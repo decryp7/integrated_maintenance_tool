@@ -40,6 +40,10 @@ describe('App', () => {
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('imt-welcome')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('imt-dock-host')).not.toBeNull();
+    // Nothing to filter yet: the welcome page is the whole first screen.
+    expect(fixture.nativeElement.querySelector('imt-filter-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid=folder-setup-hint]')).toBeNull();
   });
 
   it('toggles the sidebar', async () => {

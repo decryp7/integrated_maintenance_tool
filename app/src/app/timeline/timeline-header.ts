@@ -13,6 +13,7 @@ import { TimelineInstanceStore } from './timeline-instance.store';
 import { TIMELINE_SOURCE } from './timeline-source';
 import { TimelineViews } from './timeline-views';
 import { RangeZoom } from './zoom';
+import { OverviewHeadline } from '../overview/overview-headline';
 
 /**
  * The timeline's title bar (title and rename, hint, loading, live window, zoom history, menu) and, for an additional
@@ -21,7 +22,7 @@ import { RangeZoom } from './zoom';
 @Component({
   selector: 'imt-timeline-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch, AutoFocus, LiveWindowControls],
+  imports: [Icon, Switch, AutoFocus, LiveWindowControls, OverviewHeadline],
   host: { style: 'display: contents' },
   template: `
     <div class="head">
@@ -31,6 +32,10 @@ import { RangeZoom } from './zoom';
         <span class="section-title" [attr.data-testid]="src.main ? null : 'timeline-title'" (dblclick)="startRename()">{{ src.title() }}</span>
       }
       @if (inst && !inst.synced()) { <span class="unlinked" title="Zoom, pan and the time cursor are not linked to the main timeline" i18n-title="@@timeline.panel.unlinked.title" i18n="@@timeline.panel.unlinked">Unlinked</span> }
+      @if (src.main) {
+        <!-- The health check's headline, on the title row (the Overview stays one click away). -->
+        <imt-overview-headline />
+      }
       <span class="faint hint">{{ hint() }}</span>
       @if (src.loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@timeline.panel.loading"></span> }
       <span class="spacer"></span>
@@ -85,7 +90,7 @@ import { RangeZoom } from './zoom';
   `,
   styles: `
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
-    .hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hint { min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .section-title { white-space: nowrap; }
     .title-input { width: 200px; height: 24px; padding: 0 6px; }
     .unlinked { flex: none; font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px dashed var(--border-3); color: var(--text-2); }

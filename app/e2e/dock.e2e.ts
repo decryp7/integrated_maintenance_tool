@@ -19,9 +19,13 @@ async function box(page: Page, selector: string) {
 }
 
 test.describe('dock layout', () => {
-  test.beforeEach(async ({ page }) => openApp(page));
+  // The docking mechanics are checked on the Full layout (timeline, query bar and events in three groups).
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('imt.layout.mode.v1', 'full'));
+    await openApp(page);
+  });
 
-  test('default layout: timeline over the query bar over events, the inspector auto-hidden on the right; it slides out on selection and pins', async ({ page }) => {
+  test('Full layout: timeline over the query bar over events, the inspector auto-hidden on the right; it slides out on selection and pins', async ({ page }) => {
     const timeline = await box(page, 'imt-timeline-panel');
     const query = await box(page, 'imt-query-view');
     const events = await box(page, 'imt-events-grid');

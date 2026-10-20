@@ -34,8 +34,9 @@ export interface ImtView {
   /**
    * Opens the view (in the background) when `when` starts to hold, e.g. a viewer for the kind of file just opened.
    * Without it, a view with `when` is only offered and opens on demand. It is always closed when `when` stops holding.
+   * `full`: only in the Full layout (View › Layout); in the Focused layout it is offered and opens on demand.
    */
-  autoOpen?: boolean;
+  autoOpen?: boolean | 'full';
   /**
    * Like `when`, for a feature that may be absent (its engine plugin is disabled, or the app runs in safe mode): the
    * view is offered only while this returns true, but it is never opened or closed automatically. Defaults to always.

@@ -8,6 +8,7 @@ import { FLOAT_MAX, floatSize, ghostRect, TabDropOutcome, tabDropOutcome } from 
 import { AutoHideItem } from './auto-hide';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
 import { viewKind } from './view-kind';
+import { LayoutModeStore } from '../core/workspace/layout-mode';
 
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
@@ -62,10 +63,11 @@ export function defaultAutoHidden(inspector: ImtView | undefined): AutoHideItem[
 @Injectable({ providedIn: 'root' })
 export class DockPlacement {
   private readonly ctx = inject(DockContext);
+  private readonly layout = inject(LayoutModeStore);
 
   /**
-   * The minimal default: the timeline over the events (with the query bar pinned above them); the inspector is an
-   * auto-hidden tool window on the right edge that slides out when an event is selected (pin it to keep it docked).
+   * The minimal default: the timeline over the events (in the Full layout with the query bar pinned above them); the
+   * inspector is an auto-hidden tool window on the right edge that slides out when an event is selected (pin it to keep it docked).
    * Everything else (metrics, profile editor, analysis, tools, ...) opens on demand. Returns the extras to apply.
    */
   buildDefault(api: DockviewApi): DockExtras {
@@ -76,7 +78,7 @@ export class DockPlacement {
     };
     add(PANEL.timeline);
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
-    const query = views.find(QUERY_VIEW);
+    const query = this.layout.full() ? views.find(QUERY_VIEW) : undefined;
     if (query) this.addView(api, query, false);
     api.getPanel(PANEL.timeline)?.api.setActive();
     api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });

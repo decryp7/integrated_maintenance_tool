@@ -82,3 +82,19 @@ export async function hideInspectorFlyout(page: Page): Promise<void> {
   await flyout.getByRole('button', { name: /^Hide / }).click();
   await expect(flyout).toHaveCount(0);
 }
+
+/** Opens the filter bar's View options (group by, Marked only, Always show start / stop). */
+export async function openViewOptions(page: Page) {
+  const button = page.getByRole('button', { name: 'View options' });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  const dialog = page.getByRole('dialog', { name: 'View options' });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** Expands the sidebar's Fields section (it starts collapsed). */
+export async function expandFields(page: Page): Promise<void> {
+  const toggle = page.getByTestId('fields-toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
