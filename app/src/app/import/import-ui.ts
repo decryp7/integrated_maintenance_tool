@@ -39,11 +39,11 @@ function view(svc: ImportProgressService) {
     :host { display: contents; }
     /* Never shrinks: in a crowded status bar the Cancel button would otherwise spill over its neighbours. */
     .wrap { display: inline-flex; align-items: center; gap: 8px; flex: none; }
-    .bar { width: 80px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--accent-ink) 25%, transparent); overflow: hidden; flex: none; }
-    .fill { display: block; height: 100%; background: var(--accent-ink); transition: width 0.2s; }
-    .file { max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 11px; }
-    .cancel { height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: 11px; font-weight: 600; }
-    .cancel:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+    .bar { width: 80px; height: 6px; border-radius: 3px; background: var(--border-2); overflow: hidden; flex: none; }
+    .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+    .file { max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: var(--fs-xs); }
+    .cancel { height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
+    .cancel:hover:not(:disabled) { background: var(--bg-hover); }
     @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
   `,
 })
@@ -78,15 +78,15 @@ export class ImportStatus {
     }
   `,
   styles: `
-    .toast { position: fixed; left: 16px; bottom: 36px; z-index: 100; width: 360px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); font-size: 12px; }
+    .toast { position: fixed; left: 16px; bottom: 36px; z-index: 100; width: 360px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); font-size: var(--fs-sm); }
     .head { display: flex; align-items: center; gap: 8px; }
-    .head imt-icon { color: var(--accent); }
+    .head imt-icon { color: var(--accent-text); }
     .spacer { flex: 1; }
     .bar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
     .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
     .line { color: var(--text-2); }
-    .file { font-family: var(--font-mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .small { font-size: 11px; }
+    .file { font-family: var(--font-mono); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .small { font-size: var(--fs-xs); }
     @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
   `,
 })
@@ -114,7 +114,7 @@ export class ImportToast {
     }
   `,
   styles: `
-    .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); border-left: 3px solid var(--lvl-warn); }
+    .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); border-left: 3px solid var(--lvl-warn); }
     .banner imt-icon { color: var(--warn-text); }
     .msg { flex: 1; min-width: 0; }
   `,

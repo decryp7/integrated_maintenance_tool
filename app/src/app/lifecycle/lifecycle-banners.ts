@@ -50,7 +50,7 @@ import { RedactionBanner } from '../share/redaction/redaction-banner';
     <imt-redaction-banner />
   `,
   styles: `
-    .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); }
+    .banner { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--fs-sm); border-bottom: 1px solid var(--border); background: var(--bg-3); color: var(--text); }
     .banner.warn { border-inline-start: 3px solid var(--lvl-warn); }
     .banner.warn imt-icon { color: var(--warn-text); }
     .banner.info { border-inline-start: 3px solid var(--accent); }

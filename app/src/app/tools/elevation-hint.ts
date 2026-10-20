@@ -25,7 +25,7 @@ import { isAccessDenied } from './tool-errors';
     }
   `,
   styles: `
-    .err { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-error); background: var(--bg-3); color: var(--text); font-size: 12px; }
+    .err { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-error); background: var(--bg-3); color: var(--text); font-size: var(--fs-sm); }
     .text { flex: 1; min-width: 200px; color: var(--danger-text); }
   `,
 })

@@ -18,7 +18,10 @@ function bare(backend: ImtBackend = tinyBackend()) {
 }
 
 describe('workspace stores', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+  });
   afterEach(() => document.documentElement.removeAttribute('data-theme'));
 
   it('have no side effects of their own besides loading the summary: nothing persists or touches the document without provideWorkspace', async () => {
@@ -26,7 +29,7 @@ describe('workspace stores', () => {
     const summary = vi.spyOn(backend, 'workspaceSummary');
     const { data } = bare(backend);
     const prefs = TestBed.inject(UiPrefsStore);
-    prefs.setTheme('dark');
+    prefs.setScheme('dark');
     prefs.setTimezone('local');
     await settle();
     expect(summary).toHaveBeenCalledTimes(1);
@@ -44,15 +47,16 @@ describe('workspace stores', () => {
     await settle();
     expect(summary).toHaveBeenCalledTimes(1);
     expect(data.summary()?.total).toBe(11);
-    prefs.setTheme('light');
+    prefs.setScheme('light');
     await settle();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ theme: 'light' });
+    expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('calm');
+    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ scheme: 'light', theme: 'calm' });
     // Starting the theme again adds no second effect.
     TestBed.inject(ThemeService).start();
-    prefs.setTheme('system');
+    prefs.setScheme('system');
     await settle();
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(['light', 'dark']).toContain(document.documentElement.getAttribute('data-scheme'));
   });
 
   it('keeps working when the window cannot listen for file drops, and logs why', async () => {

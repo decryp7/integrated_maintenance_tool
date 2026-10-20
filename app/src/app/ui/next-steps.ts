@@ -53,7 +53,7 @@ export function emptyCause(hasFiles: boolean, query: Query): EmptyCause {
   `,
   styles: `
     :host { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
-    .why { flex-basis: 100%; text-align: center; color: var(--muted); font-size: 12px; }
+    .why { flex-basis: 100%; text-align: center; color: var(--muted); font-size: var(--fs-sm); }
     .btn { gap: 6px; }
   `,
 })

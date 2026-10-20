@@ -118,7 +118,7 @@ export function waterfallTotal(rows: readonly WaterfallRow[]): number {
       .wf { overflow: auto; min-width: 0; }
       .pad { padding: 8px 12px; margin: 0; }
       .wrow { display: flex; align-items: center; gap: 10px; padding: 3px 12px; }
-      .wname { width: 260px; flex: none; font-size: 11px; }
+      .wname { width: 260px; flex: none; font-size: var(--fs-xs); }
       .wtrack { position: relative; flex: 1; height: 12px; background: var(--lane-bar); border-radius: 3px; min-width: 120px; }
       .wbar { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; background: var(--s1); }
       .wbar.bad { background: var(--lvl-error); }

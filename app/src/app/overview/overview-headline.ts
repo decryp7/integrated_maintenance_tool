@@ -103,7 +103,7 @@ export class OverviewHeadlineStore {
     }
   `,
   styles: `
-    .headline { flex: none; display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+    .headline { flex: none; display: flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; }
     .warn { color: var(--warn-text); flex: none; }
     /* 24px targets (WCAG 2.5.8) on a compact line. */
     .count, .review { min-height: 24px; border: 0; background: transparent; padding: 0 4px; border-radius: 4px; font: inherit; color: inherit; cursor: pointer; }
@@ -111,7 +111,13 @@ export class OverviewHeadlineStore {
     .count.bad { color: var(--danger-text); }
     .review { color: var(--chip-text); text-decoration: underline; }
     .count:hover, .review:hover { background: var(--bg-hover); }
-    .count:focus-visible, .review:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .count:focus-visible, .review:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    /* findings: chips. Each count is a tinted chip (its text and the warning glyph say what it is, not the tint alone). */
+    :host-context([data-findings='chips']) .headline { gap: 6px; }
+    :host-context([data-findings='chips']) .count { min-height: 22px; padding: 0 9px; border-radius: 999px; font-weight: 600; background: color-mix(in srgb, var(--warn-text) 14%, transparent); }
+    :host-context([data-findings='chips']) .count.bad { background: color-mix(in srgb, var(--danger-text) 14%, transparent); }
+    :host-context([data-findings='chips']) .count + .count::before { content: none; }
+    :host-context([data-findings='chips']) .review { padding: 0 10px; min-height: 22px; border-radius: 999px; text-decoration: none; color: var(--accent-text); background: var(--accent-soft); font-weight: 600; }
   `,
 })
 export class OverviewHeadline {

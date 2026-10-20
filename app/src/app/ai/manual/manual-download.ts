@@ -149,7 +149,7 @@ let nextId = 0;
     h4,
     h5 {
       margin: 0;
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     p {
       margin: 0;
@@ -181,7 +181,7 @@ let nextId = 0;
     }
     .sha,
     .folder {
-      font-size: 12px;
+      font-size: var(--fs-sm);
       color: var(--text-2);
     }
     .actions {
@@ -190,7 +190,7 @@ let nextId = 0;
     }
     .muted {
       color: var(--muted);
-      font-size: 12px;
+      font-size: var(--fs-sm);
     }
     .err {
       color: var(--danger-text, var(--lvl-error));

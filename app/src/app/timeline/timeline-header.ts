@@ -90,11 +90,11 @@ import { OverviewHeadline } from '../overview/overview-headline';
   `,
   styles: `
     .head { height: 32px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
-    .hint { min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hint { min-width: 0; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .section-title { white-space: nowrap; }
     .title-input { width: 200px; height: 24px; padding: 0 6px; }
-    .unlinked { flex: none; font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px dashed var(--border-3); color: var(--text-2); }
-    .config { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 0 14px 6px; font-size: 12px; }
+    .unlinked { flex: none; font-size: var(--fs-xs); padding: 0 6px; border-radius: 8px; border: 1px dashed var(--border-3); color: var(--text-2); }
+    .config { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 0 14px 6px; font-size: var(--fs-sm); }
     .config .field { display: inline-flex; align-items: center; gap: 6px; }
     .config .select { height: 24px; }
     .config .ql { flex: 1 1 260px; min-width: 160px; height: 24px; padding: 0 6px; }

@@ -33,6 +33,31 @@ the inspector sliding out from the right when you select an event.
 *View ▸ Layout ▸ Full* restores the richer default (the query bar in the default layout and the Overview
 opening after every import). The choice applies to new layouts (*Reset layout*); layouts you saved are kept.
 
+## Appearance
+
+**Settings ▸ Appearance** (`Ctrl/⌘+,`, or the palette command *Open settings: Appearance*) sets how IMT looks.
+Everything applies at once, in every window, and is kept for your user (not in projects):
+
+| Setting | Choices | Also in |
+|---|---|---|
+| **Theme** | *Calm* (default): neutral and quiet, colour only for the data. *Console*: soft cards, violet accent, richer colour. | *View ▸ Theme*; palette *Theme: Calm* / *Theme: Console* |
+| **Colour scheme** | *System* (default, follows the operating system), *Light*, *Dark* | *View ▸ Theme*; palette *Colour scheme: …* |
+| **Density** | *Comfortable* (default) or *Compact* rows and timeline lanes | |
+| **Timeline ▸ Colour lanes by source** | on: each lane's volume in its source colour; off: neutral grey. Each theme has a default; *Use the theme's default* returns to it | |
+| **Source colours** | by file (default), by instance, off | *View ▸ Source colours* |
+
+What changes with the theme on the timeline:
+
+- **Runs** are a thin line in the lane's colour (Calm) or a labelled pill (Console). Runs that overlap on one lane,
+  such as several views open at the same time, sit on their own sub-tracks below the lane's markers, each labelled
+  with what it is; the lane grows by one thin row per sub-track.
+- **Crashes** get a dashed rule across the lanes (Calm), or a soft band and a halo (Console).
+- **Brushing** a range shows the range and its length in a floating pill in Console.
+- **Findings** in the timeline header are a sentence (Calm) or chips (Console).
+
+Markers differ by shape in every theme, so colour is never the only cue. With *reduce motion* set in the operating
+system, IMT shows no transitions.
+
 ## Supported inputs
 
 The format is detected from the content. UTF-8 and UTF-16 are both read. Gzip files and zip archives

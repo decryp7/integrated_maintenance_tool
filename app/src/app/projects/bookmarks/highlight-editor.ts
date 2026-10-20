@@ -50,7 +50,7 @@ const PSEUDO_FIELDS = ['@level', '@message', '@exception', '@source'];
     /* Each swatch is a transparent 24px target (WCAG 2.5.8) around the visible 18px dot, which carries the focus ring. */
     .sw { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; padding: 0; background: transparent; cursor: pointer; }
     .sw:focus-visible { outline: none; }
-    .sw:focus-visible .dot { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .sw:focus-visible .dot { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .dot { display: block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; }
     .sw.on .dot { border-color: var(--text); }
     .sw.static { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; cursor: default; }

@@ -21,7 +21,7 @@ import { DIALOG_REF } from './dialog.service';
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     p { margin: 0; color: var(--text-2); }
-    .detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+    .detail { font-size: var(--fs-sm); color: var(--muted); overflow-wrap: anywhere; }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
     .btn.primary.danger { background: var(--lvl-error); border-color: var(--lvl-error); color: var(--accent-ink); }
   `,

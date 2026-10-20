@@ -162,7 +162,7 @@ import { PerfmonStore } from './perfmon.store';
     section { display: flex; flex-direction: column; gap: 8px; }
     h2 { margin: 0; }
     .intro { margin: 0; color: var(--text-2); line-height: 1.5; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 140px; }
     .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -172,16 +172,16 @@ import { PerfmonStore } from './perfmon.store';
     .preset .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); }
     .counters { list-style: none; margin: 8px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-    .path { font-size: 11.5px; }
-    .guide { margin-left: 24px; font-size: 12px; color: var(--text-2); }
-    .problem { color: var(--danger-text); font-size: 12px; }
-    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: 12px; }
+    .path { font-size: var(--fs-xs); }
+    .guide { margin-left: 24px; font-size: var(--fs-sm); color: var(--text-2); }
+    .problem { color: var(--danger-text); font-size: var(--fs-sm); }
+    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
     .xml-head { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
     .spacer { flex: 1; }
-    .xml { margin: 0; padding: 8px 10px; max-height: 260px; overflow: auto; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border); font-size: 11.5px; line-height: 1.5; }
+    .xml { margin: 0; padding: 8px 10px; max-height: 260px; overflow: auto; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border); font-size: var(--fs-xs); line-height: 1.5; }
     .cmds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .cmds li { display: flex; align-items: center; gap: 6px; }
-    .cmds code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; padding: 3px 8px; border-radius: 5px; background: var(--code-bg); font-size: 11.5px; }
+    .cmds code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; padding: 3px 8px; border-radius: 5px; background: var(--code-bg); font-size: var(--fs-xs); }
     .card { padding: 10px 12px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-2); }
     .status-row { display: flex; gap: 10px; align-items: center; }
     .badge.running { background: var(--accent-soft); color: var(--chip-text); }

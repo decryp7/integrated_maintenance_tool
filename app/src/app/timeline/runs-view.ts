@@ -117,31 +117,31 @@ interface Column {
   `,
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
-    .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; font-size: 12px; }
+    .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; font-size: var(--fs-sm); }
     .field { display: inline-flex; align-items: center; gap: 6px; }
     .select { height: 24px; }
     .spacer { flex: 1; }
-    .summaries { list-style: none; margin: 0; padding: 0 14px 8px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+    .summaries { list-style: none; margin: 0; padding: 0 14px 8px; display: flex; flex-wrap: wrap; gap: 8px; font-size: var(--fs-sm); }
     .card { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-2); }
     .card.off { opacity: 0.7; }
     .warn { color: var(--warn-text); }
     .err { padding: 6px 14px; color: var(--danger-text); }
     .scroll { flex: 1; overflow: auto; padding: 0 14px 14px; }
-    .grid { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .grid { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
     .grid th, .grid td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
     .grid thead th { position: sticky; top: 0; background: var(--bg-1); color: var(--muted); font-weight: 500; }
     .sort { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 2px 0; min-height: 24px; }
-    .sort:focus-visible, .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .sort:focus-visible, .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .arrow { display: inline-block; width: 1em; }
     .link { border: 0; background: transparent; color: var(--accent-text, var(--accent)); font: inherit; cursor: pointer; padding: 2px 0; min-height: 24px; text-align: left; }
     .link:hover { text-decoration: underline; }
     .lane { font-weight: 400; }
     .num { text-align: right; }
     .status[data-status='noStop'], .status[data-status='noStart'] { color: var(--warn-text); }
-    .small { font-size: 11px; margin-left: 4px; }
+    .small { font-size: var(--fs-xs); margin-left: 4px; }
     .empty { padding: 20px; text-align: center; white-space: normal; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .more { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 12px; }
+    .more { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: var(--fs-sm); }
   `,
 })
 export class RunsView {

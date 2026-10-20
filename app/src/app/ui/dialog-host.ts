@@ -35,10 +35,10 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
     }
   `,
   styles: `
-    .backdrop { position: fixed; inset: 0; z-index: 210; background: rgba(0, 0, 0, 0.4); }
+    .backdrop { position: fixed; inset: 0; z-index: 210; background: var(--scrim); }
     .dialog { position: fixed; z-index: 211; top: 56px; inset-inline-start: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
     .head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); }
-    h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
     .body { min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
   `,
 })

@@ -3,12 +3,24 @@
  * each run is a band on its lane from its start to its stop; a run still open fades out at its right end; a stop
  * without a start is a warning glyph at its time; a run that ended without a stop, or ran longer than allowed, gets a
  * warning glyph at its end. Runs outside the view, on lanes not shown, or of hidden kinds are left out.
+ *
+ * Runs that overlap in time (several views open at once, nested "X started" / "X ended") are stacked on labelled
+ * sub-tracks below the lane's markers, so none hides another (`packRows`).
  */
 import { AnnotationDto, RunInfo, RunStatus } from '../core/api.types';
 import { clamp } from '../core/format';
+import { packRows } from './sub-tracks';
 
 /** Narrowest band drawn, in percent of the plot, so short runs stay visible and clickable. */
 export const MIN_RUN_PCT = 0.3;
+/** Space kept between two runs on one sub-track (px); back to back (a restart) shares one. */
+export const RUN_GAP_PX = 0;
+/** Sub-tracks per lane at most; runs beyond share the one that frees up first. */
+export const MAX_RUN_ROWS = 6;
+/** Width of the hit area of a stop without start (px; WCAG 2.5.8). */
+const POINT_PX = 24;
+/** A band shows its label from this width (px); narrower ones have it in the tooltip only. */
+export const RUN_LABEL_MIN_PX = 44;
 
 /** Why a run carries a warning glyph. */
 export type RunAnomaly = 'noStart' | 'noStop' | 'tooLong';
@@ -30,6 +42,12 @@ export interface RunBandVm {
   clippedRight: boolean;
   /** Warning glyph, if any (drawn at the run's end, or at the point). */
   anomaly: RunAnomaly | null;
+  /** The sub-track (0 = first below the lane's markers). */
+  row: number;
+  /** What the band says: the paired field value (e.g. the view's name), else the rule's label. */
+  label: string;
+  /** The band is wide enough to show its label. */
+  labelFits: boolean;
 }
 
 export interface RunLayoutOptions {
@@ -39,6 +57,8 @@ export interface RunLayoutOptions {
   hidden: ReadonlySet<string>;
   /** False when the "Runs" legend toggle is off. */
   shown: boolean;
+  /** Width of the plot (px), for gaps and labels; 1000 when unknown. */
+  plotWidth?: number;
 }
 
 /** The anomaly a run shows, most telling first. */
@@ -46,6 +66,11 @@ export function anomalyOf(run: RunInfo): RunAnomaly | null {
   if (run.status === 'noStart') return 'noStart';
   if (run.status === 'noStop') return 'noStop';
   return run.tooLong ? 'tooLong' : null;
+}
+
+/** What a run's band says: the value it was paired by (a view, a job), else the rule's label. */
+export function runLabel(ann: AnnotationDto, run: RunInfo): string {
+  return run.group?.value || run.spanLabel || ann.label;
 }
 
 function band(ann: AnnotationDto, run: RunInfo, view: { from: number; to: number }): RunBandVm {
@@ -66,7 +91,31 @@ function band(ann: AnnotationDto, run: RunInfo, view: { from: number; to: number
     clippedLeft: rawLeft < 0,
     clippedRight: rawRight > 100,
     anomaly: anomalyOf(run),
+    row: 0,
+    label: runLabel(ann, run),
+    labelFits: false,
   };
+}
+
+/** Stacks one lane's bands on sub-tracks (in place) and decides which can show their label. */
+function stack(list: RunBandVm[], plotWidth: number): void {
+  const px = plotWidth / 100;
+  const spans = list.map((v) => {
+    const start = v.left * px;
+    return { start: v.point ? start - POINT_PX / 2 : start, end: v.point ? start + POINT_PX / 2 : (v.left + v.width) * px };
+  });
+  const { rows } = packRows(spans, { gap: RUN_GAP_PX, maxRows: MAX_RUN_ROWS });
+  list.forEach((v, i) => {
+    v.row = rows[i] ?? 0;
+    v.labelFits = !v.point && v.width * px >= RUN_LABEL_MIN_PX;
+  });
+}
+
+/** The sub-tracks a lane's bands use (0 for none). */
+export function runRowCount(bands: readonly RunBandVm[] | undefined): number {
+  let n = 0;
+  for (const b of bands ?? []) n = Math.max(n, b.row + 1);
+  return n;
 }
 
 /** Run bands by lane key, in time order. */
@@ -83,7 +132,11 @@ export function layoutRuns(anns: readonly AnnotationDto[], o: RunLayoutOptions):
     if (list) list.push(vm);
     else out.set(a.instance, [vm]);
   }
-  for (const list of out.values()) list.sort((a, b) => a.ann.from - b.ann.from);
+  const width = o.plotWidth && o.plotWidth > 0 ? o.plotWidth : 1000;
+  for (const list of out.values()) {
+    list.sort((a, b) => a.ann.from - b.ann.from);
+    stack(list, width);
+  }
   return out;
 }
 

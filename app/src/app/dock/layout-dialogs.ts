@@ -26,8 +26,8 @@ import { WindowLayouts } from './window-layouts';
   `,
   styles: `
     form { display: flex; flex-direction: column; gap: 8px; }
-    label { font-size: 12px; color: var(--muted); }
-    .error { margin: 0; color: var(--danger-text); font-size: 12px; }
+    label { font-size: var(--fs-sm); color: var(--muted); }
+    .error { margin: 0; color: var(--danger-text); font-size: var(--fs-sm); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
   `,
 })
@@ -82,10 +82,10 @@ export class SaveLayoutDialog {
   styles: `
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     li { display: flex; align-items: center; gap: 6px; }
-    .key { width: 72px; font-size: 11px; color: var(--muted); }
+    .key { width: 72px; font-size: var(--fs-xs); color: var(--muted); }
     .name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     li .input { flex: 1; }
-    .when { font-size: 11px; color: var(--muted); }
+    .when { font-size: var(--fs-xs); color: var(--muted); }
     .empty { margin: 0; color: var(--muted); }
     .foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
   `,

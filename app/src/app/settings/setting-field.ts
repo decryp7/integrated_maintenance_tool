@@ -97,15 +97,15 @@ let nextId = 0;
     .label { font-weight: 500; color: var(--text); min-width: 0; }
     .badge { flex: none; }
     .spacer { flex: 1; }
-    .reset { height: 22px; font-size: 11px; }
+    .reset { height: 22px; font-size: var(--fs-xs); }
     .control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .input.num { width: 120px; }
     .input.wide, .select { min-width: 260px; max-width: 100%; }
     textarea.input.wide { width: 100%; box-sizing: border-box; font-family: var(--font-mono); }
     .unit { color: var(--text-2); }
-    .hint { color: var(--muted); font-size: 12px; }
-    .help { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-    .error { margin: 0; color: var(--danger-text); font-size: 12px; }
+    .hint { color: var(--muted); font-size: var(--fs-sm); }
+    .help { margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.45; }
+    .error { margin: 0; color: var(--danger-text); font-size: var(--fs-sm); }
     :host(.invalid) .input, :host(.invalid) .select { border-color: var(--danger-text); }
   `,
 })

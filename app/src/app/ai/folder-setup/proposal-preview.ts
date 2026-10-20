@@ -69,12 +69,12 @@ const LANES_SHOWN = 8;
   `,
   styles: `
     :host { display: block; }
-    .facts { margin: 0; font-size: 12px; color: var(--text-2); }
-    .examples { margin: 2px 0 0; padding-left: 16px; font-size: 11px; color: var(--text-2); }
+    .facts { margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
+    .examples { margin: 2px 0 0; padding-left: 16px; font-size: var(--fs-xs); color: var(--text-2); }
     .examples li { overflow-wrap: anywhere; }
     .before { color: var(--muted); }
     .lanes { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; max-width: 420px; }
-    .lanes li { display: grid; grid-template-columns: minmax(80px, 160px) 1fr auto; gap: 8px; align-items: center; font-size: 11px; }
+    .lanes li { display: grid; grid-template-columns: minmax(80px, 160px) 1fr auto; gap: 8px; align-items: center; font-size: var(--fs-xs); }
     .lane-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bar { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; }
     .fill { display: block; height: 100%; background: var(--accent); }

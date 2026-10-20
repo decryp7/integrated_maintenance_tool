@@ -82,7 +82,7 @@ export function flattenDominators(levels: ReadonlyMap<number | null, Level>, exp
       .tw { width: 12px; flex: none; cursor: pointer; color: var(--muted); }
       .faint { color: var(--faint); }
       .pad { padding: 4px 12px; }
-      tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      tr[tabindex]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     `,
   ],
 })

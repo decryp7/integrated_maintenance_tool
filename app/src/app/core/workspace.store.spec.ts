@@ -298,7 +298,8 @@ describe('WorkspaceStore', () => {
     store.addColumn('cpu');
     store.addColumn('ws');
     store.removeColumn('cpu');
-    store.setTheme('light');
+    store.setScheme('light');
+    store.setTheme('console');
     store.setDropHover(true);
     store.focusSearch();
     await settle();
@@ -307,24 +308,33 @@ describe('WorkspaceStore', () => {
     expect(store.extraColumns()).toEqual(['ws']);
     expect(store.dropHover()).toBe(true);
     expect(store.focusSearchNonce()).toBe(1);
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'light', extraColumns: ['ws'], alwaysShowLifecycle: false });
-    store.setTheme('system');
+    expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('console');
+    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ timezone: 'local', theme: 'console', scheme: 'light', extraColumns: ['ws'], alwaysShowLifecycle: false });
+    store.setScheme('system');
     await settle();
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(['light', 'dark']).toContain(document.documentElement.getAttribute('data-scheme'));
   });
 
   it('reads and writes preferences defensively', () => {
     localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'local', extraColumns: ['x'] }));
-    expect(loadPrefs()).toEqual({ timezone: 'local', extraColumns: ['x'] });
+    const defaults = { timezone: 'utc', alwaysShowLifecycle: true, theme: 'calm', scheme: 'system', lanesBySource: null, extraColumns: [] };
+    expect(loadPrefs()).toEqual({ ...defaults, timezone: 'local', extraColumns: ['x'] });
     localStorage.setItem('imt.prefs.v1', '{not json');
-    expect(loadPrefs()).toEqual({});
+    expect(loadPrefs()).toEqual(defaults);
     localStorage.removeItem('imt.prefs.v1');
-    expect(loadPrefs()).toEqual({});
+    expect(loadPrefs()).toEqual(defaults);
+    // Untrusted values fall back one by one; known ones are kept.
+    localStorage.setItem('imt.prefs.v1', JSON.stringify({ timezone: 'mars', theme: 'neon', scheme: 'dark', lanesBySource: 'yes', alwaysShowLifecycle: false, extraColumns: ['a', 3] }));
+    expect(loadPrefs()).toEqual({ ...defaults, scheme: 'dark', alwaysShowLifecycle: false, extraColumns: ['a'] });
+    localStorage.setItem('imt.prefs.v1', JSON.stringify([1]));
+    expect(loadPrefs()).toEqual(defaults);
+    localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'console', lanesBySource: false, extraColumns: 'x' }));
+    expect(loadPrefs()).toEqual({ ...defaults, theme: 'console', lanesBySource: false });
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
-    expect(() => savePrefs({ timezone: 'utc', theme: 'dark', extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
+    expect(() => savePrefs({ timezone: 'utc', theme: 'calm', scheme: 'dark', lanesBySource: null, extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
     setItem.mockRestore();
   });
 

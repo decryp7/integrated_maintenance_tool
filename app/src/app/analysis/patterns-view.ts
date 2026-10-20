@@ -52,10 +52,10 @@ import { AsyncResource } from './async-resource';
       .count { width: 56px; flex: none; color: var(--text); }
       .bars { flex: none; min-width: 0; }
       .bar-slot { width: 90px; flex: none; display: flex; }
-      .range { flex: none; font-size: 11px; }
+      .range { flex: none; font-size: var(--fs-xs); }
       li { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
       li > .row { flex: 1; min-width: 0; border-bottom: 0; }
-      .sample { flex: none; height: 22px; padding: 0 8px; margin-right: 8px; font-size: 11px; }
+      .sample { flex: none; height: 22px; padding: 0 8px; margin-right: 8px; font-size: var(--fs-xs); }
     `,
   ],
 })

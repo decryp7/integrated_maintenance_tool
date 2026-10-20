@@ -50,6 +50,7 @@ export class AppMenu {
       views: this.views.available().map((v) => ({ id: v.id, title: v.title, category: v.category, plugin: v.plugin, menu: v.menu, open: open.has(v.id) })),
       sidebarOpen: this.store.sidebarOpen(),
       theme: this.store.theme(),
+      scheme: this.store.scheme(),
       sourceColors: this.prefs.sourceColors(),
       layoutMode: this.layout.mode(),
       timezone: this.store.timezone(),

@@ -15,6 +15,8 @@ import { ClickOutside } from '../shared/click-outside';
 import { LEVEL_CODES, LEVEL_VARS } from '../shared/colors';
 import { Icon } from '../shared/icon';
 import { SettingsStore } from '../settings/settings.store';
+import { ThemeService } from '../core/workspace/theme.service';
+import { px } from '../theme/theme-tokens';
 import { RecordActions } from '../context/record-actions';
 import { FieldFormatters } from '../extensions/field-formatters';
 import { MarkerIcon } from '../shared/marker-icon';
@@ -30,7 +32,8 @@ import { LiveArrival, liveMode, PagedRowsStore } from './paged-rows.store';
 export { SCROLL_IDLE_MS } from './paged-rows.store';
 
 /** Row heights for the two grid densities (px). */
-const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
+/** Row height when the theme gives none (the theme's `--row-h` per density wins). */
+const FALLBACK_ROW_H = 24;
 const HEADER_H = 28;
 const OVERSCAN = 8;
 /** At most this many selected lines go to actions on several records (e.g. "Infer pattern from lines…"). */
@@ -188,17 +191,17 @@ export type GridRowVm = RowVm | PlaceholderVm;
   `,
   styles: `
     :host { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); min-height: 0; position: relative; }
-    .bar { height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .bar { height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
     .total { color: var(--text-2); }
     .warn { color: var(--warn-text); }
     .spacer { flex: 1; }
     .anchor { position: relative; }
     .cols { right: 0; top: 30px; width: 280px; display: flex; flex-direction: column; gap: 6px; }
     .err-card { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 80%; padding: 14px 18px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-3); color: var(--danger-text); text-align: center; }
-    .col-opt { width: 100%; display: flex; align-items: center; gap: 8px; height: 24px; color: var(--text-2); font-size: 12px; }
-    .header { position: sticky; top: 0; z-index: 2; height: ${HEADER_H}px; display: grid; align-items: center; column-gap: 10px; padding: 0 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg-2); }
+    .col-opt { width: 100%; display: flex; align-items: center; gap: 8px; height: 24px; color: var(--text-2); font-size: var(--fs-sm); }
+    .header { position: sticky; top: 0; z-index: 2; height: ${HEADER_H}px; display: grid; align-items: center; column-gap: 10px; padding: 0 14px; font-size: var(--fs-xs); color: var(--muted); border-bottom: 1px solid var(--border); background: var(--bg-2); }
     .hcell { display: flex; align-items: center; gap: 4px; min-width: 0; }
-    .sort { border: 0; background: transparent; color: inherit; font-size: 11px; padding: 0; text-align: left; cursor: pointer; }
+    .sort { border: 0; background: transparent; color: inherit; font-size: var(--fs-xs); padding: 0; text-align: left; cursor: pointer; }
     .sort:hover { color: var(--text); }
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 2px; }
     .viewport { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; outline: none; }
@@ -223,9 +226,9 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .row.marked.sel { box-shadow: inset 6px 0 0 var(--accent); }
     .row.marked.hl.sel { box-shadow: inset 10px 0 0 var(--accent); }
     .mk { display: flex; justify-content: center; }
-    .time { font-size: 12px; color: var(--muted); white-space: nowrap; }
-    .lvl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-2); }
-    .inst, .extra { font-size: 12px; color: var(--text-2); }
+    .time { font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; }
+    .lvl { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
+    .inst, .extra { font-size: var(--fs-sm); color: var(--text-2); }
     .extra { color: var(--muted); }
     .msg { color: var(--text); }
     .placeholder { display: flex; }
@@ -250,7 +253,9 @@ export class EventsGrid {
   protected readonly colors = inject(SourceColors);
   /** Where the grid publishes its multi-selection for palette commands and other panels. */
   private readonly published = inject(GridSelection);
-  protected readonly rowH = computed(() => ROW_HEIGHT[this.settings.density()]);
+  private readonly theme = inject(ThemeService);
+  /** The theme's row height for the density in effect (the virtual scroll needs it in pixels). */
+  protected readonly rowH = computed(() => px(this.theme.tokens()['row-h']) || FALLBACK_ROW_H);
   private readonly viewport = viewChild<ElementRef<HTMLElement>>('viewport');
 
   /** The rows: paging, eviction, generations and live refreshes (no DOM). */

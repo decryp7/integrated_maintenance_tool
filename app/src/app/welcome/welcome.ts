@@ -72,20 +72,20 @@ export function shortPath(path: string): string {
   styles: `
     :host { position: absolute; inset: 0; z-index: 5; overflow: auto; background: var(--bg-1); display: flex; justify-content: center; }
     .welcome { width: min(720px, 100%); padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
-    h1 { margin: 0; font-size: 24px; font-weight: 600; }
-    .lead { margin: 0; color: var(--text-2); font-size: 15px; }
+    h1 { margin: 0; font-size: var(--fs-xl); font-weight: 600; }
+    .lead { margin: 0; color: var(--text-2); font-size: var(--fs-lg); }
     .actions { display: flex; gap: 10px; margin-top: 6px; }
     .big { height: 34px; padding: 0 16px; gap: 8px; }
-    .hint { margin: 0; font-size: 12px; }
-    .safe { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+    .hint { margin: 0; font-size: var(--fs-sm); }
+    .safe { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--fs-md); color: var(--text-2); }
     .safe imt-icon { color: var(--ok); }
     .recent ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-    .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: 12px; }
+    .link { border: 0; background: transparent; color: var(--chip-text); cursor: pointer; padding: 3px 0; text-align: left; font-size: var(--fs-sm); }
     .link:hover { text-decoration: underline; }
     .how { margin-top: 18px; }
     .steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
-    .steps li { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--muted); font-size: 12px; }
-    .steps strong { color: var(--text); font-size: 13px; }
+    .steps li { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--muted); font-size: var(--fs-sm); }
+    .steps strong { color: var(--text); font-size: var(--fs-md); }
   `,
 })
 export class Welcome {

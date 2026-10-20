@@ -50,20 +50,20 @@ import { StatusJobs } from '../jobs/status-jobs';
     <span>IMT 0.1.0</span>
   `,
   styles: `
-    :host { height: 24px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--accent); color: var(--accent-ink); font-size: 12px; white-space: nowrap; overflow: hidden; }
+    :host { height: var(--status-h); flex: none; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--statusbar-bg); color: var(--statusbar-text); border-top: 1px solid var(--border); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; }
     /* When space runs out the secondary labels truncate; the sources, events and matching counts and the controls
        (import Cancel, Live, time zone) keep their size. */
     :host > span:not(.spacer):not(.keep):not(.strong) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .keep, .strong { flex: none; }
-    .strong { font-weight: 600; }
+    .strong { font-weight: 600; color: var(--statusbar-strong); }
     .spacer { flex: 1; }
-    .tz { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 12px; }
+    .tz { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--fs-sm); }
     .tz:hover { text-decoration: underline; }
-    .live { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: 11px; font-weight: 600; }
-    .live:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+    .live { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
+    .live:hover:not(:disabled) { background: var(--bg-hover); color: var(--statusbar-strong); }
     .live:disabled { cursor: default; opacity: 0.5; }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid currentColor; }
-    .live.on, .live.on:hover { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); }
+    .live.on, .live.on:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
     .live.on .live-dot { background: currentColor; animation: live-pulse 1.6s ease-in-out infinite; }
     .live.failed { border-style: dashed; }
     @keyframes live-pulse { 50% { opacity: 0.35; } }

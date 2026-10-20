@@ -181,7 +181,7 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
     section, .form { display: flex; flex-direction: column; gap: 8px; }
     .form { border: 0; margin: 0; padding: 0; min-width: 0; gap: 14px; }
     h2 { margin: 0; display: flex; align-items: center; gap: 6px; }
-    .sub { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+    .sub { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
     .intro { margin: 0; color: var(--text-2); line-height: 1.5; }
     .card { padding: 8px 12px; border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-2); }
     .status { display: flex; align-items: center; gap: 10px; }
@@ -191,21 +191,21 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
     .grow { flex: 1; min-width: 160px; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 180px; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
     .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); min-width: 0; }
     .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 220px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border-3); border-radius: 6px; background: var(--bg-2); }
-    .badge { flex: none; font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--chip-border); background: var(--chip-bg); color: var(--chip-text); }
+    .badge { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 8px; border: 1px solid var(--chip-border); background: var(--chip-bg); color: var(--chip-text); }
     .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .problem { color: var(--danger-text); font-size: 12px; }
-    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: 12px; }
-    .warn { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .problem { color: var(--danger-text); font-size: var(--fs-sm); }
+    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
+    .warn { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); font-size: var(--fs-sm); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .details { display: flex; flex-direction: column; gap: 8px; }
     .stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 0; }
-    .stats dt { font-size: 11px; color: var(--muted); }
-    .stats dd { margin: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
-    .last { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
-    .small { font-size: 11px; margin: 0; overflow-wrap: anywhere; }
-    .channels { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .stats dt { font-size: var(--fs-xs); color: var(--muted); }
+    .stats dd { margin: 0; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+    .last { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+    .small { font-size: var(--fs-xs); margin: 0; overflow-wrap: anywhere; }
+    .channels { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
     .channels th { text-align: left; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--border-3); padding: 3px 6px; }
     .channels td { padding: 3px 6px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -213,10 +213,10 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
     .s-live::before { background: var(--mk-start); }
     .s-backfill::before, .s-starting::before { background: var(--accent); }
     .s-retrying::before { background: var(--mk-warning); }
-    .errors, .checks { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+    .errors, .checks { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-sm); }
     .checks li { display: flex; gap: 6px; align-items: baseline; overflow-wrap: anywhere; }
     .checks li.bad { color: var(--danger-text); }
-    .validation { display: flex; flex-direction: column; gap: 6px; font-size: 12px; overflow-wrap: anywhere; }
+    .validation { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); overflow-wrap: anywhere; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,
 })

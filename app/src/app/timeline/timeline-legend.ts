@@ -117,12 +117,12 @@ let legendSeq = 0;
   `,
   styles: `
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
-    .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+    .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 0; }
     /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
     .lg { display: inline-flex; align-items: center; min-height: 24px; margin: -2px 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
     .lg:focus-visible { outline: none; }
     .pill { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid transparent; padding: 1px 6px; border-radius: 10px; }
-    .lg:focus-visible .pill { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .lg:focus-visible .pill { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .lg:hover .pill { background: var(--bg-hover); }
     .lg[aria-pressed='true'] .pill { border-color: var(--accent); background: var(--accent-soft); }
     /* One line; clipped sideways only, so the 24px hit areas (which overhang by 2px) are not cut. */

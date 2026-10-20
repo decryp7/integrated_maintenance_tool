@@ -84,13 +84,13 @@ export function formatBytes(n: number): string {
     .field { display: flex; flex-direction: column; gap: 4px; }
     .field small { color: var(--muted); }
     textarea { resize: vertical; font: inherit; }
-    h3 { margin: 4px 0; font-size: 13px; }
-    .files { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow: auto; display: grid; grid-template-columns: minmax(0, max-content) max-content 1fr; gap: 2px 10px; font-size: 12px; }
+    h3 { margin: 4px 0; font-size: var(--fs-md); }
+    .files { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow: auto; display: grid; grid-template-columns: minmax(0, max-content) max-content 1fr; gap: 2px 10px; font-size: var(--fs-sm); }
     .files li { display: contents; }
     .name { overflow-wrap: anywhere; }
     .size { color: var(--text-2); text-align: end; }
     .sum { color: var(--text-2); }
-    .steps { margin: 0; padding-inline-start: 22px; max-height: 160px; overflow: auto; font-size: 12px; }
+    .steps { margin: 0; padding-inline-start: 22px; max-height: 160px; overflow: auto; font-size: var(--fs-sm); }
     .msg { padding: 6px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-3); overflow-wrap: anywhere; }
     .msg.err { border-color: var(--lvl-error); color: var(--danger-text); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }

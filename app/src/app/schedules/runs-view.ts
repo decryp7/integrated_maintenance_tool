@@ -88,7 +88,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
     .scroll:focus-visible { outline-offset: -2px; }
     .inline { display: flex; gap: 8px; align-items: center; }
     .spacer { flex: 1; }
-    .runs { border-collapse: collapse; width: 100%; font-size: 12px; }
+    .runs { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
     th { text-align: left; font-weight: 600; color: var(--text-2); border-bottom: 1px solid var(--border-3); padding: 4px 6px; }
     td { border-bottom: 1px solid var(--border-3); padding: 4px 6px; vertical-align: top; }
     .why { max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
@@ -99,8 +99,8 @@ const STATUS_LABEL: Record<RunStatus, string> = {
     .badge[data-status='partial'], .badge[data-status='stopped'] { border-color: var(--lvl-warn); }
     .manifest ul { margin: 4px 0; padding-left: 18px; }
     .problem { color: var(--danger-text); }
-    .err { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--danger-text); background: var(--bg-3); color: var(--danger-text); font-size: 12px; }
-    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: 12px; }
+    .err { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--danger-text); background: var(--bg-3); color: var(--danger-text); font-size: var(--fs-sm); }
+    .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   `,
 })

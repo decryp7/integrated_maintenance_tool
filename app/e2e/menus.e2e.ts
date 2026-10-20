@@ -149,10 +149,10 @@ test.describe('menus', () => {
     await expect(page.getByRole('dialog', { name: 'About IMT' })).toContainText('Version');
   });
 
-  test('open menus are accessible in both themes', async ({ page }, testInfo) => {
+  test('open menus are accessible in both colour schemes', async ({ page }, testInfo) => {
     for (const theme of ['Dark', 'Light'] as const) {
       await chooseMenu(page, 'View', 'Theme', theme);
-      await expect(page.locator('html')).toHaveAttribute('data-theme', theme.toLowerCase());
+      await expect(page.locator('html')).toHaveAttribute('data-scheme', theme.toLowerCase());
       await openMenuPath(page, 'View', 'Analysis');
       await expectNoSeriousViolations(page, testInfo, `menus-view-${theme}`);
       await page.keyboard.press('Escape');

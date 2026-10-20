@@ -125,15 +125,15 @@ export function updateLine(u: AiUpdate): string {
   styles: `
     :host { display: block; }
     .updates { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
-    h4 { margin: 0; font-size: 13px; }
+    h4 { margin: 0; font-size: var(--fs-md); }
     p { margin: 0; }
     .head, .line, .update { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .spacer { flex: 1; }
     .kind { display: flex; flex-direction: column; gap: 6px; }
     .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .muted { color: var(--text-2); }
-    .mono { font-family: var(--font-mono, monospace); font-size: 12px; }
-    .badge { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: var(--bg-3); color: var(--text-2); }
+    .mono { font-family: var(--font-mono, monospace); font-size: var(--fs-sm); }
+    .badge { font-size: var(--fs-xs); padding: 1px 6px; border-radius: 8px; background: var(--bg-3); color: var(--text-2); }
     .warn { color: var(--lvl-warn); overflow-wrap: anywhere; }
     .err { color: var(--danger-text, var(--lvl-error)); }
   `,

@@ -22,9 +22,11 @@ const COMMANDS: [string, string, string?][] = [
   ['palette.open', 'Show all commands', 'Mod+K'],
   ['view.toggleSidebar', 'Toggle sidebar', 'Mod+B'],
   ['view.resetLayout', 'Reset layout'],
-  ['view.theme.system', 'Theme: system'],
-  ['view.theme.dark', 'Theme: dark'],
-  ['view.theme.light', 'Theme: light'],
+  ['view.theme.calm', 'Theme: Calm'],
+  ['view.theme.console', 'Theme: Console'],
+  ['view.scheme.system', 'Colour scheme: system'],
+  ['view.scheme.dark', 'Colour scheme: dark'],
+  ['view.scheme.light', 'Colour scheme: light'],
   ['settings.open', 'Open settings', 'Mod+,'],
   ['analyze.search', 'Search events'],
   ['query.focus', 'Query: focus query bar', 'Mod+/'],
@@ -118,7 +120,8 @@ function state(patch: Partial<MenuState> = {}): MenuState {
     commands: new Map(COMMANDS.map(([id, title, keybinding]) => [id, { id, title, keybinding }])),
     views: VIEWS,
     sidebarOpen: true,
-    theme: 'dark',
+    theme: 'console',
+    scheme: 'dark',
     timezone: 'utc',
     markedOnly: false,
     undoLabel: 'level filter change',
@@ -181,7 +184,8 @@ describe('menu model', () => {
     expect(items.find((i) => i.label === 'Explorer')).toMatchObject({ id: 'view.toggleSidebar', checked: true, keybinding: 'Mod+B' });
     expect(items.find((i) => i.label === 'Timeline')).toMatchObject({ id: 'view:timeline', checked: true });
     expect(items.find((i) => i.label === 'Metrics')).toMatchObject({ checked: false });
-    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false]);
+    expect(labels(sub(v, 'Theme'))).toEqual(['Calm', 'Console', '—', 'System', 'Dark', 'Light']);
+    expect(sub(v, 'Theme').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false, false, true, false]);
   });
 
   it('puts plugin views in Plugins, grouped by plugin, after the plugin manager', () => {

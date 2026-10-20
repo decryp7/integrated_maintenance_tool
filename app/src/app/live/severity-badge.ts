@@ -24,7 +24,7 @@ const SHAPES: Record<Severity, { outline: string; mark: string }> = {
     :host { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
     :host(.critical) svg { color: var(--lvl-fatal); }
     :host(.warning) svg { color: var(--lvl-warn); }
-    :host(.info) svg { color: var(--accent); }
+    :host(.info) svg { color: var(--accent-text); }
     .label { color: var(--text); }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   `,

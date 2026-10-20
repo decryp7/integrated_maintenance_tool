@@ -6,6 +6,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { mockJobs } from '../jobs/mock-jobs';
 import { MarkerVm, mergeMarkers } from './marker-layout';
 import { TimelinePanel } from './timeline-panel';
+import { LABEL_W } from './timeline-lane-vm';
 import { orderLanes } from './lane-order';
 import { SelectionStore } from '../core/workspace/selection.store';
 import { TimelineZoom } from './zoom';
@@ -68,7 +69,13 @@ describe('TimelinePanel', () => {
     const labels = all(fixture, '.lane-label .key').map((e) => e.textContent?.trim());
     expect(labels).toEqual(['WEB01 · 100', 'WEB02 · 300', 'WEB01 · 200']);
     expect(all(fixture, '.hist path').length).toBeGreaterThan(0);
+    // The most severe level is stacked first (on the baseline); the scale is in the label column.
+    expect(all(fixture, '.hist path').map((p) => p.getAttribute('data-level'))[0]).toBe('Fatal');
+    expect(el(fixture, '.hist-label .scale').textContent).toMatch(/^max \d/);
     expect(all(fixture, '.tick').length).toBeGreaterThan(0);
+    expect(all(fixture, '.tick.major').every((t) => /:00$|^\d+ \w{3}$/.test(t.textContent?.trim() ?? ''))).toBe(true);
+    // A crash gets a rule, and a band where the theme asks for one.
+    expect(all(fixture, '.crash-band')).toHaveLength(1);
     expect(text(fixture)).toContain('Fatal');
     expect(text(fixture)).toContain('3 instances');
     expect(all(fixture, '.fatal-line')).toHaveLength(1);
@@ -102,12 +109,14 @@ describe('TimelinePanel', () => {
     w.dispatchEvent(pointer('pointermove', 262));
     w.dispatchEvent(pointer('pointerup', 262));
     expect(store.hasRange()).toBe(false);
-    w.dispatchEvent(pointer('pointerdown', 250 + 100));
-    w.dispatchEvent(pointer('pointermove', 250 + 300));
+    w.dispatchEvent(pointer('pointerdown', LABEL_W + 100));
+    w.dispatchEvent(pointer('pointermove', LABEL_W + 300));
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('.brush')).not.toBeNull();
+    // The floating summary says the range and its length (shown where the theme's brush pill trait is on).
+    expect(el(fixture, '[data-testid=brush-pill]').textContent).toMatch(/^\d{2}:\d{2}:\d{2} → \d{2}:\d{2}:\d{2} · \S/);
     const before = store.timeline()!;
-    w.dispatchEvent(pointer('pointerup', 250 + 300));
+    w.dispatchEvent(pointer('pointerup', LABEL_W + 300));
     await settle(fixture);
     const t = store.timeline()!;
     expect(store.hasRange()).toBe(true);
@@ -142,13 +151,13 @@ describe('TimelinePanel', () => {
     const frames = manualFrames();
     const hover = vi.spyOn(cursor, 'hover');
     // Many moves within one frame publish once (the last one).
-    for (const x of [250 + 100, 250 + 200, 250 + 400]) wrap(fixture).dispatchEvent(pointer('pointermove', x));
+    for (const x of [LABEL_W + 100, LABEL_W + 200, LABEL_W + 400]) wrap(fixture).dispatchEvent(pointer('pointermove', x));
     expect(hover).not.toHaveBeenCalled();
     frames.flush();
     expect(hover).toHaveBeenCalledTimes(1);
     expect(cursor.hovered()).toBe(t.from + (t.to - t.from) / 2);
     // A move still waiting when the pointer leaves is dropped.
-    wrap(fixture).dispatchEvent(pointer('pointermove', 250 + 100));
+    wrap(fixture).dispatchEvent(pointer('pointermove', LABEL_W + 100));
     wrap(fixture).dispatchEvent(pointer('pointerleave', 0));
     frames.flush();
     frames.restore();
@@ -177,7 +186,7 @@ describe('TimelinePanel', () => {
     const t = store.timeline()!;
     const menu = TestBed.inject(ContextMenuService);
     const targets = TestBed.inject(AnalysisTargets);
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 250 + 400, clientY: 40 });
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: LABEL_W + 400, clientY: 40 });
     el(fixture, '.axis').dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     const items = menu.menu()!.items;
@@ -189,7 +198,7 @@ describe('TimelinePanel', () => {
 
     // Inside a selected range, the moment is that range.
     TestBed.inject(TimeCursor).select({ from: t.from, to: t.to });
-    el(fixture, '.axis').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 250 + 400 }));
+    el(fixture, '.axis').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: LABEL_W + 400 }));
     at(menu.menu()!.items, 0).run();
     expect(targets.moment()).toEqual({ from: t.from, to: t.to });
   });

@@ -44,3 +44,21 @@ runs, neutral vs source-coloured vs barcode lane density, comfortable vs compact
   timeline style variants and the per-theme test matrix.
 - Rollout: engine + `calm` (default) + `console` first; `precision` follows when the engine provides per-lane error
   counts and source line numbers (after the R2 engine switch).
+
+## Implementation notes (first step, 2026-10-20)
+
+- The themes live in `app/src/app/theme/` as TypeScript data (`themes/calm.theme.ts`, `themes/console.theme.ts`):
+  common tokens, colour tokens per scheme, size tokens per density, and traits. `ThemeService` sets the tokens on
+  `<html>` and the attributes `data-theme` (id), `data-scheme` (light | dark, "system" resolved), `data-density`
+  and one `data-*` per trait (`data-lane-fill`, `data-crash-band`, …); charts and the grid read `tokens()` and
+  `traits()` from it. `styles.scss` no longer defines tokens.
+- The gates run as unit tests over the data (`theme-checks.spec.ts`: complete token sets, 4.5:1 text and 3:1
+  marks on their surfaces, source and series palettes under protan/deutan/tritan), as `npm run lint`
+  (`scripts/lint-styles.mjs`: no raw colours, font families or font sizes in component styles), and in Playwright
+  (`e2e/themes.e2e.ts`: axe per theme × scheme, screenshots of the main window and the timeline in Chromium;
+  baselines are per platform).
+- The six-colour source palettes of the design directions fail the all-pairs check once tritanopia is included,
+  so both themes keep the four validated source colours (then patterns), as before.
+- Overlapping runs on a lane are stacked on labelled sub-tracks (`timeline/sub-tracks.ts`, greedy interval
+  packing) below the lane's markers.
+- `precision` still waits for per-lane error counts and source line numbers from the engine.

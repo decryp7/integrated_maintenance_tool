@@ -187,28 +187,28 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; max-height: min(78vh, 900px); overflow: auto; }
-    .steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--muted); }
+    .steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); color: var(--muted); }
     .steps li { padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); }
     .steps li.current { color: var(--text); border-color: var(--accent); font-weight: 600; }
     .pane { display: flex; flex-direction: column; gap: 10px; }
     .progress { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; }
     .progress .fill { display: block; height: 100%; background: var(--accent); transition: width 0.15s; }
-    .facts, .summary { margin: 0; font-size: 12px; color: var(--text-2); }
-    .ai { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px dashed var(--border-2); border-radius: 6px; font-size: 12px; }
+    .facts, .summary { margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
+    .ai { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px dashed var(--border-2); border-radius: 6px; font-size: var(--fs-sm); }
     .ai p { flex-basis: 100%; }
     .group { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px 10px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
     legend { font-weight: 600; padding: 0 4px; }
     .proposal { display: flex; flex-direction: column; gap: 4px; }
     .head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .title { font-weight: 500; overflow-wrap: anywhere; }
-    details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
-    pre { max-height: 220px; overflow: auto; background: var(--code-bg); padding: 6px 8px; border-radius: 4px; font-size: 11px; margin: 4px 0 0; }
+    details summary { cursor: pointer; font-size: var(--fs-sm); color: var(--muted); }
+    pre { max-height: 220px; overflow: auto; background: var(--code-bg); padding: 6px 8px; border-radius: 4px; font-size: var(--fs-xs); margin: 4px 0 0; }
     .diff { max-height: 50vh; }
     .diff .add { color: var(--ok); }
     .diff .remove { color: var(--danger-text); }
     .diff .same { color: var(--muted); }
-    .skipped ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
-    .err { margin: 0; color: var(--danger-text); font-size: 12px; }
+    .skipped ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--fs-sm); }
+    .err { margin: 0; color: var(--danger-text); font-size: var(--fs-sm); }
     .ok { margin: 0; color: var(--ok); }
     .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
     .actions.start { justify-content: flex-start; }

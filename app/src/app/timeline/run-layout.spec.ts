@@ -1,5 +1,5 @@
 import { AnnotationDto, RunInfo, RunStatus } from '../core/api.types';
-import { anomalyOf, layoutRuns, MIN_RUN_PCT, runKinds, runRange } from './run-layout';
+import { anomalyOf, layoutRuns, MAX_RUN_ROWS, MIN_RUN_PCT, runKinds, runLabel, runRange, runRowCount } from './run-layout';
 import { runAnomalyText, runDuration, runStatusLabel } from './run-text';
 
 function run(status: RunStatus, from: number, to: number, extra: Partial<AnnotationDto> = {}, info: Partial<RunInfo> = {}): AnnotationDto {
@@ -87,5 +87,46 @@ describe('run texts', () => {
     expect(runAnomalyText(run('closed', 0, 1).run!)).toBeNull();
     expect(runDuration(run('noStart', 0, 0).run!)).toBe('–');
     expect(runDuration(run('closed', 0, 90_000).run!)).not.toBe('–');
+  });
+});
+
+describe('run sub-tracks', () => {
+  const view = (n: string, from: number, to: number) => run('closed', from, to, { kind: 'view' }, { span: 'view', spanLabel: 'View', group: { field: 'View', value: n } });
+
+  it('stack overlapping runs (views opened and closed at different times) on labelled rows without overlap', () => {
+    const anns = [view('Settings', 0, 500), view('Editor', 100, 200), view('Help', 150, 600), view('About', 250, 300)];
+    const lane = layoutRuns(anns, { ...opts, plotWidth: 1000 }).get('A') ?? [];
+    expect(lane.map((v) => [v.label, v.row])).toEqual([
+      ['Settings', 0],
+      ['Editor', 1],
+      ['Help', 2],
+      ['About', 1],
+    ]);
+    expect(runRowCount(lane)).toBe(3);
+    // Every band on a row is clear of the others on it.
+    for (const a of lane) for (const b of lane) if (a !== b && a.row === b.row) expect(a.left + a.width <= b.left || b.left + b.width <= a.left).toBe(true);
+  });
+
+  it('keep runs that follow each other on one row, back to back too, and points on a row of their own when they collide', () => {
+    const lane = layoutRuns([run('closed', 0, 100), run('closed', 200, 300), run('noStart', 300, 300)], { ...opts, plotWidth: 1000 }).get('A') ?? [];
+    expect(lane.map((v) => v.row)).toEqual([0, 0, 1]);
+    // A restart: the next run starts where the previous one ended without a stop.
+    expect((layoutRuns([run('noStop', 0, 100), run('closed', 100, 200)], { ...opts, plotWidth: 1000 }).get('A') ?? []).map((v) => v.row)).toEqual([0, 0]);
+  });
+
+  it('cap the rows per lane', () => {
+    const anns = Array.from({ length: MAX_RUN_ROWS + 3 }, (_, i) => view(`v${i}`, 0, 900 + i));
+    expect(runRowCount(layoutRuns(anns, opts).get('A'))).toBe(MAX_RUN_ROWS);
+  });
+
+  it('show a label only where it fits, and name the band by its paired value, else the rule', () => {
+    const lane = layoutRuns([run('closed', 0, 300), run('closed', 400, 420), run('noStart', 600, 600)], { ...opts, plotWidth: 1000 }).get('A') ?? [];
+    expect(lane.map((v) => v.labelFits)).toEqual([true, false, false]);
+    expect(lane[0]?.label).toBe('Running');
+    const r = run('closed', 0, 1);
+    expect(runLabel(r, { ...r.run!, group: { field: 'Job', value: 'nightly' } })).toBe('nightly');
+    expect(runLabel({ ...r, label: 'Ann' }, { ...r.run!, spanLabel: '' })).toBe('Ann');
+    expect(runRowCount(undefined)).toBe(0);
+    expect(runRowCount([])).toBe(0);
   });
 });

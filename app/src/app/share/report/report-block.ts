@@ -101,23 +101,23 @@ export function svgImageUrl(svg: string): string {
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
-    :host(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+    :host(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .head { display: flex; align-items: center; gap: 4px; }
-    .kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .kind { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
     .spacer { flex: 1; }
     .text { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--font-mono); }
     .md { padding: 4px 2px; }
     .ids { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
     .link { padding: 0 6px; font-family: var(--font-mono); }
     .finding, .detail, .q { margin: 0; }
-    .sev { text-transform: uppercase; font-size: 11px; }
+    .sev { text-transform: uppercase; font-size: var(--fs-xs); }
     .sev.critical { color: var(--danger-text); }
     .sev.warning { color: var(--warn-text); }
     .table-wrap { overflow: auto; max-height: 240px; }
-    table { border-collapse: collapse; font-size: 12px; }
+    table { border-collapse: collapse; font-size: var(--fs-sm); }
     th, td { border: 1px solid var(--border-2); padding: 2px 6px; text-align: left; }
-    .ann { margin: 0; padding-left: 18px; font-size: 12px; }
-    .snap { max-width: 100%; height: auto; background: #fff; border-radius: 4px; }
+    .ann { margin: 0; padding-left: 18px; font-size: var(--fs-sm); }
+    .snap { max-width: 100%; height: auto; background: var(--bg-1); border-radius: 4px; }
     .caption { width: 100%; box-sizing: border-box; }
   `,
 })

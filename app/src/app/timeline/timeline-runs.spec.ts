@@ -74,6 +74,29 @@ describe('TimelinePanel runs', () => {
     expect(store.query().groups).toEqual(['WEB01 · 200']);
   });
 
+  it('stacks overlapping runs of one lane on labelled sub-tracks and makes the lane taller by that many rows', async () => {
+    const backend = tinyBackend();
+    const original = backend.annotations.bind(backend);
+    vi.spyOn(backend, 'annotations').mockImplementation(async (r) => {
+      const all = await original(r);
+      const first = must(all.find((a) => a.run && a.run.status === 'closed'));
+      // Two views open at once on the same lane, over the first run.
+      const view = (value: string, from: number, to: number) => ({ ...first, kind: 'view', from, to, run: { ...first.run!, span: 'view', spanLabel: 'View', group: { field: 'View', value } } });
+      const span = first.to - first.from;
+      return [...all, view('Settings', first.from, first.to), view('Help', first.from + span / 4, first.to)];
+    });
+    const { fixture } = await render(backend);
+    const lane = must(all<HTMLElement>(fixture, '.lane').find((l) => l.querySelector('.run[data-kind="view"]')));
+    const rows = all<HTMLElement>(fixture, '.lane .run').filter((r) => lane.contains(r));
+    // The run and the two views overlap: three sub-tracks, one per run.
+    expect(new Set(rows.map((r) => r.getAttribute('data-row')))).toEqual(new Set(['0', '1', '2']));
+    expect(lane.style.getPropertyValue('--run-rows')).toBe('3');
+    const labels = all(fixture, '.run-label').filter((l) => lane.contains(l)).map((l) => l.textContent?.trim());
+    expect(labels).toEqual(expect.arrayContaining(['Settings', 'Help']));
+    // The visible label is in the accessible name (WCAG 2.5.3).
+    expect(must(rows.find((r) => r.textContent?.includes('Help'))).getAttribute('aria-label')).toMatch(/^Help \(/);
+  });
+
   it('offers the Evidence menu in the runs legend when there are no plugin annotations', async () => {
     const backend = tinyBackend();
     const original = backend.annotations.bind(backend);

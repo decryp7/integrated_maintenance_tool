@@ -155,39 +155,39 @@ const OP_LABELS: Record<FilterOp, string> = {
     .search { flex: 1; min-width: 200px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2); }
     .search:focus-within { border-color: var(--accent); }
     .search.invalid { border-color: var(--lvl-error); }
-    .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: 12px; color: var(--text); }
-    .toggle { height: 20px; padding: 0 5px; font-size: 10px; border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
+    .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-size: var(--fs-sm); color: var(--text); }
+    .toggle { height: 20px; padding: 0 5px; font-size: var(--fs-2xs); border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
     .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
-    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: 12px; cursor: pointer; }
+    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
     .lvl.on { background: var(--bg-active); color: var(--text); }
-    .lvl .code, .lvl .faint { font-size: 11px; }
+    .lvl .code, .lvl .faint { font-size: var(--fs-xs); }
     .tall { height: 30px; flex: none; }
     /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
     .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
     .range .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pill { height: 24px; border-radius: 12px; flex: none; }
-    .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: 11px; cursor: pointer; }
+    .tz { height: 22px; padding: 0 6px; border: 0; border-radius: 4px; background: var(--bg-active); color: var(--muted); font-size: var(--fs-xs); cursor: pointer; }
     .anchor { position: relative; }
     .chip .field { color: var(--chip-text); }
-    .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: 14px; line-height: 1; }
+    .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
     .spacer { flex: 1; }
     .opt { color: var(--muted); padding: 2px 4px; white-space: nowrap; }
     .options-pop { top: 34px; right: 0; width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .opt-section { display: flex; flex-direction: column; gap: 8px; }
-    .opt-head { display: flex; gap: 6px; align-items: baseline; font-size: 12px; }
+    .opt-head { display: flex; gap: 6px; align-items: baseline; font-size: var(--fs-sm); }
     .switches { border-top: 1px solid var(--border); padding-top: 10px; }
     .sw { color: var(--muted); }
     .chosen { display: flex; flex-wrap: wrap; gap: 6px; }
     .opts { max-height: 220px; overflow: auto; display: flex; flex-direction: column; }
-    .opt { text-align: left; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 0 6px; }
+    .opt { text-align: left; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-sm); padding: 0 6px; }
     .opt:hover { background: var(--bg-hover); }
     .pop-actions { display: flex; justify-content: flex-end; gap: 6px; }
     .add-pop { top: 30px; left: 0; width: 300px; display: flex; flex-direction: column; gap: 8px; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 11px; }
-    .small { font-size: 11px; }
+    .lbl { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: var(--fs-xs); }
+    .small { font-size: var(--fs-xs); }
   `,
 })
 export class FilterBar {

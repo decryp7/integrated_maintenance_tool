@@ -88,11 +88,11 @@ import { ReportStore } from './report.store';
     .scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
     .bar, .add { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .spacer { flex: 1; }
-    .pick, .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .pick, .field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); color: var(--muted); }
     .pick { flex-direction: row; align-items: center; }
-    .title { font-size: 15px; font-weight: 600; }
+    .title { font-size: var(--fs-lg); font-weight: 600; }
     .summary { resize: vertical; font-family: var(--font-mono); }
-    .hint { margin: 0; font-size: 11px; }
+    .hint { margin: 0; font-size: var(--fs-xs); }
     .section { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
     .section-head { display: flex; gap: 4px; align-items: center; }
     .stitle { flex: 1; font-weight: 600; }

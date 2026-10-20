@@ -4,7 +4,7 @@ import { all, provideTinyBackend, settle, tinyBackend } from '../../testing/help
 import { at } from '../../testing/must';
 import { Lane, MarkerKind, Timeline } from '../core/api.types';
 import { stableLanes } from './lane-order';
-import { buildLaneVms, densityPath, laneTitle } from './timeline-lane-vm';
+import { buildLaneVms, densityArea, densityEdge, densityPath, laneTitle, sparsePath } from './timeline-lane-vm';
 import { TimelinePanel } from './timeline-panel';
 
 const lane = (key: string, first: number, patch: Partial<Lane> = {}): Lane => ({ key, first, last: first + 10, total: 4, matched: 4, density: [], markers: [], sources: [], ...patch });
@@ -62,6 +62,38 @@ describe('buildLaneVms', () => {
   it('draws density bars scaled to the busiest bucket', () => {
     expect(densityPath([])).toBe('');
     expect(densityPath([0, 2, 1])).toBe('M1.1 0.00h0.8v16.00h-0.8zM2.1 7.00h0.8v9.00h-0.8z');
+  });
+
+  it('draws density as a step area on a square-root scale shared by all lanes, with its top edge', () => {
+    // 4 of a busiest 16 is half the height (√(4/16)); empty buckets lie on the baseline; equal steps merge.
+    expect(densityEdge([0, 4, 4, 16], 16)).toBe('M1 8.00H3V0.00H4');
+    // Not along the empty baseline: one sub-path per run of busy buckets.
+    expect(densityEdge([4, 0, 0, 16, 16], 16)).toBe('M0 8.00H1M3 0.00H5');
+    expect(densityArea([0, 4, 4, 16], 16)).toBe('M0 16L0 16.00H1V8.00H3V0.00H4V16Z');
+    // A single event still shows (at least 1 unit).
+    expect(densityEdge([1], 1_000_000)).toBe('M0 15.00H1');
+    expect(densityArea([1], 1_000_000)).toBe('M0 16L0 15.00H1V16Z');
+    expect(densityArea([0, 0], 5)).toBe('');
+    expect(densityEdge([], 5)).toBe('');
+  });
+
+  it('draws one tick per busy bucket for quiet lanes', () => {
+    expect(sparsePath([0, 3, 0, 1])).toBe('M1.5 3.5V12.5M3.5 3.5V12.5');
+    expect(sparsePath([])).toBe('');
+  });
+
+  it('colours a lane by its first source, compares volumes across lanes, and switches quiet lanes to ticks', () => {
+    const swatch = { slot: 0, color: 'var(--src-1)', pattern: 'solid' as const };
+    const lanes = [lane('busy', 0, { matched: 900, density: [0, 400, 100] }), lane('quiet', 0, { matched: 3, density: [1, 0, 2] })];
+    const [busy, quiet] = buildLaneVms(lanes, timeline(lanes), { ...base, marks: (l: Lane) => (l.key === 'busy' ? [{ swatch, label: 'a.log' }] : []) });
+    expect(busy!.color).toBe('var(--src-1)');
+    expect(busy!.sparse).toBe(false);
+    expect(busy!.densityEdge).toBe(densityEdge([0, 400, 100], 400));
+    expect(busy!.sparsePath).toBe('');
+    expect(quiet!.color).toBeNull();
+    expect(quiet!.sparse).toBe(true);
+    expect(quiet!.densityArea).toBe('');
+    expect(quiet!.sparsePath).toBe(sparsePath([1, 0, 2]));
   });
 });
 

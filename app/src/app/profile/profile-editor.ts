@@ -68,14 +68,14 @@ import { TemplatesService } from '../templates/templates.service';
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .name { font-weight: 600; }
-    .path { font-size: 11px; max-width: 280px; }
-    .unsaved { color: var(--warn-text); font-size: 12px; }
-    .bad { display: inline-flex; align-items: center; gap: 4px; color: var(--danger-text); font-size: 12px; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .good { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-size: 12px; }
+    .path { font-size: var(--fs-xs); max-width: 280px; }
+    .unsaved { color: var(--warn-text); font-size: var(--fs-sm); }
+    .bad { display: inline-flex; align-items: center; gap: 4px; color: var(--danger-text); font-size: var(--fs-sm); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .good { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-size: var(--fs-sm); }
     .spacer { flex: 1; }
     .seg { display: flex; gap: 2px; }
-    .stale { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: 12px; color: var(--warn-text); border-bottom: 1px solid var(--border); background: var(--bg-2); }
-    .note { flex: none; padding: 6px 14px; font-size: 11px; border-bottom: 1px solid var(--border); }
+    .stale { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: var(--fs-sm); color: var(--warn-text); border-bottom: 1px solid var(--border); background: var(--bg-2); }
+    .note { flex: none; padding: 6px 14px; font-size: var(--fs-xs); border-bottom: 1px solid var(--border); }
   `,
 })
 export class ProfileEditor {

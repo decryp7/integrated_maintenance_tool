@@ -21,7 +21,7 @@ import { QlError } from '../core/api.types';
     :host { display: inline; }
     .dym { color: var(--text-2); }
     .link { background: none; border: 0; padding: 0 2px; font: inherit; color: var(--chip-text); cursor: pointer; text-decoration: underline; }
-    .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+    .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 3px; }
   `,
 })
 export class QlSuggestions {

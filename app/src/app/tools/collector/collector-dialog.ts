@@ -188,7 +188,7 @@ type Phase = 'idle' | 'running' | 'done';
     legend { padding: 8px 0 0; float: left; width: 100%; display: flex; align-items: center; gap: 6px; }
     legend + * { clear: both; }
     .bar { display: flex; justify-content: flex-end; }
-    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); flex: 1; min-width: 0; }
+    .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); flex: 1; min-width: 0; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { min-width: 140px; }
     .inline { display: flex; gap: 8px; align-items: center; }
@@ -198,9 +198,9 @@ type Phase = 'idle' | 'running' | 'done';
     .check { display: inline-flex; gap: 6px; align-items: center; min-height: 24px; color: var(--text-2); }
     .log { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border-2); border-radius: 6px; }
     .json { min-height: 280px; }
-    .err { color: var(--danger-text); font-size: 12px; }
+    .err { color: var(--danger-text); font-size: var(--fs-sm); }
     .progress { display: flex; gap: 8px; align-items: center; color: var(--text-2); }
-    .result { padding: 10px 12px; border: 1px solid var(--ok); border-radius: 8px; background: var(--bg-3); display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+    .result { padding: 10px 12px; border: 1px solid var(--ok); border-radius: 8px; background: var(--bg-3); display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
     .path { word-break: break-all; }
     .facts { list-style: none; padding: 0; margin: 0; display: flex; gap: 16px; flex-wrap: wrap; }
     .reasons { margin: 4px 0 0; padding-inline-start: 18px; }

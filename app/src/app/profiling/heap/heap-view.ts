@@ -57,7 +57,7 @@ import { HeapTypes } from './heap-types';
       .tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font: inherit; padding: 6px 10px; cursor: pointer; }
       .tabs button[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
       .tabs button:disabled { opacity: 0.45; cursor: default; }
-      .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .tabs button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
       .panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
       .panel > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     `,
