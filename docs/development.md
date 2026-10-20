@@ -34,7 +34,10 @@ npx tauri dev         # the desktop app with the real engine (starts `npm run st
 cargo test -p imt-core        # engine tests, including end-to-end runs over /samples
 ```
 
-Regenerate the sample logs with `python3 samples/generate.py` (do not edit them by hand);
+Regenerate the samples with `cargo xtask gen-samples` (do not edit them by hand). It runs
+`samples/generate.py` (with `python3`, `python` or `py -3`, whichever works) and then the Rust generators
+of the profiler captures and the crash dump (`IMT_REGENERATE_SAMPLES=1` tests in `imt-plugin-profiling`
+and `imt-plugin-windows`); `cargo xtask help` lists the tasks.
 [`samples/README.md`](../samples/README.md) lists every sample, its format and the views it shows.
 
 ### Visual Studio Code (Windows and macOS)
