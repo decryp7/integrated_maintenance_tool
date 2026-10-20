@@ -9,6 +9,7 @@ import { EMPTY_QUERY } from '../app/core/workspace.store';
 import { provideImtBuiltins } from '../app/builtin/provide-builtins';
 import { BUILTIN_VIEWS } from '../app/builtin/builtin-views';
 import { DockService } from '../app/dock/dock.service';
+import { ConsumerGate } from '../app/core/panel-visibility';
 
 export const T0 = DEMO_START;
 export const SEC = 1000;
@@ -190,4 +191,37 @@ export function buttonByText(fixture: ComponentFixture<unknown>, label: string |
 export function typeInto(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string, event = 'input'): void {
   input.value = value;
   input.dispatchEvent(new Event(event, { bubbles: true }));
+}
+
+/** Registers a visible consumer of a gated root store (as an open panel would), so it queries the engine in a test. */
+export function useGate(gate: ConsumerGate, visible = signal(true)): { visible: typeof visible; release(): void } {
+  let release = () => undefined as void;
+  gate.add(visible, { onDestroy: (fn: () => void) => ((release = fn), () => undefined) });
+  return { visible, release: () => release() };
+}
+
+/**
+ * Animation frames the test runs by hand (`flush()` runs every frame requested so far). Pointer moves are published
+ * once per frame, so a test dispatching moves flushes before it reads the result. `restore()` puts the real ones back.
+ */
+export function manualFrames(): { flush(): void; readonly pending: number; restore(): void } {
+  const queue = new Map<number, FrameRequestCallback>();
+  let next = 0;
+  const real = { request: globalThis.requestAnimationFrame, cancel: globalThis.cancelAnimationFrame };
+  globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => (queue.set(++next, cb), next);
+  globalThis.cancelAnimationFrame = (h: number) => void queue.delete(h);
+  return {
+    flush() {
+      const due = [...queue.values()];
+      queue.clear();
+      for (const cb of due) cb(performance.now());
+    },
+    get pending() {
+      return queue.size;
+    },
+    restore() {
+      globalThis.requestAnimationFrame = real.request;
+      globalThis.cancelAnimationFrame = real.cancel;
+    },
+  };
 }

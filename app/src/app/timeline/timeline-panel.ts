@@ -22,7 +22,9 @@ import { MarkerStyles } from '../markers/marker-styles';
 import { LaidMarker, layoutLane, MarkerTarget, MarkerVm } from './marker-layout';
 import { pan as panRange, Range, RangeZoom, wheelFactor, xToTs } from './zoom';
 import { AnalysisTargets } from '../analysis/analysis-targets';
-import { TimeCursor, timeToFrac, xToTime } from '../analysis/time-cursor';
+import { TimeCursor, TimeCursorLine, xToTime } from '../analysis/time-cursor';
+import { bucketsForWidth, RESIZE_SETTLE_MS } from '../shared/bucket-count';
+import { Debouncer, FrameThrottle } from '../shared/throttle';
 import { momentAt, WIDTHS } from '../analysis/windows';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ContextMenuService, MenuEntry } from '../ui/context-menu.service';
@@ -103,7 +105,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, RunTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus, SourceSwatch],
+  imports: [TimeCursorLine, Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, RunTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus, SourceSwatch],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main', '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
@@ -260,7 +262,7 @@ interface Hover {
       [attr.data-to]="tl()?.to"
       [class.panning]="panning()"
       (pointermove)="publishHover($event)"
-      (pointerleave)="cursor.hover(null)"
+      (pointerleave)="leaveHover()"
       (pointerdown)="pointerDown($event)"
       (dblclick)="zoom.fit()"
       (wheel)="onWheel($event)"
@@ -381,11 +383,9 @@ interface Hover {
         @if (brush(); as b) {
           <div class="brush" [style.left.px]="b.x0" [style.width.px]="b.x1 - b.x0"></div>
         }
-        @if (hoverX() !== null) {
-          <div class="cursor" [style.left.px]="hoverX()">
-            <span class="cursor-label mono">{{ hoverTime() }}</span>
-          </div>
-        }
+        <div class="cursor" [imtTimeCursorLine]="range()" [imtTimeCursorLineOf]="cursor" [imtTimeCursorLineWidth]="plotWidth()" [imtTimeCursorLineLabel]="cursorLabel">
+          <span class="cursor-label mono" data-cursor-label></span>
+        </div>
       </div>
     </div>
 
@@ -743,12 +743,6 @@ export class TimelinePanel {
     return t ? { from: t.from, to: t.to } : null;
   });
 
-  /** X (px in the plot) of the shared time cursor, from any time-based view; null when outside. */
-  protected readonly hoverX = computed(() => {
-    const frac = timeToFrac(this.src.cursor().hovered(), this.range());
-    return frac === null ? null : frac * this.plotWidth();
-  });
-
   protected readonly span = computed(() => {
     const t = this.tl();
     return t ? Math.max(1, t.to - t.from) : 1;
@@ -831,13 +825,23 @@ export class TimelinePanel {
     this.lanes().flatMap((l) => l.markers.filter((m) => m.cluster.kind === 'fatal').map((m) => m.left)),
   );
 
-  protected readonly hoverTime = computed(() => {
-    const ts = this.src.cursor().hovered();
-    return ts === null || this.hoverX() === null ? '' : formatDateTime(ts, this.store.timezone(), true);
-  });
+  /** The cursor line's label: the hovered time (written by `TimeCursorLine`, so hovering does not re-render this view). */
+  protected readonly cursorLabel = (ts: number): string => formatDateTime(ts, this.store.timezone(), true);
+
+  /** Pointer moves publish the hovered time at most once per frame. */
+  private readonly hoverFrame = new FrameThrottle();
+  /** Resizing redraws at once but re-queries the timeline only once the size has settled. */
+  private readonly resized = new Debouncer(RESIZE_SETTLE_MS);
+  private bucketsSet = false;
 
   constructor() {
+    // The annotations are fetched while a timeline (or another view showing them) is visible.
+    this.ann.gate.use();
     const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => {
+      this.hoverFrame.cancel();
+      this.resized.cancel();
+    });
     afterNextRender(() => {
       const ro = new ResizeObserver(() => this.measure());
       ro.observe(this.axis().nativeElement);
@@ -909,13 +913,21 @@ export class TimelinePanel {
     ]);
   }
 
-  /** Publishes the time under the pointer to the cursor in effect (null outside the plot). */
+  /** Publishes the time under the pointer to the cursor in effect (null outside the plot), at most once per frame. */
   protected publishHover(e: PointerEvent): void {
-    const view = this.range();
-    if (!view) return;
-    const x = this.localX(e);
-    const w = this.plotWidth();
-    this.cursor.hover(x < 0 || x > w ? null : xToTime(x, w, view));
+    const clientX = e.clientX;
+    this.hoverFrame.run(() => {
+      const view = this.range();
+      if (!view) return;
+      const x = this.localX({ clientX });
+      const w = this.plotWidth();
+      this.cursor.hover(x < 0 || x > w ? null : xToTime(x, w, view));
+    });
+  }
+
+  protected leaveHover(): void {
+    this.hoverFrame.cancel();
+    this.cursor.hover(null);
   }
 
   private measure(): void {
@@ -924,14 +936,19 @@ export class TimelinePanel {
     if (axis.width <= 0) return;
     this.plotLeft.set(axis.left - wrap.left);
     this.plotWidth.set(axis.width);
-    this.src.setBuckets(Math.floor(axis.width / 2));
+    const buckets = bucketsForWidth(axis.width);
+    if (!this.bucketsSet) {
+      // The first size is known at once; later ones (a splitter drag) only once they settle.
+      this.bucketsSet = true;
+      this.src.setBuckets(buckets);
+    } else this.resized.run(() => this.src.setBuckets(buckets));
   }
 
   protected time(ts: number): string {
     return formatDateTime(ts, this.store.timezone(), true);
   }
 
-  private localX(e: MouseEvent): number {
+  private localX(e: Pick<MouseEvent, 'clientX'>): number {
     const wrap = this.wrap().nativeElement.getBoundingClientRect();
     return e.clientX - wrap.left - this.plotLeft();
   }

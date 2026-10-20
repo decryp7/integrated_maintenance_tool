@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FakeECharts } from '../../testing/fake-echarts';
 import type { EChartsCoreOption } from 'echarts/core';
-import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
+import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto, manualFrames } from '../../testing/helpers';
 import { ChartData, ChartDef } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { buildOption, ChartCard, LIVE_UPDATE_MS, liveOption } from './chart-card';
@@ -13,6 +13,7 @@ import { EChart } from './echart';
 import { MetricsView } from './metrics-view';
 import { TimeCursor } from '../analysis/time-cursor';
 import { at, must } from '../../testing/must';
+import { RESIZE_SETTLE_MS } from '../shared/bucket-count';
 
 // Through DI, not vi.mock('echarts/core'): with shared module graphs (isolate: false) a module mock only applies
 // when no earlier spec in the worker has loaded echarts, which made these tests flaky.
@@ -210,11 +211,14 @@ describe('ChartCard time cursor', () => {
     fixture.componentRef.setInput('fromProfile', false);
     await settle(fixture);
     const cursor = TestBed.inject(TimeCursor);
-    expect(fixture.nativeElement.querySelector('.hover-line')).toBeNull();
+    const shown = () => fixture.nativeElement.querySelector('.hover-line:not([hidden])');
+    expect(shown()).toBeNull();
 
+    const frames = manualFrames();
     const plot = el<HTMLElement>(fixture, '.plot');
     plot.getBoundingClientRect = () => ({ left: 0, width: 56 + 20 + 400 }) as DOMRect;
     plot.dispatchEvent(new PointerEvent('pointermove', { clientX: 56 + 200, bubbles: true }));
+    frames.flush();
     const hovered = cursor.hovered()!;
     expect(hovered).not.toBeNull();
     await settle(fixture);
@@ -222,15 +226,70 @@ describe('ChartCard time cursor', () => {
     expect(line.style.left).toContain('56px');
     expect(line.style.left).toContain('0.5');
     plot.dispatchEvent(new PointerEvent('pointermove', { clientX: 10, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBeNull();
+    frames.restore();
 
     // A time hovered elsewhere (e.g. the timeline) draws the line; one outside the axis hides it.
     cursor.hover(hovered);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.hover-line')).not.toBeNull();
+    expect(shown()).not.toBeNull();
     cursor.hover(0);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.hover-line')).toBeNull();
+    expect(shown()).toBeNull();
+  });
+
+  it('asks for buckets from its own width, and a resize re-queries only once it settles', async () => {
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    try {
+      const backend = tinyBackend();
+      const query = vi.spyOn(backend, 'queryChart');
+      const callbacks: (() => void)[] = [];
+      const observed = () => callbacks.forEach((cb) => cb());
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(cb: () => void) {
+            callbacks.push(cb);
+          }
+          observe() {}
+          disconnect() {}
+        },
+      );
+      TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+      const fixture = TestBed.createComponent(ChartCard);
+      let width = 876;
+      (fixture.nativeElement as HTMLElement).getBoundingClientRect = () => ({ width }) as DOMRect;
+      fixture.componentRef.setInput('def', def({ id: 'x', y: 'count()', splitBy: [], bucket: 'auto', type: 'bar' }));
+      fixture.componentRef.setInput('fromProfile', false);
+      await fixture.whenStable();
+      await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+      expect(at(query.mock.calls, 0)[0].buckets).toBe(400);
+      // The timeline's resolution changing does not re-query the chart.
+      TestBed.inject(WorkspaceStore).setBuckets(1000);
+      await fixture.whenStable();
+      // A splitter drag: many sizes, one query once it settles.
+      for (const w of [900, 950, 1000, 1076]) {
+        width = w;
+        observed();
+        await wait(20);
+      }
+      await fixture.whenStable();
+      expect(query).toHaveBeenCalledTimes(1);
+      await wait(RESIZE_SETTLE_MS + 20);
+      await fixture.whenStable();
+      await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(2));
+      expect(at(query.mock.calls, 1)[0].buckets).toBe(500);
+      // A resize that keeps the bucket step does not re-query.
+      width = 1080;
+      observed();
+      await wait(RESIZE_SETTLE_MS + 20);
+      await fixture.whenStable();
+      expect(query).toHaveBeenCalledTimes(2);
+      fixture.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

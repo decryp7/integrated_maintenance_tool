@@ -1,6 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RunsReply, RunsRequest, RunSort, RunStatus } from '../core/api.types';
 import { describeError, Logger } from '../core/logger';
+import { ConsumerGate } from '../core/panel-visibility';
 import { WorkspaceStore } from '../core/workspace.store';
 import { RunsBackend } from './runs-backend';
 
@@ -11,7 +12,9 @@ const EMPTY: RunsReply = { summaries: [], rules: [], runs: [], total: 0, offset:
 
 /**
  * State of the Runs view: the sort, filters and the rows the engine returned. Reloads whenever the data changes or a
- * parameter does; responses to superseded requests are ignored. Sorting, filtering and the summaries are the engine's.
+ * parameter does, but only while a view that shows them is open and visible (`gate`; it catches up when shown again),
+ * and never twice for the same request; responses to superseded requests are ignored. Sorting, filtering and the
+ * summaries are the engine's.
  */
 @Injectable({ providedIn: 'root' })
 export class RunsStore {
@@ -38,12 +41,17 @@ export class RunsStore {
   readonly summaries = computed(() => this.reply().summaries);
   readonly more = computed(() => Math.max(0, this.reply().total - this.reply().runs.length));
 
+  /** The views showing the runs; nothing is queried while none is visible. */
+  readonly gate = new ConsumerGate();
+
   private seq = 0;
   private readonly nonce = signal(0);
+  private lastKey: string | null = null;
 
   constructor() {
     effect(() => {
-      this.ws.dataVersion();
+      if (!this.gate.active()) return;
+      const version = this.ws.dataVersion();
       const t = this.inView() ? this.ws.timeline() : null;
       const status = this.status();
       const req = {
@@ -55,8 +63,12 @@ export class RunsStore {
         from: t?.from ?? null,
         to: t?.to ?? null,
       };
-      this.nonce();
+      const nonce = this.nonce();
       const hasData = !!this.ws.summary()?.sources.length;
+      // The timeline re-queries (new object, same range) on every bucket change; the same request is not sent twice.
+      const key = hasData ? JSON.stringify([req, version, nonce]) : '';
+      if (key === this.lastKey) return;
+      this.lastKey = key;
       untracked(() => void this.load(hasData ? req : null));
     });
   }

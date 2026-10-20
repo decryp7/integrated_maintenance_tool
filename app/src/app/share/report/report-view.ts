@@ -113,6 +113,11 @@ export class ReportView {
 
   protected readonly untitled = $localize`:@@share.reportView.untitled:Untitled report`;
 
+  constructor() {
+    // "Add annotations" needs the annotations of the visible range, fetched while a view showing them is visible.
+    this.annotations.gate.use();
+  }
+
   protected sectionLabel(title: string, i: number): string {
     return $localize`:@@share.reportView.sectionAria:Section ${title || i + 1}:title:`;
   }

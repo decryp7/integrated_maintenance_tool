@@ -154,9 +154,10 @@ describe('TimelinePanel as an additional timeline', () => {
     // Its cursor is its own.
     TestBed.inject(TimeCursor).hover(null);
     el(fixture, '.wrap').dispatchEvent(pointer('pointermove', 250 + 400));
+    await new Promise((r) => requestAnimationFrame(r));
     expect(TestBed.inject(TimeCursor).hovered()).toBeNull();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.cursor')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.cursor:not([hidden])')).not.toBeNull();
     el(fixture, '.wrap').dispatchEvent(pointer('pointerleave', 0));
     TestBed.inject(TimelineZoom).fit();
     await settle(fixture);

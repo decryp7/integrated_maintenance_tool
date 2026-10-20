@@ -1,4 +1,5 @@
-import { Directive, inject, Injectable, input, signal, ElementRef } from '@angular/core';
+import { DestroyRef, Directive, effect, ElementRef, inject, Injectable, input, signal } from '@angular/core';
+import { FrameThrottle } from '../shared/throttle';
 
 /** A closed time interval in epoch ms. */
 export interface TimeRange {
@@ -58,12 +59,14 @@ export function xToTime(x: number, width: number, range: TimeRange): number {
   selector: '[imtTimeCursor]',
   host: {
     '(pointermove)': 'move($event)',
-    '(pointerleave)': 'cursor.hover(null)',
+    '(pointerleave)': 'leave()',
   },
 })
 export class TimeCursorSource {
   readonly cursor = inject(TimeCursor);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** Pointer moves are published at most once per frame (each one re-renders every view drawing the cursor). */
+  private readonly frame = new FrameThrottle();
   /** The time range the plot box spans. */
   readonly imtTimeCursor = input.required<TimeRange | null>();
   /** Distance of the plot box from the host's left edge, px. */
@@ -73,13 +76,63 @@ export class TimeCursorSource {
   /** Width of the plot box, px; null = the host's width minus the insets. */
   readonly imtTimeCursorWidth = input<number | null>(null);
 
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.frame.cancel());
+  }
+
   move(e: PointerEvent): void {
+    const clientX = e.clientX;
+    this.frame.run(() => this.publish(clientX));
+  }
+
+  leave(): void {
+    this.frame.cancel();
+    this.cursor.hover(null);
+  }
+
+  private publish(clientX: number): void {
     const range = this.imtTimeCursor();
     if (!range) return;
     const box = this.host.nativeElement.getBoundingClientRect();
     const width = this.imtTimeCursorWidth() ?? box.width - this.imtTimeCursorLeft() - this.imtTimeCursorRight();
-    const x = e.clientX - box.left - this.imtTimeCursorLeft();
+    const x = clientX - box.left - this.imtTimeCursorLeft();
     this.cursor.hover(x < 0 || x > width ? null : xToTime(x, width, range));
+  }
+}
+
+/**
+ * The shared time cursor's vertical line, drawn by writing the host's style directly (no template re-render of the
+ * view around it on every pointer move): `<div class="cursor" [imtTimeCursorLine]="range">`. The host is `hidden`
+ * while the cursor is outside `range`. Its left edge is `[imtTimeCursorLineLeft]` px plus the fraction of
+ * `[imtTimeCursorLineWidth]` px (or, when no width is given, of the host's container minus both insets). A descendant
+ * with `data-cursor-label` shows `[imtTimeCursorLineLabel]` of the hovered time.
+ */
+@Directive({ selector: '[imtTimeCursorLine]' })
+export class TimeCursorLine {
+  /** The time range the line's container spans. */
+  readonly imtTimeCursorLine = input.required<TimeRange | null>();
+  /** The cursor to follow (default: the shared one). */
+  readonly imtTimeCursorLineOf = input<TimeCursor | null>(null);
+  readonly imtTimeCursorLineLeft = input(0);
+  readonly imtTimeCursorLineRight = input(0);
+  readonly imtTimeCursorLineWidth = input<number | null>(null);
+  readonly imtTimeCursorLineLabel = input<((ts: number) => string) | null>(null);
+
+  constructor() {
+    const shared = inject(TimeCursor);
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    effect(() => {
+      const ts = (this.imtTimeCursorLineOf() ?? shared).hovered();
+      const frac = timeToFrac(ts, this.imtTimeCursorLine());
+      host.hidden = frac === null;
+      if (frac === null || ts === null) return;
+      const left = this.imtTimeCursorLineLeft();
+      const width = this.imtTimeCursorLineWidth();
+      host.style.left = width !== null ? `${left + frac * width}px` : `calc(${left}px + (100% - ${left + this.imtTimeCursorLineRight()}px) * ${frac.toFixed(5)})`;
+      const label = this.imtTimeCursorLineLabel();
+      const target = host.querySelector<HTMLElement>('[data-cursor-label]');
+      if (label && target) target.textContent = label(ts);
+    });
   }
 }
 

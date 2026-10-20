@@ -8,10 +8,12 @@ import { Icon } from '../shared/icon';
 import { ChartTheme, ChartTokens } from './chart-theme';
 import { EChart } from './echart';
 import { TimelineZoom } from '../timeline/zoom';
-import { TimeCursor, TimeCursorSource, TimeRange, timeToFrac } from '../analysis/time-cursor';
+import { TimeCursor, TimeCursorLine, TimeCursorSource, TimeRange } from '../analysis/time-cursor';
 import { LiveTail } from '../workspace/live-tail';
 import { VisualExportService, VisualFormat } from '../share/visuals/visual-export.service';
 import { ReportActions } from '../share/report/report-actions';
+import { bucketsForWidth, RESIZE_SETTLE_MS } from '../shared/bucket-count';
+import { Debouncer } from '../shared/throttle';
 
 /** Live charts animate their updates briefly (none with reduced motion). */
 export const LIVE_UPDATE_MS = 200;
@@ -28,6 +30,8 @@ export function liveOption(option: EChartsCoreOption, reduced = reducedMotion())
 const MAX_NAMED = 4;
 /** Plot box of every chart (ECharts `grid`), px; the right inset grows when series are labelled directly. */
 export const CHART_GRID = { left: 56, top: 30, bottom: 28, right: 20, rightLabelled: 130 } as const;
+/** Buckets of a chart whose width is not known (not laid out). */
+export const CHART_DEFAULT_BUCKETS = 400;
 const OTHER = $localize`:@@metrics.chart.other:Other`;
 const LEGEND_PER_ROW = 4;
 const LEGEND_ROW_PX = 20;
@@ -161,7 +165,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
 @Component({
   selector: 'imt-chart-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EChart, Icon, TimeCursorSource],
+  imports: [EChart, Icon, TimeCursorSource, TimeCursorLine],
   template: `
     <div class="head">
       <span class="title">{{ def().title }}</span>
@@ -191,9 +195,15 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     } @else if (option(); as o) {
       <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
         <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" />
-        @if (hoverLeft(); as left) {
-          <div class="hover-line" [style.left]="left" [style.top.px]="grid().top" [style.bottom.px]="grid().bottom" aria-hidden="true"></div>
-        }
+        <div
+          class="hover-line"
+          [imtTimeCursorLine]="range()"
+          [imtTimeCursorLineLeft]="grid().left"
+          [imtTimeCursorLineRight]="grid().right"
+          [style.top.px]="grid().top"
+          [style.bottom.px]="grid().bottom"
+          aria-hidden="true"
+        ></div>
       </div>
     }
   `,
@@ -232,6 +242,8 @@ export class ChartCard {
   protected readonly live = inject(LiveTail);
   /** The card is on screen; live refreshes of cards scrolled out of view wait until they are visible again. */
   private readonly onScreen = signal(true);
+  /** Buckets this chart asks for (from its own width; null until it is laid out). */
+  private readonly buckets = signal<number | null>(null);
 
   protected readonly data = signal<ChartData | null>(null);
   protected readonly loading = signal(false);
@@ -280,14 +292,6 @@ export class ChartCard {
     return g ?? { left: CHART_GRID.left, right: CHART_GRID.right, top: CHART_GRID.top, bottom: CHART_GRID.bottom };
   });
 
-  /** CSS `left` of the shared time cursor's line (hovered in any time-based view), or null. */
-  protected readonly hoverLeft = computed(() => {
-    const frac = timeToFrac(this.cursor.hovered(), this.range());
-    if (frac === null) return null;
-    const { left, right } = this.grid();
-    return `calc(${left}px + (100% - ${left + right}px) * ${frac.toFixed(5)})`;
-  });
-
   /** Resolves the export and report services on first use (they need the share and analysis backends). */
   private readonly injector = inject(Injector);
 
@@ -324,9 +328,10 @@ export class ChartCard {
       const def = this.def();
       const fromProfile = this.fromProfile();
       const query = this.store.effectiveQuery();
-      const buckets = this.store.buckets();
+      const buckets = this.buckets();
       const version = this.store.dataVersion();
       const onScreen = this.onScreen();
+      if (buckets === null) return;
       untracked(() => {
         const key = JSON.stringify([def, fromProfile, query, buckets]);
         const fingerprint = `${key}|${version}`;
@@ -352,6 +357,22 @@ export class ChartCard {
 
     const host = inject<ElementRef<HTMLElement>>(ElementRef);
     const destroyRef = inject(DestroyRef);
+    // The chart's own resolution, from its own width: resizing the timeline (or this card) does not re-query every chart,
+    // and a resize only re-queries once it settles, in coarse steps.
+    const resized = new Debouncer(RESIZE_SETTLE_MS);
+    destroyRef.onDestroy(() => resized.cancel());
+    afterNextRender(() => {
+      const plotWidth = () => host.nativeElement.getBoundingClientRect().width - CHART_GRID.left - CHART_GRID.right;
+      const measure = () => {
+        const width = plotWidth();
+        return width > 0 ? bucketsForWidth(width) : CHART_DEFAULT_BUCKETS;
+      };
+      this.buckets.set(measure());
+      if (typeof ResizeObserver === 'undefined') return;
+      const ro = new ResizeObserver(() => resized.run(() => this.buckets.set(measure())));
+      ro.observe(host.nativeElement);
+      destroyRef.onDestroy(() => ro.disconnect());
+    });
     afterNextRender(() => {
       if (typeof IntersectionObserver === 'undefined') return;
       const io = new IntersectionObserver((entries) => this.onScreen.set(entries.some((e) => e.isIntersecting)));

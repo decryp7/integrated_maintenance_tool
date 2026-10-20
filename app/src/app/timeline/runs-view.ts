@@ -159,6 +159,12 @@ export class RunsView {
     { sort: 'status', label: $localize`:Runs table column|@@runs.view.col.status:Status` },
   ];
 
+  constructor() {
+    // The runs and annotations are queried while this view (or another one showing them) is visible.
+    this.runs.gate.use();
+    this.ann.gate.use();
+  }
+
   protected valueOf(e: Event): string {
     return (e.target as HTMLSelectElement).value;
   }
