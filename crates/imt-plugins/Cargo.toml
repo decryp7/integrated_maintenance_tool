@@ -21,6 +21,7 @@ imt-plugin-windows = { path = "../imt-plugin-windows" }
 imt-plugin-web = { path = "../imt-plugin-web" }
 imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
+imt-plugin-dotnet = { path = "../imt-plugin-dotnet" }
 imt-plugin-tools = { path = "../imt-plugin-tools" }
 serde_json.workspace = true
 

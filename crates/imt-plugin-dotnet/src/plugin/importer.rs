@@ -17,11 +17,11 @@ fn is_etl(file_name: &str) -> bool {
 }
 
 impl CaptureImporter for EtlImporter {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         FORMAT
     }
 
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "Windows ETW trace (.etl)"
     }
 
@@ -42,6 +42,31 @@ impl CaptureImporter for EtlImporter {
             });
         }
         sys::import(file_name, bytes, limits)
+    }
+}
+
+/// The `.etl` importer as a profile importer of the plugin contract: the capture is converted in the plugin's
+/// process and crosses encoded with `imt_profile::wire`.
+pub(crate) struct Adapter;
+
+impl imt_plugin_api::ProfileImporter for Adapter {
+    fn id(&self) -> &str {
+        FORMAT
+    }
+
+    fn heap(&self) -> bool {
+        false
+    }
+
+    fn sniff(&self, file_name: &str, head: &[u8]) -> u8 {
+        EtlImporter.sniff(file_name, head)
+    }
+
+    fn import_encoded(&self, file_name: &str, bytes: &[u8], limits: &serde_json::Value) -> Vec<u8> {
+        let result = serde_json::from_value::<Limits>(limits.clone())
+            .map_err(|e| ProfileError::invalid(format!("invalid limits: {e}")))
+            .and_then(|limits| EtlImporter.import(file_name, bytes, &limits));
+        imt_profile::wire::encode_result(&result)
     }
 }
 
@@ -153,5 +178,22 @@ mod tests {
             EtlImporter.import("x.etl", &[0; 64], &small),
             Err(ProfileError::LimitExceeded { .. })
         ));
+    }
+
+    #[test]
+    fn the_adapter_encodes_results_and_typed_errors() {
+        use imt_plugin_api::ProfileImporter;
+        assert_eq!(Adapter.sniff("a.etl", &[0; 64]), 90);
+        assert_eq!(Adapter.id(), "etl");
+        let limits = serde_json::to_value(Limits {
+            max_input_bytes: 10,
+            ..Limits::default()
+        })
+        .unwrap();
+        let bytes = Adapter.import_encoded("x.etl", &[0; 64], &limits);
+        let e = imt_profile::wire::decode_result(&bytes, &Limits::default()).unwrap_err();
+        assert!(e.to_string().contains("file size"), "{e}");
+        let bad = Adapter.import_encoded("x.etl", &[0; 64], &serde_json::json!("nope"));
+        assert!(imt_profile::wire::decode_result(&bad, &Limits::default()).is_err());
     }
 }

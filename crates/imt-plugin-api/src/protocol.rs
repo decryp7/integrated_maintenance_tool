@@ -179,6 +179,14 @@ pub enum HostRequest {
     TaskProgress { tool: String, task: String, fraction: Option<f32> },
     /// → `()`.
     TaskFinished { tool: String, task: String },
+    /// → `Result<Json, ToolFail>`: runs one of the plugin's own elevated tool operations in its elevated process
+    /// (ADR 0017 §7); the host refuses any other operation. Only the plugin's normal process may send it.
+    InvokeElevated {
+        tool: String,
+        op: String,
+        args: Json,
+        timeout_ms: u64,
+    },
 }
 
 /// A field value on the wire (postcard cannot carry a `serde_json::Value`).

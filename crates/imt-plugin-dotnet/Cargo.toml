@@ -9,7 +9,7 @@ publish = false
 description = "IMT plugin: event-based .NET profiling (ETW and EventPipe captures written as NetTrace, .etl import); nothing is loaded into the target"
 
 [dependencies]
-imt-core = { path = "../imt-core", optional = true }
+imt-plugin-api = { path = "../imt-plugin-api", optional = true }
 imt-profile = { path = "../imt-profile" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling", default-features = false }
 anyhow = { workspace = true, optional = true }
@@ -35,7 +35,7 @@ serde_json.workspace = true
 tempfile.workspace = true
 
 [features]
-# The plugin adapter (imt-core): the `dotnet-profiler` tool and the `.etl` importer.
+# The plugin adapter (imt-plugin-api, ADR 0017): the `dotnet-profiler` tool and the `.etl` importer.
 # Without it the crate is the pure capture library, which is what the fuzz targets build.
 default = ["plugin"]
-plugin = ["dep:imt-core", "dep:anyhow", "dep:serde_json", "imt-plugin-profiling/plugin"]
+plugin = ["dep:imt-plugin-api", "dep:anyhow", "dep:serde_json"]

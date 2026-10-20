@@ -174,3 +174,42 @@ fn profiles_are_parsed_in_the_profiling_process() {
         .unwrap();
     assert!(bad.is_err());
 }
+
+#[test]
+fn dotnet_capture_tool_and_etl_importer_run_in_the_plugin_process() {
+    let registry = common::registry(&[common::DOTNET]);
+    let tools = registry.tools();
+    let listed = tools.list();
+    let info = &listed.iter().find(|t| t.info.id == "dotnet-profiler").unwrap().info;
+    // ETW recordings are the plugin's elevated operations; the rest runs unelevated.
+    let elevated: Vec<&str> = info.ops.iter().filter(|o| o.elevated).map(|o| o.name.as_str()).collect();
+    assert_eq!(elevated, ["etw-start", "etw-poll", "etw-stop", "etw-cancel"]);
+    assert!(info.ops.iter().any(|o| o.name == "status" && o.poll));
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = ToolCtx::new(Some(dir.path().to_path_buf()), Arc::new(NoTasks));
+    let procs = tools.invoke("dotnet-profiler", "processes", json!({}), &ctx).unwrap();
+    assert!(procs.is_array(), "{procs}");
+    let status = tools.invoke("dotnet-profiler", "status", json!({}), &ctx).unwrap();
+    assert!(status["captures"].is_array(), "{status}");
+    // A process that is not .NET is refused before anything starts.
+    let e = tools
+        .invoke("dotnet-profiler", "start", json!({"pid": u32::MAX - 1, "kind": "cpu"}), &ctx)
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("not a running .NET process"), "{e}");
+    // .etl paths are typed: refused unless the user chose the file.
+    let etl = dir.path().join("t.etl");
+    std::fs::write(&etl, [0u8; 128]).unwrap();
+    let refused = tools.invoke("dotnet-profiler", "etl-processes", json!({"path": etl.to_string_lossy()}), &ctx);
+    assert!(matches!(refused, Err(ToolError::PathRefused { .. })), "{refused:?}");
+    let importers = registry.contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT);
+    let etl_importer = importers
+        .iter()
+        .find(|i| i.call(|i| i.id().to_string()).ok().as_deref() == Some("etl"))
+        .unwrap();
+    assert_eq!(etl_importer.call(|i| i.sniff("t.etl", &[0; 64])).unwrap(), 90);
+    let bad = etl_importer
+        .call(|i| i.import("t.etl", &[0x11; 4096], &imt_profile::Limits::default()))
+        .unwrap();
+    assert!(bad.is_err());
+}

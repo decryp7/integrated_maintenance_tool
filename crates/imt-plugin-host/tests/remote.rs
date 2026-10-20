@@ -176,3 +176,37 @@ fn path_arguments_need_a_grant_and_elevated_operations_stay_out_of_the_normal_pr
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn the_normal_process_runs_only_declared_elevated_operations_through_the_host() {
+    // The elevated role as an ordinary process (the administrator prompt cannot run in tests).
+    let exe = Path::new(env!("CARGO_BIN_EXE_imt-plugin-host-fake"));
+    let manifest = imt_plugin_host::builtins::load_manifests(exe)
+        .unwrap()
+        .into_iter()
+        .find(|m| &*m.id == ID)
+        .unwrap();
+    let mut spec = imt_plugin_host::PluginSpec::new(exe, ID);
+    spec.elevate = false;
+    let process = imt_plugin_host::PluginProcess::new(manifest, spec);
+    let mut r = PluginRegistry::new();
+    r.install_shared(Arc::new(imt_plugin_host::RemotePlugin::new(process.clone())))
+        .unwrap();
+    r.resolve();
+    let data = tempfile::tempdir().unwrap();
+    let ctx = ToolCtx::new(Some(data.path().to_path_buf()), Arc::new(NoTasks));
+    let normal = pid(&r);
+    let out = r.tools().invoke("fake.tool", "via-admin", json!({}), &ctx).unwrap();
+    // It ran in the other (elevated) process, with the host's data folder, and cannot elevate further.
+    assert_ne!(out["pid"].as_u64().unwrap(), normal, "{out}");
+    assert_eq!(out["dataDir"], json!(data.path().to_string_lossy()));
+    assert_eq!(out["canElevate"], json!(false));
+    // Only operations the manifest declares elevated: the host refuses anything else.
+    let e = r
+        .tools()
+        .invoke("fake.tool", "via-admin", json!({"op": "pid"}), &ctx)
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("not an elevated operation"), "{e}");
+    process.shutdown();
+}

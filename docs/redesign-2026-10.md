@@ -90,8 +90,8 @@ ADR 0014 stands. The engine review adds what it must also decide:
   and the store worker.
 
 Status (2026-10-21, branch `r3/ipc-plugins`): done except the `imt-ai` split, the redactor, the `imt-perfmon` and
-`imt-eventlog` libraries, importer plugins under the store worker (with ADR 0014 6c), postcard store DTOs and the
-`imt-plugin-dotnet` migration; see ADR 0017, "Implementation notes".
+`imt-eventlog` libraries, importer plugins under the store worker (with ADR 0014 6c) and postcard store DTOs; see
+ADR 0017, "Implementation notes". `imt-plugin-dotnet` is migrated, its ETW recorder the first elevated plugin process.
 
 ## R4: the shell (new ADR 0016, about 2 days)
 

@@ -2810,6 +2810,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-plugin-dotnet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-profiling",
+ "imt-profile",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
 name = "imt-plugin-formats"
 version = "0.1.0"
 dependencies = [
@@ -2944,6 +2960,7 @@ dependencies = [
  "imt-core",
  "imt-ipc",
  "imt-plugin-api",
+ "imt-plugin-dotnet",
  "imt-plugin-formats",
  "imt-plugin-host",
  "imt-plugin-otel",
