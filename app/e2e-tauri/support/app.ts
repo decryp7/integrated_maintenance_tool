@@ -120,7 +120,28 @@ async function mayEndApp(click: () => Promise<unknown>): Promise<void> {
   }
 }
 
+/** Leaves the driver on IMT's only window: a spec may have closed the window the driver was on, and an extra window
+ *  (e.g. the activity log) keeps IMT running after its main window's "Close window" ▸ Quit. Extra windows are closed
+ *  through IMT's own menu, never the driver's closeWindow (WebKitWebDriver closed the wrong window). */
+async function oneWindowLeft(): Promise<void> {
+  let handles = await browser.getWindowHandles().catch(() => [] as string[]);
+  const current = await browser.getWindowHandle().catch(() => '');
+  if (handles.length && !handles.includes(current)) await browser.switchToWindow(handles[0]!);
+  for (let guard = 0; handles.length > 1 && guard < 5; guard++) {
+    const keep = await browser.getWindowHandle();
+    await browser.switchToWindow(handles.find((h) => h !== keep)!);
+    await mayEndApp(() => chooseMenu('File', 'Close window'));
+    const before = handles.length;
+    await browser
+      .waitUntil(async () => (await browser.getWindowHandles()).length < before, { timeout: 10_000 })
+      .catch(() => undefined);
+    handles = await browser.getWindowHandles();
+    if (handles.length) await browser.switchToWindow(handles.includes(keep) ? keep : handles[0]!);
+  }
+}
+
 export async function quitApp(): Promise<void> {
+  await oneWindowLeft();
   await mayEndApp(() => chooseMenu('File', 'Close window'));
   const prompt = dialog('Close IMT?');
   // A remembered "quit" choice closes without asking.

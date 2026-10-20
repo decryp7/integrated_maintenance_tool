@@ -26,8 +26,9 @@ describe('real app: activity log', () => {
       await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
       await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
     } finally {
-      await browser.closeWindow().catch(() => undefined);
-      await browser.switchToWindow(main);
+      // Back to the main window; the `after` hook closes the activity window through IMT's menu (the driver's
+      // closeWindow closed the main window instead under WebKitWebDriver) and then quits.
+      await browser.switchToWindow(main).catch(() => undefined);
     }
   });
 });
