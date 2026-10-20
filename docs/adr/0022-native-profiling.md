@@ -57,6 +57,11 @@ only when every operation of the tool is elevated.
   frame: delay, lock, object, I/O completion). Wall-clock sampling therefore gives CPU and lock/wait hot spots
   without rights the user does not have.
 
+The plugin's manifest asks for `Permission::WriteFolders` (captures and the symbol cache in IMT's data folder) and
+`Permission::Network` (symbol downloads, used only when enabled). `WriteFolders` also keeps the normal process at
+normal integrity: a low-integrity process cannot open the user's processes for reading. A dedicated "inspect
+processes" permission would describe this better (redesign note).
+
 Both modes run captures as tool tasks of kind `capture` (Jobs of kind Capture, several at once), are stopped with
 `stop` (kept) or cancelled from the Jobs pane (file deleted), have a duration cap (1 h) and a size cap (1 GiB), and
 stop by themselves when the target exits.
@@ -89,24 +94,41 @@ distinct user-mode addresses (bounded) and the images, `imt-symbols` resolves th
 appended before the stream ends. The library's API (stable; the dumps/UMDH work uses it):
 
 ```rust
+// crate root
 pub struct SymbolConfig { pub paths: Vec<PathBuf>, pub cache: Option<PathBuf>, pub server: Option<ServerConfig> }
-pub fn parse_search_path(text: &str) -> Result<Vec<PathBuf>, SymbolError>;   // "C:\a;D:\b": absolute folders only
-pub struct ServerConfig { pub url: String, pub timeout: Duration, pub max_bytes: u64 } // ::microsoft()
-pub struct Module { pub path: PathBuf, pub base: u64, pub size: u64 }
+pub struct ServerConfig { pub url: String, pub timeout: Duration, pub max_bytes: u64 }   // ::microsoft(), .check()
+pub fn parse_search_path(text: &str) -> Result<Vec<PathBuf>, SymbolError>;            // "C:;D:": absolute folders
+pub struct Module { pub path: PathBuf, pub base: u64, pub size: u64 }                  // .name(), .contains(addr)
 pub struct Symbol { pub function: String, pub start: u64, pub module: String, pub file: Option<String>, pub line: Option<u32> }
+pub enum ModuleSymbols { Pdb, Exports, None { why: String } }
 pub trait Resolver: Send {
-    fn add_module(&mut self, module: &Module) -> ModuleSymbols;               // Pdb | Exports | None (+ why)
+    fn add_module(&mut self, module: &Module) -> ModuleSymbols;
     fn resolve(&mut self, address: u64) -> Option<Symbol>;
 }
-pub fn resolver(config: &SymbolConfig) -> Result<Box<dyn Resolver>, SymbolError>; // DbgHelp; Unavailable off Windows
-pub fn resolve_all(r: &mut dyn Resolver, modules: &[Module], addresses: &[u64], max: usize) -> HashMap<u64, Symbol>;
-pub fn with_dbghelp<R>(f: impl FnOnce() -> R) -> R;                       // DbgHelp is single-threaded: one lock per process
-pub mod pe    { pub fn parse(bytes: &[u8]) -> Result<PeInfo, PeError>; pub struct PdbId { guid, age, name } /* .key() */ }
-pub mod fetch { pub trait Fetcher { fn fetch(&self, id: &PdbId, cache: &Path) -> Result<PathBuf, FetchError>; } pub struct HttpFetcher; }
-#[cfg(windows)] pub mod walk {                                            // StackWalkEx over a memory source
+pub fn resolver(config: &SymbolConfig) -> Result<Box<dyn Resolver>, SymbolError>;     // DbgHelp; Unavailable off Windows
+pub struct Resolved { pub symbols: HashMap<u64, Symbol>, pub modules: Vec<(String, ModuleSymbols)>, pub unresolved: usize }
+pub fn resolve_all(r: &mut dyn Resolver, modules: &[Module], addresses: &[u64], max: usize) -> Resolved;
+pub fn with_dbghelp<R>(f: impl FnOnce() -> R) -> R;     // DbgHelp is single-threaded: one lock per process
+pub enum SymbolError { Unavailable, InvalidPath(String), DbgHelp { call, message } }
+
+pub mod pe {      // pure, fuzzed
+    pub trait ImageSource { fn read_at(&mut self, offset: u64, out: &mut [u8]) -> usize; }   // &[u8], File
+    pub fn parse(src: &mut dyn ImageSource) -> Result<PeInfo, PeError>;
+    pub fn parse_file(path: &Path) -> Result<PeInfo, PeError>;
+    pub struct PeInfo { pub machine: Machine, pub image_size: u32, pub timestamp: u32, pub image_base: u64, pub pdb: Option<PdbId> }
+    pub struct PdbId { pub guid: [u8; 16], pub age: u32, pub path: String }               // .key(), .file_name()
+}
+pub mod config { pub fn cache_file(cache: &Path, id: &PdbId) -> Option<PathBuf>; pub fn safe_pdb_name(id: &PdbId) -> Option<&str>; }
+pub mod fetch {   // feature "server" (default)
+    pub trait Fetcher: Send + Sync { fn fetch(&self, id: &PdbId, cache: &Path) -> Result<PathBuf, FetchError>; }
+    pub struct HttpFetcher;                                                              // ::new(ServerConfig)
+}
+#[cfg(windows)] pub mod walk {   // StackWalkEx over a memory source
     pub trait Memory { fn read(&self, address: u64, out: &mut [u8]) -> usize; }
-    pub enum Context { Amd64(..), X86(..) }
-    pub struct Walker; /* ::live(process) | ::offline(); add_module, walk(&Context, &dyn Memory, max) -> Vec<u64> */
+    pub struct ProcessMemory(pub HANDLE);                                               // ReadProcessMemory
+    pub struct Snapshot<'a> { pub base: u64, pub bytes: Vec<u8>, pub rest: &'a dyn Memory }
+    pub enum Context { Amd64(Box<CONTEXT>), X86(Box<WOW64_CONTEXT>) }                   // .stack_pointer(), .instruction_pointer()
+    pub struct Walker;   // ::live(process) | ::offline(); add_module(&Module) -> bool; walk(&Context, &dyn Memory, max) -> Vec<u64>
 }
 ```
 
