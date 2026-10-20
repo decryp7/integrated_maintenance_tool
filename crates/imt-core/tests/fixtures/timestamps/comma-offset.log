@@ -1,0 +1,6 @@
+2025/11/08,00:04:37.759+01:00 INFO  Service starting
+2025/11/08,00:04:38.012+01:00 WARN  Cache warm-up slow
+2025/11/08,00:04:39.500+01:00 ERROR Connection lost
+System.IO.IOException: broken pipe
+   at Net.Socket.Send()
+2025/11/08,00:04:40.000+01:00 INFO  Reconnected

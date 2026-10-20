@@ -1,0 +1,5 @@
+Time,Level,Message
+Sat Nov 08 00:04:37 2025,INFO,started
+Sat Nov 08 00:04:38 2025,WARN,slow
+Sat Nov 08 00:04:39 2025,ERROR,failed
+Sat Nov 08 00:04:40 2025,INFO,done

@@ -283,6 +283,13 @@ mod tests {
                 Level::Fatal,
                 "lost connection",
             ),
+            // Slashes and a comma between date and time, with an offset.
+            (
+                "2025/11/08,00:04:37.759+01:00 WARN  Cache warm-up slow",
+                Level::Warning,
+                "Cache warm-up slow",
+            ),
+            ("[2025-11-08,00:04:37.759Z] INFO ready", Level::Information, "ready"),
             // A number that is not followed by a level stays in the message.
             ("2026-10-14 10:00:00 42 items left", Level::Information, "42 items left"),
             ("2026-10-14 10:00:00 errors: 3", Level::Information, "errors: 3"),
