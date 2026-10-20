@@ -11,42 +11,62 @@
 // Usage: node scripts/build-sidecars.mjs [--target <triple>] [--debug]
 import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SIDECARS = ['imt-ai-worker', 'imt-plugin-host'];
-const app = join(dirname(fileURLToPath(import.meta.url)), '..');
-const root = join(app, '..');
+export const SIDECARS = ['imt-ai-worker', 'imt-plugin-host'];
 
-const args = process.argv.slice(2);
-const flag = (name) => {
-  const i = args.indexOf(name);
-  return i >= 0 ? args[i + 1] : undefined;
-};
-const profile = args.includes('--debug') ? 'debug' : 'release';
-const host = /^host: (.+)$/m.exec(execFileSync('rustc', ['-vV'], { encoding: 'utf8' }))?.[1]?.trim();
-const target = flag('--target') ?? process.env.TAURI_ENV_TARGET_TRIPLE ?? host;
-if (!target) throw new Error('cannot tell the target: pass --target <triple>');
-
-const targetDir = process.env.CARGO_TARGET_DIR ?? join(root, 'target');
-const outDir = join(app, 'src-tauri', 'binaries');
-mkdirSync(outDir, { recursive: true });
-const run = (cmd, argv) => {
-  console.log(`${cmd} ${argv.join(' ')}`);
-  execFileSync(cmd, argv, { cwd: root, stdio: 'inherit' });
-};
-
-const triples = target === 'universal-apple-darwin' ? ['aarch64-apple-darwin', 'x86_64-apple-darwin'] : [target];
-for (const t of triples) {
+/**
+ * What to build and where cargo puts it. A build for the host itself runs without `--target`, into
+ * `<targetDir>/<profile>`, where `tauri build` (without `--target`) builds the app: with `--target`, cargo
+ * used `<targetDir>/<triple>/<profile>` and compiled every dependency a second time. Other targets, and both
+ * halves of `universal-apple-darwin` (which Tauri also builds per triple), keep `--target` and their folder.
+ */
+export function sidecarPlan({ target, host, profile, targetDir }) {
+  const native = target === host;
+  const triples = target === 'universal-apple-darwin' ? ['aarch64-apple-darwin', 'x86_64-apple-darwin'] : [target];
   const select = SIDECARS.flatMap((s) => ['-p', s, '--bin', s]);
-  run('cargo', ['build', ...select, '--target', t, ...(profile === 'release' ? ['--release'] : [])]);
+  const release = profile === 'release' ? ['--release'] : [];
+  const builds = native ? [['build', ...select, ...release]] : triples.map((t) => ['build', ...select, '--target', t, ...release]);
+  const ext = target.includes('-windows-') ? '.exe' : '';
+  const binaries = SIDECARS.map((name) => ({
+    name,
+    file: `${name}-${target}${ext}`,
+    built: native ? [join(targetDir, profile, `${name}${ext}`)] : triples.map((t) => join(targetDir, t, profile, `${name}${ext}`)),
+  }));
+  return { builds, binaries, ext };
 }
-const ext = target.includes('-windows-') ? '.exe' : '';
-for (const name of SIDECARS) {
-  const out = join(outDir, `${name}-${target}${ext}`);
-  const built = triples.map((t) => join(targetDir, t, profile, `${name}${ext}`));
-  if (built.length > 1) run('lipo', ['-create', '-output', out, ...built]);
-  else copyFileSync(built[0], out);
-  if (!ext) chmodSync(out, 0o755);
-  console.log(`sidecar: ${out}`);
+
+function main() {
+  const app = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const root = join(app, '..');
+  const args = process.argv.slice(2);
+  const flag = (name) => {
+    const i = args.indexOf(name);
+    return i >= 0 ? args[i + 1] : undefined;
+  };
+  const profile = args.includes('--debug') ? 'debug' : 'release';
+  const host = /^host: (.+)$/m.exec(execFileSync('rustc', ['-vV'], { encoding: 'utf8' }))?.[1]?.trim();
+  const target = flag('--target') ?? process.env.TAURI_ENV_TARGET_TRIPLE ?? host;
+  if (!target) throw new Error('cannot tell the target: pass --target <triple>');
+
+  const targetDir = process.env.CARGO_TARGET_DIR ?? join(root, 'target');
+  const outDir = join(app, 'src-tauri', 'binaries');
+  mkdirSync(outDir, { recursive: true });
+  const run = (cmd, argv) => {
+    console.log(`${cmd} ${argv.join(' ')}`);
+    execFileSync(cmd, argv, { cwd: root, stdio: 'inherit' });
+  };
+
+  const { builds, binaries, ext } = sidecarPlan({ target, host, profile, targetDir });
+  for (const argv of builds) run('cargo', argv);
+  for (const { file, built } of binaries) {
+    const out = join(outDir, file);
+    if (built.length > 1) run('lipo', ['-create', '-output', out, ...built]);
+    else copyFileSync(built[0], out);
+    if (!ext) chmodSync(out, 0o755);
+    console.log(`sidecar: ${out}`);
+  }
 }
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
