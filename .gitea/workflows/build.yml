@@ -313,6 +313,9 @@ jobs:
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
+          rem The Windows runner is a developer PC (16 cores, 32 GB) that runs two jobs at once: a debug and a release
+          rem build with 16 rustc processes each exhausted its memory. Eight each keeps both inside it.
+          echo CARGO_BUILD_JOBS=8>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -324,7 +327,10 @@ jobs:
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake \
             webkit2gtk-driver xvfb dbus dbus-x11
 
+      # Linux only: on the Windows host restoring this cache took about 13.5 minutes and saving it 26 more, while the
+      # host keeps the build folder (CARGO_TARGET_DIR above) and ~/.cargo between jobs anyway.
       - uses: actions/cache@v4
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.cargo/registry
@@ -335,7 +341,32 @@ jobs:
           key: smoke-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: smoke-${{ runner.os }}-
 
+      # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # when the host's Node is missing or not the major version app/.nvmrc asks for.
+      - name: Host Node matches app/.nvmrc (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          want=$(tr -d ' v\r\n' < app/.nvmrc | cut -d. -f1)
+          if ! command -v node >/dev/null; then
+            if [ -x "/c/Program Files/nodejs/node.exe" ]; then
+              echo 'C:\Program Files\nodejs' >> "$GITHUB_PATH"
+              export PATH="/c/Program Files/nodejs:$PATH"
+            else
+              echo "::error::Node.js is not installed on this Windows runner: install Node $want (app/.nvmrc) on the host and put it on PATH."
+              exit 1
+            fi
+          fi
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          if [ "$have" != "$want" ]; then
+            echo "::error::The Windows runner has Node $(node --version) but app/.nvmrc asks for Node $want: install Node $want on the host."
+            exit 1
+          fi
+          node --version
+
       - uses: actions/setup-node@v4
+        if: runner.os != 'Windows'
         with:
           node-version-file: app/.nvmrc
           cache: npm
@@ -456,6 +487,9 @@ jobs:
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
+          rem The Windows runner is a developer PC (16 cores, 32 GB) that runs two jobs at once: a debug and a release
+          rem build with 16 rustc processes each exhausted its memory. Eight each keeps both inside it.
+          echo CARGO_BUILD_JOBS=8>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -466,7 +500,10 @@ jobs:
           $SUDO apt-get update
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm cmake
 
+      # Linux only: on the Windows host restoring this cache took about 13.5 minutes and saving it 26 more, while the
+      # host keeps the build folder (CARGO_TARGET_DIR above) and ~/.cargo between jobs anyway.
       - uses: actions/cache@v4
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.cargo/registry
@@ -475,7 +512,32 @@ jobs:
           key: bundle-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: bundle-${{ runner.os }}-
 
+      # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # when the host's Node is missing or not the major version app/.nvmrc asks for.
+      - name: Host Node matches app/.nvmrc (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          want=$(tr -d ' v\r\n' < app/.nvmrc | cut -d. -f1)
+          if ! command -v node >/dev/null; then
+            if [ -x "/c/Program Files/nodejs/node.exe" ]; then
+              echo 'C:\Program Files\nodejs' >> "$GITHUB_PATH"
+              export PATH="/c/Program Files/nodejs:$PATH"
+            else
+              echo "::error::Node.js is not installed on this Windows runner: install Node $want (app/.nvmrc) on the host and put it on PATH."
+              exit 1
+            fi
+          fi
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          if [ "$have" != "$want" ]; then
+            echo "::error::The Windows runner has Node $(node --version) but app/.nvmrc asks for Node $want: install Node $want on the host."
+            exit 1
+          fi
+          node --version
+
       - uses: actions/setup-node@v4
+        if: runner.os != 'Windows'
         with:
           node-version-file: app/.nvmrc
           cache: npm
