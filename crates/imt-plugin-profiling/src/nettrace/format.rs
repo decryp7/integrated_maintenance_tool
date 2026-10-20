@@ -165,15 +165,15 @@ pub mod flags {
 pub const BLOCK_COMPRESSED: u16 = 1;
 
 /// The stream reader's state.
-struct Reader<'l> {
-    limits: &'l Limits,
-    out: Parsed,
+pub(super) struct Reader<'l> {
+    pub(super) limits: &'l Limits,
+    pub(super) out: Parsed,
     /// metadata id → what it means (`None`: an event the importer ignores).
-    metadata: HashMap<u32, Option<Known>>,
+    pub(super) metadata: HashMap<u32, Option<Known>>,
     /// Stack ids of the current sequence-point region → index into `out.stacks`.
-    stack_ids: HashMap<u32, u32>,
+    pub(super) stack_ids: HashMap<u32, u32>,
     /// Content → index into `out.stacks`.
-    stack_index: HashMap<Vec<u64>, u32>,
+    pub(super) stack_index: HashMap<Vec<u64>, u32>,
 }
 
 /// Parses a whole nettrace file.
@@ -187,11 +187,7 @@ pub(super) fn parse(bytes: &[u8], limits: &Limits) -> Result<Parsed> {
     }
     if bytes.get(8..12) == Some(&[0, 0, 0, 0]) {
         // NetTrace V6+ replaced the FastSerialization header with Reserved=0, Major, Minor.
-        let major = bytes.get(12..16).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]])).unwrap_or(0);
-        return Err(ProfileError::unsupported(
-            FORMAT,
-            format!("NetTrace format version {major} (written by .NET 10 or later) is not supported yet; versions 4 and 5 are"),
-        ));
+        return super::v6::parse(bytes, limits);
     }
     let len = c.u32()?;
     if len as usize != FAST_SERIALIZATION.len() || c.take(FAST_SERIALIZATION.len())? != &FAST_SERIALIZATION[..] {
@@ -319,7 +315,7 @@ impl Reader<'_> {
         rows(block, |h, mut payload| self.event(&h, payload.rest()))
     }
 
-    fn event(&mut self, h: &RowHeader, bytes: &[u8]) -> Result<()> {
+    pub(super) fn event(&mut self, h: &RowHeader, bytes: &[u8]) -> Result<()> {
         self.out.min_ts = Some(self.out.min_ts.map_or(h.ts, |m| m.min(h.ts)));
         self.out.max_ts = Some(self.out.max_ts.map_or(h.ts, |m| m.max(h.ts)));
         let kind = match self.metadata.get(&h.metadata_id) {
@@ -453,13 +449,13 @@ impl Reader<'_> {
         self.out.info.map_or(8, |i| i.pointer_size as usize)
     }
 
-    fn name_thread(&mut self, thread: u64, name: &str) {
+    pub(super) fn name_thread(&mut self, thread: u64, name: &str) {
         if self.out.thread_names.len() < self.limits.max_threads as usize || self.out.thread_names.contains_key(&thread) {
             self.out.thread_names.insert(thread, name.to_string());
         }
     }
 
-    fn stack_block(&mut self, mut block: Cursor<'_>) -> Result<()> {
+    pub(super) fn stack_block(&mut self, mut block: Cursor<'_>) -> Result<()> {
         let first_id = block.u32()?;
         let count = block.u32()?;
         let ptr = self.out.info.map_or(8, |i| i.pointer_size as usize);

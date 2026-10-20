@@ -129,6 +129,26 @@ fn generated(compressed: bool) -> Vec<u8> {
 }
 
 /// A heap walk (both pointer sizes are covered by the importer tests) with roots and a static.
+/// A NetTrace V6 stream (.NET 10 layout) with threads, stacks and samples.
+fn v6_trace() -> Vec<u8> {
+    use imt_plugin_profiling::nettrace::writer::v6::V6Writer;
+    let mut w = V6Writer::new(6, 8, 7, 1_000_000);
+    w.metadata(&[
+        (1, SAMPLE_PROFILER, ids::THREAD_SAMPLE, "ThreadSample"),
+        (2, RUNDOWN, ids::METHOD_DC_END_VERBOSE, ""),
+    ]);
+    w.threads(&[(1, 100, "Main")]);
+    w.stacks(1, &[vec![0x2010, 0x1010]]);
+    let s = p::sample(true);
+    let m = p::method_verbose(1, 2, 0x1000, 0x100, "A", "Main");
+    w.events(
+        true,
+        &[(1, 1, 1, 1_000_100, &s), (1, 1, 1, 1_000_200, &s), (2, 1, 0, 1_000_300, &m)],
+    );
+    w.sequence_point(1_000_400);
+    w.finish()
+}
+
 fn heap_walk() -> Vec<u8> {
     use imt_plugin_profiling::nettrace::heap::{ids as h, payload as hp};
     let meta = |id, event_id| Meta {
@@ -179,7 +199,7 @@ fn seeds() -> &'static Vec<Vec<u8>> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/profiling/orders.nettrace");
         let mut sample = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         sample.truncate(64 * 1024);
-        vec![sample, generated(true), generated(false), heap_walk()]
+        vec![sample, generated(true), generated(false), heap_walk(), v6_trace()]
     })
 }
 
