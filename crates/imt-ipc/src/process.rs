@@ -66,6 +66,9 @@ pub struct SpawnSpec {
     pub below_normal_priority: bool,
     /// Capture standard error into this child log (see [`crate::child_log`]); `None` discards it.
     pub log: Option<ChildLogSpec>,
+    /// Committed-memory cap of the child in bytes (a job object limit on Windows; not enforced elsewhere
+    /// yet). `None`: no cap.
+    pub memory_limit: Option<u64>,
 }
 
 impl SpawnSpec {
@@ -81,6 +84,7 @@ impl SpawnSpec {
             connect_window: Duration::from_secs(15),
             below_normal_priority: true,
             log: None,
+            memory_limit: None,
         }
     }
 }
@@ -201,7 +205,7 @@ impl ChildProcess {
             }
         }
         #[cfg(windows)]
-        let job = crate::job::JobGuard::assign(&child);
+        let job = crate::job::JobGuard::assign(&child, spec.memory_limit);
         let stdin = child.stdin.take();
         let stderr = child.stderr.take();
         let child = Arc::new(Mutex::new(Some(child)));

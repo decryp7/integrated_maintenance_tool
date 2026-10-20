@@ -1,0 +1,33 @@
+[package]
+name = "imt-store-duck"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "IMT's DuckDB store (ADR 0014): event batches written with the Arrow appender, queries compiled to SQL with a batch-scan fallback"
+
+# Not a workspace member until CI fetches libduckdb (ADR 0014 notes). Build and test it on its own:
+#   eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh)"
+#   cargo test --manifest-path crates/imt-store-duck/Cargo.toml
+# It links the official prebuilt libduckdb (never `bundled`, which needs several GB of RAM to compile).
+
+[workspace]
+
+[dependencies]
+imt-core = { path = "../imt-core" }
+anyhow = "1.0"
+# DuckDB 1.5.6 (MIT); pinned to match the prebuilt library the fetch script verifies. Arrow 58 comes with it.
+duckdb = { version = "=1.10506.1", features = ["appender-arrow"] }
+log = "0.4"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# Event segments: zstd Parquet written by the parse threads (Apache-2.0); the Arrow version of duckdb-rs.
+parquet = { version = "58", default-features = false, features = ["arrow", "zstd"] }
+rayon = "1.12"
+# Full-text index (MIT).
+tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4-compression"] }
+
+[dev-dependencies]
+# Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
+memory-stats = "1.2"
+getrandom = "0.3"
+chrono = "0.4"

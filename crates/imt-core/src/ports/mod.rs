@@ -1,0 +1,198 @@
+//! The store's ports (ADR 0014 §1), split by responsibility so a consumer depends only on what it
+//! uses: [`Ingest`], [`Query`], [`Positions`], [`Analysis`], [`Profiles`], [`Diagnostics`] and [`Search`].
+//!
+//! Contract of every port:
+//! - methods take `&self`; implementations are `Send + Sync` and synchronise internally (readers run
+//!   while an import writes);
+//! - requests and replies are owned values (nothing borrows from the store);
+//! - errors are a typed [`StoreError`]; an operation an adapter does not offer yet fails with
+//!   [`StoreError::Unsupported`] naming the phase that adds it, never with a panic.
+//!
+//! The in-memory `Workspace` keeps serving the app through `LogStore` until phase 6c switches to these.
+
+mod dto;
+mod session;
+
+pub use dto::{
+    DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix, SearchReply, SearchRequest,
+    SummaryReply, MAX_PAGE_ROWS,
+};
+pub use session::ImportSession;
+
+use crate::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
+use crate::api::{
+    ChartData, ChartRequest, CompareRequest, CompletionRequest, ContextRequest, CorrelateRequest, ExportRequest, ExportResult,
+    ExtractPreview, ExtractPreviewRequest, Facet, FacetRequest, FieldStatsRequest, Finding, MomentRequest, MomentSummary, ParsePreview,
+    ParsePreviewRequest, QueryRequest, RequestsRequest, SourceContext, Timeline, TimelineRequest, TraceRequest, TraceSummary,
+    WorkspaceState,
+};
+use crate::batch::{EventBatch, EventId, SourceId};
+use crate::exceptions::ExceptionGroup;
+use crate::patterns::Pattern;
+use crate::profile::Profile;
+use crate::ql::{Completion, QlError, QlResult};
+use std::ops::ControlFlow;
+use std::path::PathBuf;
+
+/// The event filter of every query (time, levels, text, fields, instances, markers, sources, QL).
+pub use crate::query::Query as Filter;
+
+/// Why a store operation failed.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StoreError {
+    /// The adapter does not offer this operation yet.
+    #[error("{operation} is not available in this store yet (planned for phase {phase})")]
+    Unsupported {
+        operation: std::borrow::Cow<'static, str>,
+        phase: std::borrow::Cow<'static, str>,
+    },
+    /// The request is invalid (a bad regex, an unknown field type...); the message says what to fix.
+    #[error("{0}")]
+    Invalid(String),
+    #[error("not found: {0}")]
+    NotFound(String),
+    /// Another operation holds what this one needs (e.g. an import is running); try again later.
+    #[error("busy: {0}")]
+    Busy(String),
+    #[error("cancelled")]
+    Cancelled,
+    /// Reading or writing files failed.
+    #[error("{0}")]
+    Io(String),
+    /// The database engine failed.
+    #[error("store: {0}")]
+    Engine(String),
+}
+
+impl StoreError {
+    pub fn unsupported(operation: &'static str, phase: &'static str) -> StoreError {
+        StoreError::Unsupported {
+            operation: operation.into(),
+            phase: phase.into(),
+        }
+    }
+
+    /// Whether repeating the request later can succeed.
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, StoreError::Busy(_) | StoreError::Io(_) | StoreError::Engine(_))
+    }
+}
+
+impl From<std::io::Error> for StoreError {
+    fn from(e: std::io::Error) -> Self {
+        StoreError::Io(e.to_string())
+    }
+}
+
+pub type StoreResult<T> = std::result::Result<T, StoreError>;
+
+/// Writing: opening, reloading and removing data. Imports run in the background as an
+/// [`ImportSession`]; readers are not blocked meanwhile.
+pub trait Ingest: Send + Sync {
+    /// Imports files and folders (recursively); files already read are skipped.
+    fn open(&self, paths: &[PathBuf]) -> StoreResult<ImportSession>;
+    /// Re-imports every opened root.
+    fn reload(&self) -> StoreResult<ImportSession>;
+    /// Re-reads changed files and reads new files under opened folders.
+    fn refresh(&self, changed: &[PathBuf]) -> StoreResult<ImportSession>;
+    /// Drops one source and its events; folder scans will not bring it back.
+    fn remove_source(&self, id: SourceId) -> StoreResult<()>;
+    /// Forgets every source and event.
+    fn clear(&self) -> StoreResult<()>;
+    /// Replaces everything with a saved state.
+    fn restore(&self, state: &WorkspaceState) -> StoreResult<ImportSession>;
+    /// Live tail: reads what was appended to followed files.
+    fn append_tail(&self, changed: &[PathBuf]) -> StoreResult<usize>;
+}
+
+/// Reading: pages, aggregates and batch scans over the events matching a [`Filter`].
+pub trait Query: Send + Sync {
+    /// Sources, totals, fields and marker kinds.
+    fn summary(&self) -> StoreResult<SummaryReply>;
+    /// One page of matching events, in time order (untimed last).
+    fn page(&self, req: &PageQuery) -> StoreResult<PageReply>;
+    /// Instance lanes and the level histogram (timed events only).
+    fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline>;
+    /// Value counts of one field.
+    fn facet(&self, req: &FacetRequest) -> StoreResult<Facet>;
+    /// Every matching event in time order, batch by batch, until `visit` breaks.
+    fn scan(&self, filter: &Filter, visit: &mut dyn FnMut(&EventBatch) -> ControlFlow<()>) -> StoreResult<()>;
+    fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData>;
+    fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats>;
+    /// The original lines around an event.
+    fn source_context(&self, req: &ContextRequest) -> StoreResult<SourceContext>;
+    fn run_query(&self, req: &QueryRequest) -> StoreResult<QlResult>;
+    fn check_query(&self, text: &str) -> StoreResult<Option<QlError>>;
+    fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>>;
+    fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult>;
+}
+
+/// Time-order positions of all events (unfiltered): position `p` is the `p`-th event in time order
+/// (untimed last), so an unfiltered page or an anchor is a range lookup instead of a sort. Positions are
+/// renumbered after imports and removals; events imported since have none yet.
+pub trait Positions: Send + Sync {
+    /// Ids of the events at positions `from .. from + len` (at most [`MAX_PAGE_ROWS`]), in time order.
+    fn ids_at(&self, from: u64, len: usize) -> StoreResult<Vec<EventId>>;
+    /// The position of an event, if it has one.
+    fn position_of(&self, id: EventId) -> StoreResult<Option<u64>>;
+    /// Events that have a position.
+    fn positioned(&self) -> StoreResult<u64>;
+}
+
+/// Analyses that need code over event batches (patterns, exceptions, anomalies...).
+pub trait Analysis: Send + Sync {
+    fn patterns(&self, req: &QueryRequest) -> StoreResult<Vec<Pattern>>;
+    fn exception_groups(&self, req: &QueryRequest) -> StoreResult<Vec<ExceptionGroup>>;
+    fn anomalies(&self, req: &QueryRequest) -> StoreResult<Vec<Anomaly>>;
+    fn compare(&self, req: &CompareRequest) -> StoreResult<Comparison>;
+    fn correlate(&self, req: &CorrelateRequest) -> StoreResult<Vec<EventId>>;
+    fn traces(&self, req: &TraceRequest) -> StoreResult<(Vec<TraceSummary>, Vec<WaterfallRow>)>;
+    fn requests(&self, req: &RequestsRequest) -> StoreResult<Vec<RequestSpan>>;
+    fn moment(&self, req: &MomentRequest) -> StoreResult<MomentSummary>;
+    fn overview(&self, req: &QueryRequest) -> StoreResult<Vec<Finding>>;
+    fn runs(&self, req: &crate::spans::RunsRequest) -> StoreResult<crate::spans::RunsReply>;
+}
+
+/// The active profile, profile changes and previews.
+pub trait Profiles: Send + Sync {
+    fn active_profile(&self) -> StoreResult<Profile>;
+    /// Checks that a profile compiles (with the installed plugins).
+    fn validate_profile(&self, profile: &Profile) -> StoreResult<()>;
+    /// Switches profile: a job that re-derives or re-reads what the change needs.
+    fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession>;
+    fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview>;
+    fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
+}
+
+/// Import problems and engine-verified quick fixes (ADR 0014 §5).
+pub trait Diagnostics: Send + Sync {
+    fn problems(&self) -> StoreResult<Vec<DiagnosticRow>>;
+    /// How many affected events a proposed fix would repair, checked on the stored samples.
+    fn evaluate_fix(&self, fix: &QuickFix) -> StoreResult<FixEvaluation>;
+}
+
+/// Full-text search (Tantivy), returning event ids.
+pub trait Search: Send + Sync {
+    fn search(&self, req: &SearchRequest) -> StoreResult<SearchReply>;
+    fn index_status(&self) -> StoreResult<IndexStatus>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn errors_say_what_happened() {
+        let e = StoreError::unsupported("chart", "R2c");
+        assert_eq!(e.to_string(), "chart is not available in this store yet (planned for phase R2c)");
+        assert!(!e.is_retryable());
+        assert!(StoreError::Busy("import".into()).is_retryable());
+        let io: StoreError = std::io::Error::other("disk").into();
+        assert_eq!(io, StoreError::Io("disk".into()));
+        assert!(io.is_retryable());
+        assert_eq!(StoreError::Invalid("bad regex".into()).to_string(), "bad regex");
+        assert_eq!(StoreError::NotFound("source 3".into()).to_string(), "not found: source 3");
+        assert_eq!(StoreError::Cancelled.to_string(), "cancelled");
+        assert_eq!(StoreError::Engine("x".into()).to_string(), "store: x");
+    }
+}

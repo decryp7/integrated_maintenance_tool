@@ -1,8 +1,9 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-sdk", "crates/imt-plugin-host", "app/src-tauri", "xtask"]
+members = ["crates/imt-core", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-sdk", "crates/imt-plugin-host", "app/src-tauri", "xtask"]
 # The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion and a prebuilt
-# libduckdb, which no shipped crate uses.
-exclude = ["crates/imt-store-spike"]
+# libduckdb, which no shipped crate uses. imt-store-duck (ADR 0014) also links the prebuilt libduckdb and
+# builds on its own until CI fetches it.
+exclude = ["crates/imt-store-spike", "crates/imt-store-duck"]
 resolver = "2"
 
 # Shared by every member: `edition.workspace = true` etc.

@@ -215,6 +215,33 @@ pub fn group_key(fields: &[String], rec: &Record, source_name: &str) -> String {
     }
 }
 
+/// The instance key when the query names none: the profile's `[instance] key`, else the candidate
+/// fields present on at least half of the `total` events that vary, else (with one source) the first
+/// present candidate, else `@source`.
+pub fn default_group_by(cfg: &crate::profile::InstanceCfg, fields: &[crate::api::FieldInfo], total: usize, sources: usize) -> Vec<String> {
+    if !cfg.key.is_empty() {
+        return cfg.key.clone();
+    }
+    let total = total.max(1);
+    let present: Vec<&crate::api::FieldInfo> = cfg
+        .candidates
+        .iter()
+        .filter_map(|c| fields.iter().find(|f| &f.name == c))
+        .filter(|f| f.count * 2 >= total)
+        .collect();
+    // Constant fields (same value everywhere) do not tell instances apart.
+    let varying: Vec<String> = present.iter().filter(|f| f.distinct > 1).map(|f| f.name.clone()).collect();
+    if !varying.is_empty() {
+        return varying;
+    }
+    if sources <= 1 {
+        if let Some(f) = present.first() {
+            return vec![f.name.clone()];
+        }
+    }
+    vec!["@source".into()]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
