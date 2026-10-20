@@ -41,7 +41,8 @@ Regenerate the sample logs with `python3 samples/generate.py` (do not edit them 
 
 Open the **repository root** (not `app/`) and accept the recommended extensions
 (`.vscode/extensions.json`: rust-analyzer, Tauri, C/C++ for debugging on Windows, CodeLLDB for
-macOS and Linux, Angular, ESLint, Prettier, Playwright, draw.io, ...).
+macOS and Linux, Angular, ESLint, Prettier, Playwright, draw.io, Buf for `proto/` (it needs the
+[`buf` CLI](https://buf.build/docs/cli/installation/)), ...).
 
 1. Install the prerequisites above. On macOS: `xcode-select --install`, Rust from
    [rustup.rs](https://rustup.rs), Node.js 24 (for example `brew install node@24`). On Windows: the

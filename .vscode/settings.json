@@ -5,14 +5,14 @@
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.check.extraArgs": ["--all-targets"],
   "rust-analyzer.rustfmt.extraArgs": ["--config-path", "${workspaceFolder}/rustfmt.toml"],
-  "rust-analyzer.files.excludeDirs": ["app/node_modules", "app/dist", "fuzz/target", "crates/imt-store-spike"],
+  "rust-analyzer.files.exclude": ["app/node_modules", "app/dist", "fuzz/target", "crates/imt-store-spike"],
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true
   },
 
   // The UI lives in app/: use its TypeScript, ESLint config and Prettier settings.
-  "typescript.tsdk": "app/node_modules/typescript/lib",
+  "js/ts.tsdk.path": "app/node_modules/typescript/lib",
   "eslint.workingDirectories": ["app"],
   "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },

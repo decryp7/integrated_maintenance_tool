@@ -1,6 +1,7 @@
 {
   // Open the repository root in VS Code. These cover the Rust engine and shell, the Angular UI,
-  // debugging on Windows (C/C++) and macOS/Linux (CodeLLDB), tests and the docs.
+  // debugging on Windows (C/C++ for MSVC and Natvis) and macOS/Linux (CodeLLDB), tests, the docs and the
+  // plugin contract in proto/ (Buf: its language server needs the `buf` CLI; zxh404.vscode-proto3 is abandoned).
   "recommendations": [
     "rust-lang.rust-analyzer",
     "tauri-apps.tauri-vscode",
@@ -13,6 +14,6 @@
     "ms-playwright.playwright",
     "editorconfig.editorconfig",
     "hediet.vscode-drawio",
-    "zxh404.vscode-proto3"
+    "bufbuild.vscode-buf"
   ]
 }
