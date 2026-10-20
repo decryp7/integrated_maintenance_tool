@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { formatBytes } from '../ai-format';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
+import { AiUpdatesPanel } from '../updates/ai-updates-panel';
 
-/** Settings → AI, above the fields: set-up and model buttons and the engine status. */
+/** Settings → AI, above the fields: set-up and model buttons, the engine status and the update checks. */
 @Component({
   selector: 'imt-ai-settings-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AiUpdatesPanel],
   template: `
     @if (status.available()) {
       <div class="actions">
@@ -14,6 +16,7 @@ import { AiStatusStore } from '../ai-status.store';
         <button type="button" class="btn" data-testid="ai-settings-models" (click)="launcher.openModels()" i18n="@@ai.settings.models">Manage models…</button>
       </div>
       <p class="muted" data-testid="ai-settings-status">{{ statusLine() }}</p>
+      <imt-ai-updates-panel />
     } @else {
       <p class="note" role="note" data-testid="ai-settings-unavailable">
         {{ unavailableText() }}

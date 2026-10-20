@@ -9,7 +9,7 @@
 //!   ([`confined`]), and reports what it could not delete (in use, read-only) instead of failing.
 
 use super::model::CategoryClearResult;
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
@@ -96,23 +96,8 @@ pub fn size_of(path: &Path, budget: &mut Budget) -> Size {
     size
 }
 
-/// `item` as it may be removed: its parent must resolve (canonically) inside `root`, which is itself
-/// canonical, and its name must be a plain file or folder name. The returned path is built from the
-/// resolved parent, so a link in the parent chain cannot point the removal elsewhere.
-pub fn confined(root: &Path, item: &Path) -> Result<PathBuf, String> {
-    let outside = || format!("{} is outside the folder IMT clears", item.display());
-    if item.components().any(|c| matches!(c, Component::ParentDir | Component::CurDir)) {
-        return Err(outside());
-    }
-    let (Some(name), Some(parent)) = (item.file_name(), item.parent()) else {
-        return Err(outside());
-    };
-    let parent = std::fs::canonicalize(parent).map_err(|_| outside())?;
-    if !parent.starts_with(root) {
-        return Err(outside());
-    }
-    Ok(parent.join(name))
-}
+/// Removal confined to a root: the shell's one path validator module owns it.
+pub use crate::paths::confined;
 
 /// Why something could not be deleted, in words for the UI.
 pub fn reason(e: &std::io::Error) -> String {
@@ -197,6 +182,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::storage::model::CategoryId;
     use crate::test_support::TempDir;
+    use std::path::PathBuf;
 
     pub fn write(path: &Path, bytes: usize) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

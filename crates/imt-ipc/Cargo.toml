@@ -1,8 +1,10 @@
 [package]
 name = "imt-ipc"
-license = "MIT OR Apache-2.0"
+license.workspace = true
+repository.workspace = true
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 description = "Local gRPC transport for IMT's worker and plugin processes: private Unix socket / owner-only named pipe, per-launch token, typed error trailer, and a supervisor (restart with backoff, quarantine, no orphans)"
 
@@ -13,27 +15,27 @@ path = "src/bin/fake_child.rs"
 test = false
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-getrandom = "0.3"
-tokio = { version = "1", default-features = false, features = ["rt", "rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
-tokio-stream = { version = "0.1", default-features = false, features = ["net"] }
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
-tower = { version = "0.5", default-features = false, features = ["util"] }
-hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
-prost = "0.14"
-tonic-prost = "0.14"
-sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+serde.workspace = true
+serde_json.workspace = true
+getrandom.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+tokio-stream = { workspace = true, features = ["net"] }
+tonic.workspace = true
+tower.workspace = true
+hyper-util.workspace = true
+prost.workspace = true
+tonic-prost.workspace = true
+sysinfo = { workspace = true, features = ["system"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security_Authorization", "Win32_System_Memory"] }
+windows = { workspace = true, features = ["Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory"] }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
 
 [build-dependencies]
-protox = "0.9"
-tonic-prost-build = "0.14"
+protox.workspace = true
+tonic-prost-build.workspace = true

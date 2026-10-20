@@ -15,8 +15,8 @@ use crate::spans::{
 /// The pairing state of every rule, and what it was computed from.
 #[derive(Default)]
 pub(super) struct SpanBook {
-    /// (record generation, lane fields, profile) the state belongs to.
-    key: Option<(u64, Vec<String>, usize)>,
+    /// (record generation, lane fields, profile revision) the state belongs to.
+    key: Option<(u64, Vec<String>, u64)>,
     /// One pairer per rule of the profile, in order.
     pairers: Vec<Pairer>,
     /// Records fed so far (a prefix of the timed records).
@@ -55,11 +55,7 @@ impl Workspace {
     fn with_runs<R>(&self, f: impl FnOnce(&[(&SpanRule, Classifier)], &[Pairer], &[Vec<AnnotationDto>]) -> R) -> R {
         let rules = self.span_rules();
         let mut book = self.spans.lock().unwrap_or_else(|p| p.into_inner());
-        let key = (
-            self.generation,
-            self.default_group_by.clone(),
-            std::sync::Arc::as_ptr(&self.profile) as usize,
-        );
+        let key = (self.generation, self.default_group_by.clone(), self.profile_revision);
         let timed = self.records.partition_point(|r| r.ts.is_some());
         if book.key.as_ref() != Some(&key) || book.fed > timed {
             *book = SpanBook {

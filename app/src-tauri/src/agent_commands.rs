@@ -59,18 +59,7 @@ pub fn resolve_path(path: Option<&str>, dirs: &Dirs) -> CmdResult<PathBuf> {
     let Some(p) = path.map(str::trim).filter(|p| !p.is_empty()) else {
         return Ok(dirs.config.join(CONFIG_NAME));
     };
-    if p.len() > 4096 || p.contains('\0') {
-        return Err("invalid config path".into());
-    }
-    let p = Path::new(p);
-    if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("toml")) {
-        return Err("the agent config must be a .toml file".into());
-    }
-    let (Some(parent), Some(name)) = (p.parent().filter(|d| !d.as_os_str().is_empty()), p.file_name()) else {
-        return Err("give the full path of the config file".into());
-    };
-    let parent = std::fs::canonicalize(parent).map_err(|e| format!("the folder {} does not exist: {e}", parent.display()))?;
-    Ok(parent.join(name))
+    crate::paths::output_file(p, &["toml"]).map_err(|e| format!("agent config: {e}"))
 }
 
 fn base_of(path: &Path) -> &Path {
@@ -348,16 +337,18 @@ mod tests {
         let t = TempDir::new("agent-paths");
         let d = dirs_in(&t);
         assert_eq!(resolve_path(Some("  "), &d).unwrap(), d.config.join(CONFIG_NAME));
-        assert!(resolve_path(Some("x.txt"), &d).unwrap_err().contains(".toml"));
-        assert!(resolve_path(Some("x.toml"), &d).unwrap_err().contains("full path"));
-        assert!(resolve_path(Some("/no/such/dir/x.toml"), &d)
+        assert!(resolve_path(Some(&t.0.join("x.txt").to_string_lossy()), &d)
+            .unwrap_err()
+            .contains(".toml"));
+        assert!(resolve_path(Some("x.toml"), &d).unwrap_err().contains("absolute"));
+        assert!(resolve_path(Some(&t.0.join("no/such/dir/x.toml").to_string_lossy()), &d)
             .unwrap_err()
             .contains("does not exist"));
         assert!(resolve_path(Some("a\0.toml"), &d).is_err());
         let p = t.0.join("mine.toml");
         assert_eq!(
             resolve_path(Some(p.to_str().unwrap()), &d).unwrap(),
-            std::fs::canonicalize(&t.0).unwrap().join("mine.toml")
+            crate::paths::plain(std::fs::canonicalize(&t.0).unwrap()).join("mine.toml")
         );
     }
 

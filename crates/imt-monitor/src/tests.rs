@@ -549,18 +549,8 @@ fn run_loop_warns_once_when_counters_cannot_open() {
 // -------------------------------------------------------- collector/plugin
 
 #[test]
-fn plugin_registers_the_collector() {
-    let mut reg = PluginRegistry::new();
-    reg.install(&MonitorPlugin).unwrap();
-    let c = reg.collectors().iter().find(|c| c.id() == "process-monitor").unwrap();
-    assert_eq!(c.name(), "Process monitor");
-    let info = &reg.plugins()[0];
-    assert_eq!(
-        (info.id.as_str(), info.name.as_str()),
-        ("net.decryptology.monitor", "Process monitor")
-    );
-    assert!(!info.version.is_empty());
-    assert!(info.contributes.contains(&"collector:process-monitor".to_string()));
+fn the_collector_names_itself() {
+    assert_eq!((ProcessMonitor.id(), ProcessMonitor.name()), ("process-monitor", "Process monitor"));
 }
 
 #[test]

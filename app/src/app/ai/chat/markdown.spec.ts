@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Citation } from '../ai.types';
-import { Block, isNotFound, MAX_RENDER_CHARS, parseInline, parseMarkdown } from './markdown';
+import { Block, closedUpTo, IncrementalMarkdown, isNotFound, MAX_RENDER_CHARS, parseInline, parseMarkdown } from './markdown';
 import { at } from '../../../testing/must';
 
 const cites: Citation[] = [
@@ -90,5 +90,69 @@ describe('isNotFound', () => {
   it('recognises "not found in the logs" answers', () => {
     expect(isNotFound('Not found in the logs: no event mentions that.')).toBe(true);
     expect(isNotFound('The error was found in the logs.')).toBe(false);
+  });
+});
+
+describe('IncrementalMarkdown', () => {
+  const answer = [
+    '## Findings',
+    '',
+    'The order service crashed (event 12) after `level >= error` spikes.',
+    '',
+    '- memory grew on **WEB02**',
+    '- see #13',
+    '  and more',
+    '',
+    '```',
+    'stack line 1',
+    '',
+    'stack line 2',
+    '```',
+    '',
+    '1. restart',
+    '2. watch',
+    '',
+    'Done.',
+  ].join('\n');
+  const cites = [
+    { kind: 'record', id: 12, verified: true },
+    { kind: 'record', id: 13, verified: false },
+    { kind: 'query', ql: 'level >= error' },
+  ] as unknown as Citation[];
+
+  it('gives the same blocks as a full parse at every point of a stream', () => {
+    const md = new IncrementalMarkdown();
+    for (let n = 0; n <= answer.length; n += 3) expect(md.parse(answer.slice(0, n), cites)).toEqual(parseMarkdown(answer.slice(0, n), cites));
+    expect(md.parse(answer, cites)).toEqual(parseMarkdown(answer, cites));
+  });
+
+  it('parses only the open tail again and keeps the closed blocks', () => {
+    const md = new IncrementalMarkdown();
+    const first = md.parse(answer.slice(0, answer.indexOf('```')), cites);
+    const more = md.parse(answer.slice(0, answer.indexOf('stack line 2')), cites);
+    expect(more[0]).toBe(first[0]);
+    expect(more[1]).toBe(first[1]);
+    // The blank line inside the open fence is not a boundary: the fence is the open tail.
+    expect(md.lastParsed).toBeLessThan(40);
+    md.parse(answer, cites);
+    // The next chunk re-parses only the last paragraph.
+    md.parse(answer + ' Really.', cites);
+    expect(md.lastParsed).toBe('Done. Really.'.length);
+  });
+
+  it('starts over when the text does not extend the previous one or the citations change', () => {
+    const md = new IncrementalMarkdown();
+    md.parse(answer, cites);
+    expect(md.parse('Other\n\ntext', cites)).toEqual(parseMarkdown('Other\n\ntext', cites));
+    const other = [] as Citation[];
+    expect(md.parse(answer, other)).toEqual(parseMarkdown(answer, other));
+    expect(md.parse('a\r\n\r\nb', other)).toEqual(parseMarkdown('a\r\n\r\nb', other));
+  });
+
+  it('finds closed boundaries outside code fences only', () => {
+    expect(closedUpTo('a\n\nb')).toBe(3);
+    expect(closedUpTo('```\n\n')).toBe(0);
+    expect(closedUpTo('```\n\n```\n\nx')).toBe(10);
+    expect(closedUpTo('no newline')).toBe(0);
   });
 });

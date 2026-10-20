@@ -78,11 +78,13 @@ fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
 }
 
 /// Lists running jobs (once visible) as background tasks: the tray and the status bar show and stop them.
-fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mutex<HashSet<String>>) {
+/// `mirrored` is only held to swap the listed set: registering tasks notifies their listeners (the tray,
+/// the windows), which must never run under it.
+pub(crate) fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mutex<HashSet<String>>) {
     let Some(tasks) = app.try_state::<BackgroundTasks>() else { return };
     let running = jobs.running_visible();
     let now: HashSet<String> = running.iter().map(|j| format!("{TASK_PREFIX}{}", j.id)).collect();
-    let mut known = mirrored.lock().unwrap_or_else(|p| p.into_inner());
+    let known = std::mem::replace(&mut *mirrored.lock().unwrap_or_else(|p| p.into_inner()), now.clone());
     for gone in known.difference(&now) {
         tasks.remove(gone);
     }
@@ -102,7 +104,6 @@ fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mutex<HashSet<
             log::debug!("job not listed as background work: {e:#}");
         }
     }
-    *known = now;
 }
 
 /// "Explanation ready" and the like for an AI answer that ran in the background.
@@ -369,8 +370,10 @@ pub fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult
     Ok(service(&app)?.snapshot(Some(win.label())))
 }
 
+/// Async (off the main thread) like the other job commands that change the queue: they notify the
+/// tray and the windows.
 #[tauri::command]
-pub fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
+pub async fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     jobs.cancel(JobId(id))
@@ -385,14 +388,14 @@ pub fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) ->
 }
 
 #[tauri::command]
-pub fn jobs_move<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64, up: bool) -> CmdResult<()> {
+pub async fn jobs_move<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64, up: bool) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     jobs.move_job(JobId(id), up)
 }
 
 #[tauri::command]
-pub fn jobs_clear_finished<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<usize> {
+pub async fn jobs_clear_finished<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<usize> {
     Ok(service(&app)?.clear_finished(Some(win.label())))
 }
 

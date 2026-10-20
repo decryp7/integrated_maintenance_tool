@@ -5,6 +5,7 @@
 //! validated here before anything is written.
 
 use crate::activity::{domain_event, privacy, OpId};
+use crate::paths::WindowGrants;
 use crate::windows::{read, write, CurrentWindow};
 use crate::{err, CmdResult};
 use base64::Engine;
@@ -28,31 +29,6 @@ const MAX_REPORT_JSON: usize = 64 << 20;
 /// Folder under the system temp folder where bundles are extracted to be opened.
 pub(crate) fn bundles_root() -> PathBuf {
     std::env::temp_dir().join("imt-bundles")
-}
-
-/// A path the user picked in a save dialog, checked: absolute, one of
-/// `extensions`, in an existing folder, not a folder itself.
-pub(crate) fn output_path(path: &str, extensions: &[&str]) -> anyhow::Result<PathBuf> {
-    let p = Path::new(path);
-    if !p.is_absolute() {
-        anyhow::bail!("choose where to save the file (got a relative path)");
-    }
-    let ext = p
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(str::to_ascii_lowercase)
-        .unwrap_or_default();
-    if !extensions.contains(&ext.as_str()) {
-        anyhow::bail!("the file must end in .{}", extensions.join(" or ."));
-    }
-    let name = p.file_name().ok_or_else(|| anyhow::anyhow!("the path has no file name"))?;
-    let parent = p.parent().ok_or_else(|| anyhow::anyhow!("the path has no folder"))?;
-    let parent = std::fs::canonicalize(parent).map_err(|_| anyhow::anyhow!("the folder {} does not exist", parent.display()))?;
-    let target = parent.join(name);
-    if target.is_dir() {
-        anyhow::bail!("{} is a folder", target.display());
-    }
-    Ok(target)
 }
 
 /// Refuses to save a project into an opened bundle's folder (bundles open read-only).
@@ -152,7 +128,10 @@ pub(crate) async fn export_report<R: Runtime>(
     request: ReportExportRequest,
 ) -> CmdResult<u64> {
     let renderer = renderer(&request.format)?;
-    let target = output_path(&request.path, &[renderer.extension()]).map_err(err)?;
+    let target = WindowGrants::of(&app, state.label())
+        .write(&request.path, &[renderer.extension()])?
+        .path()
+        .to_path_buf();
     check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
     let report = parse_report(request.report)?;
     let (redact, theme) = (request.redact, request.theme);
@@ -233,9 +212,9 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
 
 /// Saves a chart or timeline image (PNG or sanitised SVG) where the user chose.
 #[tauri::command]
-pub(crate) async fn save_visual(op: OpId, request: VisualRequest) -> CmdResult<VisualSaved> {
+pub(crate) async fn save_visual(grants: WindowGrants, op: OpId, request: VisualRequest) -> CmdResult<VisualSaved> {
     tauri::async_runtime::spawn_blocking(move || {
-        let target = output_path(&request.path, &[request.kind.as_str()]).map_err(err)?;
+        let target = grants.write(&request.path, &[request.kind.as_str()])?.path().to_path_buf();
         check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
         let bytes = visual_bytes(&request.kind, &request.data).map_err(err)?;
         std::fs::write(&target, &bytes).map_err(|e| format!("cannot write {}: {e}", target.display()))?;
@@ -272,7 +251,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
     path: String,
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
-    let target = output_path(&path, &["imtz"]).map_err(err)?;
+    let target = WindowGrants::of(&app, state.label()).write(&path, &["imtz"])?.path().to_path_buf();
     check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     parse_reports(options.reports.clone())?;
     let profile = state.profile_doc().toml;
@@ -343,33 +322,14 @@ mod tests {
     }
 
     #[test]
-    fn output_paths_are_checked() {
-        let d = TempDir::new("share-paths");
-        let ok = d.0.join("chart.PNG");
-        assert!(output_path(&ok.to_string_lossy(), &["png"]).is_ok());
-        assert!(output_path("chart.png", &["png"]).unwrap_err().to_string().contains("relative"));
-        assert!(output_path(&d.0.join("x.exe").to_string_lossy(), &["png", "svg"])
-            .unwrap_err()
-            .to_string()
-            .contains(".png or .svg"));
-        assert!(output_path(&d.0.join("no/such/x.png").to_string_lossy(), &["png"])
-            .unwrap_err()
-            .to_string()
-            .contains("does not exist"));
-        std::fs::create_dir_all(d.0.join("dir.png")).unwrap();
-        assert!(output_path(&d.0.join("dir.png").to_string_lossy(), &["png"])
-            .unwrap_err()
-            .to_string()
-            .contains("is a folder"));
-        assert!(output_path("/", &["png"]).is_err());
-    }
-
-    #[test]
     fn visuals_are_validated_sanitised_and_written() {
         let _log = crate::activity::test_capture();
         let d = TempDir::new("share-visuals");
+        let app = crate::test_support::test_app(None);
+        crate::paths::allow_under(app.handle(), "main", &d.0);
         let png = d.0.join("a.png").to_string_lossy().into_owned();
         let saved = block(save_visual(
+            WindowGrants::of(app.handle(), "main"),
             OpId(Some("op-visual".into())),
             VisualRequest {
                 path: png.clone(),
@@ -388,6 +348,7 @@ mod tests {
         assert!(e.props["Path"].ends_with("/a.png") && !e.props["Path"].contains("share-visuals"));
         let again = |overwrite| {
             block(save_visual(
+                WindowGrants::of(app.handle(), "main"),
                 OpId::default(),
                 VisualRequest {
                     path: png.clone(),
@@ -403,6 +364,7 @@ mod tests {
 
         let svg = d.0.join("a.svg").to_string_lossy().into_owned();
         block(save_visual(
+            WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             VisualRequest {
                 path: svg.clone(),
@@ -417,6 +379,7 @@ mod tests {
 
         let bad = |kind: &str, data: &str, path: &str| {
             block(save_visual(
+                WindowGrants::of(app.handle(), "main"),
                 OpId::default(),
                 VisualRequest {
                     path: path.into(),
@@ -444,6 +407,7 @@ mod tests {
     fn opened(tag: &str) -> (tauri::App<tauri::test::MockRuntime>, TempDir) {
         let d = TempDir::new(tag);
         let app = test_app(Some(d.0.join("profiles")));
+        crate::paths::allow_under(app.handle(), "main", &d.0);
         let paths = vec![samples().join("serilog-clef").to_string_lossy().into_owned()];
         block(crate::workspace_commands::open_paths(
             app.handle().clone(),
@@ -687,6 +651,7 @@ mod tests {
         let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtproj");
         assert!(block(crate::workspace_commands::save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             inside.to_string_lossy().into_owned(),
             "x".into(),

@@ -308,8 +308,11 @@ fn analyses_and_queries_are_analysis_jobs() {
     let ended = finished_jobs(&app);
     let r = ipc(&main, "query_anomalies", json!({"request": {"query": {"ql": "level >= warning"}}})).unwrap();
     assert!(r.is_object() || r.is_array());
-    wait_until("the analysis job", || !ended.lock().unwrap().is_empty());
-    let job = ended.lock().unwrap()[0].clone();
+    // The open runs as an import job that may end after `finished_jobs` started listening: pick the analysis.
+    wait_until("the analysis job", || {
+        ended.lock().unwrap().iter().any(|j| j.kind == JobKind::Analysis)
+    });
+    let job = ended.lock().unwrap().iter().find(|j| j.kind == JobKind::Analysis).cloned().unwrap();
     assert_eq!(job.kind, JobKind::Analysis);
     assert_eq!(
         job.source.link,
@@ -343,4 +346,36 @@ fn without_the_service_work_runs_directly_and_errors_convert() {
     forget_window(app.handle(), "main");
     shutdown(app.handle());
     assert_eq!(job_title(JobKind::Ai, JobState::Interrupted, "t"), "Interrupted: t");
+}
+
+/// Listing jobs as background tasks notifies the tray and the windows; that must never happen while the
+/// mirror's own lock is held (the tray's getters wait for the main thread, which may want the lock).
+#[test]
+fn mirroring_never_notifies_under_its_lock() {
+    let app = test_app_with_commands(None);
+    let _main = window(&app, "main");
+    let (id, release) = gated_export(&app, "main", "Export a");
+    wait_until("running", || jobs(&app).state_of(id) == Some(JobState::Running));
+    clock(&app).advance(queue::VISIBLE_AFTER_MS);
+    let mirrored = Arc::new(Mutex::new(std::collections::HashSet::<String>::new()));
+    let (probe, notified, under_lock) = (
+        mirrored.clone(),
+        Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    );
+    let (n, held) = (notified.clone(), under_lock.clone());
+    app.state::<BackgroundTasks>().subscribe(move |_| {
+        n.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if probe.try_lock().is_err() {
+            held.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    });
+    super::mirror(app.handle(), &jobs(&app), &mirrored);
+    assert!(notified.load(std::sync::atomic::Ordering::SeqCst) > 0, "the job was listed");
+    assert!(
+        !under_lock.load(std::sync::atomic::Ordering::SeqCst),
+        "listeners ran under the mirror's lock"
+    );
+    assert_eq!(mirrored.lock().unwrap().len(), 1);
+    release.send(Ok(None)).unwrap();
 }

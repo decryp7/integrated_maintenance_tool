@@ -7,6 +7,11 @@ import { ViewRegistry } from './view-registry';
 
 const LOG = 'ui.activity';
 
+/** `when` of activity items that only make sense with data open (the bar stays short on an empty window). */
+export function whenDataOpen(ctx: CommandContext): boolean {
+  return (ctx.summary?.sources.length ?? 0) > 0;
+}
+
 /** True for `{ view }` or `{ command }` with a non-empty id. */
 function isTarget(run: unknown): run is ImtActivityTarget {
   if (!run || typeof run !== 'object') return false;

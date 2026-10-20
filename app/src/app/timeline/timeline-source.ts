@@ -1,8 +1,9 @@
 import { computed, inject, Injectable, InjectionToken, Signal } from '@angular/core';
-import { Timeline } from '../core/api.types';
+import { Lane, Timeline } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
 import { RangeZoom, TimelineZoom } from './zoom';
+import { stableLanes } from './lane-order';
 
 /**
  * What a timeline panel shows and drives. The main timeline is bound to the workspace (its filter, range and
@@ -14,6 +15,8 @@ export interface TimelineSource {
   readonly main: boolean;
   readonly title: Signal<string>;
   readonly timeline: Signal<Timeline | null>;
+  /** The timeline's lanes in a stable order: zooming never reshuffles them. */
+  readonly lanes: Signal<readonly Lane[]>;
   readonly loading: Signal<boolean>;
   /** Why the last request failed (shown inline with Retry). */
   readonly error: Signal<string | null>;
@@ -58,6 +61,7 @@ export class MainTimelineSource implements TimelineSource {
   readonly hasRange = this.store.hasRange;
   readonly zoom = computed(() => this.sharedZoom as RangeZoom);
   readonly cursor = computed(() => this.sharedCursor);
+  readonly lanes = stableLanes(this.timeline, this.hasRange);
 
   retry(): void {
     this.store.retryTimeline();

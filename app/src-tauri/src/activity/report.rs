@@ -563,17 +563,19 @@ pub async fn problem_report_preview<R: tauri::Runtime>(
 #[tauri::command]
 pub fn save_problem_report<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    grants: crate::paths::WindowGrants,
     path: String,
     description: Option<String>,
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
+    let target = grants.write(&path, &["zip"])?.path().to_path_buf();
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     // What the report shows is gathered now (the steps up to the click), the zip is written in the job.
     let inputs = inputs(&app);
-    let target = PathBuf::from(&path);
     let spec = crate::jobs::export_spec("Save problem report", None, &target);
+    let file = target.clone();
     crate::jobs::start_file(&app, spec, &target, move |_| {
-        let count = write(&inputs, description.as_deref().unwrap_or(""), Path::new(&path)).map_err(err)?;
+        let count = write(&inputs, description.as_deref().unwrap_or(""), &file).map_err(err)?;
         log::info!(Files = count as u64; "Problem report saved");
         Ok(format!("{count} files zipped."))
     })
@@ -961,16 +963,28 @@ pub(crate) mod tests {
         assert!(!p.system_info["plugins"].as_array().unwrap().is_empty());
         let out = std::env::temp_dir().join(format!("imt-report-cmd-{}.zip", std::process::id()));
         let _ = std::fs::remove_file(&out);
-        let job = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None).unwrap();
+        let grants = || crate::paths::WindowGrants::of(&handle, "main");
+        let refused = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, None);
+        assert!(refused.unwrap_err().contains("only writes where you choose"));
+        assert!(!out.exists());
+        crate::paths::grant(
+            &handle,
+            "main",
+            &out,
+            crate::paths::Access::Write,
+            crate::paths::GrantSource::Dialog,
+        )
+        .unwrap();
+        let job = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, None).unwrap();
         let line = crate::test_support::job_done(&app, job);
         let n: usize = line.split(' ').next().unwrap().parse().unwrap();
         assert!(n >= 5, "{line}");
-        let refused = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, None);
+        let refused = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, None);
         assert_eq!(
             refused.unwrap_err(),
             format!("{} already exists; confirm to replace it", out.display())
         );
-        let again = save_problem_report(handle.clone(), out.to_string_lossy().into(), None, Some(true)).unwrap();
+        let again = save_problem_report(handle.clone(), grants(), out.to_string_lossy().into(), None, Some(true)).unwrap();
         crate::test_support::job_done(&app, again);
         let _ = std::fs::remove_file(out);
         // A mock app has no real window to open; the project it would open is checked below.

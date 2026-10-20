@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith } from './mock-url';
+import { expandFields } from './app';
 
 test.describe('facet values with 10,000 distinct values', () => {
   test.beforeEach(async ({ page }) => {
     await openAppWith(page, '?mockFacet=10000');
+    await expandFields(page);
     await page.getByRole('textbox', { name: 'Filter fields' }).first().fill('Machine');
     await page.locator('imt-sidebar .field').first().click();
     await expect(page.locator('imt-facet-popover')).toBeVisible();

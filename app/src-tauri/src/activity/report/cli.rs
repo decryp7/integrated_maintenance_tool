@@ -36,9 +36,10 @@ pub struct ExportArgs {
     pub force: bool,
 }
 
-/// `None` when the command line does not ask for an export (the app starts normally).
+/// `None` when the command line does not ask for an export (the app starts normally). Only the flags
+/// before `--` count: a path after it (a relaunch reopening a session) never triggers an export.
 pub fn parse<S: AsRef<str>>(args: &[S]) -> Option<Result<ExportArgs, String>> {
-    let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
+    let args: Vec<&str> = crate::instance::flags(args).iter().map(AsRef::as_ref).collect();
     let at = args.iter().position(|a| *a == FLAG || a.starts_with(&format!("{FLAG}=")))?;
     let force = args.contains(&FORCE);
     let inline = args[at].strip_prefix(&format!("{FLAG}=")).map(str::to_string);
@@ -215,6 +216,11 @@ mod tests {
     #[test]
     fn arguments_are_parsed() {
         assert_eq!(parse(&["--safe-mode", "a.log"]), None);
+        assert_eq!(
+            parse(&["--", "--export-diagnostics", "/x.zip", "--force"]),
+            None,
+            "a path, not a flag"
+        );
         assert_eq!(
             parse(&["--export-diagnostics", "out.zip"]),
             Some(Ok(ExportArgs {

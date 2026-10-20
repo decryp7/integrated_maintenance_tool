@@ -61,8 +61,7 @@ flowchart LR
 | `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `LogStore`, `Importer`, `ReportRenderer`, `ConfigParser`, tools. |
 | `imt-profile` | library, pure (no I/O, no `imt-core`) | The profiling engine: profile and heap-snapshot model, builders with limits, the `CaptureImporter` and `ProfileStore` ports with the in-memory `Captures` store, and every profiling view (hotspots, trees, butterfly, flame, diff, threads, findings, moment, heap analysis). See [profiling.md](profiling.md). |
 | `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) contributed to the `profiling.importers` extension point. |
-| `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, diagnostics collector, elevation; the `CounterSource` service (PDH on Windows, `sysinfo` elsewhere). |
-| `imt-api-perf` | plugin API | The `CounterSource` service trait and its contract tests. |
+| `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, Event Log follower, diagnostics collector, elevation. |
 | `imt-monitor` | library + CLI | Process sampling (and Windows PDH counters) into rolling CLEF files. |
 | `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
 | `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
@@ -70,7 +69,6 @@ flowchart LR
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
 | `imt-plugin-sdk`, `imt-plugin-host`, `imt-ipc` | SDK, host, transport | Out-of-process plugins over gRPC `imt.plugin.v1`: the Rust SDK and conformance kit, the host that serves built-in plugins isolated, and the shared transport ([ADR 0004](adr/0004-stable-plugin-abi.md)). The C#/.NET SDK is in `sdk/dotnet`. |
 | `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
-| `imt-clr-format` | library | Capture format and pipe protocol prepared for the planned .NET profiler (not used yet). |
 | `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
 
@@ -152,7 +150,9 @@ state go.
 | `notification_centre/` | The notification centre (ADR 0012): `centre.rs` (pure list: dedupe with counts, caps trimming read messages first), `persist.rs` (project record, `notifications.json`), `mod.rs` (`post` for producers with OS notifications when IMT is not focused, the click-to-open on focus, `notifications_*` commands, events `imt://notifications`, `imt://notifications-open`). |
 | `notify.rs` | Desktop notification policy (level × kind × whether a window already shows it), rate limiter, and the adapter over `tauri-plugin-notification`; never includes file contents. |
 | `window_prefs.rs` | The *Window & tray* settings section: `openFilesIn`, `onClose`, `notifications`, `startMinimized`. |
-| `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave. |
+| `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave, restarts (`restart_app`, `restart_elevated`: the command line is built in Rust, flags first, then `--` and the window's own session file; the webview sends no arguments) and the bounded teardown on close and exit (`teardown_step`: each step on its own thread, logged, at most 3 s). |
+| `paths.rs` | The only path validator: `PathGrants` (per window, at most 64, expiring after an hour) is filled only by the native dialogs (`pick_paths`, shown from Rust), files dropped on a window, the command line and second launches, and the window's project file; commands that read or write a path the webview names (profile import/export, exports, diagnostics, problem reports, projects, settings files, the configuration diff) take it through `WindowGrants` and get a canonical `GrantedPath` or a message to choose the file again. The dialog plugin's JavaScript API is not permitted. |
+| `ui_dispatch.rs` | Native UI updates (tray menu, window list) posted to the main thread with `run_on_main_thread`, coalesced and never waited for, and never called under a lock: tray and window getters wait for the main thread. |
 
 Crash detection: `running.marker` stores the PID and the process start time (read with `sysinfo`). A
 marker left behind is a crash only if that process is gone (no such PID, or a different start time,
@@ -185,7 +185,9 @@ The engine owns live tail (`crates/imt-core/src/workspace/tail/`): file identity
 a polling fallback and burst coalescing (`watch.rs`), applying a refresh with stable ids (`apply.rs`,
 `index.rs`), detectors and alert rules (`alerts.rs`) and engine-side mutes (`mutes.rs`). The shell
 (`app/src-tauri/src/live.rs`) only adapts `notify` to the engine's `WatcherFactory`, runs each window's
-session and registers it as a background task. Commands: `set_live`, `tail_status`, `live_state`
+session and registers it as a background task. Stopping a session never waits: it sets the session's
+`StopToken` (checked before and after taking the workspace lock), and a reaper thread ends the worker
+and the watchers. Commands: `set_live`, `tail_status`, `live_state`
 (restores the UI after a webview reload), `mute_alerts` / `unmute_alerts`, `open_paths_live`; events
 `imt://workspace-changed` (with a `TailReport`, including changed `fileStates`), `imt://live-alert` and
 `imt://live-stopped`.

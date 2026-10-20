@@ -104,6 +104,10 @@ pub trait LogStore: Send + Sync {
     /// Exceptions of the matching records grouped by fingerprint.
     fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>>;
 
+    /// How many of the matching records the analyses (exceptions, anomalies, comparisons, field
+    /// statistics, the query language) look at, of how many.
+    fn analysis_coverage(&self, req: &QueryRequest) -> Result<crate::api::AnalysisCoverage>;
+
     /// Error spikes, crashes, silences, outliers, rate changes and memory growth.
     fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>>;
 
@@ -413,6 +417,10 @@ impl LogStore for Workspace {
 
     fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
         Workspace::exception_groups(self, req)
+    }
+
+    fn analysis_coverage(&self, req: &QueryRequest) -> Result<crate::api::AnalysisCoverage> {
+        Workspace::analysis_coverage(self, req)
     }
 
     fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {

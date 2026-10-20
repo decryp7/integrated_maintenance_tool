@@ -10,6 +10,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -173,11 +174,29 @@ pub type BatchFn = Box<dyn FnMut(Vec<PathBuf>) + Send>;
 /// Told when a root falls back to polling, with the reason.
 pub type FallbackFn = Box<dyn Fn(&Path, &str) + Send + Sync>;
 
-/// A live session: watchers over the roots and a worker thread delivering batches.
+/// Set when a live session stops. The worker checks it before every batch, and a batch callback should
+/// check it again before (and after) taking locks, so a stopped session never applies another batch.
+#[derive(Debug, Clone, Default)]
+pub struct StopToken(Arc<AtomicBool>);
+
+impl StopToken {
+    pub fn is_stopped(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+
+    fn stop(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+}
+
+/// A live session: watchers over the roots and a worker thread delivering batches. Dropping it never
+/// blocks: it sets the stop token and leaves the worker's end and the watchers' teardown to a reaper
+/// thread (so it may be dropped on the main thread, under a lock, or from the worker's own batch).
 pub struct LiveTail {
     watchers: Arc<Mutex<Watchers>>,
     tx: Sender<Msg>,
     worker: Option<std::thread::JoinHandle<()>>,
+    stop: StopToken,
 }
 
 impl LiveTail {
@@ -189,6 +208,18 @@ impl LiveTail {
         factory: Arc<dyn WatcherFactory>,
         on_batch: BatchFn,
         on_fallback: FallbackFn,
+    ) -> LiveTail {
+        Self::start_with(roots, settings, factory, on_batch, on_fallback, StopToken::default())
+    }
+
+    /// [`LiveTail::start`] with the session's stop token, so `on_batch` can check it too.
+    pub fn start_with(
+        roots: &[PathBuf],
+        settings: WatchSettings,
+        factory: Arc<dyn WatcherFactory>,
+        on_batch: BatchFn,
+        on_fallback: FallbackFn,
+        stop: StopToken,
     ) -> LiveTail {
         let (tx, rx) = channel::<Msg>();
         let sink_tx = Mutex::new(tx.clone());
@@ -228,6 +259,7 @@ impl LiveTail {
         }
         let all_roots: Vec<PathBuf> = roots.to_vec();
         let worker_watchers = watchers.clone();
+        let worker_stop = stop.clone();
         let worker = std::thread::Builder::new()
             .name("imt-live-tail".into())
             .spawn(move || {
@@ -249,6 +281,9 @@ impl LiveTail {
                         Ok(Msg::Stop) | Err(RecvTimeoutError::Disconnected) => break,
                         Err(RecvTimeoutError::Timeout) => {}
                     }
+                    if worker_stop.is_stopped() {
+                        break;
+                    }
                     let now = Instant::now();
                     if co.due(now) {
                         let batch = co.take(now).unwrap_or_else(|| all_roots.clone());
@@ -269,7 +304,17 @@ impl LiveTail {
                 }
             })
             .ok();
-        LiveTail { watchers, tx, worker }
+        LiveTail {
+            watchers,
+            tx,
+            worker,
+            stop,
+        }
+    }
+
+    /// The session's stop token.
+    pub fn stop_token(&self) -> StopToken {
+        self.stop.clone()
     }
 
     /// The watched roots and their modes.
@@ -290,11 +335,22 @@ impl LiveTail {
 
 impl Drop for LiveTail {
     fn drop(&mut self) {
+        self.stop.stop();
         let _ = self.tx.send(Msg::Stop);
-        if let Some(w) = self.worker.take() {
-            let _ = w.join();
+        let (worker, watchers) = (self.worker.take(), self.watchers.clone());
+        // The reaper waits for the batch in flight (which may wait for a lock) and stops the watchers
+        // (which may wait for their own threads); nobody waits for the reaper.
+        let reap = move || {
+            if let Some(w) = worker.filter(|w| w.thread().id() != std::thread::current().id()) {
+                let _ = w.join();
+            }
+            lock(&watchers).running.clear();
+        };
+        if let Err(e) = std::thread::Builder::new().name("imt-live-reaper".into()).spawn(reap) {
+            // No thread to spare: the worker ends on its own (it sees the token); the watchers end with
+            // their last reference.
+            log::warn!("cannot start the live tail reaper: {e}");
         }
-        lock(&self.watchers).running.clear();
     }
 }
 

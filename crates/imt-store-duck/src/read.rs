@@ -61,6 +61,7 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
         offset_ms: 0,
         file_kind: r.file_kind,
         timestamp_issue: None,
+        split_events: 0,
     }
 }
 
@@ -433,6 +434,7 @@ impl Inner {
                     to: r.get(9)?,
                     offset_ms: 0,
                     timestamp_issue: None,
+                    split_events: 0,
                 })
             })
             .map_err(engine)?;

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked, viewChildren } from '@angular/core';
+import { RovingFocusNavigation } from '../../shared/list-navigation';
 import { RecordView, SourceInfo } from '../../core/api.types';
 import { ImtBackend } from '../../core/backend';
 import { formatCount } from '../../core/format';
@@ -113,6 +114,11 @@ export class RegistryView {
 
   protected readonly tree = computed(() => buildRegistryTree(this.rows()));
   protected readonly flat = computed(() => flattenTree(this.tree(), this.expanded(), this.filter()));
+  /**
+   * Up, Down, Home and End through the CDK FocusKeyManager; the tab stop is kept by node id (`focusId`), so it stays
+   * on the same key when rows above it expand or collapse.
+   */
+  private readonly nav = new RovingFocusNavigation(computed(() => this.flat().length), inject(Injector), (i) => this.focusRow(i), { homeAndEnd: true });
   protected readonly selectedNode = computed<RegistryNode | null>(() => this.flat().find((f) => f.node.id === this.selected())?.node ?? null);
 
   private loadSeq = 0;
@@ -170,25 +176,13 @@ export class RegistryView {
     const index = list.findIndex((f) => f.node.id === this.focusId());
     const current = list[index];
     if (!current) return;
-    const move = (i: number) => {
-      const target = list[Math.max(0, Math.min(list.length - 1, i))];
-      if (!target) return;
-      this.focusId.set(target.node.id);
-      queueMicrotask(() => this.rowEls().find((el) => el.nativeElement.dataset['id'] === target.node.id)?.nativeElement.focus());
-    };
+    const move = (i: number) => this.focusRow(Math.max(0, Math.min(list.length - 1, i)));
+    this.nav.sync(index);
+    if (this.nav.handle(e)) {
+      e.preventDefault();
+      return;
+    }
     switch (e.key) {
-      case 'ArrowDown':
-        move(index + 1);
-        break;
-      case 'ArrowUp':
-        move(index - 1);
-        break;
-      case 'Home':
-        move(0);
-        break;
-      case 'End':
-        move(list.length - 1);
-        break;
       case 'ArrowRight':
         if (current.expandable && !current.expanded) this.toggle(current.node.id, true);
         else if (current.expanded) move(index + 1);
@@ -208,6 +202,14 @@ export class RegistryView {
         return;
     }
     e.preventDefault();
+  }
+
+  /** Moves the tab stop and focus to row `i` of the visible list. */
+  private focusRow(i: number): void {
+    const target = this.flat()[i];
+    if (!target) return;
+    this.focusId.set(target.node.id);
+    queueMicrotask(() => this.rowEls().find((el) => el.nativeElement.dataset['id'] === target.node.id)?.nativeElement.focus());
   }
 
   private parentIndex(list: FlatNode[], index: number): number {

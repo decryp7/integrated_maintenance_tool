@@ -90,9 +90,10 @@ export abstract class EventLogBackend {
 /** App lifetime: elevation, safe mode, plugin settings and session recovery. */
 export abstract class LifecycleBackend {
   abstract elevation(): Promise<ElevationInfo>;
-  abstract restartElevated(reopen: string[]): Promise<void>;
+  /** Relaunches elevated; `reopenSession` reopens the autosaved session (Rust builds the command line). */
+  abstract restartElevated(reopenSession: boolean): Promise<void>;
   abstract appStatus(): Promise<AppStatus>;
-  abstract restartApp(safeMode: boolean, reopen: string[]): Promise<void>;
+  abstract restartApp(safeMode: boolean, reopenSession: boolean): Promise<void>;
   abstract pluginReset(id: string): Promise<void>;
   abstract pluginSetEnabled(id: string, enabled: boolean): Promise<boolean>;
   /** Autosaves the session; `reports` are the project's incident reports. */
@@ -153,9 +154,10 @@ export abstract class ToolsBackend
   abstract eventLogResume(): Promise<EventLogStatus>;
   abstract eventLogStatus(): Promise<EventLogStatus>;
   abstract elevation(): Promise<ElevationInfo>;
-  abstract restartElevated(reopen: string[]): Promise<void>;
+  /** Relaunches elevated; `reopenSession` reopens the autosaved session (Rust builds the command line). */
+  abstract restartElevated(reopenSession: boolean): Promise<void>;
   abstract appStatus(): Promise<AppStatus>;
-  abstract restartApp(safeMode: boolean, reopen: string[]): Promise<void>;
+  abstract restartApp(safeMode: boolean, reopenSession: boolean): Promise<void>;
   abstract pluginReset(id: string): Promise<void>;
   abstract pluginSetEnabled(id: string, enabled: boolean): Promise<boolean>;
   /** Autosaves the session; `reports` are the project's incident reports. */
@@ -260,14 +262,14 @@ export class TauriToolsBackend extends ToolsBackend {
   elevation() {
     return this.call<ElevationInfo>('elevation');
   }
-  restartElevated(reopen: string[]) {
-    return this.call<void>('restart_elevated', { reopen });
+  restartElevated(reopenSession: boolean) {
+    return this.call<void>('restart_elevated', { reopenSession });
   }
   appStatus() {
     return this.call<AppStatus>('app_status');
   }
-  restartApp(safeMode: boolean, reopen: string[]) {
-    return this.call<void>('restart_app', { safeMode, reopen });
+  restartApp(safeMode: boolean, reopenSession: boolean) {
+    return this.call<void>('restart_app', { safeMode, reopenSession });
   }
   pluginReset(id: string) {
     return this.call<void>('plugin_reset', { id });

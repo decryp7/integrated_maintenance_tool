@@ -18,38 +18,9 @@ use imt_core::process::{quiet_command_with, BELOW_NORMAL_PRIORITY_CLASS};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// Variables llama-server still gets (what the OS, the GPU drivers and their loaders need).
-pub const KEPT_ENV: &[&str] = &[
-    "PATH",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "windir",
-    "SystemDrive",
-    "TEMP",
-    "TMP",
-    "TMPDIR",
-    "HOME",
-    "USERPROFILE",
-    "LOCALAPPDATA",
-    "APPDATA",
-    "ProgramData",
-    "ProgramFiles",
-    "LANG",
-    "LC_ALL",
-    "XDG_RUNTIME_DIR",
-    "XDG_CACHE_HOME",
-    "XDG_DATA_DIRS",
-    "XDG_CONFIG_DIRS",
-    "DISPLAY",
-    "WAYLAND_DISPLAY",
-    "LD_LIBRARY_PATH",
-    "VK_ICD_FILENAMES",
-    "VK_DRIVER_FILES",
-    "CUDA_VISIBLE_DEVICES",
-    "HIP_VISIBLE_DEVICES",
-    "ROCR_VISIBLE_DEVICES",
-    "LLVM_PROFILE_FILE",
-];
+/// Variables llama-server still gets (what the OS, the GPU drivers and their loaders need): the worker's
+/// own allow-list, so the worker never has a variable it does not pass on.
+pub const KEPT_ENV: &[&str] = imt_ai::worker::WORKER_ENV;
 
 /// How much of llama-server's error output is kept for messages.
 const TAIL_BYTES: usize = 4096;

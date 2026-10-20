@@ -47,6 +47,8 @@ test.describe('AI entry points', () => {
   test('Root causes from the Overview and Summarize from the Moment view', async ({ page }) => {
     await openAiApp(page);
     await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
+    // Review on the timeline header's headline opens the Overview.
+    await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).click({ timeout: 10_000 });
     const overview = page.locator('imt-overview-view');
     await expect(overview).toBeVisible({ timeout: 10_000 });
     await overview.getByTestId('ai-root-causes').click();

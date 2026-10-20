@@ -1,6 +1,7 @@
 //! A fake child for the imt-ipc tests (never bundled). Flags: `--exit-now` (dies before listening),
 //! `--no-listen` (reads the handshake and never binds), `--write-pid=<file>` (records its pid, for the
-//! orphan test), `--say=<text>` (writes a line to stderr first). It serves the test `Echo` service, whose request picks crashes, panics and delays.
+//! orphan test), `--say=<text>` (writes a line to stderr first). It serves the test `Echo` service, whose request picks crashes, panics, delays and
+//! (`env`) reports an environment variable.
 
 use imt_ipc::server::{child_main, RuntimeKind, ServeOptions};
 use imt_ipc::testing::echo_server::{Echo, EchoServer};
@@ -23,6 +24,10 @@ impl Echo for Svc {
                 tonic::Code::FailedPrecondition,
                 &RemoteError::new(7, "typed failure"),
             )),
+            // Reports one of its environment variables (the environment tests).
+            "env" => Ok(Response::new(EchoReply {
+                text: std::env::var(&r.text).unwrap_or_else(|_| "<unset>".into()),
+            })),
             _ => Ok(Response::new(EchoReply { text: r.text })),
         }
     }

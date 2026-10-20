@@ -1,8 +1,10 @@
 [package]
 name = "imt-batch"
-license = "MIT OR Apache-2.0"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 publish = false
 description = "IMT's event batch: stable ids, the fixed Arrow schema of an event (ADR 0014 §3), a builder and a validated EventBatch shared by importers, the store and plugins"
 
@@ -12,9 +14,9 @@ description = "IMT's event batch: stable ids, the fixed Arrow schema of an event
 arrow-array = { version = "58", default-features = false }
 arrow-buffer = { version = "58", default-features = false }
 arrow-schema = { version = "58", default-features = false }
-thiserror = "2"
+thiserror.workspace = true
 # Serialisation of ids and the timestamp state in the store's request/reply types.
-serde = { version = "1.0", features = ["derive"], optional = true }
+serde = { workspace = true, optional = true }
 
 [features]
 serde = ["dep:serde"]

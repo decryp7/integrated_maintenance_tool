@@ -2,7 +2,7 @@
  * Wire contract of the local AI assistant (`app/src-tauri/src/ai/**`, `crates/imt-ai`), camelCase JSON.
  * Commands: `ai_*` (see `ai-backend.ts`). Events: `imt://ai-setup` (`SetupEvent`, all windows),
  * `imt://ai-status` (`AiStatus`, all windows), `imt://ai-chat` (`ChatEventEnvelope`, the chat's window),
- * `imt://ai-runtime` (`AiRuntimeEvent`, all windows).
+ * `imt://ai-runtime` (`AiRuntimeEvent`, all windows), `imt://ai-updates` (`AiUpdatesStatus`, all windows).
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
 import { AgentApprovalRequest, HandOff, PauseReason, Segment } from '../browser/browser.types';
@@ -12,6 +12,7 @@ export const AI_SETUP_EVENT = 'imt://ai-setup';
 export const AI_STATUS_EVENT = 'imt://ai-status';
 export const AI_CHAT_EVENT = 'imt://ai-chat';
 export const AI_RUNTIME_EVENT = 'imt://ai-runtime';
+export const AI_UPDATES_EVENT = 'imt://ai-updates';
 
 export type AiErrorCode =
   | 'unavailable'
@@ -110,6 +111,8 @@ export interface CatalogModel {
   moe: boolean;
   recommendedFor: string[];
   notes: string;
+  /** Older files of this entry it replaces (an earlier revision or quantisation); absent when none. */
+  supersedes?: string[];
 }
 
 export interface Recommendation {
@@ -497,3 +500,50 @@ export interface CheckedQuery {
 
 /** `ai_research` answer: the research job started, or the search text needs the user's confirmation first. */
 export type ResearchStarted = { status: 'started'; jobId: number } | { status: 'confirm'; checked: CheckedQuery; question: string };
+
+// ---- update checks (app/src-tauri/src/ai/updates.rs, crates/imt-ai/src/updates) ----
+
+/** What IMT does when it finds an update of one kind (Settings → AI). */
+export type AiUpdatePolicy = 'automatic' | 'ask' | 'manual';
+
+export type AiUpdateKind = 'runtime' | 'model';
+
+/** One update from the pinned catalogs. */
+export interface AiUpdate {
+  kind: AiUpdateKind;
+  /** Stable per target version: what "Skip this version" remembers. */
+  key: string;
+  /** The build id or catalog model id (also what "Download manually" takes). */
+  id: string;
+  name: string;
+  /** The installed release tag or model file. */
+  from: string;
+  /** The release tag or model file it updates to. */
+  to: string;
+  downloadBytes: number;
+  skipped: boolean;
+  installing: boolean;
+  /** An automatic install waits for the running chat to end. */
+  waiting: boolean;
+}
+
+export interface AiUpdateKindStatus {
+  kind: AiUpdateKind;
+  policy: AiUpdatePolicy;
+  /** Epoch ms. */
+  lastCheck: number | null;
+  lastSuccess: number | null;
+  /** Why the last check or update failed (quiet: shown in Settings only). */
+  lastError: string | null;
+  /** Offer "Download manually" (certificate interception, proxy sign-in, blocked download). */
+  manualSuggested: boolean;
+  /** Epoch ms of the next automatic check; null with Manual. */
+  nextCheck: number | null;
+  checking: boolean;
+  updates: AiUpdate[];
+}
+
+export interface AiUpdatesStatus {
+  intervalHours: number;
+  kinds: AiUpdateKindStatus[];
+}

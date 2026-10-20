@@ -71,27 +71,26 @@ export class LifecycleService {
 
   /** Relaunches without plugins and the saved profile. Nothing is reopened (the old session may be the cause). */
   async startInSafeMode(): Promise<void> {
-    await this.run((error) => $localize`:@@lifecycle.service.safeModeFailed:Could not restart in safe mode: ${error}:error:`, () => this.backend.restartApp(true, []));
+    await this.run((error) => $localize`:@@lifecycle.service.safeModeFailed:Could not restart in safe mode: ${error}:error:`, () => this.backend.restartApp(true, false));
   }
 
   async restartNormally(): Promise<void> {
-    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, () => this.backend.restartApp(false, []));
+    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, () => this.backend.restartApp(false, false));
   }
 
   /** Relaunches the app keeping its mode, reopening the session (after a plugin was enabled or disabled). */
   async restartKeepingSession(): Promise<void> {
-    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, async () => this.backend.restartApp(this.safeMode(), await this.sessionPaths()));
+    await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, async () => this.backend.restartApp(this.safeMode(), await this.sessionSaved()));
   }
 
   /** Saves the session, then relaunches as administrator (Windows UAC prompt) reopening it. */
   async restartElevated(): Promise<void> {
-    await this.run((error) => $localize`:@@lifecycle.service.elevatedFailed:Could not restart as administrator: ${error}:error:`, async () => this.backend.restartElevated(await this.sessionPaths()));
+    await this.run((error) => $localize`:@@lifecycle.service.elevatedFailed:Could not restart as administrator: ${error}:error:`, async () => this.backend.restartElevated(await this.sessionSaved()));
   }
 
-  private async sessionPaths(): Promise<string[]> {
-    if (!(await this.session.saveNow())) return [];
-    const path = await this.backend.lastSession();
-    return path ? [path] : [];
+  /** Saves the session for the relaunch to reopen; the engine picks the file itself (no path is sent). */
+  private async sessionSaved(): Promise<boolean> {
+    return this.session.saveNow();
   }
 
   private async run(failure: (error: string) => string, op: () => Promise<void>): Promise<void> {

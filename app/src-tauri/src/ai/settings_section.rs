@@ -8,6 +8,7 @@ use super::core::AiCore;
 use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label as build_label;
 use imt_ai::settings::{AiSettings, GpuOffload};
+use imt_ai::updates::UpdatePolicy;
 use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde_json::Value;
 use std::sync::Arc;
@@ -33,6 +34,9 @@ fn label_of(option: &str) -> String {
         "auto" => "Automatic".into(),
         "0" => "CPU only".into(),
         "all" => "All layers on the GPU".into(),
+        "automatic" => "Automatic: download and install in the background".into(),
+        "ask" => "Ask before updating".into(),
+        "manual" => "Manual: only when I choose Check now".into(),
         n if n.parse::<u32>().is_ok() => format!("{n} layers on the GPU"),
         other => other.into(),
     }
@@ -175,6 +179,13 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
         s.inference_build = b;
     }
     s.llama_server_path = text(values, "llama_server_path");
+    if let Some(p) = values.text("runtime_updates").and_then(UpdatePolicy::parse) {
+        s.runtime_updates = p;
+    }
+    if let Some(p) = values.text("model_updates").and_then(UpdatePolicy::parse) {
+        s.model_updates = p;
+    }
+    s.update_check_hours = int("update_check_hours", i64::from(s.update_check_hours)).clamp(1, 720) as u32;
     s.clamp()
 }
 
@@ -241,7 +252,8 @@ mod tests {
                 "autoload": false, "idle_unload_minutes": 0, "gpu_offload": "all", "context_length": 4096,
                 "max_tokens": 512, "temperature": 0.5, "threads": 4, "hf_endpoint": "https://mirror.example",
                 "download_proxy": "http://p:3128", "max_download_gb": 9, "models_dir": models,
-                "inference_build": "vulkan", "llama_server_path": server
+                "inference_build": "vulkan", "llama_server_path": server,
+                "runtime_updates": "automatic", "model_updates": "manual", "update_check_hours": 6
             }),
         );
         assert!(errors.is_empty(), "{errors:?}");
@@ -265,6 +277,11 @@ mod tests {
             (a.inference_build.as_str(), a.llama_server_path.as_deref()),
             ("vulkan", Some(server))
         );
+        assert_eq!(
+            (a.runtime_updates, a.model_updates, a.update_check_hours),
+            (UpdatePolicy::Automatic, UpdatePolicy::Manual, 6)
+        );
+        assert_eq!(label_of("ask"), "Ask before updating");
         for (word, expected) in [
             ("8", GpuOffload::Layers(8)),
             ("0", GpuOffload::Layers(0)),

@@ -1543,3 +1543,66 @@ fn rates_keep_a_bounded_history() {
     assert_eq!(ws.summary().total, 80);
     assert!(ws.tail_status().files[0].lines_per_sec > 0.0);
 }
+
+#[test]
+fn stopping_never_waits_for_the_batch_in_flight() {
+    let d = Dir::new("stop-nonblocking");
+    let factory = Arc::new(FakeFactory::default());
+    // An import holding the workspace's write lock, as far as the batch can tell.
+    let store = Arc::new(Mutex::new(()));
+    let held = store.lock().unwrap();
+    let (entered, in_batch) = std::sync::mpsc::channel();
+    let batch_store = store.clone();
+    let stop = imt_core::workspace::StopToken::default();
+    let live = LiveTail::start_with(
+        std::slice::from_ref(&d.0),
+        WatchSettings {
+            tick_ms: 60_000,
+            ..WatchSettings::default()
+        },
+        factory.clone(),
+        Box::new(move |_| {
+            let _ = entered.send(());
+            let _waits = batch_store.lock();
+        }),
+        Box::new(|_, _| {}),
+        stop.clone(),
+    );
+    let sink = factory.sinks.lock().unwrap()[0].clone();
+    sink(WatchSignal::Paths(vec![d.0.join("app.log")]));
+    in_batch.recv_timeout(Duration::from_secs(5)).unwrap();
+    let started = Instant::now();
+    drop(live);
+    assert!(started.elapsed() < Duration::from_secs(1), "stopping returned at once");
+    assert!(stop.is_stopped());
+    drop(held);
+}
+
+#[test]
+fn a_session_dropped_from_its_own_batch_does_not_deadlock() {
+    let d = Dir::new("stop-self");
+    let factory = Arc::new(FakeFactory::default());
+    let slot: Arc<Mutex<Option<LiveTail>>> = Arc::new(Mutex::new(None));
+    let (done, finished) = std::sync::mpsc::channel();
+    let batch_slot = slot.clone();
+    let live = LiveTail::start(
+        std::slice::from_ref(&d.0),
+        WatchSettings {
+            tick_ms: 60_000,
+            ..WatchSettings::default()
+        },
+        factory.clone(),
+        // The window state (which owns the session) going away on the worker thread.
+        Box::new(move |_| {
+            let taken = batch_slot.lock().unwrap().take();
+            drop(taken);
+            let _ = done.send(());
+        }),
+        Box::new(|_, _| {}),
+    );
+    *slot.lock().unwrap() = Some(live);
+    let sink = factory.sinks.lock().unwrap()[0].clone();
+    sink(WatchSignal::Paths(vec![d.0.join("app.log")]));
+    finished.recv_timeout(Duration::from_secs(5)).expect("the batch finished");
+    assert!(slot.lock().unwrap().is_none());
+}

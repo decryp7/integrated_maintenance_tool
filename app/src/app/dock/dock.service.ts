@@ -1,66 +1,33 @@
-import { ApplicationRef, computed, effect, EnvironmentInjector, inject, Injectable, Injector, signal, untracked } from '@angular/core';
-import type { DockviewApi, DockviewGroupPanel, IDockviewPanel } from 'dockview';
+import { ApplicationRef, computed, EnvironmentInjector, inject, Injectable, Injector, signal } from '@angular/core';
+import type { DockviewApi, DockviewGroupPanel } from 'dockview';
 import { dockview, loadDockview } from './dockview-loader';
 import { Logger } from '../core/logger';
-import { WorkspaceStore } from '../core/workspace.store';
-import { ImtView, ViewPosition } from '../extensions/tokens';
-import { ViewRegistry } from '../extensions/view-registry';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
-import { AutoHideEvent, AutoHideItem, autoHideReduce, AutoHideState, EMPTY_AUTO_HIDE } from './auto-hide';
-import { adjacentNeighbour, atEdge, DockSlot, isLayoutTarget, nearestSide, Point, Rect, resolveGuideDrop } from './dock-geometry';
-import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
-import { FLOAT_MAX, FloatCue, floatSize, ghostRect, TabDropOutcome, tabDropOutcome } from './float-cue';
+import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
+import { DockAutoHide } from './dock-auto-hide';
+import { DockContext } from './dock-context';
+import { keepGroupsUnscrolled, observeFloatingAria } from './dock-dom';
+import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop } from './dock-geometry';
+import { DockPersistence } from './dock-persistence';
+import { DockPlacement } from './dock-placement';
+import { DockPolicy } from './dock-policy';
+import { DockTarget } from './dock-target';
+import { FloatCue, TabDropOutcome } from './float-cue';
 import { TabDragOut } from './tab-drag-out';
 import { DropGuides } from './drop-guides';
 import { FullScreenPrefs, OsWindow } from './os-window';
 import { GroupActions } from './group-actions';
-import { DockExtras, EMPTY_EXTRAS, LAYOUT_STORE, SavedLayout } from './layout-store';
+import { DockExtras, SavedLayout } from './layout-store';
 import { PanelAction, panelMenu, panelsToClose, pinnedIndex } from './panel-menu';
-import { PANEL_WINDOWS, PanelWindows } from './panel-windows';
 import { PanelTab, TAB_COMPONENT, tabPanelId } from './panel-tab';
 import { cycle, openSwitcher, selected, SwitcherState, switcherItems, touchMru } from './switcher';
 import { viewKind, ViewKind } from './view-kind';
+import { LayoutModeStore } from '../core/workspace/layout-mode';
 
-/** Ids of the built-in panels the default layout is made of. */
-export const PANEL = { timeline: 'timeline', events: 'events', inspector: 'inspector', metrics: 'metrics', profile: 'profile' } as const;
-
-const PERSIST_DELAY_MS = 250;
-const INSPECTOR_WIDTH = 372;
-const TIMELINE_HEIGHT = 300;
-/** Size of a group floated with the "Float panel" button. */
-const FLOAT_SIZE = FLOAT_MAX;
-/** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
-const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
-
-/** A view with a fixed place in the default layout, relative to a built-in panel. */
-interface Pin {
-  referencePanel: string;
-  direction: 'above' | 'below' | 'left' | 'right';
-  /** Height of the view's group in px, for views placed above or below. */
-  height?: number;
-}
-
-/** Id of the query bar view (contributed by the analysis plugin). */
-export const QUERY_VIEW = 'query';
-/** Tab strip plus one line of query input; dockview groups are otherwise at least 100px tall. */
-export const QUERY_HEIGHT = 80;
-
-/**
- * Views that open in their own group at a fixed place instead of tabbed by `defaultPosition`: the
- * query bar sits right above the events grid it filters. Used by the default layout and whenever
- * such a view is (re)opened while its reference panel is in the layout.
- */
-const PINNED: Readonly<Record<string, Pin>> = {
-  [QUERY_VIEW]: { referencePanel: PANEL.events, direction: 'above', height: QUERY_HEIGHT },
-};
-
-/** Panels a new view with a given default position is placed next to (first one that exists wins). */
-const ANCHORS: Record<ViewPosition, string[]> = {
-  center: [PANEL.timeline, PANEL.metrics, PANEL.profile],
-  right: [PANEL.inspector],
-  bottom: [PANEL.events],
-};
+export { PANEL } from './dock-context';
+export { defaultAutoHidden, QUERY_HEIGHT, QUERY_VIEW } from './dock-placement';
+export { keepGroupsUnscrolled, observeFloatingAria } from './dock-dom';
 
 /** An inline problem shown over the dock (e.g. a pop-out window could not be created), with an optional retry. */
 export interface DockNotice {
@@ -69,26 +36,29 @@ export interface DockNotice {
 }
 
 /**
- * Owns the dockview instance: builds the default layout (documents in the centre, tool windows around them, as in
- * Visual Studio), restores/persists the user's layout through the `LayoutStore`, and opens, closes, focuses,
- * floats, pops out, auto-hides and pins panels for the views in `ViewRegistry`. Components use this service
- * instead of touching dockview.
+ * The dock, as components see it: creates the dockview instance, restores/persists the user's layout, and opens,
+ * closes, focuses, floats, pops out, auto-hides and pins panels for the views in `ViewRegistry` (documents in the
+ * centre, tool windows around them, as in Visual Studio). It coordinates focused services:
+ * - `DockPlacement`: where panels go (default layout, new views, slots, floating, guides);
+ * - `DockAutoHide`: auto-hidden tool windows;
+ * - `DockPersistence`: saving the arrangement;
+ * - `DockPolicy`: the workspace's "on X, show Y" rules.
+ * Components use this service instead of touching dockview.
  */
 @Injectable({ providedIn: 'root' })
 export class DockService {
-  private readonly views = inject(ViewRegistry);
-  private readonly store = inject(WorkspaceStore);
-  private readonly layoutStore = inject(LAYOUT_STORE);
+  private readonly ctx = inject(DockContext);
+  private readonly placement = inject(DockPlacement);
+  private readonly autoHider = inject(DockAutoHide);
+  private readonly persistence = inject(DockPersistence);
+  private readonly views = this.ctx.views;
   private readonly appRef = inject(ApplicationRef);
   private readonly injector = inject(EnvironmentInjector);
   private readonly lazy = inject(Injector);
   private readonly logger = inject(Logger);
   private readonly menus = inject(ContextMenuService);
+  private readonly layoutMode = inject(LayoutModeStore);
 
-  private api: DockviewApi | null = null;
-  private container: HTMLElement | null = null;
-  private persistTimer: ReturnType<typeof setTimeout> | undefined;
-  private restoring = false;
   private disposers: { dispose(): void }[] = [];
   /** True when the layout was built from defaults rather than restored from the store. */
   private fresh = false;
@@ -97,78 +67,46 @@ export class DockService {
   private evaluated = false;
   /** In a pop-out window: views are shown by the host (set by the pop-out shell). */
   private remote: ((id: string) => void) | null = null;
-  private mru: string[] = [];
   private fullScreenGroup: DockviewGroupPanel | null = null;
-  private guides: DropGuides | null = null;
   private pendingAttach: HTMLElement | null = null;
   private fullScreenOs = false;
 
-  private readonly docked = signal<ReadonlySet<string>>(new Set());
-  private readonly autoHideState = signal<AutoHideState>(EMPTY_AUTO_HIDE);
-  private readonly pinnedSet = signal<ReadonlySet<string>>(new Set());
-  private readonly saved = signal<SavedLayout | null>(null);
-
   /** Ids of the panels currently open: docked, auto-hidden or popped out to a window. */
   readonly openIds = computed<ReadonlySet<string>>(() => {
-    const ids = new Set(this.docked());
-    for (const i of this.autoHideState().items) ids.add(i.id);
-    for (const id of this.windows()?.poppedIds() ?? []) ids.add(id);
+    const ids = new Set(this.ctx.docked());
+    for (const i of this.ctx.autoHide().items) ids.add(i.id);
+    for (const id of this.ctx.windows()?.poppedIds() ?? []) ids.add(id);
     return ids;
   });
   /** Auto-hidden tool windows and which one is slid out. */
-  readonly autoHide = this.autoHideState.asReadonly();
+  readonly autoHide = this.autoHider.state;
   /** Tabs pinned to the left of their strip (they survive "Close all"). */
-  readonly pinnedTabs = this.pinnedSet.asReadonly();
+  readonly pinnedTabs = this.ctx.pinned.asReadonly();
   /** The layout as last saved (projects and sessions save it too). */
-  readonly savedLayout = this.saved.asReadonly();
+  readonly savedLayout = this.persistence.savedLayout;
   /** An inline problem to show over the dock. */
   readonly notice = signal<DockNotice | null>(null);
   /** The Ctrl+Tab navigator, when open. */
   readonly switcher = signal<SwitcherState | null>(null);
   readonly fullScreen = signal(false);
-  private readonly apiReady = signal(false);
 
   constructor() {
-    // Jumping to a record (marker click, "show context") must reveal the grid.
-    effect(() => {
-      const anchor = this.store.anchor();
-      if (anchor && this.apiReady()) untracked(() => this.show(PANEL.events));
-    });
-    // Selecting an event slides the auto-hidden inspector out (it stays docked when the user pinned it).
-    let shownId: number | null = null;
-    effect(() => {
-      const id = this.store.selected()?.id ?? null;
-      const ready = this.apiReady();
-      untracked(() => {
-        if (id === shownId) return;
-        shownId = id;
-        if (id !== null && ready) this.revealInspector();
-      });
-    });
-    // Conditional views (e.g. the registry viewer) follow what the workspace contains.
-    effect(() => {
-      const summary = this.store.summary();
-      this.views.available();
-      if (summary && this.apiReady()) untracked(() => this.syncConditionalViews());
+    inject(DockPolicy).start({
+      ready: this.ctx.apiReady,
+      show: (id) => this.show(id),
+      revealInspector: () => this.revealInspector(),
+      syncConditionalViews: () => this.syncConditionalViews(),
     });
   }
 
-  /**
-   * Slides the auto-hidden inspector out (without taking focus). Nothing when it is docked, popped out or closed, or
-   * when a tool window is docked on its edge: sliding over it would hide what the user is working with there.
-   */
+  /** The dockview instance (null before attach). */
+  private get api(): DockviewApi | null {
+    return this.ctx.api;
+  }
+
+  /** Slides the auto-hidden inspector out (see `DockAutoHide.revealInspector`); nothing in a pop-out. */
   revealInspector(): void {
-    const api = this.api;
-    if (this.remote || !api) return;
-    const s = this.autoHideState();
-    const item = s.items.find((i) => i.id === PANEL.inspector);
-    if (!item || s.open === PANEL.inspector) return;
-    if (item.side !== 'left' && this.toolGroupFor(api, item.side)) return;
-    this.autoHideEvent({ type: 'activate', id: PANEL.inspector });
-  }
-
-  private windows(): PanelWindows | null {
-    return this.lazy.get(PANEL_WINDOWS, null);
+    if (!this.remote) this.autoHider.revealInspector();
   }
 
   isOpen(id: string): boolean {
@@ -176,7 +114,7 @@ export class DockService {
   }
 
   kindOf(id: string): ViewKind {
-    return viewKind(this.views.find(id));
+    return this.ctx.kindOf(id);
   }
 
   /** In a pop-out window: showing a view asks the host to show it (the pop-out has no layout of its own). */
@@ -198,7 +136,7 @@ export class DockService {
       return;
     }
     this.detach();
-    this.container = container;
+    this.ctx.container = container;
     const api = lib.createDockview(container, {
       theme: { name: 'imt', className: 'imt-dockview' },
       floatingGroupBounds: 'boundedWithinViewport',
@@ -230,11 +168,11 @@ export class DockService {
           popOut: (g) => this.popOut(g.activePanel?.id ?? ''),
           autoHide: (g) => this.unpin(g.activePanel?.id ?? ''),
           isTool: (g) => !!g.activePanel && this.kindOf(g.activePanel.id) === 'tool',
-          canPopOut: () => this.windows()?.canPopOut() ?? false,
+          canPopOut: () => this.ctx.windows()?.canPopOut() ?? false,
           openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor),
         }),
     });
-    this.api = api;
+    this.ctx.api = api;
     const onKey = (e: KeyboardEvent) => {
       const id = tabPanelId(e.target);
       if (!id) return;
@@ -261,7 +199,7 @@ export class DockService {
       // After dockview has finished its own (target-less) end of the drag.
       float: (id, p) => void setTimeout(() => this.floatAt(id, p)),
       cue: (id, p, outcome) => {
-        const rect = this.cueRect(id, p, outcome);
+        const rect = this.placement.cueRect(id, p, outcome);
         if (rect) cue.show(outcome, rect);
         else cue.hide();
       },
@@ -269,7 +207,7 @@ export class DockService {
     container.addEventListener('keydown', onKey);
     container.addEventListener('contextmenu', onContextMenu);
     const guides = new DropGuides(container);
-    this.guides = guides;
+    this.ctx.guides = guides;
     this.disposers = [
       { dispose: () => container.removeEventListener('keydown', onKey) },
       { dispose: () => container.removeEventListener('contextmenu', onContextMenu) },
@@ -278,80 +216,80 @@ export class DockService {
       guides,
       observeFloatingAria(container),
       keepGroupsUnscrolled(container),
-      api.onDidAddPanel(() => this.refreshOpen()),
-      api.onDidRemovePanel(() => this.refreshOpen()),
-      api.onDidLayoutFromJSON(() => this.refreshOpen()),
+      api.onDidAddPanel(() => this.ctx.refreshOpen()),
+      api.onDidRemovePanel(() => this.ctx.refreshOpen()),
+      api.onDidLayoutFromJSON(() => this.ctx.refreshOpen()),
       api.onDidLayoutChange(() => {
-        this.markPinnedTabs();
-        this.schedulePersist();
+        this.ctx.markPinnedTabs();
+        this.persistence.schedule();
       }),
       api.onDidActivePanelChange((e) => {
-        if (e.panel) this.mru = touchMru(this.mru, e.panel.id);
+        if (e.panel) this.ctx.mru = touchMru(this.ctx.mru, e.panel.id);
       }),
     ];
-    this.restoring = true;
+    this.ctx.restoring = true;
     let extras: DockExtras;
     try {
-      const saved = this.layoutStore.load();
+      const saved = this.persistence.load();
       if (saved) {
         try {
           api.fromJSON(saved.layout);
           extras = saved.extras;
         } catch (e) {
           this.logger.warn('ui.layout', 'Saved layout could not be restored; using the default', { Error: String(e) });
-          this.layoutStore.clear();
+          this.persistence.clear();
           api.clear();
           this.fresh = true;
-          extras = this.buildDefault(api);
+          extras = this.placement.buildDefault(api);
         }
       } else {
         this.fresh = true;
-        extras = this.buildDefault(api);
+        extras = this.placement.buildDefault(api);
       }
       this.applyExtras(extras);
     } finally {
-      this.restoring = false;
+      this.ctx.restoring = false;
     }
-    this.refreshOpen();
+    this.ctx.refreshOpen();
     this.evaluated = false;
     this.wasAvailable.clear();
-    this.apiReady.set(true);
-    if (extras.poppedOut.length) void this.windows()?.restore(extras.poppedOut);
+    this.ctx.apiReady.set(true);
+    if (extras.poppedOut.length) void this.ctx.windows()?.restore(extras.poppedOut);
   }
 
   detach(): void {
     this.pendingAttach = null;
-    clearTimeout(this.persistTimer);
+    this.persistence.cancel();
     this.disposers.forEach((d) => d.dispose());
     this.disposers = [];
-    this.api?.dispose();
-    this.api = null;
-    this.container = null;
-    this.guides = null;
-    this.apiReady.set(false);
-    this.docked.set(new Set());
-    this.autoHideState.set(EMPTY_AUTO_HIDE);
+    this.ctx.api?.dispose();
+    this.ctx.api = null;
+    this.ctx.container = null;
+    this.ctx.guides = null;
+    this.ctx.apiReady.set(false);
+    this.ctx.docked.set(new Set());
+    this.ctx.autoHide.set(EMPTY_AUTO_HIDE);
   }
 
   /** Restores the default arrangement and forgets the saved one. */
   reset(): void {
     const api = this.api;
     if (!api) return;
-    this.layoutStore.clear();
-    this.restoring = true;
+    this.persistence.clear();
+    this.ctx.restoring = true;
     try {
       api.clear();
-      this.applyExtras(this.buildDefault(api));
+      this.applyExtras(this.placement.buildDefault(api));
     } finally {
-      this.restoring = false;
+      this.ctx.restoring = false;
     }
     this.exitFullScreen();
     this.fresh = true;
     this.evaluated = false;
     this.wasAvailable.clear();
-    this.refreshOpen();
+    this.ctx.refreshOpen();
     this.syncConditionalViews();
-    this.schedulePersist();
+    this.persistence.schedule();
   }
 
   /** Changes the tab title of an open panel (e.g. to show a count); does nothing when it is not open. */
@@ -369,17 +307,18 @@ export class DockService {
     const api = this.api;
     const view = this.views.find(id);
     if (!api || !view) return;
-    if (this.windows()?.poppedIds().has(id)) {
-      if (!options.inactive) this.windows()?.focus(id);
+    const windows = this.ctx.windows();
+    if (windows?.poppedIds().has(id)) {
+      if (!options.inactive) windows.focus(id);
       return;
     }
-    if (this.autoHideState().items.some((i) => i.id === id)) {
-      if (!options.inactive) this.autoHideEvent({ type: 'activate', id });
+    if (this.ctx.isAutoHidden(id)) {
+      if (!options.inactive) this.autoHider.event({ type: 'activate', id });
       return;
     }
     // A tool window docks at a window edge, where a slid-out one would cover it.
-    const open = this.autoHideState().open;
-    if (open && !options.inactive && viewKind(view) === 'tool') this.autoHideEvent({ type: 'blur' });
+    const open = this.ctx.autoHide().open;
+    if (open && !options.inactive && viewKind(view) === 'tool') this.autoHider.event({ type: 'blur' });
     const existing = api.getPanel(id);
     if (existing) {
       if (api.hasMaximizedGroup() && !existing.group.api.isMaximized()) api.exitMaximizedGroup();
@@ -387,7 +326,7 @@ export class DockService {
       return;
     }
     if (!this.views.available().includes(view)) return;
-    this.addView(api, view, options.inactive ?? false, id);
+    this.placement.addView(api, view, options.inactive ?? false, id);
   }
 
   /**
@@ -406,13 +345,13 @@ export class DockService {
   }
 
   close(id: string): void {
-    if (this.windows()?.poppedIds().has(id)) {
-      void this.windows()?.discard(id);
+    const windows = this.ctx.windows();
+    if (windows?.poppedIds().has(id)) {
+      void windows.discard(id);
       return;
     }
-    if (this.autoHideState().items.some((i) => i.id === id)) {
-      this.autoHideState.update((s) => autoHideReduce(s, { type: 'pin', id }));
-      this.schedulePersist();
+    if (this.ctx.isAutoHidden(id)) {
+      this.autoHider.remove(id);
       return;
     }
     const panel = this.api?.getPanel(id);
@@ -427,83 +366,39 @@ export class DockService {
 
   /** Floats a docked group in the window, or docks a floating group back into the grid. */
   toggleFloat(group: DockviewGroupPanel): void {
-    const api = this.api;
-    if (!api) return;
-    if (group.api.location.type === 'floating') {
-      // Dock next to where the view would open by default: tabbed with the timeline, below it, or to its right.
-      const position = this.views.find(group.panels[0]?.id ?? '')?.defaultPosition ?? 'center';
-      const exclude = new Set(group.panels.map((p) => p.id));
-      const anchor = api.getPanel(this.anchorFor(api, position, exclude) ?? '');
-      if (anchor) group.api.moveTo({ group: anchor.group, position: position === 'center' ? 'center' : position });
-      else group.api.moveTo({ position: 'right' });
-    } else {
-      api.addFloatingGroup(group, { ...FLOAT_SIZE, x: 140, y: 100 });
-    }
+    this.placement.toggleFloat(group);
   }
 
   /* ------------------------------------------------------------------ slots */
 
   /** Where a docked panel sits, so it can be put back after a pop-out or auto-hide. */
   captureSlot(id: string): DockSlot | null {
-    const api = this.api;
-    const panel = api?.getPanel(id);
-    if (!api || !panel) return null;
-    const group = panel.group;
-    const siblings = group.panels.filter((p) => p.id !== id);
-    const index = group.panels.findIndex((p) => p.id === id);
-    const reference = siblings[Math.max(0, index - 1)] ?? siblings[0];
-    if (reference) {
-      return { referencePanel: reference.id, direction: 'within', index };
-    }
-    const rect = rectOf(group.element);
-    const others = api.groups
-      .filter((g) => g !== group && g.api.location.type === 'grid' && g.activePanel)
-      .map((g) => ({ rect: rectOf(g.element), value: g.activePanel!.id }));
-    const near = rect ? adjacentNeighbour(rect, others.filter((o): o is { rect: Rect; value: string } => !!o.rect)) : null;
-    if (!near) return { referencePanel: null, direction: 'within' };
-    const size = near.direction === 'left' || near.direction === 'right' ? rect?.width : rect?.height;
-    return { referencePanel: near.value, direction: near.direction, ...(size ? { size: Math.round(size) } : {}) };
+    return this.placement.captureSlot(id);
   }
 
   /** Puts a panel back at a slot (or where its view opens by default when the reference is gone). */
   restoreSlot(id: string, slot: DockSlot | null, options: { inactive?: boolean } = {}): void {
-    const api = this.api;
-    const view = this.views.find(id);
-    if (!api || !view || api.getPanel(id)) return;
-    const ref = slot?.referencePanel ? api.getPanel(slot.referencePanel) : undefined;
-    if (!slot || !ref) {
-      this.addView(api, view, options.inactive ?? false, id);
-      return;
-    }
-    const panel = api.addPanel({
-      id,
-      component: view.id,
-      title: view.title,
-      inactive: options.inactive ?? false,
-      position: { referencePanel: ref.id, direction: slot.direction, ...(slot.direction === 'within' && slot.index !== undefined ? { index: slot.index } : {}) },
-    });
-    if (slot.size && slot.direction !== 'within') panel.group.api.setSize(slot.direction === 'left' || slot.direction === 'right' ? { width: slot.size } : { height: slot.size });
+    this.placement.restoreSlot(id, slot, options);
   }
 
   /** The panel's content size on screen (for the pop-out window size). */
   panelRect(id: string): Rect | null {
-    const panel = this.api?.getPanel(id);
-    return panel ? rectOf(panel.group.element) : null;
+    return this.placement.panelRect(id);
   }
 
   /** Removes a panel from the layout without closing its view (it moved to a pop-out window). */
   takeOut(id: string): void {
     const panel = this.api?.getPanel(id);
     if (panel) this.api?.removePanel(panel);
-    this.refreshOpen();
-    this.schedulePersist();
+    this.ctx.refreshOpen();
+    this.persistence.schedule();
   }
 
   /* --------------------------------------------------------------- pop-outs */
 
   /** Pops a panel out into a real window ("Pop out to window"). */
   async popOut(id: string, at?: Point): Promise<boolean> {
-    const windows = this.windows();
+    const windows = this.ctx.windows();
     if (!windows || !id || !this.api?.getPanel(id)) return false;
     return windows.popOut(id, at ? { at } : {});
   }
@@ -513,155 +408,68 @@ export class DockService {
     return this.popOut(this.api?.activePanel?.id ?? '');
   }
 
-  /* ------------------------------------------- a tab dragged off the drop zones */
+  /* ------------------------------------------- tabs dragged out, drops from outside */
 
   /** What releasing a dragged tab at a client point does: dockview docks it on a drop zone, else it floats or pops out. */
   tabDropOutcome(id: string, p: Point): TabDropOutcome {
-    const container = this.container;
-    const root = container ? rectOf(container) : null;
-    const under = document.elementFromPoint?.(p.x, p.y) ?? null;
-    const onStrip = !!under?.closest('.dv-tabs-and-actions-container') && !!container?.contains(under);
-    const onGuide = !!root && !!hitDockTarget(p, root, this.groupBoxes(true));
-    return tabDropOutcome({
-      inside: !outsideViewport(p, { width: window.innerWidth, height: window.innerHeight }),
-      overDropZone: onStrip || onGuide,
-      canFloat: this.canFloat(id),
-      canPopOut: this.windows()?.canPopOut() ?? false,
-    });
-  }
-
-  /** Can this panel float by dragging (docked, or one of several tabs of a floating group)? */
-  private canFloat(id: string): boolean {
-    const group = this.api?.getPanel(id)?.group;
-    if (!group) return false;
-    const where = group.api.location.type;
-    return where === 'grid' || (where === 'floating' && group.panels.length > 1);
-  }
-
-  /** The ghost of the drag cue: the floating panel (inside the dock) or the new window (at the window's edge). */
-  private cueRect(id: string, p: Point, outcome: TabDropOutcome): Rect | null {
-    const panel = this.panelRect(id);
-    if (outcome === 'float') {
-      const root = this.container ? rectOf(this.container) : null;
-      return root ? ghostRect(p, floatSize(panel), root) : null;
-    }
-    if (outcome === 'window') return ghostRect(p, panel ?? floatSize(null), { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
-    return null;
+    return this.placement.tabDropOutcome(id, p);
   }
 
   /** Floats a panel where a dragged tab was released (the ghost's place). */
   floatAt(id: string, p: Point): boolean {
-    const api = this.api;
-    const panel = api?.getPanel(id);
-    const root = this.container ? rectOf(this.container) : null;
-    if (!api || !panel || !root || !this.canFloat(id)) return false;
-    const r = ghostRect(p, floatSize(this.panelRect(id)), root);
-    api.addFloatingGroup(panel.group.panels.length > 1 ? panel : panel.group, { x: r.x - root.x, y: r.y - root.y, width: r.width, height: r.height });
-    panel.api.setActive();
-    return true;
+    return this.placement.floatAt(id, p);
   }
-
-  /* ------------------------------------------- drops from outside dockview */
 
   /** The guide under a point (client coordinates): where a pop-out dropped there would dock. */
   dropTargetAt(point: Point): DockTarget | null {
-    const root = this.container ? rectOf(this.container) : null;
-    return root ? hitDockTarget(point, root, this.groupBoxes()) : null;
+    return this.placement.dropTargetAt(point);
   }
 
   /** Shows the dock guides for a pop-out window dragged over this one (null hides them). */
   showDropGuides(point: Point | null): void {
-    if (!point) {
-      this.guides?.hide();
-      return;
-    }
-    const target = this.dropTargetAt(point);
-    const root = this.container ? rectOf(this.container) : null;
-    this.guides?.showAt(point, target && root ? targetPreview(target, root, this.groupBoxes()) : null);
+    this.placement.showDropGuides(point);
   }
 
   /** Docks a panel that is not in the layout (a pop-out dropped on a guide) at that guide. */
   dockAt(id: string, target: DockTarget): boolean {
-    const api = this.api;
-    const view = this.views.find(id);
-    if (!api || !view || api.getPanel(id)) return false;
-    const direction = ({ center: 'within', left: 'left', right: 'right', top: 'above', bottom: 'below' } as const)[target.position];
-    const group = target.kind === 'group' ? api.getGroup(target.groupId) : undefined;
-    if (target.kind === 'group' && !group) return false;
-    const panel = api.addPanel({ id, component: view.id, title: view.title, position: group ? { referenceGroup: group.id, direction } : { direction: direction === 'within' ? 'right' : direction } });
-    panel.api.setActive();
-    return true;
-  }
-
-  /** The groups' content boxes: docked ones, and with `floating` the floating ones first (they are on top). */
-  private groupBoxes(floating = false): GroupBox[] {
-    const groups = this.api?.groups ?? [];
-    const on = (type: string) => groups.filter((g) => g.api.location.type === type);
-    return [...(floating ? on('floating') : []), ...on('grid')]
-      .map((g) => ({ id: g.id, rect: rectOf(g.element.querySelector('.dv-content-container')) }))
-      .filter((g): g is GroupBox => !!g.rect);
+    return this.placement.dockAt(id, target);
   }
 
   /* -------------------------------------------------------------- auto-hide */
 
   /** Collapses a docked tool window into a tab on the nearest side bar ("Auto hide"). */
   unpin(id: string): void {
-    const api = this.api;
-    const panel = api?.getPanel(id);
-    if (!api || !panel || this.kindOf(id) !== 'tool' || panel.group.api.location.type !== 'grid') return;
-    const rect = rectOf(panel.group.element);
-    const root = this.container ? rectOf(this.container) : null;
-    const side = rect && root ? nearestSide(rect, root) : 'right';
-    const item: AutoHideItem = {
-      id,
-      title: this.views.find(id)?.title ?? id,
-      side,
-      slot: this.captureSlot(id) ?? { referencePanel: null, direction: 'within' },
-      size: rect ? (side === 'bottom' ? rect.height : rect.width) : 320,
-    };
-    api.removePanel(panel);
-    this.autoHideState.update((s) => autoHideReduce(s, { type: 'unpin', item }));
-    this.refreshOpen();
-    this.schedulePersist();
+    this.autoHider.unpin(id);
   }
 
   /** Docks an auto-hidden tool window back where it was ("Pin"). */
   pin(id: string): void {
-    const item = this.autoHideState().items.find((i) => i.id === id);
-    if (!item) return;
-    this.autoHideState.update((s) => autoHideReduce(s, { type: 'pin', id }));
-    this.restoreSlot(id, item.slot);
-    this.api?.getPanel(id)?.api.setActive();
-    this.refreshOpen();
-    this.schedulePersist();
+    this.autoHider.pin(id);
   }
 
   autoHideEvent(event: AutoHideEvent): void {
-    this.autoHideState.update((s) => autoHideReduce(s, event));
-    if (event.type === 'resize') this.schedulePersist();
+    this.autoHider.event(event);
   }
 
   /** Toggles auto-hide of the active tool window (or of the slid-out one). */
   toggleAutoHideActive(): void {
-    const open = this.autoHideState().open;
-    if (open) this.pin(open);
-    else if (this.api?.activePanel) this.unpin(this.api.activePanel.id);
+    this.autoHider.toggleActive();
   }
 
   autoHideAll(): void {
-    for (const p of [...(this.api?.panels ?? [])]) if (this.kindOf(p.id) === 'tool' && p.group.api.location.type === 'grid') this.unpin(p.id);
+    this.autoHider.unpinAll();
   }
 
   pinAll(): void {
-    for (const i of [...this.autoHideState().items]) this.pin(i.id);
+    this.autoHider.pinAll();
   }
 
   /* ------------------------------------------------------------ pinned tabs */
 
   setPinned(id: string, pinned: boolean): void {
-    const was = this.pinnedSet().has(id);
+    const was = this.ctx.pinned().has(id);
     if (was === pinned) return;
-    this.pinnedSet.update((s) => {
+    this.ctx.pinned.update((s) => {
       const next = new Set(s);
       if (pinned) next.add(id);
       else next.delete(id);
@@ -670,19 +478,10 @@ export class DockService {
     const panel = this.api?.getPanel(id);
     if (pinned && panel) {
       const order = panel.group.panels.map((p) => p.id);
-      panel.api.moveTo({ group: panel.group, position: 'center', index: pinnedIndex(order, id, this.pinnedSet()) });
+      panel.api.moveTo({ group: panel.group, position: 'center', index: pinnedIndex(order, id, this.ctx.pinned()) });
     }
-    this.markPinnedTabs();
-    this.schedulePersist();
-  }
-
-  private markPinnedTabs(): void {
-    const pinned = this.pinnedSet();
-    this.container?.querySelectorAll<HTMLElement>('.imt-tab[data-panel-id]').forEach((t) => {
-      const on = pinned.has(t.dataset['panelId'] ?? '');
-      t.classList.toggle('pinned', on);
-      t.closest('.dv-tab')?.classList.toggle('imt-pinned-tab', on);
-    });
+    this.ctx.markPinnedTabs();
+    this.persistence.schedule();
   }
 
   /* ------------------------------------------------------------ panel menu */
@@ -701,8 +500,8 @@ export class DockService {
       hasSiblings: order.length > 1,
       hasRight: order.indexOf(id) < order.length - 1,
       groups: api.groups.filter((g) => g.api.location.type === 'grid').length,
-      pinnedTab: this.pinnedSet().has(id),
-      canPopout: this.windows()?.canPopOut() ?? false,
+      pinnedTab: this.ctx.pinned().has(id),
+      canPopout: this.ctx.windows()?.canPopOut() ?? false,
       inDocumentWell: group.panels.some((p) => p.id !== id && this.kindOf(p.id) === 'document'),
     });
     const box = anchor?.getBoundingClientRect();
@@ -720,7 +519,7 @@ export class DockService {
   openActivePanelMenu(): void {
     const panel = this.api?.activePanel;
     if (!panel) return;
-    const tab = this.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(panel.id)}"]`) ?? null;
+    const tab = this.ctx.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(panel.id)}"]`) ?? null;
     this.openPanelMenu(panel.id, tab?.closest<HTMLElement>('[role="tab"]') ?? tab);
   }
 
@@ -733,7 +532,7 @@ export class DockService {
     const closeAll = (ids: string[]) => ids.forEach((p) => this.close(p));
     switch (action) {
       case 'float':
-        if (group.api.location.type !== 'floating') api.addFloatingGroup(group.panels.length > 1 ? panel : group, { ...FLOAT_SIZE, x: 140, y: 100 });
+        this.placement.floatPanel(panel);
         break;
       case 'dock':
         if (group.api.location.type === 'floating') this.toggleFloat(group);
@@ -742,7 +541,7 @@ export class DockService {
         void this.popOut(id);
         break;
       case 'dockAsDocument': {
-        const well = this.documentWell(id);
+        const well = this.placement.documentWell(id);
         if (well && well !== group) panel.api.moveTo({ group: well, position: 'center' });
         else if (!well) panel.api.moveTo({ group, position: 'center' });
         break;
@@ -754,10 +553,10 @@ export class DockService {
         this.close(id);
         break;
       case 'closeOthers':
-        closeAll(panelsToClose(order, id, 'others', this.pinnedSet()));
+        closeAll(panelsToClose(order, id, 'others', this.ctx.pinned()));
         break;
       case 'closeRight':
-        closeAll(panelsToClose(order, id, 'right', this.pinnedSet()));
+        closeAll(panelsToClose(order, id, 'right', this.ctx.pinned()));
         break;
       case 'closeAllDocuments':
         this.closeAllDocuments();
@@ -786,19 +585,7 @@ export class DockService {
   /** Closes every document except pinned tabs ("Close all documents"). */
   closeAllDocuments(): void {
     const ids = (this.api?.panels ?? []).map((p) => p.id).filter((id) => this.kindOf(id) === 'document');
-    for (const id of panelsToClose(ids, '', 'all', this.pinnedSet())) this.close(id);
-  }
-
-  /** The group documents go to: that of the most recently used document, else the one holding the timeline. */
-  private documentWell(excluding?: string): DockviewGroupPanel | null {
-    const api = this.api;
-    if (!api) return null;
-    const isWell = (g: DockviewGroupPanel) => g.api.location.type === 'grid' && g.panels.some((p) => p.id !== excluding && this.kindOf(p.id) === 'document');
-    for (const id of this.mru) {
-      const g = api.getPanel(id)?.group;
-      if (g && id !== excluding && this.kindOf(id) === 'document' && isWell(g)) return g;
-    }
-    return api.getPanel(PANEL.timeline)?.group ?? api.groups.find(isWell) ?? null;
+    for (const id of panelsToClose(ids, '', 'all', this.ctx.pinned())) this.close(id);
   }
 
   /* -------------------------------------------------------------- switcher */
@@ -812,7 +599,7 @@ export class DockService {
     }
     const open = (this.api?.panels ?? []).map((p) => ({ id: p.id, title: p.title ?? p.id, kind: this.kindOf(p.id) }));
     const active = this.api?.activePanel?.id;
-    const mru = active ? touchMru(this.mru, active) : this.mru;
+    const mru = active ? touchMru(this.ctx.mru, active) : this.ctx.mru;
     this.switcher.set(openSwitcher(switcherItems(mru, open), backwards));
   }
 
@@ -833,7 +620,7 @@ export class DockService {
 
   /** Moves keyboard focus to a panel's tab (after switching to it). */
   private focusPanel(id: string): void {
-    queueMicrotask(() => this.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(id)}"]`)?.closest<HTMLElement>('[role="tab"]')?.focus());
+    queueMicrotask(() => this.ctx.container?.querySelector<HTMLElement>(`.imt-tab[data-panel-id="${CSS.escape(id)}"]`)?.closest<HTMLElement>('[role="tab"]')?.focus());
   }
 
   /* ----------------------------------------------------------- full screen */
@@ -852,7 +639,7 @@ export class DockService {
     this.fullScreen.set(true);
     this.fullScreenOs = mode !== 'chrome';
     if (mode !== 'os') {
-      const group = this.documentWell();
+      const group = this.placement.documentWell();
       document.documentElement.classList.add('imt-full-screen');
       if (group && !group.api.isMaximized()) {
         group.api.maximize();
@@ -876,25 +663,16 @@ export class DockService {
 
   /** The whole arrangement (grid, auto-hidden tool windows, pinned tabs, pop-outs), or null before attach. */
   currentLayout(): SavedLayout | null {
-    const api = this.api;
-    if (!api) return null;
-    return {
-      layout: api.toJSON(),
-      extras: {
-        autoHidden: [...this.autoHideState().items],
-        pinnedTabs: [...this.pinnedSet()],
-        poppedOut: this.windows()?.records() ?? [],
-      },
-    };
+    return this.persistence.current();
   }
 
   /** Applies a saved arrangement (named layout, project, session). Falls back to the default when it is broken. */
   applyLayout(saved: SavedLayout): boolean {
     const api = this.api;
     if (!api) return false;
-    const windows = this.windows();
+    const windows = this.ctx.windows();
     for (const id of [...(windows?.poppedIds() ?? [])]) if (!saved.extras.poppedOut.some((p) => p.id === id)) void windows?.discard(id);
-    this.restoring = true;
+    this.ctx.restoring = true;
     let ok = true;
     try {
       try {
@@ -904,15 +682,15 @@ export class DockService {
         ok = false;
         this.logger.warn('ui.layout', 'Window layout could not be applied; using the default', { Error: String(e) });
         api.clear();
-        this.applyExtras(this.buildDefault(api));
+        this.applyExtras(this.placement.buildDefault(api));
       }
     } finally {
-      this.restoring = false;
+      this.ctx.restoring = false;
     }
     this.exitFullScreen();
-    this.refreshOpen();
+    this.ctx.refreshOpen();
     this.syncConditionalViews();
-    this.schedulePersist();
+    this.persistence.schedule();
     const popped = windows?.poppedIds() ?? new Set<string>();
     if (ok) void windows?.restore(saved.extras.poppedOut.filter((p) => !popped.has(p.id)));
     return ok;
@@ -921,88 +699,18 @@ export class DockService {
   private applyExtras(extras: DockExtras): void {
     const docked = new Set((this.api?.panels ?? []).map((p) => p.id));
     const known = (id: string) => !!this.views.find(id);
-    this.autoHideState.set({ items: extras.autoHidden.filter((i) => known(i.id) && !docked.has(i.id)), open: null, openedBy: null });
-    this.pinnedSet.set(new Set(extras.pinnedTabs.filter((id) => docked.has(id))));
-    this.markPinnedTabs();
+    this.ctx.autoHide.set({ items: extras.autoHidden.filter((i) => known(i.id) && !docked.has(i.id)), open: null, openedBy: null });
+    this.ctx.pinned.set(new Set(extras.pinnedTabs.filter((id) => docked.has(id))));
+    this.ctx.markPinnedTabs();
   }
 
   /** Persists the layout soon (pop-outs moved, auto-hide resized). */
   persistLater(): void {
-    this.schedulePersist();
-  }
-
-  /** Adds a panel for the view; `id` differs from the view id for one more panel of a view that allows several. */
-  private addView(api: DockviewApi, view: ImtView, inactive: boolean, id = view.id): IDockviewPanel {
-    const pin = PINNED[view.id];
-    if (pin && api.getPanel(pin.referencePanel)) {
-      // dockview's default minimum group height (100px) is taller than a query bar; the panel's own
-      // minimum (saved with the layout) lets its group be that short.
-      const size = pin.height ? { initialHeight: pin.height, minimumHeight: pin.height } : {};
-      const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, ...size, position: { referencePanel: pin.referencePanel, direction: pin.direction } });
-      if (pin.height) panel.group.api.setSize({ height: pin.height });
-      return panel;
-    }
-    // A tool window without a place opens in a tool group at its window edge (VS: right, or bottom).
-    if (viewKind(view) === 'tool') {
-      const sameKind = this.toolGroupFor(api, view.defaultPosition ?? 'right');
-      if (sameKind) return api.addPanel({ id, component: view.id, title: view.title, inactive, position: { referencePanel: sameKind, direction: 'within' } });
-      if (view.defaultPosition === 'bottom' || !api.getPanel(PANEL.inspector)) {
-        const bottom = view.defaultPosition === 'bottom';
-        const panel = api.addPanel({ id, component: view.id, title: view.title, inactive, position: { direction: bottom ? 'below' : 'right' } });
-        panel.group.api.setSize(bottom ? { height: TOOL_SIZE.bottom } : { width: TOOL_SIZE.side });
-        return panel;
-      }
-    }
-    const ref = this.anchorFor(api, view.defaultPosition ?? 'center');
-    return api.addPanel({
-      id,
-      component: view.id,
-      title: view.title,
-      inactive,
-      ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}),
-    });
-  }
-
-  /** A docked tool window already open on that side, to tab a new one with. */
-  private toolGroupFor(api: DockviewApi, position: ViewPosition): string | null {
-    const root = this.container ? rectOf(this.container) : null;
-    const want = position === 'bottom' ? 'bottom' : 'right';
-    for (const p of api.panels) {
-      if (this.kindOf(p.id) !== 'tool' || p.group.api.location.type !== 'grid') continue;
-      const rect = rectOf(p.group.element);
-      // Without a layout (nothing measured yet) any docked tool window counts.
-      if (!root || !rect || !root.width || atEdge(rect, root, want)) return p.id;
-    }
-    return null;
-  }
-
-  private anchorFor(api: DockviewApi, position: ViewPosition, exclude: ReadonlySet<string> = new Set()): string | null {
-    const id = ANCHORS[position].find((a) => !exclude.has(a) && api.getPanel(a));
-    return id ?? api.panels.find((p) => !exclude.has(p.id))?.id ?? null;
-  }
-
-  /**
-   * The minimal default: the timeline over the events (with the query bar pinned above them); the inspector is an
-   * auto-hidden tool window on the right edge that slides out when an event is selected (pin it to keep it docked).
-   * Everything else (metrics, profile editor, analysis, tools, ...) opens on demand. Returns the extras to apply.
-   */
-  private buildDefault(api: DockviewApi): DockExtras {
-    const add = (id: string, position?: Parameters<DockviewApi['addPanel']>[0]['position']) => {
-      const view = this.views.find(id);
-      if (view) api.addPanel({ id, component: id, title: view.title, ...(position ? { position } : {}) });
-    };
-    add(PANEL.timeline);
-    add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
-    const query = this.views.find(QUERY_VIEW);
-    if (query) this.addView(api, query, false);
-    api.getPanel(PANEL.timeline)?.api.setActive();
-    api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT });
-    api.getPanel(QUERY_VIEW)?.group.api.setSize({ height: QUERY_HEIGHT });
-    return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(this.views.find(PANEL.inspector)) };
+    this.persistence.schedule();
   }
 
   /** Opens/closes views that depend on the workspace (`ImtView.when`). */
-  private syncConditionalViews(): void {
+  syncConditionalViews(): void {
     const api = this.api;
     if (!api) return;
     const available = new Set(this.views.available().map((v) => v.id));
@@ -1018,68 +726,9 @@ export class DockService {
       this.wasAvailable.add(view.id);
       // Only views that ask for it open by themselves (the rest are offered); after a restore the user's layout
       // wins, so only newly available views are opened (in the background).
-      if (view.autoOpen && becameAvailable && !open && (this.evaluated || this.fresh)) this.addView(api, view, true);
+      const autoOpen = view.autoOpen === true || (view.autoOpen === 'full' && this.layoutMode.full());
+      if (autoOpen && becameAvailable && !open && (this.evaluated || this.fresh)) this.placement.addView(api, view, true);
     }
     this.evaluated = true;
   }
-
-  private refreshOpen(): void {
-    this.docked.set(new Set((this.api?.panels ?? []).map((p) => p.id)));
-  }
-
-  private schedulePersist(): void {
-    if (this.restoring || !this.api) return;
-    clearTimeout(this.persistTimer);
-    this.persistTimer = setTimeout(() => {
-      const layout = this.currentLayout();
-      if (!layout) return;
-      this.layoutStore.save(layout);
-      this.saved.set(layout);
-    }, PERSIST_DELAY_MS);
-  }
-}
-
-/**
- * The inspector, auto-hidden on the right edge. Pinning it docks it as a full-height tool window on the right
- * (no reference panel: it opens where a right-hand tool window opens by default).
- */
-export function defaultAutoHidden(inspector: ImtView | undefined): AutoHideItem[] {
-  if (!inspector) return [];
-  return [{ id: inspector.id, title: inspector.title, side: 'right', size: INSPECTOR_WIDTH, slot: { referencePanel: null, direction: 'within' } }];
-}
-
-function rectOf(el: Element | null | undefined): Rect | null {
-  const r = el?.getBoundingClientRect?.();
-  return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
-}
-
-/**
- * A group never scrolls sideways. Focusing something wider than a group (a dialog opened from a narrow tool window)
- * would scroll the group's box (overflow: hidden still scrolls programmatically) and push its tab strip over the
- * neighbouring group's header. Vertical scrolling is left alone (a short query bar shows its status that way).
- */
-export function keepGroupsUnscrolled(root: HTMLElement): { dispose(): void } {
-  const onScroll = (e: Event) => {
-    const t = e.target;
-    if (t instanceof HTMLElement && t.classList.contains('dv-groupview') && t.scrollLeft !== 0) t.scrollLeft = 0;
-  };
-  root.addEventListener('scroll', onScroll, true);
-  return { dispose: () => root.removeEventListener('scroll', onScroll, true) };
-}
-
-/**
- * Dockview marks floating groups `role="dialog"` with `aria-modal="false"` and a stacking
- * `aria-level` (0, 1, ...). axe rejects both on a dialog (aria-level is not allowed there and 0 is
- * invalid; aria-modal=false is the default), so they are removed as groups are floated or restored.
- */
-export function observeFloatingAria(root: HTMLElement): { dispose(): void } {
-  const fix = () =>
-    root.querySelectorAll('.dv-resize-container[aria-modal], .dv-resize-container[aria-level]').forEach((el) => {
-      el.removeAttribute('aria-modal');
-      el.removeAttribute('aria-level');
-    });
-  const observer = new MutationObserver(fix);
-  observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal', 'aria-level'] });
-  fix();
-  return { dispose: () => observer.disconnect() };
 }

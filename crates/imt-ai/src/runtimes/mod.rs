@@ -23,4 +23,4 @@ pub use catalog::{current_platform, suggest, RuntimeAsset, RuntimeBuild, Runtime
 pub use github::{GithubReleases, ReleaseConfig};
 pub use overview::{overview, OverviewInput, RuntimeEntry, RuntimeOverview};
 pub use report::{list_builds, BuildInfo, BuildsReport, Device};
-pub use store::{InstalledRuntime, RuntimeStage, RuntimeStore};
+pub use store::{usable_tag, InstalledRuntime, RuntimeStage, RuntimeStore};

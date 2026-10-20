@@ -618,6 +618,20 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
     // Export to Markdown, with the overwrite guard.
     let md = f.tmp.0.join("chat.md");
     let path = md.to_string_lossy().to_string();
+    // Only to a file the user chose in the save dialog.
+    assert_eq!(
+        code(ipc(&main, "ai_chat_export_markdown", json!({"sessionId": sid, "path": path})).unwrap_err()),
+        "invalid"
+    );
+    assert!(!md.exists());
+    crate::paths::grant(
+        app.handle(),
+        "main",
+        &md,
+        crate::paths::Access::Write,
+        crate::paths::GrantSource::Dialog,
+    )
+    .unwrap();
     ipc(&main, "ai_chat_export_markdown", json!({"sessionId": sid, "path": path})).unwrap();
     assert!(std::fs::read_to_string(&md).unwrap().contains("**You:** What crashed?"));
     assert_eq!(
@@ -1781,3 +1795,5 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
         );
     }
 }
+
+mod update_checks;

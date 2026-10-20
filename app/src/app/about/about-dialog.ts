@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signa
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { copyText } from '../tools/clipboard';
 import { DialogService } from '../ui/dialog.service';
+import { AppLogo } from '../shared/app-logo';
 import { BUILD_INFO } from './build-info';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
 import { LEGAL_SOURCE, LegalDoc } from './legal-source';
@@ -19,12 +20,10 @@ const DOC_TITLES: Record<LegalDoc, string> = {
 @Component({
   selector: 'imt-about',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AppLogo],
   template: `
     <div class="id">
-      <svg class="logo" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
-        <rect width="48" height="48" rx="10" fill="var(--accent)" />
-        <path d="M10 14h8M14 14v20M10 34h8M22 34V14l6 12l6-12v20M38 14h4" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <imt-app-logo [size]="48" />
       <div>
         <h3 class="name">IMT — Integrated Maintenance Tool</h3>
         <p class="meta" i18n="@@about.meta">

@@ -10,7 +10,7 @@ import { analysisActivityItems } from './analysis-activity';
 import { AnalysisCommands } from './analysis-commands';
 import { browserMocks } from '../core/mock-registry';
 
-/** The analysis views. Only the query bar opens by default (it follows the workspace); the rest open from the palette. */
+/** The analysis views. Only the query bar opens by itself (in the Full layout); the rest open from the palette. */
 export const ANALYSIS_VIEWS: ImtView[] = [
   {
     id: 'query',
@@ -20,7 +20,8 @@ export const ANALYSIS_VIEWS: ImtView[] = [
     defaultPosition: 'bottom',
     component: () => import('./query-view').then((m) => m.QueryView),
     when: (s) => s.total > 0,
-    autoOpen: true,
+    // The Focused layout keeps the window to the timeline and the events; Ctrl+/ opens the query bar.
+    autoOpen: 'full',
   },
   { id: 'query-results', category: 'Analysis', title: $localize`:@@analysis.plugin.view.queryResults:Query results`, icon: 'columns', defaultPosition: 'bottom', component: () => import('./query-results-view').then((m) => m.QueryResultsView) },
   { id: 'moment', category: 'Analysis', title: $localize`:@@analysis.plugin.view.moment:Moment`, icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },

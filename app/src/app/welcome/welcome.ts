@@ -100,7 +100,8 @@ export class Welcome {
 
   protected readonly workspaceHasSources = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
   protected readonly recent = computed(() => {
-    this.store.dataVersion();
+    // Opening files adds to the list; appended live events do not.
+    this.store.sourcesVersion();
     return this.recentStore.list();
   });
 

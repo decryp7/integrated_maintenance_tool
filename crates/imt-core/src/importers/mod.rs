@@ -4,7 +4,7 @@
 
 mod csv;
 mod json;
-mod text;
+pub mod text;
 
 use crate::model::Record;
 use crate::profile::CompiledProfile;

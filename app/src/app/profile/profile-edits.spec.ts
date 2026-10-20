@@ -24,7 +24,7 @@ describe('ProfileEdits', () => {
     expect(job).toEqual(expect.any(Number));
     // The profile is saved already; the status bar shows the re-import still running.
     expect((await backend.getProfile()).name).toBe('Edited');
-    expect(store.busy()).toBe('Applying the profile…');
+    expect(store.busy()).toEqual({ kind: 'import', label: 'Applying the profile…', jobId: job });
     expect(undo.undoLabel()).toBe('drop step');
     await vi.waitFor(() => expect(store.busy()).toBeNull(), { timeout: 5000 });
     expect(store.summary()?.profileName).toBe('Edited');
