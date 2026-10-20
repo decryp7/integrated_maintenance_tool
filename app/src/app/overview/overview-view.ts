@@ -131,7 +131,7 @@ import { OverviewPrefs } from './overview-prefs';
     .muted { color: var(--muted); }
     [data-severity='critical'] .sev imt-icon { color: var(--danger-text); }
     [data-severity='warning'] .sev imt-icon { color: var(--warn-text); }
-    [data-severity='info'] .sev imt-icon { color: var(--accent); }
+    [data-severity='info'] .sev imt-icon { color: var(--accent-text); }
     .finding { padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
     .title { font-weight: 600; font-size: var(--fs-sm); overflow-wrap: anywhere; }
     .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid var(--border-3); color: var(--text-2); }

@@ -148,7 +148,7 @@ import { plural } from '../i18n/locale';
     .intro { margin: 0; color: var(--text-2); line-height: 1.5; }
     .grid { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-start; }
     .card { border: 1px solid var(--border-3); border-radius: 8px; background: var(--bg-2); padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; margin: 0; }
-    legend { padding: 0 4px; font-weight: 600; color: var(--text-1); }
+    legend { padding: 0 4px; font-weight: 600; color: var(--text); }
     .action { border-left: 2px solid var(--border-3); padding-left: 10px; display: flex; flex-direction: column; gap: 6px; }
     .inline { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
     .grow { flex: 1; }

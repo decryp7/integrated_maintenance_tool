@@ -126,7 +126,7 @@ export function progressText(p: QueryProgress | null): string | null {
     .qinput::selection { background: var(--accent-soft); color: transparent; }
     .kw { color: var(--chip-text); font-weight: 600; }
     .fn { color: var(--ok); }
-    .field { color: var(--accent); }
+    .field { color: var(--accent-text); }
     .str { color: var(--warn-text); }
     .num { color: var(--ok); }
     .op, .punct { color: var(--muted); }

@@ -80,7 +80,7 @@ export class ImportStatus {
   styles: `
     .toast { position: fixed; left: 16px; bottom: 36px; z-index: 100; width: 360px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: var(--tooltip-bg); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); font-size: var(--fs-sm); }
     .head { display: flex; align-items: center; gap: 8px; }
-    .head imt-icon { color: var(--accent); }
+    .head imt-icon { color: var(--accent-text); }
     .spacer { flex: 1; }
     .bar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
     .fill { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }

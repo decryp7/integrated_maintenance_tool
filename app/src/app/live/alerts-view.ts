@@ -90,7 +90,7 @@ import { activeLocale } from '../i18n/locale';
     .small { font-size: var(--fs-xs); }
     .mutes { flex: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
     .mute { color: var(--text-2); }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; margin-left: 4px; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; margin-left: 4px; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .list { flex: 1; min-height: 0; overflow: auto; }
     table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }

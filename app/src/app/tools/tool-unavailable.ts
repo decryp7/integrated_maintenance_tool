@@ -12,7 +12,7 @@ import { ToolCatalog } from './tool-catalog.store';
     }
   `,
   styles: `
-    .unavailable { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warning); background: var(--bg-3); color: var(--text); font-size: var(--fs-sm); }
+    .unavailable { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); color: var(--text); font-size: var(--fs-sm); }
   `,
 })
 export class ToolUnavailable {

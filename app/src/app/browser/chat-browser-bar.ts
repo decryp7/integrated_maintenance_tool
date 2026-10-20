@@ -63,7 +63,7 @@ import { AiLauncher } from '../ai/ai-launcher';
     .note { color: var(--muted); }
     .hint { color: var(--warn-text); }
     .err { color: var(--danger-text, var(--lvl-error)); }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })

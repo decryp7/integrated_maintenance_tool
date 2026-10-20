@@ -32,7 +32,7 @@ import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
     :host { position: fixed; right: 16px; bottom: 32px; z-index: 2000; }
     .toast { position: relative; max-width: 380px; padding: 10px 32px 10px 12px; border: 1px solid var(--border-2); border-left: 3px solid var(--lvl-warn); border-radius: 8px; background: var(--bg-3); color: var(--text); box-shadow: var(--shadow-pop); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-md); }
     .note { color: var(--text-2); line-height: 1.4; }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
     .link:focus-visible, .x:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .x { all: unset; position: absolute; top: 6px; right: 8px; cursor: pointer; color: var(--text-2); font-size: var(--fs-lg); line-height: 1; }
   `,

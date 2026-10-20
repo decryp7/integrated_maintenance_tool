@@ -106,7 +106,7 @@ import { MenuNode, TopMenu } from './menu-model';
     }
     .item:hover, .item:focus, .item[aria-expanded='true'] { background: var(--bg-active); color: var(--text); outline: none; }
     .item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
-    .check { width: 14px; flex: none; text-align: center; color: var(--accent); }
+    .check { width: 14px; flex: none; text-align: center; color: var(--accent-text); }
     .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-xs); }
     .chevron { flex: none; margin-inline-start: 24px; color: var(--muted); }

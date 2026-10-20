@@ -199,7 +199,7 @@ import { AiRichText } from './rich-text';
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
     .banner { padding: 4px 12px; font-size: var(--fs-sm); }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
     .context { padding: 4px 8px 0; }
     .ctx { cursor: pointer; font-size: var(--fs-xs); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -74,7 +74,7 @@ import { SidebarSections } from '../shell/sidebar-sections';
     .field-wrap:hover { background: var(--bg-hover); }
     .field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; text-align: left; color: var(--text-2); }
     .field.grouped { background: var(--bg-active); }
-    .gmark { width: 12px; color: var(--accent); font-size: var(--fs-xs); }
+    .gmark { width: 12px; color: var(--accent-text); font-size: var(--fs-xs); }
     .fname { flex: 1; min-width: 0; font-size: var(--fs-sm); }
     .cov { width: 40px; height: 4px; border-radius: 2px; background: var(--border-2); overflow: hidden; flex: none; }
     .cov span { display: block; height: 4px; background: var(--faint); border-radius: 2px; }

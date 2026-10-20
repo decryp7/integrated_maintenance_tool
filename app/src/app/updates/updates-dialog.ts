@@ -136,7 +136,7 @@ export function releaseDate(iso: string | null): string {
     progress { width: 100%; }
     .quit { display: flex; gap: 6px; align-items: center; font-size: var(--fs-md); }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .err { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--danger, var(--lvl-error)); border-radius: 6px; background: var(--bg-3); }
+    .err { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--lvl-error); border-radius: 6px; background: var(--bg-3); }
     .err .msg { color: var(--danger-text); }
     .detail { font-family: var(--font-mono); font-size: var(--fs-xs); overflow-wrap: anywhere; }
     .auto { font-size: var(--fs-xs); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }

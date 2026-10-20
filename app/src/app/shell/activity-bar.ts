@@ -204,7 +204,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     .mi:hover, .mi:focus, .mi[aria-expanded='true'] { background: var(--bg-active); color: var(--text); outline: none; }
     .mi:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
     .mi[aria-disabled='true'] { opacity: 0.5; cursor: default; }
-    .check { width: 14px; flex: none; display: inline-flex; color: var(--accent); }
+    .check { width: 14px; flex: none; display: inline-flex; color: var(--accent-text); }
     .mi-icon { color: var(--muted); }
     .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .hint { flex: none; margin-inline-start: 24px; color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-xs); }

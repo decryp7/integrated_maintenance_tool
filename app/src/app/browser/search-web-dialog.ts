@@ -48,7 +48,7 @@ import { engineLabel, ENGINE_OPTIONS } from './browser-text';
     .row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
     .spacer { flex: 1; }
     .err { color: var(--danger-text, var(--lvl-error)); }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })

@@ -159,7 +159,7 @@ export const HOVER_HIDE_MS = 300;
     .imt-drop-guides.on { display: block; }
     .imt-guide {
       position: absolute; display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs);
-      color: var(--accent); background: var(--bg-1); border: 1px solid var(--accent); border-radius: 4px;
+      color: var(--accent-text); background: var(--bg-1); border: 1px solid var(--accent); border-radius: 4px;
       box-shadow: var(--shadow-pop); opacity: 0.92;
     }
     .imt-guide-center::after { content: ''; width: 14px; height: 14px; border: 2px solid var(--accent); border-radius: 2px; }

@@ -130,7 +130,7 @@ export const AI_CHAT_VIEW_ID = 'ai-chat';
     .small { font-size: var(--fs-xs); }
     .err { color: var(--danger-text, var(--lvl-error)); margin: 0; }
     .ok { color: var(--ok); margin: 0; }
-    .link { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; margin-left: 6px; }
+    .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; margin-left: 6px; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
   `,
 })

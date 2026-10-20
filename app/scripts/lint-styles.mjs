@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Fails on hard-coded colours, font families and font sizes in the UI's styles (ADR 0018): components read only
-// theme tokens (var(--…)), so every theme and scheme restyles all of them. Checks the `styles:` of components, the
+// theme tokens (var(--…)), so every theme and scheme restyles all of them. Also fails on a var(--x) that nothing
+// defines (a typo, or a token that was removed), which would silently fall back. Checks the `styles:` of components, the
 // shared style modules (`*-styles.ts`) and the stylesheets under src/. The token values live in the theme data
 // (src/app/theme/themes/*.theme.ts), which is TypeScript data, not styles, so it is not scanned.
 //
@@ -86,13 +87,59 @@ function* walk(dir) {
   }
 }
 
-export function lint(srcDir) {
+/** Custom properties of libraries (Material, Dockview), defined outside src/. */
+const FOREIGN = /^(mat|mdc|dv)-/;
+
+/**
+ * Custom properties a source defines: the keys of a theme's token sets (`'bg-1': '#…'` in `*.theme.ts`), CSS
+ * declarations (`--x: …`), template bindings (`[style.--x]`) and `setProperty('--x', …)`.
+ */
+export function definedProperties(rel, source) {
+  const names = new Set();
+  const add = (re) => {
+    for (const m of source.matchAll(re)) names.add(m[1]);
+  };
+  if (/\.theme\.ts$/.test(rel)) add(/(?:^\s*|[{,]\s*)'?([a-z][a-z0-9-]*)'?\s*:\s*['"]/gm);
+  add(/--([a-zA-Z][\w-]*)\s*:/g);
+  add(/\[style\.--([\w-]+)(?:\.[a-z%]+)?\]/g);
+  add(/setProperty\(\s*['"`]--([\w-]+)/g);
+  return names;
+}
+
+/** Custom properties a style block reads: `var(--x`. */
+export function usedProperties(css) {
+  return [...stripComments(css).matchAll(/var\(\s*--([\w-]+)/g)].map((m) => m[1]);
+}
+
+/** Style values that read a custom property nobody defines (a typo, or a token that was removed). */
+export function unknownTokens(files) {
+  const defined = new Set();
+  for (const { rel, source } of files) for (const n of definedProperties(rel, source)) defined.add(n);
   const out = [];
-  for (const file of walk(srcDir)) {
-    const rel = relative(srcDir, file).split(sep).join('/');
-    out.push(...fileProblems(rel, readFileSync(file, 'utf8')));
+  for (const { rel, source } of files) {
+    if (ALLOWED.has(rel)) continue;
+    const blocks = /\.(s?css)$/.test(rel) ? [{ css: source, line: 1 }] : styleBlocks(source, /-styles\.ts$/.test(rel));
+    for (const b of blocks)
+      stripComments(b.css)
+        .split('\n')
+        .forEach((text, i) => {
+          for (const name of usedProperties(text))
+            if (!defined.has(name) && !FOREIGN.test(name)) out.push({ file: rel, line: b.line + i, rule: 'unknown token', text: `--${name}` });
+        });
   }
   return out;
+}
+
+export function lint(srcDir) {
+  const out = [];
+  const files = [];
+  for (const file of walk(srcDir)) {
+    const rel = relative(srcDir, file).split(sep).join('/');
+    const source = readFileSync(file, 'utf8');
+    files.push({ rel, source });
+    out.push(...fileProblems(rel, source));
+  }
+  return [...out, ...unknownTokens(files)];
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -101,7 +148,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const problems = lint(src);
   for (const p of problems) console.error(`src/${p.file}:${p.line}: ${p.rule}: ${p.text}`);
   if (problems.length) {
-    console.error(`\n${problems.length} hard-coded style value(s). Use a theme token (var(--…)) instead; tokens are defined in src/app/theme/themes.`);
+    console.error(`\n${problems.length} style problem(s). Use a theme token (var(--…)); tokens are defined in src/app/theme/themes.`);
     process.exitCode = 1;
-  } else console.log('lint-styles: no hard-coded colours, font families or font sizes');
+  } else console.log('lint-styles: no hard-coded colours, font families or font sizes, no unknown tokens');
 }

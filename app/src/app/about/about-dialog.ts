@@ -84,7 +84,7 @@ const DOC_TITLES: Record<LegalDoc, string> = {
     .spacer { position: relative; min-width: max-content; }
     .rows { position: absolute; inset-inline-start: 0; top: 0; }
     .line { height: 18px; line-height: 18px; padding: 0 8px; white-space: pre; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text); }
-    .line.head { font-weight: 600; color: var(--accent); }
+    .line.head { font-weight: 600; color: var(--accent-text); }
     .err { color: var(--danger-text); margin: 0; }
     .actions { display: flex; gap: 10px; align-items: center; }
   `,

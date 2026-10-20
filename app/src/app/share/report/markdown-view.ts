@@ -46,7 +46,7 @@ import { parseMarkdown } from './markdown';
     blockquote { padding-left: 8px; border-left: 3px solid var(--border-3); color: var(--muted); }
     pre, code { font-family: var(--font-mono); background: var(--bg-3); border-radius: 3px; }
     pre { padding: 6px; white-space: pre-wrap; }
-    a { color: var(--accent); }
+    a { color: var(--accent-text); }
   `,
 })
 export class MarkdownView {

@@ -81,7 +81,7 @@ const EDGES: readonly { dir: ResizeDirection; cls: string }[] = [
       cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
     }
     .tb-btn.icon { width: 28px; }
-    .tb-btn.icon.on { color: var(--accent); }
+    .tb-btn.icon.on { color: var(--accent-text); }
     .tb-btn:hover { color: var(--text); }
     .tb-btn:hover { background: var(--bg-hover); }
     .tb-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { cssProblems, fileProblems, lint, stripComments, styleBlocks } from './lint-styles.mjs';
+import { cssProblems, definedProperties, fileProblems, lint, stripComments, styleBlocks, unknownTokens } from './lint-styles.mjs';
 
 const rules = (css) => cssProblems(css).map((p) => p.rule);
 
@@ -61,6 +61,16 @@ test('walks a source tree, skipping specs', () => {
   mkdirSync(join(dir, 'app'));
   writeFileSync(join(dir, 'app', 'a.ts'), 'styles: `a { color: #fff; }`');
   writeFileSync(join(dir, 'app', 'a.spec.ts'), 'styles: `a { color: #fff; }`');
-  writeFileSync(join(dir, 'styles.scss'), 'a { color: var(--text); }');
+  writeFileSync(join(dir, 'styles.scss'), ':root { --text: inherit; }\na { color: var(--text); }');
   assert.deepEqual(lint(dir).map((p) => p.file), ['app/a.ts']);
+});
+
+test('flags tokens nothing defines, and knows theme keys, declarations, bindings and setProperty', () => {
+  const files = [
+    { rel: 'app/theme/themes/a.theme.ts', source: "export const A = {\n  common: { 'fs-sm': '12px' },\n  'bg-1': '#fff',\n};" },
+    { rel: 'app/x.ts', source: "template: `<i [style.--lane-c]=\"c\" [style.--row-h.px]=\"h\"></i>`, styles: `:host { --local: 1px; color: var(--bg-1); font-size: var(--fs-sm); width: var(--local); top: var(--row-h); fill: var(--lane-c); --mat-sys-x: var(--mat-sys-primary); }`" },
+    { rel: 'app/y.ts', source: "el.style.setProperty('--set', '1'); const s = 0;\nstyles: `a { color: var(--set); }\nb { color: var(--txt); }`" },
+  ];
+  assert.deepEqual(unknownTokens(files).map((p) => [p.file, p.line, p.text]), [['app/y.ts', 3, '--txt']]);
+  assert.deepEqual([...definedProperties('app/theme/themes/a.theme.ts', files[0].source)].sort(), ['bg-1', 'fs-sm']);
 });

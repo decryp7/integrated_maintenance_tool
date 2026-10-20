@@ -33,7 +33,7 @@ import { ProfileDraft } from './profile-draft';
   styles: `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     .editor { flex: 1; min-height: 0; display: flex; background: var(--code-bg); }
-    .gutter { width: 52px; flex: none; overflow: hidden; padding: 10px 8px 10px 0; text-align: right; color: var(--fainter); font-size: var(--fs-sm); line-height: 19px; border-right: 1px solid var(--border); user-select: none; }
+    .gutter { width: 52px; flex: none; overflow: hidden; padding: 10px 8px 10px 0; text-align: right; color: var(--faint); font-size: var(--fs-sm); line-height: 19px; border-right: 1px solid var(--border); user-select: none; }
     .gutter .err { color: var(--lvl-error); font-weight: 600; background: color-mix(in srgb, var(--lvl-error) 15%, transparent); }
     textarea { flex: 1; resize: none; border: 0; outline: none; padding: 10px 12px; background: transparent; color: var(--text); font-size: var(--fs-sm); line-height: 19px; white-space: pre; overflow: auto; tab-size: 2; }
     .problem { flex: none; display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--lvl-error); color: var(--danger-text); background: var(--bg-2); font-size: var(--fs-sm); }
