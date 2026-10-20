@@ -148,6 +148,7 @@ export function stubBackend(overrides: Partial<Record<keyof AnalysisBackend, (..
     completeQuery: async () => [],
     queryPatterns: async () => FIX.patterns,
     queryExceptions: async () => FIX.exceptions,
+    analysisCoverage: async () => null,
     queryAnomalies: async () => FIX.anomalies,
     compareWindows: async () => FIX.comparison,
     fieldStats: async () => FIX.stats,

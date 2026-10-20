@@ -161,7 +161,7 @@ describe('MockToolsBackend', () => {
     await expect(make({ platform: 'macos' }).perfmonControl('x', 'query')).rejects.toThrow(
       'only be managed on Windows',
     );
-    await expect(make({ platform: 'macos' }).restartElevated([])).rejects.toThrow(
+    await expect(make({ platform: 'macos' }).restartElevated(false)).rejects.toThrow(
       'only available on Windows',
     );
     await expect(make({ denied: true }).perfmonInstall(template)).rejects.toThrow(
@@ -252,15 +252,15 @@ describe('MockToolsBackend', () => {
     await c.saveSession({ a: 1 });
     expect(await c.lastSession()).toContain('last-session');
     expect((await c.appStatus()).sessionAvailable).toBe(true);
-    await c.restartElevated(['/s']);
-    await c.restartApp(true, ['/s']);
+    await c.restartElevated(true);
+    await c.restartApp(true, true);
     await c.pluginReset('p');
     expect(await c.pluginSetEnabled('p', false)).toBe(true);
     expect(await c.pluginSetEnabled('p', true)).toBe(true);
     expect(c.calls).toEqual([
       'saveSession',
-      'restartElevated:/s',
-      'restartApp:true:/s',
+      'restartElevated:session',
+      'restartApp:true:session',
       'pluginReset:p',
       'pluginSetEnabled:p:false',
       'pluginSetEnabled:p:true',

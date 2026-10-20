@@ -547,10 +547,10 @@ export class MockToolsBackend implements ToolsBackend {
     };
   }
 
-  async restartElevated(reopen: string[]): Promise<void> {
+  async restartElevated(reopenSession: boolean): Promise<void> {
     if (this.options.platform !== 'windows')
       throw new Error('restarting as administrator is only available on Windows');
-    this.calls.push(`restartElevated:${reopen.join('|')}`);
+    this.calls.push(`restartElevated:${reopenSession ? 'session' : ''}`);
   }
 
   async appStatus(): Promise<AppStatus> {
@@ -562,8 +562,8 @@ export class MockToolsBackend implements ToolsBackend {
     };
   }
 
-  async restartApp(safeMode: boolean, reopen: string[]): Promise<void> {
-    this.calls.push(`restartApp:${safeMode}:${reopen.join('|')}`);
+  async restartApp(safeMode: boolean, reopenSession: boolean): Promise<void> {
+    this.calls.push(`restartApp:${safeMode}:${reopenSession ? 'session' : ''}`);
   }
 
   async pluginReset(id: string): Promise<void> {

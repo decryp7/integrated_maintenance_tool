@@ -182,8 +182,32 @@ fn report_timestamp_issues<R: Runtime>(app: &AppHandle<R>, label: &str, sources:
     }
 }
 
+/// Most paths one open request may name (a folder opens everything in it).
+pub(crate) const MAX_OPEN_PATHS: usize = 1024;
+
+/// The paths of an open request, bounded and checked: absolute, canonicalised when they exist (a missing
+/// one keeps its spelling, so the import reports it as not found).
+pub(crate) fn open_request(paths: Vec<String>) -> CmdResult<Vec<PathBuf>> {
+    if paths.len() > MAX_OPEN_PATHS {
+        return Err(format!(
+            "{} files at once are too many: open at most {MAX_OPEN_PATHS}, or open their folder",
+            paths.len()
+        ));
+    }
+    paths
+        .iter()
+        .map(|raw| {
+            let p = crate::paths::parse(raw)?;
+            Ok(std::fs::canonicalize(p)
+                .map(crate::paths::plain)
+                .unwrap_or_else(|_| p.to_path_buf()))
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
+    let paths = open_request(paths)?.into_iter().map(|p| p.to_string_lossy().into_owned()).collect();
     let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
     if paths.is_empty() {
         return write_reporting(&app, &state, |ws| serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)).await;
@@ -367,10 +391,19 @@ pub(crate) fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
 
 /// Writes the events matching the query to a file chosen by the user.
 #[tauri::command]
-pub(crate) async fn export_events<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, request: ExportRequest) -> CmdResult<u64> {
-    let target = PathBuf::from(&request.path);
+pub(crate) async fn export_events<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    op: OpId,
+    mut request: ExportRequest,
+) -> CmdResult<u64> {
+    let target = crate::paths::WindowGrants::of(&app, state.label())
+        .write(&request.path, &[])?
+        .path()
+        .to_path_buf();
     // Checked now, so the dialog can ask to replace the file; the engine checks again when it writes.
-    imt_core::overwrite::check_overwrite(&target, request.overwrite).map_err(err)?;
+    imt_core::overwrite::check_overwrite(std::path::Path::new(&request.path), request.overwrite).map_err(err)?;
+    request.path = target.to_string_lossy().into_owned();
     let redact = request.redact;
     crate::jobs::export(&app, &state, "Export events to", &target, move |ws| {
         let result = ws.export(&request)?;
@@ -422,8 +455,10 @@ pub(crate) fn project_of(state: &CurrentWindow, name: String, ui: Value) -> Proj
 
 /// Saves the open files, the active profile and the UI's state to a `.imtproj`.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
 pub(crate) async fn save_project(
     state: CurrentWindow,
+    grants: crate::paths::WindowGrants,
     op: OpId,
     path: String,
     name: String,
@@ -432,11 +467,14 @@ pub(crate) async fn save_project(
     overwrite: Option<bool>,
 ) -> CmdResult<Value> {
     crate::share::refuse_bundle_folder(&path)?;
+    let target = grants.write(&path, &["imtproj"])?;
     // "Save" to the project's own file passes `overwrite`; "Save As" over another file asks first.
     imt_core::overwrite::check_overwrite(std::path::Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let mut project = project_of(&state, name, ui);
     project.reports = crate::share::parse_reports(reports.unwrap_or_default())?;
-    project.save(std::path::Path::new(&path)).map_err(err)?;
+    project.save(target.path()).map_err(err)?;
+    // "Save" writes here again without a dialog.
+    grants.grant(target.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project)?;
     state.set_project(Some(path.clone()));
     log::info!(Sources = project.sources.len() as u64; "Project saved");
     let (safe, sources) = (privacy::safe_path(std::path::Path::new(&path)), project.sources.len().to_string());
@@ -469,6 +507,16 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
     })
     .await?;
     state.set_profile_doc(doc.clone());
+    // The project's own file: "Save" writes it back without a dialog.
+    if let Err(e) = crate::paths::grant(
+        &app,
+        state.label(),
+        std::path::Path::new(&path),
+        crate::paths::Access::Write,
+        crate::paths::GrantSource::Project,
+    ) {
+        log::debug!("the project file is not writable from this window: {e}");
+    }
     state.set_project(Some(path.clone()));
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
     let safe = privacy::safe_path(std::path::Path::new(&path));
@@ -498,14 +546,18 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
 /// (at most about four per second); live alerts are emitted as
 /// `imt://live-alert`. Call again after opening more files to watch them too.
 /// Returns how many folders are watched.
+/// Async and off the main thread: starting a session touches the workspace, which an import may hold.
 #[tauri::command]
-pub(crate) fn set_live<R: Runtime>(
+pub(crate) async fn set_live<R: Runtime>(
     app: AppHandle<R>,
     state: CurrentWindow,
     enabled: bool,
     options: Option<live::LiveOptions>,
 ) -> CmdResult<usize> {
-    live::set(&app, state.arc(), enabled, options.unwrap_or_default())
+    let window = state.arc().clone();
+    tauri::async_runtime::spawn_blocking(move || live::set(&app, &window, enabled, options.unwrap_or_default()))
+        .await
+        .map_err(err)?
 }
 
 /// Paths waiting to be opened in the calling window (launch arguments, files
@@ -736,6 +788,7 @@ mod tests {
             &[samples().join("windows").join("registry-export.reg"), samples().join("csv")],
         );
         let st = || main_window(&app);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let summary = block(workspace_summary(st())).unwrap();
         assert!(summary["plugins"]
             .as_array()
@@ -753,7 +806,7 @@ mod tests {
             format!("Exported {} events.", summary["total"])
         );
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
-        let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
+        let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": dir.0.join("x.pdf").to_string_lossy()})).unwrap();
         // What only the engine knows (the format) fails the job, with the reason.
         let job = block(export_events(app.handle().clone(), st(), OpId::default(), bad)).unwrap();
         let end = crate::test_support::job_end(&app, job);
@@ -770,6 +823,7 @@ mod tests {
         let dir = TempDir::new("project");
         let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
         let st = || main_window(&app);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let shared = || app.state::<crate::AppState>();
         crate::test_support::job_done(
             &app,
@@ -785,6 +839,7 @@ mod tests {
         let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
         let saved = block(save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             file.clone(),
             "Incident".into(),
@@ -797,6 +852,7 @@ mod tests {
         // "Save As" over an existing file is refused until confirmed; "Save" to it passes `overwrite`.
         let again = block(save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             file.clone(),
             "Incident".into(),
@@ -807,6 +863,7 @@ mod tests {
         assert_eq!(again.unwrap_err(), format!("{file} already exists; confirm to replace it"));
         block(save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             file.clone(),
             "Incident".into(),
@@ -846,6 +903,7 @@ mod tests {
         assert!(block(open_project(app.handle().clone(), st(), OpId::default(), bad)).is_err());
         assert!(block(save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             "/no/such/dir/x.imtproj".into(),
             "x".into(),
@@ -856,6 +914,7 @@ mod tests {
         .is_err());
         assert!(block(save_project(
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             file.clone(),
             "x".into(),
@@ -872,6 +931,7 @@ mod tests {
         let dir = TempDir::new("domain-events");
         let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
         let st = || main_window(&app);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
         let op = |id: &str| OpId(Some(id.into()));
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
@@ -886,7 +946,17 @@ mod tests {
         );
         assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
         let file = dir.0.join("p.imtproj").to_string_lossy().into_owned();
-        block(save_project(st(), op("op-save"), file.clone(), "P".into(), json!({}), None, None)).unwrap();
+        block(save_project(
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            op("op-save"),
+            file.clone(),
+            "P".into(),
+            json!({}),
+            None,
+            None,
+        ))
+        .unwrap();
         assert_eq!(crate::tools::tests::domain_event("project.saved", "op-save").props["Sources"], "1");
         block(open_project(app.handle().clone(), st(), op("op-open"), file)).unwrap();
         let opened = crate::tools::tests::domain_event("project.opened", "op-open");
@@ -963,6 +1033,7 @@ mod tests {
             importer: "csv".into(),
             records: 4,
             skipped: 0,
+            split_events: 0,
             dropped: 0,
             step_stats: Vec::new(),
             error: None,

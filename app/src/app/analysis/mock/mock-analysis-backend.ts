@@ -101,6 +101,11 @@ export class MockAnalysisBackend extends AnalysisBackend {
   async queryExceptions(query: QlQuery) {
     return mockExceptions(await this.matched(query));
   }
+  /** The demo data is small: everything is analysed. */
+  override async analysisCoverage(query: QlQuery) {
+    const total = (await this.matched(query)).length;
+    return { analysed: total, total };
+  }
   async queryAnomalies(query: QlQuery) {
     return mockAnomalies(await this.matched(query));
   }

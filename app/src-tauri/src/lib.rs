@@ -42,6 +42,7 @@ mod notification_centre;
 mod notify;
 mod opener;
 mod panel_windows;
+mod paths;
 mod plugin_isolation;
 mod pointer;
 mod profile;
@@ -55,6 +56,7 @@ mod storage;
 mod system;
 mod tools;
 mod tray;
+mod ui_dispatch;
 mod updater;
 mod window_manager;
 mod window_prefs;
@@ -114,6 +116,7 @@ macro_rules! commands {
             insights::complete_query,
             insights::query_patterns,
             insights::query_exceptions,
+            insights::analysis_coverage,
             insights::query_anomalies,
             insights::compare_windows,
             insights::field_stats,
@@ -186,6 +189,7 @@ macro_rules! commands {
             // System and tools
             system::elevation,
             system::restart_elevated,
+            paths::pick_paths,
             system::read_file_head,
             tools::tools_list,
             tools::tool_invoke,
@@ -511,19 +515,15 @@ fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
 
 fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
     match event {
-        tauri::RunEvent::ExitRequested { .. } => {
+        tauri::RunEvent::ExitRequested { code, .. } => {
+            log::info!(Code = code.unwrap_or_default(); "Exit requested");
             if let Some(w) = app.try_state::<windows::Windows>() {
                 w.set_exiting();
             }
         }
         tauri::RunEvent::Exit => {
-            if let Some(w) = app.try_state::<windows::Windows>() {
-                w.shutdown_plugins();
-            }
-            jobs::shutdown(app);
-            if let Some(life) = app.try_state::<lifecycle::Lifecycle>() {
-                life.end();
-            }
+            log::info!("Exit: tearing down");
+            lifecycle::exit_teardown(app);
             log::info!("Application is shutting down");
             // Last: may hand over to the update installer (which ends the process on Windows).
             updater::on_exit(app);

@@ -926,35 +926,6 @@ pub fn builtins(
     ]
 }
 
-/// A user-chosen settings file path: absolute, `.json`, in an existing folder.
-fn checked_path(path: &str, must_exist: bool) -> Result<PathBuf, String> {
-    if path.is_empty() || path.len() > 4096 || path.contains('\0') {
-        return Err("choose a settings file".into());
-    }
-    let p = PathBuf::from(path);
-    if !p.is_absolute() {
-        return Err("the path must be absolute".into());
-    }
-    if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) {
-        return Err("settings files end in .json".into());
-    }
-    if must_exist {
-        let c = p.canonicalize().map_err(|e| format!("cannot open {path}: {e}"))?;
-        if !c.is_file() {
-            return Err(format!("{path} is not a file"));
-        }
-        return Ok(c);
-    }
-    let name = p.file_name().ok_or("choose a file name")?.to_owned();
-    let parent = p.parent().ok_or("choose a folder")?;
-    let parent = parent.canonicalize().map_err(|e| format!("the folder does not exist: {e}"))?;
-    let target = parent.join(name);
-    if target.is_dir() {
-        return Err(format!("{} is a folder", target.display()));
-    }
-    Ok(target)
-}
-
 #[tauri::command]
 pub fn settings_sections<R: Runtime>(app: AppHandle<R>) -> CmdResult<SettingsOverview> {
     Ok(service(&app).overview())
@@ -994,8 +965,13 @@ fn settings_changed(event: &str, section: &str, values: &Value) {
 }
 
 #[tauri::command]
-pub fn export_settings<R: Runtime>(app: AppHandle<R>, path: String, overwrite: Option<bool>) -> CmdResult<()> {
-    let target = checked_path(&path, false)?;
+pub fn export_settings<R: Runtime>(
+    app: AppHandle<R>,
+    grants: crate::paths::WindowGrants,
+    path: String,
+    overwrite: Option<bool>,
+) -> CmdResult<()> {
+    let target = grants.write(&path, &["json"])?.path().to_path_buf();
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let path = target;
     service(&app).export(&path).map_err(err)?;
@@ -1004,8 +980,8 @@ pub fn export_settings<R: Runtime>(app: AppHandle<R>, path: String, overwrite: O
 }
 
 #[tauri::command]
-pub fn import_settings<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<ImportResult> {
-    let path = checked_path(&path, true)?;
+pub fn import_settings<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> CmdResult<ImportResult> {
+    let path = grants.read_file(&path, &["json"])?.path().to_path_buf();
     let result = service(&app).import(&path)?;
     log::info!(Applied = result.applied.len() as u64, Rejected = result.rejected.len() as u64; "Settings imported");
     let (applied, rejected) = (result.applied.join(","), result.rejected.len().to_string());
@@ -1597,30 +1573,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn user_chosen_paths_are_checked() {
-        let t = Temp::new("paths");
-        let file = t.0.join("s.json");
-        std::fs::write(&file, "{}").unwrap();
-        let s = |p: &Path| p.to_string_lossy().into_owned();
-        assert!(checked_path("", false).is_err());
-        assert!(checked_path("a\0b.json", false).is_err());
-        assert!(checked_path("relative.json", false).unwrap_err().contains("absolute"));
-        assert!(checked_path(&s(&t.0.join("s.txt")), false).unwrap_err().contains(".json"));
-        assert!(checked_path(&s(&t.0.join("missing/x.json")), false)
-            .unwrap_err()
-            .contains("folder does not exist"));
-        std::fs::create_dir_all(t.0.join("dir.json")).unwrap();
-        assert!(checked_path(&s(&t.0.join("dir.json")), false).unwrap_err().contains("is a folder"));
-        assert!(checked_path(&s(&t.0.join("dir.json")), true).unwrap_err().contains("not a file"));
-        assert!(checked_path(&s(&t.0.join("nope.json")), true).unwrap_err().contains("cannot open"));
-        assert_eq!(checked_path(&s(&file), true).unwrap(), file.canonicalize().unwrap());
-        assert_eq!(
-            checked_path(&s(&t.0.join("new.JSON")), false).unwrap(),
-            t.0.canonicalize().unwrap().join("new.JSON")
-        );
-    }
-
-    #[test]
     fn commands_through_the_tauri_app() {
         let _serial = serial();
         let _log = crate::activity::test_capture();
@@ -1651,14 +1603,18 @@ pub(crate) mod tests {
         );
         assert!(!format!("{changed:?}").contains("400"));
         let out = t.0.join("export.json").to_string_lossy().into_owned();
-        export_settings(h.clone(), out.clone(), None).unwrap();
+        let grants = || crate::paths::WindowGrants::of(&h, "main");
+        let refused = export_settings(h.clone(), grants(), out.clone(), None).unwrap_err();
+        assert!(refused.contains("only writes where you choose"), "{refused}");
+        crate::paths::allow_under(&h, "main", &t.0);
+        export_settings(h.clone(), grants(), out.clone(), None).unwrap();
         assert_eq!(
-            export_settings(h.clone(), out.clone(), None).unwrap_err(),
+            export_settings(h.clone(), grants(), out.clone(), None).unwrap_err(),
             format!("{out} already exists; confirm to replace it")
         );
-        export_settings(h.clone(), out.clone(), Some(true)).unwrap();
+        export_settings(h.clone(), grants(), out.clone(), Some(true)).unwrap();
         reset_settings(h.clone(), WORKSPACE_SECTION.into()).unwrap();
-        let r = import_settings(h.clone(), out).unwrap();
+        let r = import_settings(h.clone(), grants(), out).unwrap();
         assert!(r.applied.contains(&WORKSPACE_SECTION.to_string()));
         let events = crate::tools::tests::domain_events();
         assert!(events
@@ -1666,11 +1622,11 @@ pub(crate) mod tests {
             .any(|c| c.props["Operation"] == "settings.reset" && c.props.get("Section").is_some_and(|s| s == WORKSPACE_SECTION)));
         assert!(events.iter().any(|c| c.props["Operation"] == "settings.imported"));
         assert_eq!(live_tail_debounce(&h), Duration::from_millis(400));
-        assert!(export_settings(h.clone(), "relative.json".into(), None).is_err());
-        assert!(import_settings(h.clone(), t.0.join("none.json").to_string_lossy().into_owned()).is_err());
+        assert!(export_settings(h.clone(), grants(), "relative.json".into(), None).is_err());
+        assert!(import_settings(h.clone(), grants(), t.0.join("none.json").to_string_lossy().into_owned()).is_err());
         let bad = t.0.join("bad.json");
         std::fs::write(&bad, "[]").unwrap();
-        assert!(import_settings(h.clone(), bad.to_string_lossy().into_owned()).is_err());
+        assert!(import_settings(h.clone(), grants(), bad.to_string_lossy().into_owned()).is_err());
         // While an import holds the workspace, the status is read without waiting for it.
         {
             let state = crate::test_support::main_window(&app);
@@ -1680,7 +1636,12 @@ pub(crate) mod tests {
         // The plugin sections come from the workspace's registry (nothing is quarantined here).
         let web = settings_sections(h.clone()).unwrap();
         assert_eq!(view(&web, "net.decryptology.windows").status, SectionStatus::Active);
-        let failing = export_settings(h, t.0.join("missing/dir/x.json").to_string_lossy().into_owned(), None);
+        let failing = export_settings(
+            h.clone(),
+            grants(),
+            t.0.join("missing/dir/x.json").to_string_lossy().into_owned(),
+            None,
+        );
         assert!(failing.is_err());
     }
 

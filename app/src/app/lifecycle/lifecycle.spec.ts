@@ -123,10 +123,10 @@ describe('LifecycleService', () => {
     expect(tools.calls.filter((c) => c !== 'saveSession')).toEqual([
       'restartApp:true:',
       'restartApp:false:',
-      'restartApp:true:/demo/session/last-session.imtproj',
-      'restartElevated:/demo/session/last-session.imtproj',
+      'restartApp:true:session',
+      'restartElevated:session',
     ]);
-    expect(tools.calls.indexOf('saveSession')).toBeLessThan(tools.calls.indexOf('restartElevated:/demo/session/last-session.imtproj'));
+    expect(tools.calls.indexOf('saveSession')).toBeLessThan(tools.calls.indexOf('restartElevated:session'));
   });
 
   it('restarts without reopening when the session cannot be saved, and reports failures', async () => {

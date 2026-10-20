@@ -16,8 +16,9 @@ use crate::query::{group_key, Query};
 use anyhow::Result;
 use std::collections::{BTreeMap, HashMap};
 
-/// Most records any single analysis looks at, to keep the UI responsive.
-const MAX_ANALYSED: usize = 2_000_000;
+/// Most records any single analysis looks at, to keep the UI responsive; [`Workspace::analysis_coverage`]
+/// tells the UI when a selection is larger (the results then cover its first records only).
+pub const MAX_ANALYSED: usize = 2_000_000;
 const MAX_ACTIVITY: usize = 200;
 const MAX_TRACES: usize = 200;
 const MAX_REQUESTS: usize = 500;
@@ -89,6 +90,19 @@ impl Workspace {
         self.mined_patterns(&req.query)
     }
 
+    /// How many of the records matching the query the analyses look at, of how many.
+    pub fn analysis_coverage(&self, req: &QueryRequest) -> Result<crate::api::AnalysisCoverage> {
+        self.analysis_coverage_under(req, MAX_ANALYSED)
+    }
+
+    fn analysis_coverage_under(&self, req: &QueryRequest, max: usize) -> Result<crate::api::AnalysisCoverage> {
+        let base = Query {
+            ql: String::new(),
+            ..req.query.clone()
+        };
+        Ok(crate::api::AnalysisCoverage::of(self.matching(&base)?.len(), max))
+    }
+
     pub fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
         let records = self.matched(&req.query)?;
         let keyed = self.keyed(&records, &req.query);
@@ -97,9 +111,9 @@ impl Workspace {
 
     /// Anomalies over the records matching the query (cached per query).
     pub fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {
-        // A sliding window is keyed by where it currently starts.
-        let key = serde_json::to_string(&self.resolve_window(&req.query))?;
-        if let Some((k, a)) = self.anomaly_cache.lock().unwrap().as_ref() {
+        // A sliding window is keyed by where it currently starts; appended records change the count.
+        let key = super::cache_key::CacheKey::of(self.generation, &(self.resolve_window(&req.query), self.records.len()))?;
+        if let Some((k, a)) = self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
             if *k == key {
                 return Ok(a.clone());
             }
@@ -107,7 +121,7 @@ impl Workspace {
         let records = self.matched(&req.query)?;
         let keyed = self.keyed(&records, &req.query);
         let found = analysis::detect(keyed.iter().map(|(r, k)| (*r, k.as_str())), &AnomalyConfig::default());
-        *self.anomaly_cache.lock().unwrap() = Some((key, found.clone()));
+        *self.anomaly_cache.lock().unwrap_or_else(|p| p.into_inner()) = Some((key, found.clone()));
         Ok(found)
     }
 
@@ -542,4 +556,76 @@ fn first_present_field<'f>(r: &Record, fields: &'f [String], source: &str) -> Op
             .filter(|v| !v.is_empty())
             .map(|v| (f.as_str(), v.into_owned()))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::profile::Profile;
+
+    /// A workspace over one text log of `n` events.
+    fn workspace(tag: &str, n: usize) -> (Workspace, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("imt-insights-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("app.log");
+        let text: String = (0..n)
+            .map(|i| format!("2026-10-14 10:00:{:02}.000 +00:00 [ERR] failed {i}\n", i % 60))
+            .collect();
+        std::fs::write(&file, text).unwrap();
+        let mut ws = Workspace::new(Profile::default_profile()).unwrap();
+        ws.open(std::slice::from_ref(&dir)).unwrap();
+        (ws, dir)
+    }
+
+    #[test]
+    fn coverage_reports_what_the_analyses_look_at() {
+        let (ws, dir) = workspace("coverage", 5);
+        let req = QueryRequest { query: Query::default() };
+        let full = ws.analysis_coverage(&req).unwrap();
+        assert_eq!((full.analysed, full.total, full.is_complete()), (5, 5, true));
+        let capped = ws.analysis_coverage_under(&req, 3).unwrap();
+        assert_eq!((capped.analysed, capped.total, capped.is_complete()), (3, 5, false));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_poisoned_anomaly_cache_recovers() {
+        let (ws, dir) = workspace("poison", 20);
+        let req = QueryRequest { query: Query::default() };
+        let first = ws.anomalies(&req).unwrap();
+        std::thread::scope(|s| {
+            let _ = s
+                .spawn(|| {
+                    let _held = ws.anomaly_cache.lock().unwrap();
+                    panic!("a crash while the cache was held");
+                })
+                .join();
+        });
+        assert!(ws.anomaly_cache.is_poisoned());
+        assert_eq!(ws.anomalies(&req).unwrap().len(), first.len(), "served despite the poisoned lock");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_anomaly_cache_misses_after_records_change() {
+        let (mut ws, dir) = workspace("anomaly-key", 20);
+        let req = QueryRequest { query: Query::default() };
+        ws.anomalies(&req).unwrap();
+        let key = |ws: &Workspace| ws.anomaly_cache.lock().unwrap().as_ref().map(|(k, _)| *k);
+        let before = key(&ws);
+        // Appended records (no new generation) still change the key: the count is part of it.
+        let more = dir.join("app.log");
+        let mut text = std::fs::read_to_string(&more).unwrap();
+        text.push_str("2026-10-14 10:01:00.000 +00:00 [ERR] later\n");
+        std::fs::write(&more, text).unwrap();
+        ws.refresh_tail(std::slice::from_ref(&more)).unwrap();
+        ws.anomalies(&req).unwrap();
+        assert_ne!(key(&ws), before);
+        // A new profile is a new revision (spans and other caches never compare profile pointers).
+        let revision = ws.profile_revision;
+        ws.set_profile(Profile::default_profile()).unwrap();
+        assert_eq!(ws.profile_revision, revision + 1);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

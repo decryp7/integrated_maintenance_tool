@@ -113,17 +113,34 @@ pub(crate) fn process_elevated() -> bool {
         .is_some_and(|uid| Some(uid) == root.as_ref())
 }
 
-/// Relaunches IMT as administrator (Windows UAC prompt) with `reopen` paths
-/// (e.g. the saved project) and exits this instance. Elsewhere: an error.
+/// Relaunches IMT as administrator (Windows UAC prompt), reopening the calling window's autosaved session
+/// when `reopen_session`, and exits this instance. Elsewhere: an error. The command line is built in Rust
+/// ([`crate::lifecycle::relaunch_args`]): nothing the webview sends reaches the elevated process.
 #[tauri::command]
-pub fn restart_elevated<R: tauri::Runtime>(app: tauri::AppHandle<R>, reopen: Vec<String>) -> CmdResult<()> {
+pub fn restart_elevated<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: CurrentWindow,
+    lifecycle: State<'_, crate::lifecycle::Lifecycle>,
+    reopen_session: bool,
+) -> CmdResult<()> {
     let exe = std::env::current_exe().map_err(err)?;
+    let session = crate::lifecycle::session_to_reopen(&state, &lifecycle, reopen_session);
+    let args = crate::lifecycle::relaunch_args(false, session.as_deref());
     // The elevated process must become the running instance, not hand over to this one.
     crate::instance::release(&app);
-    relaunch_elevated(&exe, &reopen)?;
-    log::info!(Paths = reopen.len() as u64; "Restarting as administrator");
+    relaunch_elevated(&exe, &args)?;
+    log::info!(Reopen = !args.is_empty(); "Restarting as administrator");
     crate::window_manager::quit(&app);
     Ok(())
+}
+
+/// The ShellExecute parameter string: each argument quoted (Windows paths cannot contain `"`).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn quoted(args: &[std::ffi::OsString]) -> String {
+    args.iter()
+        .map(|a| format!("\"{}\"", a.to_string_lossy().replace('"', "")))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// The decoded first bytes of a file that is part of the workspace (a source
@@ -152,16 +169,11 @@ pub async fn read_file_head(state: CurrentWindow, path: String, max_bytes: Optio
 }
 
 #[cfg(windows)]
-fn relaunch_elevated(exe: &Path, args: &[String]) -> CmdResult<()> {
+fn relaunch_elevated(exe: &Path, args: &[std::ffi::OsString]) -> CmdResult<()> {
     use windows::core::{HSTRING, PCWSTR};
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-    let params: Vec<String> = args.iter().map(|a| format!("\"{}\"", a.replace('"', ""))).collect();
-    let (verb, file, params) = (
-        HSTRING::from("runas"),
-        HSTRING::from(exe.as_os_str()),
-        HSTRING::from(params.join(" ")),
-    );
+    let (verb, file, params) = (HSTRING::from("runas"), HSTRING::from(exe.as_os_str()), HSTRING::from(quoted(args)));
     // SAFETY: all strings outlive the call; ShellExecuteW does not retain them.
     let result = unsafe {
         ShellExecuteW(
@@ -182,7 +194,7 @@ fn relaunch_elevated(exe: &Path, args: &[String]) -> CmdResult<()> {
 }
 
 #[cfg(not(windows))]
-fn relaunch_elevated(_exe: &Path, _args: &[String]) -> CmdResult<()> {
+fn relaunch_elevated(_exe: &Path, _args: &[std::ffi::OsString]) -> CmdResult<()> {
     Err("Restarting as administrator is only available on Windows".into())
 }
 
@@ -210,6 +222,13 @@ mod tests {
         // The tool's answer wins; the token is not even asked.
         let answer = serde_json::json!({ "elevated": true, "canRestartElevated": false, "platform": "linux" });
         assert!(elevation_from(Ok(answer), || panic!("not asked")).elevated);
+    }
+
+    #[test]
+    fn elevated_parameters_quote_each_argument() {
+        let args: Vec<std::ffi::OsString> = vec!["--".into(), r#"C:\a b\"x".imtproj"#.into()];
+        assert_eq!(quoted(&args), r#""--" "C:\a b\x.imtproj""#);
+        assert_eq!(quoted(&[]), "");
     }
 
     #[cfg(not(windows))]

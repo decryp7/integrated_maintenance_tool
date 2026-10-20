@@ -673,7 +673,6 @@ pub fn run_binary(exe: impl Into<PathBuf>, args: &[String], opts: Options) -> Re
     let mut spec = imt_ipc::process::SpawnSpec::new(exe, "the plugin");
     spec.args = args.to_vec();
     spec.endpoint_prefix = "imt-check".into();
-    spec.clear_env = true;
     match rt.block_on(imt_ipc::process::launch(&spec)) {
         Ok(l) => {
             let report = run_on(&rt, l.channel.clone(), opts);

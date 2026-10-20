@@ -21,6 +21,9 @@ pub struct SourceInfo {
     pub importer: String,
     pub records: usize,
     pub skipped: usize,
+    /// Events cut because they grew past the importer's event limit (the rest continues in a new
+    /// event carrying [`crate::importers::text::CONTINUED_FIELD`]).
+    pub split_events: usize,
     /// Events removed by the profile's pipeline.
     pub dropped: usize,
     /// Events in/out of each pipeline step for this file.
@@ -273,6 +276,29 @@ pub struct MomentRequest {
     pub query: Query,
     pub from: i64,
     pub to: i64,
+}
+
+/// How much of a query's matching records the analyses look at: at most a fixed number (the first in
+/// time order), so a huge selection stays responsive. `analysed < total` means the results are partial.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisCoverage {
+    pub analysed: usize,
+    pub total: usize,
+}
+
+impl AnalysisCoverage {
+    /// Coverage of `total` matching records under the limit `max`.
+    pub fn of(total: usize, max: usize) -> AnalysisCoverage {
+        AnalysisCoverage {
+            analysed: total.min(max),
+            total,
+        }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.analysed >= self.total
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

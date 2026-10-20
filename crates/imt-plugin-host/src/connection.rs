@@ -83,7 +83,6 @@ impl PluginConnection {
         let rt = runtime()?;
         let mut s = SpawnSpec::new(spec.exe.clone(), spec.label.clone());
         s.args = spec.args.clone();
-        s.clear_env = true;
         s.current_dir = Some(std::env::temp_dir());
         s.endpoint_prefix = "imt-plugin".into();
         s.connect_window = spec.connect_window;

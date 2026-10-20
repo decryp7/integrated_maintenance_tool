@@ -753,13 +753,15 @@ pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Cmd
 #[tauri::command]
 pub fn export_diagnostics<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    grants: crate::paths::WindowGrants,
     path: String,
     ids: Vec<String>,
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
+    let target = grants.write(&path, &["zip"])?.path().to_path_buf();
     imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     let store = store(&app)?;
-    let target = PathBuf::from(&path);
+    let path = target.to_string_lossy().into_owned();
     let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
     crate::jobs::start_file(&app, spec, &target, move |_| {
         let count = store.export(&ids, Path::new(&path)).map_err(|e| e.to_string())?;
@@ -1276,11 +1278,29 @@ mod tests {
         let bad = save_snapshot(&handle, "main", "AAAA".into(), "image/png".into(), ctx("bad"));
         assert!(bad.is_err());
         let out = std::env::temp_dir().join(format!("imt-snap-cmd-{}.zip", std::process::id()));
-        let job = export_diagnostics(handle.clone(), out.to_string_lossy().into(), vec![saved.id.clone()], Some(true)).unwrap();
+        let grants = || crate::paths::WindowGrants::of(&handle, "main");
+        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![], None);
+        assert!(refused.unwrap_err().contains("only writes where you choose"));
+        crate::paths::grant(
+            &handle,
+            "main",
+            &out,
+            crate::paths::Access::Write,
+            crate::paths::GrantSource::Dialog,
+        )
+        .unwrap();
+        let job = export_diagnostics(
+            handle.clone(),
+            grants(),
+            out.to_string_lossy().into(),
+            vec![saved.id.clone()],
+            Some(true),
+        )
+        .unwrap();
         let line = crate::test_support::job_done(&app, job);
         let n: usize = line.split(' ').next().unwrap().parse().unwrap();
         assert!(n >= 2, "{line}");
-        let refused = export_diagnostics(handle.clone(), out.to_string_lossy().into(), vec![saved.id.clone()], None);
+        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![saved.id.clone()], None);
         assert_eq!(
             refused.unwrap_err(),
             format!("{} already exists; confirm to replace it", out.display())

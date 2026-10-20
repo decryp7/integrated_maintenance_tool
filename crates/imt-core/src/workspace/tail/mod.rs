@@ -48,8 +48,8 @@ pub use mutes::{AlertMutes, Clock, MAX_MUTES, MAX_MUTE_MS};
 pub use rolling::{family, group_of};
 pub use types::*;
 pub use watch::{
-    initial_mode, mode_of, BatchFn, Coalescer, FallbackFn, FileWatcher, LiveTail, WatchPreference, WatchSettings, WatchSignal, WatchSink,
-    WatchedRoot, WatcherFactory,
+    initial_mode, mode_of, BatchFn, Coalescer, FallbackFn, FileWatcher, LiveTail, StopToken, WatchPreference, WatchSettings, WatchSignal,
+    WatchSink, WatchedRoot, WatcherFactory,
 };
 
 use super::{display_name, import_file, source_file, Workspace};
@@ -602,6 +602,7 @@ impl Workspace {
                             .map_or(0, |f| f.input)
                             .saturating_sub(s.step_stats.last().map_or(0, |l| l.output));
                         s.skipped += skipped;
+                        s.split_events += crate::importers::text::split_events(&records);
                         s.error = None;
                     }
                     if !matches!(st.state, TailFileState::Rotated) {

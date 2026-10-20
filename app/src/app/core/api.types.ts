@@ -68,6 +68,8 @@ export interface SourceInfo {
   dropped: number;
   /** Lines/rows that could not be parsed. */
   skipped: number;
+  /** Events cut at the importer's event size limit; the rest continues in a new event with `ContinuedFromLine` (the engine always sends it). */
+  splitEvents?: number;
   error: string | null;
   from: number | null;
   to: number | null;
@@ -642,6 +644,7 @@ export interface InferredRegex {
  *   complete_query   { request: { text, cursor } }          -> Completion[]
  *   query_patterns   { request: { query } }                 -> Pattern[]
  *   query_exceptions { request: { query } }                 -> ExceptionGroup[]
+ *   analysis_coverage { request: { query } }                -> AnalysisCoverage
  *   query_anomalies  { request: { query } }                 -> Anomaly[]
  *   compare_windows  { request: { a, b } }                  -> Comparison
  *   field_stats      { request: { query, field, buckets } } -> FieldStats
@@ -2478,3 +2481,22 @@ export interface QueryProgress {
 
 /** Like `QueryOutcome`, or `{ cancelled: true }` after `cancel_query` (a normal outcome, not an error). */
 export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
+
+/** What a native dialog asks for (`pick_paths`, see core/native-dialog.ts). Mirrors `paths::PickRequest`. */
+export type PickKind = 'openFile' | 'openFiles' | 'openFolder' | 'openFolders' | 'save';
+
+/** `pick_paths` request: the engine shows the dialog and grants the chosen paths to the window. */
+export interface PickRequest {
+  kind: PickKind;
+  title: string;
+  /** File types offered (extensions without the dot, letters and digits only). */
+  filters?: { name: string; extensions: string[] }[];
+  /** Suggested name of a save dialog (a file name, not a path). */
+  defaultName?: string;
+}
+
+/** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
+export interface AnalysisCoverage {
+  analysed: number;
+  total: number;
+}

@@ -152,7 +152,9 @@ state go.
 | `notification_centre/` | The notification centre (ADR 0012): `centre.rs` (pure list: dedupe with counts, caps trimming read messages first), `persist.rs` (project record, `notifications.json`), `mod.rs` (`post` for producers with OS notifications when IMT is not focused, the click-to-open on focus, `notifications_*` commands, events `imt://notifications`, `imt://notifications-open`). |
 | `notify.rs` | Desktop notification policy (level × kind × whether a window already shows it), rate limiter, and the adapter over `tauri-plugin-notification`; never includes file contents. |
 | `window_prefs.rs` | The *Window & tray* settings section: `openFilesIn`, `onClose`, `notifications`, `startMinimized`. |
-| `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave. |
+| `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave, restarts (`restart_app`, `restart_elevated`: the command line is built in Rust, flags first, then `--` and the window's own session file; the webview sends no arguments) and the bounded teardown on close and exit (`teardown_step`: each step on its own thread, logged, at most 3 s). |
+| `paths.rs` | The only path validator: `PathGrants` (per window, at most 64, expiring after an hour) is filled only by the native dialogs (`pick_paths`, shown from Rust), files dropped on a window, the command line and second launches, and the window's project file; commands that read or write a path the webview names (profile import/export, exports, diagnostics, problem reports, projects, settings files, the configuration diff) take it through `WindowGrants` and get a canonical `GrantedPath` or a message to choose the file again. The dialog plugin's JavaScript API is not permitted. |
+| `ui_dispatch.rs` | Native UI updates (tray menu, window list) posted to the main thread with `run_on_main_thread`, coalesced and never waited for, and never called under a lock: tray and window getters wait for the main thread. |
 
 Crash detection: `running.marker` stores the PID and the process start time (read with `sysinfo`). A
 marker left behind is a crash only if that process is gone (no such PID, or a different start time,
@@ -185,7 +187,9 @@ The engine owns live tail (`crates/imt-core/src/workspace/tail/`): file identity
 a polling fallback and burst coalescing (`watch.rs`), applying a refresh with stable ids (`apply.rs`,
 `index.rs`), detectors and alert rules (`alerts.rs`) and engine-side mutes (`mutes.rs`). The shell
 (`app/src-tauri/src/live.rs`) only adapts `notify` to the engine's `WatcherFactory`, runs each window's
-session and registers it as a background task. Commands: `set_live`, `tail_status`, `live_state`
+session and registers it as a background task. Stopping a session never waits: it sets the session's
+`StopToken` (checked before and after taking the workspace lock), and a reaper thread ends the worker
+and the watchers. Commands: `set_live`, `tail_status`, `live_state`
 (restores the UI after a webview reload), `mute_alerts` / `unmute_alerts`, `open_paths_live`; events
 `imt://workspace-changed` (with a `TailReport`, including changed `fileStates`), `imt://live-alert` and
 `imt://live-stopped`.
