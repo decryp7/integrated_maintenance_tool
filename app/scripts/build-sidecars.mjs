@@ -9,6 +9,7 @@
 // UI build). Tauri passes the target in TAURI_ENV_TARGET_TRIPLE; `universal-apple-darwin` builds both macOS
 // architectures and joins them with lipo.
 // Usage: node scripts/build-sidecars.mjs [--target <triple>] [--debug]
+// IMT_CARGO_PROFILE names another cargo profile (e.g. `dist` for releases); it must match the app's `--profile`.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -26,7 +27,7 @@ export function sidecarPlan({ target, host, profile, targetDir }) {
   const native = target === host;
   const triples = target === 'universal-apple-darwin' ? ['aarch64-apple-darwin', 'x86_64-apple-darwin'] : [target];
   const select = SIDECARS.flatMap((s) => ['-p', s, '--bin', s]);
-  const release = profile === 'release' ? ['--release'] : [];
+  const release = profile === 'release' ? ['--release'] : profile === 'debug' ? [] : ['--profile', profile];
   const builds = native ? [['build', ...select, ...release]] : triples.map((t) => ['build', ...select, '--target', t, ...release]);
   const ext = target.includes('-windows-') ? '.exe' : '';
   const binaries = SIDECARS.map((name) => ({
@@ -45,7 +46,7 @@ function main() {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
   };
-  const profile = args.includes('--debug') ? 'debug' : 'release';
+  const profile = args.includes('--debug') ? 'debug' : (process.env.IMT_CARGO_PROFILE ?? 'release');
   const host = /^host: (.+)$/m.exec(execFileSync('rustc', ['-vV'], { encoding: 'utf8' }))?.[1]?.trim();
   const target = flag('--target') ?? process.env.TAURI_ENV_TARGET_TRIPLE ?? host;
   if (!target) throw new Error('cannot tell the target: pass --target <triple>');
