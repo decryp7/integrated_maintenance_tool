@@ -2987,6 +2987,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-symbols"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ureq",
+ "windows",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
