@@ -22,7 +22,9 @@ pub fn quiet_command(program: impl AsRef<OsStr>) -> Command {
 /// Like [`quiet_command`], with further Windows creation flags (e.g. [`BELOW_NORMAL_PRIORITY_CLASS`]);
 /// `extra_flags` is ignored on other platforms.
 pub fn quiet_command_with(program: impl AsRef<OsStr>, extra_flags: u32) -> Command {
+    // Only Windows adds creation flags, so `cmd` is changed on Windows alone.
     #[allow(clippy::disallowed_methods)]
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
