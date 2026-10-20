@@ -95,6 +95,9 @@ are read transparently. See [Supported inputs](user-guide.md#supported-inputs).
 
 Files IMT cannot read yet are listed with a **Set up format** button: mark the timestamp, level and
 message on a sample line and IMT generates a pattern (or a Serilog output template) and re-imports.
+Files whose lines IMT reads but whose timestamps it cannot get a warning in the Explorer and a
+Notifications message; IMT proposes a timestamp format it checked against those lines, and **Fix
+timestamps** previews and saves it. See [Supported inputs](user-guide.md#supported-inputs).
 
 ![Windows registry exports shown as a tree](screenshots/registry.png)
 
