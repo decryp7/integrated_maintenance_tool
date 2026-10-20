@@ -520,6 +520,7 @@ fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
             if let Some(w) = app.try_state::<windows::Windows>() {
                 w.set_exiting();
             }
+            lifecycle::arm_exit_watchdog(app, code.unwrap_or_default());
         }
         tauri::RunEvent::Exit => {
             log::info!("Exit: tearing down");

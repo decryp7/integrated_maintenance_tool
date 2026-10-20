@@ -704,7 +704,7 @@ Licence expressions (packages):
 - zerotrie 0.2.5 — Unicode-3.0 [Unicode-3.0-2]
 - zerovec 0.11.8 — Unicode-3.0 [Unicode-3.0-2]
 - zerovec-derive 0.11.6 — Unicode-3.0 [Unicode-3.0-2]
-- zip 9.0.4 — MIT [MIT-113]
+- zip 9.0.5 — MIT [MIT-113]
 - zlib-rs 0.6.8 — Zlib [Zlib-2]
 - zmij 1.0.23 — MIT [MIT-52]
 - zvariant 5.15.1 — MIT [MIT-167]
@@ -8039,7 +8039,7 @@ Used by (2):
 ### MIT-113
 
 Used by (2):
-  tracing-core 0.1.36, zip 9.0.4
+  tracing-core 0.1.36, zip 9.0.5
 
     The MIT License (MIT)
 
