@@ -169,20 +169,37 @@ fn default_from() -> String {
     "@message".into()
 }
 
+/// How an extracted value is converted (`type` of an extractor field). Unknown names are refused.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FieldType {
+    /// Numbers become numbers, the rest stays text (not a declared column).
+    #[default]
+    Auto,
+    String,
+    Number,
+    Integer,
+    Bool,
+    /// A size, converted to `to` (MB by default).
+    Bytes,
+    /// A duration, converted to `to` (ms by default).
+    Duration,
+}
+
+impl FieldType {
+    pub const NAMES: [&'static str; 7] = ["auto", "string", "number", "integer", "bool", "bytes", "duration"];
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldSpec {
-    #[serde(rename = "type", default = "default_type")]
-    pub kind: String,
+    #[serde(rename = "type", default)]
+    pub kind: FieldType,
     #[serde(default)]
     pub unit: Option<String>,
     #[serde(default)]
     pub unit_from: Option<String>,
     #[serde(default)]
     pub to: Option<String>,
-}
-
-fn default_type() -> String {
-    "auto".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,6 +329,7 @@ impl Profile {
             line: e.span().map(|s| text[..s.start.min(text.len())].lines().count().max(1)),
         })?;
         crate::spans::config::check_toml(&user, text)?;
+        check_field_types(&user, text)?;
         let mut merged: toml::Table = toml::from_str(DEFAULT_PROFILE_TOML).expect("default profile is valid TOML");
         merge(&mut merged, user);
         toml::Value::Table(merged).try_into().map_err(|e: toml::de::Error| ProfileError {
@@ -323,6 +341,50 @@ impl Profile {
     pub fn default_profile() -> Profile {
         Profile::from_toml(DEFAULT_PROFILE_TOML).expect("default profile is valid")
     }
+
+    /// This profile with `toml` merged over it (tables merge, other values replace), e.g. a project's
+    /// profile overrides or a quick fix. Errors name the line of `toml`.
+    pub fn with_override(&self, toml: &str) -> std::result::Result<Profile, ProfileError> {
+        let over: toml::Table = toml::from_str(toml).map_err(|e| ProfileError {
+            message: e.message().to_string(),
+            line: e.span().map(|s| toml[..s.start.min(toml.len())].lines().count().max(1)),
+        })?;
+        let mut base = toml::Table::try_from(self).map_err(|e| ProfileError {
+            message: format!("the active profile cannot be written as TOML: {e}"),
+            line: None,
+        })?;
+        merge(&mut base, over);
+        let text = toml::to_string(&base).map_err(|e| ProfileError {
+            message: format!("the merged profile cannot be written as TOML: {e}"),
+            line: None,
+        })?;
+        Profile::from_toml(&text)
+    }
+}
+
+/// Refuses an extractor field `type` this build does not know, naming its line (engine review finding 20:
+/// unknown values used to fall back to `auto` silently).
+fn check_field_types(user: &toml::Table, text: &str) -> std::result::Result<(), ProfileError> {
+    let extracts = user.get("extract").and_then(|e| e.as_array()).into_iter().flatten();
+    for e in extracts {
+        let fields = e.get("fields").and_then(|f| f.as_table()).into_iter().flatten();
+        for (name, spec) in fields {
+            let Some(kind) = spec.get("type") else { continue };
+            let ok = kind.as_str().is_some_and(|k| FieldType::NAMES.contains(&k));
+            if !ok {
+                let shown = kind.to_string();
+                let line = text.find(&shown).map(|i| text[..i].lines().count().max(1));
+                return Err(ProfileError {
+                    message: format!(
+                        "extract field \"{name}\": unknown type {shown} (use {})",
+                        FieldType::NAMES.join(", ")
+                    ),
+                    line,
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn merge(base: &mut toml::Table, over: toml::Table) {
@@ -438,7 +500,7 @@ impl CompiledProfile {
                         (
                             g.to_string(),
                             FieldSpec {
-                                kind: "auto".into(),
+                                kind: FieldType::Auto,
                                 unit: None,
                                 unit_from: None,
                                 to: None,
@@ -571,7 +633,7 @@ impl Extractor {
                 .and_then(|g| caps.name(g))
                 .map(|m| m.as_str())
                 .or(spec.unit.as_deref());
-            if let Some(v) = convert_value(m.as_str(), &spec.kind, unit, spec.to.as_deref()) {
+            if let Some(v) = convert_value(m.as_str(), spec.kind, unit, spec.to.as_deref()) {
                 out.push((name.clone(), v));
             }
         }
@@ -579,30 +641,30 @@ impl Extractor {
     }
 }
 
-fn convert_value(raw: &str, kind: &str, unit: Option<&str>, to: Option<&str>) -> Option<Value> {
+fn convert_value(raw: &str, kind: FieldType, unit: Option<&str>, to: Option<&str>) -> Option<Value> {
     let raw = raw.trim();
     let num = |s: &str| -> Option<f64> {
         let cleaned: String = s.chars().filter(|c| *c != '_' && *c != ',' && *c != ' ').collect();
         cleaned.parse::<f64>().ok().filter(|f| f.is_finite())
     };
     match kind {
-        "string" => Some(Value::String(raw.to_string())),
-        "auto" => Some(auto_value(raw)),
-        "number" => num(raw).map(Value::from),
-        "integer" => num(raw).map(|f| Value::from(f.round() as i64)),
-        "bool" => match raw.to_ascii_lowercase().as_str() {
+        FieldType::String => Some(Value::String(raw.to_string())),
+        FieldType::Auto => Some(auto_value(raw)),
+        FieldType::Number => num(raw).map(Value::from),
+        FieldType::Integer => num(raw).map(|f| Value::from(f.round() as i64)),
+        FieldType::Bool => match raw.to_ascii_lowercase().as_str() {
             "true" | "yes" | "1" | "on" => Some(Value::Bool(true)),
             "false" | "no" | "0" | "off" => Some(Value::Bool(false)),
             _ => None,
         },
-        "bytes" => {
+        FieldType::Bytes => {
             let (n, suffix) = split_number_suffix(raw);
             let n = num(n)?;
             let from = bytes_factor(unit.or(Some(suffix).filter(|s| !s.is_empty())).unwrap_or("B"))?;
             let to = bytes_factor(to.unwrap_or("MB"))?;
             Some(Value::from(round3(n * from / to)))
         }
-        "duration" => {
+        FieldType::Duration => {
             let ms = if raw.contains(':') {
                 timespan_ms(raw)?
             } else {
@@ -612,7 +674,6 @@ fn convert_value(raw: &str, kind: &str, unit: Option<&str>, to: Option<&str>) ->
             let to = duration_factor(to.unwrap_or("ms"))?;
             Some(Value::from(round3(ms / to)))
         }
-        _ => Some(auto_value(raw)),
     }
 }
 
@@ -943,7 +1004,7 @@ when = [{ field = "@message", op = "matches", value = "(" }]
                 .unwrap();
         assert_eq!(p.chart[0].bucket, "auto");
         assert_eq!(p.chart[0].kind, "line");
-        assert_eq!(p.extract[0].fields["v"].kind, "auto");
+        assert_eq!(p.extract[0].fields["v"].kind, FieldType::Auto);
         assert_eq!(p.extract[0].from, "@message");
     }
 
@@ -991,7 +1052,10 @@ when = [{ field = "@message", op = "matches", value = "(" }]
 
     #[test]
     fn conversions() {
-        let cv = |raw: &str, kind: &str, unit: Option<&str>, to: Option<&str>| convert_value(raw, kind, unit, to);
+        let cv = |raw: &str, kind: &str, unit: Option<&str>, to: Option<&str>| {
+            let kind: FieldType = serde_json::from_value(serde_json::Value::String(kind.into())).unwrap();
+            convert_value(raw, kind, unit, to)
+        };
         assert_eq!(cv(" x ", "string", None, None), Some(Value::from("x")));
         assert_eq!(cv("1,204", "integer", None, None), Some(Value::from(1204)));
         assert_eq!(cv("abc", "number", None, None), None);
@@ -1015,7 +1079,31 @@ when = [{ field = "@message", op = "matches", value = "(" }]
         assert_eq!(cv("5", "duration", Some("fortnights"), None), None);
         assert_eq!(cv("5", "duration", None, Some("ns")), Some(Value::from(5_000_000.0)));
         assert_eq!(cv("5", "duration", Some("us"), None), Some(Value::from(0.005)));
-        assert_eq!(cv("7", "mystery", None, None), Some(Value::from(7)));
+        assert_eq!(cv("7", "auto", None, None), Some(Value::from(7)));
+    }
+
+    #[test]
+    fn unknown_field_types_are_refused_with_their_line() {
+        // Regression (engine review finding 20): an unknown type fell back to `auto` silently.
+        let text = "name = \"x\"\n[[extract]]\nname = \"ms\"\nregex = '(?P<ms>[0-9]+)'\n[extract.fields.ms]\ntype = \"millis\"\n";
+        let e = Profile::from_toml(text).unwrap_err();
+        assert_eq!(e.line, Some(6), "{e}");
+        assert!(
+            e.message.contains("unknown type \"millis\"") && e.message.contains("duration"),
+            "{e}"
+        );
+        let ok = Profile::from_toml(&text.replace("millis", "duration")).unwrap();
+        assert_eq!(ok.extract[0].fields["ms"].kind, FieldType::Duration);
+    }
+
+    #[test]
+    fn overrides_merge_over_the_profile() {
+        let base = Profile::from_toml("name = \"base\"\n[parse]\ntimestamp_formats = [\"%Y\"]").unwrap();
+        let merged = base.with_override("[parse]\nday_first = true").unwrap();
+        assert_eq!(merged.name, "base");
+        assert_eq!(merged.parse.timestamp_formats, vec!["%Y".to_string()]);
+        let e = base.with_override("[parse\n").unwrap_err();
+        assert_eq!(e.line, Some(1));
     }
 
     #[test]

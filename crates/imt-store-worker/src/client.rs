@@ -326,7 +326,7 @@ impl Query for RemoteStore {
     fn source_context(&self, _req: &ContextRequest) -> StoreResult<SourceContext> {
         Err(not_remote("source context"))
     }
-    fn run_query(&self, _req: &QueryRequest) -> StoreResult<imt_core::ql::QlResult> {
+    fn run_query_with(&self, _req: &QueryRequest, _control: &imt_core::ql::QueryControl) -> StoreResult<imt_core::ql::QlResult> {
         Err(not_remote("the query language"))
     }
     fn check_query(&self, _text: &str) -> StoreResult<Option<imt_core::ql::QlError>> {
@@ -367,6 +367,15 @@ impl Profiles for RemoteStore {
     }
     fn preview_extractor(&self, _req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview> {
         Err(not_remote("extractor preview"))
+    }
+    fn propose_span_rule(&self, _req: &imt_core::spans::infer::SpanRuleRequest) -> StoreResult<imt_core::spans::infer::SpanProposal> {
+        Err(not_remote("span rule inference"))
+    }
+    fn evaluate_span_rule(
+        &self,
+        _req: &imt_core::spans::infer::SpanRuleCheck,
+    ) -> StoreResult<imt_core::ports::Analyzed<imt_core::spans::infer::SpanEvaluation>> {
+        Err(not_remote("span rule evaluation"))
     }
 }
 

@@ -32,12 +32,40 @@ pub struct QueryProgress {
     pub total: u64,
 }
 
-#[derive(Debug, Default)]
+/// Called once when a query is cancelled (e.g. interrupting a database statement).
+pub type CancelHook = Box<dyn Fn() + Send + Sync>;
+
+#[derive(Default)]
 struct Shared {
     cancelled: AtomicBool,
     stage: AtomicU8,
     done: AtomicU64,
     total: AtomicU64,
+    hooks: std::sync::Mutex<Vec<(u64, CancelHook)>>,
+    next_hook: AtomicU64,
+}
+
+impl fmt::Debug for Shared {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Shared")
+            .field("cancelled", &self.cancelled)
+            .field("done", &self.done)
+            .field("total", &self.total)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Removes its hook from the control when dropped (see [`QueryControl::on_cancel`]).
+pub struct HookGuard {
+    control: QueryControl,
+    id: u64,
+}
+
+impl Drop for HookGuard {
+    fn drop(&mut self) {
+        let mut hooks = self.control.0.hooks.lock().unwrap_or_else(|p| p.into_inner());
+        hooks.retain(|(id, _)| *id != self.id);
+    }
 }
 
 /// Cancel flag and progress counters of one query run. Cheap to clone (all clones share the state).
@@ -49,9 +77,27 @@ impl QueryControl {
         Self::default()
     }
 
-    /// Asks the query to stop at its next check. Idempotent.
+    /// Asks the query to stop at its next check, and runs the registered cancel hooks (once).
     pub fn cancel(&self) {
-        self.0.cancelled.store(true, Ordering::Relaxed);
+        if self.0.cancelled.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let hooks = self.0.hooks.lock().unwrap_or_else(|p| p.into_inner());
+        for (_, h) in hooks.iter() {
+            h();
+        }
+    }
+
+    /// Runs `hook` when the query is cancelled (at once if it already is) until the returned guard is
+    /// dropped. A store registers the interrupt of the statement it is running.
+    pub fn on_cancel(&self, hook: CancelHook) -> HookGuard {
+        let id = self.0.next_hook.fetch_add(1, Ordering::Relaxed);
+        let mut hooks = self.0.hooks.lock().unwrap_or_else(|p| p.into_inner());
+        if self.is_cancelled() {
+            hook();
+        }
+        hooks.push((id, hook));
+        HookGuard { control: self.clone(), id }
     }
 
     pub fn is_cancelled(&self) -> bool {
@@ -311,5 +357,31 @@ mod tests {
         b.cancel();
         b.cancel();
         assert!(a.is_cancelled());
+    }
+
+    #[test]
+    fn cancel_hooks_run_once_and_unregister() {
+        use std::sync::atomic::AtomicUsize;
+        let control = QueryControl::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let c = calls.clone();
+        let guard = control.on_cancel(Box::new(move || {
+            c.fetch_add(1, Ordering::SeqCst);
+        }));
+        let dropped = calls.clone();
+        drop(control.on_cancel(Box::new(move || {
+            dropped.fetch_add(100, Ordering::SeqCst);
+        })));
+        control.cancel();
+        control.cancel();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        drop(guard);
+        // Registering after the cancel runs the hook at once.
+        let late = calls.clone();
+        let _g = control.on_cancel(Box::new(move || {
+            late.fetch_add(10, Ordering::SeqCst);
+        }));
+        assert_eq!(calls.load(Ordering::SeqCst), 11);
+        assert!(format!("{control:?}").contains("cancelled"));
     }
 }

@@ -86,6 +86,12 @@ fn interactive_operations_at_scale() {
         dir_mb(&store_dir.0.join("index")),
     );
     }
+    // A reused store forgets what earlier runs cached (field list, analyses): reads are measured cold.
+    if reuse {
+        if let Ok(conn) = duckdb::Connection::open(store_dir.0.join("data.duckdb")) {
+            let _ = conn.execute_batch("DELETE FROM analysis_cache; CHECKPOINT;");
+        }
+    }
     // Reopened: DuckDB's buffers are empty (the OS file cache is not).
     let before = current() >> 20;
     let (store, open_ms) = ms(|| DuckStore::open(&store_dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap());

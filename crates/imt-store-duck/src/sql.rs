@@ -1,12 +1,143 @@
-//! Compiling a query filter to SQL.
+//! Compiling the predicate language ([`Expr`]) to SQL.
 //!
 //! Values are written as escaped literals (numbers formatted, text in single quotes with quotes
-//! doubled), so a clause is self-contained and can be reused in any position of a statement. Text with a
-//! NUL character is never put into SQL; such criteria are left to the batch scan.
+//! doubled), so a clause is self-contained and can be reused in any position of a statement. Every
+//! compiled predicate is `TRUE` or `FALSE`, never `NULL`, so `NOT` keeps its meaning. A predicate SQL
+//! cannot express exactly (a regex, text with a NUL character) compiles to `None`; the conjuncts that do
+//! compile prefilter the events and the engine's evaluator decides the rest on a batch scan.
+//!
+//! Statements read events `e` joined with their source `s` ([`FROM`]).
 
-use imt_core::batch::EventSchema;
+use imt_core::batch::{ColumnType, EventSchema};
+use imt_core::model::Level;
 use imt_core::ports::{Filter, StoreError, StoreResult};
-use imt_core::query::{CompiledQuery, MAX_QUERY_SOURCES};
+use imt_core::ql::{CmpOp, Expr, NumOp, Operand};
+use imt_core::query::CompiledQuery;
+use imt_core::row::{FieldKey, Pseudo};
+
+/// Events with their source (for `@source`): `events_wide`, so promoted `p_<key>` columns can be read.
+pub const FROM: &str = "events_wide e JOIN sources s ON s.id = e.source";
+
+/// Where a statement reads fields from: the event schema (declared columns) and the keys every segment
+/// promotes to a text column (`p_<key>`, a copy of the value in `extra`; see `crate::promote`).
+pub trait FieldSource {
+    fn events(&self) -> &EventSchema;
+    /// Whether every segment has the key as a text column (then it holds every value).
+    fn promoted_text(&self, _key: &str) -> bool {
+        false
+    }
+}
+
+impl FieldSource for EventSchema {
+    fn events(&self) -> &EventSchema {
+        self
+    }
+}
+
+impl FieldSource for std::sync::Arc<EventSchema> {
+    fn events(&self) -> &EventSchema {
+        self
+    }
+}
+
+/// The schema and the promotions of the current segments.
+#[derive(Debug, Clone)]
+pub struct Fields {
+    pub schema: std::sync::Arc<EventSchema>,
+    /// Keys promoted as text in every segment.
+    pub promoted_text: std::collections::BTreeSet<String>,
+}
+
+impl FieldSource for Fields {
+    fn events(&self) -> &EventSchema {
+        &self.schema
+    }
+    fn promoted_text(&self, key: &str) -> bool {
+        self.promoted_text.contains(key)
+    }
+}
+
+/// The wide columns a read needs: the message, and which named fields (`None`: all). The rest read
+/// as empty, so sorts and scans carry only what the analysis uses (a sort of whole rows exceeds the
+/// memory limit at 10M events).
+#[derive(Debug, Clone, Default)]
+pub struct Columns {
+    pub message: bool,
+    /// When set, the message is read only where this SQL condition holds (empty elsewhere).
+    pub message_when: Option<String>,
+    pub fields: Option<Vec<String>>,
+}
+
+impl Columns {
+    /// Everything but `raw`.
+    pub fn all() -> Columns {
+        Columns {
+            message: true,
+            message_when: None,
+            fields: None,
+        }
+    }
+
+    pub fn only(message: bool, fields: impl IntoIterator<Item = impl Into<String>>) -> Columns {
+        Columns {
+            message,
+            message_when: None,
+            fields: Some(fields.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+fn sql_type(t: ColumnType) -> &'static str {
+    match t {
+        ColumnType::Utf8 => "VARCHAR",
+        ColumnType::Int64 => "BIGINT",
+        ColumnType::Float64 => "DOUBLE",
+        ColumnType::Boolean => "BOOLEAN",
+    }
+}
+
+/// The select list of event rows with `cols`: the event schema's columns in order (never `raw`, which
+/// only re-deriving reads; promoted columns are left out), unneeded wide columns as empty values.
+pub fn row_columns(schema: &EventSchema, cols: &Columns) -> String {
+    let wanted = |name: &str| cols.fields.as_ref().is_none_or(|f| f.iter().any(|x| x == name));
+    let mut out = Vec::new();
+    for field in schema.arrow().fields() {
+        let name = field.name().as_str();
+        let col = format!("e.{}", ident(name));
+        out.push(match name {
+            "raw" => "'' AS raw".to_string(),
+            "message" if !cols.message => "'' AS message".to_string(),
+            "message" => match &cols.message_when {
+                Some(cond) => format!("CASE WHEN {cond} THEN e.message ELSE '' END AS message"),
+                None => col,
+            },
+            "extra" => match &cols.fields {
+                None => col,
+                Some(fields) => {
+                    let keys: Vec<String> = fields.iter().filter(|f| !f.starts_with('@')).filter_map(|f| lit(f)).collect();
+                    if keys.is_empty() {
+                        "CAST(map() AS MAP(VARCHAR, VARCHAR)) AS extra".into()
+                    } else {
+                        format!(
+                            "map_from_entries(list_filter(map_entries(e.extra), lambda x: list_contains([{}], x.key))) AS extra",
+                            keys.join(", ")
+                        )
+                    }
+                }
+            },
+            _ => match schema.declared().iter().find(|c| c.column == name) {
+                Some(c) if !wanted(&c.name) => format!("CAST(NULL AS {}) AS {}", sql_type(c.ty), ident(name)),
+                _ => col,
+            },
+        });
+    }
+    out.join(", ")
+}
+
+/// Every event column but `raw` (see [`row_columns`]).
+pub fn rows_sql(schema: &EventSchema) -> String {
+    row_columns(schema, &Columns::all())
+}
 
 /// Sort key of time order: untimed events last.
 pub const TIME_KEY: &str = "coalesce(e.ts, 9223372036854775807)";
@@ -27,6 +158,11 @@ pub fn ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
 }
 
+/// A finite number as a SQL `DOUBLE` literal.
+pub(crate) fn double(v: f64) -> Option<String> {
+    v.is_finite().then(|| format!("CAST('{v:?}' AS DOUBLE)"))
+}
+
 /// The `LIKE` pattern that finds `text` anywhere (`\` escapes).
 fn contains_pattern(text: &str) -> String {
     let mut p = String::from("%");
@@ -40,9 +176,9 @@ fn contains_pattern(text: &str) -> String {
     p
 }
 
-/// SQL text of a field or pseudo-field for events `e` joined with sources `s`, as
-/// `Record::field_text` gives it (NULL when missing); `None` when it cannot be expressed.
-pub fn text_expr(name: &str, schema: &EventSchema) -> Option<String> {
+/// SQL text of a field or pseudo-field, as `RowRef::text` gives it (NULL when missing); `None` when it
+/// cannot be expressed.
+pub fn text_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
     Some(match name {
         "@level" => {
             "CASE e.level WHEN 0 THEN 'Verbose' WHEN 1 THEN 'Debug' WHEN 2 THEN 'Information' WHEN 3 THEN 'Warning' WHEN 4 THEN 'Error' ELSE 'Fatal' END"
@@ -55,12 +191,41 @@ pub fn text_expr(name: &str, schema: &EventSchema) -> Option<String> {
         "@line" => "CAST(e.line AS VARCHAR)".into(),
         _ => {
             let key = lit(name)?;
-            match schema.declared_index(name) {
+            let events = schema.events();
+            match events.declared_index(name) {
                 Some(i) => format!(
                     "coalesce(CAST(e.{} AS VARCHAR), e.extra[{key}])",
-                    ident(&schema.declared()[i].column)
+                    ident(&events.declared()[i].column)
                 ),
+                // Every segment keeps the key in a text column: read it instead of the whole map.
+                None if schema.promoted_text(name) => format!("e.{}", ident(&crate::promote::column(name))),
                 None => format!("e.extra[{key}]"),
+            }
+        }
+    })
+}
+
+/// A number parsed from text as `value_number` parses it (trimmed, finite), else NULL.
+fn parse_number(text: &str) -> String {
+    let v = format!("TRY_CAST(trim({text}, ' \t\n\r') AS DOUBLE)");
+    format!("CASE WHEN isfinite({v}) THEN {v} END")
+}
+
+/// SQL number of a field, as `RowRef::number` gives it (NULL when missing or not numeric).
+pub fn number_expr(name: &str, schema: &dyn FieldSource) -> Option<String> {
+    Some(match name {
+        "@line" => "CAST(e.line AS DOUBLE)".into(),
+        n if Pseudo::parse(n).is_some() => "CAST(NULL AS DOUBLE)".into(),
+        _ => {
+            let key = lit(name)?;
+            let events = schema.events();
+            match events.declared_index(name).map(|i| &events.declared()[i]) {
+                Some(c) if c.ty != ColumnType::Utf8 => format!(
+                    "coalesce(CAST(e.{} AS DOUBLE), {})",
+                    ident(&c.column),
+                    parse_number(&format!("e.extra[{key}]"))
+                ),
+                _ => parse_number(&text_expr(name, schema)?),
             }
         }
     })
@@ -68,7 +233,7 @@ pub fn text_expr(name: &str, schema: &EventSchema) -> Option<String> {
 
 /// SQL of the instance key (as `imt_core::query::group_key`): the fields' values joined with " · "
 /// ("–" for a missing one), or the source name when none is present; "all" without fields.
-pub fn group_key_expr(fields: &[String], schema: &EventSchema) -> Option<String> {
+pub fn group_key_expr(fields: &[String], schema: &dyn FieldSource) -> Option<String> {
     if fields.is_empty() {
         return Some("'all'".into());
     }
@@ -86,15 +251,176 @@ pub fn group_key_expr(fields: &[String], schema: &EventSchema) -> Option<String>
     ))
 }
 
-/// A filter compiled to SQL conditions on events `e`.
+fn sql_op(op: CmpOp) -> &'static str {
+    match op {
+        CmpOp::Ne => "<>",
+        CmpOp::Gt => ">",
+        CmpOp::Ge => ">=",
+        CmpOp::Lt => "<",
+        CmpOp::Le => "<=",
+        _ => "=",
+    }
+}
+
+/// A query-language comparison (see `imt_core::ql::Expr::Cmp`): by severity for levels, numerically
+/// when both sides are numbers, else as text; a missing field only satisfies `!=`.
+fn cmp_sql(field: &FieldKey, op: CmpOp, rhs: &Operand, schema: &dyn FieldSource) -> Option<String> {
+    if let Some(level) = rhs.level {
+        return Some(format!("(e.level {} {})", sql_op(op), level.index()));
+    }
+    let text = text_expr(field.name(), schema)?;
+    let lit_text = lit(&rhs.lit.text)?;
+    let o = sql_op(op);
+    let as_text = format!("{text} {o} {lit_text}");
+    let decided = match rhs.lit.number.and_then(double) {
+        Some(n) => {
+            let num = number_expr(field.name(), schema)?;
+            format!("CASE WHEN {num} IS NOT NULL THEN {num} {o} {n} ELSE {as_text} END")
+        }
+        None => as_text,
+    };
+    let missing = if op == CmpOp::Ne { "TRUE" } else { "FALSE" };
+    Some(format!("(CASE WHEN {text} IS NULL THEN {missing} ELSE {decided} END)"))
+}
+
+fn level_named(value: &str) -> Option<Level> {
+    Level::ALL.iter().copied().find(|l| l.as_str().eq_ignore_ascii_case(value))
+}
+
+/// The SQL of `e` (never NULL), or `None` when SQL cannot express it exactly. `group_by` is the
+/// query's instance key (for [`Expr::Group`]).
+pub fn expr_sql(e: &Expr, schema: &dyn FieldSource, group_by: &[String]) -> Option<String> {
+    let text = |k: &FieldKey| text_expr(k.name(), schema);
+    Some(match e {
+        Expr::And(v) | Expr::Or(v) => {
+            let and = matches!(e, Expr::And(_));
+            let parts = v.iter().map(|x| expr_sql(x, schema, group_by)).collect::<Option<Vec<_>>>()?;
+            if parts.is_empty() {
+                return Some(if and { "TRUE" } else { "FALSE" }.into());
+            }
+            format!("({})", parts.join(if and { " AND " } else { " OR " }))
+        }
+        Expr::Not(x) => format!("(NOT {})", expr_sql(x, schema, group_by)?),
+        Expr::Const(b) => if *b { "TRUE" } else { "FALSE" }.into(),
+        Expr::Cmp { field, op, rhs } => cmp_sql(field, *op, rhs, schema)?,
+        Expr::In { field, set } => {
+            let parts = set
+                .iter()
+                .map(|o| cmp_sql(field, CmpOp::Eq, o, schema))
+                .collect::<Option<Vec<_>>>()?;
+            if parts.is_empty() {
+                "FALSE".into()
+            } else {
+                format!("({})", parts.join(" OR "))
+            }
+        }
+        Expr::Contains { field, needle, negate } => {
+            let n = lit(needle)?;
+            let has = format!("coalesce(contains(lower({}), {n}), FALSE)", text(field)?);
+            if *negate {
+                format!("(NOT {has})")
+            } else {
+                has
+            }
+        }
+        Expr::Regex { .. } => return None,
+        Expr::Exists(f) => format!("(coalesce({}, '') <> '')", text(f)?),
+        Expr::Missing(f) => format!("(coalesce({}, '') = '')", text(f)?),
+        Expr::Text(needle) => {
+            let n = lit(needle)?;
+            format!(
+                "(coalesce(contains(lower(e.message), {n}), FALSE) OR coalesce(contains(lower(e.exception), {n}), FALSE) OR coalesce(contains(lower(e.template), {n}), FALSE))"
+            )
+        }
+        Expr::TextEq { field, value, ignore_case } if *ignore_case => {
+            // Only level names are compared ignoring (ASCII) case.
+            if field.name() != "@level" {
+                return None;
+            }
+            match level_named(value) {
+                Some(l) => format!("(e.level = {})", l.index()),
+                None => "FALSE".into(),
+            }
+        }
+        Expr::TextEq { field, value, .. } => format!("coalesce({} = {}, FALSE)", text(field)?, lit(value)?),
+        Expr::TextIn { field, set } => {
+            if set.is_empty() {
+                return Some("FALSE".into());
+            }
+            let values = set.iter().map(|v| lit(v)).collect::<Option<Vec<_>>>()?;
+            format!("coalesce({} IN ({}), FALSE)", text(field)?, values.join(", "))
+        }
+        Expr::NumCmp { field, op, value } => {
+            let o = match op {
+                NumOp::Gt => ">",
+                NumOp::Lt => "<",
+            };
+            let v = double(*value)?;
+            if field.name() == "@level" {
+                format!("(CAST(e.level AS DOUBLE) {o} {v})")
+            } else {
+                format!("coalesce({} {o} {v}, FALSE)", number_expr(field.name(), schema)?)
+            }
+        }
+        Expr::Search(s) => {
+            let p = lit(&contains_pattern(s.literal.as_deref()?))?;
+            let op = if s.case_sensitive { "LIKE" } else { "ILIKE" };
+            format!(
+                "(coalesce(e.message {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.exception {op} {p} ESCAPE '\\', FALSE) OR coalesce(e.template {op} {p} ESCAPE '\\', FALSE))"
+            )
+        }
+        Expr::Levels(mask) => {
+            let codes: Vec<String> = (0u8..6).filter(|i| mask & (1 << i) != 0).map(|i| i.to_string()).collect();
+            if codes.is_empty() {
+                "FALSE".into()
+            } else {
+                format!("e.level IN ({})", codes.join(", "))
+            }
+        }
+        Expr::Markers(mask) => format!("((e.markers & {mask}::UBIGINT) <> 0)"),
+        Expr::Sources(set) => {
+            if set.is_empty() {
+                "FALSE".into()
+            } else {
+                let ids: Vec<String> = set.iter().map(u32::to_string).collect();
+                format!("e.source IN ({})", ids.join(", "))
+            }
+        }
+        Expr::Time { from, to } => {
+            let mut parts = Vec::new();
+            if let Some(f) = from {
+                parts.push(format!("e.ts >= {f}"));
+            }
+            if let Some(t) = to {
+                parts.push(format!("e.ts <= {t}"));
+            }
+            if parts.is_empty() {
+                "TRUE".into()
+            } else {
+                format!("coalesce({}, FALSE)", parts.join(" AND "))
+            }
+        }
+        Expr::Group { set, .. } => {
+            if set.is_empty() {
+                return Some("FALSE".into());
+            }
+            let key = group_key_expr(group_by, schema)?;
+            let values = set.iter().map(|v| lit(v)).collect::<Option<Vec<_>>>()?;
+            format!("coalesce({key} IN ({}), FALSE)", values.join(", "))
+        }
+    })
+}
+
+/// A filter compiled to SQL conditions on events `e` (joined with sources `s`).
 #[derive(Debug, Clone)]
 pub struct SqlFilter {
-    /// Sources and time range (decide which events belong on the timeline).
+    /// The structural conjuncts SQL expresses (sources, time range, field filters, instance selection:
+    /// they decide which events belong on the timeline).
     pub structural: Vec<String>,
-    /// Levels, plain text and markers (decide which events match).
+    /// The content conjuncts SQL expresses (levels, markers, the search box, the query language).
     pub content: Vec<String>,
     /// True when the SQL is the whole filter; otherwise matching rows must also pass the
-    /// [`CompiledQuery`] (regex text, field filters, instance selection, query language).
+    /// [`CompiledQuery`] on a batch scan.
     pub exact: bool,
 }
 
@@ -121,70 +447,50 @@ impl SqlFilter {
     }
 }
 
+/// Compiles the conjuncts of a lowered query: the SQL of those SQL expresses, and whether that is all.
+pub fn compile_query(cq: &CompiledQuery, schema: &dyn FieldSource) -> SqlFilter {
+    let mut exact = true;
+    let mut part = |exprs: &[Expr]| -> Vec<String> {
+        exprs
+            .iter()
+            .filter_map(|e| {
+                let sql = expr_sql(e, schema, &cq.group_by);
+                exact &= sql.is_some();
+                sql
+            })
+            .collect()
+    };
+    let structural = part(cq.structural_exprs());
+    let content = part(cq.content_exprs());
+    SqlFilter {
+        structural,
+        content,
+        exact,
+    }
+}
+
 /// Validates the filter (as the in-memory store does) and compiles what SQL can express.
-pub fn compile(q: &Filter, default_group_by: &[String], marker_kinds: &[String]) -> StoreResult<(SqlFilter, CompiledQuery)> {
+pub fn compile(
+    q: &Filter,
+    default_group_by: &[String],
+    marker_kinds: &[String],
+    schema: &dyn FieldSource,
+) -> StoreResult<(SqlFilter, CompiledQuery)> {
     if q.window.is_some() {
         return Err(StoreError::unsupported("live time windows", "6c"));
     }
     let cq = CompiledQuery::new(q, default_group_by, marker_kinds).map_err(|e| StoreError::Invalid(format!("{e:#}")))?;
-    let mut exact = q.filters.is_empty() && q.groups.is_empty() && q.ql.trim().is_empty();
-    let mut structural = Vec::new();
-    if !q.sources.is_empty() {
-        debug_assert!(q.sources.len() <= MAX_QUERY_SOURCES, "checked by CompiledQuery::new");
-        let ids: Vec<String> = q.sources.iter().map(u32::to_string).collect();
-        structural.push(format!("e.source IN ({})", ids.join(", ")));
-    }
-    if let Some(from) = q.from {
-        structural.push(format!("e.ts >= {from}"));
-    }
-    if let Some(to) = q.to {
-        structural.push(format!("e.ts <= {to}"));
-    }
-    let mut content = Vec::new();
-    if !q.levels.is_empty() {
-        let codes: Vec<String> = q.levels.iter().map(|l| l.index().to_string()).collect();
-        content.push(format!("e.level IN ({})", codes.join(", ")));
-    }
-    let text = q.text.trim();
-    if !text.is_empty() {
-        match (q.regex, lit(&contains_pattern(text))) {
-            (false, Some(p)) => {
-                let op = if q.case_sensitive { "LIKE" } else { "ILIKE" };
-                content.push(format!(
-                    "e.message {op} {p} ESCAPE '\\' OR e.exception {op} {p} ESCAPE '\\' OR e.template {op} {p} ESCAPE '\\'"
-                ));
-            }
-            _ => exact = false,
-        }
-    }
-    if !q.markers.is_empty() {
-        let mask = q
-            .markers
-            .iter()
-            .filter_map(|m| marker_kinds.iter().position(|k| k == m))
-            .fold(0u64, |m, i| m | (1 << i));
-        content.push(if mask == 0 {
-            "FALSE".into()
-        } else {
-            format!("(e.markers & {mask}::UBIGINT) <> 0")
-        });
-    }
-    Ok((
-        SqlFilter {
-            structural,
-            content,
-            exact,
-        },
-        cq,
-    ))
+    Ok((compile_query(&cq, schema), cq))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::batch::ColumnType;
-    use imt_core::model::Level;
     use imt_core::query::FieldFilter;
+
+    fn plain() -> EventSchema {
+        EventSchema::plain()
+    }
 
     #[test]
     fn literals_and_identifiers_are_escaped() {
@@ -196,6 +502,8 @@ mod tests {
             order_by(true),
             "ORDER BY coalesce(e.ts, 9223372036854775807) DESC, e.source DESC, e.line DESC, e.id DESC"
         );
+        assert_eq!(double(f64::NAN), None);
+        assert_eq!(double(2.5).unwrap(), "CAST('2.5' AS DOUBLE)");
     }
 
     #[test]
@@ -209,9 +517,12 @@ mod tests {
             sources: vec![1, 2],
             ..Filter::default()
         };
-        let (f, _) = compile(&q, &[], &["stop".into(), "start".into()]).unwrap();
+        let (f, _) = compile(&q, &[], &["stop".into(), "start".into()], &plain()).unwrap();
         assert!(f.exact);
-        assert_eq!(f.structural_sql(), "(e.source IN (1, 2)) AND (e.ts >= 10) AND (e.ts <= 20)");
+        assert_eq!(
+            f.structural_sql(),
+            "(e.source IN (1, 2)) AND (coalesce(e.ts >= 10 AND e.ts <= 20, FALSE))"
+        );
         let content = f.content_sql();
         assert!(content.contains("e.level IN (3, 4)"), "{content}");
         assert!(content.contains("e.message ILIKE '%it''s%' ESCAPE '\\'"), "{content}");
@@ -223,10 +534,57 @@ mod tests {
             },
             &[],
             &[],
+            &plain(),
         )
         .unwrap();
         assert_eq!(f.content_sql(), "(FALSE)");
-        assert_eq!(compile(&Filter::default(), &[], &[]).unwrap().0.all_sql(), "(TRUE) AND (TRUE)");
+        assert_eq!(
+            compile(&Filter::default(), &[], &[], &plain()).unwrap().0.all_sql(),
+            "(TRUE) AND (TRUE)"
+        );
+    }
+
+    #[test]
+    fn field_filters_and_the_query_language_compile() {
+        for (op, value) in [
+            ("eq", Some("x")),
+            ("ne", Some("x")),
+            ("contains", Some("x")),
+            ("notContains", Some("x")),
+            ("exists", None),
+            ("missing", None),
+            ("gt", Some("1")),
+            ("lt", Some("1")),
+            ("in", Some("a|b")),
+        ] {
+            let q = Filter {
+                filters: vec![FieldFilter {
+                    field: "A".into(),
+                    op: op.into(),
+                    value: value.map(str::to_string),
+                }],
+                groups: vec!["g".into()],
+                ql: "level >= warning and (ms > 5 or not message contains 'x') and Host in (a, 2) and exists(Host)".into(),
+                ..Filter::default()
+            };
+            let (f, _) = compile(&q, &["Host".into()], &[], &plain()).unwrap();
+            assert!(f.exact, "{op}: {}", f.all_sql());
+        }
+        let (f, _) = compile(
+            &Filter {
+                filters: vec![FieldFilter {
+                    field: "@level".into(),
+                    op: "eq".into(),
+                    value: Some("WARNING".into()),
+                }],
+                ..Filter::default()
+            },
+            &[],
+            &[],
+            &plain(),
+        )
+        .unwrap();
+        assert_eq!(f.structural_sql(), "((e.level = 3))");
     }
 
     #[test]
@@ -240,17 +598,13 @@ mod tests {
             Filter {
                 filters: vec![FieldFilter {
                     field: "A".into(),
-                    op: "exists".into(),
-                    value: None,
+                    op: "matches".into(),
+                    value: Some("x+".into()),
                 }],
                 ..Filter::default()
             },
             Filter {
-                groups: vec!["x".into()],
-                ..Filter::default()
-            },
-            Filter {
-                ql: "level >= warning".into(),
+                ql: "message ~ 'a+'".into(),
                 ..Filter::default()
             },
             Filter {
@@ -258,24 +612,24 @@ mod tests {
                 ..Filter::default()
             },
         ] {
-            assert!(!compile(&q, &[], &[]).unwrap().0.exact, "{q:?}");
+            assert!(!compile(&q, &[], &[], &plain()).unwrap().0.exact, "{q:?}");
         }
         let bad = Filter {
             text: "(".into(),
             regex: true,
             ..Filter::default()
         };
-        assert!(matches!(compile(&bad, &[], &[]), Err(StoreError::Invalid(_))));
+        assert!(matches!(compile(&bad, &[], &[], &plain()), Err(StoreError::Invalid(_))));
         let live = Filter {
             window: Some(imt_core::query::TimeWindow::Live { last_ms: 5 }),
             ..Filter::default()
         };
-        assert!(matches!(compile(&live, &[], &[]), Err(StoreError::Unsupported { .. })));
+        assert!(matches!(compile(&live, &[], &[], &plain()), Err(StoreError::Unsupported { .. })));
     }
 
     #[test]
-    fn field_text_and_group_keys() {
-        let schema = EventSchema::new([("Ms", ColumnType::Float64)]).unwrap();
+    fn field_text_numbers_and_group_keys() {
+        let schema = EventSchema::new([("Ms", ColumnType::Float64), ("Name", ColumnType::Utf8)]).unwrap();
         assert_eq!(text_expr("@source", &schema).unwrap(), "s.name");
         assert_eq!(
             text_expr("Ms", &schema).unwrap(),
@@ -283,6 +637,12 @@ mod tests {
         );
         assert_eq!(text_expr("Host", &schema).unwrap(), "e.extra['Host']");
         assert_eq!(text_expr("a\0", &schema), None);
+        assert_eq!(number_expr("a\0", &schema), None);
+        assert!(number_expr("Ms", &schema)
+            .unwrap()
+            .starts_with("coalesce(CAST(e.\"f_Ms\" AS DOUBLE)"));
+        assert!(number_expr("Name", &schema).unwrap().contains("e.\"f_Name\""));
+        assert_eq!(number_expr("@message", &schema).unwrap(), "CAST(NULL AS DOUBLE)");
         for p in ["@level", "@message", "@exception", "@template", "@line"] {
             assert!(text_expr(p, &schema).is_some());
         }

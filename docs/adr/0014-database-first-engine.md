@@ -437,3 +437,204 @@ builds the workspace fetches it (a skipped test still has to link). Steps:
    4 minutes of import and indexing plus the corpus, generated once into a cached folder via `IMT_BENCH_DIR`) and
    `IMT_BENCH_COPIES=20 cargo test --release -p imt-store-worker --test worker -- --nocapture` (budgets asserted).
 4. Bundling (6c): ship `duckdb.dll` / `libduckdb.so` / `libduckdb.dylib` and `imt-store-worker` with the app.
+
+## Implementation notes (R2c, 2026-10-20)
+
+Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the app still uses `LogStore` until 6c.
+
+### What exists
+
+- **One predicate language** (review finding 7). `condition::Check` is one variant per operator (operands typed,
+  a list value only for `in`; the `in` list is no longer joined with `|` and split again); a `Condition` is its
+  `Check` lowered into `ql::Expr`. `CompiledQuery` lowers every criterion (sources, time range, field filters,
+  instance selection; levels, markers, the search box, the QL filter and leading `where` stages) into `Expr`
+  conjuncts evaluated by the one evaluator over `&dyn RowRef` (records and Arrow rows alike; field names interned
+  as `FieldKey`, `BatchSlots` check the name so keys of other `FieldKeys` stay correct). New `Expr` variants carry
+  the condition semantics exactly: `TextEq` (level names ignore ASCII case), `TextIn`, `NumCmp` (strictly
+  numeric), `Search`, `Levels`, `Markers`, `Sources`, `Time`, `Group`, `Const`. One intended change: `ne` is the
+  negation of `eq`, so `@level ne Warning` now also ignores case.
+- **SQL compiler** (`imt-store-duck/src/sql.rs`): `expr_sql` compiles each conjunct to a never-NULL predicate or
+  `None` (regex, NUL text); the compiled conjuncts prefilter, the evaluator decides the rest on the scan (so the
+  prefilter is never approximate). Numbers follow `value_number` (`TRY_CAST(trim(..))`, finite only), QL `Cmp`
+  compares by severity, numerically when both sides are numbers, else as text; contains folds with `lower()`.
+- **`RowRef`** gains `id`, `named_value`, `for_each_field`, `text_of`/`number_of`; `Record` (source name empty),
+  `RecordRow`, `OwnedRow` (an owned event streamed out of a store) and `ArrowRow` implement it.
+- **Analyses are pure over `RowRef`** (finding 1): patterns, exception groups, anomalies (and memory growth),
+  compare, field stats, correlate, spans/waterfall, requests; new pure modules for the Moment
+  (`MomentBuilder`, `MetricCollector`), the health check (`findings`), trace summaries, chart series
+  (`chart::Buckets`, `SeriesBuilder`, `chart_defs`) and runs (`spans::book`). The Workspace and the store call the
+  same code.
+- **Bounded** (finding 13): the Drain miner keeps `MAX_CLUSTERS` (10,000) patterns and counts the rest in one
+  overflow pattern; compare tracks at most `max_distinct + 1` values per field and side (identical results: a
+  field with more is not compared anyway) and 1,000 fields; the waterfall is linear (finding 19: the
+  `roots.contains` and root walk were quadratic).
+- **Coverage** (finding 16): the `Analysis` port returns `Analyzed<T> { result, coverage }`; `Coverage { matched,
+  analysed, limits }` says when `MAX_ANALYSED` (2M) or a cap bounded the result. The query language fails with a
+  message instead of truncating silently.
+- **The store's `Analysis` and `Query` ports** are complete except `export` (6c): events stream out of the
+  database in time order (`EventStream`, a pull iterator over the DuckDB statement, the residual filter on Arrow
+  rows, never the `raw` column); compare uses two connections; correlate and chart bounds are SQL.
+- **Per-generation cache** (finding 18): `analysis_cache(version, kind, hash, query, value)` holds patterns,
+  exception groups and anomalies, keyed by the persisted `meta.data_version` (bumped by every import, removal,
+  clear and re-import; older versions are deleted) and the FNV-1a hash of the canonical query (set-like lists
+  sorted; the text is stored and compared too). Nothing is cached while an import runs.
+- **Query language on the store**: the program's filter part compiles to SQL with the query; `ql::run_rows`
+  streams the leading `where`s and a first `stats` (nothing is kept per event), `sort`/`head`/`fields` keep
+  what they need. `Query::run_query_with(req, &QueryControl)`; `QueryControl::on_cancel` hooks interrupt the
+  running DuckDB statement (`InterruptHandle`), and an interrupted statement is `StoreError::Cancelled`.
+  `StoreError::Query(QlError)` keeps the error span.
+- **Profiles**: `profile_change::classify` sorts a change into presentation, derivation or parsing (finding 4)
+  with the changed sections. The store swaps the profile for a presentation change; for derivation and parsing
+  it re-reads the sources as a job when every file is still there and unchanged (plain files: same size), and
+  refuses with a message naming the missing or changed files otherwise. `Ingest::reload` works.
+  `Profile::with_override` merges TOML over a profile (project overrides, quick fixes). Extractor field types are
+  the `FieldType` enum; an unknown type is refused with its line (finding 20). `preview_parse` and the extractor
+  preview (`ExtractPreviewer`) are pure and served by the store.
+- **Diagnostics**: `ProblemKind` adds `fieldInvalid`, `encoding`, `unknownFormat`, `truncatedArchive`,
+  `eventSplit`. `DiagnosticRow` has `source: Option<SourceId>`, `path`, `detail` and `fix: Option<DiagnosticFix>`;
+  files no importer reads are `unknownFormat` rows; unreadable timestamps come with the batch 5 suggestion
+  verified against the stored untimed events (the override keeps the current formats). `evaluate_fix` merges the
+  override, then re-reads up to 10,000 stored untimed events of the affected sources with the candidate
+  profile's importer ("fixes N of M"); an event that cannot be read alone (a CSV line without its header) counts
+  when the candidate's timestamp formats read a timestamp in it that the active ones do not (said in `notes`).
+- **Projects** (`imt_core::package`): `<name>.imt/` with `project.toml` (`format = "imt-project"`, version 1,
+  name, profile overrides, clock offsets, layout, roots; missing keys default, a newer version is refused), the
+  database, `snapshots/`, and the caches `index/` and `tmp/`. `ProjectDir::export_with` writes the `.imtz` without
+  caches or WAL (Parquet stored, the rest deflated, zip64); the store exports a `COPY FROM DATABASE` copy of its
+  open database (Windows does not let another handle read it). `open_package` is the one archive entry point: a
+  root `project.toml` of format `imt-project` is a project (extracted under `MAX_PROJECT_ENTRY` 256 GiB per file
+  and 1 TiB in all, streamed to disk), a share manifest a share bundle, anything else a collector bundle
+  (finding 14). `DuckStore::{create_project, open_project, save_project, export_project}`; a project opens
+  without its log files.
+- **Source context** (finding 12): read from the file at the event's `byte_offset` when the line there is the
+  event's first stored line (plain UTF-8 files, a 4 MiB window either side); otherwise the stored events of the
+  source around the line, with `SourceContext.note` saying why (missing, changed, compressed or archived).
+- **Tests**: differential against the old condition evaluator for every operator on the samples, records vs
+  Arrow rows for every criterion, and the DuckDB store vs the Workspace for every operator and QL form (pages),
+  every analysis (ids compared as source path and line), charts (also the profile's charts with `when`), field
+  stats, runs, the query language (events and tables), check and completion; diagnostics, quick fixes,
+  classified profile changes, projects opened without their files, and cancellation.
+
+### Deviations and open points
+
+- **Writes stay R2b's.** With events as read-only Parquet segments (R2b), re-deriving fields and markers from
+  `raw` without the files means writing a new segment generation; R2c re-reads the files instead and refuses
+  when they are gone. A change that declares other typed columns is refused (the schema is per store until
+  segments carry their own). `forget_events` (clear, re-import) still deletes from `events`; R2b's manifest swap
+  replaces it.
+- **Not done here**: dedupe per source after sorting with key expiry and `StepCfg` as a tagged enum (finding 11),
+  lookup tables stored in the project, the pure timestamp parse environment and the per-source winning format
+  (finding 15), marker kinds written per generation on a profile change (finding 5), a stored source fingerprint
+  (finding 8; the size check stands in), redaction of an exported project, clock offsets applied by the store
+  (they are kept in `project.toml`; the `events` view of R2b can apply them), producers of the new problem kinds
+  (`fieldInvalid` in the batcher, `encoding`, `truncatedArchive`, `eventSplit` in the R2b pipeline), and
+  `Query::export`.
+- **Ids**: QL event ids, sample ids, `ContextRequest.record_id` and run events are still `u32` (saturating).
+- **Analyses that keep events**: anomaly detection and spans keep the window's events (as owned rows in the
+  store); a projection of the few columns they read is the next step for the memory budget.
+- **Compare reads numeric text as numbers** (stores keep undeclared fields as text), so JSON strings such as
+  `"500"` count as numbers too.
+
+### Read performance (R2c, after the R2b measurement at 10M events)
+
+- **Pages are two-phase**: the page's ids by an id-only sort of the matching events (`ORDER BY` time key, `LIMIT`
+  over ids, never wide rows), then `rows_by_id`. The R2b primitives (`ord`/positions for unfiltered pages and
+  anchors, `rows(ids)`) slot in behind `Inner::page` without a port change.
+- **Narrow reads**: `sql::Columns` says which wide columns a read needs (the message, which fields; others read
+  as empty, `extra` filtered to the named keys with `list_filter`); every analysis states its columns, reads in
+  time order only when its result depends on order (charts, field stats, compare and the Moment's previous
+  window read unordered), and anomaly detection reads the message only of errors and stop messages. Analyses no
+  longer keep whole events: spans stream (earliest event wins, as if sorted) and anomalies keep a few dozen bytes
+  per event (`Slim`).
+- **Timeline**: no window functions: one GROUP BY (lane, bucket, level, matched, source) with `min(struct)`
+  for the first events, and one GROUP BY over marked events for the clusters (`arg_min` for the message).
+- **Facets** are one scan (`sum`/`count` over the groups). **Charts** of `count()`, `min()` and `max()` are one
+  GROUP BY (sums and averages stay in Rust so they add up as the engine does). The field list and instance
+  key are cached in the database per data version and profile (a reopened project does not rescan `extra`).
+- **For R2b to plug in** (shapes to agree in the ports): the per-segment field catalog replaces `Inner::derived`
+  (fields with count, distinct (capped), numeric); per-segment minute × level × source histograms answer
+  `timeline_sql` for buckets of a minute or more without content filters other than levels (the GROUP BY stays
+  for the rest); the Search port answers plain text (`Expr::Search` with a literal, `Expr::Text`) with ids,
+  `ILIKE` only verifying phrases.
+- **Benchmark**: `tests/bench_reads.rs` (`IMT_BENCH_READS=<copies>` or `IMT_BENCH_STORE=<folder>`,
+  `IMT_BENCH_STRICT=1` to enforce) times every `Query` and `Analysis` method and the RSS per operation. On this
+  machine (release, R2a's native-table store, 563,220 events = 20 copies of the samples, a fresh process): summary
+  6 ms, pages 85–145 ms (text 240 ms), timeline 200 ms, facets 7–40 ms, chart 60 ms, correlate 63 ms, field stats
+  540 ms, QL stats 810 ms, Moment 1.1 s, patterns 1.0 s, anomalies 2.3 s, compare 2.0 s, traces 1.2 s, runs 1.0 s
+  (cached analyses 1–2 ms); peak RSS 486 MB (anomalies; patterns, traces, runs and QL stats 320–360 MB). At 10M
+  the time-ordered analyses (patterns, anomalies, traces, runs, Moment, QL sorts) and field stats/QL `stats`
+  (still in Rust) will miss the 0.5 s budget; they need SQL pre-aggregation (field stats, `stats`), the
+  position order of R2b instead of a sort, or to run as jobs with cached results.
+
+### Reads on R2b's structures (R2c, after merging R2b)
+
+- **Fields**: statements read `events_wide`; a key is read from its promoted `p_<key>` column when every
+  segment that has the key promotes it as text (`sql::Fields`, `FieldSource`), else from `extra`. The field
+  list comes from `segment_fields` (counts exact; distinct exact when every segment lists all its values,
+  counted in one SQL statement below `PREAGGREGATE_ABOVE` events, else the segments' estimates summed).
+- **Pages**: unfiltered pages and anchors use `ord` positions; filtered pages stay two-phase (ids by the time
+  key, then `rows_by_id`, which prunes to the segment files holding the ids).
+- **Timeline**: from 1M events (`PREAGGREGATE_ABOVE`, `set_preaggregate_above` for tests) a timeline of
+  minute-or-longer buckets that filters only sources, time and levels, where each source belongs to one lane,
+  comes from the minute histogram: counts per whole minute (a bucket edge inside a minute takes the whole
+  minute), lane bounds from the sources' first and last events (exact without a time range), markers from
+  the marked events. Otherwise one GROUP BY over the events, as before.
+- **Field stats and QL `stats`** aggregate in SQL when the filter is exact: field stats in one statement
+  (`quantile_cont`, top values, histogram bins by `analysis::field_stats::bin_layout`); a program's first
+  `stats` as one GROUP BY (keys as text, groups in first-seen order by `min(struct(time key))`, nearest-rank
+  percentiles from a sorted `list`, the engine's limit on values per percentile), the remaining stages by
+  `ql::run_table`. Floats can differ from the engine in the last digits (summation order).
+- **Time-ordered analyses** (patterns, anomalies, traces, runs, Moment, QL without `stats`, previews) no longer
+  sort the wide rows of every matching event: joining `ord` and sorting all ids both exceeded the 192 MB
+  limit or took minutes at 10M events, so a stream (`EventStream::ordered`) reads windows of time with about
+  100,000 matching events each (from the minute histogram, scaled by the share of events that match; a busy
+  minute split evenly; untimed events last), each sorted on its own; a stream of fewer events sorts at once.
+  An exact stream stops at its limit and counts the rest in SQL.
+- **Not done: plain text through the full-text index.** Tantivy's hits are words, the search box and `Text`
+  match substrings (`timeout` finds `ReadTimeout`, `timeouts`): on `/samples` the index finds 194 of the 431
+  events. Narrowing by the index changes what users find, so it needs a decision first: word semantics for
+  the search box (matching the Search port), or an n-gram index that is a superset of substring matches.
+- **Promotion is per segment**: at 10M, 9 of 93 segments with `MachineName` did not promote it (it is decided
+  on each segment's first batch), so the facet reads `extra` (0.8–1.3 s instead of 0.12–0.25 s from the column).
+  Sticky promotion (a key promoted once stays promoted in later segments, or compaction re-promotes) would let
+  every read use the column.
+- **Measured** (release, 10M events, `IMT_BENCH_STORE`, cached analyses dropped first; the machine was shared
+  with other builds, so times vary by up to 2x between runs): pages 50–360 ms (were 0.5–2.5 s), field stats
+  2.3 s (15 s), QL stats 0.3 s (refused before), Moment 0.5 s (1.0 s), exception groups 3 s, requests 5.6 s
+  (30 s); patterns, anomalies, traces and runs now finish (they failed before: refused or out of memory); peak
+  RSS 971 MB in anomaly detection (was 1,047 MB), under 270 MB elsewhere. Still over budget: timelines with
+  instance lanes at 10M (3–6 s; sources with several instances need the events), facets of keys not promoted
+  everywhere, charts (1.3 s), correlate.
+
+### Span rule inference (R2c)
+
+- `Profiles::propose_span_rule(SpanRuleRequest { examples: [{ start, end }], hints: { name?, keyField? } })`
+  reads the example events and returns `SpanProposal { candidates, notes }`; `imt_core::spans::infer::propose` is
+  pure. What tells starts from ends: the words only every start line (or only every end line) has, wherever they
+  are ("open X" / "close X", "X started" / "X ended", "View X loaded" / "View X closed"), else a field whose value
+  differs (`Phase = begin` / `end`). The key: a token both lines of each pair share, captured by a bounded regex
+  (`user_regex`) anchored on the verbs or on the neighbouring token (`[Tab:42]` gives `Tab:(?P<SpanKey>…)`),
+  or a field both events carry with the same value (JSON logs); a token that does not vary across several
+  examples is not a key; up to three candidates, alternatives when several tokens qualify.
+- A candidate is a profile override (the profile's lists repeated, since lists replace): an extractor for
+  `SpanKey` (untyped, so no new column), `<kind>-start` / `<kind>-stop` markers (whole-word, case-insensitive
+  message conditions plus `SpanKey` exists) and a `[[span]]` with `per = "field:SpanKey"`. Applying it is
+  `set_profile(active.with_override(..))` (a derivation change, undoable by setting the old profile back).
+- `Profiles::evaluate_span_rule(SpanRuleCheck { profileOverride, kind })` evaluates any rule, the engine's or
+  an AI's: the candidate profile's extractors and markers run on each event as an import would and its runs
+  are paired by the same `Pairer` as the Runs table. `SpanEvaluation`: spans, distinct keys, open, unmatched
+  starts and ends, longest and shortest, the most runs open at once in a lane, `dropped` (beyond a rule's
+  per-lane and key limits), up to 20 sample pairs, events looked at. The store reads only events that can be a
+  start or stop (the markers' conditions on fields no extractor makes, compiled to SQL), in time order; the pure
+  evaluator skips other events with the same test (10M events in 0.8 s, release). As in every `[[span]]`, a key
+  started twice before it stops is one run.
+
+### For 6c (`api.types.ts`)
+
+- `Analysis` results: `{ result, coverage: { matched, analysed, limits } }`.
+- `DiagnosticRow`: `source` nullable, new `path`, `detail?`, `fix?: { title, profileOverride, timestamp? }`; new
+  kinds; `FixEvaluation`: `{ fixed, checked, unchecked, notes? }`.
+- `SourceContext.note?`; `StoreError::Query` carries the `QlError` (message, offset, len, suggestions).
+- Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
+- Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
+  kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.

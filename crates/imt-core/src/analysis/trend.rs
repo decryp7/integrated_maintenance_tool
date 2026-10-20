@@ -5,7 +5,7 @@
 
 use super::anomaly::{Anomaly, AnomalyKind};
 use super::util::{fmt_duration, fmt_num};
-use crate::model::Record;
+use crate::row::RowRef;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -62,7 +62,10 @@ struct Series {
 }
 
 /// Instances as `(key, events sorted or not)`; see [`super::detect`].
-pub fn memory_growth<'a>(instances: impl IntoIterator<Item = (&'a str, &'a [(i64, &'a Record)])>, cfg: &TrendConfig) -> Vec<Anomaly> {
+pub fn memory_growth<'a, R: RowRef + 'a>(
+    instances: impl IntoIterator<Item = (&'a str, &'a [(i64, R)])>,
+    cfg: &TrendConfig,
+) -> Vec<Anomaly> {
     let mut series: BTreeMap<(String, String), Series> = BTreeMap::new();
     for (key, events) in instances {
         for (ts, rec) in events {
@@ -80,9 +83,13 @@ pub fn memory_growth<'a>(instances: impl IntoIterator<Item = (&'a str, &'a [(i64
     out
 }
 
-fn collect_fields(series: &mut BTreeMap<(String, String), Series>, key: &str, ts: i64, rec: &Record, cfg: &TrendConfig) {
+fn record_id(rec: &dyn RowRef) -> u32 {
+    u32::try_from(rec.id()).unwrap_or(u32::MAX)
+}
+
+fn collect_fields(series: &mut BTreeMap<(String, String), Series>, key: &str, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
     for field in &cfg.fields {
-        let Some(v) = rec.field_number(field) else { continue };
+        let Some(v) = rec.number_of(field) else { continue };
         let lower = field.to_ascii_lowercase();
         let (unit, value) = if lower.ends_with("mb") {
             (Unit::Bytes, v * MB)
@@ -93,21 +100,22 @@ fn collect_fields(series: &mut BTreeMap<(String, String), Series>, key: &str, ts
             .entry((key.to_string(), field.clone()))
             .or_insert_with(|| Series { unit, points: Vec::new() })
             .points
-            .push((ts, value, rec.id));
+            .push((ts, value, record_id(rec)));
     }
 }
 
-fn collect_counter(series: &mut BTreeMap<(String, String), Series>, ts: i64, rec: &Record, cfg: &TrendConfig) {
-    let text = |name: &str| rec.fields.get(name).and_then(|v| v.as_str());
-    let (Some(counter), Some(value)) = (text("Counter"), rec.field_number("Value")) else {
+fn collect_counter(series: &mut BTreeMap<(String, String), Series>, ts: i64, rec: &dyn RowRef, cfg: &TrendConfig) {
+    let text = |name: &str| rec.text_of(name);
+    let (Some(counter), Some(value)) = (text("Counter"), rec.number_of("Value")) else {
         return;
     };
+    let counter = counter.as_ref();
     if !cfg.counters.iter().any(|c| c == counter) {
         return;
     }
-    let machine = text("MachineName").unwrap_or("");
-    let instance = text("ProcessName").or_else(|| text("Instance")).unwrap_or("");
-    let place = match rec.field_number("InstanceIndex") {
+    let machine = text("MachineName").unwrap_or_default();
+    let instance = text("ProcessName").or_else(|| text("Instance")).unwrap_or_default();
+    let place = match rec.number_of("InstanceIndex") {
         Some(n) => format!("{machine} · {instance}#{n}"),
         None => format!("{machine} · {instance}"),
     };
@@ -116,7 +124,7 @@ fn collect_counter(series: &mut BTreeMap<(String, String), Series>, ts: i64, rec
         .entry((place, counter.to_string()))
         .or_insert_with(|| Series { unit, points: Vec::new() })
         .points
-        .push((ts, value, rec.id));
+        .push((ts, value, record_id(rec)));
 }
 
 struct Fit {
