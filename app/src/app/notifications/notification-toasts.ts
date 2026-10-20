@@ -30,7 +30,9 @@ import { titleWithCount } from './notifications-text';
             @if (t.primary; as a) {
               <button type="button" class="btn primary" (click)="act(t, a)" data-testid="notice-toast-primary">{{ actionLabel(a) }}</button>
             }
-            <button type="button" class="btn ghost" (click)="show(t)" data-testid="notice-toast-show" i18n="@@notifications.toasts.show">Show in Notifications</button>
+            @if (t.id > 0) {
+              <button type="button" class="btn ghost" (click)="show(t)" data-testid="notice-toast-show" i18n="@@notifications.toasts.show">Show in Notifications</button>
+            }
           </div>
           <button type="button" class="x" aria-label="Dismiss notification" i18n-aria-label="@@notifications.toasts.dismiss" (click)="store.dismissToast(t.id)"><imt-icon name="close" [size]="12" /></button>
         </div>

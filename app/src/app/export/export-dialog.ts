@@ -3,7 +3,6 @@ import { ExporterInfo, Query, RedactionSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { formatCount } from '../core/format';
 import { Platform } from '../core/platform';
-import { plural } from '../i18n/locale';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { HelpHint } from '../ui/help-hint';
@@ -12,6 +11,7 @@ import { RedactionService } from '../share/redaction/redaction.service';
 import { RedactionSummaryView } from '../share/redaction/redaction-summary';
 import { ShareBackend } from '../share/share-backend';
 import { OverwriteGuard } from '../ui/overwrite-guard';
+import { JobFollow } from '../jobs/job-follow';
 
 /** What to export: the events matching the filters, the same without the time range, or everything. */
 export type ExportScope = 'filter' | 'filterAnyTime' | 'all';
@@ -93,6 +93,7 @@ export class ExportDialog {
   private readonly platform = inject(Platform);
   private readonly share = inject(ShareBackend);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly follow = inject(JobFollow);
   private readonly redactionService = inject(RedactionService);
 
   protected readonly exporters = computed<ExporterInfo[]>(() => this.store.summary()?.exporters ?? []);
@@ -166,22 +167,13 @@ export class ExportDialog {
       const path = await this.platform.pickExportPath(`events.${chosen.extension}`, [chosen, ...exporters.filter((e) => e !== chosen)]);
       if (!path) return;
       const format = exporterForPath(path, exporters)?.id ?? chosen.id;
-      const result = await this.overwrite.write(path, (overwrite) =>
+      const job = await this.overwrite.write(path, (overwrite) =>
         this.backend.exportEvents({ query: this.query(), format, path, descending: this.descending(), redact: this.redact(), overwrite }),
       );
-      if (!result) return;
-      const masked = Object.values(result.redactions ?? {}).reduce((a, b) => a + b, 0);
-      const events = formatCount(result.events);
-      const file = result.path.split(/[\\/]/).pop();
-      const count = formatCount(masked);
-      this.store.setNotice(
-        !this.redact()
-          ? $localize`:@@export.dialog.notice:Exported ${events}:events: events to ${file}:file:`
-          : plural(masked, {
-              one: $localize`:@@export.dialog.noticeRedacted.one:Exported ${events}:events: events to ${file}:file: (redacted, ${count}:count: value masked)`,
-              other: $localize`:@@export.dialog.noticeRedacted.other:Exported ${events}:events: events to ${file}:file: (redacted, ${count}:count: values masked)`,
-            }),
-      );
+      if (job === null) return;
+      // The export runs as a job: its message says how many events went out, with "Show in folder".
+      const file = path.split(/[\\/]/).pop() ?? path;
+      this.follow.started($localize`:@@export.dialog.started:Exporting to ${file}:file: — running in Jobs`);
       this.ref.close();
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));

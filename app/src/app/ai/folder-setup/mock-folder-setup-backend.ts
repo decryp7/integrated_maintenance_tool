@@ -10,6 +10,7 @@ import { EMPTY_QUERY } from '../../core/workspace.store';
 import { parseProfile, stringifyProfile } from '../../profile/toml';
 import { AiError } from '../ai-backend';
 import { FolderSetupBackend } from './folder-setup-backend';
+import { MockJobCancelled, mockJobs } from '../../jobs/mock-jobs';
 import {
   ComposedProfile,
   DiffOp,
@@ -248,8 +249,6 @@ export function naiveDiff(before: string, after: string): { op: DiffOp; text: st
 }
 
 export class MockFolderSetupBackend extends FolderSetupBackend {
-  private readonly running = new Map<string, { cancelled: boolean }>();
-  private aiCancelled = false;
 
   constructor(
     private readonly workspace: ImtBackend,
@@ -262,23 +261,23 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
     return ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve();
   }
 
-  async survey(surveyId: string, onProgress: (p: SurveyProgress) => void): Promise<SurveyOutcome> {
-    if (this.running.has(surveyId)) throw new Error('a survey with this id is already running');
-    const job = { cancelled: false };
-    this.running.set(surveyId, job);
-    try {
+  /** Like the engine: an analysis job, returned at once; its result is the survey's outcome. */
+  async survey(onProgress: (p: SurveyProgress) => void): Promise<number> {
+    const job = mockJobs().start({ kind: 'analysis', title: 'Survey the folder' }, async (ctx) => {
       const summary = await this.workspace.workspaceSummary();
       if (!summary.sources.length) throw new Error('nothing is open: open a folder first');
       for (const [i, stage] of STAGES.entries()) {
         onProgress({ stage, done: i, total: STAGES.length });
+        ctx.progress({ done: i, total: STAGES.length, fraction: i / STAGES.length });
         await this.wait(this.options.stageMs ?? 150);
-        if (job.cancelled) return { cancelled: true };
+        if (ctx.cancelled()) throw new MockJobCancelled();
       }
       onProgress({ stage: 'done', done: STAGES.length, total: STAGES.length });
-      return { setup: mockSetup(await this.lanes()) };
-    } finally {
-      this.running.delete(surveyId);
-    }
+      const outcome: SurveyOutcome = { setup: mockSetup(await this.lanes()) };
+      return { value: outcome, result: { type: 'folderSurvey', outcome } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 
   private async lanes(): Promise<LanePreview[]> {
@@ -288,12 +287,6 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
     } catch {
       return [];
     }
-  }
-
-  cancelSurvey(surveyId: string): Promise<boolean> {
-    const job = this.running.get(surveyId);
-    if (job) job.cancelled = true;
-    return Promise.resolve(!!job);
   }
 
   async compose(fragments: Fragment[]): Promise<ComposedProfile> {
@@ -351,17 +344,17 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
     return { toml, diff, added: diff.filter((d) => d.op === 'add').length, removed: diff.filter((d) => d.op === 'remove').length, savedQueries };
   }
 
-  async refineWithAi(): Promise<FolderRefinement> {
-    this.aiCancelled = false;
+  /** Like the engine: an AI job, returned at once; its result is a `folderSetup` proposal. */
+  async refineWithAi(): Promise<number> {
     if (this.options.aiError) throw new AiError(this.options.aiError, this.options.aiError === 'noModel' ? 'No AI model is set up yet.' : 'The AI assistant is not available.');
-    await this.wait((this.options.stageMs ?? 150) * 2);
-    if (this.aiCancelled) throw new AiError('cancelled', 'cancelled');
-    return mockRefinement();
-  }
-
-  cancelAi(): Promise<void> {
-    this.aiCancelled = true;
-    return Promise.resolve();
+    const job = mockJobs().start({ kind: 'ai', title: 'Improve the folder set-up' }, async (ctx) => {
+      await this.wait((this.options.stageMs ?? 150) * 2);
+      if (ctx.cancelled()) throw new MockJobCancelled();
+      const refinement: FolderRefinement = mockRefinement();
+      return { value: refinement, result: { type: 'proposal', proposal: { ...refinement, kind: 'folderSetup' } } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 }
 

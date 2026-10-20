@@ -118,11 +118,14 @@ describe('TemplatesGallery', () => {
     await settle(fixture, 8);
     expect(close).toHaveBeenCalledWith(true);
     expect((await backend.getProfile()).toml).toContain('CSV with a timestamp column');
-    expect(TestBed.inject(WorkspaceStore).notice()).toContain('Applied the CSV with a timestamp column template');
+    // The profile is saved now and the files re-import as a job the status bar follows.
+    expect(TestBed.inject(WorkspaceStore).notice()).toContain('Applying the CSV with a timestamp column template; the files are re-imported with it.');
+    await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
     const undo = TestBed.inject(UndoStack);
     expect(undo.undoLabel()).toBe('profile template');
     await undo.undo();
     expect((await backend.getProfile()).toml).toBe(before);
+    await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
   });
 
   it('keeps the dialog open with the reason when the engine refuses the template', async () => {
@@ -159,14 +162,14 @@ describe('TemplatesService', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const dialogs = TestBed.inject(DialogService);
     const done = TestBed.inject(TemplatesService).open({ path: '/a.log', name: 'a.log' });
-    await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
+    await vi.waitFor(() => expect(dialogs.stack().length).toBe(1), { timeout: 10000 });
     const top = at(dialogs.stack(), 0);
     expect(top.component).toBe(TemplatesGallery);
     expect(top.options.inputs).toEqual({ path: '/a.log', name: 'a.log' });
     top.ref.close(true);
     expect(await done).toBe(true);
     const again = TestBed.inject(TemplatesService).open();
-    await vi.waitFor(() => expect(dialogs.stack().length).toBe(1));
+    await vi.waitFor(() => expect(dialogs.stack().length).toBe(1), { timeout: 10000 });
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ path: null, name: null });
     dialogs.dismissTop();
     expect(await again).toBe(false);

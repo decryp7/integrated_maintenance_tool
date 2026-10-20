@@ -18,6 +18,8 @@ import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
 import { SnapshotToast } from './snapshot-toast';
 import { ACTIVITY_LOG_COMMAND, CapturedImage, REPORT_PROBLEM_COMMAND } from './snapshot.types';
 import { at } from '../../testing/must';
+import { mockJobs } from '../jobs/mock-jobs';
+import { NotificationsStore } from '../notifications/notifications.store';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
@@ -85,7 +87,10 @@ describe('ReportProblemDialog', () => {
     await flush(f);
     expect(target.titles).toEqual(['Save problem report']);
     expect(backend.reports).toEqual([{ path: '/out/report.zip', description: 'It failed on export' }]);
-    expect(el.querySelector('[data-testid=report-saved]')!.textContent).toContain('/out/report.zip');
+    expect(el.querySelector('[data-testid=report-saved]')!.textContent).toContain('Saving to /out/report.zip.');
+    // The report is written by a job: a toast says so and the dialog stays open on the preview.
+    expect(at(TestBed.inject(NotificationsStore).toasts(), 0).title).toBe('Saving the problem report — running in Jobs');
+    expect(close).not.toHaveBeenCalled();
     expect(el.textContent).toContain('Close');
     (el.querySelector('.btn.ghost') as HTMLButtonElement).click();
     expect(close).toHaveBeenCalled();
@@ -169,9 +174,13 @@ describe('snapshots with breadcrumbs', () => {
 
   it('the mock refuses to replace a report without permission', async () => {
     const m = new MockSnapshotBackend(() => []);
-    expect(await m.saveReport('/r.zip', 'd')).toBeGreaterThan(4);
+    const first = await m.saveReport('/r.zip', 'd');
+    expect(first).toEqual(expect.any(Number));
+    const end = await mockJobs().wait(first);
+    expect([end.state, end.result]).toEqual(['done', { type: 'file', path: '/r.zip' }]);
+    expect(end.message).toMatch(/^\d+ files zipped\.$/);
     await expect(m.saveReport('/r.zip', 'd')).rejects.toThrow(FILE_EXISTS_SUFFIX.trim());
-    expect(await m.saveReport('/r.zip', 'd', true)).toBeGreaterThan(4);
+    expect(await m.saveReport('/r.zip', 'd', true)).toEqual(expect.any(Number));
     expect(await m.openActivityLog()).toBe('mock-activity');
   });
 

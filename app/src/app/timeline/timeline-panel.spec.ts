@@ -3,6 +3,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, t
 import { MockBackend } from '../core/mock/mock-backend';
 import { Lane } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { mockJobs } from '../jobs/mock-jobs';
 import { MarkerVm, mergeMarkers } from './marker-layout';
 import { stableLaneOrder, TimelinePanel } from './timeline-panel';
 import { TimelineZoom } from './zoom';
@@ -389,7 +390,7 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
 
   async function render() {
     const backend = tinyBackend();
-    await backend.saveProfile(PROFILE);
+    await mockJobs().wait(await backend.saveProfile(PROFILE));
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(TimelinePanel);
     const store = TestBed.inject(WorkspaceStore);

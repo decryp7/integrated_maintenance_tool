@@ -69,7 +69,6 @@ describe('TauriAiBackend', () => {
 
   it('maps every method to its command and arguments', async () => {
     const b = new TauriAiBackend(invoke as never, vi.fn() as never);
-    const src = { recordId: 4, sample: null };
     const cases: [() => Promise<unknown>, string, unknown][] = [
       [() => b.status(), 'ai_status', undefined],
       [() => b.hardware(), 'ai_hardware', undefined],
@@ -89,32 +88,10 @@ describe('TauriAiBackend', () => {
       [() => b.runtimeCancel(), 'ai_runtime_cancel', undefined],
       [() => b.runtimeDelete('b1', 'cpu'), 'ai_runtime_delete', { tag: 'b1', id: 'cpu' }],
       [() => b.runtimeChoose('auto'), 'ai_runtime_choose', { id: 'auto' }],
-      [() => b.proposeRegex(['a']), 'ai_propose_regex', { lines: ['a'], intent: null }],
-      [() => b.proposeRegex(['a'], 'ids'), 'ai_propose_regex', { lines: ['a'], intent: 'ids' }],
-      [
-        () => b.proposeProfile({ sample: 'x', fileName: 'f' }),
-        'ai_propose_profile',
-        { sample: 'x', fileName: 'f' },
-      ],
-      [
-        () => b.proposePipeline('g', src),
-        'ai_propose_pipeline',
-        { goal: 'g', recordId: 4, sample: null },
-      ],
-      [
-        () => b.proposeMarkers('g', {}),
-        'ai_propose_markers',
-        { goal: 'g', recordId: null, sample: null },
-      ],
-      [
-        () => b.proposeExtractors('g', { sample: 's' }),
-        'ai_propose_extractors',
-        { goal: 'g', recordId: null, sample: 's' },
-      ],
-      [() => b.nlToQuery('q'), 'ai_nl_to_query', { question: 'q' }],
-      [() => b.explainEvent(3), 'ai_explain_event', { recordId: 3 }],
-      [() => b.summarize(1, 2), 'ai_summarize', { from: 1, to: 2 }],
-      [() => b.rootCauses(), 'ai_root_causes', undefined],
+      [() => b.start({ op: 'query', question: 'q' }), 'ai_start', { request: { op: 'query', question: 'q' } }],
+      [() => b.start({ op: 'explain', recordId: 3 }), 'ai_start', { request: { op: 'explain', recordId: 3 } }],
+      [() => b.start({ op: 'rootCauses' }), 'ai_start', { request: { op: 'rootCauses' } }],
+      [() => b.start({ op: 'regex', lines: ['a'], intent: null }), 'ai_start', { request: { op: 'regex', lines: ['a'], intent: null } }],
       [() => b.cancel(), 'ai_cancel', undefined],
       [() => b.chatSessions(), 'ai_chat_sessions', undefined],
       [() => b.chatNew(), 'ai_chat_new', undefined],

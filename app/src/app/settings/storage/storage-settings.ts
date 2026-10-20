@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject } from '@angular/core';
 import { formatBytes } from '../../ai/ai-format';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
@@ -193,6 +193,8 @@ export class StorageSettings {
 
   constructor() {
     void this.store.load();
+    // Settings may close while a clear runs; it goes on in Jobs and tells when it is done.
+    inject(DestroyRef).onDestroy(() => this.store.detach());
   }
 
   protected label(c: StorageCategory): string {

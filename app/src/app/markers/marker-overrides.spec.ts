@@ -8,6 +8,13 @@ import { MarkersManager } from './markers-manager';
 import { MarkerOverrideDialog } from './marker-override-dialog';
 import { isPluginOwned, ownerOfKind, pluginRows, resetStyle, setOverride, styleProblems, toCondition } from './marker-overrides';
 import { at } from '../../testing/must';
+import { WorkspaceStore } from '../core/workspace.store';
+
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
 
 describe('marker overrides (pure)', () => {
   it('tells plugin kinds from profile and built-in ones', () => {
@@ -75,6 +82,7 @@ describe('MarkersManager plugin kinds', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(MarkersManager);
     await settle(fixture, 10);
+    await applied(fixture);
     return { fixture, backend, dialogs: TestBed.inject(DialogService) };
   }
   const model = async (b: MockBackend) => parseProfile((await b.getProfile()).toml);
@@ -101,12 +109,14 @@ describe('MarkersManager plugin kinds', () => {
     const { fixture, backend } = await mount();
     el<HTMLInputElement>(fixture, '[aria-label="Disable Application crash"]').click();
     await settle(fixture, 10);
+    await applied(fixture);
     expect((await model(backend)).marker_override).toEqual([{ kind: 'net.decryptology.windows/app-crash', enabled: false }]);
     expect((await backend.workspaceSummary()).markerKinds.some((k) => k.kind === 'net.decryptology.windows/app-crash')).toBe(false);
     const off = row(fixture, 'net.decryptology.windows/app-crash');
     expect(off.classList).toContain('off');
     el<HTMLInputElement>(fixture, '[aria-label="Enable net.decryptology.windows/app-crash"]').click();
     await settle(fixture, 10);
+    await applied(fixture);
     expect((await model(backend)).marker_override).toBeUndefined();
     expect(row(fixture, 'net.decryptology.windows/app-crash').classList).not.toContain('off');
   });
@@ -119,10 +129,12 @@ describe('MarkersManager plugin kinds', () => {
     expect(open.component).toBe(MarkerOverrideDialog);
     open.ref.close({ color: '#00ff00', badge: 'Z', label: undefined });
     await settle(fixture, 10);
+    await applied(fixture);
     expect((await model(backend)).marker_override).toEqual([{ kind: 'net.decryptology.windows/app-crash', color: '#00ff00', badge: 'Z' }]);
     expect((await backend.workspaceSummary()).markerKinds.find((k) => k.kind.endsWith('/app-crash'))!.badge).toBe('Z');
     el<HTMLButtonElement>(fixture, '[aria-label="Reset style of Application crash"]').click();
     await settle(fixture, 10);
+    await applied(fixture);
     expect((await model(backend)).marker_override).toBeUndefined();
     // Cancelling the dialog writes nothing.
     el<HTMLButtonElement>(fixture, '[aria-label="Restyle Application crash"]').click();
@@ -137,6 +149,7 @@ describe('MarkersManager plugin kinds', () => {
     vi.spyOn(backend, 'validateProfile').mockResolvedValueOnce({ ok: false, error: 'color "red" is not valid (check [[marker_override]])', line: 3 } as never);
     el<HTMLInputElement>(fixture, '[aria-label="Disable Application crash"]').click();
     await settle(fixture, 10);
+    await applied(fixture);
     expect(el(fixture, '.err').textContent).toContain('marker_override');
     expect(el(fixture, '.err').textContent).toContain('profile line 3');
   });

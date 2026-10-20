@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, linkedSignal, OnInit, signal } from '@angular/core';
+import { JobFollow } from '../../jobs/job-follow';
+import { JobWait } from '../../jobs/job-wait';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
 import { ProposeKind } from '../ai-launcher';
-import { Proposal, SampleSource } from '../ai.types';
+import { AiStartRequest, Proposal, SampleSource } from '../ai.types';
 import { AiProposalCard } from '../proposals/proposal-card';
 
 const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
@@ -28,7 +30,7 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
 @Component({
   selector: 'imt-ai-propose-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiProposalCard],
+  imports: [AiProposalCard, JobWait],
   template: `
     <p class="muted small">{{ sourceLine() }}</p>
     @if (chooseKind()) {
@@ -46,8 +48,8 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
     <div class="row">
       <button type="button" class="btn primary" [disabled]="(current() !== 'profile' && !goal().trim()) || busy()" (click)="propose()">{{ proposeLabel() }}</button>
     </div>
-    @if (busy()) {
-      <p class="muted" role="status" i18n="@@ai.propose.busy">The local model proposes; the engine checks the proposal on the sample…</p>
+    @if (jobId(); as id) {
+      <imt-job-wait [jobId]="id" [busyText]="busyText" />
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
@@ -69,6 +71,8 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
 export class AiProposeDialog implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
+  private readonly follow = inject(JobFollow);
+  private readonly destroyRef = inject(DestroyRef);
   readonly kind = input<ProposeKind>('pipeline');
   readonly source = input<SampleSource>({});
   readonly initialGoal = input('');
@@ -80,6 +84,9 @@ export class AiProposeDialog implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly proposal = signal<Proposal | null>(null);
   protected readonly state = signal<'open' | 'applied'>('open');
+  /** The AI job of the running request (the dialog follows it; closing leaves it running). */
+  protected readonly jobId = signal<number | null>(null);
+  protected readonly busyText = $localize`:@@ai.propose.busy:The local model proposes; the engine checks the proposal on the sample…`;
   protected readonly prompt = computed(() => PROMPTS[this.current()]);
   protected readonly proposeLabel = computed(() =>
     this.busy() ? $localize`:@@ai.propose.proposing:Proposing…` : $localize`:verb, button that asks the AI for a proposal|@@ai.propose.button:Propose`,
@@ -109,32 +116,29 @@ export class AiProposeDialog implements OnInit {
     }
   }
 
-  private request(): Promise<Proposal> {
+  private request(): AiStartRequest {
     const goal = this.goal().trim();
     const src = this.source();
-    switch (this.current()) {
-      case 'pipeline':
-        return this.backend.proposePipeline(goal, src);
-      case 'markers':
-        return this.backend.proposeMarkers(goal, src);
-      case 'extractors':
-        return this.backend.proposeExtractors(goal, src);
-      case 'profile':
-        return this.backend.proposeProfile(src);
-    }
+    const recordId = src.recordId ?? null;
+    const sample = src.sample ?? null;
+    const op = this.current();
+    return op === 'profile' ? { op, recordId, sample, fileName: src.fileName ?? null } : { op, goal, recordId, sample };
   }
 
+  /** Starts the proposal as an AI job and shows it here when it is done (if the dialog is still open). */
   async propose(): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
     this.proposal.set(null);
     this.state.set('open');
     try {
-      this.proposal.set(await this.request());
+      const result = await this.follow.run(() => this.backend.start(this.request()), this.destroyRef, (id) => this.jobId.set(id));
+      if (result?.type === 'proposal') this.proposal.set(result.proposal as Proposal);
     } catch (e) {
       this.error.set(toAiError(e).message);
     } finally {
       this.busy.set(false);
+      this.jobId.set(null);
     }
   }
 }

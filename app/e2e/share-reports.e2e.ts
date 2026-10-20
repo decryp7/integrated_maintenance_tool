@@ -44,8 +44,13 @@ test.describe('incident report builder', () => {
     await expect(dialog.getByRole('status', { name: 'Redaction preview' })).toContainText(/report text|referenced event/);
     await expectNoSeriousViolations(page, testInfo, 'report-export');
     await dialog.getByRole('button', { name: 'Export…' }).click();
+    // The dialog closes at once; the report is written by a job, and its message offers "Show in folder".
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('status').filter({ hasText: 'Exported the report to checkout-outage.html' })).toBeVisible();
+    await expect(page.getByTestId('notice-toast').filter({ hasText: 'Exporting the report to checkout-outage.html — running in Jobs' })).toBeVisible();
+    const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export report checkout-outage.html' });
+    await expect(done).toBeVisible({ timeout: 15_000 });
+    await expect(done).toContainText(/Report written \(\d+ values redacted\)/);
+    await expect(done.getByTestId('notice-toast-primary')).toHaveText('Show in folder');
     expect((await written(page)).some((w) => w.kind === 'html' && w.path === 'checkout-outage.html')).toBe(true);
   });
 

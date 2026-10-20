@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { errorMessage } from '../../tools/tool-errors';
 import { StorageBackend } from './storage-backend';
+import { JobsBackend } from '../../jobs/jobs-backend';
 import { StorageCategory, StorageCategoryId, StorageClearResult, StorageUsage } from './storage.types';
 
 interface StorageState {
@@ -11,6 +12,8 @@ interface StorageState {
   loadError: string | null;
   /** The categories being cleared now. */
   clearing: StorageCategoryId[] | null;
+  /** The maintenance job that clears them, while Settings follows it. */
+  job: number | null;
   /** What the last clear did. */
   result: StorageClearResult | null;
   /** The last clear or "Show in folder" failed (shown with Retry). */
@@ -21,7 +24,7 @@ interface StorageState {
   revealed: string | null;
 }
 
-const INITIAL: StorageState = { usage: null, loading: false, loadError: null, clearing: null, result: null, actionError: null, retry: null, revealed: null };
+const INITIAL: StorageState = { usage: null, loading: false, loadError: null, clearing: null, job: null, result: null, actionError: null, retry: null, revealed: null };
 
 /**
  * State of Settings ▸ Storage: the engine's usage report and the outcome of clearing. The engine decides
@@ -41,7 +44,7 @@ export const StorageStore = signalStore(
       busy: computed(() => store.loading() || store.clearing() !== null),
     };
   }),
-  withMethods((store, backend = inject(StorageBackend)) => {
+  withMethods((store, backend = inject(StorageBackend), jobs = inject(JobsBackend)) => {
     const load = async (): Promise<void> => {
       patchState(store, { loading: true, loadError: null });
       try {
@@ -56,11 +59,17 @@ export const StorageStore = signalStore(
       if (!ids.length || store.clearing()) return;
       patchState(store, { clearing: ids, actionError: null, retry: null, result: null, revealed: null });
       try {
-        patchState(store, { result: await backend.clear(ids) });
+        // A background job: Settings shows it while open; closed, the job's message tells the outcome.
+        const id = await backend.clear(ids);
+        patchState(store, { job: id });
+        const end = await jobs.wait(id);
+        if (store.job() !== id) return;
+        if (end.state === 'failed') throw end.error ?? $localize`:@@settings.storage.clearFailed:Clearing failed.`;
+        if (end.result?.type === 'storage') patchState(store, { result: end.result.result as StorageClearResult });
       } catch (e) {
         patchState(store, { actionError: errorMessage(e), retry: { kind: 'clear', ids } });
       } finally {
-        patchState(store, { clearing: null });
+        patchState(store, { clearing: null, job: null });
       }
       await load();
     };
@@ -76,6 +85,18 @@ export const StorageStore = signalStore(
       load,
       clear,
       reveal,
+      /** Settings closed while a clear runs: stop following it (its message tells the outcome). */
+      detach(): void {
+        const id = store.job();
+        if (id === null) return;
+        patchState(store, { job: null, clearing: null });
+        void jobs.unwait(id).catch(() => undefined);
+      },
+      /** View of a finished clear: what it freed and kept. */
+      showResult(result: StorageClearResult): void {
+        patchState(store, { result, actionError: null, retry: null });
+        void load();
+      },
       /** Clears every cache category ("Clear cache"). */
       clearCache: () => clear(store.cache().map((c) => c.id)),
       /** Repeats the failed action. */

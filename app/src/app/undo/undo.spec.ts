@@ -11,6 +11,12 @@ import { QueryUndo, queryChangeLabel, trackedPart } from './query-undo';
 import { recordSnapshot } from './snapshot-undo';
 import { MERGE_WINDOW_MS, UNDO_LIMIT, UndoStack } from './undo-stack';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 function stack(): UndoStack {
   TestBed.configureTestingModule({});
   return TestBed.inject(UndoStack);
@@ -233,7 +239,9 @@ describe('ProfileUndo', () => {
     const before = (await backend.getProfile()).toml;
     const after = `${before}\n# edited\n`;
     const versions = store.profileVersion();
-    await p.save('profile edit', after);
+    // The save returns the re-import job at once; the workspace follows it.
+    expect(await p.save('profile edit', after)).toEqual(expect.any(Number));
+    await applied();
     expect(store.profileVersion()).toBe(versions + 1);
     expect(undo.undoLabel()).toBe('profile edit');
     const save = vi.spyOn(backend, 'saveProfile');

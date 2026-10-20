@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gridTotal, hideInspectorFlyout, parseCount } from './app';
 import { openQuery } from './analysis-support';
 import { expectNoSeriousViolations } from './axe';
-import { openAiApp, rowMenu, runCommand } from './ai-support';
+import { narrativeDialog, openAiApp, rowMenu, runCommand, viewAnswer } from './ai-support';
 import { menuItem, openMenu, showProfileEditor } from './menu-support';
 
 // The AI entry points outside the chat (query bar, context menu, Overview, Moment, markers manager, profile
@@ -31,6 +31,10 @@ test.describe('AI entry points', () => {
     await openAiApp(page);
     const menu = await rowMenu(page);
     await menu.getByRole('menuitem', { name: 'Explain this event (AI)…' }).click();
+    // It runs in the background: a toast says so, then "Explanation ready · View" opens the answer.
+    await expect(page.getByTestId('notice-toast').filter({ hasText: /Explaining event #\d+ — running in Jobs/ })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await viewAnswer(page, 'Explanation ready');
     const dialog = page.getByRole('dialog', { name: /^Explain event \d+$/ });
     const answer = dialog.getByTestId('ai-narrative');
     await expect(answer).toContainText('payment gateway timed out');
@@ -46,7 +50,8 @@ test.describe('AI entry points', () => {
     const overview = page.locator('imt-overview-view');
     await expect(overview).toBeVisible({ timeout: 10_000 });
     await overview.getByTestId('ai-root-causes').click();
-    const causes = page.getByRole('dialog', { name: 'Likely root causes' });
+    await viewAnswer(page, 'Root causes ready');
+    const causes = narrativeDialog(page);
     await expect(causes.getByTestId('ai-narrative')).toContainText('Memory leak on WEB02');
     await causes.getByRole('button', { name: 'Close', exact: true }).click();
 
@@ -54,8 +59,8 @@ test.describe('AI entry points', () => {
     const moment = page.locator('imt-moment-view');
     await expect(moment).toBeVisible();
     await moment.getByTestId('ai-summarize').click();
-    const summary = page.getByRole('dialog', { name: 'Summarize this range' });
-    await expect(summary.getByTestId('ai-narrative')).toContainText('WEB02 ran out of memory');
+    await viewAnswer(page, 'Summary ready');
+    await expect(narrativeDialog(page).getByTestId('ai-narrative')).toContainText('WEB02 ran out of memory');
   });
 
   test('Propose markers from the markers manager, and pipeline changes from the profile editor', async ({ page }, testInfo) => {

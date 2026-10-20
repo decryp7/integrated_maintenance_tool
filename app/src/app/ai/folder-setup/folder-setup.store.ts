@@ -8,7 +8,8 @@ import { SavedQueryStore } from '../../projects/bookmarks/saved-query.store';
 import { UndoStack } from '../../undo/undo-stack';
 import { toAiError } from '../ai-backend';
 import { FolderSetupBackend } from './folder-setup-backend';
-import { ComposedProfile, FolderSurvey, PROPOSAL_GROUPS, ProposalGroup, SetupProposal, SkippedProposal, SurveyProgress } from './folder-setup.types';
+import { ComposedProfile, FolderRefinement, FolderSurvey, PROPOSAL_GROUPS, ProposalGroup, SetupProposal, SkippedProposal, SurveyOutcome, SurveyProgress } from './folder-setup.types';
+import { JobsBackend } from '../../jobs/jobs-backend';
 
 /** Where the wizard is: survey → proposals → review → applied (or failed / cancelled on the way). */
 export type SetupPhase = 'idle' | 'surveying' | 'proposals' | 'review' | 'applying' | 'applied' | 'failed' | 'cancelled';
@@ -16,7 +17,10 @@ export type AiPhase = 'idle' | 'running' | 'done' | 'failed';
 
 export interface FolderSetupState {
   phase: SetupPhase;
-  surveyId: string | null;
+  /** The survey job the wizard follows. */
+  surveyJob: number | null;
+  /** The AI refinement job the wizard follows. */
+  aiJob: number | null;
   progress: SurveyProgress | null;
   survey: FolderSurvey | null;
   proposals: SetupProposal[];
@@ -32,7 +36,8 @@ export interface FolderSetupState {
 
 export const INITIAL_SETUP: FolderSetupState = {
   phase: 'idle',
-  surveyId: null,
+  surveyJob: null,
+  aiJob: null,
   progress: null,
   survey: null,
   proposals: [],
@@ -112,8 +117,6 @@ export function recommendedSelection(proposals: readonly SetupProposal[]): strin
   return ids;
 }
 
-let surveyCounter = 0;
-
 /** The "Set up analysis for this folder…" wizard: its state and the engine calls behind each step. */
 export const FolderSetupStore = signalStore(
   { providedIn: 'root' },
@@ -130,32 +133,54 @@ export const FolderSetupStore = signalStore(
       s,
       backend = inject(FolderSetupBackend),
       imt = inject(ImtBackend),
+      jobs = inject(JobsBackend),
       workspace = inject(WorkspaceStore),
       savedQueries = inject(SavedQueryStore),
       undo = inject(UndoStack),
     ) => ({
-      /** Starts a survey of the open files (from any phase). */
+      /**
+       * Starts a survey of the open files (from any phase) as a background analysis job and follows it while the
+       * wizard is open (`detach` when it closes: the job's message reopens the wizard with the proposals).
+       */
       async start(): Promise<void> {
-        const surveyId = `survey-${Date.now().toString(36)}-${++surveyCounter}`;
-        patchState(s, { ...INITIAL_SETUP, phase: 'surveying', surveyId });
+        patchState(s, { ...INITIAL_SETUP, phase: 'surveying' });
+        let id: number | null = null;
         try {
-          const out = await backend.survey(surveyId, (progress) => {
-            if (s.surveyId() === surveyId) patchState(s, { progress });
+          id = await backend.survey((progress) => {
+            if (id === null || s.surveyJob() === id) patchState(s, { progress });
           });
-          if (s.surveyId() !== surveyId) return;
-          if ('cancelled' in out) {
-            patchState(s, { phase: 'cancelled', surveyId: null });
+          patchState(s, { surveyJob: id });
+          const end = await jobs.wait(id);
+          if (s.surveyJob() !== id) return;
+          if (end.state === 'failed') throw end.error ?? message(null);
+          if (end.state !== 'done' || end.result?.type !== 'folderSurvey') {
+            patchState(s, { phase: 'cancelled', surveyJob: null });
             return;
           }
-          const { survey, proposals, skipped } = out.setup;
-          patchState(s, { phase: 'proposals', surveyId: null, survey, proposals, skipped, selected: recommendedSelection(proposals) });
+          this.showSurvey(end.result.outcome as SurveyOutcome);
         } catch (e) {
-          if (s.surveyId() === surveyId) patchState(s, { phase: 'failed', surveyId: null, error: message(e) });
+          if (id === null || s.surveyJob() === id) patchState(s, { phase: 'failed', surveyJob: null, error: message(e) });
         }
       },
+      /** Shows a survey's outcome (its job ended while the wizard followed it, or View of its message). */
+      showSurvey(out: SurveyOutcome): void {
+        if ('cancelled' in out) {
+          patchState(s, { phase: 'cancelled', surveyJob: null });
+          return;
+        }
+        const { survey, proposals, skipped } = out.setup;
+        patchState(s, { phase: 'proposals', surveyJob: null, survey, proposals, skipped, selected: recommendedSelection(proposals) });
+      },
       async cancel(): Promise<void> {
-        const id = s.surveyId();
-        if (id) await backend.cancelSurvey(id);
+        const id = s.surveyJob();
+        if (id !== null) await jobs.cancel(id);
+      },
+      /** The wizard closed: running jobs go on, and their messages (View) reopen it with their result. */
+      detach(): void {
+        const survey = s.surveyJob();
+        const ai = s.aiJob();
+        patchState(s, { surveyJob: null, aiJob: null, ai: ai === null ? s.ai() : 'idle', phase: survey === null ? s.phase() : 'idle' });
+        for (const id of [survey, ai]) if (id !== null) void jobs.unwait(id).catch(() => undefined);
       },
       toggle(id: string): void {
         patchState(s, { selected: toggleSelection(s.selected(), id, s.proposals()), composed: null });
@@ -168,21 +193,36 @@ export const FolderSetupStore = signalStore(
         if (s.ai() === 'running') return;
         patchState(s, { ai: 'running', aiMessage: null, aiNotes: [] });
         try {
-          const r = await backend.refineWithAi();
-          const known = new Set(s.proposals().map((p) => p.id));
-          patchState(s, {
-            ai: 'done',
-            proposals: [...s.proposals(), ...r.proposals.filter((p) => !known.has(p.id))],
-            skipped: [...s.skipped(), ...r.skipped],
-            aiNotes: r.notes,
-          });
+          const id = await backend.refineWithAi();
+          patchState(s, { aiJob: id });
+          const end = await jobs.wait(id);
+          if (s.aiJob() !== id) return;
+          patchState(s, { aiJob: null });
+          if (end.state === 'failed') throw new Error(end.error ?? message(null));
+          if (end.state !== 'done' || end.result?.type !== 'proposal') {
+            patchState(s, { ai: 'idle' });
+            return;
+          }
+          this.addRefinement(end.result.proposal as FolderRefinement);
         } catch (e) {
           const err = toAiError(e);
-          patchState(s, { ai: err.code === 'cancelled' ? 'idle' : 'failed', aiMessage: err.code === 'cancelled' ? null : err.message });
+          patchState(s, { ai: err.code === 'cancelled' ? 'idle' : 'failed', aiMessage: err.code === 'cancelled' ? null : err.message, aiJob: null });
         }
       },
+      /** Adds the AI's proposals (the job ended while the wizard followed it, or View of its message). */
+      addRefinement(r: FolderRefinement): void {
+        const known = new Set(s.proposals().map((p) => p.id));
+        patchState(s, {
+          ai: 'done',
+          phase: s.phase() === 'idle' ? 'proposals' : s.phase(),
+          proposals: [...s.proposals(), ...r.proposals.filter((p) => !known.has(p.id))],
+          skipped: [...s.skipped(), ...r.skipped],
+          aiNotes: r.notes,
+        });
+      },
       async cancelAi(): Promise<void> {
-        await backend.cancelAi();
+        const id = s.aiJob();
+        if (id !== null) await jobs.cancel(id);
       },
       /** Asks the engine for the combined profile and its diff. */
       async review(): Promise<void> {
@@ -209,7 +249,7 @@ export const FolderSetupStore = signalStore(
         patchState(s, { phase: 'applying', error: null });
         try {
           const before = (await imt.getProfile()).toml;
-          workspace.profileSaved(await imt.saveProfile(composed.toml));
+          void workspace.applyProfile(await imt.saveProfile(composed.toml));
           const queriesBefore = savedQueries.items();
           const queriesAfter = [
             ...queriesBefore,
@@ -220,11 +260,11 @@ export const FolderSetupStore = signalStore(
           undo.record({
             label: $localize`:Undo history entry@@ai.folderSetup.undo:folder set-up`,
             do: async () => {
-              workspace.profileSaved(await imt.saveProfile(after));
+              void workspace.applyProfile(await imt.saveProfile(after));
               savedQueries.replace(queriesAfter);
             },
             undo: async () => {
-              workspace.profileSaved(await imt.saveProfile(before));
+              void workspace.applyProfile(await imt.saveProfile(before));
               savedQueries.replace(queriesBefore);
             },
           });

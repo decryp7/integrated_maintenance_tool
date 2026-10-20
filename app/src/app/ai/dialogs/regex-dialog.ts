@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal } from '@angular/core';
+import { JobFollow } from '../../jobs/job-follow';
+import { JobWait } from '../../jobs/job-wait';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
 import { Proposal, RegexProposal } from '../ai.types';
@@ -14,7 +16,7 @@ const MAX_LINES = 50;
 @Component({
   selector: 'imt-ai-regex-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AiProposalCard],
+  imports: [AiProposalCard, JobWait],
   template: `
     <label for="ai-regex-lines" i18n="@@ai.regex.linesLabel">Example lines (one per line)</label>
     <textarea id="ai-regex-lines" class="input mono" rows="5" [value]="text()" (input)="text.set(asValue($event))"></textarea>
@@ -24,6 +26,9 @@ const MAX_LINES = 50;
       <span class="muted small" i18n="@@ai.regex.lineCount">{lineCount(), plural, =1 {{{ lineCount() }} line} other {{{ lineCount() }} lines}}</span>
       <button type="button" class="btn primary" [disabled]="!lineCount() || busy()" (click)="suggest()">{{ suggestLabel() }}</button>
     </div>
+    @if (jobId(); as id) {
+      <imt-job-wait [jobId]="id" [busyText]="busyText" />
+    }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }
@@ -51,7 +56,12 @@ const MAX_LINES = 50;
 export class AiRegexDialog implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
+  private readonly follow = inject(JobFollow);
+  private readonly destroyRef = inject(DestroyRef);
   readonly lines = input<string[]>([]);
+  /** The AI job of the running request (the dialog follows it; closing leaves it running). */
+  protected readonly jobId = signal<number | null>(null);
+  protected readonly busyText = $localize`:@@ai.regex.busy:The local model suggests a pattern; the engine checks it on the lines…`;
   readonly intent = input('');
   readonly highlight = input(false);
   protected readonly text = signal('');
@@ -84,12 +94,15 @@ export class AiRegexDialog implements OnInit {
     this.busy.set(true);
     this.error.set(null);
     this.proposal.set(null);
+    const request = { op: 'regex' as const, lines: this.lineList(), intent: this.intentText().trim() || null };
     try {
-      this.proposal.set(await this.backend.proposeRegex(this.lineList(), this.intentText().trim() || null));
+      const result = await this.follow.run(() => this.backend.start(request), this.destroyRef, (id) => this.jobId.set(id));
+      if (result?.type === 'proposal') this.proposal.set(result.proposal as RegexProposal);
     } catch (e) {
       this.error.set(toAiError(e).message);
     } finally {
       this.busy.set(false);
+      this.jobId.set(null);
     }
   }
 

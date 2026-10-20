@@ -7,7 +7,10 @@ import { FolderSetupWizard } from './folder-setup-wizard';
 
 export const FOLDER_SETUP_COMMAND = 'folder.setupAnalysis';
 
-/** Opens the wizard and starts a survey; closing it stops a survey or AI refinement still running. */
+/**
+ * Opens the wizard and starts a survey. Closing it leaves a running survey or AI refinement going in Jobs: its
+ * message's View reopens the wizard with the result (`show`).
+ */
 @Injectable({ providedIn: 'root' })
 export class FolderSetupLauncher {
   private readonly dialogs = inject(DialogService);
@@ -15,14 +18,16 @@ export class FolderSetupLauncher {
 
   open(): void {
     void this.store.start();
+    this.show();
+  }
+
+  /** Opens the wizard on what the store holds (View of a finished survey or refinement). */
+  show(): void {
     const ref = this.dialogs.open(FolderSetupWizard, {
       title: $localize`:Dialog title@@ai.folderSetup.title:Set up analysis for this folder`,
       width: 820,
     });
-    void ref.closed.then(() => {
-      if (this.store.phase() === 'surveying') void this.store.cancel();
-      if (this.store.ai() === 'running') void this.store.cancelAi();
-    });
+    void ref.closed.then(() => this.store.detach());
   }
 }
 

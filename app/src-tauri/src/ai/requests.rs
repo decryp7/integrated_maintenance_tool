@@ -124,6 +124,7 @@ impl AiOutcome {
         v
     }
 
+    #[cfg(test)]
     pub fn narrative(self) -> AiResult<Narrative> {
         match self {
             AiOutcome::Narrative(n) => Ok(n),
@@ -134,6 +135,7 @@ impl AiOutcome {
         }
     }
 
+    #[cfg(test)]
     pub fn proposal(self) -> AiResult<Proposal> {
         match self {
             AiOutcome::Proposal(p) => Ok(p),
@@ -144,6 +146,7 @@ impl AiOutcome {
         }
     }
 
+    #[cfg(test)]
     pub fn folder(self) -> AiResult<FolderRefinement> {
         match self {
             AiOutcome::Folder(f) => Ok(f),
@@ -153,6 +156,14 @@ impl AiOutcome {
             )),
         }
     }
+}
+
+/// A proposal needs a sample: given, or the lines around a selected event (checked before the job is queued).
+fn needs_source(record_id: Option<u32>, sample: &Option<String>) -> AiResult<()> {
+    if record_id.is_none() && sample.as_deref().is_none_or(|s| s.trim().is_empty()) {
+        return Err(AiCmdError::invalid("select an event in the file first"));
+    }
+    Ok(())
 }
 
 fn check_sample(sample: &Option<String>) -> AiResult<()> {
@@ -182,6 +193,7 @@ impl AiRequest {
                 file_name,
             } => {
                 check_sample(&sample)?;
+                needs_source(record_id, &sample)?;
                 Profile {
                     record_id,
                     sample,
@@ -190,6 +202,7 @@ impl AiRequest {
             }
             Pipeline { goal, record_id, sample } => {
                 check_sample(&sample)?;
+                needs_source(record_id, &sample)?;
                 Pipeline {
                     goal: bounded("the goal", &goal, MAX_TEXT_CHARS)?,
                     record_id,
@@ -198,6 +211,7 @@ impl AiRequest {
             }
             Markers { goal, record_id, sample } => {
                 check_sample(&sample)?;
+                needs_source(record_id, &sample)?;
                 Markers {
                     goal: bounded("the goal", &goal, MAX_TEXT_CHARS)?,
                     record_id,
@@ -206,6 +220,7 @@ impl AiRequest {
             }
             Extractors { goal, record_id, sample } => {
                 check_sample(&sample)?;
+                needs_source(record_id, &sample)?;
                 Extractors {
                     goal: bounded("the goal", &goal, MAX_TEXT_CHARS)?,
                     record_id,
@@ -344,16 +359,6 @@ fn use_case_work(
     }
 }
 
-/// Runs a use case as a job of the calling window and waits for its answer.
-pub(super) async fn run<R: Runtime>(app: &AppHandle<R>, win: &Arc<WindowState>, req: AiRequest) -> AiResult<AiOutcome> {
-    let core = core(app)?;
-    // Fail fast (no model, AI off) instead of queueing a request that cannot run.
-    core.provider()?;
-    let req = req.validated()?;
-    let spec = req.spec(win.label());
-    jobs::run(app, spec, Controls::default(), use_case_work(core, win.clone(), req)).await
-}
-
 /// Starts a chat turn as a job; the answer streams as `imt://ai-chat` events. Returns the job.
 pub(crate) fn start_turn<R: Runtime>(
     app: &AppHandle<R>,
@@ -452,21 +457,27 @@ pub(super) fn retry<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::Job) -> R
                 .map(Some)
                 .map_err(|e| e.message)
         }
-        other => {
-            let req = other.validated().map_err(|e| e.message)?;
-            let spec = req.spec(label);
-            jobs::spawn(app, spec, Controls::default(), use_case_work(core, win, req)).map(Some)
-        }
+        other => start_use_case(app, &win, other).map(Some).map_err(|e| e.message),
     }
 }
 
-/// Cancels the window's waiting use cases (not its chat turns, which have their own Stop). Returns how many.
-pub(super) fn cancel_queued<R: Runtime>(app: &AppHandle<R>, window: &str) -> usize {
+/// Starts a use case as a background AI job of `win` (nobody waits for it: its result is the job's); returns it.
+pub(crate) fn start_use_case<R: Runtime>(app: &AppHandle<R>, win: &Arc<WindowState>, req: AiRequest) -> AiResult<JobId> {
+    let core = core(app)?;
+    // Fail fast (no model, AI off) instead of queueing a request that cannot run.
+    core.provider()?;
+    let req = req.validated()?;
+    let spec = req.spec(win.label());
+    jobs::spawn(app, spec, Controls::default(), use_case_work(core, win.clone(), req)).map_err(AiCmdError::busy)
+}
+
+/// Cancels the window's use cases, running and waiting (not its chat turns, which have their own Stop). Returns how many.
+pub(super) fn cancel_use_cases<R: Runtime>(app: &AppHandle<R>, window: &str) -> usize {
     let Some(jobs) = app.try_state::<jobs::Jobs>() else { return 0 };
     let ids = jobs.find_active(|j| {
         j.kind == JobKind::Ai
             && j.window() == Some(window)
-            && j.state() == jobs::JobState::Queued
+            && !j.state().is_finished()
             && !matches!(j.source.link, Some(JobLink::Chat { .. }))
     });
     ids.into_iter().filter(|id| jobs.cancel(*id).is_ok()).count()
@@ -539,14 +550,14 @@ mod tests {
                 intent: Some("i".into()),
             },
             AiRequest::Profile {
-                record_id: None,
+                record_id: Some(1),
                 sample: None,
                 file_name: None,
             },
             AiRequest::Extractors {
                 goal: "g".into(),
                 record_id: None,
-                sample: None,
+                sample: Some("a line".into()),
             },
             AiRequest::FolderSetup { request: None },
         ] {

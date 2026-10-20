@@ -3,6 +3,7 @@ import { describeError } from '../core/logger';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { ExportTarget } from './export-target';
 import { SnapshotBackend } from './snapshot-backend';
+import { JobFollow } from '../jobs/job-follow';
 
 /** Outcome of the last "Save diagnostics…", shown by the banners. */
 export interface DiagnosticsExportStatus {
@@ -40,8 +41,11 @@ export class DiagnosticsExport {
       if (path) {
         // Looked up late: the backend is not needed until the user saves.
         const backend = this.injector.get(SnapshotBackend);
-        const files = await this.overwrite.write(path, (replace) => backend.saveReport(path, '', replace));
-        if (files !== null) this.status.set({ kind: 'saved', text: $localize`:@@diagnostics.export.saved:Saved diagnostics (${files}:count: files) to ${path}:path:` });
+        const job = await this.overwrite.write(path, (replace) => backend.saveReport(path, '', replace));
+        if (job !== null) {
+          this.injector.get(JobFollow).started($localize`:@@diagnostics.export.started:Saving diagnostics — running in Jobs`);
+          this.status.set({ kind: 'saved', text: $localize`:@@diagnostics.export.saving:Saving diagnostics to ${path}:path:; a message tells you when the file is ready.` });
+        }
       }
     } catch (e) {
       this.status.set({ kind: 'failed', text: $localize`:@@diagnostics.export.failed:Could not save the diagnostics: ${describeError(e)}:error:` });

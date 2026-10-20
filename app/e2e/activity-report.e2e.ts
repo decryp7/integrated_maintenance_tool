@@ -37,9 +37,15 @@ test('an error leads to a problem report the user reviews and saves', async ({ p
   await dialog.getByRole('textbox', { name: /What happened/ }).fill('The export failed');
   await expect(contents).toContainText('Your description');
   await dialog.getByRole('button', { name: 'Save report…' }).click();
+  // Saved by a job: the dialog may close; the message says when the zip is ready, with "Show in folder".
+  await expect(page.getByTestId('notice-toast').filter({ hasText: 'Saving the problem report — running in Jobs' })).toBeVisible();
   await expect(dialog.locator('[data-testid=report-saved]')).toContainText('imt-problem-report.zip');
   await dialog.getByRole('button', { name: 'Close' }).first().click();
   await expect(dialog).toBeHidden();
+  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Save problem report imt-problem-report.zip' });
+  await expect(done).toBeVisible({ timeout: 15_000 });
+  await expect(done).toContainText('files zipped.');
+  await expect(done.getByTestId('notice-toast-primary')).toHaveText('Show in folder');
 });
 
 test('Help commands are in the palette: report a problem and show the activity log', async ({ page }) => {

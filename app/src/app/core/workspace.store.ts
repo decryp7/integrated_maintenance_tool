@@ -5,6 +5,7 @@ import { ImtBackend } from './backend';
 import { DROPPED_FILES_HANDLERS, routeDroppedFiles } from './dropped-files';
 import { TimeZoneMode } from './format';
 import { Logger } from './logger';
+import { JobsBackend } from '../jobs/jobs-backend';
 import { Platform } from './platform';
 import { RECENT_STORE } from '../welcome/recent-store';
 import { plural } from '../i18n/locale';
@@ -158,7 +159,7 @@ export const WorkspaceStore = signalStore(
       instanceCount: computed(() => store.timeline()?.lanes.length ?? 0),
     };
   }),
-  withMethods((store, backend = inject(ImtBackend), platform = inject(Platform), logger = inject(Logger), recent = inject(RECENT_STORE)) => {
+  withMethods((store, backend = inject(ImtBackend), platform = inject(Platform), logger = inject(Logger), recent = inject(RECENT_STORE), jobs = inject(JobsBackend)) => {
     let textTimer: ReturnType<typeof setTimeout> | undefined;
     let anchorNonce = 0;
 
@@ -187,10 +188,28 @@ export const WorkspaceStore = signalStore(
 
     return {
       applySummary,
-      /** Applies the summary returned by a profile save and announces it to listeners. */
+      /** Applies the summary of a project or bundle that brought its own profile and announces it to listeners. */
       profileSaved(summary: WorkspaceSummary) {
         applySummary(summary);
         patchState(store, (s) => ({ profileVersion: s.profileVersion + 1 }));
+      },
+      /**
+       * Follows the re-import a profile save started (`saveProfile` returned its import job): the status bar shows
+       * its progress, the new summary applies and listeners hear of the profile when it is done. Callers need not
+       * wait for it. A failed re-import shows its reason like any import.
+       */
+      async applyProfile(jobId: number): Promise<void> {
+        const label = importLabel($localize`:@@core.workspace.busy.applyingProfile:Applying the profile…`);
+        await run(
+          label,
+          async () => {
+            const end = await jobs.wait(jobId);
+            if (end.state === 'failed') throw new Error(end.error ?? $localize`:@@core.workspace.profileFailed:The profile could not be applied.`);
+            return backend.workspaceSummary();
+          },
+          'profile applied',
+        );
+        if (!store.error()) patchState(store, (s) => ({ profileVersion: s.profileVersion + 1 }));
       },
       patchQuery: (patch: Partial<Query>) => setQuery(patch),
       async init() {

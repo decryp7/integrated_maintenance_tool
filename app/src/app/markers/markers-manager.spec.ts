@@ -7,11 +7,20 @@ import { DialogService } from '../ui/dialog.service';
 import { MarkersManager } from './markers-manager';
 import { MarkerRuleX } from './markers.types';
 import { at } from '../../testing/must';
+import { WorkspaceStore } from '../core/workspace.store';
+import { mockJobs } from '../jobs/mock-jobs';
+
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
 
 async function mount(backend: MockBackend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
   const fixture = TestBed.createComponent(MarkersManager);
   await settle(fixture, 8);
+  await applied(fixture);
   return { fixture, backend };
 }
 const kinds = (f: Parameters<typeof all>[0]) => all(f, 'tbody tr').map((r) => r.getAttribute('data-kind'));
@@ -34,6 +43,7 @@ describe('MarkersManager', () => {
     expect(btn(fixture, 'Move down Warning').disabled).toBe(true);
     btn(fixture, 'Move down Fatal').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(kinds(fixture).slice(0, 2)).toEqual(['start', 'fatal']);
     expect(((await model(backend)).marker as MarkerRuleX[]).slice(0, 2).map((m) => m.kind)).toEqual(['start', 'fatal']);
   });
@@ -51,6 +61,7 @@ describe('MarkersManager', () => {
     const { fixture, backend } = await mount();
     btn(fixture, 'Disable Start').click();
     await settle(fixture, 8);
+    await applied(fixture);
     let m = await model(backend);
     expect((m.marker as MarkerRuleX[]).map((r) => r.kind)).not.toContain('start');
     expect((m['imt_disabled_markers'] as MarkerRuleX[])[0]).toMatchObject({ kind: 'start', imt_index: 1 });
@@ -59,6 +70,7 @@ describe('MarkersManager', () => {
     expect(el(fixture, 'tr[data-kind="start"] .num').textContent!.trim()).toBe('–');
     btn(fixture, 'Enable Start').click();
     await settle(fixture, 8);
+    await applied(fixture);
     m = await model(backend);
     expect((m.marker as MarkerRuleX[]).map((r) => r.kind).slice(0, 3)).toEqual(['fatal', 'start', 'stop']);
     expect(m).not.toHaveProperty('imt_disabled_markers');
@@ -68,6 +80,7 @@ describe('MarkersManager', () => {
     const { fixture, backend } = await mount();
     btn(fixture, 'Duplicate Error').click();
     await settle(fixture, 8);
+    await applied(fixture);
     const list = (await model(backend)).marker as MarkerRuleX[];
     expect(list.map((r) => r.kind)).toContain('error-copy');
     expect(list.find((r) => r.kind === 'error-copy')!.label).toBe('Error (copy)');
@@ -84,6 +97,7 @@ describe('MarkersManager', () => {
     await settle(fixture);
     buttonByText(fixture, 'Confirm delete').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(kinds(fixture)).not.toContain('warning');
     expect(((await model(backend)).marker as MarkerRuleX[]).map((r) => r.kind)).not.toContain('warning');
   });
@@ -107,6 +121,7 @@ describe('MarkersManager', () => {
     vi.spyOn(backend, 'validateProfile').mockResolvedValueOnce({ ok: false, error: 'nope', line: 7 });
     btn(fixture, 'Move down Fatal').click();
     await settle(fixture, 8);
+    await applied(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('nope (profile line 7)');
     expect(kinds(fixture)[0]).toBe('fatal');
     vi.spyOn(backend, 'getProfile').mockRejectedValueOnce(new Error('unreadable'));
@@ -125,7 +140,7 @@ describe('MarkersManager', () => {
     expect(el(fixture, 'tr[data-kind="error"] .num').textContent!.trim()).toBe('…');
     TestBed.resetTestingModule();
     const empty = tinyBackend();
-    await empty.saveProfile('name = "x"\n');
+    await mockJobs().wait(await empty.saveProfile('name = "x"\n'));
     const e = await mount(empty);
     expect(text(e.fixture)).toContain('No marker rules');
   });

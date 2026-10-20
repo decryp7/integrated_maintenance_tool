@@ -5,6 +5,7 @@ import { isMockDemoPath, MOCK_DEMO_PATHS, MockFiles, MockImportSim, MockProfileH
 import { mockOptionsFromSearch } from './mock-options';
 
 import { at } from '../../../testing/must';
+import { mockJobs } from '../../jobs/mock-jobs';
 describe('mock import, files and profile history', () => {
   it('a slow import reports progress file by file and stops after a cancel', async () => {
     const sim = new MockImportSim(5);
@@ -103,9 +104,12 @@ describe('mock import, files and profile history', () => {
       expect((await b.profileHistory())[0]?.name).not.toBe('Next');
       expect((await b.profileVersion(at(await b.profileHistory(), 0).file)).path).toBeNull();
       const request = { query: { from: null, to: null, levels: [], text: '', regex: false, caseSensitive: false, filters: [], groupBy: [], groups: [], markers: [] }, format: 'csv', path: '/out/e.csv' };
-      await b.exportEvents(request);
+      const first = await b.exportEvents(request);
+      expect(typeof first).toBe('number');
       await expect(b.exportEvents(request)).rejects.toContain(FILE_EXISTS_SUFFIX);
-      expect((await b.exportEvents({ ...request, overwrite: true })).path).toBe('/out/e.csv');
+      const end = await mockJobs().wait(await b.exportEvents({ ...request, overwrite: true }));
+      expect(end.result).toEqual({ type: 'file', path: '/out/e.csv' });
+      expect(end.message).toMatch(/^Exported \d+ events\.$/);
     });
   });
 });

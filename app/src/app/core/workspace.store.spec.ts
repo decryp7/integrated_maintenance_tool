@@ -5,6 +5,7 @@ import { Platform } from './platform';
 import { DROPPED_FILES_HANDLERS } from './dropped-files';
 import { EMPTY_QUERY, loadPrefs, savePrefs, WorkspaceStore } from './workspace.store';
 import { at } from '../../testing/must';
+import { mockJobs } from '../jobs/mock-jobs';
 
 const fakePlatform = {
   failDialog: false,
@@ -325,5 +326,48 @@ describe('WorkspaceStore', () => {
     });
     expect(() => savePrefs({ timezone: 'utc', theme: 'dark', extraColumns: [], alwaysShowLifecycle: true })).not.toThrow();
     setItem.mockRestore();
+  });
+
+  describe('applyProfile', () => {
+    it('follows the re-import job of a profile save: busy label, new summary, profile version', async () => {
+      const backend = tinyBackend();
+      const store = setup(backend);
+      await settle();
+      const version = store.profileVersion();
+      const job = await backend.saveProfile('name = "Applied profile"\n');
+      expect(job).toEqual(expect.any(Number));
+      const done = store.applyProfile(job);
+      expect(store.busy()).toBe('Applying the profile…');
+      await done;
+      expect(store.busy()).toBeNull();
+      expect(store.error()).toBeNull();
+      expect(store.summary()?.profileName).toBe('Applied profile');
+      expect(store.profileVersion()).toBe(version + 1);
+    });
+
+    it('a failed re-import shows its reason and does not announce the profile', async () => {
+      const store = setup();
+      await settle();
+      const version = store.profileVersion();
+      const wait = vi.spyOn(mockJobs(), 'wait');
+      wait.mockResolvedValueOnce({ id: 3, state: 'failed', result: null, error: 'the disk is full', message: null });
+      await store.applyProfile(3);
+      expect(store.busy()).toBeNull();
+      expect(store.error()).toContain('the disk is full');
+      expect(store.profileVersion()).toBe(version);
+      wait.mockResolvedValueOnce({ id: 4, state: 'failed', result: null, error: null, message: null });
+      await store.applyProfile(4);
+      expect(store.error()).toContain('The profile could not be applied.');
+      expect(store.profileVersion()).toBe(version);
+    });
+
+    it('profileSaved still applies the summary of a project or bundle that brought its own profile', async () => {
+      const store = setup();
+      await settle();
+      const version = store.profileVersion();
+      store.profileSaved({ ...store.summary()!, profileName: 'From a project' });
+      expect(store.summary()?.profileName).toBe('From a project');
+      expect(store.profileVersion()).toBe(version + 1);
+    });
   });
 });

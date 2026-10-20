@@ -10,6 +10,15 @@ import { parseProfile, stringifyProfile } from './toml';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { ProfileUndo } from '../undo/profile-undo';
 
+/** The profile's `name`, when the text parses. */
+function profileName(toml: string): string | null {
+  try {
+    return parseProfile(toml).name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The profile being edited. The TOML text is the source of truth; the form edits a parsed
  * copy and writes it back (which normalises formatting and drops comments).
@@ -147,10 +156,11 @@ export class ProfileDraft {
     this.saving.set(true);
     try {
       const text = this.text();
-      const summary = await this.undo.save($localize`:Undo history entry|@@profile.draft.undoLabel:profile edit`, text);
-      this.seenProfileVersion = this.store.profileVersion();
-      this.logger.info('ui.profile', 'Profile saved', { Markers: summary.markerKinds.length, Charts: summary.charts.length, Events: summary.total });
-      this.doc.update((d) => ({ name: summary.profileName, path: d?.path ?? null, toml: text }));
+      // Saved now; the files re-import in the background (the status bar shows it).
+      await this.undo.save($localize`:Undo history entry|@@profile.draft.undoLabel:profile edit`, text);
+      this.seenProfileVersion = this.store.profileVersion() + 1;
+      this.logger.info('ui.profile', 'Profile saved', { Bytes: text.length });
+      this.doc.update((d) => ({ name: profileName(text) ?? d?.name ?? '', path: d?.path ?? null, toml: text }));
       this.importedFrom.set(null);
       this.stale.set(false);
     } catch (e) {

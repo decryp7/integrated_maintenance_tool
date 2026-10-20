@@ -39,7 +39,9 @@ export type JobResult =
   | { type: 'file'; path: string }
   | { type: 'workspace' }
   | { type: 'view'; view: string; ql: string | null }
-  | { type: 'model'; fileName: string | null };
+  | { type: 'model'; fileName: string | null }
+  | { type: 'folderSurvey'; outcome: unknown }
+  | { type: 'storage'; result: unknown };
 
 export type JobResultType = JobResult['type'];
 
@@ -69,6 +71,15 @@ export interface JobInfo {
   /** Finished, needed attention, not viewed yet. */
   unseen: boolean;
   retryOf: number | null;
+}
+
+/** `jobs_wait`: how a job ended, with its whole result, for the dialog that followed it while it ran. */
+export interface JobOutcome {
+  id: number;
+  state: JobState;
+  result: JobResult | null;
+  error: string | null;
+  message: string | null;
 }
 
 /** A queue the engine paused (the AI after a quarantine). */

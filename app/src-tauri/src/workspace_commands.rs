@@ -33,8 +33,24 @@ pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
     spec: JobSpec,
     f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
+    crate::jobs::run(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).await
+}
+
+/// Like [`import_job`], without waiting: returns the job at once (applying a profile re-imports in the
+/// background while the status bar shows its progress).
+pub(crate) fn start_import<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    spec: JobSpec,
+    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<()> + Send + 'static,
+) -> CmdResult<u64> {
+    crate::jobs::spawn(app, spec.window(state.label()), import_controls(state), import_work(app, state, f)).map(|id| id.0)
+}
+
+/// An import's Cancel and progress (the window's import progress).
+fn import_controls(state: &CurrentWindow) -> Controls {
     let (cancel, probe) = (state.progress.clone(), state.progress.clone());
-    let controls = Controls::cancel(move || cancel.cancel()).with_probe(move || {
+    Controls::cancel(move || cancel.cancel()).with_probe(move || {
         let p = probe.snapshot();
         p.running.then(|| JobProgress {
             fraction: (p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
@@ -42,15 +58,21 @@ pub(crate) async fn import_job<R: Runtime, T: Send + 'static>(
             total: Some(p.total as u64),
             eta_ms: p.eta_ms,
         })
-    });
+    })
+}
+
+fn import_work<R: Runtime, T: Send + 'static>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    f: impl FnOnce(&mut dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
+) -> impl FnOnce(&crate::jobs::JobCtx) -> Result<Done<T>, String> + Send + 'static {
     let (handle, win) = (app.clone(), state.arc().clone());
-    crate::jobs::run(app, spec.window(state.label()), controls, move |ctx| {
+    move |ctx| {
         ctx.message("Reading the files");
         crate::windows::write_reporting_blocking(&handle, &win, f)
             .map(|v| Done::new(v).with_result(JobResult::Workspace))
             .map_err(err)
-    })
-    .await
+    }
 }
 
 /// The spec of an import of `paths` (Retry opens them again).
@@ -300,13 +322,11 @@ pub(crate) fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
 
 /// Writes the events matching the query to a file chosen by the user.
 #[tauri::command]
-pub(crate) async fn export_events<R: Runtime>(
-    app: AppHandle<R>,
-    state: CurrentWindow,
-    op: OpId,
-    request: ExportRequest,
-) -> CmdResult<Value> {
+pub(crate) async fn export_events<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, request: ExportRequest) -> CmdResult<u64> {
     let target = PathBuf::from(&request.path);
+    // Checked now, so the dialog can ask to replace the file; the engine checks again when it writes.
+    imt_core::overwrite::check_overwrite(&target, request.overwrite).map_err(err)?;
+    let redact = request.redact;
     crate::jobs::export(&app, &state, "Export events to", &target, move |ws| {
         let result = ws.export(&request)?;
         log::info!(Format = result.format.as_str(), Events = result.events as u64; "Events exported");
@@ -317,9 +337,18 @@ pub(crate) async fn export_events<R: Runtime>(
             op.as_deref(),
             &[("Export", "events"), ("Format", &result.format), ("Path", &path), ("Rows", &rows)],
         );
-        serde_json::to_value(result).map_err(anyhow::Error::from)
+        Ok(exported_line(&result, redact))
     })
-    .await
+}
+
+/// "Exported 1204 events (redacted, 3 values masked)": the line the export's message shows.
+fn exported_line(result: &imt_core::api::ExportResult, redacted: bool) -> String {
+    let masked: usize = result.redactions.values().sum();
+    match (redacted, masked) {
+        (true, 1) => format!("Exported {} events (redacted, 1 value masked).", result.events),
+        (true, n) => format!("Exported {} events (redacted, {n} values masked).", result.events),
+        (false, _) => format!("Exported {} events.", result.events),
+    }
 }
 
 #[tauri::command]
@@ -467,6 +496,19 @@ mod tests {
             descending: false,
             anchor: None,
         }
+    }
+
+    #[test]
+    fn the_export_line_counts_events_and_masked_values() {
+        let r = |n: usize| imt_core::api::ExportResult {
+            format: "csv".into(),
+            path: "x".into(),
+            events: 7,
+            redactions: [("email".to_string(), n)].into_iter().collect(),
+        };
+        assert_eq!(exported_line(&r(0), false), "Exported 7 events.");
+        assert_eq!(exported_line(&r(1), true), "Exported 7 events (redacted, 1 value masked).");
+        assert_eq!(exported_line(&r(3), true), "Exported 7 events (redacted, 3 values masked).");
     }
 
     #[test]
@@ -657,13 +699,18 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let res = block(export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
-        assert_eq!(res["events"], summary["total"]);
+        let job = block(export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
+        assert_eq!(
+            crate::test_support::job_done(&app, job),
+            format!("Exported {} events.", summary["total"])
+        );
         assert!(std::fs::read_to_string(&out).unwrap().lines().count() > 0);
         let bad: ExportRequest = serde_json::from_value(json!({"format": "pdf", "path": "x"})).unwrap();
-        assert!(block(export_events(app.handle().clone(), st(), OpId::default(), bad))
-            .unwrap_err()
-            .contains("unknown export format"));
+        // What only the engine knows (the format) fails the job, with the reason.
+        let job = block(export_events(app.handle().clone(), st(), OpId::default(), bad)).unwrap();
+        let end = crate::test_support::job_end(&app, job);
+        assert_eq!(end.state, crate::jobs::JobState::Failed);
+        assert!(end.error.unwrap_or_default().contains("unknown export format"));
         assert_eq!(
             crate::lifecycle::plugins(false, &[]).unwrap().plugins().len(),
             crate::lifecycle::builtin_plugins().len()
@@ -676,13 +723,17 @@ mod tests {
         let app = opened(Some(dir.0.clone()), &[samples().join("log4net")]);
         let st = || main_window(&app);
         let shared = || app.state::<crate::AppState>();
-        block(crate::profile::save_profile(
-            shared(),
-            st(),
-            OpId::default(),
-            "name = 'Project profile'".into(),
-        ))
-        .unwrap();
+        crate::test_support::job_done(
+            &app,
+            crate::profile::save_profile(
+                app.handle().clone(),
+                shared(),
+                st(),
+                OpId::default(),
+                "name = 'Project profile'".into(),
+            )
+            .unwrap(),
+        );
         let file = dir.0.join("incident.imtproj").to_string_lossy().into_owned();
         let saved = block(save_project(
             st(),
@@ -723,13 +774,10 @@ mod tests {
 
         block(clear_workspace(st())).unwrap();
         assert!(st().project().is_none());
-        block(crate::profile::save_profile(
-            shared(),
-            st(),
-            OpId::default(),
-            "name = 'Other'".into(),
-        ))
-        .unwrap();
+        crate::test_support::job_done(
+            &app,
+            crate::profile::save_profile(app.handle().clone(), shared(), st(), OpId::default(), "name = 'Other'".into()).unwrap(),
+        );
         let opened = block(open_project(app.handle().clone(), st(), OpId::default(), file.clone())).unwrap();
         assert_eq!(opened["name"], "Incident");
         assert_eq!(opened["ui"]["bookmarks"][0], 3);
@@ -779,7 +827,8 @@ mod tests {
         let op = |id: &str| OpId(Some(id.into()));
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        block(export_events(app.handle().clone(), st(), op("op-export"), req)).unwrap();
+        let job = block(export_events(app.handle().clone(), st(), op("op-export"), req)).unwrap();
+        crate::test_support::job_done(&app, job);
         let e = crate::tools::tests::domain_event("export.written", "op-export");
         assert_eq!((e.props["Export"].as_str(), e.props["Format"].as_str()), ("events", "clef"));
         assert!(

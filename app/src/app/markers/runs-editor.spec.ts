@@ -6,6 +6,12 @@ import { parseProfile } from '../profile/toml';
 import { RunsBackend } from '../timeline/runs-backend';
 import { RunsEditor } from './runs-editor';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 async function mount(backend: MockBackend = tinyBackend()) {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
@@ -45,6 +51,7 @@ describe('RunsEditor', () => {
     expect(save.disabled).toBe(false);
     save.click();
     await settle(fixture, 12);
+    await applied(fixture);
     const m = await model(backend);
     expect((m.span ?? []).map((s) => s.kind)).toEqual(['run', 'service-running']);
     expect(fixture.nativeElement.querySelector('[data-testid="runs-form"]')).toBeNull();
@@ -72,6 +79,7 @@ describe('RunsEditor', () => {
     await previewed(fixture);
     el<HTMLButtonElement>(fixture, '[data-testid="runs-save"]').click();
     await settle(fixture, 12);
+    await applied(fixture);
     const m = await model(backend);
     const span = (m.span ?? []).find((s) => s.kind === 'process');
     expect(span).toMatchObject({ start: 'process-start', stop: 'process-stop', per: 'field:ProcessId', max_duration: '1h' });
@@ -97,11 +105,13 @@ describe('RunsEditor', () => {
     await previewed(fixture);
     el<HTMLButtonElement>(fixture, '[data-testid="runs-save"]').click();
     await settle(fixture, 12);
+    await applied(fixture);
     let m = await model(backend);
     expect(m.span).toEqual([{ kind: 'run', label: 'Up', start: 'start', stop: 'fatal', per: 'instance', color: '#3987e5', restart_on_start: false }]);
 
     el<HTMLInputElement>(fixture, '.rules li[data-kind="run"] input[type="checkbox"]').click();
     await settle(fixture, 12);
+    await applied(fixture);
     m = await model(backend);
     expect(m.span?.[0]?.enabled).toBe(false);
     el<HTMLButtonElement>(fixture, '[aria-label="Delete Up"]').click();
@@ -112,6 +122,7 @@ describe('RunsEditor', () => {
     await settle(fixture, 2);
     buttonByText(fixture, 'Confirm delete').click();
     await settle(fixture, 12);
+    await applied(fixture);
     m = await model(backend);
     expect(m.span).toEqual([]);
   });

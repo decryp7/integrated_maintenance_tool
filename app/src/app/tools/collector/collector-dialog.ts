@@ -143,6 +143,7 @@ type Phase = 'idle' | 'running' | 'done';
 
     @if (phase() === 'running') {
       <div class="progress" role="status" data-testid="collect-progress" i18n="@@tools.collector.collecting"><span class="spinner" aria-hidden="true"></span> Collecting… this can take a minute on large log folders.</div>
+      <p class="muted" i18n="@@tools.collector.closeHint">You can close this dialog: the collection goes on and is listed in Jobs.</p>
     }
 
     @if (result(); as r) {

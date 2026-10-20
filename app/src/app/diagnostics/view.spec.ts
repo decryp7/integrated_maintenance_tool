@@ -13,6 +13,8 @@ import { SnapshotsStore } from './snapshots.store';
 import { SnapshotToast } from './snapshot-toast';
 import { CapturedImage, SNAPSHOT_NOTICE } from './snapshot.types';
 import { at } from '../../testing/must';
+import { mockJobs } from '../jobs/mock-jobs';
+import { NotificationsStore } from '../notifications/notifications.store';
 
 const IMAGE: CapturedImage = { base64: 'iVBORw0KGgo=', mime: 'image/png', bytes: 8 };
 
@@ -85,10 +87,15 @@ describe('ErrorSnapshotsView', () => {
     await flush(f);
 
     // Export all when nothing is ticked.
+    const exported = vi.spyOn(backend, 'exportDiagnostics');
     exportButton().click();
     await flush(f);
     expect(backend.exports[0]).toEqual({ path: '/out/diag.zip', ids: [b.id, a.id] });
-    expect(el.textContent).toContain('Exported 2 snapshots');
+    expect(el.textContent).toContain('Exporting 2 snapshots to /out/diag.zip; a message tells you when the file is ready.');
+    expect(at(TestBed.inject(NotificationsStore).toasts(), 0).title).toBe('Exporting diagnostics — running in Jobs');
+    const end = await mockJobs().wait(await at(exported.mock.results, 0).value);
+    expect(end.result).toEqual({ type: 'file', path: '/out/diag.zip' });
+    expect(end.message).toBe('5 files zipped.');
 
     // Export only the ticked one, over the first export after confirming.
     (el.querySelectorAll('input.pick')[1] as HTMLInputElement).click();

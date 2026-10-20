@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { expectNoSeriousViolations } from './axe';
-import { ask, openAiApp, openChat, runCommand, waitAnswered } from './ai-support';
+import { ask, narrativeDialog, openAiApp, openChat, runCommand, viewAnswer, waitAnswered } from './ai-support';
 import { openAppWith } from './mock-url';
 
 // Every AI view in the DARK theme (the other ai-* files check the light one): contrast of chips, badges,
@@ -33,7 +33,8 @@ test.describe('AI views in the dark theme', () => {
     await query.getByRole('button', { name: 'Close' }).last().click();
 
     await runCommand(page, 'AI: Find likely root causes');
-    const narrative = page.getByRole('dialog', { name: 'Likely root causes' });
+    await viewAnswer(page, 'Root causes ready');
+    const narrative = narrativeDialog(page);
     await expect(narrative.getByTestId('ai-narrative')).toContainText('Memory leak');
     await expectNoSeriousViolations(page, testInfo, 'dark-ai-narrative', '[role=dialog]');
     await narrative.getByRole('button', { name: 'Close' }).last().click();

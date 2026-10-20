@@ -285,6 +285,18 @@ describe('NotificationToasts', () => {
     expect(el(f, '[data-testid=notice-toast-show]').textContent).toBe('Show in Notifications');
   });
 
+  it('a toast of the UI own (running in Jobs) has its action but no Show in Notifications', async () => {
+    const { f, store, actions } = setup();
+    await render(f);
+    store.showLocal({ severity: 'info', title: 'Exporting to a.csv — running in Jobs', primary: { type: 'showJobs' } });
+    f.detectChanges();
+    expect(el(f, '[data-testid=notice-toast] .title').textContent).toBe('Exporting to a.csv — running in Jobs');
+    expect(f.nativeElement.querySelector('[data-testid=notice-toast-show]')).toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').click();
+    await settle(f);
+    expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ id: -1 }), { type: 'showJobs' });
+  });
+
   it('leaves out the body and the primary button when the message has none', async () => {
     const { f, fake } = setup();
     await render(f);

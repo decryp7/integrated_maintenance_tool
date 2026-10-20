@@ -14,19 +14,12 @@ import {
   ChatEventEnvelope,
   ChatHistoryRecord,
   ChatRecord,
-  ExtractorsProposal,
   Hardware,
   InstalledModel,
-  MarkersProposal,
-  Narrative,
-  PipelineProposal,
-  ProfileProposal,
-  QueryProposal,
+  AiStartRequest,
   Recommendation,
   Recommendations,
-  RegexProposal,
   RestoreResult,
-  SampleSource,
   SessionInfo,
   SetupEvent,
   SetupPlan,
@@ -108,44 +101,8 @@ export class TauriAiBackend extends AiBackend {
   runtimeChoose(id: string) {
     return this.run<void>('ai_runtime_choose', { id });
   }
-  proposeRegex(lines: string[], intent?: string | null) {
-    return this.run<RegexProposal>('ai_propose_regex', { lines, intent: intent ?? null });
-  }
-  proposeProfile(source: SampleSource) {
-    return this.run<ProfileProposal>('ai_propose_profile', { ...source });
-  }
-  proposePipeline(goal: string, source: SampleSource) {
-    return this.run<PipelineProposal>('ai_propose_pipeline', {
-      goal,
-      recordId: source.recordId ?? null,
-      sample: source.sample ?? null,
-    });
-  }
-  proposeMarkers(goal: string, source: SampleSource) {
-    return this.run<MarkersProposal>('ai_propose_markers', {
-      goal,
-      recordId: source.recordId ?? null,
-      sample: source.sample ?? null,
-    });
-  }
-  proposeExtractors(goal: string, source: SampleSource) {
-    return this.run<ExtractorsProposal>('ai_propose_extractors', {
-      goal,
-      recordId: source.recordId ?? null,
-      sample: source.sample ?? null,
-    });
-  }
-  nlToQuery(question: string) {
-    return this.run<QueryProposal>('ai_nl_to_query', { question });
-  }
-  explainEvent(recordId: number) {
-    return this.run<Narrative>('ai_explain_event', { recordId });
-  }
-  summarize(from: number, to: number) {
-    return this.run<Narrative>('ai_summarize', { from, to });
-  }
-  rootCauses() {
-    return this.run<Narrative>('ai_root_causes');
+  start(request: AiStartRequest) {
+    return this.run<number>('ai_start', { request });
   }
   research(args: ResearchArgs) {
     return this.run<ResearchStarted>('ai_research', { args });

@@ -27,14 +27,14 @@ async function openNotifications(page: Page): Promise<void> {
   await expect(noticesPane(page)).toBeVisible();
 }
 
-/** Explains the first event and closes the dialog at once: the request goes on as a job. */
+/** Explains the first event: no dialog, the request runs as a job and a toast says so. */
 async function explainInBackground(page: Page): Promise<void> {
   await page.locator('imt-events-grid [role=row].row').first().click();
   await runCommand(page, 'AI: Explain the selected event');
-  const dialog = page.getByRole('dialog', { name: /Explain event/ });
-  await expect(dialog).toContainText('Reading the event');
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
+  const started = page.getByTestId('notice-toast').filter({ hasText: /Explaining event #\d+ — running in Jobs/ });
+  await expect(started).toBeVisible();
+  await expect(started.getByTestId('notice-toast-primary')).toHaveText('Show in Jobs');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
 /** Saves a bundle and closes the dialog while it is written (a slow export job). */
@@ -60,8 +60,8 @@ test.describe('jobs', () => {
     await expect(page.getByTestId('status-jobs')).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'jobs-pane', 'imt-jobs-panel');
 
-    // The AI answer finishes first: a toast with View, and View opens the answer with its citations.
-    const toast = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Explain event' });
+    // The AI answer finishes first: "Explanation ready" with View, and View opens the answer with its citations.
+    const toast = page.getByTestId('notice-toast').filter({ hasText: 'Explanation ready' });
     await expect(toast).toBeVisible({ timeout: 15_000 });
     await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'imt-notification-toasts');
     await toast.getByTestId('notice-toast-primary').click();
@@ -74,10 +74,7 @@ test.describe('jobs', () => {
     await openAiApp(page, 'mockAiStepMs=2500&mockJobsVisibleMs=0&mockJobsFailOnce=export');
     await explainInBackground(page);
     await runCommand(page, 'AI: Find likely root causes');
-    const second = page.getByRole('dialog', { name: 'Likely root causes' });
-    await expect(second).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(second).toHaveCount(0);
+    await expect(page.getByTestId('notice-toast').filter({ hasText: 'Looking for root causes — running in Jobs' })).toBeVisible();
     await openJobs(page);
     const pane = jobsPane(page);
     const waiting = pane.locator('li').filter({ hasText: 'Find likely root causes' });
@@ -102,7 +99,7 @@ test.describe('notifications', () => {
     await expect(bell).toContainText('1', { timeout: 10_000 });
     await openNotifications(page);
     const pane = noticesPane(page);
-    const finished = pane.locator('li').filter({ hasText: 'Finished: Explain event' });
+    const finished = pane.locator('li').filter({ hasText: 'Explanation ready' });
     await expect(finished).toHaveClass(/unread/);
     await expectNoSeriousViolations(page, testInfo, 'notifications-pane', 'imt-notifications-panel');
     await finished.getByRole('button', { name: 'View', exact: true }).click();

@@ -14,6 +14,7 @@ import { MockShareBackend, mockTileQuery } from './mock/mock-share-backend';
 import { ShareBackend, TauriShareBackend } from './share-backend';
 import { createShareBackend, provideShare } from './share.plugin';
 import { at } from '../../testing/must';
+import { mockJobs } from '../jobs/mock-jobs';
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => 'ok'));
 
@@ -173,9 +174,10 @@ describe('MockShareBackend', () => {
     const ctx = await imt.sourceContext({ recordId: at(after.rows, 0).id, before: 0, after: 0 });
     expect(ctx.lines[0]?.text).toContain('<ipv4>');
     const exported = await imt.exportEvents({ query: listening, format: 'csv', path: 'x.csv', redact: true });
-    expect(exported.redactions?.['ipv4']).toBeGreaterThan(0);
+    expect(exported).toEqual(expect.any(Number));
+    expect((await mockJobs().wait(exported)).message).toMatch(/^Exported \d+ events \(redacted, [1-9]\d* values masked\)\.$/);
     // A profile without rules switches the view off; switching on then fails.
-    await imt.saveProfile('name = "x"\n[redact]\ndetectors = []');
+    await mockJobs().wait(await imt.saveProfile('name = "x"\n[redact]\ndetectors = []'));
     expect((await imt.workspaceSummary()).redactedView).toBe(false);
     await expect(share.setRedactedView(true)).rejects.toThrow(/no redaction rules/);
     expect((await share.setRedactedView(false)).redactedView).toBe(false);
@@ -184,7 +186,7 @@ describe('MockShareBackend', () => {
   it('keeps redacting with the new rules after a profile change', async () => {
     await share.setRedactedView(true);
     const doc = await imt.getProfile();
-    await imt.saveProfile(doc.toml.replace('mode = "mask"', 'mode = "drop"'));
+    await mockJobs().wait(await imt.saveProfile(doc.toml.replace('mode = "mask"', 'mode = "drop"')));
     const page = await imt.queryPage({ query: { ...q, text: 'listening' }, offset: 0, limit: 1, descending: false });
     expect(at(page.rows, 0).message).not.toContain('0.0.0.0');
     expect(at(page.rows, 0).message).not.toContain('<ipv4>');
@@ -250,10 +252,14 @@ describe('MockShareBackend', () => {
   });
 
   it('records report and image exports and checks their paths', async () => {
+    // Both return their export job at once; the message says what was written.
     const r = await share.exportReport({ report: report(), format: 'html', path: '/r.html', redact: true, theme: 'light' });
-    expect(r.bytes).toBeGreaterThan(0);
-    expect(r.redaction.find((h) => h.rule === 'email')?.count).toBe(1);
-    expect((await share.exportReport({ report: report(), format: 'pdf', path: '/r.pdf', redact: false, theme: 'dark' })).redaction).toEqual([]);
+    expect(r).toEqual(expect.any(Number));
+    const end = await mockJobs().wait(r);
+    expect([end.state, end.result]).toEqual(['done', { type: 'file', path: '/r.html' }]);
+    expect(end.message).toMatch(/^Report written \([1-9]\d* values redacted\)\.$/);
+    const plain = await mockJobs().wait(await share.exportReport({ report: report(), format: 'pdf', path: '/r.pdf', redact: false, theme: 'dark' }));
+    expect(plain.message).toBe('Report written.');
     await expect(share.exportReport({ report: { ...report(), id: '' }, format: 'html', path: '/r.html', redact: false, theme: 'light' })).rejects.toThrow(/needs an id/);
     await expect(share.exportReport({ report: report(), format: 'pdf', path: '/r.html', redact: false, theme: 'light' })).rejects.toThrow(/\.pdf/);
     await share.saveVisual({ path: '/c.png', kind: 'png', data: 'data:image/png;base64,AAAA' });
@@ -272,17 +278,21 @@ describe('MockShareBackend', () => {
     expect(est.files).toBe(5);
     const raw = await share.estimateBundle({ ...options, content: 'raw', reports: [] });
     expect(raw.parts.map((p) => p.name)).toEqual(['profile', 'logs', 'reports']);
-    const m = await share.createBundle(options, '/out/case.imtz');
-    expect(m).toMatchObject({ format: 'imt-share', name: 'Case 42', redacted: true, content: 'events' });
+    const job = await share.createBundle(options, '/out/case.imtz');
+    expect(job).toEqual(expect.any(Number));
+    const written = await mockJobs().wait(job);
+    expect([written.state, written.message, written.result]).toEqual(['done', 'Bundle written, redacted (5 values).', { type: 'file', path: '/out/case.imtz' }]);
     await expect(share.createBundle(options, '/out/case.zip')).rejects.toThrow(/\.imtz/);
     const opened = await share.openBundle('/out/case.imtz');
-    expect(opened).toMatchObject({ readOnly: true, name: 'Case 42', ui: { k: 1 }, reports: [report()], bundle: m });
+    expect(opened).toMatchObject({ readOnly: true, name: 'Case 42', ui: { k: 1 }, reports: [report()], bundle: { format: 'imt-share', name: 'Case 42', redacted: true, content: 'events' } });
     const other = await share.openBundle('/demo/shared.imtz');
     expect(other).toMatchObject({ name: 'shared', bundle: null, reports: [], ui: null });
     await expect(share.openBundle('/demo/x.zip')).rejects.toThrow(/not an IMT bundle/);
-    const plain = await share.createBundle({ ...options, redact: false, content: 'raw' }, '/out/raw.imtz');
-    expect(plain.redaction).toEqual({});
-    expect(plain.events).toBeNull();
+    const plainEnd = await mockJobs().wait(await share.createBundle({ ...options, redact: false, content: 'raw' }, '/out/raw.imtz'));
+    expect(plainEnd.message).toBe('Bundle written.');
+    const plain = (await share.openBundle('/out/raw.imtz')).bundle;
+    expect(plain?.redaction).toEqual({});
+    expect(plain?.events).toBeNull();
   });
 
   it('refuses profiles with a broken [redact] section or dashboard, like the engine', async () => {

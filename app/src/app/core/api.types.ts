@@ -14,11 +14,11 @@
  *   query_chart            { request: ChartRequest }       -> ChartData
  *   get_profile            {}                              -> ProfileDoc
  *   validate_profile       { toml: string }                -> ProfileValidation
- *   save_profile           { toml: string }                -> WorkspaceSummary   (applies + re-imports)
+ *   save_profile           { toml: string }                -> number   (checks and saves now; the re-import is that import job)
  *   preview_extractor      { request: ExtractPreviewRequest } -> ExtractPreview
  *   import_profile         { path: string }                -> ProfileDoc   (read + validated; applied only by save_profile)
  *   export_profile         { path: string, toml: string }  -> void
- *   export_events          { request: ExportRequest }      -> ExportResult  (built-in formats "csv" and "clef")
+ *   export_events          { request: ExportRequest }      -> number   (an export job; built-in formats "csv" and "clef")
  *   source_context         { request: ContextRequest }     -> SourceContext (original lines around an event)
  *   read_file_head         { path: string, maxBytes?: number } -> string   (only files in the workspace)
  *   preview_parse          { request: ParsePreviewRequest } -> ParsePreview
@@ -278,13 +278,6 @@ export interface ExportRequest {
   overwrite?: boolean;
 }
 
-export interface ExportResult {
-  format: string;
-  path: string;
-  events: number;
-  /** Matches per redaction rule (empty when not redacted). */
-  redactions?: Record<string, number>;
-}
 
 /**
  * Fields of records produced by the "registry" importer (Windows .reg exports).
@@ -854,13 +847,13 @@ export interface MomentSummary {
  *   read_error_snapshot    { id }                 -> string (data: URL)
  *   delete_error_snapshot  { id }                 -> void
  *   open_snapshots_folder  {}                     -> string (folder path)
- *   export_diagnostics     { path, ids }          -> number (files written)
+ *   export_diagnostics     { path, ids }          -> number (the export job writing the zip)
  *   diagnostics_settings   {}                     -> { snapshots: { enabled: boolean } }
  * Event "imt://error" carries an EngineError.
  *
  * Problem reports and the activity log (app/src-tauri/src/activity/report.rs):
  *   problem_report_preview { description? }               -> ProblemReportPreview
- *   save_problem_report    { path, description?, overwrite? } -> number (files in the zip)
+ *   save_problem_report    { path, description?, overwrite? } -> number (the export job writing the zip)
  *   open_activity_log      {}                              -> string (label of the new window showing IMT's own logs,
  *                                                             filtered to SourceContext = "IMT.Activity")
  */
@@ -2034,10 +2027,10 @@ export interface HeapPaths {
 //   preview_redaction  { request }               -> RedactionPreview
 //   redaction_summary  { request }               -> RedactionSummary
 //   dashboard_tile     { request: TileRequest }  -> TileData
-//   export_report      { request }               -> ReportExported
+//   export_report      { request }               -> number (the export job)
 //   save_visual        { request }               -> VisualSaved
 //   estimate_bundle    { options }               -> BundleEstimate
-//   create_bundle      { options, path }         -> BundleManifest
+//   create_bundle      { options, path }         -> number (the export job)
 //   open_bundle        { path }                  -> BundleOpened
 // ---------------------------------------------------------------------------------------------
 
@@ -2256,13 +2249,6 @@ export interface ReportExportRequest {
   theme: ExportTheme;
   /** Replace an existing file (see `ExportRequest.overwrite`). */
   overwrite?: boolean;
-}
-
-export interface ReportExported {
-  path: string;
-  bytes: number;
-  /** Matches per redaction rule (empty when not redacted). */
-  redaction: RuleHits[];
 }
 
 /** A chart or timeline image to save: a `data:image/png;base64,` URL, or SVG markup (sanitised by the engine). */

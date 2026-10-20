@@ -102,7 +102,14 @@ fn commands_validate_what_the_ui_sends() {
     assert!(ipc(&main, "storage_clear", json!({ "ids": "logs" })).is_err());
     assert!(err(ipc(&main, "storage_reveal", json!({ "id": "C:\\Windows" }))).contains("unknown storage category"));
     // Stores are never cleared from here (and are absent unless their folder exists).
-    let r = ipc(&main, "storage_clear", json!({ "ids": ["stores"] })).unwrap();
+    // The clear is a background job: the command returns it at once, its result says what was cleared.
+    let id = ipc(&main, "storage_clear", json!({ "ids": ["stores"] })).unwrap();
+    let end = ipc(&main, "jobs_wait", json!({ "id": id })).unwrap();
+    assert_eq!(
+        (end["state"].as_str(), end["result"]["type"].as_str()),
+        (Some("done"), Some("storage"))
+    );
+    let r = &end["result"]["result"];
     assert_eq!(r["freedBytes"], 0);
     assert_eq!(r["categories"][0]["id"], "stores");
 }
@@ -127,4 +134,14 @@ fn usage_lists_every_category_through_ipc() {
     // Without the single-instance flag the sessions belong to another instance.
     let sessions = u["categories"].as_array().unwrap().iter().find(|c| c["id"] == "sessions").unwrap();
     assert_eq!(sessions["clearable"], false);
+}
+
+#[test]
+fn the_message_line_says_what_was_freed_and_what_stayed() {
+    assert_eq!(cleared_line(3 * 1024 * 1024, 0), "Freed 3.0 MB.");
+    assert_eq!(cleared_line(0, 1), "Freed 0.0 MB; 1 item stayed (in use or not allowed).");
+    assert_eq!(
+        cleared_line(1024 * 1024 / 2, 4),
+        "Freed 0.5 MB; 4 items stayed (in use or not allowed)."
+    );
 }

@@ -236,6 +236,8 @@ macro_rules! commands {
             jobs::jobs_reveal,
             jobs::jobs_record,
             jobs::jobs_restore,
+            jobs::jobs_wait,
+            jobs::jobs_unwait,
             notification_centre::notifications_list,
             notification_centre::notifications_mark_read,
             notification_centre::notifications_mark_all_read,
@@ -258,20 +260,10 @@ macro_rules! commands {
             ai::commands::ai_model_delete,
             ai::commands::ai_model_add_local,
             ai::commands::ai_reset,
-            ai::commands::ai_propose_regex,
-            ai::commands::ai_propose_profile,
-            ai::commands::ai_propose_pipeline,
-            ai::commands::ai_propose_markers,
-            ai::commands::ai_propose_extractors,
-            ai::commands::ai_nl_to_query,
-            ai::commands::ai_explain_event,
-            ai::commands::ai_summarize,
-            ai::commands::ai_root_causes,
+            ai::commands::ai_start,
             ai::commands::ai_cancel,
             ai::folder_setup::folder_survey,
-            ai::folder_setup::folder_survey_cancel,
             ai::folder_setup::folder_setup_compose,
-            ai::folder_setup::ai_refine_folder_setup,
             ai::commands::ai_chat_sessions,
             ai::commands::ai_chat_new,
             ai::commands::ai_chat_get,
@@ -427,7 +419,6 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(tray::TrayState::default());
     app.manage(instance::SingleInstance(single));
     app.manage(query_cancel::QueryJobs::default());
-    app.manage(ai::folder_setup::SurveyJobs::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
 
@@ -574,6 +565,19 @@ pub(crate) mod test_support {
         tauri::async_runtime::block_on(f)
     }
 
+    /// Waits for the test app's job `id` to end; how it ended.
+    pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {
+        use tauri::Manager;
+        app.state::<jobs::Jobs>().wait_end(jobs::JobId(id))
+    }
+
+    /// Waits for job `id` to succeed; the line its message shows.
+    pub fn job_done(app: &tauri::App<MockRuntime>, id: u64) -> String {
+        let end = job_end(app, id);
+        assert_eq!(end.state, jobs::JobState::Done, "{end:?}");
+        end.message.unwrap_or_default()
+    }
+
     /// The clock of the test app's jobs and notification centre.
     pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
 
@@ -591,10 +595,8 @@ pub(crate) mod test_support {
         app.manage(window_prefs::SharedPrefs::default());
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
-        app.manage(query_cancel::QueryJobs::default());
-        app.manage(ai::folder_setup::SurveyJobs::default());
-        // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
-        // and attention thresholds by accident.
+        app.manage(query_cancel::QueryJobs::default()); // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
+                                                        // and attention thresholds by accident.
         let clock = std::sync::Arc::new(jobs::ManualClock::default());
         app.manage(TestClock(clock.clone()));
         let jobs = jobs::Jobs::new(clock.clone());

@@ -18,6 +18,12 @@ import { GridSelection } from '../grid/grid-selection';
 import { selectionWithin } from './selection';
 import { at } from '../../testing/must';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
 
 async function mount<T>(cmp: Type<T>, inputs: Record<string, unknown>, backend = tinyBackend()) {
@@ -62,6 +68,7 @@ describe('DropDialog', () => {
     expect(text(fixture)).toContain('drop events where MachineName eq "WEB02"');
     buttonByText(fixture, 'Add drop step').click();
     await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
+    await applied();
     const toml = (await backend.getProfile()).toml;
     expect(toml).toContain('step = "drop"');
     expect(store.summary()?.total).toBe(7);
@@ -126,6 +133,7 @@ describe('MaskDialog', () => {
     await settle(fixture);
     buttonByText(fixture, 'Add mask step').click();
     await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
+    await applied();
     expect((await backend.getProfile()).toml).toContain('step = "mask"');
   });
 
@@ -150,6 +158,7 @@ describe('MarkDialog', () => {
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     buttonByText(fixture, 'Add marker').click();
     await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
+    await applied();
     const toml = (await backend.getProfile()).toml;
     expect(toml).toContain('kind = "slow-requests"');
     expect(toml).toContain('lifecycle = true');
@@ -193,6 +202,7 @@ describe('ExtractDialog', () => {
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     buttonByText(fixture, 'Add extractor').click();
     await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
+    await applied();
     const toml = (await backend.getProfile()).toml;
     expect(toml).toContain('[[extract]]');
     expect(toml).toContain('avg(took)');

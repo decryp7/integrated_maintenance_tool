@@ -11,22 +11,15 @@ import {
   ChatEventEnvelope,
   ChatHistoryRecord,
   ChatRecord,
-  ExtractorsProposal,
   Hardware,
   InstalledModel,
-  MarkersProposal,
-  Narrative,
-  PipelineProposal,
-  ProfileProposal,
-  QueryProposal,
   Recommendation,
   Recommendations,
-  RegexProposal,
   RestoreResult,
-  SampleSource,
   SessionInfo,
   SetupEvent,
   SetupPlan,
+  AiStartRequest,
   ResearchArgs,
   ResearchStarted,
 } from './ai.types';
@@ -88,15 +81,10 @@ export abstract class AiBackend {
   /** Makes an installed build (or `auto`) the one that runs the model; the engine restarts with it. */
   abstract runtimeChoose(id: string): Promise<void>;
 
-  abstract proposeRegex(lines: string[], intent?: string | null): Promise<RegexProposal>;
-  abstract proposeProfile(source: SampleSource): Promise<ProfileProposal>;
-  abstract proposePipeline(goal: string, source: SampleSource): Promise<PipelineProposal>;
-  abstract proposeMarkers(goal: string, source: SampleSource): Promise<MarkersProposal>;
-  abstract proposeExtractors(goal: string, source: SampleSource): Promise<ExtractorsProposal>;
-  abstract nlToQuery(question: string): Promise<QueryProposal>;
-  abstract explainEvent(recordId: number): Promise<Narrative>;
-  abstract summarize(from: number, to: number): Promise<Narrative>;
-  abstract rootCauses(): Promise<Narrative>;
+  /** Starts a use case (explain, a proposal, a query...) as a background AI job and resolves with its id at once.
+   * Its answer is the job's result: a dialog that is open follows it (`JobFollow`), otherwise its message ("Explanation
+   * ready · View") opens it. Rejects at once when it cannot start (no model, invalid arguments, a full queue). */
+  abstract start(request: AiStartRequest): Promise<number>;
   /** Web research ("Research this", the chat's "Research…"): a research job whose answer becomes a chat turn, or a
    * search text with workspace data to confirm first. */
   abstract research(args: ResearchArgs): Promise<ResearchStarted>;

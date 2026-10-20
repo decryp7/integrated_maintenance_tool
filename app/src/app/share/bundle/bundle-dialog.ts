@@ -12,6 +12,7 @@ import { RedactionService } from '../redaction/redaction.service';
 import { ReportStore } from '../report/report.store';
 import { ShareBackend } from '../share-backend';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { JobFollow } from '../../jobs/job-follow';
 import { localizeDecimal } from '../../i18n/locale';
 
 const ESTIMATE_MS = 200;
@@ -78,6 +79,7 @@ export class BundleDialog {
   private readonly reports = inject(ReportStore);
   private readonly platform = inject(Platform);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly follow = inject(JobFollow);
   private readonly projects = inject(ProjectService);
   private readonly redaction = inject(RedactionService);
 
@@ -143,10 +145,10 @@ export class BundleDialog {
         { name: $localize`:@@share.bundle.filterName:IMT bundle`, extensions: ['imtz'] },
       ]);
       if (!path) return;
-      const m = await this.overwrite.write(path, (overwrite) => this.share.createBundle(options, path, overwrite));
-      if (!m) return;
-      const note = m.redacted ? $localize`:@@share.bundleDialog.redactedNote:, redacted (${Object.values(m.redaction).reduce((a, b) => a + b, 0)}:count: values)` : '';
-      this.store.setNotice($localize`:@@share.bundleDialog.written:Bundle written to ${baseName(path)}:file:${note}:note:`);
+      const job = await this.overwrite.write(path, (overwrite) => this.share.createBundle(options, path, overwrite));
+      if (job === null) return;
+      // Written as a job: its message ("Bundle written, redacted (5 values)") has "Show in folder".
+      this.follow.started($localize`:@@share.bundleDialog.started:Writing the bundle ${baseName(path)}:file: — running in Jobs`);
       this.ref.close();
     } catch (e) {
       this.error.set(errorMessage(e));

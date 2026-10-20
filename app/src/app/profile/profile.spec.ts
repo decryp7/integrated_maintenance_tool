@@ -16,6 +16,12 @@ import { StringList } from './string-list';
 import { TomlEditor } from './toml-editor';
 import { at } from '../../testing/must';
 
+/** A profile save re-imports as a job: waits for it to finish and for the view to follow. */
+async function applied(fixture?: Parameters<typeof settle>[0]): Promise<void> {
+  await vi.waitFor(() => expect(TestBed.inject(WorkspaceStore).busy()).toBeNull(), { timeout: 5000 });
+  await settle(fixture);
+}
+
 const fakePlatform = {
   isTauri: () => false,
   pickPaths: async () => [],
@@ -80,19 +86,22 @@ describe('ProfileDraft', () => {
     await draft.load();
     draft.update((m) => (m.name = 'Saved profile'));
     await draft.save();
+    await applied();
     expect(store.summary()?.profileName).toBe('Saved profile');
     expect(draft.dirty()).toBe(false);
     expect(draft.doc()?.name).toBe('Saved profile');
-    expect(testLogger().entries.find((e) => e.category === 'ui.profile')).toMatchObject({ message: 'Profile saved', props: { Markers: 6, Charts: 3, Events: 11 } });
+    expect(testLogger().entries.find((e) => e.category === 'ui.profile')).toMatchObject({ message: 'Profile saved', props: { Bytes: draft.text().length } });
 
     draft.setText('[[broken');
     const spy = vi.spyOn(backend, 'saveProfile');
     await draft.save();
+    await applied();
     expect(spy).not.toHaveBeenCalled();
 
     draft.setText('name = "ok"');
     spy.mockRejectedValueOnce('disk full');
     await draft.save();
+    await applied();
     expect(store.error()).toBe('Profile not saved: disk full');
     expect(draft.saving()).toBe(false);
   });
@@ -227,10 +236,12 @@ describe('ProfileEditor', () => {
     expect(text(fixture)).toContain('Unsaved');
     buttonByText(fixture, 'Save & apply').click();
     await settle(fixture);
+    await applied(fixture);
     expect(store.summary()?.profileName).toBe('Via button');
     draft.update((m) => (m.name = 'Via keyboard'));
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 's', metaKey: true, bubbles: true }));
     await settle(fixture);
+    await applied(fixture);
     expect(store.summary()?.profileName).toBe('Via keyboard');
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }));
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true }));

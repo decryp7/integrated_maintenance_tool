@@ -1,4 +1,5 @@
 import type { StorageBackend } from './storage-backend';
+import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { StorageCategory, StorageCategoryClearResult, StorageCategoryId, StorageClearResult, StorageUsage } from './storage.types';
 
 const MB = 1024 * 1024;
@@ -62,9 +63,25 @@ export class MockStorageBackend implements StorageBackend {
     return { categories, totalBytes: categories.reduce((n, c) => n + c.bytes, 0), capped: categories.some((c) => c.capped) };
   }
 
-  async clear(ids: StorageCategoryId[]): Promise<StorageClearResult> {
+  /** Like the engine: checked now, cleared by a maintenance job (resolves with it at once). */
+  async clear(ids: StorageCategoryId[]): Promise<number> {
     await this.maybeFail('clear IMT’s storage');
     if (!ids.length) throw 'choose what to clear';
+    for (const id of ids) if (!this.categories.some((x) => x.id === id) && !(['stores'] as string[]).includes(id)) throw `unknown storage category '${id}'`;
+    const job = mockJobs().start({ kind: 'maintenance', title: "Clear IMT's storage", appWide: true }, async (ctx) => {
+      await mockSteps(ctx, this.clearMs, 4);
+      const result = this.clearNow(ids);
+      ctx.message(`Freed ${(result.freedBytes / MB).toFixed(1)} MB.`);
+      return { value: result, result: { type: 'storage', result } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
+  }
+
+  /** How long a clear takes (ms). */
+  clearMs = 0;
+
+  private clearNow(ids: StorageCategoryId[]): StorageClearResult {
     const results: StorageCategoryClearResult[] = [];
     for (const id of [...new Set(ids)]) {
       const c = this.categories.find((x) => x.id === id);

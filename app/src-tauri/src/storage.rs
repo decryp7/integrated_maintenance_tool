@@ -21,7 +21,7 @@ mod walk;
 
 use crate::activity::{domain_event, OpId};
 use crate::ai::{AiCore, AiState};
-use crate::jobs::{Controls, Done, JobKind, JobProgress, JobSpec};
+use crate::jobs::{Controls, Done, JobKind, JobProgress, JobResult, JobSpec};
 use crate::{err, CmdResult};
 use model::{CategoryClearResult, CategoryId, StorageClearResult, StorageUsage};
 use plan::{AiPort, Category, Folders};
@@ -205,17 +205,18 @@ pub async fn storage_usage<R: Runtime>(app: AppHandle<R>) -> CmdResult<StorageUs
     .map_err(err)
 }
 
-/// Clears the categories `ids` (validated here) as a background task; returns what was freed and what
-/// stayed, per category.
+/// Starts clearing the categories `ids` (validated here) as a background maintenance job and returns it at
+/// once: Settings may be closed meanwhile. What was freed and what stayed, per category, is the job's result
+/// (`jobs_wait`; "Finished · View" opens Settings ▸ Storage with it).
 #[tauri::command]
-pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) -> CmdResult<StorageClearResult> {
+pub fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<String>) -> CmdResult<u64> {
     let ids = plan::parse_ids(&ids)?;
     let job = Job::begin(&app)?;
     let started = Instant::now();
     let names = ids.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(",");
     let flag = job.cancel.clone();
     let spec = JobSpec::new(JobKind::Maintenance, "Clear IMT's storage");
-    let result = crate::jobs::run(
+    crate::jobs::spawn(
         &app,
         spec,
         Controls::cancel(move || flag.store(true, Ordering::Relaxed)),
@@ -226,25 +227,36 @@ pub async fn storage_clear<R: Runtime>(app: AppHandle<R>, op: OpId, ids: Vec<Str
             let r = clear_all(&plan::categories(&folders), &ids, port, &job.cancel, &mut |f| {
                 ctx.progress(JobProgress::fraction(f))
             });
+            let freed = r.freed_bytes.to_string();
+            let skipped = r.categories.iter().map(|c| c.skipped_count).sum::<u64>();
+            let ms = started.elapsed().as_millis().to_string();
+            domain_event(
+                "storage.cleared",
+                op.as_deref(),
+                &[
+                    ("Categories", &names),
+                    ("FreedBytes", &freed),
+                    ("Skipped", &skipped.to_string()),
+                    ("ElapsedMs", &ms),
+                ],
+            );
+            ctx.message(&cleared_line(r.freed_bytes, skipped));
             let cancelled = r.cancelled;
-            Ok::<_, String>(Done::new(r).cancelled_if(cancelled))
+            let result = serde_json::to_value(&r).map_err(|e| e.to_string())?;
+            Ok::<_, String>(Done::new(()).with_result(JobResult::Storage { result }).cancelled_if(cancelled))
         },
     )
-    .await?;
-    let freed = result.freed_bytes.to_string();
-    let skipped = result.categories.iter().map(|c| c.skipped_count).sum::<u64>().to_string();
-    let ms = started.elapsed().as_millis().to_string();
-    domain_event(
-        "storage.cleared",
-        op.as_deref(),
-        &[
-            ("Categories", &names),
-            ("FreedBytes", &freed),
-            ("Skipped", &skipped),
-            ("ElapsedMs", &ms),
-        ],
-    );
-    Ok(result)
+    .map(|id| id.0)
+}
+
+/// "Freed 12.4 MB; 3 items stayed": the line the job's message shows.
+fn cleared_line(freed: u64, skipped: u64) -> String {
+    let mb = freed as f64 / (1024.0 * 1024.0);
+    match skipped {
+        0 => format!("Freed {mb:.1} MB."),
+        1 => format!("Freed {mb:.1} MB; 1 item stayed (in use or not allowed)."),
+        n => format!("Freed {mb:.1} MB; {n} items stayed (in use or not allowed)."),
+    }
 }
 
 /// Shows a category's folder in the OS file manager; returns its path.

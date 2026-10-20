@@ -3,6 +3,7 @@ import { ProblemReportPreview, ReportEntry } from '../core/api.types';
 import { describeError } from '../core/logger';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { OverwriteGuard } from '../ui/overwrite-guard';
+import { JobFollow } from '../jobs/job-follow';
 import { ExportTarget } from './export-target';
 import { SnapshotBackend } from './snapshot-backend';
 import { localizeDecimal } from '../i18n/locale';
@@ -100,6 +101,7 @@ export class ReportProblemDialog implements OnInit {
   private readonly backend = inject(SnapshotBackend);
   private readonly target = inject(ExportTarget);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly follow = inject(JobFollow);
   protected readonly maxDescription = MAX_DESCRIPTION;
   protected readonly closeLabel = $localize`:Close the dialog|Button@@diagnostics.reportDialog.close:Close`;
   protected readonly cancelLabel = $localize`:@@diagnostics.reportDialog.cancel:Cancel`;
@@ -141,8 +143,12 @@ export class ReportProblemDialog implements OnInit {
     try {
       const path = await this.target.pickZip(REPORT_FILE_NAME, $localize`:@@diagnostics.reportDialog.saveTitle:Save problem report`);
       if (path) {
-        const files = await this.overwrite.write(path, (replace) => this.backend.saveReport(path, this.description(), replace));
-        if (files !== null) this.saved.set($localize`:@@diagnostics.reportDialog.saved:Saved ${files}:count: files to ${path}:path:. Attach it to your report.`);
+        const job = await this.overwrite.write(path, (replace) => this.backend.saveReport(path, this.description(), replace));
+        if (job !== null) {
+          // Written as a job; its message has "Show in folder". The preview stays.
+          this.follow.started($localize`:@@diagnostics.reportDialog.started:Saving the problem report — running in Jobs`);
+          this.saved.set($localize`:@@diagnostics.reportDialog.saving:Saving to ${path}:path:. You can close this dialog; a message tells you when the file is ready to attach.`);
+        }
       }
     } catch (e) {
       this.error.set($localize`:@@diagnostics.reportDialog.saveFailed:Could not save the report: ${describeError(e)}:error:`);

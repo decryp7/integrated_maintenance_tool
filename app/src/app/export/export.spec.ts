@@ -10,6 +10,8 @@ import { ExportService, exporterForPath } from './export.service';
 import { provideMockShare } from '../share/redaction/share-testing';
 import { ShareBackend } from '../share/share-backend';
 import { at } from '../../testing/must';
+import { mockJobs } from '../jobs/mock-jobs';
+import { NotificationsStore } from '../notifications/notifications.store';
 
 const exporters: ExporterInfo[] = [
   { id: 'csv', name: 'CSV', extension: 'csv' },
@@ -69,8 +71,8 @@ describe('ExportDialog', () => {
     expect(fixture.nativeElement.querySelector('input[value=filterAnyTime]')).not.toBeNull();
   });
 
-  it('exports with the chosen format and order, reports it and closes', async () => {
-    const { fixture, store, backend } = await setup();
+  it('starts the export as a job, tells the user it runs in Jobs and closes at once', async () => {
+    const { fixture, backend } = await setup();
     const spy = vi.spyOn(backend, 'exportEvents');
     pick.mockResolvedValue('/out/events.clef');
     el<HTMLInputElement>(fixture, 'input[value=desc]').click();
@@ -80,8 +82,14 @@ describe('ExportDialog', () => {
     await settle(fixture);
     expect(at(pick.mock.calls, 0)[0]).toBe('events.clef');
     expect(at(spy.mock.calls, 0)[0]).toMatchObject({ format: 'clef', path: '/out/events.clef', descending: true });
-    expect(store.notice()).toBe('Exported 11 events to events.clef');
+    // The backend call returned the job id at once; the dialog neither waits for the export nor shows a result.
+    await expect(at(spy.mock.results, 0).value).resolves.toEqual(expect.any(Number));
+    const toast = at(TestBed.inject(NotificationsStore).toasts(), 0);
+    expect([toast.severity, toast.title, toast.primary]).toEqual(['info', 'Exporting to events.clef — running in Jobs', { type: 'showJobs' }]);
     expect(closed).toHaveBeenCalled();
+    // The job writes the file and its message says how many events went out; Show in folder reveals it.
+    const end = await mockJobs().wait(await at(spy.mock.results, 0).value);
+    expect([end.state, end.message, end.result]).toEqual(['done', 'Exported 11 events.', { type: 'file', path: '/out/events.clef' }]);
   });
 
   it('lets the file extension override the picked format', async () => {
@@ -129,7 +137,7 @@ describe('ExportDialog', () => {
 describe('ExportDialog redaction', () => {
   async function setup(onExport: boolean) {
     const backend = tinyBackend();
-    if (onExport) await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true'));
+    if (onExport) await mockJobs().wait(await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true')));
     const pick = vi.fn(async () => '/out/events.csv');
     TestBed.configureTestingModule({
       providers: [provideTinyBackend(backend), provideMockShare(), { provide: Platform, useValue: { isTauri: () => false, pickPaths: async () => [], onFilesDropped: async () => () => undefined, pickExportPath: pick } }, { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } }],
@@ -153,25 +161,23 @@ describe('ExportDialog redaction', () => {
     expect(fixture.nativeElement.querySelector('imt-redaction-summary')).toBeNull();
   });
 
-  it('exports redacted and says how many values were masked', async () => {
-    const { fixture, store, backend } = await setup(false);
+  it('exports redacted: the job message says how many values were masked', async () => {
+    const { fixture, backend } = await setup(false);
     expect(redactBox(fixture).checked).toBe(false);
     redactBox(fixture).click();
     await settle(fixture);
-    const spy = vi.spyOn(backend, 'exportEvents').mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11, redactions: { email: 1 } });
+    const spy = vi.spyOn(backend, 'exportEvents');
     buttonByText(fixture, 'Export…').click();
     await settle(fixture);
     expect(at(spy.mock.calls, 0)[0].redact).toBe(true);
-    expect(store.notice()).toBe('Exported 11 events to events.csv (redacted, 1 value masked)');
-    spy.mockResolvedValueOnce({ format: 'csv', path: '/out/events.csv', events: 11 });
-    buttonByText(fixture, 'Export…').click();
-    await settle(fixture);
-    expect(store.notice()).toBe('Exported 11 events to events.csv (redacted, 0 values masked)');
+    expect(at(TestBed.inject(NotificationsStore).toasts(), 0).title).toBe('Exporting to events.csv — running in Jobs');
+    const end = await mockJobs().wait(await at(spy.mock.results, 0).value);
+    expect(end.message).toMatch(/^Exported 11 events \(redacted, \d+ values masked\)\.$/);
   });
 
   it('keeps the user\'s choice when the profile default arrives later', async () => {
     const backend = tinyBackend();
-    await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true'));
+    await mockJobs().wait(await backend.saveProfile((await backend.getProfile()).toml.replace('on_export = false', 'on_export = true')));
     TestBed.configureTestingModule({
       providers: [provideTinyBackend(backend), provideMockShare(), { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } }],
     });

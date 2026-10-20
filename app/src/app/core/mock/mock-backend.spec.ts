@@ -3,6 +3,7 @@ import { MockBackend } from './mock-backend';
 import { MOCK_PROFILE_TOML } from './mock-profile';
 
 import { at } from '../../../testing/must';
+import { mockJobs } from '../../jobs/mock-jobs';
 describe('MockBackend', () => {
   let backend: MockBackend;
   beforeEach(() => (backend = tinyBackend()));
@@ -65,14 +66,18 @@ describe('MockBackend', () => {
     const doc = await backend.getProfile();
     expect(doc.path).toBeNull();
     expect(doc.toml).toBe(MOCK_PROFILE_TOML);
-    const s = await backend.saveProfile('name = "Only markers"\n[[marker]]\nkind = "warning"\nwhen = [{ field = "@level", op = "eq", value = "Warning" }]\n');
+    // Saving checks and stores the profile now and re-imports as a job that is returned at once.
+    const job = await backend.saveProfile('name = "Only markers"\n[[marker]]\nkind = "warning"\nwhen = [{ field = "@level", op = "eq", value = "Warning" }]\n');
+    expect(typeof job).toBe('number');
+    expect((await mockJobs().wait(job)).state).not.toBe('failed');
+    const s = await backend.workspaceSummary();
     expect(s.profileName).toBe('Only markers');
     expect(s.markerKinds.map((k) => [k.kind, k.owner])).toEqual([['warning', 'profile']]);
     expect(s.charts).toEqual([]);
     expect((await backend.getProfile()).name).toBe('Only markers');
     await expect(backend.saveProfile('[[broken')).rejects.toBeTruthy();
-    const unnamed = await backend.saveProfile('');
-    expect(unnamed.profileName).toBe('Unnamed profile');
+    await mockJobs().wait(await backend.saveProfile(''));
+    expect((await backend.workspaceSummary()).profileName).toBe('Unnamed profile');
     expect((await backend.getProfile()).name).toBe('Unnamed profile');
   });
 

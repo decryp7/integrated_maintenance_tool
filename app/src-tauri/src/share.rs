@@ -127,14 +127,6 @@ pub(crate) struct ReportExportRequest {
     pub overwrite: bool,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ReportExported {
-    pub path: String,
-    pub bytes: u64,
-    pub redaction: Vec<imt_core::redact::RuleHits>,
-}
-
 fn renderer(format: &str) -> CmdResult<Box<dyn ReportRenderer>> {
     match format {
         "html" => Ok(Box::new(HtmlRenderer)),
@@ -158,7 +150,7 @@ pub(crate) async fn export_report<R: Runtime>(
     state: CurrentWindow,
     op: OpId,
     request: ReportExportRequest,
-) -> CmdResult<ReportExported> {
+) -> CmdResult<u64> {
     let renderer = renderer(&request.format)?;
     let target = output_path(&request.path, &[renderer.extension()]).map_err(err)?;
     check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
@@ -178,13 +170,18 @@ pub(crate) async fn export_report<R: Runtime>(
             &target,
             &[("Format", renderer.id()), ("Bytes", &bytes.to_string())],
         );
-        Ok(ReportExported {
-            path: target.to_string_lossy().into_owned(),
-            bytes,
-            redaction: resolved.redaction,
-        })
+        Ok(report_line(&resolved.redaction, redact))
     })
-    .await
+}
+
+/// "Report written (3 values redacted)": the line the export's message shows.
+fn report_line(redaction: &[imt_core::redact::RuleHits], redacted: bool) -> String {
+    let masked: usize = redaction.iter().map(|h| h.count).sum();
+    match (redacted, masked) {
+        (true, 1) => "Report written (1 value redacted).".into(),
+        (true, n) => format!("Report written ({n} values redacted)."),
+        (false, _) => "Report written.".into(),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -274,7 +271,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
     options: BundleOptions,
     path: String,
     overwrite: Option<bool>,
-) -> CmdResult<BundleManifest> {
+) -> CmdResult<u64> {
     let target = output_path(&path, &["imtz"]).map_err(err)?;
     check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
     parse_reports(options.reports.clone())?;
@@ -284,9 +281,18 @@ pub(crate) async fn create_bundle<R: Runtime>(
         let m = ws.write_bundle(&options, &profile, &target)?;
         log::info!(Entries = m.entries.len() as u64, Redacted = m.redacted; "Bundle written");
         written(op.as_deref(), "bundle", &target, &[("Entries", &m.entries.len().to_string())]);
-        Ok(m)
+        Ok(bundle_line(&m))
     })
-    .await
+}
+
+/// "Bundle written, redacted (5 values)": the line the bundle's message shows.
+fn bundle_line(m: &BundleManifest) -> String {
+    let masked: usize = m.redaction.values().sum();
+    match (m.redacted, masked) {
+        (true, 1) => "Bundle written, redacted (1 value).".into(),
+        (true, n) => format!("Bundle written, redacted ({n} values)."),
+        (false, _) => "Bundle written.".into(),
+    }
 }
 
 /// Opens a `.imtz`: extracts it into its own temporary folder (archive
@@ -295,10 +301,17 @@ pub(crate) async fn create_bundle<R: Runtime>(
 #[tauri::command]
 pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, path: String) -> CmdResult<Value> {
     let source = PathBuf::from(&path);
-    let extracted = tauri::async_runtime::spawn_blocking(move || imt_core::bundle::extract(&source, &bundles_root()))
-        .await
-        .map_err(err)?
-        .map_err(err)?;
+    // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
+        .window(state.label())
+        .link(crate::jobs::JobLink::Path { path: path.clone() });
+    let extracted = crate::jobs::run(&app, spec, Default::default(), move |ctx| {
+        ctx.message("Unpacking and checking the bundle");
+        imt_core::bundle::extract(&source, &bundles_root())
+            .map(crate::jobs::Done::new)
+            .map_err(err)
+    })
+    .await?;
     let mut opened = match &extracted.project {
         Some(project) => crate::workspace_commands::open_project(app, state.clone(), op, project.to_string_lossy().into_owned()).await?,
         None => {
@@ -320,7 +333,7 @@ pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{block, main_window, samples, test_app, TempDir};
+    use crate::test_support::{block, job_done, main_window, samples, test_app, TempDir};
     use serde_json::json;
     use tauri::Manager;
 
@@ -439,13 +452,10 @@ mod tests {
         ))
         .unwrap();
         let toml = "name = 'Shared'\n[redact]\ndetectors = ['email', 'ipv4']\n";
-        block(crate::profile::save_profile(
-            app.state(),
-            main_window(&app),
-            OpId::default(),
-            toml.into(),
-        ))
-        .unwrap();
+        crate::test_support::job_done(
+            &app,
+            crate::profile::save_profile(app.handle().clone(), app.state(), main_window(&app), OpId::default(), toml.into()).unwrap(),
+        );
         (app, d)
     }
 
@@ -489,6 +499,24 @@ mod tests {
     }
 
     #[test]
+    fn message_lines_say_what_was_written_and_redacted() {
+        let hit = |count| imt_core::redact::RuleHits {
+            rule: "email".into(),
+            count,
+        };
+        assert_eq!(report_line(&[], false), "Report written.");
+        assert_eq!(report_line(&[hit(1)], true), "Report written (1 value redacted).");
+        assert_eq!(report_line(&[hit(2), hit(3)], true), "Report written (5 values redacted).");
+        let mut m: BundleManifest = serde_json::from_value(json!({"format": "imt-share", "schema": 1})).unwrap();
+        assert_eq!(bundle_line(&m), "Bundle written.");
+        m.redacted = true;
+        m.redaction.insert("email".into(), 1);
+        assert_eq!(bundle_line(&m), "Bundle written, redacted (1 value).");
+        m.redaction.insert("ipv4".into(), 4);
+        assert_eq!(bundle_line(&m), "Bundle written, redacted (5 values).");
+    }
+
+    #[test]
     fn reports_export_as_html_and_pdf() {
         let (app, d) = opened("share-report");
         let st = || main_window(&app);
@@ -501,6 +529,7 @@ mod tests {
             overwrite: false,
         };
         let _log = crate::activity::test_capture();
+        // The export runs as a background job: the command returns it at once.
         let html = block(export_report(
             app.handle().clone(),
             st(),
@@ -508,13 +537,14 @@ mod tests {
             req("html", "r.html", true),
         ))
         .unwrap();
+        let line = job_done(&app, html);
+        assert!(line.starts_with("Report written (") && line.ends_with("redacted)."), "{line}");
         assert_eq!(
             crate::tools::tests::domain_event("export.written", "op-report").props["Export"],
             "report"
         );
-        let text = std::fs::read_to_string(&html.path).unwrap();
+        let text = std::fs::read_to_string(d.0.join("r.html")).unwrap();
         assert!(text.contains("Outage &lt;b&gt;") && !text.contains("<script"));
-        assert!(html.redaction.iter().any(|h| h.rule == "email"));
         let pdf = block(export_report(
             app.handle().clone(),
             st(),
@@ -522,8 +552,19 @@ mod tests {
             req("pdf", "r.pdf", false),
         ))
         .unwrap();
-        assert!(std::fs::read(&pdf.path).unwrap().starts_with(b"%PDF-"));
-        assert!(pdf.redaction.is_empty() && pdf.bytes > 0);
+        // Nobody waits for this one: its message says what was written, with "Show in folder".
+        let notice = || {
+            let all = serde_json::to_value(app.state::<crate::notification_centre::NotificationCentre>().snapshot("main")).unwrap();
+            all["notices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["primary"] == json!({"type": "showInFolder", "jobId": pdf}))
+                .cloned()
+        };
+        crate::jobs::wait_until("the message", || notice().is_some());
+        assert_eq!(notice().unwrap()["body"], "Report written.");
+        assert!(std::fs::read(d.0.join("r.pdf")).unwrap().starts_with(b"%PDF-"));
         let again = block(export_report(
             app.handle().clone(),
             st(),
@@ -534,7 +575,8 @@ mod tests {
         assert!(again.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
         let mut confirmed = req("pdf", "r.pdf", false);
         confirmed.overwrite = true;
-        assert!(block(export_report(app.handle().clone(), st(), OpId::default(), confirmed)).is_ok());
+        let replaced = block(export_report(app.handle().clone(), st(), OpId::default(), confirmed)).unwrap();
+        job_done(&app, replaced);
         assert!(block(export_report(
             app.handle().clone(),
             st(),
@@ -575,7 +617,7 @@ mod tests {
         assert!(est.events > 0 && est.bytes > 0);
         let path = d.0.join("case.imtz").to_string_lossy().into_owned();
         let _log = crate::activity::test_capture();
-        let m = block(create_bundle(
+        let job = block(create_bundle(
             app.handle().clone(),
             st(),
             OpId(Some("op-bundle".into())),
@@ -584,11 +626,12 @@ mod tests {
             None,
         ))
         .unwrap();
+        let line = job_done(&app, job);
+        assert!(line.starts_with("Bundle written, redacted ("), "{line}");
         assert_eq!(
             crate::tools::tests::domain_event("export.written", "op-bundle").props["Export"],
             "bundle"
         );
-        assert!(m.redacted);
         let again = block(create_bundle(
             app.handle().clone(),
             st(),
@@ -599,15 +642,16 @@ mod tests {
         ))
         .unwrap_err();
         assert_eq!(again, format!("{path} already exists; confirm to replace it"));
-        assert!(block(create_bundle(
+        let replaced = block(create_bundle(
             app.handle().clone(),
             st(),
             OpId::default(),
             options(true),
             path.clone(),
-            Some(true)
+            Some(true),
         ))
-        .is_ok());
+        .unwrap();
+        job_done(&app, replaced);
         assert!(block(create_bundle(
             app.handle().clone(),
             st(),

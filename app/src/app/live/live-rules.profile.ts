@@ -53,7 +53,7 @@ export class LiveRulesProfile {
         return { ok: false, failure: { message: validation.error ?? $localize`:@@live.rulesProfile.invalid:The profile is not valid.`, line, excerpt } };
       }
       if (save) {
-        this.store.profileSaved(await this.backend.saveProfile(toml));
+        void this.store.applyProfile(await this.backend.saveProfile(toml));
         this.undo.record($localize`:@@live.rulesProfile.undo:live rules edit`, before, toml);
       }
       return { ok: true };

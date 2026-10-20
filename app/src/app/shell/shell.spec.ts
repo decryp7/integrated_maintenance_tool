@@ -231,7 +231,7 @@ describe('StatusBar', () => {
     const { fixture, store, backend } = setup(StatusBar);
     await settle(fixture);
     expect(text(fixture)).not.toContain('dropped by pipeline');
-    store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
+    await store.applyProfile(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
     expect(text(fixture)).toContain('1 dropped by pipeline');
   });
@@ -309,7 +309,7 @@ describe('Sidebar', () => {
     const { fixture, store, backend } = setup(Sidebar);
     await settle(fixture);
     expect(at(all(fixture, '.src'), 1).getAttribute('title')).not.toContain('dropped');
-    store.applySummary(await backend.saveProfile(DROP_DEBUG_PROFILE));
+    await store.applyProfile(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
     expect(all(fixture, '.src')[1]?.getAttribute('title')).toContain('1 dropped by pipeline');
   });

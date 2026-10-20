@@ -7,7 +7,6 @@ import {
   ChartRequest,
   ContextRequest,
   ExportRequest,
-  ExportResult,
   ExplainNode,
   ExtractPreview,
   ExtractPreviewRequest,
@@ -48,6 +47,7 @@ import { mockPreviewParse } from './mock-parse';
 import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
+import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
@@ -418,20 +418,28 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => validate(toml).validation, 10);
   }
 
-  saveProfile(toml: string): Promise<WorkspaceSummary> {
-    return this.delay(() => {
-      const { validation, model } = validate(toml);
-      if (!validation.ok || !model) throw new Error(validation.error ?? 'Invalid profile');
-      this.history.archive(this.profileToml, this.profile.name ?? 'Unnamed profile');
-      this.profileToml = toml;
-      this.profile = model;
+  /** Like the engine: checked and saved now, re-imported as an import job (resolves with it at once). */
+  saveProfile(toml: string): Promise<number> {
+    return this.delay(() => this.startSaveProfile(toml), 0);
+  }
+
+  private startSaveProfile(toml: string): number {
+    const { validation, model } = validate(toml);
+    if (!validation.ok || !model) throw new Error(validation.error ?? 'Invalid profile');
+    this.history.archive(this.profileToml, this.profile.name ?? 'Unnamed profile');
+    this.profileToml = toml;
+    this.profile = model;
+    const job = mockJobs().start({ kind: 'import', title: `Apply the profile ${model.name ?? 'Unnamed profile'}` }, async (ctx) => {
+      await mockSteps(ctx, 250, 5);
       if (this.redactor) {
         const next = new MockRedactor(mockRedactCfg(model), String(Math.random()));
         this.redactor = next.empty ? null : next;
       }
       this.apply();
-      return this.summary();
-    }, 250);
+      return { value: this.summary(), result: { type: 'workspace' } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 
   previewExtractor(request: ExtractPreviewRequest): Promise<ExtractPreview> {
@@ -449,10 +457,17 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => ({ name: this.profile.name ?? 'Imported profile', path, toml: this.profileToml }));
   }
 
-  exportEvents(request: ExportRequest): Promise<ExportResult> {
-    return this.delay(() => {
-      if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
-      this.files.write(request.path, request.overwrite);
+  /** Like the engine: the file is checked now, the export is a job (resolves with it at once). */
+  exportEvents(request: ExportRequest): Promise<number> {
+    return this.delay(() => this.startExport(request), 0);
+  }
+
+  private startExport(request: ExportRequest): number {
+    if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
+    this.files.write(request.path, request.overwrite);
+    const file = request.path.split(/[\\/]/).pop() ?? request.path;
+    const job = mockJobs().start({ kind: 'export', title: `Export events to ${file}`, link: { type: 'path', path: request.path } }, async (ctx) => {
+      await mockSteps(ctx, 100, 5);
       // The browser demo writes nothing: it only reports what the desktop app would export.
       const matched = this.engine.matching(this.windowed(request).query);
       const redactions: Record<string, number> = {};
@@ -463,8 +478,12 @@ export class MockBackend implements ImtBackend {
           if (rec) r.apply(`${rec.message}\n${rec.exception ?? ''}`, redactions);
         }
       }
-      return { format: request.format, path: request.path, events: matched.length, redactions };
-    }, 100);
+      const masked = Object.values(redactions).reduce((x, y) => x + y, 0);
+      ctx.message(request.redact ? `Exported ${matched.length} events (redacted, ${masked} values masked).` : `Exported ${matched.length} events.`);
+      return { value: matched.length, result: { type: 'file', path: request.path } };
+    });
+    job.done.catch(() => undefined);
+    return job.id;
   }
 
   sourceContext(request: ContextRequest): Promise<SourceContext> {

@@ -17,6 +17,8 @@ import { BundleCommands } from './bundle.commands';
 import { BundleDialog, bundleFileName, formatBytes } from './bundle-dialog';
 import { BundleService, isBundlePath } from './bundle.service';
 import { at } from '../../../testing/must';
+import { mockJobs } from '../../jobs/mock-jobs';
+import { NotificationsStore } from '../../notifications/notifications.store';
 
 const closed = vi.fn();
 const pickSavePath = vi.fn<(title: string, name: string, filters: unknown) => Promise<string | null>>();
@@ -87,7 +89,7 @@ describe('BundleDialog', () => {
   });
 
   it('writes the bundle where the user chose and reports it', async () => {
-    const { fixture, share, store } = await dialog();
+    const { fixture, share } = await dialog();
     const spy = vi.spyOn(share, 'createBundle');
     typeInto(el<HTMLInputElement>(fixture, 'input[aria-label="Bundle name"]'), 'Case 42');
     (fixture.nativeElement.querySelectorAll('input[type=checkbox]')[0] as HTMLInputElement).click();
@@ -102,21 +104,27 @@ describe('BundleDialog', () => {
     await settle(fixture);
     expect(spy.mock.calls[0]?.[0]).toMatchObject({ name: 'Case 42', content: 'raw', redact: true, reports: [expect.objectContaining({ title: 'Outage' })] });
     expect(spy.mock.calls[0]?.[0].ui).toEqual(TestBed.inject(UiStateRegistry).serialize());
-    expect(store.notice()).toBe('Bundle written to case.imtz, redacted (5 values)');
+    // The bundle is written by a job: the call returned its id at once, a toast says so, and the dialog closes.
+    const job = await at(spy.mock.results, 0).value;
+    expect(job).toEqual(expect.any(Number));
+    const toast = at(TestBed.inject(NotificationsStore).toasts(), 0);
+    expect([toast.severity, toast.title, toast.primary]).toEqual(['info', 'Writing the bundle case.imtz — running in Jobs', { type: 'showJobs' }]);
     expect(closed).toHaveBeenCalled();
+    const end = await mockJobs().wait(job);
+    expect([end.state, end.message, end.result]).toEqual(['done', 'Bundle written, redacted (5 values).', { type: 'file', path: '/out/case.imtz' }]);
   });
 
   it('shows failures and lets the user cancel', async () => {
     const { fixture, share, store } = await dialog();
     pickSavePath.mockResolvedValue('/out/x.imtz');
-    const manifest = await share.createBundle({ name: 'n', content: 'raw', query: store.effectiveQuery(), redact: false, ui: null, reports: [] }, '/o/n.imtz');
-    vi.spyOn(share, 'createBundle').mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(manifest);
+    const job = await share.createBundle({ name: 'n', content: 'raw', query: store.effectiveQuery(), redact: false, ui: null, reports: [] }, '/o/n.imtz');
+    vi.spyOn(share, 'createBundle').mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(job);
     buttonByText(fixture, 'Save bundle…').click();
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('disk full');
     buttonByText(fixture, 'Save bundle…').click();
     await settle(fixture);
-    expect(store.notice()).toBe('Bundle written to x.imtz');
+    expect(TestBed.inject(NotificationsStore).toasts().at(-1)?.title).toBe('Writing the bundle x.imtz — running in Jobs');
     vi.spyOn(share, 'estimateBundle').mockRejectedValueOnce(new Error('cannot estimate'));
     el<HTMLInputElement>(fixture, 'input[value=events]').click();
     await wait(250);

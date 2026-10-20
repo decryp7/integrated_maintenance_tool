@@ -288,8 +288,9 @@ are blocked. See [ADR 0011](adr/0011-internal-browser.md).
 
 **Research mode:** when a question needs outside information (an error code, an exception, how a product
 behaves), or you say "search" or "look up", the AI researches by itself, read-only: it searches with your
-engine in the visible browser, reads up to five result pages of that search (1–10 in Settings ▸ Web
-browser, or "read 10 results"), never follows links further, types nothing and fills no forms, skips
+engine in the visible browser, takes the result links of that results page once and reads up to five of
+them by their address, in order ("Reading result 2 of 5: example.org"; 1–10 in Settings ▸ Web browser, or
+"read 10 results"), never follows links further, types nothing and fills no forms, skips
 logins, payments and CAPTCHAs, and answers with a summary, likely causes and fixes as steps, a citation per
 claim, and the pages it read or skipped. If the search text contains data from your logs, you confirm or
 edit it first. *Research this* (an event, the inspector, the chat's *Research…*) does the same on demand,
@@ -302,11 +303,15 @@ Everything that takes a while is a **job**: AI answers and chat turns, web resea
 and analyses, exports and bundles, model and runtime downloads, the folder survey, storage clean-up and
 diagnostics collections. The engine runs them in queues per kind with limits (one AI request at a time,
 because there is one model; one import per window; two exports and two downloads; analyses on all but one
-core), so starting one never blocks the UI. The **Jobs** pane (activity bar, *View ▸ Jobs*) lists running,
+core), so starting one never blocks the UI: *Explain this event*, an export, a bundle, a problem report or
+applying a profile returns at once ("Explaining event #7 — running in Jobs · Show in Jobs"), and the
+proposal, query and regex dialogs may be closed while the model works. The **Jobs** pane (activity bar, *View ▸ Jobs*) lists running,
 waiting and finished jobs with progress, time left, Cancel, Retry, View and, for waiting AI requests, move
 up and down; a job shows only once it has run about two seconds. When a job of ten seconds or more
-finishes, a toast says so with **View** (the answer and its citations, the analysis with its query, the
-exported file in Finder or Explorer, the workspace, the model manager), and a desktop notification when
+finishes, and always for an answer, a proposal or a written file you asked for, a toast says so with
+**View** ("Explanation ready · View": the answer and its citations, the proposals to review, the analysis
+with its query, the folder set-up with its proposals, Settings ▸ Storage with what was freed, the
+workspace, the model manager) or **Show in folder** for an exported file, and a desktop notification when
 IMT is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
 interrupted, with Retry. **Notifications** (the bell) collects what may need you: finished and failed jobs,
 live alerts (repeats merge: "Error spike on WEB02 (×4)"), files that were not imported (*Set up format*), a

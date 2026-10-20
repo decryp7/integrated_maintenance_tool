@@ -59,6 +59,7 @@ export const NotificationsStore = signalStore(
   withMethods((store, backend = inject(NotificationsBackend)) => {
     let last: (() => Promise<unknown>) | null = null;
     const timers = new Map<number, ReturnType<typeof setTimeout>>();
+    let localIds = 0;
     const run = async <T>(f: () => Promise<T>): Promise<T | null> => {
       last = f;
       patchState(store, { error: null });
@@ -105,6 +106,32 @@ export const NotificationsStore = signalStore(
       },
 
       dismissToast,
+
+      /** A toast of the UI's own (not a message of the centre): e.g. "Explaining event #7 — running in Jobs". */
+      showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary'] }): void {
+        const now = Date.now();
+        const toast: Notice = {
+          id: -++localIds,
+          source: 'job',
+          severity: n.severity,
+          title: n.title,
+          body: n.body ?? '',
+          at: now,
+          firstAt: now,
+          count: 1,
+          read: false,
+          primary: n.primary ?? null,
+          secondary: null,
+          link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
+          dedupeKey: null,
+          scope: 'project',
+        };
+        patchState(store, (s) => ({ toasts: [...s.toasts, toast].slice(-MAX_TOASTS) }));
+        timers.set(
+          toast.id,
+          setTimeout(() => dismissToast(toast.id), TOAST_MS),
+        );
+      },
 
       /** Keeps the toast open while the pointer or focus is on it. */
       holdToast(id: number): void {

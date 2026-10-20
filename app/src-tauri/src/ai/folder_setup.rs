@@ -1,75 +1,23 @@
-//! "Set up analysis for this folder…": the survey (engine, no AI; cancellable, with progress), composing the
-//! selected proposals into a validated profile, and the optional AI refinement. Applying the composed profile
-//! goes through the normal `save_profile` (validated again, archived, undoable in the UI).
+//! "Set up analysis for this folder…": the survey (engine, no AI; a background analysis job with progress and
+//! Cancel) and composing the selected proposals into a validated profile. Applying the composed profile goes
+//! through the normal `save_profile` (validated again, archived, undoable in the UI).
 //!
 //! Wire contract: `app/src/app/ai/folder-setup/folder-setup.types.ts`.
 
-use super::error::{AiCmdError, AiResult};
+use crate::jobs::{Controls, Done, JobKind, JobProgress, JobResult, JobSpec};
 use crate::windows::{read, CurrentWindow};
-use crate::{CmdResult, State};
-use imt_ai::assistant::FolderRefinement;
+use crate::CmdResult;
 use imt_core::survey::{self, ComposedProfile, Fragment, SurveyControl, SurveyError, SurveyProgress, SurveyRequest};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::Mutex;
 use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Runtime};
 
 /// How often survey progress is sent.
 const PROGRESS_EVERY: Duration = Duration::from_millis(150);
-/// Surveys one window may run at once (the wizard runs one; this bounds a misbehaving webview).
-const MAX_PER_WINDOW: usize = 2;
 /// Most fragments one compose request may carry.
 const MAX_FRAGMENTS: usize = 200;
-
-/// Running surveys by (window, survey id). App-wide managed state.
-#[derive(Debug, Default)]
-pub struct SurveyJobs(Mutex<HashMap<(String, String), SurveyControl>>);
-
-/// Removes its job when the survey ends, however it ends.
-struct JobGuard<'a> {
-    jobs: &'a SurveyJobs,
-    key: (String, String),
-}
-
-impl Drop for JobGuard<'_> {
-    fn drop(&mut self) {
-        self.jobs.lock().remove(&self.key);
-    }
-}
-
-impl SurveyJobs {
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(String, String), SurveyControl>> {
-        self.0.lock().unwrap_or_else(|p| p.into_inner())
-    }
-
-    fn start(&self, window: &str, id: &str) -> CmdResult<(SurveyControl, JobGuard<'_>)> {
-        let id = crate::activity::valid_op_id(id).ok_or("invalid survey id: use 1-64 letters, digits or '-'")?;
-        let mut jobs = self.lock();
-        if jobs.keys().filter(|(w, _)| w == window).count() >= MAX_PER_WINDOW {
-            return Err("a folder survey is already running in this window; cancel it first".into());
-        }
-        let key = (window.to_string(), id);
-        if jobs.contains_key(&key) {
-            return Err("a survey with this id is already running".into());
-        }
-        let control = SurveyControl::new();
-        jobs.insert(key.clone(), control.clone());
-        Ok((control, JobGuard { jobs: self, key }))
-    }
-
-    fn cancel(&self, window: &str, id: &str) -> bool {
-        match self.lock().get(&(window.to_string(), id.to_string())) {
-            Some(c) => {
-                c.cancel();
-                true
-            }
-            None => false,
-        }
-    }
-}
 
 /// Sends progress every [`PROGRESS_EVERY`] (when it changed) until dropped.
 struct Ticker(Option<mpsc::Sender<()>>);
@@ -111,39 +59,40 @@ fn outcome(r: Result<survey::FolderSetup, SurveyError>) -> anyhow::Result<Value>
     }
 }
 
-/// Surveys the window's files and returns validated heuristic proposals; cancellable with
-/// [`folder_survey_cancel`] (same `surveyId`, same window), with progress on `onProgress`.
+/// Starts surveying the window's files as a background analysis job and returns it at once. Progress goes to
+/// `onProgress` while it runs; Cancel is the job's (`jobs_cancel`). The validated heuristic proposals are the
+/// job's result (`jobs_wait` while the wizard is open; otherwise "Finished · View" reopens the wizard with them).
 #[tauri::command]
-pub async fn folder_survey<R: Runtime>(
+pub fn folder_survey<R: Runtime>(
     app: AppHandle<R>,
     state: CurrentWindow,
-    jobs: State<'_, SurveyJobs>,
-    survey_id: String,
     request: Option<SurveyRequest>,
     on_progress: Channel<SurveyProgress>,
-) -> CmdResult<Value> {
-    let (control, _job) = jobs.start(state.label(), &survey_id)?;
-    let _ticker = Ticker::start(control.clone(), on_progress.clone());
+) -> CmdResult<u64> {
     let base = state.profile_doc().toml;
     let req = request.unwrap_or_default();
-    let watched = control.clone();
+    let control = SurveyControl::new();
     let (stop, probe) = (control.clone(), control.clone());
-    let controls = crate::jobs::Controls::cancel(move || stop.cancel()).with_probe(move || {
+    let controls = Controls::cancel(move || stop.cancel()).with_probe(move || {
         let p = probe.progress();
-        Some(crate::jobs::JobProgress::counts(p.done as u64, p.total as u64))
+        Some(JobProgress::counts(p.done as u64, p.total as u64))
     });
-    let out = crate::jobs::analysis(&app, &state, "Survey the folder", "folderSetup", None, controls, move |ws, _| {
-        outcome(ws.survey_folder(&base, &req, &watched))
+    let spec = JobSpec::new(JobKind::Analysis, "Survey the folder").window(state.label());
+    let win = state.arc().clone();
+    crate::jobs::spawn(&app, spec, controls, move |_| {
+        let ticker = Ticker::start(control.clone(), on_progress.clone());
+        let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
+        drop(ticker);
+        let _ = on_progress.send(control.progress());
+        let out = out.map_err(crate::err)?;
+        let cancelled = out.get("cancelled").is_some();
+        Ok::<_, String>(
+            Done::new(())
+                .with_result(JobResult::FolderSurvey { outcome: out })
+                .cancelled_if(cancelled),
+        )
     })
-    .await?;
-    let _ = on_progress.send(control.progress());
-    Ok(out)
-}
-
-/// Cancels the window's survey `surveyId`; false when it is not running.
-#[tauri::command]
-pub fn folder_survey_cancel(state: CurrentWindow, jobs: State<'_, SurveyJobs>, survey_id: String) -> bool {
-    jobs.cancel(state.label(), &survey_id)
+    .map(|id| id.0)
 }
 
 /// The active profile with `fragments` merged in, validated against the window's plugins, with its diff.
@@ -157,28 +106,12 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
     read(&state, move |ws| survey::compose(ws, &base, &fragments)).await
 }
 
-/// AI proposals for the folder (the model refines the survey's facts; the engine validates every answer),
-/// as an AI job. Cancel with `ai_cancel`. Fails with `unavailable` / `noModel` when no model is set up.
-#[tauri::command]
-pub async fn ai_refine_folder_setup<R: Runtime>(
-    app: AppHandle<R>,
-    win: CurrentWindow,
-    request: Option<Value>,
-) -> AiResult<FolderRefinement> {
-    if let Some(v) = &request {
-        serde_json::from_value::<SurveyRequest>(v.clone())
-            .map_err(|e| AiCmdError::invalid(format!("the survey request is not valid: {e}")))?;
-    }
-    super::commands::refine_folder_setup(&app, &win, request).await
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::error::AiErrorCode;
     use crate::test_support::{block, main_window, samples, test_app};
+    use std::sync::Mutex;
     use tauri::ipc::InvokeResponseBody;
-    use tauri::Manager;
 
     fn sink() -> (Channel<SurveyProgress>, std::sync::Arc<Mutex<usize>>) {
         let seen = std::sync::Arc::new(Mutex::new(0usize));
@@ -191,67 +124,37 @@ mod tests {
     }
 
     #[test]
-    fn survey_compose_and_cancel_over_ipc_state() {
+    fn the_survey_runs_as_a_job_and_its_proposals_compose() {
         let app = test_app(None);
         let win = main_window(&app);
         win.store_write()
             .open(&[samples().join("serilog-clef"), samples().join("serilog-text")])
             .unwrap();
-        let jobs = app.state::<SurveyJobs>();
-        let (ch, _) = sink();
-        let out = block(folder_survey(
-            app.handle().clone(),
-            win.clone(),
-            jobs.clone(),
-            "s-1".into(),
-            None,
-            ch,
-        ))
-        .unwrap();
+        let (ch, seen) = sink();
+        // The command returns the job at once; the proposals are its result.
+        let id = folder_survey(app.handle().clone(), win.clone(), None, ch).unwrap();
+        let end = crate::test_support::job_end(&app, id);
+        assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
+        assert!(*seen.lock().unwrap() > 0, "progress was sent");
+        let Some(JobResult::FolderSurvey { outcome: out }) = end.result else {
+            panic!("{:?}", end.result)
+        };
         let proposals = out["setup"]["proposals"].as_array().unwrap();
         let key = proposals
             .iter()
             .find(|p| p["id"] == "instance:MachineName")
             .expect("instance key proposal");
         assert_eq!(key["preview"]["kind"], "lanes");
-        assert_eq!(jobs.lock().len(), 0, "the job is removed when the survey ends");
         // Compose the proposal's fragments.
         let fragments: Vec<Fragment> = serde_json::from_value(key["fragments"].clone()).unwrap();
         let composed = block(folder_setup_compose(win.clone(), fragments)).unwrap();
         assert!(composed.toml.contains("MachineName") && composed.added > 0);
         assert!(block(folder_setup_compose(win.clone(), vec![])).is_err());
-        // Ids are validated; unknown surveys cannot be cancelled.
-        let (ch, _) = sink();
-        assert!(block(folder_survey(
-            app.handle().clone(),
-            win.clone(),
-            jobs.clone(),
-            "bad id!".into(),
-            None,
-            ch
-        ))
-        .is_err());
-        assert!(!folder_survey_cancel(win.clone(), jobs.clone(), "nope".into()));
     }
 
     #[test]
     fn a_cancelled_survey_answers_cancelled() {
-        let jobs = SurveyJobs::default();
-        let (control, _guard) = jobs.start("main", "s-2").unwrap();
-        assert!(jobs.cancel("main", "s-2"));
-        assert!(control.is_cancelled());
         assert_eq!(outcome(Err(SurveyError::Cancelled)).unwrap(), json!({ "cancelled": true }));
         assert!(outcome(Err(SurveyError::NothingOpened)).is_err());
-        assert!(jobs.start("main", "s-2").is_err(), "duplicate id");
-        let _second = jobs.start("main", "s-3").unwrap();
-        assert!(jobs.start("main", "s-4").is_err(), "per-window limit");
-    }
-
-    #[test]
-    fn ai_refinement_is_unavailable_without_the_ai_runtime() {
-        let app = test_app(None);
-        let win = main_window(&app);
-        let err = block(ai_refine_folder_setup(app.handle().clone(), win, None)).unwrap_err();
-        assert_eq!(err.code, AiErrorCode::Unavailable);
     }
 }

@@ -6,6 +6,8 @@ import { PANEL } from '../dock/dock.service';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { JobsBackend } from './jobs-backend';
 import { JobInfo, JobResult } from './jobs.types';
+import type { FolderRefinement, SurveyOutcome } from '../ai/folder-setup/folder-setup.types';
+import type { StorageClearResult } from '../settings/storage/storage.types';
 
 export const JOBS_VIEW = 'jobs';
 const AI_CHAT_VIEW = 'ai-chat';
@@ -56,8 +58,9 @@ export class JobViewer {
       case 'proposal': {
         const p = result.proposal as { kind?: string };
         if (p?.kind === 'folderSetup') {
-          const { FolderSetupLauncher } = await import('../ai/folder-setup/provide-folder-setup');
-          this.injector.get(FolderSetupLauncher).open();
+          const [{ FolderSetupLauncher }, { FolderSetupStore }] = await Promise.all([import('../ai/folder-setup/provide-folder-setup'), import('../ai/folder-setup/folder-setup.store')]);
+          this.injector.get(FolderSetupStore).addRefinement(result.proposal as FolderRefinement);
+          this.injector.get(FolderSetupLauncher).show();
           return;
         }
         return ai.showProposal(result.proposal as Proposal, title);
@@ -82,6 +85,22 @@ export class JobViewer {
         return;
       case 'model':
         return ai.openModels();
+      case 'folderSurvey': {
+        const [{ FolderSetupLauncher }, { FolderSetupStore }] = await Promise.all([import('../ai/folder-setup/provide-folder-setup'), import('../ai/folder-setup/folder-setup.store')]);
+        this.injector.get(FolderSetupStore).showSurvey(result.outcome as SurveyOutcome);
+        this.injector.get(FolderSetupLauncher).show();
+        return;
+      }
+      case 'storage': {
+        const [{ StorageStore }, { SettingsDialogService }, { STORAGE_ID }] = await Promise.all([
+          import('../settings/storage/storage.store'),
+          import('../settings/settings-dialog'),
+          import('../settings/storage/storage.types'),
+        ]);
+        this.injector.get(StorageStore).showResult(result.result as StorageClearResult);
+        this.injector.get(SettingsDialogService).open(STORAGE_ID);
+        return;
+      }
       case 'file':
         return;
     }

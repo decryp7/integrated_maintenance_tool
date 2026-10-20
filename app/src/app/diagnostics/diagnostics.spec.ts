@@ -7,6 +7,7 @@ import { CommandContext } from '../extensions/tokens';
 import { DiagnosticsCommands, DIAGNOSTICS_VIEWS } from './diagnostics-commands';
 import { DEFAULT_CLASSIFIER, isUnexpectedBackendError } from './error-classify';
 import { ErrorSnapshotService, SNAPSHOT_CLOCK } from './error-snapshot.service';
+import { mockJobs } from '../jobs/mock-jobs';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { createSnapshotBackend, provideDiagnostics } from './provide-diagnostics';
 import { capturedStyleProperties, encodeWithin, MAX_BYTES, ScreenCapture, scaleFor } from './screen-capture';
@@ -399,7 +400,11 @@ describe('backends', () => {
     await expect(m.image(a.id)).rejects.toThrow();
     await expect(m.remove(a.id)).rejects.toThrow();
     expect(await m.openFolder()).toContain('snapshots');
-    expect(await m.exportDiagnostics('/o.zip', [b.id])).toBe(3);
+    // The zip is written by an export job that is returned at once; Show in folder reveals the file.
+    const job = await m.exportDiagnostics('/o.zip', [b.id]);
+    expect(job).toEqual(expect.any(Number));
+    const end = await mockJobs().wait(job);
+    expect([end.state, end.message, end.result]).toEqual(['done', '3 files zipped.', { type: 'file', path: '/o.zip' }]);
     m.enabled = false;
     await expect(m.save(IMAGE, { reason: 'unhandled-error', message: 'm', manual: false })).rejects.toThrow(/turned off/);
   });

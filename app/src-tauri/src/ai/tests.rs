@@ -284,27 +284,52 @@ fn use_cases_route_through_ipc_to_the_model_and_the_engine() {
         (status["available"].as_bool(), status["state"].as_str()),
         (Some(true), Some("ready"))
     );
-    let q = ipc(&main, "ai_nl_to_query", json!({"question": "show me the errors"})).unwrap();
+    // A query proposal: the job starts at once; a dialog that waits gets the whole answer.
+    let id = start(&main, json!({"op": "query", "question": "show me the errors"}));
+    let outcome = ipc(&main, "jobs_wait", json!({"id": id})).unwrap();
+    assert_eq!(outcome["state"], "done");
+    let q = outcome["result"]["proposal"].clone();
     assert_eq!(q["ql"], "level >= error");
     assert!(q["estimatedMatches"].as_u64().unwrap() > 0);
-    let n = ipc(&main, "ai_root_causes", json!({})).unwrap();
-    assert!(n["text"].as_str().unwrap().contains("not found in the logs"));
-    // Arguments are validated before anything runs.
+    // Root causes runs in the background: the command returns the job at once; the answer is its result.
+    let id = start(&main, json!({"op": "rootCauses"}));
+    let job = ended(&app, id).expect("an answer is kept: it needs the user's attention");
+    assert_eq!(job.state, crate::jobs::JobState::Done);
+    let n = ipc(&main, "jobs_result", json!({"id": id})).unwrap();
+    assert_eq!(n["type"], "narrative");
+    assert!(n["narrative"]["text"].as_str().unwrap().contains("not found in the logs"));
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    let ready = notices["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["title"] == "Root causes ready")
+        .expect("a message")
+        .clone();
+    assert_eq!(ready["primary"], json!({"type": "viewJob", "jobId": id}));
+    // Chat turns and unknown requests do not start this way.
     assert_eq!(
-        code(ipc(&main, "ai_nl_to_query", json!({"question": "  "})).unwrap_err()),
+        code(ipc(&main, "ai_start", json!({"request": {"op": "chat", "sessionId": "c", "text": "x"}})).unwrap_err()),
         "invalid"
     );
-    assert_eq!(code(ipc(&main, "ai_propose_regex", json!({"lines": []})).unwrap_err()), "invalid");
     assert_eq!(
-        code(ipc(&main, "ai_propose_pipeline", json!({"goal": "drop health checks"})).unwrap_err()),
+        code(ipc(&main, "ai_start", json!({"request": {"op": "nope"}})).unwrap_err()),
+        "invalid"
+    );
+    // Arguments are validated before anything runs.
+    let invalid = |r: Value| code(ipc(&main, "ai_start", json!({ "request": r })).unwrap_err());
+    assert_eq!(invalid(json!({"op": "query", "question": "  "})), "invalid");
+    assert_eq!(invalid(json!({"op": "regex", "lines": []})), "invalid");
+    assert_eq!(
+        invalid(json!({"op": "pipeline", "goal": "drop health checks"})),
         "invalid",
         "no sample and no event"
     );
-    // The scripted model has no more replies: an engine error, typed.
-    assert_eq!(
-        code(ipc(&main, "ai_summarize", json!({"from": 0, "to": i64::MAX})).unwrap_err()),
-        "engine"
-    );
+    // The scripted model has no more replies: the job fails with the engine's reason, and offers Retry.
+    let id = start(&main, json!({"op": "summarize", "from": 0, "to": i64::MAX}));
+    let failed = ended(&app, id).expect("failures are kept");
+    assert_eq!(failed.state, crate::jobs::JobState::Failed);
+    assert!(failed.retryable);
     assert_eq!(ipc(&main, "ai_cancel", json!({})).unwrap(), 0);
     let hw = ipc(&main, "ai_hardware", json!({})).unwrap();
     assert_eq!(hw["gpus"][0]["vramGb"], 8.0);
@@ -349,7 +374,7 @@ fn a_missing_worker_safe_mode_or_no_runtime_are_typed_errors() {
     );
     assert!(status["reason"].as_str().unwrap().contains("not installed"));
     for (cmd, body) in [
-        ("ai_nl_to_query", json!({"question": "errors"})),
+        ("ai_start", json!({"request": {"op": "query", "question": "errors"}})),
         ("ai_recommend", json!({})),
         ("ai_setup_plan", json!({})),
         ("ai_setup_run", json!({"modelId": TEST_MODEL})),
@@ -381,7 +406,7 @@ fn before_set_up_there_is_no_model() {
     let main = window(&app, "main");
     assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "noModel");
     assert_eq!(
-        code(ipc(&main, "ai_nl_to_query", json!({"question": "errors"})).unwrap_err()),
+        code(ipc(&main, "ai_start", json!({"request": {"op": "query", "question": "errors"}})).unwrap_err()),
         "noModel"
     );
     let chat = ipc(&main, "ai_chat_new", json!({})).unwrap();
@@ -870,16 +895,16 @@ fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
     let file = added["fileName"].as_str().unwrap().to_string();
     println!("added {file} ({} bytes) in {:?}", added["sizeBytes"], t.elapsed());
     ipc(&main, "ai_model_activate", json!({ "fileName": file })).unwrap();
-    let start = Instant::now();
+    let began = Instant::now();
     while !stages(&events).last().is_some_and(|s| s == "ready" || s == "failed") {
         assert!(
-            start.elapsed() < Duration::from_secs(600),
+            began.elapsed() < Duration::from_secs(600),
             "activation timed out: {:?}",
             stages(&events)
         );
         std::thread::sleep(Duration::from_millis(100));
     }
-    println!("stages {:?} in {:?}", stages(&events), start.elapsed());
+    println!("stages {:?} in {:?}", stages(&events), began.elapsed());
     assert_eq!(stages(&events).last().unwrap(), "ready", "{:?}", events.lock().unwrap().last());
     while core.setup_running() {
         std::thread::sleep(Duration::from_millis(50));
@@ -887,12 +912,11 @@ fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
     let status = ipc(&main, "ai_status", json!({})).unwrap();
     println!("status {status}");
     let t = Instant::now();
-    let q = ipc(
+    let id = start(
         &main,
-        "ai_nl_to_query",
-        json!({"question": "Which errors came from the billing service?"}),
-    )
-    .unwrap();
+        json!({"op": "query", "question": "Which errors came from the billing service?"}),
+    );
+    let q = ipc(&main, "jobs_wait", json!({"id": id})).unwrap()["result"]["proposal"].clone();
     println!("nl_to_query in {:?}: {q}", t.elapsed());
     assert!(!q["ql"].as_str().unwrap().is_empty());
     assert!(q["estimatedMatches"].as_u64().is_some());
@@ -1336,6 +1360,8 @@ enum Step {
 struct GatedProvider {
     inner: ScriptedProvider,
     steps: Mutex<std::sync::mpsc::Receiver<Step>>,
+    /// How many requests reached the model (and wait for their step).
+    entered: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl LlmProvider for GatedProvider {
@@ -1349,6 +1375,7 @@ impl LlmProvider for GatedProvider {
         self.inner.context_length()
     }
     fn chat(&self, req: &imt_ai::llm::ChatRequest, on_delta: &mut dyn FnMut(&str)) -> imt_ai::Result<imt_ai::llm::ChatResponse> {
+        self.entered.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         match self.steps.lock().unwrap().recv() {
             Ok(Step::Answer) => self.inner.chat(req, on_delta),
             _ => Err(AiError::Engine("the AI worker crashed (exit code 3)".into())),
@@ -1357,12 +1384,39 @@ impl LlmProvider for GatedProvider {
 }
 
 fn gated(replies: Vec<Reply>) -> (Arc<dyn LlmProvider>, std::sync::mpsc::Sender<Step>) {
+    let (p, tx, _) = gated_counted(replies);
+    (p, tx)
+}
+
+/// Like [`gated`], with the count of requests that reached the model.
+fn gated_counted(
+    replies: Vec<Reply>,
+) -> (
+    Arc<dyn LlmProvider>,
+    std::sync::mpsc::Sender<Step>,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
     let (tx, rx) = std::sync::mpsc::channel();
+    let entered = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let p = GatedProvider {
         inner: ScriptedProvider::new(replies),
         steps: Mutex::new(rx),
+        entered: entered.clone(),
     };
-    (Arc::new(p), tx)
+    (Arc::new(p), tx, entered)
+}
+
+/// Starts a background AI answer (explain, summarise, root causes) and returns its job.
+fn start(main: &tauri::WebviewWindow<MockRuntime>, request: Value) -> u64 {
+    ipc(main, "ai_start", json!({ "request": request })).unwrap().as_u64().unwrap()
+}
+
+/// Waits until job `id` ended; its info (none when it ended unseen and was not kept).
+fn ended(app: &tauri::App<MockRuntime>, id: u64) -> Option<crate::jobs::queue::JobInfo> {
+    let jobs = jobs_of(app);
+    let id = crate::jobs::JobId(id);
+    wait_until("the job to end", || jobs.state_of(id).is_none_or(|s| s.is_finished()));
+    jobs.info(id)
 }
 
 fn jobs_of(app: &tauri::App<MockRuntime>) -> crate::jobs::Jobs {
@@ -1383,8 +1437,7 @@ fn ai_requests_are_jobs_run_one_at_a_time_and_a_crash_fails_only_the_running_one
     let main = window(&app, "main");
     open_samples(&main);
     // An explain request runs (waiting for the model), a chat turn waits behind it.
-    let w = main.clone();
-    let explain = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    let explain = start(&main, json!({"op": "explain", "recordId": 1}));
     wait_until("the explain job to run", || {
         let ids = active_ai(&app);
         ids.len() == 1 && jobs_of(&app).state_of(ids[0]) == Some(crate::jobs::JobState::Running)
@@ -1421,9 +1474,9 @@ fn ai_requests_are_jobs_run_one_at_a_time_and_a_crash_fails_only_the_running_one
     assert_eq!(jobs[0]["source"]["link"], json!({"type": "event", "recordId": 1}));
     // The worker crashes during the explain: only it fails, with the reason; the turn runs next.
     steps.send(Step::Crash).unwrap();
-    let err = explain.join().unwrap().unwrap_err();
-    assert_eq!(code(err.clone()), "engine");
-    assert!(err["message"].as_str().unwrap().contains("crashed"));
+    let crashed = ended(&app, explain).expect("the failure is kept");
+    assert_eq!(crashed.state, crate::jobs::JobState::Failed);
+    assert!(crashed.error.as_deref().unwrap_or_default().contains("crashed"));
     steps.send(Step::Answer).unwrap();
     let events = finish_turn(&main, &sid);
     assert!(kinds(&events).contains(&"done".to_string()), "{events:?}");
@@ -1475,11 +1528,9 @@ fn a_waiting_request_can_be_cancelled_and_a_queued_turn_frees_its_chat() {
     let app = f.app(core);
     let main = window(&app, "main");
     open_samples(&main);
-    let w = main.clone();
-    let first = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    let first = start(&main, json!({"op": "explain", "recordId": 1}));
     wait_until("running", || active_ai(&app).len() == 1);
-    let w = main.clone();
-    let second = std::thread::spawn(move || ipc(&w, "ai_root_causes", json!({})));
+    let second = start(&main, json!({"op": "rootCauses"}));
     // The second request is queued before the chat adds its turn (on a busy machine its thread can start late).
     wait_until("the second request queued", || active_ai(&app).len() == 2);
     let sid = ipc(&main, "ai_chat_new", json!({})).unwrap()["id"].as_str().unwrap().to_string();
@@ -1493,9 +1544,11 @@ fn a_waiting_request_can_be_cancelled_and_a_queued_turn_frees_its_chat() {
     assert_eq!(active_ai(&app).len(), 2);
     // The dialog's Cancel (`ai_cancel`) stops the running use case and drops the waiting one.
     assert_eq!(ipc(&main, "ai_cancel", json!({})).unwrap(), 2);
-    assert_eq!(code(second.join().unwrap().unwrap_err()), "cancelled");
     steps.send(Step::Answer).unwrap();
-    assert_eq!(code(first.join().unwrap().unwrap_err()), "cancelled");
+    for id in [first, second] {
+        let state = ended(&app, id).map(|j| j.state);
+        assert!(state.is_none_or(|s| s == crate::jobs::JobState::Cancelled), "{state:?}");
+    }
     wait_until("no AI jobs", || active_ai(&app).is_empty());
 }
 
@@ -1506,21 +1559,21 @@ fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
     let mut deps = f.deps();
     deps.health = Some(health.clone());
     let core = Arc::new(AiCore::new(Some(ai_dir(&f.tmp)), f.tmp.0.join("models"), false, deps));
-    let (model, steps) = gated(vec![text("Explained."), text("Root causes: none found.")]);
+    let (model, steps, entered) = gated_counted(vec![text("Explained."), text("Root causes: none found.")]);
     core.set_fixed_provider(model);
     let app = f.app(core);
     let main = window(&app, "main");
     open_samples(&main);
-    let w = main.clone();
-    let first = std::thread::spawn(move || ipc(&w, "ai_explain_event", json!({"recordId": 1})));
+    let first = start(&main, json!({"op": "explain", "recordId": 1}));
     wait_until("running", || active_ai(&app).len() == 1);
-    let w = main.clone();
-    let waiting = std::thread::spawn(move || ipc(&w, "ai_root_causes", json!({})));
+    let waiting = start(&main, json!({"op": "rootCauses"}));
     wait_until("queued", || active_ai(&app).len() == 2);
+    // The running request waits in the model (not before it, where the quarantine would stop it first).
+    wait_until("the model to be asked", || entered.load(std::sync::atomic::Ordering::SeqCst) == 1);
     // The worker crashes and is quarantined: the running request fails, the waiting one stays queued.
     health.record_failure("crashed three times");
     steps.send(Step::Crash).unwrap();
-    assert_eq!(code(first.join().unwrap().unwrap_err()), "engine");
+    assert_eq!(ended(&app, first).map(|j| j.state), Some(crate::jobs::JobState::Failed));
     wait_until("the pause", || {
         !ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty()
     });
@@ -1540,8 +1593,8 @@ fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
     // Reset AI: the queue goes on.
     steps.send(Step::Answer).unwrap();
     ipc(&main, "ai_reset", json!({})).unwrap();
-    let r = waiting.join().unwrap();
-    assert!(r.is_ok(), "{r:?}");
+    let waited = ended(&app, waiting);
+    assert_eq!(waited.as_ref().map(|j| j.state), Some(crate::jobs::JobState::Done), "{waited:?}");
     assert!(ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty());
 }
 

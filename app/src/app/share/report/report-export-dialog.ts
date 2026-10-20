@@ -3,7 +3,6 @@ import { ExportTheme, RedactionPreview, Report, ReportFormat } from '../../core/
 import { Platform } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { ProfileEdits } from '../../profile/profile-edits';
-import { plural } from '../../i18n/locale';
 import { errorMessage } from '../../tools/tool-errors';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { ShareBackend } from '../share-backend';
@@ -11,6 +10,7 @@ import { fileStem } from '../visuals/visual-export.service';
 import { ReportStore } from './report.store';
 import { reportEventIds, reportText } from './report-text';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
+import { JobFollow } from '../../jobs/job-follow';
 
 /**
  * Exports the active report as self-contained HTML or PDF. Redaction (the profile's `[redact]` rules,
@@ -71,6 +71,7 @@ export class ReportExportDialog {
   private readonly backend = inject(ShareBackend);
   private readonly platform = inject(Platform);
   private readonly overwrite = inject(OverwriteGuard);
+  private readonly follow = inject(JobFollow);
   private readonly store = inject(WorkspaceStore);
   private readonly profile = inject(ProfileEdits);
 
@@ -147,18 +148,11 @@ export class ReportExportDialog {
         { name: format === 'pdf' ? $localize`:@@share.reportExport.filterPdf:PDF document` : $localize`:@@share.reportExport.filterWeb:Web page`, extensions: [format] },
       ]);
       if (!path) return;
-      const done = await this.overwrite.write(path, (overwrite) => this.backend.exportReport({ report, format, path, redact: this.redact(), theme: this.theme(), overwrite }));
-      if (!done) return;
-      const masked = done.redaction.reduce((n, h) => n + h.count, 0);
-      const file = done.path.split(/[\\/]/).pop();
-      this.store.setNotice(
-        !this.redact()
-          ? $localize`:@@share.reportExport.done:Exported the report to ${file}:file:`
-          : plural(masked, {
-              one: $localize`:@@share.reportExport.doneRedactedOne:Exported the report to ${file}:file: (${masked}:count: value redacted)`,
-              other: $localize`:@@share.reportExport.doneRedacted:Exported the report to ${file}:file: (${masked}:count: values redacted)`,
-            }),
-      );
+      const job = await this.overwrite.write(path, (overwrite) => this.backend.exportReport({ report, format, path, redact: this.redact(), theme: this.theme(), overwrite }));
+      if (job === null) return;
+      // Written as a job: its message says what was redacted, with "Show in folder".
+      const file = path.split(/[\\/]/).pop() ?? path;
+      this.follow.started($localize`:@@share.reportExport.started:Exporting the report to ${file}:file: — running in Jobs`);
       this.ref.close();
     } catch (e) {
       this.error.set(errorMessage(e));

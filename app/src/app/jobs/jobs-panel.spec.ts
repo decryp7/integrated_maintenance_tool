@@ -50,6 +50,8 @@ class FakeJobs extends JobsBackend {
   markSeen = vi.fn<JobsBackend['markSeen']>(async () => true);
   result = vi.fn<JobsBackend['result']>(async () => null);
   reveal = vi.fn<JobsBackend['reveal']>(async () => '/p');
+  wait = vi.fn<JobsBackend['wait']>(async (id) => ({ id, state: 'done', result: null, error: null, message: null }));
+  unwait = vi.fn<JobsBackend['unwait']>(async () => undefined);
   record = vi.fn<JobsBackend['record']>(async () => ({ version: 1, jobs: [] }));
   restore = vi.fn<JobsBackend['restore']>(async () => ({ snapshot: EMPTY_JOBS, warning: null }));
   onChange = vi.fn<JobsBackend['onChange']>(async (h) => {

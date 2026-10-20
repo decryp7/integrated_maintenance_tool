@@ -16,8 +16,8 @@ export type MethodKind = 'query' | 'mutation' | 'quiet' | 'event';
 const QUERY_PREFIX =
   /^(get|list|query|preview|read|validate|check|complete|explain|infer|suggest|estimate|status|describe|find|search|load|fetch|count|summary|summar(y|ize)|catalog|recommend|hardware|history|version|templates|formats|is|has|can|sections|elevation|appStatus|lastSession|tail|liveState|workspaceSummary|annotations|pluginEvents|overview|fieldStats|correlate|compare|diff|sniff|automaticEnabled|models|chatSessions|chatGet|chatHistory|suggestedPrompts|perfmonPresets|perfmonOutputs|monitorStatus|eventLog(Channels|Validate|Status)|collectDefaultPlan|toolsList|current|pageOf|windows|popouts|label|demoPaths|workAreas|windowBounds|contentOrigin|hostGone|profiling(?!Open|Close))/;
 
-/** Bookkeeping the UI does on its own (autosave, polling): never an operation. */
-const QUIET = new Set(['saveSession', 'takePendingOpen', 'importProgress', 'chatEventsSince', 'setWindowTitle', 'setRecentProjects', 'cancel', 'syncPort', 'setAppMenu']);
+/** Bookkeeping the UI does on its own (autosave, polling, following a job): never an operation. */
+const QUIET = new Set(['saveSession', 'takePendingOpen', 'importProgress', 'chatEventsSince', 'setWindowTitle', 'setRecentProjects', 'cancel', 'syncPort', 'setAppMenu', 'wait', 'unwait']);
 
 /** Methods that look like queries by name but change something. */
 const MUTATION = new Set(['previewRedaction']);
@@ -63,7 +63,11 @@ const DOMAIN: Record<string, (args: unknown[]) => { operation: string; params: A
   }),
   reset: (a) => ({ operation: typeof a[0] === 'string' ? 'settings.reset' : 'backend.reset', params: { Section: typeof a[0] === 'string' ? a[0] : undefined } }),
   chatSend: () => ({ operation: 'ai.ask', params: {} }),
-  nlToQuery: (a) => ({ operation: 'ai.ask', params: typeof a[0] === 'string' ? safeText('Question', a[0], 'normal') : {} }),
+  start: (a) => {
+    const r = (a[0] ?? {}) as { op?: unknown; question?: unknown };
+    if (r.op === 'query' && typeof r.question === 'string') return { operation: 'ai.ask', params: safeText('Question', r.question, 'normal') };
+    return { operation: 'ai.request', params: { Request: typeof r.op === 'string' ? r.op.slice(0, 32) : undefined } };
+  },
 };
 
 /**

@@ -219,6 +219,31 @@ struct Control {
 struct Inner {
     queue: JobQueue,
     controls: HashMap<JobId, Control>,
+    /// Who waits for a job's end (a dialog showing its progress): told once, with the full result.
+    waiters: HashMap<JobId, Vec<mpsc::Sender<JobOutcome>>>,
+}
+
+/// How a job ended, for whoever waits for it (`jobs_wait`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobOutcome {
+    pub id: JobId,
+    pub state: JobState,
+    pub result: Option<JobResult>,
+    pub error: Option<String>,
+    pub message: Option<String>,
+}
+
+impl JobOutcome {
+    fn of(job: &Job, result: Option<JobResult>) -> JobOutcome {
+        JobOutcome {
+            id: job.id,
+            state: job.state(),
+            result: result.or_else(|| job.result.clone()),
+            error: job.error.clone(),
+            message: job.message.clone(),
+        }
+    }
 }
 
 struct Shared {
@@ -255,6 +280,7 @@ impl Jobs {
             inner: Mutex::new(Inner {
                 queue: JobQueue::new(cores),
                 controls: HashMap::new(),
+                waiters: HashMap::new(),
             }),
             clock,
             listeners: Mutex::new(Vec::new()),
@@ -453,13 +479,32 @@ impl Jobs {
 
     fn complete(&self, id: JobId, end: JobEnd) {
         let now = self.now();
-        let finished = {
+        // The waiters get the whole result (the history keeps a bounded one).
+        let raw = match &end {
+            JobEnd::Done(r) => r.clone(),
+            _ => None,
+        };
+        let (finished, waiters) = {
             let mut inner = self.lock();
             inner.controls.remove(&id);
-            inner.queue.finish(id, end, now)
+            let f = inner.queue.finish(id, end, now);
+            let waiters = inner.waiters.remove(&id).unwrap_or_default();
+            // A dialog still waiting shows the outcome itself: no message, nothing left unseen.
+            let f = f.map(|mut f| {
+                if !waiters.is_empty() {
+                    f.attention = false;
+                    inner.queue.mark_seen(id);
+                }
+                f
+            });
+            (f, waiters)
         };
         match finished {
             Ok(f) => {
+                let outcome = JobOutcome::of(&f.job, raw);
+                for w in waiters {
+                    let _ = w.send(outcome.clone());
+                }
                 self.finished(&f);
                 self.emit(&JobsEvent::Changed);
             }
@@ -508,9 +553,12 @@ impl Jobs {
             let mut inner = self.lock();
             let outcome = inner.queue.cancel(id, now).map_err(|e| e.to_string())?;
             let stop = match &outcome {
-                Cancel::Dequeued(_) => {
+                Cancel::Dequeued(f) => {
                     // Dropping the work drops its result channel: the waiter sees `Stopped::Cancelled`.
                     inner.controls.remove(&id);
+                    for w in inner.waiters.remove(&id).unwrap_or_default() {
+                        let _ = w.send(JobOutcome::of(&f.job, None));
+                    }
                     None
                 }
                 Cancel::Running => inner.controls.get(&id).map(|c| {
@@ -589,6 +637,54 @@ impl Jobs {
         let n = self.lock().queue.clear_finished(window);
         self.emit(&JobsEvent::Changed);
         n
+    }
+
+    /// Waits for job `id` to end (blocking): at once when it already ended. A job that ended without needing
+    /// anything and was not kept (a quick cancel) is no longer known: then the answer is "cancelled".
+    pub fn wait_end(&self, id: JobId) -> JobOutcome {
+        let rx = {
+            let mut inner = self.lock();
+            match inner.queue.get(id) {
+                Some(j) if j.state().is_finished() => return JobOutcome::of(j, None),
+                Some(_) => {
+                    let (tx, rx) = mpsc::channel();
+                    inner.waiters.entry(id).or_default().push(tx);
+                    rx
+                }
+                None => {
+                    return JobOutcome {
+                        id,
+                        state: JobState::Cancelled,
+                        result: None,
+                        error: None,
+                        message: None,
+                    }
+                }
+            }
+        };
+        // No answer: the waiter stopped waiting (`unwait`) or IMT is closing; the job's state now.
+        rx.recv().unwrap_or_else(|_| match self.lock().queue.get(id) {
+            Some(j) => JobOutcome::of(j, None),
+            None => JobOutcome {
+                id,
+                state: JobState::Interrupted,
+                result: None,
+                error: None,
+                message: None,
+            },
+        })
+    }
+
+    /// True while someone waits for job `id` (`wait_end`).
+    #[cfg(test)]
+    pub fn waited(&self, id: JobId) -> bool {
+        self.lock().waiters.get(&id).is_some_and(|w| !w.is_empty())
+    }
+
+    /// Stops waiting for job `id` (the dialog that showed its progress closed): when it ends, the user gets a
+    /// message as for any background job.
+    pub fn unwait(&self, id: JobId) {
+        self.lock().waiters.remove(&id);
     }
 
     /// Reports a running job's progress (for producers that learn it from elsewhere, like a tool).
@@ -686,7 +782,12 @@ impl Jobs {
                 })
                 .collect();
             inner.controls.clear();
-            inner.queue.interrupt_all("IMT closed before this job finished", now);
+            let ended = inner.queue.interrupt_all("IMT closed before this job finished", now);
+            for f in ended {
+                for w in inner.waiters.remove(&f.job.id).unwrap_or_default() {
+                    let _ = w.send(JobOutcome::of(&f.job, None));
+                }
+            }
             stops
         };
         for stop in stops {
@@ -1010,6 +1111,50 @@ pub(crate) mod tests {
         assert_eq!(jobs.clear_finished(Some("main")), 0);
         assert!(jobs.move_job(JobId(1), true).is_err());
         assert!(jobs.get(JobId(99)).is_none());
+    }
+
+    #[test]
+    fn waiting_for_a_job_gets_its_outcome_once_it_ends() {
+        let (jobs, clock) = service();
+        let (h, go) = gated(&jobs, ai("explain").retry_with(serde_json::json!({})));
+        let id = h.id;
+        let j2 = jobs.clone();
+        let waiter = std::thread::spawn(move || j2.wait_end(id));
+        wait_until("the waiter", || !lock(&jobs.0.inner).waiters.is_empty());
+        clock.advance(VISIBLE_AFTER_MS);
+        go.send(Ok(5)).unwrap();
+        let o = waiter.join().unwrap();
+        assert_eq!((o.id, o.state), (id, JobState::Done));
+        // The waiter showed it: no message, nothing unseen.
+        assert!(lock(&jobs.0.inner).queue.get(id).is_some_and(|j| j.seen));
+        // Ended already: at once (from the history).
+        assert_eq!(jobs.wait_end(id).state, JobState::Done);
+        // Unknown (a quick job that was not kept): cancelled.
+        assert_eq!(jobs.wait_end(JobId(999)).state, JobState::Cancelled);
+        // A waiting job that is cancelled tells its waiter.
+        let (_running, _g1) = gated(&jobs, ai("running"));
+        let (queued, _g2) = gated(&jobs, ai("queued"));
+        let qid = queued.id;
+        let j3 = jobs.clone();
+        let w = std::thread::spawn(move || j3.wait_end(qid));
+        wait_until("the second waiter", || !lock(&jobs.0.inner).waiters.is_empty());
+        jobs.cancel(qid).unwrap();
+        assert_eq!(w.join().unwrap().state, JobState::Cancelled);
+        // A dialog that closes stops waiting: its waiter returns with the job as it is.
+        let (open, _g3) = gated(&jobs, ai("open"));
+        let oid = open.id;
+        let j5 = jobs.clone();
+        let w = std::thread::spawn(move || j5.wait_end(oid));
+        wait_until("the fourth waiter", || !lock(&jobs.0.inner).waiters.is_empty());
+        jobs.unwait(oid);
+        assert_eq!(w.join().unwrap().state, JobState::Queued);
+        // Closing interrupts the rest.
+        let rid = JobId(qid.0 - 1);
+        let j4 = jobs.clone();
+        let w = std::thread::spawn(move || j4.wait_end(rid));
+        wait_until("the third waiter", || !lock(&jobs.0.inner).waiters.is_empty());
+        jobs.shutdown();
+        assert_eq!(w.join().unwrap().state, JobState::Interrupted);
     }
 
     #[test]

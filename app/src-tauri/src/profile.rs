@@ -4,12 +4,14 @@
 //! project can carry a different one).
 
 use crate::activity::{domain_event, privacy, OpId};
-use crate::windows::{read, write, CurrentWindow};
+use crate::jobs::{JobKind, JobSpec};
+use crate::windows::{read, CurrentWindow};
 use crate::{err, AppState, CmdResult, State};
 use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Runtime};
 
 pub(crate) const PROFILE_FILE: &str = "active.imtprofile.toml";
 /// Saved profile versions kept for "restore".
@@ -86,10 +88,17 @@ fn find_line(toml: &str, e: &anyhow::Error) -> Option<usize> {
     toml.lines().position(|l| l.contains(&format!("\"{name}\""))).map(|i| i + 1)
 }
 
-/// Saves the profile as the active one (for new windows and the next start)
-/// and applies it to the calling window.
+/// Saves the profile as the active one (for new windows and the next start) and applies it to the calling
+/// window: the file is checked and written now, the files are re-imported with it as a background import job
+/// (progress in the status bar, Cancel in the Jobs pane). Returns that job at once.
 #[tauri::command]
-pub(crate) async fn save_profile(app_state: State<'_, AppState>, state: CurrentWindow, op: OpId, toml: String) -> CmdResult<Value> {
+pub(crate) fn save_profile<R: Runtime>(
+    app: AppHandle<R>,
+    app_state: State<'_, AppState>,
+    state: CurrentWindow,
+    op: OpId,
+    toml: String,
+) -> CmdResult<u64> {
     let profile = Profile::from_toml(&toml).map_err(err)?;
     // Never replace a working profile on disk with one that does not compile.
     state.store_read().validate_profile(profile.clone()).map_err(err)?;
@@ -101,16 +110,13 @@ pub(crate) async fn save_profile(app_state: State<'_, AppState>, state: CurrentW
         std::fs::write(p, &toml).map_err(err)?;
     }
     domain_event("profile.saved", op.as_deref(), &[("Profile", &name)]);
+    let spec = JobSpec::new(JobKind::Import, format!("Apply the profile {name}"));
     state.set_profile_doc(ProfileDoc {
         name,
         path: path.map(|p| p.to_string_lossy().into_owned()),
         toml,
     });
-    write(&state, move |ws| {
-        ws.set_profile(profile)?;
-        serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
-    })
-    .await
+    crate::workspace_commands::start_import(&app, &state, spec, move |ws| ws.set_profile(profile))
 }
 
 /// Copies the current profile into `history/` before it is replaced.
@@ -255,15 +261,18 @@ mod tests {
         drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
-        assert!(block(save_profile(shared(), st(), OpId::default(), "[parse".into())).is_err());
+        assert!(save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into()).is_err());
         let _log = crate::activity::test_capture();
-        let summary = block(save_profile(
+        let job = save_profile(
+            app.handle().clone(),
             shared(),
             st(),
             OpId(Some("op-profile".into())),
             "name = 'Saved'".into(),
-        ))
+        )
         .unwrap();
+        crate::test_support::job_done(&app, job);
+        let summary = block(crate::workspace_commands::workspace_summary(st())).unwrap();
         assert_eq!(
             crate::tools::tests::domain_event("profile.saved", "op-profile").props["Profile"],
             "Saved"
@@ -304,13 +313,18 @@ mod tests {
     #[test]
     fn saving_without_a_config_dir_still_applies() {
         let app = test_app(None);
-        let summary = block(save_profile(
-            app.state::<AppState>(),
-            main_window(&app),
-            OpId::default(),
-            "name = 'Memory only'".into(),
-        ))
-        .unwrap();
+        crate::test_support::job_done(
+            &app,
+            save_profile(
+                app.handle().clone(),
+                app.state::<AppState>(),
+                main_window(&app),
+                OpId::default(),
+                "name = 'Memory only'".into(),
+            )
+            .unwrap(),
+        );
+        let summary = block(crate::workspace_commands::workspace_summary(main_window(&app))).unwrap();
         assert_eq!(summary["profileName"], "Memory only");
         assert_eq!(get_profile(main_window(&app)).unwrap().path, None);
     }
@@ -322,16 +336,20 @@ mod tests {
         let st = || main_window(&app);
         let shared = || app.state::<AppState>();
         // An invalid profile is refused and nothing is written.
-        assert!(block(save_profile(
+        assert!(save_profile(
+            app.handle().clone(),
             shared(),
             st(),
             OpId::default(),
             "[[pipeline]]\nstep='plugin'\nid='nope'".into()
-        ))
+        )
         .is_err());
         assert!(!dir.0.join(PROFILE_FILE).exists());
         for name in ["One", "Two", "Three"] {
-            block(save_profile(shared(), st(), OpId::default(), format!("name = '{name}'"))).unwrap();
+            crate::test_support::job_done(
+                &app,
+                save_profile(app.handle().clone(), shared(), st(), OpId::default(), format!("name = '{name}'")).unwrap(),
+            );
         }
         let history = profile_history(shared());
         assert_eq!(history.len(), 2, "the first save had nothing to archive");

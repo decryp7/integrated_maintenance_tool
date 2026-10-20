@@ -301,6 +301,22 @@ describe('NotificationsStore', () => {
     expect(at(store.toasts(), 2).count).toBe(2);
   });
 
+  it('shows a toast of its own (negative id, not in the centre) that goes away by itself', async () => {
+    const { fake, store } = setupStore();
+    await settle();
+    vi.useFakeTimers();
+    store.showLocal({ severity: 'info', title: 'Exporting to a.csv — running in Jobs', primary: { type: 'showJobs' } });
+    store.showLocal({ severity: 'error', title: 'Did not start', body: 'queue is full' });
+    const [first, second] = store.toasts();
+    expect([first?.id, second?.id]).toEqual([-1, -2]);
+    expect([first?.title, first?.body, first?.primary]).toEqual(['Exporting to a.csv — running in Jobs', '', { type: 'showJobs' }]);
+    expect([second?.severity, second?.body, second?.primary]).toEqual(['error', 'queue is full', null]);
+    expect(store.notices()).toEqual([]);
+    expect(fake.markRead).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(TOAST_MS);
+    expect(store.toasts()).toEqual([]);
+  });
+
   it('dismisses a toast by itself after TOAST_MS', async () => {
     const { fake, store } = setupStore();
     await settle();
@@ -468,7 +484,7 @@ describe('NoticeActions', () => {
 
   function setup() {
     const ctx = new FakeContext();
-    const jobsBackend = { retry: vi.fn(async () => 1 as number | null), list: vi.fn(async () => EMPTY_JOBS), onChange: vi.fn(async () => () => undefined) };
+    const jobsBackend = { retry: vi.fn(async () => 1 as number | null), reveal: vi.fn(async (_id: number) => '/out/a.csv'), list: vi.fn(async () => EMPTY_JOBS), onChange: vi.fn(async () => () => undefined) };
     const notices = new FakeNotices();
     const lifecycle = { pluginReset: vi.fn(async () => undefined) };
     const dialogs = { open: vi.fn() };
@@ -519,6 +535,21 @@ describe('NoticeActions', () => {
     expect(await run({ type: 'retryJob', jobId: 5 })).toBeNull();
     expect(jobsBackend.retry).toHaveBeenCalledWith(5);
     expect(ctx.last('showView')).toEqual(['jobs']);
+  });
+
+  it('shows an export in its folder and returns the failure message', async () => {
+    const { run, jobsBackend, ctx } = setup();
+    expect(await run({ type: 'showInFolder', jobId: 8 })).toBeNull();
+    expect(jobsBackend.reveal).toHaveBeenCalledWith(8);
+    expect(ctx.calls).toEqual([]);
+    jobsBackend.reveal.mockRejectedValueOnce(new Error('the file was moved'));
+    expect(await run({ type: 'showInFolder', jobId: 8 })).toBe('the file was moved');
+  });
+
+  it('does not mark a toast of the UI own (negative id) as read in the centre', async () => {
+    const { run, notices } = setup();
+    await run({ type: 'showJobs' }, notice({ id: -1 }));
+    expect(notices.markRead).not.toHaveBeenCalled();
   });
 
   it('shows the Jobs pane', async () => {
@@ -582,6 +613,7 @@ describe('NoticeActions', () => {
       [{ type: 'installUpdate' }, 'Install update'],
       [{ type: 'showAlert', alertId: 'a' }, 'Show'],
       [{ type: 'showJobs' }, 'Show in Jobs'],
+      [{ type: 'showInFolder', jobId: 1 }, 'Show in folder'],
     ];
     for (const [a, label] of labels) expect(actionLabel(a)).toBe(label);
   });

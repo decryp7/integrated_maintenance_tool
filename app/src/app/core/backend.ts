@@ -8,7 +8,6 @@ import {
   ChartRequest,
   ContextRequest,
   ExportRequest,
-  ExportResult,
   ExplainNode,
   ExtractPreview,
   ExtractPreviewRequest,
@@ -54,12 +53,15 @@ export abstract class ImtBackend {
   abstract queryChart(request: ChartRequest): Promise<ChartData>;
   abstract getProfile(): Promise<ProfileDoc>;
   abstract validateProfile(toml: string): Promise<ProfileValidation>;
-  abstract saveProfile(toml: string): Promise<WorkspaceSummary>;
+  /** Checks and saves the profile now and re-imports the files with it as a background import job; resolves with
+   * that job at once (`WorkspaceStore.applyProfile` follows it). Rejects when the profile is refused. */
+  abstract saveProfile(toml: string): Promise<number>;
   abstract previewExtractor(request: ExtractPreviewRequest): Promise<ExtractPreview>;
   abstract importProfile(path: string): Promise<ProfileDoc>;
   /** Writes the profile to a file the user chose; refuses to replace an existing file unless `overwrite` (see `fileExistsPath`). */
   abstract exportProfile(path: string, toml: string, overwrite?: boolean): Promise<void>;
-  abstract exportEvents(request: ExportRequest): Promise<ExportResult>;
+  /** Writes the matching events as a background export job; resolves with the job at once ("Show in folder" when done). */
+  abstract exportEvents(request: ExportRequest): Promise<number>;
   /** The original lines around an event. */
   abstract sourceContext(request: ContextRequest): Promise<SourceContext>;
   /** Decoded first bytes of a file in the workspace (opened or unrecognised); rejects for any other path. */
@@ -142,7 +144,7 @@ export class TauriBackend extends ImtBackend {
     return this.call<ProfileValidation>('validate_profile', { toml });
   }
   saveProfile(toml: string) {
-    return this.call<WorkspaceSummary>('save_profile', { toml });
+    return this.call<number>('save_profile', { toml });
   }
   previewExtractor(request: ExtractPreviewRequest) {
     return this.call<ExtractPreview>('preview_extractor', { request });
@@ -154,7 +156,7 @@ export class TauriBackend extends ImtBackend {
     return this.call<void>('export_profile', overwrite ? { path, toml, overwrite } : { path, toml });
   }
   exportEvents(request: ExportRequest) {
-    return this.call<ExportResult>('export_events', { request });
+    return this.call<number>('export_events', { request });
   }
   sourceContext(request: ContextRequest) {
     return this.call<SourceContext>('source_context', { request });

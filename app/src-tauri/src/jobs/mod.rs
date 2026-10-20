@@ -105,6 +105,16 @@ fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mutex<HashSet<
     *known = now;
 }
 
+/// "Explanation ready" and the like for an AI answer that ran in the background.
+fn answer_title(job: &model::Job) -> String {
+    match job.request.as_ref().and_then(|r| r["op"].as_str()) {
+        Some("explain") => "Explanation ready".into(),
+        Some("summarize") => "Summary ready".into(),
+        Some("rootCauses") => "Root causes ready".into(),
+        _ => format!("Finished: {}", job.title),
+    }
+}
+
 fn job_title(kind: JobKind, state: JobState, title: &str) -> String {
     match (kind, state) {
         (JobKind::Research, JobState::Done) => format!("Research finished: {}", title.strip_prefix("Research: ").unwrap_or(title)),
@@ -125,12 +135,16 @@ fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
     let retryable = job.request.is_some();
     let primary = match (&job.result, ok) {
         (Some(JobResult::Proposal { .. }), true) => NoticeAction::ReviewProposals { job_id: id },
+        (Some(JobResult::File { .. }), true) => NoticeAction::ShowInFolder { job_id: id },
         (_, true) => NoticeAction::ViewJob { job_id: id },
         (_, false) if retryable => NoticeAction::RetryJob { job_id: id },
         _ => NoticeAction::ShowJobs,
     };
     let body = if ok {
-        format!("Took {} s.", (job.run_ms(0) + 500) / 1000)
+        // What the job reported last ("Bundle written, 5 values redacted"), else how long it took.
+        job.message
+            .clone()
+            .unwrap_or_else(|| format!("Took {} s.", (job.run_ms(0) + 500) / 1000))
     } else {
         job.error.clone().unwrap_or_default()
     };
@@ -139,13 +153,21 @@ fn finished<R: Runtime>(app: &AppHandle<R>, f: &Finished) {
     } else {
         NoticeScope::App
     };
+    let title = match (&job.result, ok) {
+        (Some(JobResult::Narrative { .. }), true) => answer_title(job),
+        _ => job_title(job.kind, job.state(), &job.title),
+    };
     let mut notice = NewNotice::new(
         NoticeSource::Job,
         if ok { NoticeSeverity::Success } else { NoticeSeverity::Error },
-        job_title(job.kind, job.state(), &job.title),
+        title,
         scope,
     )
-    .body(body)
+    .body(if matches!(job.result, Some(JobResult::Narrative { .. })) && ok {
+        job.title.clone()
+    } else {
+        body
+    })
     .primary(primary)
     .dedupe(format!("job:{id}"))
     .link(NoticeLink {
@@ -263,23 +285,38 @@ pub(crate) fn export_spec(title: &str, window: Option<&str>, path: &std::path::P
     spec
 }
 
-/// An export of the window's logs to `path` as an export job (two at a time); View reveals the file.
-pub(crate) async fn export<R: Runtime, T: Send + 'static>(
+/// Queues work that writes the file `path` (an export, a bundle, a report, diagnostics) and returns its job at
+/// once: the user goes on working and a message with "Show in folder" says when the file is there. `f` returns
+/// the line that message shows ("Exported 1,204 events"). Check what can be checked at once (the path, overwrite)
+/// before calling this, so those errors reach the dialog that asked.
+pub(crate) fn start_file<R: Runtime>(
+    app: &AppHandle<R>,
+    spec: JobSpec,
+    path: &std::path::Path,
+    f: impl FnOnce(&JobCtx) -> Result<String, String> + Send + 'static,
+) -> CmdResult<u64> {
+    let result = JobResult::File {
+        path: path.display().to_string(),
+    };
+    spawn(app, spec, Controls::default(), move |ctx| {
+        let summary = f(ctx)?;
+        ctx.message(&summary);
+        Ok::<_, String>(Done::new(()).with_result(result))
+    })
+    .map(|id| id.0)
+}
+
+/// An export of the window's logs to `path` as a background export job (two at a time); see [`start_file`].
+pub(crate) fn export<R: Runtime>(
     app: &AppHandle<R>,
     win: &CurrentWindow,
     title: &str,
     path: &std::path::Path,
-    f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<T> + Send + 'static,
-) -> CmdResult<T> {
+    f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<String> + Send + 'static,
+) -> CmdResult<u64> {
     let spec = export_spec(title, Some(win.label()), path);
-    let result = JobResult::File {
-        path: path.display().to_string(),
-    };
     let w = win.arc().clone();
-    run(app, spec, Controls::default(), move |_| {
-        read_store(&w, f).map(|v| Done::new(v).with_result(result)).map_err(crate::err)
-    })
-    .await
+    start_file(app, spec, path, move |_| read_store(&w, f).map_err(crate::err))
 }
 
 /// Queues `f` as a job nobody waits for (Retry, background starts). Returns its id.
@@ -374,6 +411,30 @@ pub fn jobs_result<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
     let job = owned(&jobs, &win, id)?;
     jobs.mark_seen(JobId(id));
     Ok(job.result)
+}
+
+/// Waits for a job to end (a dialog showing a request's progress while it is open): its state, full result
+/// and error. Closing the dialog only stops waiting; the job goes on and tells the user when it is done.
+#[tauri::command]
+pub async fn jobs_wait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<service::JobOutcome> {
+    let jobs = service(&app)?;
+    if let Some(job) = jobs.get(JobId(id)) {
+        if job.window().is_some_and(|w| w != win.label()) {
+            return Err("this job belongs to another window".into());
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || jobs.wait_end(JobId(id)))
+        .await
+        .map_err(crate::err)
+}
+
+/// The dialog that waited for job `id` closed: the job goes on and tells the user when it is done.
+#[tauri::command]
+pub fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
+    let jobs = service(&app)?;
+    owned(&jobs, &win, id)?;
+    jobs.unwait(JobId(id));
+    Ok(())
 }
 
 /// Shows an export's file in the OS file manager (only the file the job wrote); returns its path.

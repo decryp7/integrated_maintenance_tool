@@ -50,7 +50,7 @@ describe('ProfileHistory', () => {
 
   async function saveAs(backend: MockBackend, name: string) {
     const toml = (await backend.getProfile()).toml.replace(/^name = .*$/m, `name = "${name}"`);
-    TestBed.inject(WorkspaceStore).profileSaved(await backend.saveProfile(toml));
+    await TestBed.inject(WorkspaceStore).applyProfile(await backend.saveProfile(toml));
   }
 
   it('explains the empty history', async () => {
