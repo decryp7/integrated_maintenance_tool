@@ -6,6 +6,12 @@ import { installBrowserMocks } from './app/core/mock-registry';
 // The app loads the mock backends before bootstrapping in a browser; specs get them at once.
 installBrowserMocks(mocks);
 
+// Specs that stand in for Tauri set its window internals; spec files can share a window, so a leftover stub would make
+// the next spec believe it runs inside Tauri. Every spec starts and ends in a plain browser.
+const dropTauriStub = () => delete (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'];
+beforeEach(dropTauriStub);
+afterEach(dropTauriStub);
+
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}
   observe(target: Element): void {
