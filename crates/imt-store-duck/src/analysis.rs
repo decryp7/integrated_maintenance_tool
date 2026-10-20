@@ -63,11 +63,44 @@ const MAX_CORRELATED: usize = 10_000;
 /// Lifecycle markers drawn on a chart.
 const MAX_LIFECYCLE: usize = 500;
 
+/// Events read in time order by id, a chunk at a time (see [`EventStream::ordered`]).
+struct Chunks<'c> {
+    conn: &'c Connection,
+    /// `SELECT <columns> FROM <events>`; a chunk adds its ids and the order.
+    select: String,
+    ids: Vec<u64>,
+    next: usize,
+}
+
+/// Ids read per chunk of a time-ordered stream.
+const CHUNK_IDS: usize = 32_768;
+
+impl<'c> Chunks<'c> {
+    /// The statement of the next chunk, or `None` after the last.
+    fn next_statement(&mut self) -> Option<duckdb::Result<Statement<'c>>> {
+        if self.next >= self.ids.len() {
+            return None;
+        }
+        let end = (self.next + CHUNK_IDS).min(self.ids.len());
+        let list = self.ids[self.next..end].iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+        self.next = end;
+        let sql = format!("{} WHERE e.id IN ({list}) {}", self.select, order_by(false));
+        Some(self.conn.prepare(&sql).and_then(|mut stmt| {
+            let _ = stmt.stream_arrow([])?;
+            Ok(stmt)
+        }))
+    }
+}
+
 /// Matching events of one statement, in its order, one owned row at a time (the wide `raw` column is
 /// not read). Rows past `limit` are counted but not yielded; an engine error or a cancel ends the
 /// stream and is returned by [`EventStream::finish`].
 pub(crate) struct EventStream<'c> {
     stmt: Statement<'c>,
+    /// The chunks still to read of a time-ordered stream.
+    chunks: Option<Chunks<'c>>,
+    /// Matching events a time-ordered stream did not read (past its limit; counted by SQL).
+    unread: u64,
     schema: Arc<EventSchema>,
     ctx: &'c Ctx,
     cq: &'c CompiledQuery,
@@ -97,8 +130,21 @@ impl<'c> EventStream<'c> {
         let mut stmt = conn.prepare(sql).map_err(engine)?;
         // Executes the query; chunks are fetched with `step`.
         let _ = stmt.stream_arrow([]).map_err(engine)?;
-        Ok(EventStream {
+        Ok(EventStream::from_statement(stmt, schema, ctx, cq, exact, limit))
+    }
+
+    fn from_statement(
+        stmt: Statement<'c>,
+        schema: Arc<EventSchema>,
+        ctx: &'c Ctx,
+        cq: &'c CompiledQuery,
+        exact: bool,
+        limit: usize,
+    ) -> EventStream<'c> {
+        EventStream {
             stmt,
+            chunks: None,
+            unread: 0,
             schema,
             ctx,
             cq,
@@ -113,7 +159,60 @@ impl<'c> EventStream<'c> {
             matched: 0,
             error: None,
             done: false,
-        })
+        }
+    }
+
+    /// The events of `FROM .. WHERE filter` with the columns `select`, in time order, without sorting wide
+    /// rows (which needs more memory than DuckDB is given at 10M events): the matching ids are sorted
+    /// first (only the time key), then read a chunk at a time. With an `exact` filter only the first `limit`
+    /// ids are read (the rest are counted); otherwise every candidate is, for the engine to check.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn ordered(
+        conn: &'c Connection,
+        select: &str,
+        filter: &str,
+        schema: Arc<EventSchema>,
+        ctx: &'c Ctx,
+        cq: &'c CompiledQuery,
+        exact: bool,
+        limit: usize,
+    ) -> StoreResult<EventStream<'c>> {
+        let cap = if exact && limit < i64::MAX as usize {
+            format!("LIMIT {limit}")
+        } else {
+            String::new()
+        };
+        let mut stmt = conn
+            .prepare(&format!("SELECT e.id FROM {FROM} WHERE {filter} {} {cap}", order_by(false)))
+            .map_err(engine)?;
+        let ids = stmt
+            .query_map([], |r| r.get::<_, u64>(0))
+            .map_err(engine)?
+            .collect::<duckdb::Result<Vec<u64>>>()
+            .map_err(engine)?;
+        let unread = if exact && ids.len() == limit {
+            count(conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64 - ids.len() as u64
+        } else {
+            0
+        };
+        let mut chunks = Chunks {
+            conn,
+            select: format!("SELECT {select} FROM {FROM}"),
+            ids,
+            next: 0,
+        };
+        let first = match chunks.next_statement() {
+            Some(stmt) => stmt.map_err(engine)?,
+            None => {
+                let mut stmt = conn.prepare(&format!("SELECT {select} FROM {FROM} WHERE FALSE")).map_err(engine)?;
+                let _ = stmt.stream_arrow([]).map_err(engine)?;
+                stmt
+            }
+        };
+        let mut stream = EventStream::from_statement(first, schema, ctx, cq, exact, limit);
+        stream.chunks = Some(chunks);
+        stream.unread = unread;
+        Ok(stream)
     }
 
     pub(crate) fn controlled(mut self, control: &'c QueryControl) -> EventStream<'c> {
@@ -147,7 +246,14 @@ impl<'c> EventStream<'c> {
                     self.chunk = Some(RecordBatch::from(&chunk as &StructArray));
                     self.offset = 0;
                 }
-                Ok(None) => return None,
+                Ok(None) => match self.chunks.as_mut().and_then(Chunks::next_statement) {
+                    Some(Ok(stmt)) => self.stmt = stmt,
+                    Some(Err(e)) => {
+                        self.error = Some(engine(e));
+                        return None;
+                    }
+                    None => return None,
+                },
                 Err(e) => {
                     self.error = Some(match self.control {
                         Some(c) if c.is_cancelled() => StoreError::Cancelled,
@@ -165,6 +271,7 @@ impl<'c> EventStream<'c> {
         if let Some(e) = self.error.take() {
             return Err(e);
         }
+        self.matched += self.unread;
         let mut limits = Vec::new();
         if self.matched > self.yielded {
             limits.push(format!(
@@ -340,14 +447,14 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let sql = format!(
-            "SELECT {} FROM {FROM} WHERE {} AND {} {}",
-            self.select_list(&sf, &cq, &read.columns),
-            sf.all_sql(),
-            read.extra.unwrap_or("TRUE"),
-            if read.ordered { order_by(false) } else { String::new() }
-        );
-        let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?;
+        let select = self.select_list(&sf, &cq, &read.columns);
+        let filter = format!("{} AND {}", sf.all_sql(), read.extra.unwrap_or("TRUE"));
+        let mut stream = if read.ordered {
+            EventStream::ordered(&conn, &select, &filter, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?
+        } else {
+            let sql = format!("SELECT {select} FROM {FROM} WHERE {filter}");
+            EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?
+        };
         let result = f(&mut stream, &cq);
         let coverage = stream.finish()?;
         Ok(Analyzed { result, coverage })
@@ -358,13 +465,16 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let sql = format!(
-            "SELECT {} FROM {FROM} WHERE {} {}",
-            rows_sql(&self.schema),
-            sf.all_sql(),
-            order_by(false)
-        );
-        let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, limit)?;
+        let mut stream = EventStream::ordered(
+            &conn,
+            &rows_sql(&self.schema),
+            &sf.all_sql(),
+            self.schema.clone(),
+            &ctx,
+            &cq,
+            sf.exact,
+            limit,
+        )?;
         for r in stream.by_ref() {
             f(r);
         }
@@ -593,8 +703,7 @@ impl Inner {
                 imt_core::spans::Per::Instance => None,
             });
             let select = row_columns(&self.schema, &Columns::only(true, per.chain(ctx.default_group_by.iter().cloned())));
-            let sql = format!("SELECT {select} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
-            let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
+            let mut stream = EventStream::ordered(&conn, &select, "e.ts IS NOT NULL", self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
             for r in stream.by_ref() {
                 let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
                 book::feed_one(&r.rec, &r.source, &lane, &rules, &mut pairers);
@@ -752,9 +861,19 @@ impl Inner {
         ordered: bool,
         f: &mut dyn FnMut(OwnedRow),
     ) -> StoreResult<()> {
-        let order = if ordered { order_by(false) } else { String::new() };
-        let sql = format!("SELECT {select} FROM {FROM} WHERE {filter} {order}");
-        let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, exact, usize::MAX)?;
+        let mut stream = if ordered {
+            EventStream::ordered(conn, select, filter, self.schema.clone(), ctx, cq, exact, usize::MAX)?
+        } else {
+            EventStream::new(
+                conn,
+                &format!("SELECT {select} FROM {FROM} WHERE {filter}"),
+                self.schema.clone(),
+                ctx,
+                cq,
+                exact,
+                usize::MAX,
+            )?
+        };
         for r in stream.by_ref() {
             f(r);
         }
@@ -964,6 +1083,75 @@ impl Analysis for DuckStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use imt_core::ports::Ingest;
+
+    /// Two CLEF files of `n` events each whose times interleave (a: even seconds, b: odd).
+    fn interleaved(dir: &std::path::Path, n: usize) -> Vec<std::path::PathBuf> {
+        ["a", "b"]
+            .iter()
+            .enumerate()
+            .map(|(k, name)| {
+                let text: String = (0..n)
+                    .map(|i| {
+                        let s = 2 * i + k;
+                        format!(
+                            "{{\"@t\":\"2026-01-01T{:02}:{:02}:{:02}Z\",\"@mt\":\"event {s}\"}}
+",
+                            s / 3600,
+                            s / 60 % 60,
+                            s % 60
+                        )
+                    })
+                    .collect();
+                let p = dir.join(format!("{name}.clef"));
+                std::fs::write(&p, text).unwrap();
+                p
+            })
+            .collect()
+    }
+
+    #[test]
+    fn ordered_streams_read_chunks_in_time_order_and_count_the_rest() {
+        let root = std::env::temp_dir().join(format!("imt-ordered-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("logs")).unwrap();
+        let n = CHUNK_IDS / 2 + 1_000;
+        let paths = interleaved(&root.join("logs"), n);
+        let store = DuckStore::create(
+            &root.join("store"),
+            imt_core::Profile::default_profile(),
+            imt_core::PluginRegistry::new(),
+        )
+        .unwrap();
+        store.open(&paths).unwrap().wait().unwrap();
+        let inner = &store.inner;
+        let conn = inner.conn().unwrap();
+        let ctx = inner.ctx(&conn).unwrap();
+        let (sf, cq) = inner.compile(&ctx, &Filter::default()).unwrap();
+        let select = rows_sql(&inner.schema);
+        // Exact: the first `limit` events by SQL (across a chunk boundary), the rest only counted.
+        let limit = CHUNK_IDS + 10;
+        let mut stream = EventStream::ordered(&conn, &select, &sf.all_sql(), inner.schema.clone(), &ctx, &cq, true, limit).unwrap();
+        let messages: Vec<String> = stream.by_ref().map(|r| r.rec.message.clone()).collect();
+        assert_eq!(messages.len(), limit);
+        assert!(
+            messages.iter().enumerate().all(|(i, m)| *m == format!("event {i}")),
+            "time order across both files"
+        );
+        let coverage = stream.finish().unwrap();
+        assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, limit as u64));
+        assert_eq!(coverage.limits.len(), 1);
+        // Not exact: every candidate is read and checked by the engine (all match here). No match: empty.
+        let stream = EventStream::ordered(&conn, &select, &sf.all_sql(), inner.schema.clone(), &ctx, &cq, false, 5).unwrap();
+        let coverage = stream.finish().unwrap();
+        assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, 5));
+        let mut empty = EventStream::ordered(&conn, &select, "FALSE", inner.schema.clone(), &ctx, &cq, true, 5).unwrap();
+        assert!(empty.next().is_none());
+        assert_eq!(empty.finish().unwrap().matched, 0);
+        drop(conn);
+        drop(store);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn cache_keys_are_stable_and_canonical() {

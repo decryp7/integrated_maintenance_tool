@@ -4,7 +4,7 @@
 //! [`QueryControl`] interrupts the running DuckDB statement.
 
 use crate::analysis::{EventStream, MAX_ANALYSED};
-use crate::sql::{order_by, Columns, FROM};
+use crate::sql::{Columns, FROM};
 use crate::Inner;
 use imt_core::api::{CompletionRequest, QueryRequest};
 use imt_core::ports::{StoreError, StoreResult};
@@ -55,8 +55,17 @@ impl Inner {
         let message =
             program.field_refs.iter().any(|(_, f)| f.name == "@message") || filters.filter_map(|f| f.expr.as_ref()).any(full_text);
         let select = self.select_list(&sf, &cq, &Columns::only(message, names));
-        let sql = format!("SELECT {select} FROM {FROM} WHERE {} {}", sf.all_sql(), order_by(false));
-        let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?.controlled(control);
+        let mut stream = EventStream::ordered(
+            &conn,
+            &select,
+            &sf.all_sql(),
+            self.schema.clone(),
+            &ctx,
+            &cq,
+            sf.exact,
+            MAX_ANALYSED,
+        )?
+        .controlled(control);
         let result = ql::run_rows(&program, &mut stream, control);
         let coverage = stream.finish()?;
         let result = result.map_err(|e| match e {
