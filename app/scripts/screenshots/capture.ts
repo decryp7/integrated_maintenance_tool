@@ -109,7 +109,7 @@ async function fresh(page: Page, theme: 'dark' | 'light' = 'dark'): Promise<void
   await page.goto('/');
   await page.evaluate(() => localStorage.clear()); // forget the saved dock layout and theme of earlier shots
   await openApp(page);
-  await command(page, `Theme: ${theme}`);
+  await command(page, `Colour scheme: ${theme}`);
   await command(page, 'Reset layout');
   await page.waitForTimeout(500);
 }
@@ -229,6 +229,13 @@ test('capture README screenshots', async ({ page }) => {
   await fresh(page, 'light');
   await growTimeline(page);
   await shot(page, 'light-theme', async () => {
+    await clickRow(page, 'HTTP POST');
+  });
+
+  await fresh(page, 'dark');
+  await command(page, 'Theme: Console');
+  await growTimeline(page);
+  await shot(page, 'theme-console', async () => {
     await clickRow(page, 'HTTP POST');
   });
 
