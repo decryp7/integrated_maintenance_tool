@@ -225,6 +225,7 @@ const MUTATIONS: &[&str] = &[
     "import_settings",
     "new_window",
     "close_window",
+    "quit_app",
     "focus_window",
     "resolve_close",
     "resolve_open",

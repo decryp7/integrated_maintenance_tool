@@ -432,6 +432,9 @@ Everything else is one click away on the **activity bar** on the left: Explorer,
   windows, a new window, recent projects, the running background tasks with *Stop* actions, a
   diagnostic screenshot and *Quit*. IMT can also start hidden in the tray. Without a tray (for
   example Linux without an app indicator) closing the last window quits.
+- **Quitting IMT** in one step: *File ▸ Exit* (Windows, Linux) or *IMT ▸ Quit IMT* (macOS, ⌘Q) closes every
+  window after asking once about unsaved changes in the current window; the other windows keep their
+  autosaved sessions.
 - **Desktop notifications** (off, alerts only (the default), or alerts and finished work): live
   alerts in a window you cannot see, a crash detected at start, failed jobs, a plugin or the AI
   switched off, imports and long jobs finished while IMT is not in front, and updates. They are

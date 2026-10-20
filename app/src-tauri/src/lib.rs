@@ -218,6 +218,7 @@ macro_rules! commands {
             // Windows, tray and background work
             window_manager::new_window,
             window_manager::close_window,
+            window_manager::quit_app,
             window_manager::list_windows,
             window_manager::focus_window,
             window_manager::set_window_title,

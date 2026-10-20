@@ -38,6 +38,8 @@ export abstract class WindowingBackend {
   abstract newWindow(): Promise<WindowInfo>;
   /** Asks to close this window; the shell applies the "on close" setting (and may emit close-requested). */
   abstract closeWindow(): Promise<void>;
+  /** Quits IMT: every window closes (File ▸ Exit, IMT ▸ Quit IMT). */
+  abstract quitApp(): Promise<void>;
   abstract listWindows(): Promise<WindowInfo[]>;
   abstract focusWindow(label: string): Promise<void>;
   abstract setWindowTitle(title: string): Promise<void>;
@@ -74,6 +76,9 @@ export class TauriWindowingBackend extends WindowingBackend {
   }
   closeWindow() {
     return this.call<void>('close_window');
+  }
+  quitApp() {
+    return this.call<void>('quit_app');
   }
   async listWindows() {
     return parseWindows(await this.call<unknown>('list_windows'));

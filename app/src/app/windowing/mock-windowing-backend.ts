@@ -143,6 +143,12 @@ export class MockWindowingBackend implements WindowingBackend {
     console.info(`[mock windowing] close_window ${onClose}`);
   }
 
+  async quitApp(): Promise<void> {
+    this.calls.push('quitApp');
+    // Visible to end-to-end tests, which cannot read `calls`.
+    console.info('[mock windowing] quit_app');
+  }
+
   async listWindows(): Promise<WindowInfo[]> {
     const own: WindowInfo = { label: this.ownLabel, title: this.host.title() || 'IMT', focused: this.host.hasFocus(), visible: true };
     const others = [...this.opened]

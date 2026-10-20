@@ -3,7 +3,7 @@
 //! The UI owns the menus (one model from its registered views and commands, also behind its in-app
 //! menu bar on Windows and Linux). On macOS it sends that model with `set_app_menu`; this module
 //! validates it ([`parse`]), turns it into a native menu spec with the standard macOS items
-//! ([`native_spec`]: app menu with Services/Hide/Quit, Edit with Undo..Select All wired to the
+//! ([`native_spec`]: app menu with Services/Hide and the model's `app.quit` last, Edit with Undo..Select All wired to the
 //! webview, Window with Minimize/Zoom) and applies it, rebuilding only when the structure changed
 //! and otherwise updating check marks and enabled states in place ([`diff`]). A click is sent to
 //! the focused window (a pop-out's host) as `imt://menu` with the item id ([`route`]).
@@ -85,10 +85,13 @@ pub enum Entry {
     Submenu(String, Vec<Entry>),
 }
 
+/// The model's Quit command: last in the app menu (the system's own Quit would skip the unsaved-work prompt).
+pub const QUIT_COMMAND: &str = "app.quit";
+
 /// The role of a top-level menu: the ones macOS gives standard items.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuRole {
-    /// IMT ▸ (About, Settings…); merged with Services, Hide, Quit.
+    /// IMT ▸ (About, Settings…); merged with Services and Hide; the model's `app.quit` (Quit IMT, ⌘Q) goes last.
     App,
     /// Merged with Undo, Redo, Cut, Copy, Paste, Select All.
     Edit,
@@ -295,7 +298,6 @@ pub enum Predefined {
     Hide,
     HideOthers,
     ShowAll,
-    Quit,
     Undo,
     Redo,
     Cut,
@@ -361,9 +363,12 @@ pub fn native_spec(model: &AppMenu) -> Vec<Native> {
         Native::Predefined(P::Hide),
         Native::Predefined(P::HideOthers),
         Native::Predefined(P::ShowAll),
-        Native::Separator,
-        Native::Predefined(P::Quit),
     ]);
+    // Quit is the model's own `app.quit` (it asks about unsaved work first), placed last.
+    if let Some(quit) = app_items.iter().position(|n| matches!(n, Native::Item(i) if i.id == QUIT_COMMAND)) {
+        let item = app_items.remove(quit);
+        app_items.extend([Native::Separator, item]);
+    }
     let edit = || Native::Submenu {
         label: find(MenuRole::Edit).map_or_else(|| "Edit".to_string(), |m| m.label.clone()),
         role: MenuRole::Edit,
@@ -577,7 +582,6 @@ fn predefined<R: Runtime>(app: &AppHandle<R>, p: Predefined) -> tauri::Result<ta
         Predefined::Hide => M::hide(app, Some("Hide IMT")),
         Predefined::HideOthers => M::hide_others(app, None),
         Predefined::ShowAll => M::show_all(app, None),
-        Predefined::Quit => M::quit(app, Some("Quit IMT")),
         Predefined::Undo => M::undo(app, None),
         Predefined::Redo => M::redo(app, None),
         Predefined::Cut => M::cut(app, None),
@@ -881,7 +885,21 @@ mod tests {
         let app = submenu(&spec, "IMT");
         assert!(matches!(&app[0], Native::Item(i) if i.id == "help.about"));
         assert!(app.contains(&Native::Predefined(Predefined::Services)));
-        assert_eq!(app.last(), Some(&Native::Predefined(Predefined::Quit)));
+        assert_eq!(
+            app.last(),
+            Some(&Native::Predefined(Predefined::ShowAll)),
+            "no Quit item in the model: none added"
+        );
+        // The model's Quit (it asks about unsaved work) goes last, after a separator.
+        let with_quit = model(json!({ "menus": [
+            { "id": "app", "label": "IMT", "items": [item(QUIT_COMMAND, "Quit IMT"), item("help.about", "About IMT")] }
+        ] }))
+        .unwrap();
+        let quit_spec = native_spec(&with_quit);
+        let quit_app = submenu(&quit_spec, "IMT");
+        assert!(matches!(quit_app.last(), Some(Native::Item(i)) if i.id == QUIT_COMMAND));
+        assert_eq!(quit_app[quit_app.len() - 2], Native::Separator);
+        assert!(matches!(&quit_app[0], Native::Item(i) if i.id == "help.about"));
         let edit = submenu(&spec, "Edit");
         assert_eq!(edit[0], Native::Predefined(Predefined::Undo));
         assert!(edit.contains(&Native::Predefined(Predefined::Paste)));

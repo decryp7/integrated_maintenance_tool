@@ -201,11 +201,16 @@ pub fn ask_open<R: Runtime>(app: &AppHandle<R>, label: &str, paths: Vec<String>)
 
 /// Quits IMT; windows destroyed from now on keep their sessions for recovery.
 pub fn quit<R: Runtime>(app: &AppHandle<R>) {
+    begin_quit(app);
+    app.exit(0);
+}
+
+/// What quitting does before the event loop ends: windows destroyed from now on keep their sessions.
+fn begin_quit<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.try_state::<Windows>() {
         w.set_exiting();
     }
     log::info!(Windows = app.webview_windows().len() as u64; "Quit requested");
-    app.exit(0);
 }
 
 /// Tells the user an import finished in a window that is not in front.
@@ -402,6 +407,14 @@ pub async fn new_window<R: Runtime>(app: AppHandle<R>) -> CmdResult<WindowInfo> 
         .into_iter()
         .find(|w| w.label == label)
         .ok_or_else(|| "the window closed".into())
+}
+
+/// Quits IMT: every window closes at once (File ▸ Exit, IMT ▸ Quit IMT). The UI asks about unsaved work in the
+/// calling window first; other windows keep their autosaved sessions.
+#[tauri::command]
+pub async fn quit_app<R: Runtime>(app: AppHandle<R>) -> CmdResult<()> {
+    quit(&app);
+    Ok(())
 }
 
 /// Closes the calling window as its close button does (the close setting applies).
@@ -707,5 +720,16 @@ mod tests {
         // Focus is tracked.
         on_window_event(&main.as_ref().window(), &WindowEvent::Focused(true));
         assert_eq!(app.state::<Windows>().last_focused().as_deref(), Some(MAIN));
+    }
+
+    /// File ▸ Exit and IMT ▸ Quit IMT (`quit_app`): one step quits every window.
+    #[test]
+    fn quitting_keeps_the_sessions_of_the_windows_it_closes() {
+        // (The mock runtime cannot exit: `app.exit` is the part not run here.)
+        let app = crate::test_support::test_app_with_commands(None);
+        crate::test_support::window(&app, "w-2");
+        assert!(!app.state::<Windows>().exiting());
+        begin_quit(app.handle());
+        assert!(app.state::<Windows>().exiting(), "windows destroyed now keep their sessions");
     }
 }
