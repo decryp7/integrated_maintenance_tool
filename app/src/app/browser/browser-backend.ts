@@ -4,6 +4,7 @@ import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
+import { cancelActiveJobs } from '../jobs/job-cancel';
 import {
   AgentDecision,
   AiDriver,
@@ -87,8 +88,9 @@ export class TauriBrowserBackend implements BrowserBackend, ChatBrowserBackend {
   close() {
     return this.call<boolean>('browser_close');
   }
+  /** Stops the window's research by cancelling its jobs (the banner clears with them). */
   researchStop() {
-    return this.call<number>('browser_research_stop');
+    return cancelActiveJobs(this.call, (j) => j.kind === 'research');
   }
   driving() {
     return this.call<AiDriver | null>('browser_driving');

@@ -78,6 +78,17 @@ test('closing the last window asks once, then remembers "Keep running in tray"',
   expect(problems).toEqual([]);
 });
 
+test('File ▸ Exit quits IMT in one step (nothing unsaved: no question)', async ({ page }) => {
+  const problems = watchProblems(page);
+  await openApp(page);
+  const mac = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform));
+  const quit = page.waitForEvent('console', (m) => m.text() === '[mock windowing] quit_app');
+  await chooseMenu(page, 'File', mac ? 'Quit IMT' : 'Exit');
+  await quit;
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(problems).toEqual([]);
+});
+
 test('background work lists running tasks and stops one', async ({ page }) => {
   const problems = watchProblems(page);
   await page.goto('/?mock-tasks');

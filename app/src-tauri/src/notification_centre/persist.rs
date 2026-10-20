@@ -80,16 +80,8 @@ pub fn load_file(path: &Path) -> Vec<Notice> {
 
 /// Writes the app file atomically (temporary file, then rename).
 pub fn save_file(path: &Path, notices: &[Notice]) -> std::io::Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let tmp = path.with_extension("json.tmp");
-    let text = serde_json::to_string(&NoticesRecord::new(notices.to_vec())).map_err(std::io::Error::other)?;
-    std::fs::write(&tmp, text)
-        .and_then(|_| std::fs::rename(&tmp, path))
-        .inspect_err(|_| {
-            let _ = std::fs::remove_file(&tmp);
-        })
+    let text = serde_json::to_vec(&NoticesRecord::new(notices.to_vec())).map_err(std::io::Error::other)?;
+    crate::config_store::write_atomic(path, &text)
 }
 
 #[cfg(test)]

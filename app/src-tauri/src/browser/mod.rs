@@ -11,7 +11,7 @@
 //! `browser_reload`, `browser_stop`, `browser_close`, `browser_open_external`, `browser_capture`,
 //! `browser_sources`, `browser_discard_sources`, `browser_chat_status`, `browser_set_read_along`,
 //! `browser_set_agent`, `browser_agent_stop`, `browser_agent_continue`, `browser_agent_respond`,
-//! `browser_open_suggested`, `browser_open_and_read`, `ai_research`, `browser_research_stop`, `browser_driving`.
+//! `browser_open_suggested`, `browser_open_and_read`, `ai_research`, `browser_driving`.
 //! Events: `imt://browser` (to the owner window and its pop-out panels; `driving` also to the browser window's
 //! "AI is browsing" banner, see [`driving`]). Wire contract: `app/src/app/browser/browser.types.ts`.
 

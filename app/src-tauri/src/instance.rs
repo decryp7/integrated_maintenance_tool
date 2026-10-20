@@ -149,7 +149,7 @@ pub fn open_files<R: Runtime>(app: &AppHandle<R>, paths: Vec<String>, force_new_
     log::info!(Plan = plan.kind(); "Opening files from another app");
     let result = match plan {
         OpenPlan::Reveal(label) => reveal(app, &label),
-        OpenPlan::NewWindow(paths) => open_new(app, paths).map(|_| ()).map_err(crate::err),
+        OpenPlan::NewWindow(paths) => open_new(app, paths).map(|_| ()).map_err(|e| crate::CmdError::from(crate::err(e))),
         OpenPlan::OpenIn(label, paths) => {
             queue_open(app, &label, paths);
             reveal(app, &label)

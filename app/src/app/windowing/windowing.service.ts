@@ -56,6 +56,11 @@ export class WindowingService {
     await this.attempt((error) => $localize`:@@windowing.service.closeFailed:Could not close the window: ${error}:error:`, () => this.backend.closeWindow());
   }
 
+  /** Quits IMT (every window). The caller asks about unsaved work first. */
+  async quitApp(): Promise<void> {
+    await this.attempt((error) => $localize`:@@windowing.service.quitFailed:Could not quit IMT: ${error}:error:`, () => this.backend.quitApp());
+  }
+
   async focus(label: string): Promise<void> {
     await this.attempt((error) => $localize`:@@windowing.service.switchFailed:Could not switch windows: ${error}:error:`, () => this.backend.focusWindow(label));
   }

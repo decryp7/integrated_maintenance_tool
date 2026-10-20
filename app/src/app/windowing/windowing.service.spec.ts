@@ -9,6 +9,8 @@ import { ClosePrompt } from './close-prompt';
 import { memoryHost, MockWindowingBackend } from './mock-windowing-backend';
 import { OpenAskDialog } from './open-ask-dialog';
 import { WindowCommands } from './window-commands';
+import { UnsavedChangesGuard } from '../projects/unsaved-changes';
+import { isMac } from '../extensions/keybinding';
 import { WindowingBackend } from './windowing-backend';
 import { CAPTURE_COMMAND, WindowingService } from './windowing.service';
 
@@ -139,5 +141,20 @@ describe('WindowCommands', () => {
     expect(await registry.run('window.next')).toBe(true);
     expect(await registry.run('window.close')).toBe(true);
     expect(backend.calls).toEqual(['newWindow', 'focusWindow:w-2', 'closeWindow']);
+  });
+
+  it('quits IMT in one step after asking about unsaved work', async () => {
+    const confirm = vi.fn(async (_action: string) => false);
+    TestBed.overrideProvider(UnsavedChangesGuard, { useValue: { confirm } });
+    const { service, backend } = setup('http://localhost/');
+    await service.init();
+    const registry = TestBed.inject(CommandRegistry);
+    expect(await registry.run('app.quit')).toBe(true);
+    expect(backend.calls).not.toContain('quitApp');
+    confirm.mockResolvedValueOnce(true);
+    await registry.run('app.quit');
+    expect(confirm).toHaveBeenCalledWith('quit IMT');
+    expect(backend.calls).toContain('quitApp');
+    expect(registry.find('app.quit')?.title).toBe(isMac() ? 'Quit IMT' : 'Exit');
   });
 });

@@ -114,7 +114,7 @@ fn apply_later<R: Runtime>(app: &AppHandle<R>, owner: &str, hub: std::sync::Arc<
 
 /// Makes the browser window show the current driver (the latest state wins, whatever order changes come in).
 fn apply<R: Runtime>(app: &AppHandle<R>, owner: &str, hub: &BrowserHub) {
-    let _one = APPLYING.lock().unwrap_or_else(|p| p.into_inner());
+    let _one = crate::sync::lock(&APPLYING);
     let driving = hub.ai_driver(owner).is_some();
     let Some(browser) = app.get_webview_window(&browser_label(owner)) else {
         close_banner(app, owner);
@@ -217,7 +217,7 @@ fn set_frame<R: Runtime>(_browser: &WebviewWindow<R>, _driving: bool) {}
 
 /// Who drives the caller's browser now (the banner and the Web panel start from it, then follow the events).
 #[tauri::command]
-pub fn browser_driving<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<Option<AiDriver>> {
+pub async fn browser_driving<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<Option<AiDriver>> {
     Ok(hub(&app).and_then(|h| h.ai_driver(win.label())))
 }
 

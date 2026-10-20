@@ -2,7 +2,8 @@
 //! names and payloads are documented in app/src/app/core/api.types.ts.
 //!
 //! This file is the composition root only. Where things go:
-//! - **Commands**: implement them in a module and add one line to [`commands!`].
+//! - **Commands**: implement them (async) in a module and add one line to [`command_table!`] with their kind,
+//!   windows and request limit.
 //!   A command that works on a window's workspace takes
 //!   [`windows::CurrentWindow`] (resolved from the calling window's label);
 //!   app-wide state is a `State<'_, T>` of something managed in [`setup`].
@@ -19,17 +20,24 @@
 mod activity;
 mod agent_commands;
 mod ai;
+mod app_context;
 mod app_dirs;
 mod app_state;
 mod background;
 mod browser;
+mod builtin_sections;
 mod clef;
+mod commands;
 mod config_diff;
+mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
 mod engine_errors;
+mod error;
 mod file_commands;
+#[cfg(test)]
+mod generated_types;
 mod insights;
 mod instance;
 mod jobs;
@@ -43,16 +51,20 @@ mod notify;
 mod opener;
 mod panel_windows;
 mod paths;
+mod plugin_config;
 mod plugin_isolation;
 mod pointer;
 mod profile;
 mod profiling;
 mod query_cancel;
+mod recent;
+mod services;
 mod settings;
 mod share;
 mod skew_commands;
 mod snapshots;
 mod storage;
+mod sync;
 mod system;
 mod tools;
 mod tray;
@@ -60,6 +72,7 @@ mod ui_dispatch;
 mod updater;
 mod window_manager;
 mod window_prefs;
+mod window_scoped;
 mod windows;
 mod workspace_commands;
 
@@ -68,273 +81,275 @@ pub(crate) use tauri::State;
 
 use tauri::{Emitter, Manager};
 
-pub(crate) type CmdResult<T> = Result<T, String>;
+pub(crate) use error::{CmdError, CmdResult, ErrorCode};
 
 pub(crate) fn err(e: impl std::fmt::Display) -> String {
     format!("{e:#}")
 }
 
-/// Every command the UI can invoke. Add new commands here, one per line.
-macro_rules! commands {
-    () => {
-        tauri::generate_handler![
-            // Workspace (per window)
-            workspace_commands::workspace_summary,
-            workspace_commands::open_paths,
-            workspace_commands::remove_source,
-            workspace_commands::clear_workspace,
-            workspace_commands::reload_workspace,
-            workspace_commands::query_page,
-            workspace_commands::query_timeline,
-            workspace_commands::query_facet,
-            workspace_commands::query_chart,
-            workspace_commands::preview_extractor,
-            workspace_commands::export_events,
-            workspace_commands::source_context,
-            file_commands::open_source_file,
-            workspace_commands::take_pending_open,
-            workspace_commands::set_live,
-            workspace_commands::import_progress,
-            workspace_commands::cancel_import,
-            workspace_commands::overview,
-            workspace_commands::annotations,
-            workspace_commands::query_runs,
-            workspace_commands::preview_spans,
-            workspace_commands::plugin_events,
-            workspace_commands::save_project,
-            workspace_commands::open_project,
-            live::tail_status,
-            live::live_state,
-            live::mute_alerts,
-            live::unmute_alerts,
-            live::open_paths_live,
-            // Analysis (per window)
-            insights::run_query,
-            query_cancel::run_query_stream,
-            query_cancel::cancel_query,
-            insights::check_query,
-            insights::complete_query,
-            insights::query_patterns,
-            insights::query_exceptions,
-            insights::analysis_coverage,
-            insights::query_anomalies,
-            insights::compare_windows,
-            insights::field_stats,
-            insights::correlate,
-            insights::query_traces,
-            insights::query_requests,
-            insights::query_moment,
-            insights::preview_parse,
-            insights::infer_regex,
-            insights::explain_regex,
-            // Configuration diff (per window: its plugins' formats)
-            config_diff::config_diff_formats,
-            config_diff::diff_configs,
-            config_diff::diff_snapshots,
-            config_diff::export_config_diff,
-            // Clock-skew correction (per window)
-            skew_commands::set_source_offset,
-            skew_commands::suggest_offsets,
-            // Profiling: CPU/allocation profiles and heap snapshots (per window)
-            profiling::profiling_open,
-            profiling::profiling_sniff,
-            profiling::profiling_frame_paths,
-            profiling::profiling_list,
-            profiling::profiling_close,
-            profiling::profiling_spans,
-            profiling::profiling_hotspots,
-            profiling::profiling_tree,
-            profiling::profiling_hot_path,
-            profiling::profiling_butterfly,
-            profiling::profiling_flame,
-            profiling::profiling_diff_flame,
-            profiling::profiling_function_diff,
-            profiling::profiling_threads,
-            profiling::profiling_findings,
-            profiling::profiling_moment,
-            profiling::profiling_heap_types,
-            profiling::profiling_heap_diff,
-            profiling::profiling_heap_growth,
-            profiling::profiling_heap_dominators,
-            profiling::profiling_heap_instances,
-            profiling::profiling_heap_paths,
-            // Profiles
-            profile::get_profile,
-            profile::validate_profile,
-            profile::save_profile,
-            profile::profile_history,
-            profile::profile_version,
-            profile::import_profile,
-            profile::export_profile,
-            profile::profile_templates,
-            demo::demo_paths,
-            // Error snapshots and diagnostics
-            snapshots::save_error_snapshot,
-            snapshots::list_error_snapshots,
-            snapshots::read_error_snapshot,
-            snapshots::delete_error_snapshot,
-            snapshots::open_snapshots_folder,
-            snapshots::export_diagnostics,
-            // Settings ▸ Storage (see storage.rs)
-            storage::storage_usage,
-            storage::storage_clear,
-            storage::storage_reveal,
-            activity::report::problem_report_preview,
-            activity::report::save_problem_report,
-            activity::report::open_activity_log,
-            activity::report::open::diagnostics_report,
-            activity::report::open::diagnostics_report_image,
-            diagnostics::diagnostics_settings,
-            diagnostics::set_diagnostics_settings,
-            // System and tools
-            system::elevation,
-            system::restart_elevated,
-            paths::pick_paths,
-            system::read_file_head,
-            tools::tools_list,
-            tools::tool_invoke,
-            // Scheduled collection (imt-agent)
-            agent_commands::agent_schema,
-            agent_commands::agent_config_load,
-            agent_commands::agent_config_validate,
-            agent_commands::agent_config_save,
-            agent_commands::agent_runs,
-            agent_commands::agent_run_manifest,
-            agent_commands::agent_open_run,
-            // Lifetime and sessions
-            lifecycle::app_status,
-            lifecycle::restart_app,
-            lifecycle::plugin_reset,
-            lifecycle::plugin_set_enabled,
-            plugin_isolation::plugin_isolation_status,
-            lifecycle::save_session,
-            lifecycle::last_session,
-            lifecycle::restore_windows,
-            // Settings
-            settings::settings_sections,
-            settings::set_settings,
-            settings::reset_settings,
-            settings::export_settings,
-            settings::import_settings,
-            // Windows, tray and background work
-            window_manager::new_window,
-            window_manager::close_window,
-            window_manager::list_windows,
-            window_manager::focus_window,
-            window_manager::set_window_title,
-            window_manager::resolve_close,
-            window_manager::resolve_open,
-            panel_windows::popout_panel,
-            pointer::pointer_button_down,
-            panel_windows::dock_panel,
-            panel_windows::list_popouts,
-            panel_windows::set_popout_on_top,
-            tray::set_recent_projects,
-            menu::set_app_menu,
-            background::background_tasks,
-            background::stop_background_task,
-            // Jobs and the notification centre (per window)
-            jobs::jobs_list,
-            jobs::jobs_cancel,
-            jobs::jobs_retry,
-            jobs::jobs_move,
-            jobs::jobs_clear_finished,
-            jobs::jobs_mark_seen,
-            jobs::jobs_result,
-            jobs::jobs_reveal,
-            jobs::jobs_record,
-            jobs::jobs_restore,
-            jobs::jobs_wait,
-            jobs::jobs_unwait,
-            notification_centre::notifications_list,
-            notification_centre::notifications_mark_read,
-            notification_centre::notifications_mark_all_read,
-            notification_centre::notifications_dismiss,
-            notification_centre::notifications_record,
-            notification_centre::notifications_restore,
-            browser::research::ai_research,
-            browser::research::browser_research_stop,
-            browser::driving::browser_driving,
-            browser::commands::browser_open_and_read,
-            // Local AI assistant (set-up, models, use cases, chat; see ai.rs)
-            ai::commands::ai_status,
-            ai::commands::ai_hardware,
-            ai::commands::ai_recommend,
-            ai::commands::ai_catalog,
-            ai::commands::ai_setup_plan,
-            ai::commands::ai_setup_run,
-            ai::commands::ai_setup_cancel,
-            ai::commands::ai_models,
-            ai::commands::ai_model_activate,
-            ai::commands::ai_model_delete,
-            ai::commands::ai_model_add_local,
-            ai::commands::ai_reset,
-            ai::commands::ai_start,
-            ai::commands::ai_cancel,
-            ai::folder_setup::folder_survey,
-            ai::folder_setup::folder_setup_compose,
-            ai::commands::ai_chat_sessions,
-            ai::commands::ai_chat_new,
-            ai::commands::ai_chat_get,
-            ai::commands::ai_chat_delete,
-            ai::commands::ai_chat_send,
-            ai::commands::ai_chat_cancel,
-            ai::commands::ai_chat_events_since,
-            ai::commands::ai_chat_history,
-            ai::commands::ai_chat_restore,
-            ai::commands::ai_chat_export_markdown,
-            ai::commands::ai_suggested_prompts,
-            ai::commands::ai_open_link,
-            // The internal web browser (per window)
-            browser::commands::browser_state,
-            browser::commands::browser_open,
-            browser::commands::browser_event_query,
-            browser::commands::browser_nav,
-            browser::commands::browser_close,
-            browser::commands::browser_open_external,
-            browser::commands::browser_capture,
-            browser::commands::browser_sources,
-            browser::commands::browser_discard_sources,
-            browser::commands::browser_chat_status,
-            browser::commands::browser_set_read_along,
-            browser::commands::browser_set_agent,
-            browser::commands::browser_agent_stop,
-            browser::commands::browser_agent_continue,
-            browser::commands::browser_agent_respond,
-            browser::commands::browser_open_suggested,
-            ai::runtime_commands::ai_runtimes,
-            ai::runtime_commands::ai_runtime_install,
-            ai::runtime_commands::ai_runtime_add_archives,
-            ai::manual::ai_manual_download,
-            ai::manual::ai_manual_download_open,
-            ai::runtime_commands::ai_runtime_cancel,
-            ai::runtime_commands::ai_runtime_delete,
-            ai::runtime_commands::ai_runtime_choose,
-            ai::update_commands::ai_updates_status,
-            ai::update_commands::ai_updates_check,
-            ai::update_commands::ai_updates_apply,
-            ai::update_commands::ai_updates_skip,
-            ai::update_commands::ai_updates_later,
-            // Explain and share (per window)
-            share::set_redacted_view,
-            share::preview_redaction,
-            share::redaction_summary,
-            share::dashboard_tile,
-            share::export_report,
-            share::save_visual,
-            share::estimate_bundle,
-            share::create_bundle,
-            share::open_bundle,
-            // Signed updates (see updater.rs)
-            updater::updates_status,
-            updater::updates_check,
-            updater::updates_download,
-            updater::updates_cancel,
-            updater::updates_install_on_quit,
-            updater::updates_restart,
-            updater::updates_open_releases,
-        ]
+/// One mebibyte, for the table's request limits.
+const MIB: usize = 1024 * 1024;
+
+/// Declares the command table (see [`commands`]): `Kind [windows] (limit <bytes>)? => path,` per command. It
+/// defines [`COMMANDS`] and the `handler!` macro that builds the invoke handler from the same list.
+macro_rules! command_table {
+    ($( $(#[$doc:meta])* $kind:ident [$($win:ident)|+] $(limit $limit:expr)? => $($seg:ident)::+ ),* $(,)?) => {
+        /// Every command the UI can invoke, with its kind, windows and request limit.
+        pub(crate) static COMMANDS: &[commands::Spec] = &[
+            $( commands::Spec {
+                path: stringify!($($seg)::+),
+                kind: commands::Kind::$kind,
+                windows: 0 $(| commands::$win)+,
+                limit: commands::limit(&[$($limit)?]),
+            }, )*
+        ];
+        macro_rules! handler {
+            () => {
+                tauri::generate_handler![ $( $($seg)::+ ),* ]
+            };
+        }
     };
+}
+
+// Every command the UI can invoke: one line each (ADR 0016). Kind: Query (read-only), Mutation, Quiet
+// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), BANNER (`aib-*`), WINDOW =
+// MAIN | POPOUT. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
+command_table! {
+    Query [WINDOW] => workspace_commands::workspace_summary,
+    Mutation [WINDOW] => workspace_commands::open_paths,
+    Mutation [WINDOW] => workspace_commands::remove_source,
+    Mutation [WINDOW] => workspace_commands::clear_workspace,
+    Mutation [WINDOW] => workspace_commands::reload_workspace,
+    Query [WINDOW] => workspace_commands::query_page,
+    Query [WINDOW] => workspace_commands::query_timeline,
+    Query [WINDOW] => workspace_commands::query_facet,
+    Query [WINDOW] => workspace_commands::query_chart,
+    Query [WINDOW] => workspace_commands::preview_extractor,
+    Mutation [WINDOW] => workspace_commands::export_events,
+    Query [WINDOW] => workspace_commands::source_context,
+    Mutation [WINDOW] => file_commands::open_source_file,
+    Quiet [MAIN] => workspace_commands::take_pending_open,
+    Mutation [WINDOW] => workspace_commands::set_live,
+    Quiet [WINDOW] => workspace_commands::import_progress,
+    Query [WINDOW] => workspace_commands::overview,
+    Query [WINDOW] => workspace_commands::annotations,
+    Query [WINDOW] => workspace_commands::query_runs,
+    Query [WINDOW] => workspace_commands::preview_spans,
+    Query [WINDOW] => workspace_commands::plugin_events,
+    Mutation [WINDOW] limit 16 * MIB => workspace_commands::save_project,
+    Mutation [WINDOW] => workspace_commands::open_project,
+    Query [WINDOW] => live::tail_status,
+    Query [WINDOW] => live::live_state,
+    Mutation [WINDOW] => live::mute_alerts,
+    Mutation [WINDOW] => live::unmute_alerts,
+    Mutation [WINDOW] => live::open_paths_live,
+    Query [WINDOW] => insights::run_query,
+    Query [WINDOW] => query_cancel::run_query_stream,
+    Query [WINDOW] => insights::check_query,
+    Query [WINDOW] => insights::complete_query,
+    Query [WINDOW] => insights::query_patterns,
+    Query [WINDOW] => insights::query_exceptions,
+    Query [WINDOW] => insights::analysis_coverage,
+    Query [WINDOW] => insights::query_anomalies,
+    Query [WINDOW] => insights::compare_windows,
+    Query [WINDOW] => insights::field_stats,
+    Query [WINDOW] => insights::correlate,
+    Query [WINDOW] => insights::query_traces,
+    Query [WINDOW] => insights::query_requests,
+    Query [WINDOW] => insights::query_moment,
+    Query [WINDOW] limit MIB => insights::preview_parse,
+    Query [WINDOW] limit MIB => insights::infer_regex,
+    Query [WINDOW] => insights::explain_regex,
+    Query [WINDOW] => config_diff::config_diff_formats,
+    Query [WINDOW] => config_diff::diff_configs,
+    Query [WINDOW] limit 4 * MIB => config_diff::diff_snapshots,
+    Mutation [WINDOW] => config_diff::export_config_diff,
+    Mutation [WINDOW] => skew_commands::set_source_offset,
+    Query [WINDOW] => skew_commands::suggest_offsets,
+    Mutation [WINDOW] => profiling::profiling_open,
+    Query [WINDOW] => profiling::profiling_sniff,
+    Query [WINDOW] => profiling::profiling_frame_paths,
+    Query [WINDOW] => profiling::profiling_list,
+    Mutation [WINDOW] => profiling::profiling_close,
+    Query [WINDOW] => profiling::profiling_spans,
+    Query [WINDOW] => profiling::profiling_hotspots,
+    Query [WINDOW] => profiling::profiling_tree,
+    Query [WINDOW] => profiling::profiling_hot_path,
+    Query [WINDOW] => profiling::profiling_butterfly,
+    Query [WINDOW] => profiling::profiling_flame,
+    Query [WINDOW] => profiling::profiling_diff_flame,
+    Query [WINDOW] => profiling::profiling_function_diff,
+    Query [WINDOW] => profiling::profiling_threads,
+    Query [WINDOW] => profiling::profiling_findings,
+    Query [WINDOW] => profiling::profiling_moment,
+    Query [WINDOW] => profiling::profiling_heap_types,
+    Query [WINDOW] => profiling::profiling_heap_diff,
+    Query [WINDOW] => profiling::profiling_heap_growth,
+    Query [WINDOW] => profiling::profiling_heap_dominators,
+    Query [WINDOW] => profiling::profiling_heap_instances,
+    Query [WINDOW] => profiling::profiling_heap_paths,
+    Query [WINDOW] => profile::get_profile,
+    Query [WINDOW] limit MIB => profile::validate_profile,
+    Mutation [WINDOW] limit MIB => profile::save_profile,
+    Query [WINDOW] => profile::profile_history,
+    Query [WINDOW] => profile::profile_version,
+    Mutation [WINDOW] => profile::import_profile,
+    Mutation [WINDOW] limit MIB => profile::export_profile,
+    Query [WINDOW] => profile::profile_templates,
+    Query [WINDOW] => demo::demo_paths,
+    Mutation [WINDOW | BANNER] limit 8 * MIB => snapshots::save_error_snapshot,
+    Query [WINDOW] => snapshots::list_error_snapshots,
+    Query [WINDOW] => snapshots::read_error_snapshot,
+    Mutation [WINDOW] => snapshots::delete_error_snapshot,
+    Mutation [WINDOW] => snapshots::open_snapshots_folder,
+    Mutation [WINDOW] => snapshots::export_diagnostics,
+    Query [WINDOW] => storage::storage_usage,
+    Mutation [MAIN] => storage::storage_clear,
+    Mutation [WINDOW] => storage::storage_reveal,
+    Query [WINDOW] limit MIB => activity::report::problem_report_preview,
+    Mutation [WINDOW] limit MIB => activity::report::save_problem_report,
+    Mutation [WINDOW] => activity::report::open_activity_log,
+    Query [WINDOW] => activity::report::open::diagnostics_report,
+    Query [WINDOW] => activity::report::open::diagnostics_report_image,
+    Query [WINDOW] => diagnostics::diagnostics_settings,
+    Mutation [WINDOW] => diagnostics::set_diagnostics_settings,
+    Query [WINDOW] => system::elevation,
+    Mutation [MAIN] => system::restart_elevated,
+    Mutation [WINDOW] => paths::pick_paths,
+    Query [WINDOW] => system::read_file_head,
+    Query [WINDOW] => tools::tools_list,
+    Mutation [WINDOW] limit MIB => tools::tool_invoke,
+    Query [WINDOW] => agent_commands::agent_schema,
+    Query [WINDOW] => agent_commands::agent_config_load,
+    Query [WINDOW] limit MIB => agent_commands::agent_config_validate,
+    Mutation [WINDOW] limit MIB => agent_commands::agent_config_save,
+    Query [WINDOW] => agent_commands::agent_runs,
+    Query [WINDOW] => agent_commands::agent_run_manifest,
+    Mutation [WINDOW] => agent_commands::agent_open_run,
+    Query [WINDOW] => lifecycle::app_status,
+    Mutation [MAIN] => lifecycle::restart_app,
+    Mutation [MAIN] => plugin_config::plugin_reset,
+    Mutation [MAIN] => plugin_config::plugin_set_enabled,
+    Query [WINDOW] => plugin_isolation::plugin_isolation_status,
+    Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
+    Query [MAIN] => lifecycle::last_session,
+    Mutation [MAIN] => lifecycle::restore_windows,
+    Query [WINDOW] => settings::settings_sections,
+    Mutation [WINDOW] limit MIB => settings::set_settings,
+    Mutation [MAIN] => settings::reset_settings,
+    Mutation [WINDOW] => settings::export_settings,
+    Mutation [MAIN] => settings::import_settings,
+    Mutation [WINDOW] => window_manager::new_window,
+    Mutation [WINDOW] => window_manager::close_window,
+    Mutation [WINDOW] => window_manager::quit_app,
+    Query [WINDOW] => window_manager::list_windows,
+    Mutation [WINDOW] => window_manager::focus_window,
+    Quiet [MAIN] => window_manager::set_window_title,
+    Mutation [MAIN] => window_manager::resolve_close,
+    Mutation [MAIN] => window_manager::resolve_open,
+    Mutation [MAIN] => panel_windows::popout_panel,
+    Quiet [WINDOW] => pointer::pointer_button_down,
+    Mutation [WINDOW] => panel_windows::dock_panel,
+    Query [WINDOW] => panel_windows::list_popouts,
+    Mutation [WINDOW] => panel_windows::set_popout_on_top,
+    Query [WINDOW] => recent::recent_list,
+    Mutation [WINDOW] => recent::recent_remove,
+    Mutation [WINDOW] => recent::recent_clear,
+    Quiet [MAIN] limit MIB => menu::set_app_menu,
+    Query [WINDOW] => background::background_tasks,
+    Mutation [WINDOW] => background::stop_background_task,
+    Query [WINDOW | BANNER] => jobs::jobs_list,
+    Mutation [WINDOW | BANNER] => jobs::jobs_cancel,
+    Mutation [WINDOW] => jobs::jobs_retry,
+    Mutation [WINDOW] => jobs::jobs_move,
+    Mutation [WINDOW] => jobs::jobs_clear_finished,
+    Mutation [WINDOW] => jobs::jobs_mark_seen,
+    Mutation [WINDOW] => jobs::jobs_result,
+    Mutation [WINDOW] => jobs::jobs_reveal,
+    Quiet [WINDOW] => jobs::jobs_record,
+    Mutation [WINDOW] limit 4 * MIB => jobs::jobs_restore,
+    Query [WINDOW] => jobs::jobs_wait,
+    Query [WINDOW] => jobs::jobs_unwait,
+    Query [WINDOW] => notification_centre::notifications_list,
+    Mutation [WINDOW] => notification_centre::notifications_mark_read,
+    Mutation [WINDOW] => notification_centre::notifications_mark_all_read,
+    Mutation [WINDOW] => notification_centre::notifications_dismiss,
+    Quiet [WINDOW] => notification_centre::notifications_record,
+    Mutation [WINDOW] limit 4 * MIB => notification_centre::notifications_restore,
+    Mutation [WINDOW] => browser::research::ai_research,
+    Query [WINDOW | BANNER] => browser::driving::browser_driving,
+    Mutation [WINDOW] => browser::commands::browser_open_and_read,
+    Query [WINDOW] => ai::commands::ai_status,
+    Query [WINDOW] => ai::commands::ai_hardware,
+    Query [WINDOW] => ai::commands::ai_recommend,
+    Query [WINDOW] => ai::commands::ai_catalog,
+    Query [WINDOW] => ai::commands::ai_setup_plan,
+    Mutation [WINDOW] => ai::commands::ai_setup_run,
+    Query [WINDOW] => ai::commands::ai_models,
+    Mutation [WINDOW] => ai::commands::ai_model_activate,
+    Mutation [WINDOW] => ai::commands::ai_model_delete,
+    Mutation [WINDOW] => ai::commands::ai_model_add_local,
+    Mutation [WINDOW] => ai::commands::ai_reset,
+    Mutation [WINDOW] => ai::commands::ai_start,
+    Mutation [WINDOW] => ai::commands::ai_cancel,
+    Query [WINDOW] => ai::folder_setup::folder_survey,
+    Query [WINDOW] => ai::folder_setup::folder_setup_compose,
+    Query [WINDOW] => ai::commands::ai_chat_sessions,
+    Mutation [WINDOW] => ai::commands::ai_chat_new,
+    Query [WINDOW] => ai::commands::ai_chat_get,
+    Mutation [WINDOW] => ai::commands::ai_chat_delete,
+    Mutation [WINDOW] => ai::commands::ai_chat_send,
+    Mutation [WINDOW] => ai::commands::ai_chat_cancel,
+    Quiet [WINDOW] => ai::commands::ai_chat_events_since,
+    Query [WINDOW] => ai::commands::ai_chat_history,
+    Mutation [WINDOW] limit 8 * MIB => ai::commands::ai_chat_restore,
+    Mutation [WINDOW] => ai::commands::ai_chat_export_markdown,
+    Query [WINDOW] => ai::commands::ai_suggested_prompts,
+    Mutation [WINDOW] => ai::commands::ai_open_link,
+    Query [WINDOW] => browser::commands::browser_state,
+    Mutation [WINDOW] => browser::commands::browser_open,
+    Query [WINDOW] => browser::commands::browser_event_query,
+    Mutation [WINDOW] => browser::commands::browser_nav,
+    Mutation [WINDOW] => browser::commands::browser_close,
+    Mutation [WINDOW] => browser::commands::browser_open_external,
+    Mutation [WINDOW] => browser::commands::browser_capture,
+    Query [WINDOW] => browser::commands::browser_sources,
+    Mutation [WINDOW] => browser::commands::browser_discard_sources,
+    Query [WINDOW] => browser::commands::browser_chat_status,
+    Mutation [WINDOW] => browser::commands::browser_set_read_along,
+    Mutation [WINDOW] => browser::commands::browser_set_agent,
+    Mutation [WINDOW | BANNER] => browser::commands::browser_agent_stop,
+    Mutation [WINDOW] => browser::commands::browser_agent_continue,
+    Mutation [WINDOW] => browser::commands::browser_agent_respond,
+    Mutation [WINDOW] => browser::commands::browser_open_suggested,
+    Query [WINDOW] => ai::runtime_commands::ai_runtimes,
+    Mutation [WINDOW] => ai::runtime_commands::ai_runtime_install,
+    Mutation [WINDOW] => ai::runtime_commands::ai_runtime_add_archives,
+    Query [WINDOW] => ai::manual::ai_manual_download,
+    Mutation [WINDOW] => ai::manual::ai_manual_download_open,
+    Mutation [WINDOW] => ai::runtime_commands::ai_runtime_delete,
+    Mutation [WINDOW] => ai::runtime_commands::ai_runtime_choose,
+    Query [WINDOW] => ai::update_commands::ai_updates_status,
+    Mutation [WINDOW] => ai::update_commands::ai_updates_check,
+    Mutation [WINDOW] => ai::update_commands::ai_updates_apply,
+    Mutation [WINDOW] => ai::update_commands::ai_updates_skip,
+    Mutation [WINDOW] => ai::update_commands::ai_updates_later,
+    Mutation [WINDOW] => share::set_redacted_view,
+    Query [WINDOW] => share::preview_redaction,
+    Query [WINDOW] => share::redaction_summary,
+    Query [WINDOW] => share::dashboard_tile,
+    Mutation [WINDOW] limit 32 * MIB => share::export_report,
+    Mutation [WINDOW] limit 32 * MIB => share::save_visual,
+    Query [WINDOW] => share::estimate_bundle,
+    Mutation [WINDOW] limit 32 * MIB => share::create_bundle,
+    Mutation [WINDOW] => share::open_bundle,
+    Query [WINDOW] => updater::updates_status,
+    Query [WINDOW] => updater::updates_check,
+    Mutation [WINDOW] => updater::updates_download,
+    Mutation [WINDOW] => updater::updates_discard,
+    Mutation [MAIN] => updater::updates_install_on_quit,
+    Mutation [MAIN] => updater::updates_restart,
+    Mutation [WINDOW] => updater::updates_open_releases,
 }
 
 /// Window size and position are remembered per window label; visibility is
@@ -396,7 +411,7 @@ pub fn run() {
         .on_window_event(window_manager::on_window_event)
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page
         // in the internal browser gets no command at all: see `browser::guard`.
-        .invoke_handler(browser::guard(activity::logged(commands!())))
+        .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
         .build(context)
         .expect("error while building IMT")
         .run(on_run_event);
@@ -404,25 +419,26 @@ pub fn run() {
 
 fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, single: bool) -> Result<(), Box<dyn std::error::Error>> {
     create_main_window(app)?;
-    let diag = diagnostics::load(app_dirs::config(app.handle()).ok().as_deref());
+    // IMT's folders and run flags, resolved once (see `app_context`).
+    let ctx = app_context::AppContext::of(app.handle(), safe_mode, single);
+    let diag = diagnostics::load(ctx.config.as_deref());
     // `tracing` with CLEF to daily files; `log` records pass the activity logger (breadcrumbs, error
     // dedup) on their way to it, the webview's through the log plugin's command: see `logging`.
-    logging::init(app.handle(), app_dirs::log(app.handle()).ok().as_deref(), &diag.log)?;
+    logging::init(app.handle(), ctx.log.as_deref(), &diag.log)?;
     activity::set_config(diag.activity);
     // Child processes' stderr and start/exit lines (for problem reports): `<logs>/children/<name>.log`.
-    if let Ok(dir) = app_dirs::log(app.handle()) {
-        imt_ipc::child_log::set_dir(activity::report::children_dir(&dir));
-    }
-    if let Ok(dir) = app_dirs::log(app.handle()) {
-        diagnostics::prune_old_logs(&dir, diag.log.max_age_days, std::time::SystemTime::now());
+    if let Some(dir) = &ctx.log {
+        imt_ipc::child_log::set_dir(activity::report::children_dir(dir));
+        diagnostics::prune_old_logs(dir, diag.log.max_age_days, std::time::SystemTime::now());
     }
     lifecycle::install_panic_logging();
-    let life = lifecycle::Lifecycle::begin_in(app_dirs::data(app.handle()).ok(), safe_mode, lifecycle::InstanceScope::of(single));
+    let life = lifecycle::Lifecycle::begin_in(ctx.data.clone(), ctx.safe_mode, lifecycle::InstanceScope::of(ctx.single_instance));
     let previous_crash = life.previous_crash;
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new(app_dirs::config(app.handle()).ok().map(|d| d.join("profiles")), safe_mode);
+    let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.safe_mode);
+    app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
     windows.get_or_create(windows::MAIN)?.queue(instance::existing(&launch.paths));
@@ -434,8 +450,6 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(window_prefs::SharedPrefs::default());
     app.manage(notify::Notifier::default());
     app.manage(tray::TrayState::default());
-    app.manage(instance::SingleInstance(single));
-    app.manage(query_cancel::QueryJobs::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
 
@@ -579,6 +593,24 @@ pub(crate) mod test_support {
         tauri::async_runtime::block_on(f)
     }
 
+    /// `.now()`: runs a command's future to its end (commands are async; tests call them directly).
+    pub trait Now: std::future::Future + Sized {
+        fn now(self) -> Self::Output {
+            block(self)
+        }
+    }
+
+    impl<F: std::future::Future> Now for F {}
+
+    /// `.json()`: a typed reply as the JSON the UI gets (tests index it like the UI reads it).
+    pub trait Json: serde::Serialize {
+        fn json(&self) -> serde_json::Value {
+            serde_json::to_value(self).unwrap()
+        }
+    }
+
+    impl<T: serde::Serialize> Json for T {}
+
     /// Waits for the test app's job `id` to end; how it ended.
     pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {
         use tauri::Manager;
@@ -609,15 +641,18 @@ pub(crate) mod test_support {
         app.manage(window_prefs::SharedPrefs::default());
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
-        app.manage(query_cancel::QueryJobs::default()); // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
-                                                        // and attention thresholds by accident.
+        // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
+        // and attention thresholds by accident.
         let clock = std::sync::Arc::new(jobs::ManualClock::default());
         app.manage(TestClock(clock.clone()));
         let jobs = jobs::Jobs::new(clock.clone());
         jobs::wire(app.handle(), &jobs);
         app.manage(jobs);
         app.manage(notification_centre::NotificationCentre::new(None, clock));
+        // The repository samples count as chosen in the main window (files in a test's own folder do not).
+        paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());
+        app_context::install(app.handle(), app_context::AppContext::for_tests());
         app
     }
 
@@ -634,7 +669,7 @@ pub(crate) mod test_support {
     pub fn test_app_with_commands(profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(browser::guard(activity::logged(commands!())))
+            .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage(app, profile_dir)
@@ -644,7 +679,7 @@ pub(crate) mod test_support {
     pub fn test_app_safe_mode() -> tauri::App<MockRuntime> {
         let app = mock_builder()
             .on_window_event(window_manager::on_window_event)
-            .invoke_handler(browser::guard(activity::logged(commands!())))
+            .invoke_handler(browser::guard(commands::guard(activity::logged(handler!()))))
             .build(mock_context(noop_assets()))
             .unwrap();
         manage_in(app, None, true)

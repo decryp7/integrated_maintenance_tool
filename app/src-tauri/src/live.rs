@@ -77,11 +77,11 @@ pub(crate) struct LiveSlot {
 
 impl LiveSlot {
     fn lock(&self) -> std::sync::MutexGuard<'_, Option<LiveTail>> {
-        self.running.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.running)
     }
 
     fn options(&self) -> std::sync::MutexGuard<'_, Option<LiveOptions>> {
-        self.options.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.options)
     }
 
     /// Whether live tail runs and the options in effect (defaults until it was first started).
@@ -147,7 +147,7 @@ const WATCHER_ERROR_INTERVAL: Duration = Duration::from_secs(10);
 /// left out since the last entry. Returns whether it logged.
 fn log_watcher_error(e: &notify::Error, now: std::time::Instant) -> bool {
     static LAST: std::sync::Mutex<(Option<std::time::Instant>, u64)> = std::sync::Mutex::new((None, 0));
-    let mut last = LAST.lock().unwrap_or_else(|p| p.into_inner());
+    let mut last = crate::sync::lock(&LAST);
     if last.0.is_some_and(|t| now.duration_since(t) < WATCHER_ERROR_INTERVAL) {
         last.1 += 1;
         return false;
@@ -189,9 +189,6 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
     if report.alerts.is_empty() {
         return;
     }
-    let seen = app
-        .get_webview_window(label)
-        .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false));
     for alert in &report.alerts {
         log::info!(Kind = alert.kind.as_str(); "Live alert");
         emit_to_window(app, label, ALERT_EVENT, alert);
@@ -201,7 +198,14 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
         1 => "A live tail alert was raised. Open IMT to see it.".to_string(),
         n => format!("{n} live tail alerts were raised. Open IMT to see them."),
     };
-    notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
+    // Window getters wait for the main thread: they run there, never on this worker.
+    let label = label.to_string();
+    crate::ui_dispatch::run(app, move |app| {
+        let seen = app
+            .get_webview_window(&label)
+            .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false));
+        notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
+    });
 }
 
 /// A live alert as a notification-centre message: repeats of the same kind on the same instance (or rule)
@@ -377,14 +381,14 @@ pub(crate) async fn tail_status(state: CurrentWindow) -> CmdResult<Value> {
         Some(live) => status.with_modes(|p| live.mode_of(p)),
         None => status,
     };
-    serde_json::to_value(status).map_err(err)
+    crate::error::lift(serde_json::to_value(status).map_err(err))
 }
 
 /// Whether the calling window's live tail runs, and the options in effect
 /// (as last given to `set_live`, with defaults filled in and values clamped).
 /// The UI restores its live controls from it (e.g. after a webview reload).
 #[tauri::command]
-pub(crate) fn live_state(state: CurrentWindow) -> LiveState {
+pub(crate) async fn live_state(state: CurrentWindow) -> LiveState {
     state.live.state()
 }
 
@@ -413,25 +417,29 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     state: CurrentWindow,
     paths: Vec<String>,
     start_at_end: Option<bool>,
-) -> CmdResult<Value> {
+) -> CmdResult<imt_core::api::WorkspaceSummary> {
     let options = OpenOptions {
         start_at_end: start_at_end.unwrap_or(false),
     };
-    let paths = crate::workspace_commands::open_request(paths)?;
+    let paths = crate::workspace_commands::open_request(&app, state.label(), paths)?;
+    let recorded: Vec<String> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
     let summary = write_reporting(&app, &state, move |ws| {
         ws.open_with(&paths, &options)?;
         let summary = ws.summary();
         log::info!(Sources = summary.sources.len() as u64, StartAtEnd = options.start_at_end; "Workspace opened for live tail");
-        serde_json::to_value(summary).map_err(anyhow::Error::from)
+        Ok(summary)
     })
     .await?;
-    crate::window_manager::import_finished(&app, state.label(), &summary);
+    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
+    crate::recent::opened_files(&app, &recorded);
     Ok(summary)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
+    use crate::test_support::Now as _;
 
     #[test]
     fn options_and_settings() {
@@ -476,12 +484,14 @@ mod tests {
     /// An app whose `label` window has `dir` opened.
     fn opened(app: &tauri::App<tauri::test::MockRuntime>, label: &str, dir: &Path) -> CurrentWindow {
         let win = CurrentWindow::of(app.handle(), label).unwrap();
+        crate::paths::allow_under(app.handle(), label, dir);
         block(open_paths(
             app.handle().clone(),
             win.clone(),
             vec![dir.to_string_lossy().into_owned()],
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         win
     }
 
@@ -514,7 +524,7 @@ mod tests {
         while st().store_read().summary().total < 2 && std::time::Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(block(workspace_summary(st())).unwrap()["total"], 2);
+        assert_eq!(block(workspace_summary(st())).unwrap().json()["total"], 2);
         let status = block(tail_status(st())).unwrap();
         assert_eq!(status["files"][0]["mode"], "events");
         assert_eq!(status["totals"]["records"], 2);
@@ -527,13 +537,15 @@ mod tests {
         // Start at end: history skipped, new lines shown.
         let other = TempDir::new("live-end");
         std::fs::write(other.0.join("b.log"), "2026-10-14 10:00:00 INFO old\n").unwrap();
+        crate::paths::allow_under(app.handle(), st().label(), &other.0);
         let summary = block(open_paths_live(
             app.handle().clone(),
             st(),
             vec![other.0.to_string_lossy().into_owned()],
             Some(true),
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(summary["total"], 2);
         // A broken refresh is reported as no change.
         assert!(apply_changes(&st(), &[]).is_empty());
@@ -634,7 +646,7 @@ mod tests {
         let app = test_app(None);
         let st = || main_window(&app);
         // Never started: off, with the defaults resolved.
-        let fresh = live_state(st());
+        let fresh = live_state(st()).now();
         assert!(!fresh.enabled);
         assert_eq!(fresh.options.poll_interval_ms, Some(DEFAULT_POLL_MS));
         assert_eq!(fresh.options.tail, TailOptions::default());
@@ -649,7 +661,7 @@ mod tests {
         }))
         .unwrap();
         block(set_live(app.handle().clone(), st(), true, Some(options))).unwrap();
-        let on = live_state(st());
+        let on = live_state(st()).now();
         assert!(on.enabled);
         assert_eq!(on.options.watch, WatchPreference::Polling);
         assert_eq!(on.options.poll_interval_ms, Some(100));
@@ -657,15 +669,15 @@ mod tests {
         assert_eq!(on.options.tail.carry_flush_ms, 300);
         // Off keeps the options for the next start.
         block(set_live(app.handle().clone(), st(), false, None)).unwrap();
-        let off = live_state(st());
+        let off = live_state(st()).now();
         assert!(!off.enabled);
         assert_eq!(off.options, on.options);
         // Stopped from the tray: off.
         block(set_live(app.handle().clone(), st(), true, None)).unwrap();
-        assert!(live_state(st()).enabled);
-        assert_eq!(live_state(st()).options.poll_interval_ms, Some(DEFAULT_POLL_MS));
+        assert!(live_state(st()).now().enabled);
+        assert_eq!(live_state(st()).now().options.poll_interval_ms, Some(DEFAULT_POLL_MS));
         stop(app.handle(), "main");
-        assert!(!live_state(st()).enabled);
+        assert!(!live_state(st()).now().enabled);
     }
 
     /// Alerts are muted in the window's engine; invalid mutes are refused with a message.

@@ -58,6 +58,15 @@ pub fn post<R: Runtime>(app: &AppHandle<R>, slot: Slot, work: fn(&AppHandle<R>))
     }
 }
 
+/// Runs `work` on the main thread soon, without waiting and without coalescing: one-off native work that
+/// reads window state (visible, minimised, focused) before deciding something, such as an OS notification.
+pub fn run<R: Runtime>(app: &AppHandle<R>, work: impl FnOnce(&AppHandle<R>) + Send + 'static) {
+    let handle = app.clone();
+    if let Err(e) = app.run_on_main_thread(move || work(&handle)) {
+        log::debug!("native UI work not posted: {e}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

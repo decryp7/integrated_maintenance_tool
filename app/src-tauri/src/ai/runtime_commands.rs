@@ -12,21 +12,18 @@ use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label;
 use imt_ai::runtimes::{InstalledRuntime, RuntimeOverview};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
 const MAX_ID_CHARS: usize = 32;
-const MAX_PATH_CHARS: usize = 4096;
 /// A build has one or two archives; a few more are refused with a clear message by the store.
 const MAX_ARCHIVES: usize = 8;
 /// How often the download ticker reports progress.
 const TICK: Duration = Duration::from_millis(250);
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> AiResult<T> + Send + 'static) -> AiResult<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the AI task stopped unexpectedly ({e})")))?
+    crate::sync::blocking("the AI task", f).await
 }
 
 fn short(what: &str, s: &str) -> AiResult<String> {
@@ -49,56 +46,52 @@ pub async fn ai_runtimes<R: Runtime>(app: AppHandle<R>) -> AiResult<RuntimeOverv
 }
 
 /// Downloads, verifies and unpacks a build. Returns at once; progress arrives as `imt://ai-runtime`
-/// events ending in `ready`, `failed` or `cancelled`. Runs as a download job (Cancel stops it).
+/// events ending in `ready`, `failed` or `cancelled`. Runs as a download job, returned (`jobs_cancel` stops it).
 #[tauri::command]
-pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<()> {
-    start_install(app, id, vec![])
+pub async fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<u64> {
+    install(app, id, vec![])
 }
 
 /// Installs a build from its archives the user downloaded themselves ("Download manually"): they are
 /// checked against the pinned SHA-256 and unpacked like a download. Events and job as [`ai_runtime_install`].
 #[tauri::command]
-pub fn ai_runtime_add_archives<R: Runtime>(app: AppHandle<R>, id: String, paths: Vec<String>) -> AiResult<()> {
+pub async fn ai_runtime_add_archives<R: Runtime>(
+    app: AppHandle<R>,
+    grants: crate::paths::WindowGrants,
+    id: String,
+    paths: Vec<String>,
+) -> AiResult<u64> {
     if paths.is_empty() || paths.len() > MAX_ARCHIVES {
         return Err(AiCmdError::invalid("choose the downloaded archives of the build"));
     }
-    let archives = paths.iter().map(|p| archive_path(p)).collect::<AiResult<Vec<_>>>()?;
-    start_install(app, id, archives)
+    let archives = paths.iter().map(|p| archive_path(&grants, p)).collect::<AiResult<Vec<_>>>()?;
+    install(app, id, archives)
 }
 
-/// A file the user picked: absolute, of reasonable length, an existing file (canonicalized).
-fn archive_path(path: &str) -> AiResult<PathBuf> {
-    if path.is_empty() || path.chars().count() > MAX_PATH_CHARS || path.contains('\0') {
-        return Err(AiCmdError::invalid("choose the downloaded archives of the build"));
+/// A file the user picked in the open dialog (granted to the window), canonical.
+fn archive_path(grants: &crate::paths::WindowGrants, path: &str) -> AiResult<PathBuf> {
+    if !crate::paths::parse(path)?.exists() {
+        return Err(AiCmdError::not_found(format!("cannot open {path}: it does not exist")));
     }
-    let p = Path::new(path);
-    if !p.is_absolute() {
-        return Err(AiCmdError::invalid("the archive path must be absolute"));
-    }
-    let canon = p
-        .canonicalize()
-        .map_err(|e| AiCmdError::not_found(format!("cannot open {path}: {e}")))?;
-    if !canon.is_file() {
-        return Err(AiCmdError::invalid(format!("{path} is not a file")));
-    }
-    Ok(canon)
+    grants.read_file(path, &[]).map(|g| g.path().to_path_buf())
 }
 
 /// Runs after an install ended (successfully or not), e.g. to retire the build an update replaced.
 pub(crate) type AfterInstall = Box<dyn FnOnce(&AiResult<InstalledRuntime>) + Send>;
 
-fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<()> {
+/// Starts an install job (returned; `jobs_cancel` stops it).
+pub(crate) fn install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<u64> {
     start_install_with(app, id, archives, None, None)
 }
 
-/// [`start_install`] with the job's title and a hook that runs when the install ended.
+/// [`install`] with the job's title and a hook that runs when the install ended.
 pub(crate) fn start_install_with<R: Runtime>(
     app: AppHandle<R>,
     id: String,
     archives: Vec<PathBuf>,
     title: Option<String>,
     after: Option<AfterInstall>,
-) -> AiResult<()> {
+) -> AiResult<u64> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
@@ -155,16 +148,10 @@ pub(crate) fn start_install_with<R: Runtime>(
         emit_status(&app, &core);
         result.map(|_| Done::new(()).with_result(JobResult::Model { file_name: None }))
     });
-    queued.map(|_| ()).map_err(|e| {
+    queued.map(|j| j.0).map_err(|e| {
         core.end_runtime_install();
         AiCmdError::busy(e)
     })
-}
-
-/// Stops the running runtime install. False when none runs.
-#[tauri::command]
-pub fn ai_runtime_cancel<R: Runtime>(app: AppHandle<R>) -> AiResult<bool> {
-    Ok(core(&app)?.cancel_runtime_install())
 }
 
 /// Deletes an installed build (of the pinned release or an older one); stops the engine first if it may
@@ -195,7 +182,7 @@ pub async fn ai_runtime_choose<R: Runtime>(app: AppHandle<R>, id: String) -> AiR
     blocking(move || {
         c.availability()?;
         let choice = c.check_build_choice(&id)?;
-        let overview = crate::settings::settings_sections(a.clone()).map_err(|e| AiCmdError::new(AiErrorCode::Io, e))?;
+        let overview = Ok::<_, AiCmdError>(crate::settings::overview(&a))?;
         let mut values = overview
             .sections
             .into_iter()
@@ -204,7 +191,7 @@ pub async fn ai_runtime_choose<R: Runtime>(app: AppHandle<R>, id: String) -> AiR
             .filter(Value::is_object)
             .unwrap_or_else(|| Value::Object(Default::default()));
         values["inference_build"] = Value::from(choice);
-        let r = crate::settings::set_settings(a, AI_SECTION.into(), values).map_err(|e| AiCmdError::new(AiErrorCode::Io, e))?;
+        let r = crate::settings::apply_section(&a, AI_SECTION, values)?;
         if !r.applied {
             let why: Vec<String> = r.errors.into_iter().map(|e| e.message).collect();
             return Err(AiCmdError::invalid(why.join("; ")));

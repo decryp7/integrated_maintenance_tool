@@ -165,6 +165,27 @@ impl Serialize for UpdateError {
     }
 }
 
+/// Update commands reject with the one [`crate::CmdError`]: the kind is its code, the next step its hint.
+impl From<UpdateError> for crate::CmdError {
+    fn from(e: UpdateError) -> crate::CmdError {
+        use crate::ErrorCode as C;
+        let code = match &e {
+            UpdateError::NotAvailable => C::NotAvailable,
+            UpdateError::Offline => C::Offline,
+            UpdateError::Unreachable { .. } => C::Unreachable,
+            UpdateError::NoRelease => C::NoRelease,
+            UpdateError::NoPlatform { .. } => C::NoPlatform,
+            UpdateError::InvalidManifest { .. } => C::InvalidManifest,
+            UpdateError::SignatureInvalid { .. } => C::SignatureInvalid,
+            UpdateError::TooLarge { .. } => C::TooLarge,
+            UpdateError::DiskFull => C::DiskFull,
+            UpdateError::InstallFailed { .. } => C::InstallFailed,
+            UpdateError::Busy { .. } => C::Busy,
+        };
+        crate::CmdError::new(code, e.message()).hint(e.next_step()).detail(e.detail())
+    }
+}
+
 /// True for "no space left" on any platform.
 pub fn is_disk_full(e: &std::io::Error) -> bool {
     if e.kind() == std::io::ErrorKind::StorageFull {

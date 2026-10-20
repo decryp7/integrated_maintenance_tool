@@ -1,6 +1,7 @@
 import { invoke as tauriInvoke, InvokeArgs, InvokeOptions } from '@tauri-apps/api/core';
 import { currentOperationId } from './runtime';
 import { OP_HEADER } from './types';
+import { fromRejection } from '../cmd-error';
 
 /** `options` with the operation id header added (existing headers kept; an explicit one wins). */
 export function withOpHeader(options: InvokeOptions | undefined, op: string): InvokeOptions {
@@ -18,9 +19,12 @@ export function withOpHeader(options: InvokeOptions | undefined, op: string): In
  * Tauri's `invoke`, carrying the current operation's id as the `imt-op-id` header so Rust's invoke wrapper
  * (`activity::logged`) logs the command with the user operation that caused it. Every Tauri backend imports
  * `invoke` from here, never from `@tauri-apps/api/core` (a coverage test enforces it): Tauri's IPC internals
- * are frozen, so this is the one place every command passes through.
+ * are frozen, so this is the one place every command passes through. Rejections come back as `CmdError`s
+ * (the one error contract, ADR 0016).
  */
 export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
   const op = currentOperationId();
-  return tauriInvoke<T>(cmd, args, op ? withOpHeader(options, op) : options);
+  return tauriInvoke<T>(cmd, args, op ? withOpHeader(options, op) : options).catch((e: unknown) => {
+    throw fromRejection(e);
+  });
 }

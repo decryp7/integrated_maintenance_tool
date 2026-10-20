@@ -52,7 +52,7 @@ fn computed(parsers: &ConfigParsers, l: &Path, r: &Path, options: &CompareOption
         files: [stamp(l), stamp(r)],
         options: options.clone(),
     };
-    if let Some(c) = LAST.lock().unwrap_or_else(|p| p.into_inner()).as_ref().filter(|c| c.key == key) {
+    if let Some(c) = crate::sync::lock(&LAST).as_ref().filter(|c| c.key == key) {
         return Ok(c.clone());
     }
     let limits = Limits::default();
@@ -72,7 +72,7 @@ fn computed(parsers: &ConfigParsers, l: &Path, r: &Path, options: &CompareOption
     });
     // Counts only: paths and contents stay out of the logs.
     log::info!(LeftNodes = c.left.nodes as u64, RightNodes = c.right.nodes as u64, Differences = c.diff.counts.differences() as u64; "Configuration diff computed");
-    *LAST.lock().unwrap_or_else(|p| p.into_inner()) = Some(c.clone());
+    *crate::sync::lock(&LAST) = Some(c.clone());
     Ok(c)
 }
 
@@ -92,7 +92,7 @@ async fn parsers(state: &CurrentWindow) -> CmdResult<ConfigParsers> {
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> CmdResult<T> {
-    tauri::async_runtime::spawn_blocking(f).await.map_err(err)?.map_err(err)
+    crate::sync::blocking_anyhow("the configuration diff", f).await
 }
 
 /// Supported formats and the default ignore patterns.
@@ -179,7 +179,7 @@ pub(crate) async fn export_config_diff(
     let format = parse_format(&format).map_err(err)?;
     let (l, r) = sides(&grants, &left_path, &right_path)?;
     let target = grants.write(&path, &["csv", "html", "htm"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let parsers = parsers(&state).await?;
     blocking(move || {
         let c = computed(&parsers, &l, &r, &options.compare)?;
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn diffs_pages_and_caches() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff");
         // Nothing chosen yet: the files are refused.
@@ -284,7 +284,7 @@ mod tests {
             DiffOptions::default(),
         ))
         .unwrap_err();
-        assert!(e.starts_with("left file: JSON"), "{e}");
+        assert!(e.message.starts_with("left file: JSON"), "{e}");
         assert!(block(diff_configs(
             main_window(&app),
             granted(&app),
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn exports_csv_and_html() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff-export");
         let l = write(&tmp.0, "a.ini", "[s]\nk=<1>\n");
@@ -388,7 +388,10 @@ mod tests {
                 overwrite,
             ))
         };
-        assert_eq!(export(None).unwrap_err(), format!("{csv} already exists; confirm to replace it"));
+        assert_eq!(
+            export(None).unwrap_err(),
+            crate::error::file_exists(format!("{csv} already exists; confirm to replace it"))
+        );
         assert_eq!(export(Some(true)).unwrap().rows, 2);
         assert!(block(export_config_diff(
             main_window(&app),
@@ -444,7 +447,7 @@ mod tests {
 
     #[test]
     fn diffs_snapshot_folders() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff-snap");
         write(&tmp.0, "a/app.yaml", "x: 1\n");

@@ -4,7 +4,7 @@
 /// Whether the primary (usually left) mouse button is held down anywhere on screen; `None` when the platform cannot
 /// tell (then the host falls back to docking when the pointer rests on a guide).
 #[tauri::command]
-pub fn pointer_button_down() -> Option<bool> {
+pub async fn pointer_button_down() -> Option<bool> {
     primary_button_down()
 }
 
@@ -38,10 +38,11 @@ fn primary_button_down() -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
 
     #[test]
     fn reports_the_button_where_the_platform_can() {
-        let state = pointer_button_down();
+        let state = pointer_button_down().now();
         if cfg!(any(target_os = "macos", windows)) {
             // Nobody holds the mouse while the tests run.
             assert_eq!(state, Some(false));

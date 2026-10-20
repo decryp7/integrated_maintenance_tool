@@ -62,7 +62,7 @@ import { OverviewPrefs } from './overview-prefs';
 
       <imt-analysis-state
         [loading]="res.loading()"
-        [error]="res.error()"
+        [error]="res.error()" [retryable]="res.retryable()"
         [hasData]="!!res.data()"
         [empty]="false"
         (retry)="res.retry()"

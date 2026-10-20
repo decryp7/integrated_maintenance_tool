@@ -12,7 +12,7 @@
 //!
 //! The pure helpers ([`parse`], [`output_file`], [`confined`]) are the only path validators of the shell.
 
-use crate::{err, CmdResult};
+use crate::{err, CmdError, CmdResult, ErrorCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -46,6 +46,11 @@ pub enum GrantSource {
     CommandLine,
     /// The window's project file (opened or saved): kept while the window lives.
     Project,
+    /// An entry of the recent lists ([`crate::recent`]): recorded only after a granted open or save.
+    Recent,
+    /// A file or folder IMT itself produced or chose (an unpacked bundle, a tool's output, the demo
+    /// samples, the autosaved session, a capture named by an opened project).
+    Output,
 }
 
 /// A path the user chose, checked: canonical (for a write, its folder is) and granted for `access`.
@@ -94,7 +99,7 @@ pub struct PathGrants {
 
 impl PathGrants {
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Vec<Grant>>> {
-        self.windows.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.windows)
     }
 
     /// Records that the user chose `path` in `window`. A read grant needs an existing file or folder; a
@@ -159,13 +164,13 @@ impl PathGrants {
             .get(window)
             .is_some_and(|list| list.iter().any(|g| g.covers(&resolved, access, now)));
         if !granted {
-            return Err(match access {
+            return Err(CmdError::not_granted(match access {
                 Access::Read => format!("IMT only reads files you choose: choose {} again with Open", file_name(&resolved)),
                 Access::Write => format!(
                     "IMT only writes where you choose: choose where to save {} again",
                     file_name(&resolved)
                 ),
-            });
+            }));
         }
         Ok(GrantedPath { path: resolved, access })
     }
@@ -252,7 +257,7 @@ impl WindowGrants {
     pub fn read_file(&self, raw: &str, extensions: &[&str]) -> CmdResult<GrantedPath> {
         let g = self.read(raw, extensions)?;
         if !g.path.is_file() {
-            return Err(format!("{} is not a file", g.path.display()));
+            return Err(CmdError::invalid(format!("{} is not a file", g.path.display())));
         }
         Ok(g)
     }
@@ -261,9 +266,27 @@ impl WindowGrants {
     pub fn read_dir(&self, raw: &str) -> CmdResult<GrantedPath> {
         let g = self.read(raw, &[])?;
         if !g.path.is_dir() {
-            return Err(format!("{} is not a folder", g.path.display()));
+            return Err(CmdError::invalid(format!("{} is not a folder", g.path.display())));
         }
         Ok(g)
+    }
+
+    /// An existing file or folder the user chose, or one the caller vouches for (`listed`: an entry of
+    /// the recent lists), which is granted again now.
+    pub fn read_or_listed(&self, raw: &str, extensions: &[&str], listed: impl FnOnce(&str) -> bool) -> CmdResult<GrantedPath> {
+        match self.read(raw, extensions) {
+            Ok(g) => Ok(g),
+            Err(e) if listed(raw) => {
+                self.grant(parse(raw)?, Access::Read, GrantSource::Recent).map_err(|_| e)?;
+                self.read(raw, extensions)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// A file the user chose to read, or to write (a new file that does not exist yet).
+    pub fn read_or_write(&self, raw: &str, extensions: &[&str]) -> CmdResult<GrantedPath> {
+        self.read(raw, extensions).or_else(|e| self.write(raw, extensions).map_err(|_| e))
     }
 
     /// A file the user chose to write (it may not exist yet).
@@ -290,23 +313,30 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WindowGrants {
 /// A path from the webview: not empty, not too long, no NUL, absolute.
 pub fn parse(raw: &str) -> CmdResult<&Path> {
     if raw.trim().is_empty() {
-        return Err("choose a file".into());
+        return Err(CmdError::invalid("choose a file"));
     }
     if raw.len() > MAX_PATH_LEN || raw.contains('\0') {
-        return Err("this is not a valid path".into());
+        return Err(CmdError::invalid("this is not a valid path"));
     }
     let p = Path::new(raw);
     if !p.is_absolute() {
-        return Err(format!("the path must be absolute (choose the file in the dialog): {raw}"));
+        return Err(CmdError::invalid(format!(
+            "the path must be absolute (choose the file in the dialog): {raw}"
+        )));
     }
     Ok(p)
 }
 
 /// An existing file or folder, canonicalised.
 fn canonical(path: &Path) -> CmdResult<PathBuf> {
-    std::fs::canonicalize(path)
-        .map(plain)
-        .map_err(|e| format!("cannot open {}: {e}", path.display()))
+    std::fs::canonicalize(path).map(plain).map_err(|e| {
+        let code = if e.kind() == std::io::ErrorKind::NotFound {
+            ErrorCode::NotFound
+        } else {
+            ErrorCode::Io
+        };
+        CmdError::new(code, format!("cannot open {}: {e}", path.display()))
+    })
 }
 
 /// A canonical Windows path without its verbatim prefix when it has an ordinary spelling (`C:` drives and
@@ -332,13 +362,16 @@ pub fn plain(path: PathBuf) -> PathBuf {
 fn output_target(path: &Path) -> CmdResult<PathBuf> {
     let name = match path.components().next_back() {
         Some(Component::Normal(n)) => n.to_owned(),
-        _ => return Err("choose a file name".into()),
+        _ => return Err(CmdError::invalid("choose a file name")),
     };
-    let parent = path.parent().filter(|d| !d.as_os_str().is_empty()).ok_or("choose a folder")?;
-    let dir = std::fs::canonicalize(parent).map_err(|_| format!("the folder {} does not exist", parent.display()))?;
+    let parent = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .ok_or_else(|| CmdError::invalid("choose a folder"))?;
+    let dir = std::fs::canonicalize(parent).map_err(|_| CmdError::not_found(format!("the folder {} does not exist", parent.display())))?;
     let target = plain(dir).join(name);
     if target.is_dir() {
-        return Err(format!("{} is a folder", target.display()));
+        return Err(CmdError::invalid(format!("{} is a folder", target.display())));
     }
     Ok(target)
 }
@@ -355,7 +388,7 @@ fn has_extension(path: &Path, extensions: &[&str]) -> CmdResult<()> {
     if extensions.contains(&ext.as_str()) {
         Ok(())
     } else {
-        Err(format!("the file must end in .{}", extensions.join(" or .")))
+        Err(CmdError::invalid(format!("the file must end in .{}", extensions.join(" or ."))))
     }
 }
 
@@ -365,6 +398,19 @@ pub fn output_file(raw: &str, extensions: &[&str]) -> CmdResult<PathBuf> {
     let target = output_target(parse(raw)?)?;
     has_extension(&target, extensions)?;
     Ok(target)
+}
+
+/// `name` (from the webview) as a file directly in `root`: one plain name (no separators, `.`, `..` or
+/// NUL), not too long.
+pub fn child(root: &Path, name: &str) -> CmdResult<PathBuf> {
+    let mut parts = Path::new(name).components();
+    match (parts.next(), parts.next()) {
+        (Some(Component::Normal(n)), None) if name.len() <= 255 && !name.contains(['\0', '/', '\\']) => Ok(root.join(n)),
+        _ => Err(CmdError::invalid(format!(
+            "{} is not a file name",
+            name.chars().take(80).collect::<String>()
+        ))),
+    }
 }
 
 /// `item` as it may be removed: its parent must resolve (canonically) inside `root`, which is itself
@@ -388,6 +434,7 @@ pub fn confined(root: &Path, item: &Path) -> Result<PathBuf, String> {
 // ---- the dialogs ----
 
 /// What a dialog asks for.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PickKind {
@@ -399,6 +446,7 @@ pub enum PickKind {
 }
 
 /// A file type offered in a dialog.
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PickFilter {
     pub name: String,
@@ -406,6 +454,7 @@ pub struct PickFilter {
 }
 
 /// `pick_paths`' request (camelCase on the wire; mirrored as `PickRequest` in api.types.ts).
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PickRequest {
@@ -413,9 +462,11 @@ pub struct PickRequest {
     #[serde(default)]
     pub title: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(as = "Option<Vec<PickFilter>>", optional))]
     pub filters: Vec<PickFilter>,
     /// Suggested file name of a save dialog (a name, not a path).
     #[serde(default)]
+    #[cfg_attr(test, ts(optional))]
     pub default_name: Option<String>,
 }
 
@@ -464,7 +515,10 @@ pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::WebviewWin
     for path in chosen {
         match grant(&app, window.label(), &path, access, GrantSource::Dialog) {
             Ok(_) => granted.push(path.to_string_lossy().into_owned()),
-            Err(e) => log::warn!("a chosen path could not be granted: {}", crate::activity::privacy::redact(&e)),
+            Err(e) => log::warn!(
+                "a chosen path could not be granted: {}",
+                crate::activity::privacy::redact(&e.message)
+            ),
         }
     }
     Ok(granted)
@@ -633,6 +687,10 @@ mod tests {
         assert!(output_file(&s(&t.0.join("dir.png")), &["png"]).unwrap_err().contains("is a folder"));
         assert!(output_file("/", &["png"]).is_err());
         assert!(output_file(&s(&t.0.join("..")), &[]).is_err());
+        assert_eq!(child(&t.0, "v1.toml").unwrap(), t.0.join("v1.toml"));
+        for bad in ["..", ".", "a/b", r"a\b", "", "/abs", "x\0y"] {
+            assert!(child(&t.0, bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]
@@ -714,5 +772,7 @@ mod tests {
         std::fs::write(&other, "name = 'x'").unwrap();
         let e = crate::tools::tests::ipc(&main, "import_profile", serde_json::json!({ "path": s(&other) })).unwrap_err();
         assert!(e.to_string().contains("only reads files you choose"), "{e}");
+        // The one error contract: code, message, retryable.
+        assert_eq!((e["code"].as_str(), e["retryable"].as_bool()), (Some("notGranted"), Some(false)));
     }
 }

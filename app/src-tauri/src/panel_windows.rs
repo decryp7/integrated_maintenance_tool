@@ -170,7 +170,7 @@ pub struct Popouts {
 
 impl Popouts {
     fn lock(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, Entry>> {
-        self.map.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.map)
     }
 
     /// The label of the pop-out showing `view_id` for `host`, if there is one.
@@ -426,22 +426,22 @@ pub fn dragged<R: Runtime>(app: &AppHandle<R>, label: &str) {
 #[tauri::command]
 pub async fn popout_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, request: PopoutRequest) -> CmdResult<PopoutInfo> {
     // Async: a window must not be created from a synchronous command (it deadlocks on Windows).
-    crate::panel_windows::open(&app, resolve(window.label()), request).map_err(err)
+    crate::error::lift(crate::panel_windows::open(&app, resolve(window.label()), request).map_err(err))
 }
 
 /// Closes a pop-out of the calling window's group; its panel docks back into the host.
 #[tauri::command]
-pub fn dock_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, popout_label: String) -> CmdResult<()> {
+pub async fn dock_panel<R: Runtime>(app: AppHandle<R>, window: Window<R>, popout_label: String) -> CmdResult<()> {
     if host_of(&popout_label) != Some(resolve(window.label())) {
         return Err("that is not a pop-out of this window".into());
     }
     let w = app.get_webview_window(&popout_label).ok_or("the pop-out was already closed")?;
-    w.close().map_err(err)
+    crate::error::lift(w.close().map_err(err))
 }
 
 /// The pop-outs of the calling window's group (the host and its pop-outs see the same list).
 #[tauri::command]
-pub fn list_popouts<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> Vec<PopoutInfo> {
+pub async fn list_popouts<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> Vec<PopoutInfo> {
     let host = resolve(window.label());
     let Some(popouts) = app.try_state::<Popouts>() else {
         return Vec::new();
@@ -455,7 +455,7 @@ pub fn list_popouts<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> Vec<Pop
 
 /// Keeps the calling pop-out above other windows (or not).
 #[tauri::command]
-pub fn set_popout_on_top<R: Runtime>(app: AppHandle<R>, window: Window<R>, on: bool) -> CmdResult<()> {
+pub async fn set_popout_on_top<R: Runtime>(app: AppHandle<R>, window: Window<R>, on: bool) -> CmdResult<()> {
     let label = window.label();
     if !is_popout(label) {
         return Err("only a pop-out window can stay on top".into());
@@ -470,6 +470,7 @@ pub fn set_popout_on_top<R: Runtime>(app: AppHandle<R>, window: Window<R>, on: b
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
     use crate::test_support::{test_app, test_app_with_commands, window};
     use crate::windows::{emit_to_window, CurrentWindow, MAIN};
     use std::sync::{Arc, Mutex};
@@ -569,9 +570,12 @@ mod tests {
         assert_eq!(changed.lock().unwrap().len(), 1);
         // Popping out the same view again focuses the existing window.
         assert_eq!(open(&h, MAIN, request("inspector")).unwrap().label, "p-main-1");
-        let listed = list_popouts(h.clone(), window(&app, "p-main-1").as_ref().window());
+        let listed = list_popouts(h.clone(), window(&app, "p-main-1").as_ref().window()).now();
         assert_eq!(listed.len(), 1, "a pop-out sees its group's list");
-        assert_eq!(list_popouts(h.clone(), window(&app, MAIN).as_ref().window())[0].label, "p-main-1");
+        assert_eq!(
+            list_popouts(h.clone(), window(&app, MAIN).as_ref().window()).now()[0].label,
+            "p-main-1"
+        );
 
         let mut bad = request("../etc");
         assert!(open(&h, MAIN, bad.clone()).is_err());
@@ -704,13 +708,23 @@ mod tests {
         let listed = invoke("list_popouts", serde_json::json!({})).unwrap();
         assert_eq!(listed[0]["viewId"], "inspector");
         invoke("set_popout_on_top", serde_json::json!({ "on": true })).unwrap();
-        assert!(list_popouts(h.clone(), window(&app, MAIN).as_ref().window())[0].always_on_top);
-        assert!(set_popout_on_top(h.clone(), window(&app, MAIN).as_ref().window(), true).is_err());
+        assert!(list_popouts(h.clone(), window(&app, MAIN).as_ref().window()).now()[0].always_on_top);
+        assert!(set_popout_on_top(h.clone(), window(&app, MAIN).as_ref().window(), true)
+            .now()
+            .is_err());
         // Docking: only pop-outs of the caller's own group.
-        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-w-9-1".into()).is_err());
-        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "main".into()).is_err());
-        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-main-1".into()).is_ok());
-        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-main-5".into()).is_err());
+        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-w-9-1".into())
+            .now()
+            .is_err());
+        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "main".into())
+            .now()
+            .is_err());
+        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-main-1".into())
+            .now()
+            .is_ok());
+        assert!(dock_panel(h.clone(), window(&app, MAIN).as_ref().window(), "p-main-5".into())
+            .now()
+            .is_err());
     }
 
     #[test]

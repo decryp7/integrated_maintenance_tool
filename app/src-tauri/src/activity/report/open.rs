@@ -44,9 +44,7 @@ const MAX_FIELD: usize = 4000;
 /// The file next to the copied-out logs that names the zip they came from.
 const SOURCE_FILE: &str = "source.json";
 
-fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 /// The manifest as the panel shows it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -440,6 +438,13 @@ fn reports<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, OpenedReports> {
     app.state::<OpenedReports>()
 }
 
+/// A window closed: the report it opened and its pending notice go with it.
+pub fn forget_window<R: Runtime>(app: &AppHandle<R>, window: &str) {
+    let state = reports(app);
+    lock(&state.opened).remove(window);
+    lock(&state.notices).remove(window);
+}
+
 /// Called by `open_paths` before opening: diagnostics reports become the folders of their logs, and the
 /// window remembers the report for its panel. Never fails: anything unexpected opens the paths as given.
 pub async fn divert<R: Runtime>(app: &AppHandle<R>, window: &str, paths: Vec<String>) -> Vec<String> {
@@ -539,9 +544,11 @@ pub async fn diagnostics_report_image<R: Runtime>(app: AppHandle<R>, state: Curr
         .get(state.label())
         .cloned()
         .ok_or("no diagnostics report is open in this window")?;
-    tauri::async_runtime::spawn_blocking(move || read_image(&opened.zip, &opened.manifest, &id))
-        .await
-        .map_err(err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || read_image(&opened.zip, &opened.manifest, &id))
+            .await
+            .map_err(err)?,
+    )
 }
 
 #[cfg(test)]
@@ -753,5 +760,17 @@ mod tests {
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), crate::test_support::main_window(&app))).unwrap();
         assert!(st.notice.is_none());
         std::fs::remove_dir_all(d).unwrap();
+    }
+
+    /// A closed window's report and notice go with it (they used to stay for the app's lifetime).
+    #[test]
+    fn a_closed_window_forgets_its_report() {
+        let app = crate::test_support::test_app(None);
+        let state = reports(app.handle());
+        lock(&state.notices).insert("w-4".into(), "n".into());
+        lock(&state.notices).insert("main".into(), "kept".into());
+        crate::window_scoped::destroyed(app.handle(), "w-4");
+        assert!(!lock(&state.notices).contains_key("w-4"));
+        assert!(lock(&state.notices).contains_key("main"));
     }
 }

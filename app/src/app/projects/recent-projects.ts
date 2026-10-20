@@ -1,64 +1,38 @@
-import { InjectionToken } from '@angular/core';
+import { inject, InjectionToken } from '@angular/core';
+import { RecentProject } from '../core/api.types';
+import { RecentService } from '../core/recent/recent.service';
 
-export interface RecentProject {
-  path: string;
-  name: string;
-}
+export type { RecentProject } from '../core/api.types';
 
-/** Remembers recently used projects, newest first. Implementations must never throw. */
+/** Recently used projects, newest first (Rust's list; the tray shows the same). Implementations must never throw. */
 export interface RecentProjects {
+  /** Reads a signal where the implementation has one, so `computed` follows changes. */
   list(): RecentProject[];
-  /** Puts a project at the front (deduplicated by path, capped). */
+  /** The UI opened or saved this project (Rust records it itself; see `RecentBackend.opened`). */
   add(project: RecentProject): void;
   remove(path: string): void;
   clear(): void;
 }
 
-export const RECENT_PROJECTS_KEY = 'imt.recentProjects';
-export const RECENT_PROJECTS_VERSION = 1;
-export const RECENT_PROJECTS_MAX = 10;
-
-/** `localStorage` implementation: a versioned JSON envelope; corrupt data reads as empty. */
-export class LocalStorageRecentProjects implements RecentProjects {
-  constructor(
-    private readonly key = RECENT_PROJECTS_KEY,
-    private readonly max = RECENT_PROJECTS_MAX,
-  ) {}
+/** The recent projects of Rust's list (see `RecentService`). */
+export class BackendRecentProjects implements RecentProjects {
+  constructor(private readonly recent: RecentService) {}
 
   list(): RecentProject[] {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(this.key) ?? 'null') as { version?: number; projects?: unknown } | null;
-      if (!parsed || parsed.version !== RECENT_PROJECTS_VERSION || !Array.isArray(parsed.projects)) return [];
-      return parsed.projects
-        .filter((p): p is RecentProject => !!p && typeof p.path === 'string' && typeof p.name === 'string')
-        .slice(0, this.max);
-    } catch {
-      return [];
-    }
+    return this.recent.projects();
   }
-
   add(project: RecentProject): void {
-    this.write([project, ...this.list().filter((p) => p.path !== project.path)].slice(0, this.max));
+    void this.recent.opened([], project);
   }
-
   remove(path: string): void {
-    this.write(this.list().filter((p) => p.path !== path));
+    void this.recent.remove('projects', path);
   }
-
   clear(): void {
-    this.write([]);
-  }
-
-  private write(projects: RecentProject[]): void {
-    try {
-      localStorage.setItem(this.key, JSON.stringify({ version: RECENT_PROJECTS_VERSION, projects }));
-    } catch {
-      /* storage unavailable: recents are a convenience only */
-    }
+    void this.recent.clear('projects');
   }
 }
 
 export const RECENT_PROJECTS = new InjectionToken<RecentProjects>('RECENT_PROJECTS', {
   providedIn: 'root',
-  factory: () => new LocalStorageRecentProjects(),
+  factory: () => new BackendRecentProjects(inject(RecentService)),
 });

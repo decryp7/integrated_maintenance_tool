@@ -72,7 +72,7 @@ pub struct BackgroundTasks {
 
 impl BackgroundTasks {
     fn entries(&self) -> MutexGuard<'_, Vec<Entry>> {
-        self.entries.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.entries)
     }
 
     /// Adds a task, or replaces the one with the same id (keeping its start time).
@@ -190,12 +190,12 @@ impl BackgroundTasks {
 
     /// Calls `f` with the full list after every change.
     pub fn subscribe(&self, f: impl Fn(&[TaskInfo]) + Send + Sync + 'static) {
-        self.listeners.lock().unwrap_or_else(|p| p.into_inner()).push(Arc::new(f));
+        crate::sync::lock(&self.listeners).push(Arc::new(f));
     }
 
     fn changed(&self) {
         let list = self.list();
-        let listeners = self.listeners.lock().unwrap_or_else(|p| p.into_inner()).clone();
+        let listeners = crate::sync::lock(&self.listeners).clone();
         for l in listeners {
             // A failing listener (e.g. the tray is gone) must not break the producer.
             if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| l(&list))) {
@@ -207,19 +207,21 @@ impl BackgroundTasks {
 
 /// The running background work, for the status bar.
 #[tauri::command]
-pub fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> Vec<TaskInfo> {
-    tasks.list()
+pub async fn background_tasks(tasks: tauri::State<'_, BackgroundTasks>) -> crate::CmdResult<Vec<TaskInfo>> {
+    Ok(tasks.list())
 }
 
 /// Stops a background task (off the UI thread: stopping may join a worker or run `logman`).
 #[tauri::command]
 pub async fn stop_background_task<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> crate::CmdResult<()> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("IMT is not ready yet")?;
-        tasks.stop(&id).map_err(crate::err)
-    })
-    .await
-    .map_err(crate::err)?
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || {
+            let tasks = tauri::Manager::try_state::<BackgroundTasks>(&app).ok_or("IMT is not ready yet")?;
+            tasks.stop(&id).map_err(crate::err)
+        })
+        .await
+        .map_err(crate::err)?,
+    )
 }
 
 #[cfg(test)]

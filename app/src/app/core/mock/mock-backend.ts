@@ -350,7 +350,7 @@ export class MockBackend implements ImtBackend {
     return Promise.resolve(this.importSim ? this.importSim.progress() : { ...this.quickProgress });
   }
 
-  /** `cancel_import`. */
+  /** Cancel of the import (the Tauri backend cancels its job). */
   cancelImport(): Promise<void> {
     this.importSim?.cancel();
     return Promise.resolve();

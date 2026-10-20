@@ -58,9 +58,10 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
     let h = app.clone();
     jobs.set_retry(JobKind::Research, move |job| crate::browser::research::retry(&h, job));
     let mirrored = Mutex::new(HashSet::<String>::new());
+    let sent = Mutex::new(Sent::default());
     jobs.subscribe(move |event| match event {
         JobsEvent::Changed => {
-            emit_all(&handle, &service);
+            emit_all(&handle, &service, &sent);
             mirror(&handle, &service, &mirrored);
         }
         JobsEvent::Finished(f) => finished(&handle, f),
@@ -68,12 +69,63 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
     });
 }
 
-fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs) {
+/// What each window was last sent: its version and snapshot.
+type Sent = std::collections::HashMap<String, (u64, JobsSnapshot)>;
+
+/// What `imt://jobs` carries: the window's jobs as a change of the last event (version `version`, the one
+/// before is `version - 1`): the jobs in their order by id, those new or changed in full, the paused queues.
+/// A window that missed a version asks for the list again (`jobs_list`).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobsDelta {
+    pub version: u64,
+    pub order: Vec<JobId>,
+    pub changed: Vec<queue::JobInfo>,
+    pub paused: Vec<queue::PausedKind>,
+}
+
+/// The change from `prev` to `next` as version `version`; `None` when nothing changed (nothing is sent).
+pub fn delta(prev: Option<&JobsSnapshot>, next: &JobsSnapshot, version: u64) -> Option<JobsDelta> {
+    if prev == Some(next) {
+        return None;
+    }
+    let changed = next
+        .jobs
+        .iter()
+        .filter(|j| !prev.is_some_and(|p| p.jobs.iter().any(|o| o == *j)))
+        .cloned()
+        .collect();
+    Some(JobsDelta {
+        version,
+        order: next.jobs.iter().map(|j| j.id).collect(),
+        changed,
+        paused: next.paused.clone(),
+    })
+}
+
+/// Sends each window what changed in its jobs since its last event (nothing when nothing did). `sent` is
+/// held only to compute the deltas; events go out after it is released.
+fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, sent: &Mutex<Sent>) {
     let Some(windows) = app.try_state::<crate::windows::Windows>() else {
         return;
     };
-    for w in windows.all() {
-        crate::windows::emit_to_window(app, w.label(), JOBS_EVENT, jobs.snapshot(Some(w.label())));
+    let labels: Vec<String> = windows.all().iter().map(|w| w.label().to_string()).collect();
+    let deltas: Vec<(String, JobsDelta)> = {
+        let mut sent = crate::sync::lock(sent);
+        sent.retain(|l, _| labels.contains(l));
+        labels
+            .into_iter()
+            .filter_map(|label| {
+                let next = jobs.snapshot(Some(&label));
+                let (version, prev) = sent.get(&label).map_or((0, None), |(v, s)| (*v, Some(s)));
+                let d = delta(prev, &next, version + 1)?;
+                sent.insert(label.clone(), (version + 1, next));
+                Some((label, d))
+            })
+            .collect()
+    };
+    for (label, d) in deltas {
+        crate::windows::emit_to_window(app, &label, JOBS_EVENT, d);
     }
 }
 
@@ -84,7 +136,7 @@ pub(crate) fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mut
     let Some(tasks) = app.try_state::<BackgroundTasks>() else { return };
     let running = jobs.running_visible();
     let now: HashSet<String> = running.iter().map(|j| format!("{TASK_PREFIX}{}", j.id)).collect();
-    let known = std::mem::replace(&mut *mirrored.lock().unwrap_or_else(|p| p.into_inner()), now.clone());
+    let known = std::mem::replace(&mut *crate::sync::lock(mirrored), now.clone());
     for gone in known.difference(&now) {
         tasks.remove(gone);
     }
@@ -219,6 +271,23 @@ where
     T: Send + 'static,
     E: JobFailure + From<Stopped> + Send + 'static,
 {
+    run_announced(app, spec, controls, |_| {}, f).await
+}
+
+/// Like [`run`], telling `announce` the job's id once it is queued (the caller hands it to the UI, which
+/// cancels with `jobs_cancel`: Jobs are the one cancel authority).
+pub(crate) async fn run_announced<R, T, E>(
+    app: &AppHandle<R>,
+    spec: JobSpec,
+    controls: Controls,
+    announce: impl FnOnce(JobId),
+    f: impl FnOnce(&JobCtx) -> Result<Done<T>, E> + Send + 'static,
+) -> Result<T, E>
+where
+    R: Runtime,
+    T: Send + 'static,
+    E: JobFailure + From<Stopped> + Send + 'static,
+{
     let Some(jobs) = app.try_state::<Jobs>().map(|j| j.inner().clone()) else {
         return tauri::async_runtime::spawn_blocking(move || f(&JobCtx::detached()).map(|d| d.value))
             .await
@@ -227,6 +296,7 @@ where
     let handle = jobs
         .submit(spec, controls, f)
         .map_err(|r| E::from(Stopped::Refused(r.to_string())))?;
+    announce(handle.id);
     tauri::async_runtime::spawn_blocking(move || handle.wait())
         .await
         .map_err(|e| E::from(Stopped::Failed(format!("the task stopped unexpectedly ({e})"))))?
@@ -239,7 +309,7 @@ pub(crate) fn read_store<T>(
     f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<T>,
 ) -> anyhow::Result<T> {
     let ws = win.workspace.clone();
-    let guard = ws.read().unwrap_or_else(|p| p.into_inner());
+    let guard = crate::sync::read(&ws);
     f(guard.as_ref())
 }
 
@@ -254,6 +324,21 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
     controls: Controls,
     f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
+    analysis_announced(app, win, title, view, ql, controls, |_| {}, f).await
+}
+
+/// [`analysis`], telling `announce` the job's id once it is queued (see [`run_announced`]).
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
+    app: &AppHandle<R>,
+    win: &CurrentWindow,
+    title: &str,
+    view: &str,
+    ql: Option<String>,
+    controls: Controls,
+    announce: impl FnOnce(JobId),
+    f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
+) -> CmdResult<T> {
     let mut spec = JobSpec::new(JobKind::Analysis, title).window(win.label());
     let ql = ql.filter(|q| !q.trim().is_empty());
     if let Some(q) = &ql {
@@ -264,12 +349,14 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
         ql,
     };
     let w = win.arc().clone();
-    run(app, spec, controls, move |ctx| {
-        read_store(&w, |ws| f(ws, ctx))
-            .map(|v| Done::new(v).with_result(result))
-            .map_err(crate::err)
-    })
-    .await
+    crate::error::lift(
+        run_announced(app, spec, controls, announce, move |ctx| {
+            read_store(&w, |ws| f(ws, ctx))
+                .map(|v| Done::new(v).with_result(result))
+                .map_err(crate::err)
+        })
+        .await,
+    )
 }
 
 /// The spec of an export to `path` by the window (or the app).
@@ -299,12 +386,14 @@ pub(crate) fn start_file<R: Runtime>(
     let result = JobResult::File {
         path: path.display().to_string(),
     };
-    spawn(app, spec, Controls::default(), move |ctx| {
-        let summary = f(ctx)?;
-        ctx.message(&summary);
-        Ok::<_, String>(Done::new(()).with_result(result))
-    })
-    .map(|id| id.0)
+    crate::error::lift(
+        spawn(app, spec, Controls::default(), move |ctx| {
+            let summary = f(ctx)?;
+            ctx.message(&summary);
+            Ok::<_, String>(Done::new(()).with_result(result))
+        })
+        .map(|id| id.0),
+    )
 }
 
 /// An export of the window's logs to `path` as a background export job (two at a time); see [`start_file`].
@@ -337,9 +426,11 @@ where
 }
 
 fn service<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Jobs> {
-    app.try_state::<Jobs>()
-        .map(|j| j.inner().clone())
-        .ok_or_else(|| "IMT is not ready yet".to_string())
+    crate::error::lift(
+        app.try_state::<Jobs>()
+            .map(|j| j.inner().clone())
+            .ok_or_else(|| "IMT is not ready yet".to_string()),
+    )
 }
 
 /// The job, when the calling window may act on it (its own or an app-wide one).
@@ -366,7 +457,7 @@ pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
 }
 
 #[tauri::command]
-pub fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<JobsSnapshot> {
+pub async fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<JobsSnapshot> {
     Ok(service(&app)?.snapshot(Some(win.label())))
 }
 
@@ -376,22 +467,22 @@ pub fn jobs_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult
 pub async fn jobs_cancel<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.cancel(JobId(id))
+    crate::error::lift(jobs.cancel(JobId(id)))
 }
 
 #[tauri::command]
 /// Runs a failed, cancelled or interrupted job again; returns the new job (null when the window starts it).
-pub fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<u64>> {
+pub async fn jobs_retry<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<u64>> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.retry(JobId(id)).map(|j| j.map(|j| j.0))
+    crate::error::lift(jobs.retry(JobId(id)).map(|j| j.map(|j| j.0)))
 }
 
 #[tauri::command]
 pub async fn jobs_move<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64, up: bool) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
-    jobs.move_job(JobId(id), up)
+    crate::error::lift(jobs.move_job(JobId(id), up))
 }
 
 #[tauri::command]
@@ -401,7 +492,7 @@ pub async fn jobs_clear_finished<R: Runtime>(app: AppHandle<R>, win: CurrentWind
 
 /// The user viewed a job's result: its unseen mark goes.
 #[tauri::command]
-pub fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<bool> {
+pub async fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<bool> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     Ok(jobs.mark_seen(JobId(id)))
@@ -409,7 +500,7 @@ pub fn jobs_mark_seen<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64
 
 /// What View opens. Marks the job seen.
 #[tauri::command]
-pub fn jobs_result<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<JobResult>> {
+pub async fn jobs_result<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<Option<JobResult>> {
     let jobs = service(&app)?;
     let job = owned(&jobs, &win, id)?;
     jobs.mark_seen(JobId(id));
@@ -426,14 +517,16 @@ pub async fn jobs_wait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u6
             return Err("this job belongs to another window".into());
         }
     }
-    tauri::async_runtime::spawn_blocking(move || jobs.wait_end(JobId(id)))
-        .await
-        .map_err(crate::err)
+    crate::error::lift(
+        tauri::async_runtime::spawn_blocking(move || jobs.wait_end(JobId(id)))
+            .await
+            .map_err(crate::err),
+    )
 }
 
 /// The dialog that waited for job `id` closed: the job goes on and tells the user when it is done.
 #[tauri::command]
-pub fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
+pub async fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<()> {
     let jobs = service(&app)?;
     owned(&jobs, &win, id)?;
     jobs.unwait(JobId(id));
@@ -442,7 +535,7 @@ pub fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
 
 /// Shows an export's file in the OS file manager (only the file the job wrote); returns its path.
 #[tauri::command]
-pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<String> {
+pub async fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<String> {
     let jobs = service(&app)?;
     let job = owned(&jobs, &win, id)?;
     let Some(JobResult::File { path }) = job.result else {
@@ -450,7 +543,7 @@ pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
     };
     let p = std::path::PathBuf::from(&path);
     if !p.exists() {
-        return Err(format!("{path} no longer exists"));
+        return Err(crate::CmdError::from(format!("{path} no longer exists")));
     }
     jobs.mark_seen(JobId(id));
     crate::opener::start(&crate::opener::reveal(crate::opener::Os::CURRENT, &p))
@@ -460,7 +553,7 @@ pub fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -
 
 /// The window's finished jobs for its project and session (`JobsRecord` v1).
 #[tauri::command]
-pub fn jobs_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<persist::JobsRecord> {
+pub async fn jobs_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<persist::JobsRecord> {
     Ok(service(&app)?.record(win.label()))
 }
 
@@ -473,7 +566,7 @@ pub struct RestoredJobs {
 
 /// Replaces the window's history with a saved one; unfinished jobs come back as interrupted.
 #[tauri::command]
-pub fn jobs_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> CmdResult<RestoredJobs> {
+pub async fn jobs_restore<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record: Option<Value>) -> CmdResult<RestoredJobs> {
     let jobs = service(&app)?;
     let warning = jobs.restore(win.label(), record.as_ref());
     Ok(RestoredJobs {

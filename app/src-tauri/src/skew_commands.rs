@@ -12,7 +12,10 @@ use imt_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResu
 #[tauri::command]
 pub(crate) async fn set_source_offset(state: CurrentWindow, op: OpId, request: SetOffsetRequest) -> CmdResult<OffsetChange> {
     if request.track.len() > MAX_TRACKED {
-        return Err(format!("too many tracked events ({}; at most {MAX_TRACKED})", request.track.len()));
+        return Err(crate::CmdError::from(format!(
+            "too many tracked events ({}; at most {MAX_TRACKED})",
+            request.track.len()
+        )));
     }
     write(&state, move |ws| {
         let change = ws.set_source_offset(&request)?;
@@ -34,6 +37,7 @@ pub(crate) async fn suggest_offsets(state: CurrentWindow, request: Option<Sugges
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
     use crate::test_support::{block, main_window, test_app, TempDir};
     use imt_core::skew::OffsetSpec;
     use serde_json::json;
@@ -100,6 +104,7 @@ mod tests {
         crate::paths::allow_under(app.handle(), "main", &dir.0);
         let path = project.to_string_lossy().into_owned();
         block(crate::workspace_commands::save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -112,10 +117,11 @@ mod tests {
         .unwrap();
         let saved: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&project).unwrap()).unwrap();
         assert_eq!(saved["clock"]["b.log"], 1_200);
-        block(crate::workspace_commands::clear_workspace(st())).unwrap();
+        block(crate::workspace_commands::clear_workspace(st())).unwrap().json();
         let opened = block(crate::workspace_commands::open_project(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             path,
         ))

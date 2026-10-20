@@ -28,7 +28,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
       <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
+    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
       @if (res.data(); as m) {
         <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">

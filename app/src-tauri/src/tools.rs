@@ -60,7 +60,7 @@ struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, (crate:
 
 impl CollectionJobs {
     fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>> {
-        self.0.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.0)
     }
 }
 
@@ -111,7 +111,7 @@ impl<R: Runtime> ShellTasks<R> {
         let rx = std::sync::Mutex::new(rx);
         match jobs.submit_work(spec, controls, move |_| {
             // The tool says when it is done (or the sender goes with IMT).
-            let _ = rx.lock().unwrap_or_else(|p| p.into_inner()).recv();
+            let _ = crate::sync::lock(&rx).recv();
             crate::jobs::queue::JobEnd::Done(None)
         }) {
             Ok(job) => {
@@ -188,16 +188,23 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
     }
 }
 
-/// What the user can do when a tool is missing.
-fn missing(error: ToolError, safe_mode: bool) -> String {
+/// A tool error as the command's error: its kind is the code (missing rights and programs are typed by the
+/// tool, see `ToolFailure`); a missing tool says what the user can do.
+fn missing(error: ToolError, safe_mode: bool) -> crate::CmdError {
+    use crate::{CmdError, ErrorCode};
     match error {
-        ToolError::UnknownTool(tool) if safe_mode => {
-            format!("\"{tool}\" is not available in safe mode (plugins are off); restart normally to use it")
-        }
-        ToolError::UnknownTool(tool) => {
-            format!("no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)")
-        }
-        other => other.to_string(),
+        ToolError::UnknownTool(tool) if safe_mode => CmdError::unavailable(format!(
+            "\"{tool}\" is not available in safe mode (plugins are off); restart normally to use it"
+        )),
+        ToolError::UnknownTool(tool) => CmdError::not_found(format!(
+            "no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)"
+        )),
+        e @ ToolError::UnknownOp { .. } => CmdError::not_found(e.to_string()),
+        e @ ToolError::InvalidArgs { .. } => CmdError::invalid(e.to_string()).field("args"),
+        ToolError::Unsupported(m) => CmdError::new(ErrorCode::Unsupported, m),
+        ToolError::Denied(m) => CmdError::new(ErrorCode::Denied, m).hint("Restart IMT as administrator, then try again."),
+        ToolError::Missing(m) => CmdError::new(ErrorCode::Missing, m),
+        ToolError::Failed(m) => CmdError::failed(m),
     }
 }
 
@@ -245,24 +252,8 @@ fn tail(text: &str, max: usize) -> String {
     format!("…{}", &text[start..])
 }
 
-/// True for a failure the user can fix (missing rights, missing program), logged as a warning.
-fn user_fixable(message: &str) -> bool {
-    let m = message.to_ascii_lowercase();
-    [
-        "access is denied",
-        "access denied",
-        "elevat",
-        "administrator",
-        "permission denied",
-        "not found",
-        "not installed",
-    ]
-    .iter()
-    .any(|s| m.contains(s))
-}
-
 /// Logs a failed tool operation: bad requests and unavailable tools at Warning, failures of the tool or
-/// of the external program it runs (exit code, timeout, stderr) at Error unless the user can fix them.
+/// of the external program it runs (exit code, timeout, stderr) at Error; missing rights or programs at Warning.
 /// The text is redacted and bounded.
 fn log_failure(tool: &str, op: &str, e: &ToolError) {
     let full = crate::activity::privacy::redact(&e.to_string());
@@ -274,8 +265,11 @@ fn log_failure(tool: &str, op: &str, e: &ToolError) {
         ToolError::Unsupported(_) => "unsupported",
         ToolError::InvalidArgs { .. } => "invalid-args",
         ToolError::Failed(_) => "failed",
+        ToolError::Denied(_) => "denied",
+        ToolError::Missing(_) => "missing",
     };
-    if matches!(e, ToolError::Failed(_)) && !user_fixable(&message) {
+    // Missing rights and programs are the user's to fix (warnings); other failures are errors.
+    if matches!(e, ToolError::Failed(_)) {
         log::error!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
     } else {
         log::warn!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
@@ -293,14 +287,28 @@ pub async fn tool_invoke<R: Runtime>(
     op: String,
     args: Option<Value>,
 ) -> CmdResult<Value> {
-    invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await
+    let result = invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await?;
+    // What a tool wrote (a collected bundle, an event-log capture folder) may be opened from this window.
+    crate::paths::grant_read_all(&app, window.label(), &tool_outputs(&result), crate::paths::GrantSource::Output);
+    Ok(result)
+}
+
+/// The files and folders a tool reports it wrote: the top-level `bundle` and `dir` of its result (the
+/// tool output contract; plugin code, not the webview, names them).
+pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
+    ["bundle", "dir"]
+        .iter()
+        .filter_map(|k| result.get(*k).and_then(Value::as_str))
+        .filter(|p| crate::paths::parse(p).is_ok())
+        .map(PathBuf::from)
+        .collect()
 }
 
 /// The tools of the calling window's plugins, with their availability
 /// (unsupported platform or inactive/quarantined plugin, with the reason).
 /// Empty in safe mode.
 #[tauri::command]
-pub fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
+pub async fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
     window.tools.as_ref().map(ToolHost::list).unwrap_or_default()
 }
 
@@ -415,18 +423,18 @@ pub(crate) mod tests {
             json!({ "tool": "perfmon.templates", "op": "generate", "args": { "template": 3 } }),
         );
         assert_eq!(
-            bad.unwrap_err(),
+            bad.unwrap_err()["message"],
             json!("perfmon.templates generate: args.template must be an object, not a number")
         );
         let unknown = ipc(&main, "tool_invoke", json!({ "tool": "nope", "op": "x" })).unwrap_err();
         assert!(
-            unknown.as_str().unwrap().contains("is the System tools plugin disabled"),
+            unknown["message"].as_str().unwrap().contains("is the System tools plugin disabled"),
             "{unknown}"
         );
         let op = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "dance" })).unwrap_err();
-        assert!(op.as_str().unwrap().contains("has no operation \"dance\""), "{op}");
+        assert!(op["message"].as_str().unwrap().contains("has no operation \"dance\""), "{op}");
         let long = ipc(&main, "tool_invoke", json!({ "tool": "x".repeat(65), "op": "x" })).unwrap_err();
-        assert!(long.as_str().unwrap().contains("at most 64"), "{long}");
+        assert!(long["message"].as_str().unwrap().contains("at most 64"), "{long}");
         #[cfg(not(windows))]
         {
             let e = ipc(
@@ -435,7 +443,7 @@ pub(crate) mod tests {
                 json!({ "tool": "perfmon.sets", "op": "outputs", "args": { "name": "IMT" } }),
             )
             .unwrap_err();
-            assert!(e.as_str().unwrap().contains("only available on Windows"), "{e}");
+            assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{e}");
         }
     }
 
@@ -447,7 +455,10 @@ pub(crate) mod tests {
         let main = window(&app, "main");
         assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
         let e = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
-        assert!(e.as_str().unwrap().contains("is the System tools plugin disabled"), "{e}");
+        assert!(
+            e["message"].as_str().unwrap().contains("is the System tools plugin disabled"),
+            "{e}"
+        );
     }
 
     #[test]
@@ -534,15 +545,18 @@ pub(crate) mod tests {
         assert!(std::fs::read_to_string(&path).unwrap().contains("OrderService"));
         // The file exists now: replaced only when confirmed.
         let again = gen(json!({ "template": template, "xmlPath": path })).unwrap_err();
-        assert_eq!(again, json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX)));
+        assert_eq!(
+            again["message"],
+            json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX))
+        );
         assert!(gen(json!({ "template": template, "xmlPath": path, "overwrite": true })).is_ok());
         let bad = gen(json!({ "template": { "name": "", "sampleIntervalSecs": 0 } })).unwrap_err();
-        assert!(bad.as_str().unwrap().contains("collector name"), "{bad}");
+        assert!(bad["message"].as_str().unwrap().contains("collector name"), "{bad}");
 
         let plan = call(&main, "diagnostics", "default-plan", json!({})).unwrap();
         assert!(plan.as_str().unwrap().contains("redact"));
         let e = call(&main, "diagnostics", "collect", json!({ "plan": "{ nope", "outDir": dir.0 })).unwrap_err();
-        assert!(e.is_string());
+        assert!(e["message"].is_string() && e["code"] == "failed");
         // A bundle of the same name is replaced only when confirmed (the name has a one-second stamp).
         let out = dir.0.join("bundles");
         let plan = json!({ "name": "tool", "eventLogs": [], "environment": false }).to_string();
@@ -556,7 +570,10 @@ pub(crate) mod tests {
         }
         let refused = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap_err();
         assert!(
-            refused.as_str().unwrap().ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
+            refused["message"]
+                .as_str()
+                .unwrap()
+                .ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
             "{refused}"
         );
         assert!(call(
@@ -573,7 +590,7 @@ pub(crate) mod tests {
             ("perfmon.sets", "outputs", json!({ "name": "IMT-test" })),
         ] {
             let e = call(&main, tool, op, args).unwrap_err();
-            assert!(e.as_str().unwrap().contains("only available on Windows"), "{op}: {e}");
+            assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{op}: {e}");
         }
     }
 
@@ -586,13 +603,13 @@ pub(crate) mod tests {
         let started = call(&a, "process-monitor", "start", json!({ "config": config, "dir": dir.0 })).unwrap();
         assert_eq!(call(&b, "process-monitor", "status", json!({})).unwrap()["running"], true);
         let again = call(&b, "process-monitor", "start", json!({ "config": config })).unwrap_err();
-        assert_eq!(again, json!("the process monitor is already running"));
+        assert_eq!(again["message"], json!("the process monitor is already running"));
         let listed = app.state::<BackgroundTasks>().list();
         assert_eq!((listed[0].id.as_str(), listed[0].kind), ("monitor", TaskKind::ProcessMonitor));
         assert_eq!(call(&b, "process-monitor", "stop", json!({})).unwrap(), started);
         assert!(app.state::<BackgroundTasks>().list().is_empty());
         let bad = call(&a, "process-monitor", "start", json!({ "config": { "targets": [] } })).unwrap_err();
-        assert!(bad.as_str().unwrap().contains("at least one entry"), "{bad}");
+        assert!(bad["message"].as_str().unwrap().contains("at least one entry"), "{bad}");
     }
 
     #[test]
@@ -609,7 +626,7 @@ pub(crate) mod tests {
         log_failure(
             "perfmon.sets",
             "stop",
-            &ToolError::Failed("logman failed: Access is denied.".into()),
+            &ToolError::Denied("logman failed: Access is denied.".into()),
         );
         log_failure(
             "relog",
@@ -646,11 +663,29 @@ pub(crate) mod tests {
         let main = window(&app, "main");
         assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
         let e = ipc(&main, "tool_invoke", json!({ "tool": "process-monitor", "op": "status" })).unwrap_err();
-        assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
+        assert!(e["message"].as_str().unwrap().contains("not available in safe mode"), "{e}");
         // Elevation falls back to the shell's own token check (not a blanket "not elevated").
         let info = ipc(&main, "elevation", json!({})).unwrap();
         assert_eq!(info["canRestartElevated"], cfg!(windows));
         assert_eq!(info["elevated"], crate::system::process_elevated());
-        assert!(missing(ToolError::Failed("x".into()), true) == "x");
+        assert_eq!(missing(ToolError::Failed("x".into()), true).message, "x");
+        assert_eq!(missing(ToolError::Denied("d".into()), false).code, crate::ErrorCode::Denied);
+        assert_eq!(missing(ToolError::Missing("m".into()), false).code, crate::ErrorCode::Missing);
+        assert_eq!(
+            missing(ToolError::UnknownTool("t".into()), true).code,
+            crate::ErrorCode::Unavailable
+        );
+        assert_eq!(
+            missing(ToolError::Unsupported("u".into()), false).code,
+            crate::ErrorCode::Unsupported
+        );
+    }
+
+    #[test]
+    fn tool_outputs_are_the_reported_bundle_and_folder() {
+        let abs = std::env::temp_dir().join("out").to_string_lossy().into_owned();
+        let found = tool_outputs(&json!({ "bundle": abs, "dir": "relative", "other": abs, "manifest": {} }));
+        assert_eq!(found, vec![PathBuf::from(&abs)]);
+        assert!(tool_outputs(&json!(null)).is_empty());
     }
 }

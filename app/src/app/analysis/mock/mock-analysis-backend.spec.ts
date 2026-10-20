@@ -194,20 +194,34 @@ describe('TauriAnalysisBackend', () => {
     ]);
   });
 
-  it('streams a run through a channel and cancels it by id', async () => {
+  it('streams a run through a channel and cancels it through its job', async () => {
     const calls: [string, unknown][] = [];
-    const made: unknown[] = [];
-    const channel = <T>(onMessage: (m: T) => void) => (made.push(onMessage), { channel: 'fake' });
-    const t = new TauriAnalysisBackend((async (cmd: string, args?: unknown) => (calls.push([cmd, args]), cmd === 'cancel_query' ? true : { cancelled: true })) as never, channel);
+    let onEvent: ((m: unknown) => void) | undefined;
+    const channel = <T>(onMessage: (m: T) => void) => ((onEvent = onMessage as (m: unknown) => void), { channel: 'fake' });
+    let finish: (v: unknown) => void = () => undefined;
+    const call = (async (cmd: string, args?: unknown) => {
+      calls.push([cmd, args]);
+      return cmd === 'run_query_stream' ? new Promise((r) => (finish = r)) : undefined;
+    }) as never;
+    const t = new TauriAnalysisBackend(call, channel);
     const query = q({ ql: 'x' });
     const onProgress = vi.fn();
-    expect(await t.runQueryStreaming(query, 'q-1', onProgress)).toEqual({ cancelled: true });
+    const running = t.runQueryStreaming(query, 'q-1', onProgress);
+    await Promise.resolve();
+    // A cancel before the job is known is applied when it is.
     expect(await t.cancelQuery('q-1')).toBe(true);
+    onEvent?.({ kind: 'started', jobId: 5 });
+    onEvent?.({ kind: 'progress', stage: 'matching', done: 1, total: 2 });
+    expect(onProgress).toHaveBeenCalledWith({ stage: 'matching', done: 1, total: 2 });
+    expect(await t.cancelQuery('q-1')).toBe(true);
+    finish({ cancelled: true });
+    expect(await running).toEqual({ cancelled: true });
+    expect(await t.cancelQuery('q-1')).toBe(false);
     expect(calls).toEqual([
-      ['run_query_stream', { request: { query }, queryId: 'q-1', onProgress: { channel: 'fake' } }],
-      ['cancel_query', { queryId: 'q-1' }],
+      ['run_query_stream', { request: { query }, onProgress: { channel: 'fake' } }],
+      ['jobs_cancel', { id: 5 }],
+      ['jobs_cancel', { id: 5 }],
     ]);
-    expect(made).toEqual([onProgress]);
   });
 });
 

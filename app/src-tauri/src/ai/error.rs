@@ -3,89 +3,14 @@
 
 use imt_ai::net::NetKind;
 use imt_ai::AiError;
-use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum AiErrorCode {
-    /// AI is off in this run (safe mode, no worker binary, switched off after repeated crashes).
-    Unavailable,
-    /// No model is set up yet.
-    NoModel,
-    /// No inference runtime (llama-server build) is installed: offer the download.
-    NoRuntime,
-    /// Something of the same kind is already running (a set-up, a turn of this chat).
-    Busy,
-    Cancelled,
-    Invalid,
-    Engine,
-    ContextOverflow,
-    Malformed,
-    ToolLoopLimit,
-    ModelFile,
-    Memory,
-    Network,
-    /// The server certificate could not be verified (usually a TLS-inspecting proxy such as Zscaler whose
-    /// root certificate is not in the OS store): offer the manual download.
-    Tls,
-    /// The proxy asks for a sign-in (HTTP 407).
-    ProxyAuth,
-    /// The configured download proxy cannot be used.
-    Proxy,
-    /// No network, or the host cannot be resolved or reached.
-    Offline,
-    Timeout,
-    /// The server (or a proxy in between) answered with an unexpected HTTP status.
-    HttpStatus,
-    Gated,
-    NotFound,
-    Integrity,
-    Disk,
-    Refused,
-    Io,
-    /// The export target exists and replacing it was not confirmed (see `imt_core::overwrite`).
-    FileExists,
-}
+/// The AI's error codes are part of the one [`crate::error::ErrorCode`].
+pub type AiErrorCode = crate::error::ErrorCode;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AiCmdError {
-    pub code: AiErrorCode,
-    pub message: String,
-}
+/// AI commands reject with the one [`crate::error::CmdError`].
+pub type AiCmdError = crate::error::CmdError;
 
 pub type AiResult<T> = Result<T, AiCmdError>;
-
-impl AiCmdError {
-    pub fn new(code: AiErrorCode, message: impl Into<String>) -> Self {
-        AiCmdError {
-            code,
-            message: message.into(),
-        }
-    }
-
-    pub fn unavailable(message: impl Into<String>) -> Self {
-        Self::new(AiErrorCode::Unavailable, message)
-    }
-
-    pub fn invalid(message: impl Into<String>) -> Self {
-        Self::new(AiErrorCode::Invalid, message)
-    }
-
-    pub fn busy(message: impl Into<String>) -> Self {
-        Self::new(AiErrorCode::Busy, message)
-    }
-
-    pub fn not_found(message: impl Into<String>) -> Self {
-        Self::new(AiErrorCode::NotFound, message)
-    }
-}
-
-impl std::fmt::Display for AiCmdError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
-    }
-}
 
 impl From<AiError> for AiCmdError {
     fn from(e: AiError) -> Self {
@@ -117,32 +42,6 @@ impl From<AiError> for AiCmdError {
             AiError::Io(_) => AiErrorCode::Io,
         };
         AiCmdError::new(code, e.to_string())
-    }
-}
-
-/// AI requests run as jobs: a cancelled request cancels its job instead of failing it.
-impl crate::jobs::JobFailure for AiCmdError {
-    fn cancelled(&self) -> bool {
-        self.code == AiErrorCode::Cancelled
-    }
-}
-
-/// A request whose job never ran: the queue was full (busy), it was cancelled while waiting, or IMT closed.
-impl From<crate::jobs::Stopped> for AiCmdError {
-    fn from(s: crate::jobs::Stopped) -> Self {
-        use crate::jobs::Stopped;
-        match s {
-            Stopped::Refused(m) => AiCmdError::busy(m),
-            Stopped::Cancelled => AiCmdError::new(AiErrorCode::Cancelled, "cancelled"),
-            Stopped::Interrupted(m) => AiCmdError::new(AiErrorCode::Cancelled, m),
-            Stopped::Failed(m) => AiCmdError::new(AiErrorCode::Engine, m),
-        }
-    }
-}
-
-impl From<imt_core::overwrite::FileExists> for AiCmdError {
-    fn from(e: imt_core::overwrite::FileExists) -> Self {
-        AiCmdError::new(AiErrorCode::FileExists, e.to_string())
     }
 }
 

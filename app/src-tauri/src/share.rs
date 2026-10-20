@@ -48,9 +48,12 @@ pub(crate) fn parse_reports(values: Vec<Value>) -> CmdResult<Vec<Report>> {
 
 fn parse_report(value: Value) -> CmdResult<Report> {
     if value.to_string().len() > MAX_REPORT_JSON {
-        return Err(format!("a report is limited to {} MB", MAX_REPORT_JSON >> 20));
+        return Err(crate::CmdError::from(format!(
+            "a report is limited to {} MB",
+            MAX_REPORT_JSON >> 20
+        )));
     }
-    Report::parse(value).map_err(err)
+    crate::error::lift(Report::parse(value).map_err(err))
 }
 
 /// Switches the window's redacted view on or off; returns the new summary.
@@ -107,7 +110,9 @@ fn renderer(format: &str) -> CmdResult<Box<dyn ReportRenderer>> {
     match format {
         "html" => Ok(Box::new(HtmlRenderer)),
         "pdf" => Ok(Box::new(imt_pdf::PdfRenderer)),
-        other => Err(format!("unknown report format \"{other}\" (use html or pdf)")),
+        other => Err(crate::CmdError::from(format!(
+            "unknown report format \"{other}\" (use html or pdf)"
+        ))),
     }
 }
 
@@ -132,7 +137,7 @@ pub(crate) async fn export_report<R: Runtime>(
         .write(&request.path, &[renderer.extension()])?
         .path()
         .to_path_buf();
-    check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
+    check_overwrite(Path::new(&request.path), request.overwrite)?;
     let report = parse_report(request.report)?;
     let (redact, theme) = (request.redact, request.theme);
     let shown = target.clone();
@@ -215,7 +220,7 @@ fn visual_bytes(kind: &str, data: &str) -> anyhow::Result<Vec<u8>> {
 pub(crate) async fn save_visual(grants: WindowGrants, op: OpId, request: VisualRequest) -> CmdResult<VisualSaved> {
     tauri::async_runtime::spawn_blocking(move || {
         let target = grants.write(&request.path, &[request.kind.as_str()])?.path().to_path_buf();
-        check_overwrite(Path::new(&request.path), request.overwrite).map_err(err)?;
+        check_overwrite(Path::new(&request.path), request.overwrite)?;
         let bytes = visual_bytes(&request.kind, &request.data).map_err(err)?;
         std::fs::write(&target, &bytes).map_err(|e| format!("cannot write {}: {e}", target.display()))?;
         log::info!(Kind = request.kind.as_str(), Bytes = bytes.len() as u64; "Image exported");
@@ -252,7 +257,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = WindowGrants::of(&app, state.label()).write(&path, &["imtz"])?.path().to_path_buf();
-    check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     parse_reports(options.reports.clone())?;
     let profile = state.profile_doc().toml;
     let shown = target.clone();
@@ -278,8 +283,14 @@ fn bundle_line(m: &BundleManifest) -> String {
 /// limits, no path may leave it), checks it against its manifest and opens
 /// its project read-only. A bundle without a project (rare) opens its files.
 #[tauri::command]
-pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, op: OpId, path: String) -> CmdResult<Value> {
-    let source = PathBuf::from(&path);
+pub(crate) async fn open_bundle<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    grants: WindowGrants,
+    op: OpId,
+    path: String,
+) -> CmdResult<Value> {
+    let source = grants.read_file(&path, &["imtz"])?.path().to_path_buf();
     // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
     let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
         .window(state.label())
@@ -291,11 +302,16 @@ pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWin
             .map_err(err)
     })
     .await?;
+    // IMT's own folder: what the bundle holds may be opened from this window.
+    grants.grant(&extracted.dir, crate::paths::Access::Read, crate::paths::GrantSource::Output)?;
     let mut opened = match &extracted.project {
-        Some(project) => crate::workspace_commands::open_project(app, state.clone(), op, project.to_string_lossy().into_owned()).await?,
+        Some(project) => {
+            let shown = project.to_string_lossy().into_owned();
+            crate::workspace_commands::open_project_file(&app, &state, op, project.clone(), shown).await?
+        }
         None => {
             let dir = extracted.dir.to_string_lossy().into_owned();
-            let summary = crate::workspace_commands::open_paths(app, state.clone(), vec![dir]).await?;
+            let summary = crate::workspace_commands::open_granted(&app, &state, vec![dir]).await?;
             serde_json::json!({ "name": "", "summary": summary, "ui": Value::Null, "missing": [], "reports": [] })
         }
     };
@@ -312,6 +328,8 @@ pub(crate) async fn open_bundle<R: Runtime>(app: AppHandle<R>, state: CurrentWin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Json as _;
+    use crate::test_support::Now as _;
     use crate::test_support::{block, job_done, main_window, samples, test_app, TempDir};
     use serde_json::json;
     use tauri::Manager;
@@ -358,7 +376,10 @@ mod tests {
                 },
             ))
         };
-        assert_eq!(again(false).unwrap_err(), format!("{png} already exists; confirm to replace it"));
+        assert_eq!(
+            again(false).unwrap_err(),
+            crate::error::file_exists(format!("{png} already exists; confirm to replace it"))
+        );
         assert_eq!(again(true).unwrap().bytes, 21);
         assert!(std::fs::read(&png).unwrap().starts_with(b"\x89PNG"));
 
@@ -414,11 +435,14 @@ mod tests {
             main_window(&app),
             paths,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         let toml = "name = 'Shared'\n[redact]\ndetectors = ['email', 'ipv4']\n";
         crate::test_support::job_done(
             &app,
-            crate::profile::save_profile(app.handle().clone(), app.state(), main_window(&app), OpId::default(), toml.into()).unwrap(),
+            crate::profile::save_profile(app.handle().clone(), app.state(), main_window(&app), OpId::default(), toml.into())
+                .now()
+                .unwrap(),
         );
         (app, d)
     }
@@ -536,7 +560,7 @@ mod tests {
             req("pdf", "r.pdf", false),
         ))
         .unwrap_err();
-        assert!(again.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
+        assert!(again.message.ends_with("r.pdf already exists; confirm to replace it"), "{again}");
         let mut confirmed = req("pdf", "r.pdf", false);
         confirmed.overwrite = true;
         let replaced = block(export_report(app.handle().clone(), st(), OpId::default(), confirmed)).unwrap();
@@ -605,7 +629,10 @@ mod tests {
             None,
         ))
         .unwrap_err();
-        assert_eq!(again, format!("{path} already exists; confirm to replace it"));
+        assert_eq!(
+            again,
+            crate::error::file_exists(format!("{path} already exists; confirm to replace it"))
+        );
         let replaced = block(create_bundle(
             app.handle().clone(),
             st(),
@@ -638,8 +665,15 @@ mod tests {
         ))
         .is_err());
 
-        let total = block(crate::workspace_commands::workspace_summary(st())).unwrap()["total"].clone();
-        let opened = block(open_bundle(app.handle().clone(), st(), OpId::default(), path.clone())).unwrap();
+        let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
+        let opened = block(open_bundle(
+            app.handle().clone(),
+            st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            OpId::default(),
+            path.clone(),
+        ))
+        .unwrap();
         assert_eq!(opened["readOnly"], true);
         assert_eq!(opened["name"], "Case");
         assert_eq!(opened["ui"]["x"], 1);
@@ -650,6 +684,7 @@ mod tests {
         // Saving into the bundle's folder is refused.
         let inside = PathBuf::from(opened["folder"].as_str().unwrap()).join("p.imtproj");
         assert!(block(crate::workspace_commands::save_project(
+            app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
@@ -674,6 +709,7 @@ mod tests {
         let opened = block(open_bundle(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             plain.to_string_lossy().into_owned(),
         ))
@@ -682,6 +718,7 @@ mod tests {
         assert!(block(open_bundle(
             app.handle().clone(),
             st(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
             OpId::default(),
             d.0.join("missing.imtz").to_string_lossy().into_owned()
         ))

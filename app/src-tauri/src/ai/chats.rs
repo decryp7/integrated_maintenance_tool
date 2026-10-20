@@ -55,7 +55,7 @@ fn empty_record(id: &str) -> ChatRecord {
 
 impl WindowChats {
     fn lock(&self) -> MutexGuard<'_, Inner> {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.inner)
     }
 
     /// A new, empty chat; returns its id.

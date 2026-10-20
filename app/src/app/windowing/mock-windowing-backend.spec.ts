@@ -165,8 +165,6 @@ describe('MockWindowingBackend', () => {
     expect(h.titleText).toBe('X — IMT');
     expect(await b.restoreWindows()).toBe(0);
     await b.resolveOpen('newWindow');
-    await b.setRecentProjects(Array.from({ length: 12 }, (_, i) => ({ path: `/p${i}`, name: `P${i}` })));
-    expect(b.recent).toHaveLength(10);
     const ask = vi.fn();
     const capture = vi.fn();
     const live = vi.fn();
@@ -179,6 +177,6 @@ describe('MockWindowingBackend', () => {
     expect(ask).toHaveBeenCalledWith({ count: 1, names: ['a.log'] });
     expect(capture).toHaveBeenCalled();
     expect(live).toHaveBeenCalled();
-    expect(b.calls).toEqual(['restoreWindows', 'resolveOpen:newWindow', 'setRecentProjects']);
+    expect(b.calls).toEqual(['restoreWindows', 'resolveOpen:newWindow']);
   });
 });

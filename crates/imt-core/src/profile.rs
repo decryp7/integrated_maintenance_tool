@@ -421,15 +421,13 @@ impl CompiledProfile {
 
         let mut extractors = Vec::new();
         for e in &profile.extract {
-            let regex = crate::user_regex::compile(&e.regex, false).with_context(|| format!("extract \"{}\": regex", e.name))?;
-            let when = compile_conditions(&e.when).with_context(|| format!("extract \"{}\": when", e.name))?;
+            let regex = crate::user_regex::compile(&e.regex, false).with_context(|| RuleContext::new("extract", &e.name, Some("regex")))?;
+            let when = compile_conditions(&e.when).with_context(|| RuleContext::new("extract", &e.name, Some("when")))?;
             let mut fields: Vec<(String, FieldSpec)> = e.fields.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             for (name, _) in &fields {
                 if regex.capture_names().flatten().all(|g| g != name) {
-                    return Err(anyhow!(
-                        "extract \"{}\": field \"{name}\" has no capture group (?P<{name}>...) in the regex",
-                        e.name
-                    ));
+                    return Err(anyhow!("field \"{name}\" has no capture group (?P<{name}>...) in the regex")
+                        .context(RuleContext::new("extract", &e.name, None)));
                 }
             }
             if fields.is_empty() {
@@ -480,9 +478,9 @@ impl CompiledProfile {
         }
 
         for c in &profile.chart {
-            crate::chart::parse_y(&c.y).with_context(|| format!("chart \"{}\": y", c.title))?;
-            crate::chart::parse_bucket(&c.bucket).with_context(|| format!("chart \"{}\": bucket", c.title))?;
-            compile_conditions(&c.when).with_context(|| format!("chart \"{}\": when", c.title))?;
+            crate::chart::parse_y(&c.y).with_context(|| RuleContext::new("chart", &c.title, Some("y")))?;
+            crate::chart::parse_bucket(&c.bucket).with_context(|| RuleContext::new("chart", &c.title, Some("bucket")))?;
+            compile_conditions(&c.when).with_context(|| RuleContext::new("chart", &c.title, Some("when")))?;
         }
 
         let pipeline = crate::pipeline::Pipeline::compile(&profile.pipeline, transforms)?;
@@ -699,35 +697,98 @@ fn globs(patterns: &[String]) -> Result<GlobSet> {
     Ok(b.build()?)
 }
 
+/// Which rule of a profile a compile error is about (`extract "stats": regex`): attached as the error's
+/// context, so callers find the rule (and its line, [`RuleContext::line_in`]) without reading the message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleContext {
+    /// The rule's table: `extract`, `chart` or `marker`.
+    pub section: &'static str,
+    /// Its name (`name`, `title` or `kind`).
+    pub name: String,
+    /// The part of the rule that failed (`regex`, `when`, ...), if one.
+    pub part: Option<&'static str>,
+}
+
+impl RuleContext {
+    pub fn new(section: &'static str, name: &str, part: Option<&'static str>) -> RuleContext {
+        RuleContext {
+            section,
+            name: name.to_string(),
+            part,
+        }
+    }
+
+    /// The key that names a rule of this section.
+    fn key(&self) -> &'static str {
+        match self.section {
+            "chart" => "title",
+            "marker" => "kind",
+            _ => "name",
+        }
+    }
+
+    /// The 1-based line in `toml` that names this rule (`name = "stats"` under `[[extract]]`), if any.
+    pub fn line_in(&self, toml: &str) -> Option<usize> {
+        let header = format!("[[{}]]", self.section);
+        let mut inside = false;
+        for (i, line) in toml.lines().enumerate() {
+            let t = line.trim();
+            if t.starts_with('[') {
+                inside = t == header;
+                continue;
+            }
+            let Some((key, value)) = t.split_once('=') else { continue };
+            let value = value.trim().trim_matches(|c| c == '"' || c == '\x27');
+            if inside && key.trim() == self.key() && value == self.name {
+                return Some(i + 1);
+            }
+        }
+        None
+    }
+
+    /// The rule an error is about, when it carries one.
+    pub fn of(e: &anyhow::Error) -> Option<&RuleContext> {
+        e.downcast_ref::<RuleContext>()
+    }
+}
+
+impl std::fmt::Display for RuleContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} \"{}\"", self.section, self.name)?;
+        match self.part {
+            Some(p) => write!(f, ": {p}"),
+            None => Ok(()),
+        }
+    }
+}
+
 /// Validates and compiles one marker rule; `icons` are the custom icons it may use.
 pub(crate) fn compile_marker(m: &MarkerCfg, icons: &[crate::icons::CustomIcon], owner: &str) -> Result<Marker> {
-    let when = compile_conditions(&m.when).with_context(|| format!("marker \"{}\": when", m.kind))?;
+    compile_marker_rule(m, icons, owner).with_context(|| RuleContext::new("marker", &m.kind, None))
+}
+
+fn compile_marker_rule(m: &MarkerCfg, icons: &[crate::icons::CustomIcon], owner: &str) -> Result<Marker> {
+    let when = compile_conditions(&m.when).context("when")?;
     if let Some(icon) = m
         .icon
         .as_deref()
         .filter(|i| !MARKER_ICONS.contains(i) && !icons.iter().any(|c| c.name == *i))
     {
         return Err(anyhow!(
-            "marker \"{}\": unknown icon \"{icon}\" (use one of: {}, or define it with [[icon]])",
-            m.kind,
+            "unknown icon \"{icon}\" (use one of: {}, or define it with [[icon]])",
             MARKER_ICONS.join(", ")
         ));
     }
     if let Some(badge) = m.badge.as_deref().filter(|b| !is_badge(b)) {
         return Err(anyhow!(
-            "marker \"{}\": badge \"{badge}\" must be 1–3 visible characters (e.g. \"1\", \"A\", \"DB\")",
-            m.kind
+            "badge \"{badge}\" must be 1–3 visible characters (e.g. \"1\", \"A\", \"DB\")"
         ));
     }
     if let Some(shape) = m.shape.as_deref().filter(|s| !BADGE_SHAPES.contains(s)) {
-        return Err(anyhow!(
-            "marker \"{}\": shape \"{shape}\" must be one of {}",
-            m.kind,
-            BADGE_SHAPES.join(", ")
-        ));
+        return Err(anyhow!("shape \"{shape}\" must be one of {}", BADGE_SHAPES.join(", ")));
     }
     if let Some(color) = m.color.as_deref().filter(|c| !is_hex_color(c)) {
-        return Err(anyhow!("marker \"{}\": color \"{color}\" must be #RGB or #RRGGBB", m.kind));
+        return Err(anyhow!("color \"{color}\" must be #RGB or #RRGGBB"));
     }
     Ok(Marker {
         kind: m.kind.clone(),
@@ -964,8 +1025,10 @@ when = [{ field = "@message", op = "matches", value = "(" }]
                 .unwrap();
         let m = ok.markers.iter().find(|m| m.kind == "pay").unwrap();
         assert_eq!((m.icon.as_deref(), m.color.as_deref()), (Some("credit-card"), Some("#E9AE3F")));
-        let e = compile("[[marker]]\nkind='x'\nicon='unicorn'").err().unwrap().to_string();
-        assert!(e.contains("unknown icon") && e.contains("credit-card"), "{e}");
+        let err = compile("[[marker]]\nkind='x'\nicon='unicorn'").err().unwrap();
+        let e = format!("{err:#}");
+        assert!(e.starts_with("marker \"x\": unknown icon") && e.contains("credit-card"), "{e}");
+        assert_eq!(RuleContext::of(&err), Some(&RuleContext::new("marker", "x", None)));
         assert!(compile("[[marker]]\nkind='x'\ncolor='red'").is_err());
         assert!(compile("[[marker]]\nkind='x'\ncolor='#abc'").is_ok());
         assert!(MARKER_ICONS.len() >= 30);
@@ -995,5 +1058,25 @@ when = [{ field = "@message", op = "matches", value = "(" }]
         }
         assert!(compile("[[marker]]\nkind='x'\nbadge='DB'").is_ok());
         assert!(compile("[[marker]]\nkind='x'\nbadge='!'").is_ok());
+    }
+}
+
+#[cfg(test)]
+mod rule_context_tests {
+    use super::*;
+
+    #[test]
+    fn compile_errors_name_their_rule_and_its_line() {
+        let toml = "name = 'p'\n[[extract]]\nname = \"stats\"\nregex = '('\n[[chart]]\ntitle = 'Load'\ny = 'nonsense('\n";
+        let profile = Profile::from_toml(toml).unwrap();
+        let err = CompiledProfile::compile(profile).err().expect("the regex does not compile");
+        let rule = RuleContext::of(&err).expect("a typed rule");
+        assert_eq!((rule.section, rule.name.as_str(), rule.part), ("extract", "stats", Some("regex")));
+        assert_eq!(rule.line_in(toml), Some(3));
+        assert!(format!("{err:#}").starts_with("extract \"stats\": regex"));
+        assert_eq!(RuleContext::new("chart", "Load", Some("y")).line_in(toml), Some(6));
+        assert_eq!(RuleContext::new("marker", "Load", None).line_in(toml), None, "another section");
+        assert_eq!(RuleContext::new("marker", "m", None).to_string(), "marker \"m\"");
+        assert!(RuleContext::of(&anyhow!("plain")).is_none());
     }
 }

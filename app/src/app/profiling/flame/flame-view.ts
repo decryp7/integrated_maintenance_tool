@@ -69,7 +69,7 @@ import { measuredWidth } from './measured-width';
       @if (res.data()?.truncated) {
         <div class="notice" role="status" i18n="@@profiling.flameView.truncated">More frames than the drawing limit: the smallest are left out. Zoom in for detail.</div>
       }
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.flameView.empty" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.flameView.empty" (retry)="res.retry()">
         <imt-flame-chart
           [graph]="res.data()"
           [orientation]="orientation()"

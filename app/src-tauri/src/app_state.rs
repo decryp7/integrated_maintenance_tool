@@ -2,7 +2,6 @@
 //! which plugins are enabled, plugins with app-wide state) and the factory
 //! that gives each new window its own workspace.
 
-use crate::lifecycle;
 use crate::profile::{load_profile, ProfileDoc};
 use crate::windows::{WindowFactory, WindowState};
 use imt_core::Plugin;
@@ -29,7 +28,7 @@ pub(crate) struct AppState {
 impl AppState {
     pub fn new(profile_dir: Option<PathBuf>, safe_mode: bool) -> AppState {
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
-        let disabled = lifecycle::load_plugin_settings(config_dir.as_deref()).disabled;
+        let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
         let isolation = Arc::new(crate::plugin_isolation::AppIsolation::new(config_dir.as_deref(), safe_mode));
         AppState {
             profile_dir,
@@ -44,7 +43,7 @@ impl AppState {
     /// A new window's workspace: its own plugin registry (crash health is per
     /// window), the saved profile (the default in safe mode, where no plugin is installed).
     pub fn new_window(&self, label: &str) -> anyhow::Result<WindowState> {
-        let registry = lifecycle::plugins_from(self.safe_mode, &self.disabled, self.builtins(), &[self.shared_plugin()])?;
+        let registry = crate::plugin_config::plugins_from(self.safe_mode, &self.disabled, self.builtins(), &[self.shared_plugin()])?;
         self.isolation.watch(&registry);
         let mut workspace = Workspace::with_registry(imt_core::Profile::default_profile(), registry)?;
         let (profile, doc) = if self.safe_mode {

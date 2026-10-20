@@ -1,12 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "ai-browsing",
-  "description": "the \"AI is browsing\" banner over a browser window (aib-main, aib-w-2, ...): IMT's own UI (the app origin), which hears its window's browser events and calls Stop; nothing else (the browser window itself has no capability)",
+  "description": "the \"AI is browsing\" banner over a browser window (aib-main, aib-w-2, ...): IMT's own UI (the app origin), which hears its window's browser events (core:event:default) and calls Stop; nothing else (the command table limits its commands to that) (the browser window itself has no capability)",
   "windows": [
     "aib-*"
   ],
   "permissions": [
-    "core:default",
+    "core:event:default",
     "log:default"
   ]
 }

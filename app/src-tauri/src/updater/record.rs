@@ -72,18 +72,13 @@ pub fn load(dir: Option<&Path>) -> Record {
 pub fn save(dir: Option<&Path>, record: &Record) {
     let Some(dir) = dir else { return };
     let path = dir.join(FILE);
-    let tmp = dir.join(format!(".{FILE}.{}.tmp", std::process::id()));
-    let result = (|| -> std::io::Result<()> {
-        std::fs::create_dir_all(dir)?;
-        let text = serde_json::to_string_pretty(&Record {
-            version: VERSION,
-            ..record.clone()
-        })?;
-        std::fs::write(&tmp, text)?;
-        std::fs::rename(&tmp, &path)
-    })();
+    let result = serde_json::to_vec_pretty(&Record {
+        version: VERSION,
+        ..record.clone()
+    })
+    .map_err(std::io::Error::other)
+    .and_then(|text| crate::config_store::write_atomic(&path, &text));
     if let Err(e) = result {
-        let _ = std::fs::remove_file(&tmp);
         log::warn!("could not save {}: {e}", path.display());
     }
 }
