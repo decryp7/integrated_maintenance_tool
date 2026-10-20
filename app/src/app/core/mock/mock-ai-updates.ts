@@ -90,7 +90,10 @@ export class MockAiUpdates {
     this.found = this.found.length ? this.found : [{ ...UPDATE, skipped: false, installing: false, waiting: false }];
     for (const u of this.found) {
       if (this.skipped.has(u.key)) continue;
-      if (this.policy === 'automatic') void this.install(u.key);
+      // Like the engine: an automatic install waits while another one runs (the next check starts it).
+      if (this.policy === 'automatic') {
+        if (!this.found.some((x) => x.installing)) void this.install(u.key);
+      }
       else if (this.policy === 'ask' && !this.announced.has(u.key)) {
         this.announced.add(u.key);
         mockNotifications().post({

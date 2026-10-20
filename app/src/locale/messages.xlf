@@ -2166,7 +2166,7 @@
         <source> · tool calling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/models/model-manager.ts</context>
-          <context context-type="linenumber">118,119</context>
+          <context context-type="linenumber">118,120</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/models/model-manager.ts</context>
@@ -2192,7 +2192,7 @@
         <source>No model is installed yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/models/model-manager.ts</context>
-          <context context-type="linenumber">153,155</context>
+          <context context-type="linenumber">153,157</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.models.catalog" datatype="html">
@@ -3707,7 +3707,7 @@
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/updates/ai-updates-panel.ts</context>
-          <context context-type="linenumber">75,78</context>
+          <context context-type="linenumber">75,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.updates.manual" datatype="html">
@@ -3756,7 +3756,7 @@
         <source>Up to date.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/updates/ai-updates-panel.ts</context>
-          <context context-type="linenumber">119,122</context>
+          <context context-type="linenumber">119,121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.updates.updateLabel" datatype="html">
@@ -4907,7 +4907,7 @@
         <source>History</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">81,82</context>
+          <context context-type="linenumber">81,83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.historyLabel" datatype="html">
@@ -4935,7 +4935,7 @@
         <source>(at column <x id="INTERPOLATION" equiv-text="{{ column() }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">100</context>
+          <context context-type="linenumber">100,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelled" datatype="html">
@@ -6924,7 +6924,7 @@
         <source>Show diff</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">121,122</context>
+          <context context-type="linenumber">121,123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.noFiles" datatype="html">
@@ -7050,7 +7050,7 @@
         <source>a file is larger than the node limit; the rest is not compared</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">159,162</context>
+          <context context-type="linenumber">159,163</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.tree" datatype="html">
@@ -8038,7 +8038,7 @@
         <source>PID</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/diagnostics-report-view.ts</context>
-          <context context-type="linenumber">70,71</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportView.colRestarts" datatype="html">
@@ -8059,7 +8059,7 @@
         <source>Quarantine reason</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/diagnostics-report-view.ts</context>
-          <context context-type="linenumber">73,75</context>
+          <context context-type="linenumber">73,76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportView.noProcesses" datatype="html">
@@ -8187,7 +8187,7 @@
         <source>No diagnostics report is open. Open a zip saved with Help ▸ Report a problem… (File ▸ Open, or drop it here) to see its processes, steps and snapshots.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/diagnostics/diagnostics-report-view.ts</context>
-          <context context-type="linenumber">187,190</context>
+          <context context-type="linenumber">187,191</context>
         </context-group>
       </trans-unit>
       <trans-unit id="diagnostics.reportView.zoomHint" datatype="html">
@@ -13083,7 +13083,7 @@
         <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;plus&quot; [size]=&quot;13&quot; /&gt;"/> New marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/markers-manager.ts</context>
-          <context context-type="linenumber">36,37</context>
+          <context context-type="linenumber">36,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="markers.manager.retry" datatype="html">
@@ -13884,7 +13884,7 @@
         <source>⚠ <x id="COUNT" equiv-text="{{ n //i18n(ph=&quot;count&quot;) }}"/> anomalies (no start, no stop or too long)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/markers/runs-editor.ts</context>
-          <context context-type="linenumber">100</context>
+          <context context-type="linenumber">100,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="runs.editor.firstRuns" datatype="html">
@@ -18935,7 +18935,7 @@
         <source>Baseline <x id="INTERPOLATION" equiv-text="{{ value(t.rect.baselineValue ?? 0) // i18n(ph: &quot;baseline&quot;) }}"/> · change <x id="INTERPOLATION_1" equiv-text="{{ pp(t.rect.delta * 100) // i18n(ph: &quot;delta&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/flame/flame-chart.ts</context>
-          <context context-type="linenumber">72,73</context>
+          <context context-type="linenumber">72,74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.flame.tip.hint" datatype="html">
@@ -29419,7 +29419,7 @@
         <source>Run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/eventlog/eventlog-view.ts</context>
-          <context context-type="linenumber">144,146</context>
+          <context context-type="linenumber">145,146</context>
         </context-group>
         <note priority="1" from="meaning">noun, section heading</note>
       </trans-unit>
@@ -29989,7 +29989,7 @@
         <source> No samples in the last <x id="INTERPOLATION" equiv-text="{{ store.windowMin() }}"/> minutes yet. They appear here as the monitor writes them. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/tools/monitor/monitor-live-charts.ts</context>
-          <context context-type="linenumber">64,65</context>
+          <context context-type="linenumber">64,66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="tools.monitor.live.notRecorded" datatype="html">
@@ -31283,7 +31283,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/updates/updates-dialog.ts</context>
-          <context context-type="linenumber">84,86</context>
+          <context context-type="linenumber">84,87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="updates.checking" datatype="html">
