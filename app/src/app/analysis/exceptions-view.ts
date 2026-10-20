@@ -8,12 +8,13 @@ import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
 import { AsyncResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 
 /** Exceptions grouped by fingerprint; a group expands into its instances and sample events. */
 @Component({
   selector: 'imt-exceptions-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.exceptions.title">Exceptions</span>
@@ -21,6 +22,7 @@ import { AsyncResource } from './async-resource';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
+    <imt-coverage-note [query]="targets.query()" />
     <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.data() ?? []; track g.fingerprint) {
@@ -76,7 +78,7 @@ export class ExceptionsView {
   protected readonly count = formatCount;
   protected readonly open = signal<ReadonlySet<string>>(new Set());
   private readonly backend = inject(AnalysisBackend);
-  private readonly targets = inject(AnalysisTargets);
+  protected readonly targets = inject(AnalysisTargets);
   private readonly actions = inject(AnalysisActions);
 
   constructor() {

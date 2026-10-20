@@ -64,6 +64,7 @@ const QUERIES: &[&str] = &[
     "complete_query",
     "query_patterns",
     "query_exceptions",
+    "analysis_coverage",
     "query_anomalies",
     "compare_windows",
     "field_stats",

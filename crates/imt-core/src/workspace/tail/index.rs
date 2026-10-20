@@ -7,6 +7,7 @@ use crate::api::FieldInfo;
 use crate::model::{value_number, value_text, Record};
 use crate::patterns::{MinerConfig, Pattern, PatternMiner};
 use crate::query::{CompiledQuery, Query};
+use crate::workspace::cache_key::CacheKey;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -135,7 +136,7 @@ impl Change {
 #[derive(Debug, Clone)]
 struct MatchEntry {
     /// The query as asked (window included).
-    key: String,
+    key: CacheKey,
     /// The query evaluated (window resolved to `from`).
     query: Query,
     live: bool,
@@ -155,7 +156,7 @@ impl MatchCache {
 
     /// Cached ids for `key` evaluated as `resolved`. A sliding window whose
     /// start moved forward drops the ids that fell out of it (ids follow time order).
-    pub fn get(&mut self, key: &str, resolved: &Query, records: &[Record]) -> Option<Arc<Vec<u32>>> {
+    pub fn get(&mut self, key: CacheKey, resolved: &Query, records: &[Record]) -> Option<Arc<Vec<u32>>> {
         let i = self.entries.iter().position(|e| e.key == key)?;
         let e = &mut self.entries[i];
         if e.query.to != resolved.to {
@@ -179,7 +180,7 @@ impl MatchCache {
         Some(ids)
     }
 
-    pub fn put(&mut self, key: String, resolved: Query, live: bool, ids: Arc<Vec<u32>>) {
+    pub fn put(&mut self, key: CacheKey, resolved: Query, live: bool, ids: Arc<Vec<u32>>) {
         self.entries.retain(|e| e.key != key);
         self.entries.insert(
             0,
@@ -326,6 +327,7 @@ mod tests {
 
     #[test]
     fn match_cache_follows_changes() {
+        let k = |name: &str| CacheKey::of(0, name).unwrap();
         let mut records: Vec<Record> = (0..4)
             .map(|i| rec(i, i as i64 * 10, if i % 2 == 0 { "hit" } else { "miss" }, json!({})))
             .collect();
@@ -336,8 +338,8 @@ mod tests {
         let compile = |q: &Query| CompiledQuery::new(q, &[], &[]).ok();
         let name = |_: u32| "";
         let mut cache = MatchCache::default();
-        cache.put("k".into(), q.clone(), false, Arc::new(vec![0, 2]));
-        assert!(cache.get("other", &q, &records).is_none());
+        cache.put(k("k"), q.clone(), false, Arc::new(vec![0, 2]));
+        assert!(cache.get(k("other"), &q, &records).is_none());
         // Pure append.
         records.push(rec(4, 40, "hit", json!({})));
         cache.apply(
@@ -349,7 +351,7 @@ mod tests {
             &compile,
             &name,
         );
-        assert_eq!(*cache.get("k", &q, &records).unwrap(), vec![0, 2, 4]);
+        assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 2, 4]);
         // In place: 1 now matches, 2 no longer does.
         records[1].message = "hit".into();
         records[2].message = "miss".into();
@@ -363,7 +365,7 @@ mod tests {
             &compile,
             &name,
         );
-        assert_eq!(*cache.get("k", &q, &records).unwrap(), vec![0, 1, 4]);
+        assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 1, 4]);
         // Renumbered tail.
         records.insert(3, rec(3, 35, "hit", json!({})));
         for (i, r) in records.iter_mut().enumerate() {
@@ -379,39 +381,39 @@ mod tests {
             &compile,
             &name,
         );
-        assert_eq!(*cache.get("k", &q, &records).unwrap(), vec![0, 1, 3, 5]);
+        assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 1, 3, 5]);
         cache.evict(1);
-        assert_eq!(*cache.get("k", &q, &records).unwrap(), vec![0, 2, 4]);
+        assert_eq!(*cache.get(k("k"), &q, &records).unwrap(), vec![0, 2, 4]);
         // A different `to` misses; a live window that slid forward drops old ids.
         let moved = Query { to: Some(1), ..q.clone() };
-        assert!(cache.get("k", &moved, &records).is_none());
+        assert!(cache.get(k("k"), &moved, &records).is_none());
         let live = Query {
             from: Some(0),
             ..q.clone()
         };
-        cache.put("live".into(), live.clone(), true, Arc::new(vec![0, 1, 3, 5]));
+        cache.put(k("live"), live.clone(), true, Arc::new(vec![0, 1, 3, 5]));
         let slid = Query {
             from: Some(30),
             ..q.clone()
         };
-        assert_eq!(*cache.get("live", &slid, &records).unwrap(), vec![3, 5]);
+        assert_eq!(*cache.get(k("live"), &slid, &records).unwrap(), vec![3, 5]);
         let back = Query {
             from: Some(0),
             ..q.clone()
         };
-        assert!(cache.get("live", &back, &records).is_none());
-        cache.put("fixed".into(), live, false, Arc::new(vec![]));
-        assert!(cache.get("fixed", &slid, &records).is_none());
+        assert!(cache.get(k("live"), &back, &records).is_none());
+        cache.put(k("fixed"), live, false, Arc::new(vec![]));
+        assert!(cache.get(k("fixed"), &slid, &records).is_none());
         let bad = Query {
             text: "(".into(),
             regex: true,
             ..Query::default()
         };
-        cache.put("bad".into(), bad, false, Arc::new(vec![]));
+        cache.put(k("bad"), bad, false, Arc::new(vec![]));
         cache.apply(&Change::default(), &records, &compile, &name);
-        assert!(cache.get("bad", &q, &records).is_none());
+        assert!(cache.get(k("bad"), &q, &records).is_none());
         cache.clear();
-        assert!(cache.get("k", &q, &records).is_none());
+        assert!(cache.get(k("k"), &q, &records).is_none());
     }
 
     #[test]

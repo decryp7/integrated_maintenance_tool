@@ -963,6 +963,7 @@ mod tests {
             importer: "csv".into(),
             records: 4,
             skipped: 0,
+            split_events: 0,
             dropped: 0,
             step_stats: Vec::new(),
             error: None,

@@ -61,6 +61,12 @@ pub async fn query_patterns<R: Runtime>(app: AppHandle<R>, state: CurrentWindow,
     .await
 }
 
+/// How many of the matching records the analyses look at, of how many: the UI notes partial results.
+#[tauri::command]
+pub async fn analysis_coverage(state: CurrentWindow, request: QueryRequest) -> CmdResult<imt_core::api::AnalysisCoverage> {
+    read(&state, move |ws| ws.analysis_coverage(&request)).await
+}
+
 #[tauri::command]
 pub async fn query_exceptions<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: QueryRequest) -> CmdResult<Value> {
     let ql = request.query.ql.clone();

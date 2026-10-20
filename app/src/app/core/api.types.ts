@@ -68,6 +68,8 @@ export interface SourceInfo {
   dropped: number;
   /** Lines/rows that could not be parsed. */
   skipped: number;
+  /** Events cut at the importer's event size limit; the rest continues in a new event with `ContinuedFromLine` (the engine always sends it). */
+  splitEvents?: number;
   error: string | null;
   from: number | null;
   to: number | null;
@@ -642,6 +644,7 @@ export interface InferredRegex {
  *   complete_query   { request: { text, cursor } }          -> Completion[]
  *   query_patterns   { request: { query } }                 -> Pattern[]
  *   query_exceptions { request: { query } }                 -> ExceptionGroup[]
+ *   analysis_coverage { request: { query } }                -> AnalysisCoverage
  *   query_anomalies  { request: { query } }                 -> Anomaly[]
  *   compare_windows  { request: { a, b } }                  -> Comparison
  *   field_stats      { request: { query, field, buckets } } -> FieldStats

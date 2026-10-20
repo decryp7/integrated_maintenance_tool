@@ -8,13 +8,14 @@ import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets } from './analysis-targets';
 import { AnalysisTime } from './analysis-time';
 import { AsyncResource } from './async-resource';
+import { CoverageNote } from './coverage-note';
 import { TimeCursor } from './time-cursor';
 
 /** Findings of the engine's anomaly detectors; clicking one zooms to its range and selects a sample event. */
 @Component({
   selector: 'imt-anomalies-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState],
+  imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@analysis.anomalies.title">Anomalies</span>
@@ -22,6 +23,7 @@ import { TimeCursor } from './time-cursor';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.anomalies.refresh">Refresh</button>
     </div>
+    <imt-coverage-note [query]="targets.query()" />
     <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No anomalies detected in the current query." i18n-emptyText="@@analysis.anomalies.emptyText" emptyHint="IMT looks for crashes, error spikes, silences, slow outliers, rate changes and memory growth in the events the query matches." i18n-emptyHint="@@analysis.anomalies.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Anomalies" i18n-aria-label="@@analysis.anomalies.listLabel">
         @for (a of res.data() ?? []; track $index) {
@@ -59,7 +61,7 @@ export class AnomaliesView {
   protected readonly icon = anomalyIcon;
   protected readonly label = anomalyLabel;
   private readonly backend = inject(AnalysisBackend);
-  private readonly targets = inject(AnalysisTargets);
+  protected readonly targets = inject(AnalysisTargets);
   private readonly actions = inject(AnalysisActions);
 
   constructor() {

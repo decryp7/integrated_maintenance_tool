@@ -602,6 +602,7 @@ impl Workspace {
                             .map_or(0, |f| f.input)
                             .saturating_sub(s.step_stats.last().map_or(0, |l| l.output));
                         s.skipped += skipped;
+                        s.split_events += crate::importers::text::split_events(&records);
                         s.error = None;
                     }
                     if !matches!(st.state, TailFileState::Rotated) {

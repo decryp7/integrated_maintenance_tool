@@ -114,6 +114,7 @@ macro_rules! commands {
             insights::complete_query,
             insights::query_patterns,
             insights::query_exceptions,
+            insights::analysis_coverage,
             insights::query_anomalies,
             insights::compare_windows,
             insights::field_stats,

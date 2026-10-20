@@ -185,6 +185,9 @@ impl LogStore for Minimal {
     fn exception_groups(&self, req: &QueryRequest) -> Result<Vec<ExceptionGroup>> {
         self.0.exception_groups(req)
     }
+    fn analysis_coverage(&self, req: &QueryRequest) -> Result<imt_core::api::AnalysisCoverage> {
+        self.0.analysis_coverage(req)
+    }
     fn anomalies(&self, req: &QueryRequest) -> Result<Vec<Anomaly>> {
         self.0.anomalies(req)
     }
