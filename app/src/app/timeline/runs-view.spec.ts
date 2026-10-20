@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ViewRequests } from '../core/view-requests';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../testing/helpers';
@@ -48,13 +49,14 @@ describe('RunsView', () => {
   });
 
   it('jumps to a run, opens the editor and says why it is empty or failed', async () => {
-    const { fixture, ws, dock, shown } = await mount();
+    const { fixture, ws, shown } = await mount();
     const lane = at(all<HTMLButtonElement>(fixture, 'tbody .link'), 0);
     expect(lane.textContent).toContain('show the run from');
     lane.click();
     await settle(fixture, 6);
     expect(ws.query().groups.length).toBe(1);
-    expect(dock.calls).toContain('show:events');
+    // The annotations ask for the events grid; the dock policy shows it.
+    expect(TestBed.inject(ViewRequests).request()?.id).toBe('events');
     el<HTMLButtonElement>(fixture, '.head .btn').click();
     expect(shown).toEqual(['markers']);
 
