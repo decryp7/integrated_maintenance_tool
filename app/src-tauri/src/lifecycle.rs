@@ -557,6 +557,63 @@ fn thread_name() -> String {
     t.name().map(str::to_string).unwrap_or_else(|| format!("{:?}", t.id()))
 }
 
+/// Longest one teardown step (closing a window, quitting) may hold the closing up; it goes on in the
+/// background after that, and IMT closes anyway.
+pub const TEARDOWN_STEP_LIMIT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// How a teardown step ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepEnd {
+    Done,
+    /// Still running after the limit (left behind).
+    TimedOut,
+    /// Crashed (logged by the panic hook) or could not start.
+    Failed,
+}
+
+/// Runs one step of closing a window or IMT on a thread of its own and waits at most `limit` for it,
+/// logging (at Info) that it started and how it ended, so a hang in a log names its step. Dropping
+/// window state, stopping plugins and jobs never runs on the main thread: they may wait for it.
+pub fn teardown_step(step: &str, limit: std::time::Duration, f: impl FnOnce() + Send + 'static) -> StepEnd {
+    log::info!(Step = step; "Teardown: {step}");
+    let started = std::time::Instant::now();
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    let spawned = std::thread::Builder::new().name(format!("imt-teardown-{step}")).spawn(move || {
+        f();
+        let _ = tx.send(());
+    });
+    let end = match spawned.map(|_| rx.recv_timeout(limit)) {
+        Ok(Ok(())) => StepEnd::Done,
+        Ok(Err(std::sync::mpsc::RecvTimeoutError::Timeout)) => StepEnd::TimedOut,
+        Ok(Err(std::sync::mpsc::RecvTimeoutError::Disconnected)) | Err(_) => StepEnd::Failed,
+    };
+    let ms = started.elapsed().as_millis() as u64;
+    match end {
+        StepEnd::Done => log::info!(Step = step, ElapsedMs = ms; "Teardown: {step} done"),
+        StepEnd::TimedOut => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} did not finish in time; IMT goes on closing"),
+        StepEnd::Failed => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} failed; IMT goes on closing"),
+    }
+    end
+}
+
+/// IMT exits (`RunEvent::Exit`): plugins stop, jobs are interrupted, the instance marker goes. Every step
+/// is bounded ([`teardown_step`]), so a stuck plugin or job cannot keep the process alive.
+pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Manager;
+    let a = app.clone();
+    teardown_step("plugins", TEARDOWN_STEP_LIMIT, move || {
+        if let Some(w) = a.try_state::<Windows>() {
+            w.shutdown_plugins();
+        }
+    });
+    let a = app.clone();
+    teardown_step("jobs", TEARDOWN_STEP_LIMIT, move || crate::jobs::shutdown(&a));
+    if let Some(life) = app.try_state::<Lifecycle>() {
+        life.end();
+        log::info!("Teardown: instance marker removed");
+    }
+}
+
 /// Logs a panic on any thread (UI, Tauri's async runtime, rayon pools, watcher and event-bus threads,
 /// helper threads): the panic hook is process-wide. Logged at Error with `Severity = "Fatal"`, the
 /// thread, the location, a bounded backtrace and, inside a command, its window and operation id (the
@@ -730,6 +787,74 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn teardown_steps_are_bounded_and_say_how_they_ended() {
+        let quick = std::time::Duration::from_millis(200);
+        assert_eq!(teardown_step("quick", quick, || {}), StepEnd::Done);
+        let started = std::time::Instant::now();
+        let stuck = teardown_step("stuck", quick, || std::thread::sleep(std::time::Duration::from_secs(5)));
+        assert_eq!(stuck, StepEnd::TimedOut);
+        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+        // A generous limit: the panic hook (a backtrace, symbolised in a debug build) runs before the step
+        // unwinds and can take seconds; the step still ends as soon as it has unwound.
+        let started = std::time::Instant::now();
+        assert_eq!(
+            teardown_step("crashing", std::time::Duration::from_secs(60), || panic!("a crash in teardown")),
+            StepEnd::Failed
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(60));
+    }
+
+    /// Closing the last window and exiting finish in bounded time with a live tail whose batch waits for
+    /// the workspace (an import holds it), a job whose stop never returns, and the tray present.
+    #[test]
+    fn quitting_finishes_with_live_tail_jobs_and_the_tray() {
+        use crate::test_support::{block, test_app_with_commands, window, TempDir};
+        use tauri::Manager;
+        let dir = TempDir::new("quit-bounded");
+        let log = dir.0.join("a.log");
+        std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n").unwrap();
+        let app = test_app_with_commands(None);
+        let _main = window(&app, "main");
+        let state = CurrentWindow::of(app.handle(), "main").unwrap();
+        block(crate::workspace_commands::open_paths(
+            app.handle().clone(),
+            state.clone(),
+            vec![log.to_string_lossy().into_owned()],
+        ))
+        .unwrap();
+        block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
+        crate::tray::create(app.handle());
+        let (entered, running) = std::sync::mpsc::channel();
+        let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Export, "Never stops").window("main");
+        let controls = crate::jobs::Controls::cancel(|| std::thread::sleep(std::time::Duration::from_secs(30)));
+        crate::jobs::spawn(
+            app.handle(),
+            spec,
+            controls,
+            move |_ctx: &crate::jobs::JobCtx| -> Result<crate::jobs::Done<()>, String> {
+                let _ = entered.send(());
+                std::thread::sleep(std::time::Duration::from_secs(30));
+                Ok(crate::jobs::Done::new(()))
+            },
+        )
+        .unwrap();
+        running.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+        let import = state.store_write();
+        std::fs::write(&log, "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let started = std::time::Instant::now();
+        app.state::<Windows>().set_exiting();
+        crate::window_manager::destroyed(app.handle(), "main");
+        exit_teardown(app.handle());
+        let took = started.elapsed();
+        assert!(
+            took < TEARDOWN_STEP_LIMIT * 2 + std::time::Duration::from_secs(1),
+            "quitting took {took:?}"
+        );
+        drop(import);
+    }
 
     #[test]
     fn relaunch_arguments_come_from_rust_only() {

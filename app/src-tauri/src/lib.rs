@@ -56,6 +56,7 @@ mod storage;
 mod system;
 mod tools;
 mod tray;
+mod ui_dispatch;
 mod updater;
 mod window_manager;
 mod window_prefs;
@@ -514,19 +515,15 @@ fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
 
 fn on_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
     match event {
-        tauri::RunEvent::ExitRequested { .. } => {
+        tauri::RunEvent::ExitRequested { code, .. } => {
+            log::info!(Code = code.unwrap_or_default(); "Exit requested");
             if let Some(w) = app.try_state::<windows::Windows>() {
                 w.set_exiting();
             }
         }
         tauri::RunEvent::Exit => {
-            if let Some(w) = app.try_state::<windows::Windows>() {
-                w.shutdown_plugins();
-            }
-            jobs::shutdown(app);
-            if let Some(life) = app.try_state::<lifecycle::Lifecycle>() {
-                life.end();
-            }
+            log::info!("Exit: tearing down");
+            lifecycle::exit_teardown(app);
             log::info!("Application is shutting down");
             // Last: may hand over to the update installer (which ends the process on Windows).
             updater::on_exit(app);

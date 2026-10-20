@@ -108,9 +108,12 @@ pub fn list<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowInfo> {
     out
 }
 
-/// Tells every window and the tray that the window list changed.
+/// Tells every window and the tray that the window list changed (on the main thread soon, coalesced:
+/// the window getters in [`list`] wait for it).
 pub fn changed<R: Runtime>(app: &AppHandle<R>) {
-    let _ = app.emit(WINDOWS_EVENT, list(app));
+    crate::ui_dispatch::post(app, crate::ui_dispatch::Slot::WindowList, |app| {
+        let _ = app.emit(WINDOWS_EVENT, list(app));
+    });
     crate::tray::refresh(app);
 }
 
@@ -201,7 +204,7 @@ pub fn quit<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.try_state::<Windows>() {
         w.set_exiting();
     }
-    log::info!("Quit requested");
+    log::info!(Windows = app.webview_windows().len() as u64; "Quit requested");
     app.exit(0);
 }
 
@@ -367,17 +370,24 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if crate::browser::is_banner_label(label) {
         return;
     }
+    log::info!(Window = label; "Window destroyed");
     panel_windows::close_all_of(app, label);
     crate::browser::owner_destroyed(app, label);
     let Some(windows) = app.try_state::<Windows>() else { return };
     let exiting = windows.exiting();
-    // Dropping the state stops its live tail and frees the workspace.
-    drop(windows.remove(label));
-    if let Some(tasks) = app.try_state::<BackgroundTasks>() {
-        tasks.remove_window(label);
-    }
-    crate::jobs::forget_window(app, label);
-    crate::notification_centre::forget_window(app, label);
+    // Off the main thread and bounded (see `lifecycle::teardown_step`): dropping the state stops its live
+    // tail, deactivates its plugins and frees the workspace; the registries notify the tray and windows.
+    use crate::lifecycle::{teardown_step, TEARDOWN_STEP_LIMIT};
+    let state = windows.remove(label);
+    teardown_step("window state", TEARDOWN_STEP_LIMIT, move || drop(state));
+    let (handle, owner) = (app.clone(), label.to_string());
+    teardown_step("window registries", TEARDOWN_STEP_LIMIT, move || {
+        if let Some(tasks) = handle.try_state::<BackgroundTasks>() {
+            tasks.remove_window(&owner);
+        }
+        crate::jobs::forget_window(&handle, &owner);
+        crate::notification_centre::forget_window(&handle, &owner);
+    });
     if !exiting {
         if let Some(life) = app.try_state::<crate::lifecycle::Lifecycle>() {
             life.forget_session(label);

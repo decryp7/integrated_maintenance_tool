@@ -546,14 +546,18 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
 /// (at most about four per second); live alerts are emitted as
 /// `imt://live-alert`. Call again after opening more files to watch them too.
 /// Returns how many folders are watched.
+/// Async and off the main thread: starting a session touches the workspace, which an import may hold.
 #[tauri::command]
-pub(crate) fn set_live<R: Runtime>(
+pub(crate) async fn set_live<R: Runtime>(
     app: AppHandle<R>,
     state: CurrentWindow,
     enabled: bool,
     options: Option<live::LiveOptions>,
 ) -> CmdResult<usize> {
-    live::set(&app, state.arc(), enabled, options.unwrap_or_default())
+    let window = state.arc().clone();
+    tauri::async_runtime::spawn_blocking(move || live::set(&app, &window, enabled, options.unwrap_or_default()))
+        .await
+        .map_err(err)?
 }
 
 /// Paths waiting to be opened in the calling window (launch arguments, files
