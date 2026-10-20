@@ -1,5 +1,5 @@
-# Builds IMT on every push and pull request; a v* tag also publishes a Gitea
-# release with the installers attached.
+# Checks IMT on every push and pull request. Installers are built only for v* tags (which also publish a
+# Gitea release with them attached), the nightly run and manual runs (see the bundle job).
 #
 # Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
 # if your act_runner instances use other labels.
@@ -15,14 +15,23 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Nightly on the default branch (main), with the installers; after midnight UTC so it does not compete
+  # with the fuzz (02:17) and bench (03:47) runs for the Linux runners.
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
+  # Line tables only (file:line in backtraces, no variable info): smaller debug builds and caches and much less
+  # memory when linking the test binaries. The test profile inherits this from dev.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 # A newer push to the same branch (or pull request) supersedes the run still going; tags have their own ref,
 # so releases are never cancelled by later pushes.
+# The event is part of the group, so a push to main never cancels the nightly or a manual run of main.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -98,16 +107,16 @@ jobs:
           $SUDO apt-get update
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake
 
+      # Only the downloaded crates: the test build folder was 5.6-10 GB, took 72-163 s to restore or save and
+      # evicted the other jobs' caches on the shared runners. A new key so the old target caches are not restored.
       - uses: actions/cache/restore@v4
         id: cargo-cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-            !target/debug/incremental
-          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: test-${{ runner.os }}-
+          key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: test-registry-${{ runner.os }}-
 
       # nextest runs every test in its own process, in parallel across crates, and reports every failure;
       # .config/nextest.toml serialises (and retries) the tests that time real child processes.
@@ -118,17 +127,14 @@ jobs:
       - name: Doc tests
         run: cargo test --workspace --doc
 
-      # Saved only when the dependencies changed (no exact hit): the workspace's own crates rebuild anyway, and
-      # uploading the whole target folder on every run cost about a minute per job.
+      # Saved only when the dependencies changed (no exact hit).
       - uses: actions/cache/save@v4
         if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-            !target/debug/incremental
-          key: test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
   licences:
     name: licences, notices + commits
@@ -175,7 +181,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs scripts/commit-lint.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/build-sidecars.test.mjs scripts/commit-lint.test.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
 
@@ -313,6 +319,9 @@ jobs:
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
+          rem The Windows runner is a developer PC (16 cores, 32 GB) that runs two jobs at once: a debug and a release
+          rem build with 16 rustc processes each exhausted its memory. Eight each keeps both inside it.
+          echo CARGO_BUILD_JOBS=8>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -324,7 +333,10 @@ jobs:
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf cmake \
             webkit2gtk-driver xvfb dbus dbus-x11
 
+      # Linux only: on the Windows host restoring this cache took about 13.5 minutes and saving it 26 more, while the
+      # host keeps the build folder (CARGO_TARGET_DIR above) and ~/.cargo between jobs anyway.
       - uses: actions/cache@v4
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.cargo/registry
@@ -335,7 +347,32 @@ jobs:
           key: smoke-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: smoke-${{ runner.os }}-
 
+      # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # when the host's Node is missing or not the major version app/.nvmrc asks for.
+      - name: Host Node matches app/.nvmrc (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          want=$(tr -d ' v\r\n' < app/.nvmrc | cut -d. -f1)
+          if ! command -v node >/dev/null; then
+            if [ -x "/c/Program Files/nodejs/node.exe" ]; then
+              echo 'C:\Program Files\nodejs' >> "$GITHUB_PATH"
+              export PATH="/c/Program Files/nodejs:$PATH"
+            else
+              echo "::error::Node.js is not installed on this Windows runner: install Node $want (app/.nvmrc) on the host and put it on PATH."
+              exit 1
+            fi
+          fi
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          if [ "$have" != "$want" ]; then
+            echo "::error::The Windows runner has Node $(node --version) but app/.nvmrc asks for Node $want: install Node $want on the host."
+            exit 1
+          fi
+          node --version
+
       - uses: actions/setup-node@v4
+        if: runner.os != 'Windows'
         with:
           node-version-file: app/.nvmrc
           cache: npm
@@ -412,9 +449,13 @@ jobs:
           path: app/e2e-tauri/.artifacts
           if-no-files-found: ignore
 
+  # Installers only for v* tags, the nightly run and manual runs (workflow_dispatch), never for pushes or pull
+  # requests: they are the slowest jobs and the Windows leg runs on a developer PC. A change that breaks the
+  # installers still shows up within 24 hours, in the nightly run.
   bundle:
     name: bundle (${{ matrix.os }})
     needs: [rust-lint]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -456,6 +497,9 @@ jobs:
           echo npm_config_prefer_offline=true>>"%GITHUB_ENV%"
           echo npm_config_audit=false>>"%GITHUB_ENV%"
           echo npm_config_fund=false>>"%GITHUB_ENV%"
+          rem The Windows runner is a developer PC (16 cores, 32 GB) that runs two jobs at once: a debug and a release
+          rem build with 16 rustc processes each exhausted its memory. Eight each keeps both inside it.
+          echo CARGO_BUILD_JOBS=8>>"%GITHUB_ENV%"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -466,7 +510,10 @@ jobs:
           $SUDO apt-get update
           $SUDO apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm cmake
 
+      # Linux only: on the Windows host restoring this cache took about 13.5 minutes and saving it 26 more, while the
+      # host keeps the build folder (CARGO_TARGET_DIR above) and ~/.cargo between jobs anyway.
       - uses: actions/cache@v4
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.cargo/registry
@@ -475,15 +522,39 @@ jobs:
           key: bundle-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: bundle-${{ runner.os }}-
 
+      # Windows runs on the host, which keeps its own Node: setup-node downloaded Node again on every job and its
+      # npm cache took about 7 minutes to restore (the npm cache already lives in %USERPROFILE%\.imt-ci). Fail fast
+      # when the host's Node is missing or not the major version app/.nvmrc asks for.
+      - name: Host Node matches app/.nvmrc (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          want=$(tr -d ' v\r\n' < app/.nvmrc | cut -d. -f1)
+          if ! command -v node >/dev/null; then
+            if [ -x "/c/Program Files/nodejs/node.exe" ]; then
+              echo 'C:\Program Files\nodejs' >> "$GITHUB_PATH"
+              export PATH="/c/Program Files/nodejs:$PATH"
+            else
+              echo "::error::Node.js is not installed on this Windows runner: install Node $want (app/.nvmrc) on the host and put it on PATH."
+              exit 1
+            fi
+          fi
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          if [ "$have" != "$want" ]; then
+            echo "::error::The Windows runner has Node $(node --version) but app/.nvmrc asks for Node $want: install Node $want on the host."
+            exit 1
+          fi
+          node --version
+
       - uses: actions/setup-node@v4
+        if: runner.os != 'Windows'
         with:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-about
+      # No cargo-about and no notices regeneration here: the licences job fails when the committed notices
+      # (app/src-tauri/resources, app/src/app/about/generated) are out of date, and a release needs that job.
 
       # Signed updater artifacts (docs/releasing.md): with the signing secrets set, Tauri writes a .sig next to
       # every installer (v2 updater artifacts: the installers themselves, plus IMT.app.tar.gz on macOS; never
@@ -498,7 +569,6 @@ jobs:
           TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
         run: |
           npm ci
-          ../scripts/notices/generate.sh
           bundles='${{ matrix.bundles }}'
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$TAURI_UPDATER_PUBKEY" ]; then
             # macOS updates install from the .app bundle's archive.

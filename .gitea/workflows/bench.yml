@@ -1,13 +1,20 @@
-# Engine benchmarks (crates/imt-core/benches) on every push to main. A quick
-# criterion pass keeps the job short; the HTML report is uploaded as an
-# artifact so runs can be compared. Raise the input sizes locally with
+# Engine benchmarks (crates/imt-core/benches) on pushes to main that change the
+# engine, nightly and on demand. A quick criterion pass keeps the job short; the
+# HTML report is uploaded as an artifact so runs can be compared. Raise the input sizes locally with
 # IMT_BENCH_IMPORT_LINES / IMT_BENCH_WORKSPACE_LINES.
 
 name: bench
 
 on:
+  # Pushes run only when the engine changes (most pushes are UI or shell work and cannot move these numbers);
+  # the nightly run still catches drift from dependency updates.
   push:
     branches: [main]
+    paths:
+      - "crates/imt-core/**"
+  schedule:
+    - cron: "47 3 * * *"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always

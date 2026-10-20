@@ -62,14 +62,17 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the
-`crashes-<target>` artifact.
+`crashes-<target>` artifact. Four shards of seven targets each build the fuzz workspace once
+and then fuzz their targets one after another, on the dated nightly in `FUZZ_TOOLCHAIN`
+(use the same one locally, e.g. `cargo +nightly-2026-10-01 fuzz run ...`, to reproduce CI).
 
 ### Adding a target
 
 1. Create `fuzz/fuzz_targets/fuzz_<name>.rs` (see an existing one; helpers live in
    `fuzz/common/mod.rs`) and add a matching `[[bin]]` entry to `fuzz/Cargo.toml`.
 2. Copy a few small valid inputs (a few KB each) into `fuzz/corpus/fuzz_<name>/`.
-3. Add the name to the matrix in `.gitea/workflows/fuzz.yml` and to the table above.
+3. Add the name to a shard's `targets` in `.gitea/workflows/fuzz.yml` and to the table above. A
+   shard has one crash-upload step per target (seven); when every shard is full, add a shard.
 4. Add a proptest property for the same entry point next to the other ones.
 
 ### Triaging a crash
