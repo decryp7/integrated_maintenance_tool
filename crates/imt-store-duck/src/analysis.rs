@@ -71,8 +71,8 @@ struct Chunks<'c> {
     /// The windows' conditions, in time order (untimed events last).
     windows: Vec<String>,
     next: usize,
-    /// `SELECT count(*)` of the stream's events (for the events not read past an exact stream's limit).
-    count: String,
+    /// How many events the stream's statement selects.
+    total: u64,
 }
 
 /// Events per window of a time-ordered stream (from the minute histogram: whole minutes, a busy minute
@@ -252,12 +252,19 @@ impl<'c> EventStream<'c> {
         limit: usize,
         per: u64,
     ) -> StoreResult<EventStream<'c>> {
+        // Few events (a narrow query) sort at once.
+        let total = count(conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        let windows = if total <= per {
+            vec!["TRUE".to_string()]
+        } else {
+            Chunks::windows(conn, per)?
+        };
         let mut chunks = Chunks {
             conn,
             select: format!("SELECT {select} FROM {FROM} WHERE ({filter})"),
-            windows: Chunks::windows(conn, per)?,
+            windows,
             next: 0,
-            count: format!("SELECT count(*) FROM {FROM} WHERE {filter}"),
+            total,
         };
         let first = match chunks.next_statement() {
             Some(stmt) => stmt.map_err(engine)?,
@@ -326,12 +333,9 @@ impl<'c> EventStream<'c> {
     fn stop_counting(&mut self) {
         self.done = true;
         if let Some(chunks) = self.chunks.take() {
-            match count(chunks.conn, &chunks.count) {
-                Ok(n) => self.unread = (n as u64).saturating_sub(self.matched - 1),
-                Err(e) => self.error = Some(e),
-            }
             // The event that hit the limit is counted with the rest.
             self.matched -= 1;
+            self.unread = chunks.total.saturating_sub(self.matched);
         }
     }
 
