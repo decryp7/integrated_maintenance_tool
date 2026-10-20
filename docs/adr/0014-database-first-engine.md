@@ -77,8 +77,20 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 - Limits: worker threads, queue depth and DuckDB `memory_limit` are capped (defaults: cores − 1, 4 batches per
   stage, 25 % of RAM) and configurable in Settings. Import progress, per-file errors and cancel go through the
   Jobs pane (ADR 0012); one bad file is reported and the rest imports (`guard::catch` as today).
-- Performance budget, measured by a CI benchmark on the 10M-event corpus: at least 3× the spike's 72.7k events/s on
-  the same machine class, peak RSS of the worker under 2 GB, app process RSS unaffected by data size.
+- **Memory is cut to the minimum** (user decision, 2026-10-20). Budgets, enforced by CI tests on the 10M-event corpus
+  and by the worker's job-object limit:
+  - **App process:** flat, independent of data size: target under 250 MB with one window and a 10M-event project. It
+    holds no records: only the page on screen (a few hundred rows), timeline buckets and counts.
+  - **Store worker, idle or querying:** under 300 MB. DuckDB `memory_limit` defaults to 256 MB (spilling to its temp
+    folder), its buffer pool is not a cache of the whole data, and per-generation analysis results live in the
+    database, never in RAM.
+  - **Store worker, importing:** under 600 MB whatever the folder size: batches of at most 8,192 rows, at most 4 batches
+    in flight per stage, file chunks streamed (never a whole file), Tantivy's writer budget 64 MB, DuckDB 256 MB.
+  - Every cache is bounded by bytes (not entries) and dropped under memory pressure; nothing grows with the data.
+  - Tests measure peak RSS (the spike's `rss.rs` sampler) and fail above the budget; Settings can raise the limits for
+    users with large machines who want faster imports.
+- Performance budget, measured by the same CI benchmark: at least 3× the spike's 72.7k events/s on the same machine
+  class, within the memory budget above.
 
 ### 3. One batch format end to end
 
