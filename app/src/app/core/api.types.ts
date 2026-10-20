@@ -73,6 +73,37 @@ export interface SourceInfo {
   to: number | null;
   /** Clock-skew correction applied to this source's timestamps, in ms (0 = none; the engine always sends it). See `set_source_offset`. */
   offsetMs?: number;
+  /** Many events without a readable timestamp (the engine sends null when the timestamps are fine). */
+  timestampIssue?: TimestampIssue | null;
+}
+
+/**
+ * A source whose timestamps could not be read: more than 5 % of its events, or all of its first 20 (Rust
+ * `imt_core::api::TimestampIssue`, decided by `imt_core::timestamp_issue`).
+ */
+export interface TimestampIssue {
+  /** Events (lines that start an event) without a readable timestamp. */
+  unparsedLines: number;
+  totalLines: number;
+  /** Up to three such lines, each cut to 120 characters. */
+  examples: string[];
+  /** The 1-based line number of each example (same order). */
+  exampleLines: number[];
+  /** A timestamp format the engine checked against those lines, if one reads them. */
+  suggestion: TimestampSuggestion | null;
+}
+
+/** A strftime format for `[parse] timestamp_formats`, verified by the engine to parse the sample lines. */
+export interface TimestampSuggestion {
+  format: string;
+  /** The timestamp text of the first sample, as the format reads it. */
+  sample: string;
+  /** The profile lines that add the format. */
+  profileSnippet: string;
+  /** Sample lines (without a readable timestamp) the format reads. */
+  parsedSamples: number;
+  /** Sample lines the format was checked against. */
+  checkedSamples: number;
 }
 
 export interface UnrecognizedFile {

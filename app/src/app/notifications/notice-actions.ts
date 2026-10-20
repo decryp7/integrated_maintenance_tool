@@ -24,6 +24,8 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.resetPlugin:Reset plugin`;
     case 'setUpFormat':
       return $localize`:@@notifications.action.setUpFormat:Set up format`;
+    case 'fixTimestamps':
+      return $localize`:@@notifications.action.fixTimestamps:Fix timestamps`;
     case 'resetAi':
       return $localize`:@@notifications.action.resetAi:Reset AI`;
     case 'installUpdate':
@@ -77,6 +79,15 @@ export class NoticeActions {
         this.injector.get(DialogService).open(FormatWizard, {
           title: $localize`:@@notifications.action.setUpFormatTitle:Set up format`,
           inputs: { path: a.path, name: a.path.split(/[\\/]/).pop() ?? a.path },
+          width: 760,
+        });
+        return null;
+      }
+      case 'fixTimestamps': {
+        const { FormatWizard } = await import('../format/format-wizard');
+        this.injector.get(DialogService).open(FormatWizard, {
+          title: $localize`:@@notifications.action.fixTimestampsTitle:Fix timestamps`,
+          inputs: { path: a.path, name: a.path.split(/[\\/]/).pop() ?? a.path, timestampFormat: a.format },
           width: 760,
         });
         return null;

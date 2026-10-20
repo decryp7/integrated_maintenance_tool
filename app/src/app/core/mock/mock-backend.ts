@@ -57,6 +57,7 @@ import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '.
 import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
 import { ImportProgress, ProfileVersionInfo } from '../api.types';
 import { mockNotifications } from '../../notifications/mock-notifications';
+import { timestampNotice, withTimestampIssue } from './mock-timestamps';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
@@ -213,6 +214,7 @@ export class MockBackend implements ImtBackend {
         from: perSource.get(s.id)?.from ?? null,
         to: perSource.get(s.id)?.to ?? null,
         offsetMs: s.offsetMs ?? 0,
+        timestampIssue: s.timestampIssue ?? null,
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,
@@ -297,6 +299,7 @@ export class MockBackend implements ImtBackend {
       for (const path of others) this.addExtra(path);
       this.apply();
       this.quickProgress = { ...IDLE_PROGRESS, done: paths.length, total: paths.length };
+      this.reportTimestampIssues();
       return this.summary();
     }, 300);
   }
@@ -305,7 +308,8 @@ export class MockBackend implements ImtBackend {
   private addExtra(path: string): void {
     if (this.dataset.sources.some((s) => s.path === path)) return;
     const id = this.nextSourceId++;
-    const extra = generateExtraSource(id, path, id);
+    const generated = generateExtraSource(id, path, id);
+    const extra = withTimestampIssue(path, generated.source, generated.records);
     this.dataset.sources.push(extra.source);
     this.dataset.records.push(...extra.records);
   }
@@ -377,10 +381,19 @@ export class MockBackend implements ImtBackend {
     });
   }
 
+  /** As the engine does after an import: one message per file whose timestamps were not read (once per file). */
+  private reportTimestampIssues(): void {
+    for (const s of this.dataset.sources) {
+      const notice = timestampNotice(s);
+      if (notice) mockNotifications().post(notice);
+    }
+  }
+
   reloadWorkspace() {
     return this.delay(() => {
       this.dataset = this.makeDataset();
       this.apply();
+      this.reportTimestampIssues();
       return this.summary();
     }, 400);
   }

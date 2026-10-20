@@ -13,6 +13,7 @@ import { ContextMenuService } from '../ui/context-menu.service';
 import { ClockDialogService } from '../skew/clock-section';
 import { formatOffset } from '../skew/skew-format';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
+import { TimestampWarning } from './timestamp-warning';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -24,7 +25,7 @@ function shortPath(path: string): string {
 @Component({
   selector: 'imt-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, FieldsPanel, NgTemplateOutlet],
+  imports: [Icon, FieldsPanel, NgTemplateOutlet, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
@@ -103,6 +104,7 @@ function shortPath(path: string): string {
         @if (s.offsetMs) {
           <span class="skew mono" data-testid="skew-badge" [title]="skewLabel(s.offsetMs)" [attr.aria-label]="skewLabel(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
         }
+        <imt-timestamp-warning [source]="s" />
         <span class="badge">{{ s.importer }}</span>
         <span class="mono count">{{ compact(s.records) }}</span>
         <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>

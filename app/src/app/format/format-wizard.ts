@@ -34,7 +34,11 @@ const PARTS: { id: FormatPart; label: string }[] = [
   imports: [HelpHint, AiButton],
   host: { '(document:selectionchange)': 'onSelection()' },
   template: `
+    @if (mode() === 'timestamps') {
+      <p i18n="@@format.wizard.timestampsIntro">IMT read the lines of <span class="mono">{{ name() }}</span> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</p>
+    } @else {
     <p><ng-container i18n="@@format.wizard.intro">IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on.</ng-container>&ngsp;<imt-help label="Format wizard" i18n-label="@@format.wizard.helpLabel" i18n-text="@@format.wizard.helpText" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
+    }
 
     <p class="tpl-hint" i18n="@@format.wizard.templateHint">Written by a common logging library or server? <button type="button" class="btn ghost" data-testid="start-from-template" (click)="fromTemplate()">Start from a template…</button></p>
 
@@ -45,6 +49,9 @@ const PARTS: { id: FormatPart; label: string }[] = [
     <div class="seg" role="group" aria-label="How to describe the format" i18n-aria-label="@@format.wizard.modes">
       <button type="button" class="btn" [class.active]="mode() === 'marks'" [attr.aria-pressed]="mode() === 'marks'" (click)="mode.set('marks')" i18n="@@format.wizard.modeMarks">Mark on a sample line</button>
       <button type="button" class="btn" [class.active]="mode() === 'template'" [attr.aria-pressed]="mode() === 'template'" (click)="mode.set('template')" i18n="@@format.wizard.modeTemplate">Serilog output template</button>
+      @if (timestampFormat() !== undefined) {
+        <button type="button" class="btn" [class.active]="mode() === 'timestamps'" [attr.aria-pressed]="mode() === 'timestamps'" (click)="mode.set('timestamps')" i18n="@@format.wizard.modeTimestamps">Timestamp format</button>
+      }
     </div>
 
     @if (mode() === 'marks') {
@@ -73,6 +80,16 @@ const PARTS: { id: FormatPart; label: string }[] = [
           <button type="button" class="btn ghost" [disabled]="!hasMarks()" (click)="marks.set({})" i18n="@@format.wizard.clearMarks">Clear marks</button>
         </div>
       }
+    } @else if (mode() === 'timestamps') {
+      <label class="lbl"><ng-container i18n="@@format.wizard.timestampFormat">Timestamp format</ng-container>
+        <input class="input mono" data-testid="timestamp-format" [value]="tsFormat()" (input)="tsFormat.set($any($event.target).value)" placeholder="%Y/%m/%d,%H:%M:%S%.f%:z" />
+      </label>
+      <div class="status">
+        @if (suggested()) {
+          <ng-container i18n="@@format.wizard.timestampSuggested">IMT checked this format against the lines it could not read.</ng-container>&ngsp;
+        }
+        <ng-container i18n="@@format.wizard.timestampHint">.NET style (dd/MM/yyyy HH:mm:ss.fff) or strftime (%d/%m/%Y %H:%M:%S%.f). It is added to the profile's timestamp formats.</ng-container>
+      </div>
     } @else {
       <label class="lbl"><ng-container i18n="@@format.wizard.outputTemplate">Output template</ng-container>
         <input class="input mono" [value]="template()" (input)="template.set($any($event.target).value)" placeholder="{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}" />
@@ -134,13 +151,21 @@ export class FormatWizard implements OnInit {
 
   readonly path = input.required<string>();
   readonly name = input.required<string>();
+  /**
+   * Opened because the file's timestamps were not read: the format the engine proposed (null: none). Set, the
+   * wizard starts in "Timestamp format" mode; left undefined, that mode is not offered.
+   */
+  readonly timestampFormat = input<string | null | undefined>(undefined);
 
   private readonly sampleEl = viewChild<ElementRef<HTMLElement>>('sample');
   protected readonly parts = PARTS;
   protected readonly markHint = $localize`:@@format.wizard.markHint:Mark a timestamp and a message to generate a pattern.`;
   protected readonly applying = $localize`:@@format.wizard.applying:Applying…`;
   protected readonly saveLabel = $localize`:@@format.wizard.save:Save and re-import`;
-  protected readonly mode = signal<'marks' | 'template'>('marks');
+  protected readonly mode = signal<'marks' | 'template' | 'timestamps'>('marks');
+  /** The timestamp format being tried (starts as the engine's proposal). */
+  protected readonly tsFormat = signal('');
+  protected readonly suggested = computed(() => !!this.timestampFormat() && this.tsFormat().trim() === this.timestampFormat());
   /** Start of the file as the engine decoded it; this is also what the engine previews. */
   private readonly head = signal('');
   protected readonly lines = computed(() => (this.head() ? this.head().split(/\r?\n/).slice(0, PREVIEW_LINES).filter((l) => l.length > 0) : []));
@@ -164,6 +189,14 @@ export class FormatWizard implements OnInit {
   protected readonly mutation = computed<((m: ProfileModel) => void) | null>(() => {
     const template = this.template().trim();
     const regex = this.regex();
+    const tsFormat = this.tsFormat().trim();
+    if (this.mode() === 'timestamps') {
+      if (!tsFormat) return null;
+      return (m) => {
+        m.parse = { ...(m.parse ?? {}) };
+        m.parse.timestamp_formats = [tsFormat, ...(m.parse.timestamp_formats ?? []).filter((f) => f !== tsFormat)];
+      };
+    }
     // New formats go first so they win over the generic patterns.
     if (this.mode() === 'template' && template) {
       return (m) => {
@@ -219,6 +252,11 @@ export class FormatWizard implements OnInit {
   }
 
   ngOnInit(): void {
+    const proposed = this.timestampFormat();
+    if (proposed !== undefined) {
+      this.mode.set('timestamps');
+      this.tsFormat.set(proposed ?? '');
+    }
     void this.loadHead();
   }
 

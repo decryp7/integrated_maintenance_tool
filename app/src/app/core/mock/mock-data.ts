@@ -1,4 +1,4 @@
-import { Level } from '../api.types';
+import { Level, TimestampIssue } from '../api.types';
 
 /** A raw imported event, before the profile pipeline (extractors, markers) runs. */
 export interface MockRecord {
@@ -22,6 +22,8 @@ export interface MockSource {
   skipped: number;
   /** Clock-skew offset applied to the source's timestamps (ms). */
   offsetMs?: number;
+  /** The engine's timestamp diagnosis, mimicked (see `mock-timestamps.ts`). */
+  timestampIssue?: TimestampIssue | null;
 }
 
 export interface MockDataset {

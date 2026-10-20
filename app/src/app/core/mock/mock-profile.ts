@@ -34,7 +34,7 @@ regexes = [
   # log4net / NLog: %date [%thread] %-5level %logger [%ndc] - %message
   '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
   # Generic: timestamp, optional level, message
-  '^(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+(?:\[?(?P<level>VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL|Verbose|Debug|Information|Warning|Error|Fatal)\]?\s*[:|-]?\s+)?(?P<message>.*)$',
+  '^(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+(?:\[?(?P<level>VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL|Verbose|Debug|Information|Warning|Error|Fatal)\]?\s*[:|-]?\s+)?(?P<message>.*)$',
 ]
 # Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
 # ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always

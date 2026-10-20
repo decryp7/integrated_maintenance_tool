@@ -17,6 +17,7 @@ export type NoticeAction =
   | { type: 'reviewProposals'; jobId: number }
   | { type: 'resetPlugin'; pluginId: string }
   | { type: 'setUpFormat'; path: string }
+  | { type: 'fixTimestamps'; path: string; format: string | null }
   | { type: 'resetAi' }
   | { type: 'installUpdate' }
   | { type: 'showAlert'; alertId: string }
