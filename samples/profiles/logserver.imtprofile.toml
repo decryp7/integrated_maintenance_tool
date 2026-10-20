@@ -1,0 +1,17 @@
+name = "Log server (logserver01)"
+
+# Inventory names its host and process in the message.
+[[extract]]
+name = "inventory-identity"
+from = "@message"
+regex = 'host=(?P<Host>\S+) pid=(?P<Pid>\d+) '
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+
+# One logical source per product and host.
+[[route]]
+when = [{ field = "Application", op = "exists" }]
+source = "{Application}@{MachineName}"
+
+[[route]]
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+source = "Inventory@{Host}"
