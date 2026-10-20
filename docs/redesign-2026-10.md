@@ -63,7 +63,7 @@ ADR 0014 stands. The engine review adds what it must also decide:
   told apart by manifest `format`; the database entry streams to disk under its own limits.
 - The registry splits into **ingest extensions** (in the store worker) and **host extensions** (in the app).
 
-## R3: one IPC stack, plugins and workers (new ADR 0015; batch 7 brought forward, about 2 days)
+## R3: one IPC stack, plugins and workers (ADR 0017; batch 7 brought forward, about 2 days)
 
 - **`imt-plugin-api`** crate with no `imt-core` dependency: plugin traits, the ADR 0014 `RecordBatch` schema,
   manifest, frame types, owned ids (`Arc<str>`; no more `Box::leak`). Core depends on it; plugins depend only on it.

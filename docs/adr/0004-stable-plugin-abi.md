@@ -1,8 +1,12 @@
 # 4. Stable plugin ABI: WIT for WebAssembly, protobuf for processes
 
-- Status: accepted; amended 2026-10-18 (the WebAssembly part is dropped, see below)
+- Status: superseded by [ADR 0017](0017-one-ipc-out-of-process-plugins.md) (2026-10-20); amended 2026-10-18 (the WebAssembly part is dropped, see below)
 - Date: 2026-10-17
 
+> **Superseded (2026-10-20):** plugins are Rust only and out of process, over IMT's one frame codec
+> (postcard frames on a private local stream) and the `imt-plugin-api` crate (ADR 0017). The protobuf contract, the
+> gRPC transport, the C#/.NET SDK and the conformance kit are deleted.
+>
 > **Amendment (2026-10-18):** the WebAssembly component contract (WIT `imt:plugin@1`) is dropped.
 > Third-party plugins use the process contract only: `imt.plugin.v1` over local gRPC with Arrow
 > batches, with the Rust and C#/.NET SDKs and `imt-plugin-check`. The rest of this record stands.

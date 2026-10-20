@@ -1,6 +1,8 @@
 # 2. Small core, everything else a plugin; native code out of process
 
-- Status: accepted
+- Status: accepted; the process-isolation tiers and the wire protocol are superseded by
+  [ADR 0017](0017-one-ipc-out-of-process-plugins.md) (2026-10-20): every plugin runs out of process over one framed
+  postcard IPC, sandboxed; there is no in-process plugin mode, no isolated mode and no gRPC
 - Date: 2026-10-17
 
 ## Context
@@ -54,6 +56,9 @@ gated by its engine plugin's status; safe mode loads only the core UI.
   watchdog that abandons and quarantines calls exceeding their time budget.
 
 ### Wire protocol for out-of-process plugins
+
+> Superseded by ADR 0017 (2026-10-20): length-prefixed postcard frames on a private local stream replace gRPC,
+> Arrow IPC and protobuf below.
 
 All workers and the plugin host share one transport:
 
