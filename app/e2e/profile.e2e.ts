@@ -86,7 +86,8 @@ test.describe('profile editor', () => {
     await expect(page.locator('imt-profile-editor .bar .name')).toHaveText('Job profile');
     await page.locator('[data-activity-id="jobs"]').click();
     await expect(page.locator('imt-jobs-panel li').filter({ hasText: 'Apply the profile Job profile' })).toContainText('Done');
-    await page.getByRole('tab', { name: /^Timeline/ }).click();
+    // The Jobs pane shares the bottom panel with the events grid.
+    await page.getByRole('tab', { name: 'Events', exact: true }).click();
     await expect(page.locator('imt-events-grid .bar .total')).toHaveText(all);
   });
 });

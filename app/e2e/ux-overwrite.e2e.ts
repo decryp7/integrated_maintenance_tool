@@ -17,8 +17,10 @@ test('an export never replaces an existing file without asking', async ({ page }
   // First export: a new file, no question.
   let dialog = await exportEvents(page);
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: /Exported [0-9]/ })).toContainText('events.csv');
-  await page.getByRole('status').filter({ hasText: /Exported [0-9]/ }).getByRole('button', { name: 'Dismiss' }).click();
+  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export events to events.csv' });
+  await expect(done).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('notice-toast').filter({ hasText: 'running in Jobs' }).getByRole('button', { name: 'Dismiss notification' }).click();
+  await done.getByRole('button', { name: 'Dismiss notification' }).click();
 
   // Same file again: the engine refuses, the app asks.
   dialog = await exportEvents(page);
@@ -29,12 +31,12 @@ test('an export never replaces an existing file without asking', async ({ page }
   await expect(confirm).toHaveCount(0);
   // Nothing was written and the export dialog is still there to choose another name.
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole('status').filter({ hasText: /Exported [0-9]/ })).toHaveCount(0);
+  await expect(page.getByTestId('notice-toast').filter({ hasText: 'Exporting to events.csv' })).toHaveCount(0);
 
   await dialog.getByRole('button', { name: 'Export…' }).click();
   await page.getByRole('dialog', { name: 'Replace file?' }).getByRole('button', { name: 'Replace' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('status').filter({ hasText: /Exported [0-9]/ })).toContainText('events.csv');
+  await expect(page.getByTestId('notice-toast').filter({ hasText: 'Exporting to events.csv — running in Jobs' })).toBeVisible();
 });
 
 test('About says IMT never modifies your files', async ({ page }) => {
