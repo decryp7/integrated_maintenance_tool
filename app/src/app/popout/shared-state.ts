@@ -5,7 +5,7 @@ import { ThemeMode, WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
 import { sanitizeQuery } from '../lifecycle/core-ui-state';
 import { LiveFollow, sanitizeFollow } from '../live/live-follow.store';
-import { GridDensity, SettingsStore } from '../settings/settings.store';
+import { GridDensity, SettingsStore, SOURCE_COLOR_MODES, SourceColorMode } from '../settings/settings.store';
 import { LiveTail } from '../workspace/live-tail';
 import { SyncedValue } from './ui-sync';
 
@@ -88,6 +88,11 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
     },
     { key: 'dateFormat', read: () => settings.dateFormat(), apply: (v) => DATE_FORMATS.includes(v as DateFormat) && settings.setDateFormat(v as DateFormat) },
     { key: 'density', read: () => settings.density(), apply: (v) => DENSITIES.includes(v as GridDensity) && settings.setDensity(v as GridDensity) },
+    {
+      key: 'sourceColors',
+      read: () => settings.sourceColors(),
+      apply: (v) => SOURCE_COLOR_MODES.includes(v as SourceColorMode) && settings.setSourceColors(v as SourceColorMode),
+    },
     {
       key: 'live',
       direction: 'fromHost',

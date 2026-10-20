@@ -15,6 +15,10 @@ import { ContextSection } from './context-section';
 import { TimelineZoom } from '../timeline/zoom';
 import { formatOffset } from '../skew/skew-format';
 import { NextSteps } from '../ui/next-steps';
+import { SourceColors } from '../sources/source-colors.store';
+import { SourceFileActions } from '../sources/source-file-actions';
+import { SourceSwatch } from '../sources/source-swatch';
+import { FileAction } from '../core/api.types';
 
 /** Fields that tie events of one request/operation together, in order of preference. */
 const CORRELATION_FIELDS = ['CorrelationId', 'RequestId', 'TraceId', 'OperationId', 'ActivityId', 'ConnectionId'];
@@ -23,7 +27,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
 @Component({
   selector: 'imt-inspector',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection, NextSteps],
+  imports: [Icon, MarkerIcon, NgComponentOutlet, ContextSection, NextSteps, SourceSwatch],
   host: { '(document:selectionchange)': 'onSelectionChange()' },
   template: `
     <div class="head">
@@ -97,7 +101,22 @@ const CONTEXT_MS = 2 * 60 * 1000;
           <pre class="mono exc">{{ r.exception }}</pre>
         }
 
-        <div class="src faint" i18n="@@inspector.source">Source <span class="mono">{{ r.sourceName }}:{{ r.line }}</span></div>
+        <div class="src">
+          <div class="src-line faint">
+            @if (mark(); as m) {
+              <imt-source-swatch [swatch]="m.swatch" [label]="m.label" />
+            }
+            <span i18n="@@inspector.source">Source <span class="mono">{{ r.sourceName }}:{{ r.line }}</span></span>
+          </div>
+          <div class="actions file-actions">
+            @for (a of fileStates(); track a.action) {
+              <button class="btn" type="button" [disabled]="!!a.reason" [attr.title]="a.reason" [attr.data-action]="a.action" (click)="openFile(a.action)">{{ a.label }}</button>
+            }
+          </div>
+          @if (fileReason(); as why) {
+            <div class="faint why" data-testid="file-reason">{{ why }}</div>
+          }
+        </div>
       </div>
     } @else {
       <div class="empty-state">
@@ -136,7 +155,9 @@ const CONTEXT_MS = 2 * 60 * 1000;
     .pa .icon-btn { width: 22px; height: 22px; }
     .prop:hover .pa, .pa:focus-within { visibility: visible; }
     .exc { margin: 0 14px; padding: 10px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border); font-size: 10.5px; line-height: 1.55; color: var(--text-2); white-space: pre; overflow: auto; max-height: 320px; }
-    .src { padding: 12px 14px; font-size: 12px; }
+    .src { padding: 12px 14px; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .src-line { display: flex; align-items: center; gap: 6px; }
+    .why { font-size: 11px; }
     .pad { padding: 0 14px; }
   `,
 })
@@ -186,6 +207,28 @@ export class Inspector {
   }
   protected readonly store = inject(WorkspaceStore);
   private readonly zoom = inject(TimelineZoom);
+  private readonly files = inject(SourceFileActions);
+  private readonly colors = inject(SourceColors);
+  /** The line's source or instance colour (with its legend), as the grid stripe shows it. */
+  protected readonly mark = computed(() => {
+    const r = this.store.selected();
+    return r ? this.colors.forRecord(r) : null;
+  });
+  /** Open file / Open at line / Show in folder for the event's file, with why one is unavailable. */
+  protected readonly fileStates = computed(() => {
+    const r = this.store.selected();
+    return r ? this.files.states(this.files.sourceOf(r), r.line) : [];
+  });
+  protected readonly fileReason = computed(() => {
+    const reasons = [...new Set(this.fileStates().map((a) => a.reason).filter((x): x is string => !!x))];
+    return reasons.join(' · ') || null;
+  });
+
+  protected openFile(action: FileAction): void {
+    const r = this.store.selected();
+    const source = r ? this.files.sourceOf(r) : null;
+    if (r && source) void this.files.run(source, action, r.line);
+  }
   protected readonly rec = this.store.selected;
   protected readonly copied = signal(false);
   protected readonly copyJsonLabel = computed(() => (this.copied() ? $localize`:@@inspector.copied:Copied` : $localize`:@@inspector.copyJson:Copy JSON`));

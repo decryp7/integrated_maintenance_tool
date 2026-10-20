@@ -323,6 +323,31 @@ fn rotated_logs_are_read_from_the_zip_and_the_gzip() {
             "notify01/notify01-logs-20261014.zip/app.log.2",
         ]
     );
+    // The zip's members cannot be opened on their own; the gzip file can, but its lines are compressed.
+    let kinds: Vec<(&str, imt_core::api::FileKind)> = s.sources.iter().map(|x| (x.name.as_str(), x.file_kind)).collect();
+    for (name, kind) in &kinds {
+        let expected = if name.ends_with(".gz") {
+            imt_core::api::FileKind::Compressed
+        } else {
+            imt_core::api::FileKind::ArchiveMember
+        };
+        assert_eq!(*kind, expected, "{name}");
+    }
+    // One lane (the log's single instance) lists the files its events come from.
+    let tl = ws
+        .timeline(&TimelineRequest {
+            query: Query::default(),
+            buckets: 20,
+            always_show_lifecycle: false,
+        })
+        .unwrap();
+    let mut ids: Vec<u32> = s.sources.iter().map(|x| x.id).collect();
+    ids.sort_unstable();
+    let mut listed: Vec<u32> = tl.lanes.iter().flat_map(|l| l.sources.iter().copied()).collect();
+    listed.sort_unstable();
+    listed.dedup();
+    assert_eq!(listed, ids);
+    assert!(tl.lanes.iter().all(|l| l.sources.windows(2).all(|w| w[0] < w[1])));
     // The rotation splits one continuous log: each file starts after the previous one ended.
     let mut ranges: Vec<(i64, i64)> = s.sources.iter().map(|x| (x.from.unwrap(), x.to.unwrap())).collect();
     ranges.sort();

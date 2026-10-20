@@ -10,6 +10,7 @@ import { CLEAR_CACHE_COMMAND, STORAGE_ID } from '../settings/storage/storage.typ
 import { AboutService } from '../about/about-dialog';
 import { TimelineZoom } from '../timeline/zoom';
 import { WelcomeService } from '../welcome/welcome';
+import { SettingsStore } from '../settings/settings.store';
 
 /** Built-in commands: everything the menus offer, available from the palette and key bindings. */
 @Injectable({ providedIn: 'root' })
@@ -23,6 +24,7 @@ export class BuiltinCommands {
   private readonly welcome = inject(WelcomeService);
   private readonly settings = inject(SettingsDialogService);
   private readonly about = inject(AboutService);
+  private readonly prefs = inject(SettingsStore);
 
   readonly commands: ImtCommand[] = [
     { id: 'palette.open', title: $localize`:@@builtin.cmd.palette.open:Show all commands`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+K', run: () => this.palette.open() },
@@ -50,6 +52,9 @@ export class BuiltinCommands {
     { id: 'view.theme.system', title: $localize`:@@builtin.cmd.view.theme.system:Theme: system`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('system') },
     { id: 'view.theme.dark', title: $localize`:@@builtin.cmd.view.theme.dark:Theme: dark`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('dark') },
     { id: 'view.theme.light', title: $localize`:@@builtin.cmd.view.theme.light:Theme: light`, category: $localize`:@@builtin.category.view:View`, run: () => this.store.setTheme('light') },
+    { id: 'view.sourceColors.source', title: $localize`:@@builtin.cmd.view.sourceColors.source:Source colours: by file`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('source') },
+    { id: 'view.sourceColors.instance', title: $localize`:@@builtin.cmd.view.sourceColors.instance:Source colours: by instance`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('instance') },
+    { id: 'view.sourceColors.off', title: $localize`:@@builtin.cmd.view.sourceColors.off:Source colours: off`, category: $localize`:@@builtin.category.view:View`, run: () => this.prefs.setSourceColors('off') },
     { id: 'analyze.search', title: $localize`:@@builtin.cmd.analyze.search:Search events`, category: $localize`:@@builtin.category.analyze:Analyze`, run: () => this.store.focusSearch() },
     { id: 'analyze.markedOnly', title: $localize`:@@builtin.cmd.analyze.markedOnly:Marked events only`, category: $localize`:@@builtin.category.analyze:Analyze`, run: () => this.store.setMarkedOnly(!this.store.markedOnly()) },
     { id: 'analyze.fit', title: $localize`:@@builtin.cmd.analyze.fit:Fit time range`, category: $localize`:@@builtin.category.analyze:Analyze`, run: () => this.zoom.fit() },

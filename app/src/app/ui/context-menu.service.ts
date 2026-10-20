@@ -4,6 +4,8 @@ export interface MenuEntry {
   label: string;
   run: () => void;
   disabled?: boolean;
+  /** Shown under the label (typically why a disabled item is unavailable). */
+  hint?: string;
 }
 
 export interface OpenMenu {

@@ -40,6 +40,19 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
   (live tail), and jump from a marker or a metric to the exact rows behind it.
 - Row actions on a selection: highlight, mark, extract a value, mask, drop, bookmark, and "same
   CorrelationId".
+- **Source colours**: a thin stripe at the start of each row tells which file the line came from, with
+  matching dots in the Explorer, the inspector and the timeline lane labels; hover one for the file
+  name. *View ▸ Source colours* (or Settings ▸ General) colours by file, by instance (the timeline
+  lane key) or switches it off; the choice is remembered. The four colours are checked for
+  colour-vision deficiency (protanopia, deuteranopia, tritanopia) and for 3:1 contrast on every row
+  and panel background in both themes; past four, they repeat dashed and then dotted. A file keeps
+  its colour when others are added or removed.
+- **Open the actual file**: *Open file* (the program your system uses for it), *Open at line N* (in
+  VS Code when it is installed, else the default program) and *Show in folder* are in the row menu,
+  the inspector and the Explorer row menu. IMT opens only files it has opened in that window, named by
+  id, never a path from the page; a file inside a zip archive cannot be opened on its own (*Show
+  archive in folder* reveals the archive), a gzip or binary file has no line to jump to, and scripts
+  and programs are never started with their default program.
 
 ## Live tail and alerts
 
@@ -67,8 +80,10 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 ![Inspector showing a Serilog event with its message template, properties and source](screenshots/inspector.png)
 
 Click a row or a timeline marker to see the level, instance, rendered message and message template,
-every property, the exception and stack trace, and where the event came from (`file:line`). Quick
-actions show the surrounding ±2 minutes, the same correlation id, or copy the event as JSON.
+every property, the exception and stack trace, and where the event came from (`file:line`, with the
+file's colour). Quick actions show the surrounding ±2 minutes, the same correlation id, or copy the
+event as JSON; *Open file*, *Open at line* and *Show in folder* open the event's file outside IMT (a
+disabled one says why, e.g. the file is inside an archive).
 
 ## Filters, facets and the query language
 

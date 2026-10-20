@@ -43,6 +43,8 @@ import { isTimelineInstance, LANE_MODES, LaneMode, TimelineScope } from './timel
 import { TimelineInstanceStore } from './timeline-instance.store';
 import { MainTimelineSource, TIMELINE_SOURCE, TimelineSource } from './timeline-source';
 import { TimelineViews } from './timeline-views';
+import { LANE_DOTS, SourceColors } from '../sources/source-colors.store';
+import { SourceSwatch } from '../sources/source-swatch';
 
 const LABEL_W = 250;
 /** At most this many annotations are listed in the Evidence menu (the rest: zoom in). */
@@ -101,7 +103,7 @@ interface Hover {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, RunTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus],
+  imports: [Icon, MarkerGlyph, LiveWindowControls, AnnotationTrack, RunTrack, SeverityBadge, ProfileSpanTrack, Switch, AutoFocus, SourceSwatch],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main', '(document:keydown)': 'onKey($event)', '(document:keyup)': 'onKey($event)' },
@@ -288,7 +290,15 @@ interface Hover {
         @for (l of lanes(); track l.lane.key) {
           <div class="row lane">
             <button class="label lane-label" [class.filtered]="l.filtered" (click)="src.toggleGroup(l.lane.key)" [title]="laneTitle(l)">
-              <span class="mono key ellipsis">{{ l.lane.key }}</span>
+              <span class="key-row">
+                @for (m of sourceColors.forLane(l.lane); track m.swatch.slot) {
+                  <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="8" />
+                }
+                @if (sourceColors.mode() === 'source' && l.lane.sources.length > laneDots) {
+                  <span class="faint more-src">+{{ l.lane.sources.length - laneDots }}</span>
+                }
+                <span class="mono key ellipsis">{{ l.lane.key }}</span>
+              </span>
               <span class="faint meta ellipsis">{{ l.meta }}</span>
             </button>
             <div class="plot track">
@@ -496,7 +506,9 @@ interface Hover {
     .lane-label { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 0 10px 0 12px; border: 0; border-left: 2px solid transparent; background: transparent; cursor: pointer; text-align: left; min-width: 0; }
     .lane-label:hover { background: var(--bg-hover); }
     .lane-label.filtered { border-left-color: var(--accent); background: var(--bg-active); }
-    .key { font-size: 12px; color: var(--text); max-width: 100%; }
+    .key { font-size: 12px; color: var(--text); max-width: 100%; min-width: 0; }
+    .key-row { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
+    .more-src { font-size: 10px; }
     .meta { font-size: 11px; max-width: 100%; }
     .track { height: 32px; }
     .baseline { position: absolute; left: 0; right: 0; top: 16px; height: 1px; background: var(--grid-line); }
@@ -529,6 +541,9 @@ interface Hover {
   `,
 })
 export class TimelinePanel {
+  /** Source / instance colour dots of the lane labels (View › Source colours). */
+  protected readonly sourceColors = inject(SourceColors);
+  protected readonly laneDots = LANE_DOTS;
   protected readonly store = inject(WorkspaceStore);
   /** What this panel shows: the workspace's timeline, or an additional timeline's own state. */
   protected readonly src = inject(TIMELINE_SOURCE);

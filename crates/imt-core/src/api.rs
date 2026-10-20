@@ -31,6 +31,23 @@ pub struct SourceInfo {
     pub to: Option<i64>,
     /// Clock-skew correction applied to this source's timestamps (ms; 0 = none).
     pub offset_ms: i64,
+    /// How the source is stored on disk, which decides how it can be opened outside IMT.
+    pub file_kind: FileKind,
+}
+
+/// How a source is stored on disk: what "Open file", "Open at line" and "Show in folder" can do with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FileKind {
+    /// A plain text file: event line numbers are lines of the file.
+    #[default]
+    Text,
+    /// A file read by a binary importer (event log, trace...): its line numbers are record numbers.
+    Binary,
+    /// A gzip file: line numbers refer to the decompressed text.
+    Compressed,
+    /// A member of a zip archive: there is no file of its own to open.
+    ArchiveMember,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -523,7 +540,12 @@ pub struct Lane {
     pub matched: usize,
     pub density: Vec<u32>,
     pub markers: Vec<MarkerCluster>,
+    /// Ids of the sources with events in the lane, ascending (at most [`MAX_LANE_SOURCES`]).
+    pub sources: Vec<u32>,
 }
+
+/// Most source ids a timeline lane lists.
+pub const MAX_LANE_SOURCES: usize = 16;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

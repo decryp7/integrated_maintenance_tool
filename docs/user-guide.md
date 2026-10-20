@@ -37,6 +37,27 @@ are detected by magic bytes and expanded (with size caps against zip bombs).
 | Docker `json-file` and Kubernetes CRI container logs | `*-json.log`, `*.log` | `imt-plugin-formats` | Partial lines are joined; `Stream`, pod, namespace and container are fields |
 | CBS / DISM text logs | `CBS.log` | built-in text importer | Read by the default profile; a one-line profile regex adds the component as a field |
 
+### Opening a source file outside IMT
+
+*Open file*, *Open at line N* and *Show in folder* (row menu, inspector, Explorer row menu) work on the
+files IMT opened in the window:
+
+| Source | Open file | Open at line | Show in folder |
+|---|---|---|---|
+| Text file (`.log`, `.clef`, `.csv`, ...) | Default program | VS Code (`code -g file:line`), else the default program at the top | Selects the file |
+| Gzip file (`.gz`) | Default program | Not available: the lines are compressed | Selects the file |
+| Binary file (`.evtx`, `.blg`, ...) | Default program | Not available: no text lines | Selects the file |
+| Member of a zip archive | Not available: extract it first | Not available | Selects the archive |
+
+VS Code is found on `PATH` (`code`; `code.cmd` on Windows) or where its installers put it
+(`%LOCALAPPDATA%\Programs\Microsoft VS Code`, `%ProgramFiles%\Microsoft VS Code`,
+`/Applications/Visual Studio Code.app`, `/usr/share/code`, `/snap/bin`). The default program is opened
+with Explorer, `open` or `xdg-open`; files whose default program would run them (`.bat`, `.ps1`,
+`.exe`, `.reg`, `.sh`, `.desktop`, ...) are never opened that way: use *Open at line* or *Show in
+folder*. Links are followed first, so a link to a script is treated as the script. A file that was moved,
+deleted or replaced by a folder since it was opened is reported, not opened; a file another program holds
+locked is still opened or shown (IMT does not read it).
+
 Timestamps: ISO 8601/RFC 3339, Serilog defaults, `/` and `.` dates (day-first or month-first, detected
 per file), month names, 12-hour clocks, epoch seconds/milliseconds, time-only console logs, and your own
 .NET (`dd/MM/yyyy HH:mm:ss.fff`) or strftime formats. Timezone for offset-less times is configurable.

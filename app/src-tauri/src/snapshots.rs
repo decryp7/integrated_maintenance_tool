@@ -18,7 +18,6 @@ use std::fmt;
 use std::hash::{BuildHasher, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 /// Event the shell emits when the engine contained a failure (plugin crash, quarantine, a file that crashed its importer).
 pub const ERROR_EVENT: &str = "imt://error";
@@ -631,64 +630,6 @@ pub fn emit_engine_error<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &
     }
 }
 
-/// How long the OS file-manager helper may run before it is killed.
-const OPENER_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// Starts `cmd` without blocking the caller. Its output is discarded; a
-/// background thread reaps it and kills it if it is still running after
-/// `timeout`. Fails only when the process cannot be started.
-fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) -> std::io::Result<()> {
-    use std::process::Stdio;
-    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
-    let deadline = Instant::now() + timeout;
-    std::thread::Builder::new().name("imt-opener".into()).spawn(move || loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    log::warn!(Status = status.code().unwrap_or(-1) as i64; "File manager helper failed");
-                }
-                return;
-            }
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(100)),
-            _ => {
-                log::warn!("File manager helper timed out; stopping it");
-                let _ = child.kill();
-                let _ = child.wait();
-                return;
-            }
-        }
-    })?;
-    Ok(())
-}
-
-/// The file manager command that shows `file` selected (Finder, Explorer; on Linux its folder).
-pub(crate) fn reveal_command(file: &Path) -> std::process::Command {
-    if cfg!(target_os = "macos") {
-        let mut cmd = imt_core::process::quiet_command("open");
-        cmd.arg("-R").arg(file);
-        cmd
-    } else if cfg!(windows) {
-        let mut cmd = imt_core::process::quiet_command("explorer");
-        let mut arg = std::ffi::OsString::from("/select,");
-        arg.push(file);
-        cmd.arg(arg);
-        cmd
-    } else {
-        let mut cmd = imt_core::process::quiet_command("xdg-open");
-        cmd.arg(file.parent().unwrap_or(file));
-        cmd
-    }
-}
-
-/// Shows `file` in the OS file manager without waiting (the opener path of the snapshots folder).
-pub(crate) fn reveal_file(file: &Path) -> std::io::Result<()> {
-    let cmd = reveal_command(file);
-    if cfg!(test) {
-        return Ok(());
-    }
-    spawn_detached(cmd, OPENER_TIMEOUT)
-}
-
 pub(crate) fn config_dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<PathBuf> {
     crate::app_dirs::config(app).ok()
 }
@@ -802,16 +743,8 @@ pub fn delete_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: St
 pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
     let store = store(&app)?;
     std::fs::create_dir_all(store.dir()).map_err(err)?;
-    let opener = if cfg!(target_os = "macos") {
-        "open"
-    } else if cfg!(windows) {
-        "explorer"
-    } else {
-        "xdg-open"
-    };
-    let mut cmd = imt_core::process::quiet_command(opener);
-    cmd.arg(store.dir());
-    spawn_detached(cmd, OPENER_TIMEOUT).map_err(|e| format!("could not open the folder ({e}); it is at {}", store.dir().display()))?;
+    let open = crate::opener::open_folder(crate::opener::Os::CURRENT, store.dir());
+    crate::opener::start(&open).map_err(|e| format!("could not open the folder ({e}); it is at {}", store.dir().display()))?;
     Ok(store.dir().to_string_lossy().into_owned())
 }
 
@@ -1388,30 +1321,6 @@ mod tests {
             name.starts_with(&format!("{}.", crate::diagnostics::LOG_NAME)) && name.ends_with(".log"),
             "{name}"
         );
-    }
-
-    #[test]
-    fn spawn_detached_reports_a_missing_program() {
-        let cmd = imt_core::process::quiet_command("imt-definitely-not-a-program");
-        assert!(spawn_detached(cmd, Duration::from_secs(1)).is_err());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn spawn_detached_returns_at_once_and_stops_a_hung_helper() {
-        let mut cmd = imt_core::process::quiet_command("sleep");
-        cmd.arg("30");
-        let started = Instant::now();
-        spawn_detached(cmd, Duration::from_millis(200)).unwrap();
-        assert!(started.elapsed() < Duration::from_secs(2), "must not wait for the helper");
-        let mut ok = imt_core::process::quiet_command("true");
-        ok.arg("x");
-        spawn_detached(ok, Duration::from_secs(5)).unwrap();
-        let mut failing = imt_core::process::quiet_command("false");
-        failing.arg("x");
-        spawn_detached(failing, Duration::from_secs(5)).unwrap();
-        // Give the reaper threads time to run their exit/timeout paths.
-        std::thread::sleep(Duration::from_millis(600));
     }
 
     #[test]

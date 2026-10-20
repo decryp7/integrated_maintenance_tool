@@ -267,13 +267,13 @@ describe('clock section, commands, sidebar and inspector', () => {
     const row = badge.closest('.src') as HTMLElement;
     const menu = TestBed.inject(ContextMenuService);
     row.dispatchEvent(new MouseEvent('contextmenu', { clientX: 10, clientY: 20, bubbles: true }));
-    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Adjust clock…', 'Remove']);
-    at(menu.menu()!.items, 0).run();
+    expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Adjust clock…', 'Remove']);
+    at(menu.menu()!.items, 2).run();
     const dialogs = TestBed.inject(DialogService);
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: 1 });
     el(fixture, '[aria-label="Adjust clock of app.clef"]').click();
     expect(dialogs.stack()).toHaveLength(2);
-    at(menu.menu()!.items, 1).run();
+    at(menu.menu()!.items, 3).run();
     await settle(fixture);
     expect(store.summary()?.sources.some((s) => s.id === 1)).toBe(false);
   });
