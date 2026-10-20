@@ -35,7 +35,7 @@ export async function runMockResearch(ctx: MockJobCtx, question: string, maxResu
   const skipped: string[] = [];
   for (const [i, p] of pages.entries()) {
     if (ctx.cancelled()) throw new MockJobCancelled();
-    ctx.message(`page ${i + 1} of ${pages.length}`);
+    ctx.message(`Reading result ${i + 1} of ${pages.length}: ${new URL(p.url).hostname}`);
     ctx.progress({ fraction: (i + 1) / pages.length, done: i + 1, total: pages.length });
     await mockSteps(ctx, stepMs, 2);
     if (p.ok) read.push({ title: p.title, url: p.url });

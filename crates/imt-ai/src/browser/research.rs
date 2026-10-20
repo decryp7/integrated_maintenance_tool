@@ -40,6 +40,9 @@ const PAGE_CHARS: usize = 6_000;
 const NOTE_CHARS: usize = 1_200;
 const MAX_QUESTION_CHARS: usize = 1_000;
 const MAX_QUERY_CHARS: usize = 300;
+/// How often a page is looked at while it loads, and how many times, before research gives up on it.
+const PAGE_POLL: Duration = Duration::from_millis(500);
+const PAGE_POLLS: usize = 10;
 /// How often a wait looks at Cancel.
 const SLICE: Duration = Duration::from_millis(100);
 
@@ -190,7 +193,7 @@ impl ResearchStep {
     pub fn describe(&self) -> String {
         match self {
             ResearchStep::Searching => "searching".into(),
-            ResearchStep::Reading { page, of, site } => format!("page {page} of {of} ({site})"),
+            ResearchStep::Reading { page, of, site } => format!("Reading result {page} of {of}: {site}"),
             ResearchStep::Writing => "writing the answer".into(),
         }
     }
@@ -264,16 +267,55 @@ fn browser_error(e: BrowserError) -> AiError {
     AiError::Engine(format!("the browser: {e}"))
 }
 
-/// The result links of a search results page: web links (http(s), no private or IMT origins) to other sites
-/// than the search engine's, without duplicates, in page order, at most `max`. Only these are ever opened.
+/// The address an engine's redirect link points to (DuckDuckGo `/l/?uddg=`, Google `/url?q=`), else the link.
+fn unwrap_redirect(url: &WebUrl, engine: &super::url::Site) -> Option<WebUrl> {
+    if url.site() != *engine {
+        return Some(url.clone());
+    }
+    let path = url.url().path();
+    let key = match path {
+        "/l/" | "/l" => "uddg",
+        "/url" => "q",
+        _ => return None,
+    };
+    let target = url
+        .url()
+        .query_pairs()
+        .find(|(k, _)| k == key || (key == "q" && k == "url"))
+        .map(|(_, v)| v.into_owned())?;
+    WebUrl::parse(&target).ok().filter(|t| t.site() != *engine)
+}
+
+/// Advertising and tracking links of results pages (never research material).
+fn is_ad(url: &WebUrl) -> bool {
+    const HOSTS: &[&str] = &[
+        "doubleclick.net",
+        "googleadservices.com",
+        "googlesyndication.com",
+        "bat.bing.com",
+        "ad.atdmt.com",
+    ];
+    let site = url.site();
+    let host = site.as_str();
+    let path = url.url().path();
+    HOSTS.iter().any(|h| host == *h || host.ends_with(&format!(".{h}"))) || path.contains("/aclk") || path.ends_with("/y.js")
+}
+
+/// The result links of a search results page: web links (http(s), no private or IMT origins), with the engine's
+/// redirect links unwrapped and its own pages and ads dropped, without duplicates, in page order, at most `max`.
+/// Only these are ever opened, each directly by its address.
 pub fn result_links(page: &DomSnapshot, search: &WebUrl, max: usize) -> Vec<(WebUrl, String)> {
     let engine = search.site();
     let mut seen = HashSet::new();
     let mut out = Vec::new();
     for e in page.elements.iter().filter(|e| e.kind == ElementKind::Link) {
         let Some(href) = &e.href else { continue };
-        let Ok(url) = WebUrl::parse(href) else { continue };
-        if url.is_private() || url.site() == engine {
+        let Ok(raw) = WebUrl::parse(href) else { continue };
+        if is_ad(&raw) {
+            continue;
+        }
+        let Some(url) = unwrap_redirect(&raw, &engine) else { continue };
+        if url.is_private() || is_ad(&url) {
             continue;
         }
         let mut key = url.url().clone();
@@ -311,11 +353,9 @@ pub fn research(
     on_step(&ResearchStep::Searching);
     env.driver.navigate(&search_url).map_err(browser_error)?;
     env.log("research.search", Some(search_url.site().to_string()), ActionOutcome::Done, 0);
-    let results = env.reader.snapshot().map_err(browser_error)?;
-    let links = result_links(&results, &search_url, max);
-    if links.is_empty() {
-        return Err(AiError::NotFound("the search found no result pages to read".into()));
-    }
+    // The result links are collected once, from the results page itself (never from a page shown before it, nor
+    // later from a result page); then each result is opened directly by its address.
+    let links = collect_results(env, &search_url, max)?;
     let mut read: Vec<ReadPage> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
     let mut skipped: Vec<SkippedPage> = Vec::new();
@@ -348,8 +388,13 @@ pub fn research(
         if env.cancelled() {
             return Err(AiError::Cancelled);
         }
-        let page = match env.reader.snapshot() {
-            Ok(p) => p,
+        let page = match wait_for_site(env, &url.site()) {
+            Ok(Some(p)) => p,
+            Ok(None) => {
+                skipped.push(skip("did not open (the browser showed another site)"));
+                continue;
+            }
+            Err(AiError::Cancelled) => return Err(AiError::Cancelled),
             Err(e) => {
                 skipped.push(skip(&format!("could not be read ({e})")));
                 continue;
@@ -405,6 +450,52 @@ pub fn research(
         read,
         skipped,
     })
+}
+
+/// The page shown once it is on `site` (a page still loading or an older one is looked at again, briefly);
+/// `None` when the browser stays elsewhere (a redirect to another site was blocked).
+fn wait_for_site(env: &ResearchEnv<'_>, site: &super::url::Site) -> Result<Option<DomSnapshot>> {
+    let mut last_err = None;
+    for i in 0..PAGE_POLLS {
+        if i > 0 {
+            env.wait(PAGE_POLL)?;
+        }
+        match env.reader.snapshot() {
+            Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| u.site() == *site) => return Ok(Some(p)),
+            Ok(_) => last_err = None,
+            Err(e) => last_err = Some(e),
+        }
+    }
+    match last_err {
+        Some(e) => Err(browser_error(e)),
+        None => Ok(None),
+    }
+}
+
+/// The results page's links, read once the browser shows the results page.
+fn collect_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Result<Vec<(WebUrl, String)>> {
+    let mut last_err = None;
+    for i in 0..PAGE_POLLS {
+        if i > 0 {
+            env.wait(PAGE_POLL)?;
+        }
+        match env.reader.snapshot() {
+            Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) => {
+                let links = result_links(&p, search, max);
+                // Results pages may fill in after the load: look again while there is nothing yet.
+                if !links.is_empty() {
+                    return Ok(links);
+                }
+                last_err = None;
+            }
+            Ok(_) => last_err = None,
+            Err(e) => last_err = Some(e),
+        }
+    }
+    match last_err {
+        Some(e) => Err(browser_error(e)),
+        None => Err(AiError::NotFound("the search found no result pages to read".into())),
+    }
 }
 
 /// The answer, then which results were read and which were skipped (with why).
@@ -471,6 +562,9 @@ mod tests {
         at: Mutex<String>,
         visited: Mutex<Vec<String>>,
         fail: HashSet<String>,
+        /// After a navigation, this many snapshots still show the page before it (a page that is still loading).
+        stale: usize,
+        before: Mutex<(String, usize)>,
     }
 
     fn link(r: u32, name: &str, href: &str) -> Element {
@@ -520,6 +614,14 @@ mod tests {
             self.current().map(|p| p.1)
         }
         fn snapshot(&self) -> std::result::Result<DomSnapshot, BrowserError> {
+            let mut before = self.before.lock().unwrap();
+            if before.1 > 0 {
+                before.1 -= 1;
+                if let Some(p) = self.pages.get(&before.0) {
+                    return Ok(p.0.clone());
+                }
+            }
+            drop(before);
             self.current().map(|p| p.0)
         }
     }
@@ -530,7 +632,8 @@ mod tests {
             if self.fail.contains(url.as_str()) {
                 return Err(BrowserError::Timeout);
             }
-            *self.at.lock().unwrap() = url.as_str().to_string();
+            let previous = std::mem::replace(&mut *self.at.lock().unwrap(), url.as_str().to_string());
+            *self.before.lock().unwrap() = (previous, self.stale);
             Ok(())
         }
         fn click(&self, _: &Element) -> std::result::Result<(), BrowserError> {
@@ -708,13 +811,131 @@ mod tests {
         assert!(r.answer.contains("[1]") && r.answer.contains("**Read:**") && r.answer.contains("**Skipped:**"));
         assert!(m.answers.lock().unwrap()[0].starts_with("[1] Access denied in IIS"));
         assert_eq!(steps[0], "searching");
-        assert_eq!(steps[1], "page 1 of 5 (learn.microsoft.com)");
+        assert_eq!(steps[1], "Reading result 1 of 5: learn.microsoft.com");
         assert_eq!(steps.last().unwrap(), "writing the answer");
         // Every navigation is in the activity log (sites only).
         let entries = log.entries.lock().unwrap();
         assert_eq!(entries.len(), 7, "the search, five pages opened (one failed), one hand-off");
         assert!(entries.iter().all(|e| e.chat == "research:1"));
         assert!(entries.iter().any(|e| e.outcome == ActionOutcome::HandedBack));
+    }
+
+    /// Three results; result 1 links to evil.example and to other pages; every page shows the page before it for a
+    /// moment after each navigation (still loading).
+    fn three_results() -> FakeWeb {
+        let mut w = FakeWeb {
+            stale: 2,
+            ..FakeWeb::default()
+        };
+        let r = |n: u32| format!("https://site{n}.example.org/answer");
+        w.add(
+            SEARCH,
+            page(
+                SEARCH,
+                "results",
+                "three results",
+                vec![
+                    link(1, "Settings", "https://duckduckgo.com/settings"),
+                    link(
+                        2,
+                        "Ad: buy now",
+                        "https://duckduckgo.com/y.js?ad_provider=x&u3=https%3A%2F%2Fshop.example%2F",
+                    ),
+                    link(3, "Result 1", &r(1)),
+                    // The engine's redirect link to result 2: unwrapped to its address.
+                    link(
+                        4,
+                        "Result 2",
+                        "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fsite2.example.org%2Fanswer&rut=abc",
+                    ),
+                    link(5, "Result 1 again", &format!("{}#top", r(1))),
+                    link(6, "Result 3", &r(3)),
+                    link(7, "Result 4", &r(4)),
+                ],
+                None,
+            ),
+        );
+        w.add(
+            &r(1),
+            page(
+                &r(1),
+                "Result one",
+                "HRESULT 0x80070005 means E_ACCESSDENIED.",
+                vec![
+                    link(1, "Go here next", "https://evil.example/"),
+                    link(2, "Related article", "https://site1.example.org/related"),
+                    link(3, "Another site", "https://other.example.org/deeper"),
+                ],
+                None,
+            ),
+        );
+        for n in [2, 3] {
+            w.add(
+                &r(n),
+                page(
+                    &r(n),
+                    &format!("Result {n}"),
+                    "E_ACCESSDENIED: grant the app pool identity access.",
+                    vec![],
+                    None,
+                ),
+            );
+        }
+        w
+    }
+
+    #[test]
+    fn results_are_collected_once_from_the_results_page_and_opened_by_address() {
+        let w = three_results();
+        let log = MemoryLog::default();
+        let (r, steps) = run(&w, &model(), 3, &AtomicBool::new(false), &log);
+        let r = r.unwrap();
+        assert_eq!(
+            *w.visited.lock().unwrap(),
+            [
+                SEARCH,
+                "https://site1.example.org/answer",
+                "https://site2.example.org/answer",
+                "https://site3.example.org/answer",
+            ],
+            "exactly results 1, 2 and 3, in order; nothing from inside a result page, no ad, no engine page"
+        );
+        assert_eq!(r.read.len(), 3, "each page read once it was really shown: {:?}", r.skipped);
+        assert_eq!(
+            steps[1..4],
+            [
+                "Reading result 1 of 3: site1.example.org",
+                "Reading result 2 of 3: site2.example.org",
+                "Reading result 3 of 3: site3.example.org"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_result_that_ends_up_on_another_site_is_skipped() {
+        let mut w = three_results();
+        // Result 2 "redirects": the browser shows another site (the window blocked the cross-site load).
+        let elsewhere = page("https://elsewhere.example/", "Elsewhere", "other text", vec![], None);
+        w.add("https://site2.example.org/answer", elsewhere);
+        let log = MemoryLog::default();
+        let (r, _) = run(&w, &model(), 3, &AtomicBool::new(false), &log);
+        let r = r.unwrap();
+        assert_eq!(r.read.len(), 2);
+        assert!(r.skipped[0].reason.contains("another site"), "{:?}", r.skipped);
+        // A results page that never shows (the browser stays on the previous page) finds nothing to read.
+        let mut stuck = FakeWeb::default();
+        stuck.add(
+            SEARCH,
+            page(
+                "https://site9.example.org/",
+                "old",
+                "old page",
+                vec![link(1, "x", "https://x.example/")],
+                None,
+            ),
+        );
+        let (r, _) = run(&stuck, &model(), 3, &AtomicBool::new(false), &log);
+        assert!(matches!(r, Err(AiError::NotFound(_))));
     }
 
     #[test]
