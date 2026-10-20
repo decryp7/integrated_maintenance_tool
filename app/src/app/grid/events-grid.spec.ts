@@ -108,8 +108,25 @@ describe('EventsGrid', () => {
     expect(store.selected()?.id).toBe(0);
   });
 
+  it('names the focused row with aria-activedescendant so screen readers announce it', async () => {
+    const { fixture } = await render();
+    const vp = el(fixture, '.viewport');
+    expect(vp.hasAttribute('aria-activedescendant')).toBe(false);
+    vp.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
+    await settle(fixture);
+    const id = vp.getAttribute('aria-activedescendant');
+    expect(id).toMatch(/^events-row-\d+-0$/);
+    const row = fixture.nativeElement.querySelector(`#${id}`) as HTMLElement;
+    expect(row.getAttribute('role')).toBe('row');
+    expect(row.classList.contains('focused')).toBe(true);
+    vp.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
+    await settle(fixture);
+    expect(vp.getAttribute('aria-activedescendant')).toMatch(/-1$/);
+    expect(all(fixture, '.row.focused')).toHaveLength(1);
+  });
+
   describe('multi-select', () => {
-    const click = (row: HTMLElement, init: MouseEventInit = {}) => row.dispatchEvent(new MouseEvent('click', { bubbles: true, ...init }));
+    const click =(row: HTMLElement, init: MouseEventInit = {}) => row.dispatchEvent(new MouseEvent('click', { bubbles: true, ...init }));
     const selectedIndexes = (f: Awaited<ReturnType<typeof render>>['fixture']) =>
       rows(f)
         .map((r, i) => (r.getAttribute('aria-selected') === 'true' ? i : -1))

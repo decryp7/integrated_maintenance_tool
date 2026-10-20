@@ -36,6 +36,8 @@ const OVERSCAN = 8;
 /** At most this many selected lines go to actions on several records (e.g. "Infer pattern from lines…"). */
 const MAX_ACTION_RECORDS = 200;
 
+let gridSeq = 0;
+
 /** Anchor requests survive the grid being destroyed (tab switch); only act on new ones (per store). */
 const handledAnchorNonce = new WeakMap<object, number>();
 
@@ -45,6 +47,8 @@ export interface RowVm {
   index: number;
   y: number;
   row: RecordView;
+  /** Element id (the grid names the focused row with aria-activedescendant). */
+  id: string;
   selected: boolean;
   /** Colour of the first highlight rule that matches, if any. */
   highlight: string | null;
@@ -113,6 +117,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
       aria-multiselectable="true"
       [attr.aria-rowcount]="total() + 1"
       [attr.aria-colcount]="colCount()"
+      [attr.aria-activedescendant]="activeRowId()"
       (scroll)="onScroll()"
       (wheel)="onWheel($event)"
       (keydown)="onKey($event)"
@@ -135,6 +140,8 @@ export type GridRowVm = RowVm | PlaceholderVm;
             <div
               class="row"
               role="row"
+              [id]="v.id"
+              [class.focused]="v.id === activeRowId()"
               [attr.aria-rowindex]="v.index + 2"
               [attr.aria-selected]="v.selected"
               [class.sel]="v.selected"
@@ -200,6 +207,8 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .row { position: absolute; left: 0; right: 0; height: var(--row-h, 26px); display: grid; align-items: center; column-gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--grid-line); cursor: default; }
     .row:hover { background: var(--bg-hover); }
     .row.sel { background-color: var(--bg-sel); box-shadow: inset 2px 0 0 var(--accent); }
+    /* The row keyboard focus is on (aria-activedescendant), while the grid has focus. */
+    .viewport:focus-visible .row.focused { outline: 1px solid var(--accent); outline-offset: -1px; }
     /*
      * Highlight rules: a solid colour bar on the left (readable without relying on the tint) plus a faint tint
      * layered over the hover/selection background, so text contrast and selection styling are kept on both themes.
@@ -309,6 +318,19 @@ export class EventsGrid {
     return out;
   });
 
+  private readonly rowIdPrefix = `events-row-${++gridSeq}-`;
+
+  /**
+   * The row keyboard focus is on (the selection's focus), named by the grid with aria-activedescendant so screen
+   * readers announce it while focus stays on the grid. Null while that row is not rendered (scrolled away or loading).
+   */
+  protected readonly activeRowId = computed(() => {
+    const focus = this.selection().focus;
+    if (focus < 0) return null;
+    const vm = this.rowVms().find((v) => v.index === focus);
+    return vm?.kind === 'row' ? vm.id : null;
+  });
+
   /** What each row in view shows (review #9: no per-row method calls in the template). */
   protected readonly rowVms = computed<GridRowVm[]>(() => {
     const sel = this.selection();
@@ -327,6 +349,7 @@ export class EventsGrid {
         index,
         y,
         row,
+        id: this.rowIdPrefix + index,
         // In the grid's selection; while the grid has none (selected elsewhere, e.g. on the timeline), the inspector's record.
         selected: sel.anchor >= 0 ? contains(sel, index) : row.id === selectedId,
         highlight: this.highlight.colorFor(row),

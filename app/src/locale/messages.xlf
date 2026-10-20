@@ -4842,35 +4842,35 @@
         <source>Matching <x id="done" equiv-text="done"/> of <x id="total" equiv-text="total"/> events (<x id="pct" equiv-text="pct"/>%)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.progress.evaluating" datatype="html">
         <source>Evaluating <x id="done" equiv-text="done"/> of <x id="total" equiv-text="total"/> events (<x id="pct" equiv-text="pct"/>%)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.query" datatype="html">
         <source>Query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.completions" datatype="html">
         <source>Completions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.run" datatype="html">
         <source>Run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">75,77</context>
+          <context context-type="linenumber">76,78</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Run a query</note>
@@ -4879,91 +4879,91 @@
         <source>Cancel the running query (Esc)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancel" datatype="html">
         <source>Cancel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">77,79</context>
+          <context context-type="linenumber">78,80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAi" datatype="html">
         <source>Ask AI</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.askAiHint" datatype="html">
         <source>Describe what you want in plain words; the local model writes the query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.history" datatype="html">
         <source>History</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">81,82</context>
+          <context context-type="linenumber">82,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.historyLabel" datatype="html">
         <source>Query history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clearHistory" datatype="html">
         <source>Clear history</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">87,90</context>
+          <context context-type="linenumber">88,91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.progress" datatype="html">
         <source>Query progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.at" datatype="html">
         <source>(at column <x id="INTERPOLATION" equiv-text="{{ column() }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">100</context>
+          <context context-type="linenumber">101,102</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelled" datatype="html">
         <source>Query cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">105,106</context>
+          <context context-type="linenumber">106,107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.filtering" datatype="html">
         <source>Filtering with <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ ql }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.matched" datatype="html">
         <source> · <x id="INTERPOLATION" equiv-text="{{ session.matched() }}"/> events </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clear" datatype="html">
         <source>Clear</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">108,110</context>
+          <context context-type="linenumber">109,111</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Remove the applied query</note>
@@ -4972,28 +4972,28 @@
         <source><x id="INTERPOLATION" equiv-text="{{ runKey }}"/> to run. Without <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/>stats<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> the query filters the grid, timeline and charts; with it the table opens in Query results.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">110,112</context>
+          <context context-type="linenumber">111,113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.runTitle" datatype="html">
         <source>Run (<x id="key" equiv-text="this.runKey"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">164</context>
+          <context context-type="linenumber">165</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelling" datatype="html">
         <source>Cancelling…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">165</context>
+          <context context-type="linenumber">166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.running" datatype="html">
         <source>Running…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-view.ts</context>
-          <context context-type="linenumber">166</context>
+          <context context-type="linenumber">167</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.traces.title" datatype="html">
@@ -6679,86 +6679,86 @@
         <source>Added</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.kind.removed" datatype="html">
         <source>Removed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">16</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.kind.changed" datatype="html">
         <source>Changed</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.kind.unchanged" datatype="html">
         <source>Unchanged</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">18</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.modes" datatype="html">
         <source>Compare</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.twoFiles" datatype="html">
         <source>Two files</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">46,47</context>
+          <context context-type="linenumber">47,48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.twoFolders" datatype="html">
         <source>Two snapshot folders</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">47,50</context>
+          <context context-type="linenumber">48,51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.leftLabel" datatype="html">
         <source>Left (original)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">53,54</context>
+          <context context-type="linenumber">54,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.pathPlaceholder" datatype="html">
         <source>Path to a configuration file</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">55</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.choose" datatype="html">
         <source>Choose…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">56,57</context>
+          <context context-type="linenumber">57,58</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">62,63</context>
+          <context context-type="linenumber">63,64</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">71,73</context>
+          <context context-type="linenumber">72,74</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">76,77</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Pick a file or folder</note>
@@ -6767,28 +6767,28 @@
         <source>Swap left and right</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.swapTitle" datatype="html">
         <source>Swap left and right</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.rightLabel" datatype="html">
         <source>Right (changed)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">59,60</context>
+          <context context-type="linenumber">60,61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.compare" datatype="html">
         <source>Compare</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">63,66</context>
+          <context context-type="linenumber">64,67</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Run the comparison</note>
@@ -6797,358 +6797,358 @@
         <source>Earlier snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">68,69</context>
+          <context context-type="linenumber">69,70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.folderPlaceholder" datatype="html">
         <source>Folder, e.g. a collector run</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">70</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.later" datatype="html">
         <source>Later snapshot</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">73,74</context>
+          <context context-type="linenumber">74,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.compareFolders" datatype="html">
         <source>Compare folders</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">77,81</context>
+          <context context-type="linenumber">78,82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.opts" datatype="html">
         <source>Ignore patterns and options</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">82,83</context>
+          <context context-type="linenumber">83,84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.ignoreLabel" datatype="html">
         <source>Ignore paths matching (one per line; globs like <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/>*InstallDate*<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/>, or <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/>re:<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> regexes)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">84,85</context>
+          <context context-type="linenumber">85,86</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.resetIgnore" datatype="html">
         <source>Reset to defaults</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">88,89</context>
+          <context context-type="linenumber">89,90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.ignoreCase" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.caseInsensitive()&quot; (change)=&quot;store.setCaseInsensitive(checked($event))&quot; /&gt;"/> Ignore case in paths</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">89,90</context>
+          <context context-type="linenumber">90,91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.formats" datatype="html">
         <source>Formats: <x id="INTERPOLATION" equiv-text="{{ formatNames() }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">91,92</context>
+          <context context-type="linenumber">92,93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">99,100</context>
+          <context context-type="linenumber">100,101</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">109,111</context>
+          <context context-type="linenumber">110,112</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">100,103</context>
+          <context context-type="linenumber">101,104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.filesTable" datatype="html">
         <source>Configuration files in both snapshots</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.col.file" datatype="html">
         <source>File</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.col.status" datatype="html">
         <source>Status</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.col.format" datatype="html">
         <source>Format</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.col.changes" datatype="html">
         <source>Changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.col.action" datatype="html">
         <source>Action</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">114,115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.showDiff" datatype="html">
         <source>Show diff</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">121,122</context>
+          <context context-type="linenumber">122,124</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.noFiles" datatype="html">
         <source>No configuration files found in these folders.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">124,126</context>
+          <context context-type="linenumber">125,127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.truncated" datatype="html">
         <source>Only the first files of each folder were compared.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">128,129</context>
+          <context context-type="linenumber">129,130</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.comparingFolders" datatype="html">
         <source>Comparing folders…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">130,132</context>
+          <context context-type="linenumber">131,133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.chooseFolders" datatype="html">
         <source>Choose two folders, for example two diagnostics-collector runs of the same machine, to see which configuration files changed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">132,135</context>
+          <context context-type="linenumber">133,136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.showChanges" datatype="html">
         <source>Show changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">137</context>
+          <context context-type="linenumber">138</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.ignored" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ m.counts.ignored }}"/> ignored</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">144,145</context>
+          <context context-type="linenumber">145,146</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.searchLabel" datatype="html">
         <source>Search paths and values</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.searchPlaceholder" datatype="html">
         <source>Search paths and values</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.expandChanged" datatype="html">
         <source><x id="TAG_INPUT" ctype="x-input" equiv-text="&lt;input type=&quot;checkbox&quot; [checked]=&quot;store.expand() === &apos;changedOnly&apos;&quot; (change)=&quot;store.setExpand(checked($event) ? &apos;changedOnly&apos; : &apos;all&apos;)&quot; /&gt;"/> Expand changed only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">147,148</context>
+          <context context-type="linenumber">148,149</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.layout" datatype="html">
         <source>Layout</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">148</context>
+          <context context-type="linenumber">149</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.split" datatype="html">
         <source>Side by side</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">149,150</context>
+          <context context-type="linenumber">150,151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.unified" datatype="html">
         <source>Unified</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">150,152</context>
+          <context context-type="linenumber">151,153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.exportCsv" datatype="html">
         <source>Export CSV</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">152,153</context>
+          <context context-type="linenumber">153,154</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.exportHtml" datatype="html">
         <source>Export HTML</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">153,155</context>
+          <context context-type="linenumber">154,156</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.leftSummary" datatype="html">
         <source>− <x id="INTERPOLATION" equiv-text="{{ base(m.left.path) }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ m.left.format }}"/>, <x id="INTERPOLATION_2" equiv-text="{{ m.left.nodes }}"/> nodes)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">156,157</context>
+          <context context-type="linenumber">157,158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.rightSummary" datatype="html">
         <source>+ <x id="INTERPOLATION" equiv-text="{{ base(m.right.path) }}"/> (<x id="INTERPOLATION_1" equiv-text="{{ m.right.format }}"/>, <x id="INTERPOLATION_2" equiv-text="{{ m.right.nodes }}"/> nodes)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">157,158</context>
+          <context context-type="linenumber">158,159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.pathsIgnoreCase" datatype="html">
         <source>paths ignore case</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">158,159</context>
+          <context context-type="linenumber">159,160</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.nodeLimit" datatype="html">
         <source>a file is larger than the node limit; the rest is not compared</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">159,162</context>
+          <context context-type="linenumber">160,164</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.tree" datatype="html">
         <source>Configuration diff</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">169</context>
+          <context context-type="linenumber">170</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.changedTo" datatype="html">
         <source>changed to</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">208</context>
+          <context context-type="linenumber">209</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">216,218</context>
+          <context context-type="linenumber">217,219</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.comparing" datatype="html">
         <source>Comparing…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">223</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.chooseFiles" datatype="html">
         <source>Choose two configuration files to compare.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">222,223</context>
+          <context context-type="linenumber">223,224</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.noDifferences" datatype="html">
         <source>No differences to show with these filters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">224,228</context>
+          <context context-type="linenumber">225,229</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.selectedRow" datatype="html">
         <source>Selected row</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">229</context>
+          <context context-type="linenumber">230</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.copyPath" datatype="html">
         <source>Copy path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">231,232</context>
+          <context context-type="linenumber">232,233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.copyOld" datatype="html">
         <source>Copy old value</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">232,233</context>
+          <context context-type="linenumber">233,234</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.copyNew" datatype="html">
         <source>Copy new value</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">233,235</context>
+          <context context-type="linenumber">234,236</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.showDiffOf" datatype="html">
         <source>Show diff of <x id="path" equiv-text="path"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">307</context>
+          <context context-type="linenumber">308</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.root" datatype="html">
         <source>(root)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">315</context>
+          <context context-type="linenumber">316</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.collapse" datatype="html">
         <source>Collapse <x id="path" equiv-text="path"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">364</context>
+          <context context-type="linenumber">370</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.view.expand" datatype="html">
         <source>Expand <x id="path" equiv-text="path"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/config-diff/config-diff-view.ts</context>
-          <context context-type="linenumber">365</context>
+          <context context-type="linenumber">371</context>
         </context-group>
       </trans-unit>
       <trans-unit id="configDiff.store.copied.path" datatype="html">
@@ -9773,154 +9773,154 @@
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">78,79</context>
+          <context context-type="linenumber">82,83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.subtitle" datatype="html">
         <source>of <x id="TOTAL" equiv-text="{{ fmt(data.summary()?.total ?? 0) //i18n(ph=&quot;total&quot;) }}"/> · sorted by time <x id="DIRECTION" equiv-text="{{ prefs.descending() ? &apos;↓&apos; : &apos;↑&apos; //i18n(ph=&quot;direction&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">80,81</context>
+          <context context-type="linenumber">84,85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.anchorMissed" datatype="html">
         <source>That event is hidden by the current filters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">82,84</context>
+          <context context-type="linenumber">86,88</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.sortToggle" datatype="html">
         <source>Toggle sort order</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.columns" datatype="html">
         <source><x id="START_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/><x id="CLOSE_TAG_IMT_ICON" ctype="x-imt_icon" equiv-text="&lt;imt-icon name=&quot;columns&quot; [size]=&quot;14&quot; /&gt;"/> Columns</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">89,90</context>
+          <context context-type="linenumber">93,94</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.filterFields.placeholder" datatype="html">
         <source>Filter fields</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.filterFields.aria" datatype="html">
         <source>Filter fields</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.columns.listLabel" datatype="html">
         <source>Columns</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">93</context>
+          <context context-type="linenumber">97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.aria" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">116</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.header.marker" datatype="html">
         <source>Marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">121,122</context>
+          <context context-type="linenumber">126,127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.header.time" datatype="html">
         <source>Time <x id="DIRECTION" equiv-text="{{ prefs.descending() ? &apos;↓&apos; : &apos;↑&apos; //i18n(ph=&quot;direction&quot;) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">123,124</context>
+          <context context-type="linenumber">128,129</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.header.level" datatype="html">
         <source>Level</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">125,126</context>
+          <context context-type="linenumber">130,131</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.header.instance" datatype="html">
         <source>Instance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">126,127</context>
+          <context context-type="linenumber">131,132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.header.message" datatype="html">
         <source>Message</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">130,132</context>
+          <context context-type="linenumber">135,137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.loading" datatype="html">
         <source>Loading</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">165</context>
+          <context context-type="linenumber">172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.error.title" datatype="html">
         <source>Could not load events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">176,177</context>
+          <context context-type="linenumber">183,184</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.error.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">178,181</context>
+          <context context-type="linenumber">185,188</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.sort.newest" datatype="html">
         <source>Newest first</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">263</context>
+          <context context-type="linenumber">272</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.sort.oldest" datatype="html">
         <source>Oldest first</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">263</context>
+          <context context-type="linenumber">272</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.empty.filtered" datatype="html">
         <source>No events match the current filters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">265</context>
+          <context context-type="linenumber">274</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.empty.noFiles" datatype="html">
         <source>No events: nothing is open yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">265</context>
+          <context context-type="linenumber">274</context>
         </context-group>
       </trans-unit>
       <trans-unit id="grid.removeColumn" datatype="html">
         <source>Remove column <x id="column" equiv-text="column"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/grid/events-grid.ts</context>
-          <context context-type="linenumber">269</context>
+          <context context-type="linenumber">278</context>
         </context-group>
       </trans-unit>
       <trans-unit id="help.cheatSheet.search.label" datatype="html">
@@ -11983,14 +11983,14 @@
         <source>Condition</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/ql-input.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.qlInput.completions" datatype="html">
         <source><x id="label" equiv-text="this.label()"/> completions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/ql-input.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.tailStatus.justNow" datatype="html">
@@ -15200,7 +15200,7 @@
         <source>No commands match “<x id="QUERY" equiv-text="{{ query() //i18n(ph=&quot;query&quot;) }}"/>”. Did you mean:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/palette/command-palette.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="palette.category.view" datatype="html">
@@ -15403,105 +15403,105 @@
         <source>Registry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">22,23</context>
+          <context context-type="linenumber">23,24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.filter.placeholder" datatype="html">
         <source>Filter keys, values, data</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.filter.aria" datatype="html">
         <source>Filter registry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.copyPath.title" datatype="html">
         <source>Copy the path of the selected key or value</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.truncated" datatype="html">
         <source>Showing the first <x id="INTERPOLATION" equiv-text="{{ cap }}"/> rows only; narrow the registry export to see the rest.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">30,32</context>
+          <context context-type="linenumber">31,33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.loading" datatype="html">
         <source>Loading registry…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">33,34</context>
+          <context context-type="linenumber">34,35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.empty.title" datatype="html">
         <source>No registry data in the workspace.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">36,37</context>
+          <context context-type="linenumber">37,38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.empty.hint" datatype="html">
         <source>Open a Windows registry export (.reg) to browse its keys and values here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">37,39</context>
+          <context context-type="linenumber">38,40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.tree" datatype="html">
         <source>Registry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.deletedKey" datatype="html">
         <source>DELETED KEY</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">64,66</context>
+          <context context-type="linenumber">65,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.noMatch" datatype="html">
         <source>Nothing matches &quot;<x id="INTERPOLATION" equiv-text="{{ filter() }}"/>&quot;.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">74,75</context>
+          <context context-type="linenumber">75,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.copied" datatype="html">
         <source>Copied</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.copyPath" datatype="html">
         <source>Copy path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.error.read" datatype="html">
         <source>Registry could not be read: <x id="detail" equiv-text="e instanceof Error ? e.message : String(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">147</context>
+          <context context-type="linenumber">153</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.error.clipboard" datatype="html">
         <source>Clipboard is not available.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/plugins/registry/registry-view.ts</context>
-          <context context-type="linenumber">228</context>
+          <context context-type="linenumber">230</context>
         </context-group>
       </trans-unit>
       <trans-unit id="plugins.registry.view.title" datatype="html">
@@ -21133,112 +21133,112 @@
         <source>Expand hottest path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">28,29</context>
+          <context context-type="linenumber">29,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.collapseAll" datatype="html">
         <source>Collapse all</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">29,30</context>
+          <context context-type="linenumber">30,31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.empty" datatype="html">
         <source>No samples match this view.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">35</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.rowsRegion" datatype="html">
         <source>Call tree rows</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.col.function" datatype="html">
         <source>Function</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">40,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.col.totalPct" datatype="html">
         <source>Total %</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.col.total" datatype="html">
         <source>Total</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.col.selfPct" datatype="html">
         <source>Self %</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.col.self" datatype="html">
         <source>Self</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.framework" datatype="html">
         <source>framework</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">70,71</context>
+          <context context-type="linenumber">71,72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.loadMore" datatype="html">
         <source>Load <x id="INTERPOLATION" equiv-text="{{ r.remaining }}"/> more…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">79,80</context>
+          <context context-type="linenumber">80,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">85,86</context>
+          <context context-type="linenumber">86,87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.loading" datatype="html">
         <source>Loading…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">87,89</context>
+          <context context-type="linenumber">88,90</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.noCapture" datatype="html">
         <source>Open a profile to see its call tree.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">98</context>
+          <context context-type="linenumber">99</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.titleInverted" datatype="html">
         <source>Inverted tree (bottom-up)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">124</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.titleTopDown" datatype="html">
         <source>Call tree (top-down)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/profiling/tree/call-tree-view.ts</context>
-          <context context-type="linenumber">124</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="profiling.tree.notInTree" datatype="html">
@@ -28120,56 +28120,56 @@
         <source>Open log files or a folder to build the timeline.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">97,98</context>
+          <context context-type="linenumber">100,101</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.empty.openFolder" datatype="html">
         <source>Open folder…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">98,100</context>
+          <context context-type="linenumber">101,103</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.empty.noMatchMain" datatype="html">
         <source>No timestamped events match the current filters.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">101,103</context>
+          <context context-type="linenumber">104,106</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.empty.noMatchOwn" datatype="html">
         <source>No timestamped events match the query of this timeline.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">104,107</context>
+          <context context-type="linenumber">107,110</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.truncated.main" datatype="html">
         <source><x id="COUNT" equiv-text="{{ truncated() //i18n(ph=&quot;count&quot;) }}"/> more instances not shown — narrow the filter or change the group-by.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">111,112</context>
+          <context context-type="linenumber">114,115</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.truncated.own" datatype="html">
         <source><x id="COUNT" equiv-text="{{ truncated() //i18n(ph=&quot;count&quot;) }}"/> more lanes not shown — narrow the filter or change the lanes.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">113,114</context>
+          <context context-type="linenumber">116,117</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.ticks.aria" datatype="html">
         <source><x id="count" equiv-text="n"/> warnings (zoom in for detail)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">169</context>
+          <context context-type="linenumber">214</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.ticks.title" datatype="html">
         <source><x id="count" equiv-text="n"/> warnings — zoom in for detail</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/timeline/timeline-lanes.ts</context>
-          <context context-type="linenumber">173</context>
+          <context context-type="linenumber">218</context>
         </context-group>
       </trans-unit>
       <trans-unit id="timeline.legend.markers" datatype="html">

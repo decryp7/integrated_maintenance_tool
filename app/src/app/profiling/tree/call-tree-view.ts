@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, input, untracked, viewChild } from '@angular/core';
+import { RovingFocusNavigation } from '../../shared/list-navigation';
 import { TreeDirection } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { ProfileViewState } from '../profile-view-state';
@@ -119,7 +120,14 @@ export class ProfileTree {
   private readonly state = inject(ProfileViewState);
   private readonly nav = inject(ProfilingNavigator);
   private readonly grid = viewChild<ElementRef<HTMLTableElement>>('grid');
-  protected readonly focusIndex = signal(0);
+  /** The row with the tab stop (CDK FocusKeyManager: the row takes focus when it moves). */
+  private readonly rowNav = new RovingFocusNavigation(
+    computed(() => this.store.rows().length),
+    inject(Injector),
+    (i) => queueMicrotask(() => this.grid()?.nativeElement.querySelectorAll<HTMLElement>('tbody tr')[i]?.focus()),
+    { selectFirst: true, homeAndEnd: true },
+  );
+  protected readonly focusIndex = this.rowNav.active;
   protected readonly pct = formatPct;
   protected readonly title = computed(() => (this.direction() === 'bottomUp' ? $localize`:@@profiling.tree.titleInverted:Inverted tree (bottom-up)` : $localize`:@@profiling.tree.titleTopDown:Call tree (top-down)`));
 
@@ -131,7 +139,7 @@ export class ProfileTree {
       const view = this.state.view();
       untracked(() => {
         this.store.setDirection(direction);
-        this.focusIndex.set(0);
+        this.rowNav.sync(0);
         void this.store.setQuery(p && metric ? { profileId: p.id, view, metric } : null).then(() => this.applyReveal());
       });
     });
@@ -167,7 +175,7 @@ export class ProfileTree {
 
   protected collapseAll(): void {
     for (const k of this.store.expanded()) this.store.collapse(k);
-    this.focusIndex.set(0);
+    this.rowNav.sync(0);
   }
 
   protected activate(r: TreeRow): void {
@@ -175,13 +183,19 @@ export class ProfileTree {
   }
 
   protected focusRow(i: number, focus = true): void {
-    this.focusIndex.set(i);
-    if (!focus) return;
-    queueMicrotask(() => this.grid()?.nativeElement.querySelectorAll<HTMLElement>('tbody tr')[i]?.focus());
+    if (focus) this.rowNav.setActive(i);
+    else this.rowNav.sync(i);
   }
 
   protected onKey(e: KeyboardEvent): void {
     const rows = this.store.rows();
+    // Up, Down, Home and End move the tab stop through the CDK key manager; the tree keys (expand, collapse, parent) follow the model.
+    if (this.rowNav.handle(e)) {
+      e.preventDefault();
+      const r = rows[this.focusIndex()];
+      if (r?.kind === 'node') this.store.select(r.key);
+      return;
+    }
     const action = treeKey(rows, this.focusIndex(), e.key);
     if (!action) return;
     e.preventDefault();

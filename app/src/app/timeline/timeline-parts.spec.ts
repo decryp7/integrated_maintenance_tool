@@ -1,6 +1,7 @@
 import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideTinyBackend, settle } from '../../testing/helpers';
+import { all, provideTinyBackend, settle, tinyBackend } from '../../testing/helpers';
+import { at } from '../../testing/must';
 import { Lane, MarkerKind, Timeline } from '../core/api.types';
 import { stableLanes } from './lane-order';
 import { buildLaneVms, densityPath, laneTitle } from './timeline-lane-vm';
@@ -75,6 +76,45 @@ describe('TimelineInteraction', () => {
     document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }));
     await new Promise((r) => setTimeout(r, 30));
     expect(tick).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+});
+
+describe('TimelineLanes keyboard', () => {
+  it('has one tab stop per lane and moves between its markers with the arrow keys', async () => {
+    const backend = tinyBackend();
+    const real = backend.queryTimeline.bind(backend);
+    vi.spyOn(backend, 'queryTimeline').mockImplementation(async (req) => {
+      const t = await real(req);
+      const span = t.to - t.from;
+      at(t.lanes, 0).markers = [0.2, 0.5, 0.8].map((f, i) => ({ kind: 'error', bucket: i * 10, ts: t.from + f * span, id: 100 + i, count: 1, message: 'm' }));
+      return t;
+    });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    const fixture = TestBed.createComponent(TimelinePanel);
+    await settle(fixture);
+    const lane = at(all(fixture, '.lane'), 0);
+    const markers = () => [...lane.querySelectorAll<HTMLButtonElement>('.marker')];
+    expect(markers()).toHaveLength(3);
+    const stops = () => markers().map((m) => m.getAttribute('tabindex'));
+    expect(stops()).toEqual(['0', '-1', '-1']);
+    for (const other of all(fixture, '.lane').slice(1)) expect(other.querySelectorAll('.marker[tabindex="0"]').length).toBeLessThanOrEqual(1);
+    const press = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) => el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+    at(markers(), 0).focus();
+    press(at(markers(), 0), 'ArrowRight');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(markers(), 1));
+    expect(stops()).toEqual(['-1', '0', '-1']);
+    press(at(markers(), 1), 'End');
+    await settle(fixture);
+    expect(stops()).toEqual(['-1', '-1', '0']);
+    press(at(markers(), 2), 'ArrowRight');
+    press(at(markers(), 2), 'ArrowLeft', { altKey: true });
+    await settle(fixture);
+    expect(stops()).toEqual(['-1', '-1', '0']);
+    press(at(markers(), 2), 'Home');
+    await settle(fixture);
+    expect(document.activeElement).toBe(at(markers(), 0));
     fixture.destroy();
   });
 });

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { AnnotationDto } from '../core/api.types';
 import { Icon } from '../shared/icon';
 import { MarkerGlyph } from '../markers/marker-glyph';
@@ -60,11 +60,14 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
               <path [attr.d]="l.ticksPath" />
             </svg>
           }
-          @for (t of l.targets; track t.primary.cluster.kind + t.primary.cluster.bucket) {
-            <!-- A 24px hit area (WCAG 2.5.8) around 16px glyphs; close markers share one (see layoutTargets). -->
+          @for (t of l.targets; track t.primary.cluster.kind + t.primary.cluster.bucket; let j = $index) {
+            <!-- A 24px hit area (WCAG 2.5.8) around 16px glyphs; close markers share one (see layoutTargets). One tab stop per lane: arrows move between its markers. -->
             <button
               type="button"
               class="marker"
+              [attr.tabindex]="j === tabStops().get(l.lane.key) ? 0 : -1"
+              (keydown)="markerKey($event, l, j)"
+              (focus)="setStop(l.lane.key, j)"
               [style.left.%]="t.leftPct"
               [style.width.px]="t.width"
               [attr.aria-label]="t.aria"
@@ -164,6 +167,48 @@ export class TimelineLanes {
   readonly showRun = output<AnnotationDto>();
   readonly showEvidence = output<AnnotationDto>();
   readonly openFolder = output<void>();
+
+  /** The marker of each lane chosen with the arrow keys (by index; clamped when the lane has fewer now). */
+  private readonly chosen = signal<ReadonlyMap<string, number>>(new Map());
+  /** The one marker per lane in the tab order. */
+  protected readonly tabStops = computed(() => {
+    const chosen = this.chosen();
+    return new Map(this.lanes().map((l) => [l.lane.key, Math.min(chosen.get(l.lane.key) ?? 0, Math.max(0, l.targets.length - 1))]));
+  });
+
+  protected setStop(lane: string, index: number): void {
+    if (this.chosen().get(lane) === index) return;
+    this.chosen.update((m) => new Map(m).set(lane, index));
+  }
+
+  /** Left/Right (and Home/End) move between the lane's markers; focus follows. */
+  protected markerKey(e: KeyboardEvent, lane: LaneVm, index: number): void {
+    // Alt+arrows go through the zoom history (TimelineInteraction).
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const n = lane.targets.length;
+    let next: number;
+    switch (e.key) {
+      case 'ArrowRight':
+        next = Math.min(n - 1, index + 1);
+        break;
+      case 'ArrowLeft':
+        next = Math.max(0, index - 1);
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = n - 1;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    if (next === index) return;
+    this.setStop(lane.lane.key, next);
+    const buttons = (e.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLElement>(':scope > .marker');
+    buttons?.[next]?.focus();
+  }
 
   protected tickAria(n: number): string {
     return $localize`:@@timeline.ticks.aria:${n}:count: warnings (zoom in for detail)`;
