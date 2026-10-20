@@ -31,6 +31,40 @@ pub struct SourceInfo {
     pub to: Option<i64>,
     /// Clock-skew correction applied to this source's timestamps (ms; 0 = none).
     pub offset_ms: i64,
+    /// Many events without a readable timestamp (see [`crate::timestamp_issue`]).
+    pub timestamp_issue: Option<TimestampIssue>,
+}
+
+/// A source whose timestamps could not be read for many of its events.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimestampIssue {
+    /// Events (lines that start an event) without a readable timestamp.
+    pub unparsed_lines: usize,
+    /// All events of the source.
+    pub total_lines: usize,
+    /// Up to three such lines, each cut to a bounded length.
+    pub examples: Vec<String>,
+    /// The 1-based line number of each example (same order), for jumping to it.
+    pub example_lines: Vec<u32>,
+    /// A timestamp format the engine checked against those lines, if one reads them.
+    pub suggestion: Option<TimestampSuggestion>,
+}
+
+/// A timestamp format proposed for `[parse] timestamp_formats`, verified to parse the sample lines.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimestampSuggestion {
+    /// strftime format, e.g. `%a %b %d %H:%M:%S %Y`.
+    pub format: String,
+    /// The timestamp text of the first sample, as the format reads it.
+    pub sample: String,
+    /// The profile lines that add the format.
+    pub profile_snippet: String,
+    /// Sample lines (without a readable timestamp) the format reads.
+    pub parsed_samples: usize,
+    /// Sample lines the format was checked against.
+    pub checked_samples: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]

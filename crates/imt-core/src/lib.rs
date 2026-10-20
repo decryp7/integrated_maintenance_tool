@@ -42,6 +42,7 @@ pub mod svg;
 pub mod template;
 pub mod templates;
 pub mod time;
+pub mod timestamp_issue;
 pub mod user_regex;
 pub mod workspace;
 

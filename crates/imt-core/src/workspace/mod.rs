@@ -518,6 +518,7 @@ impl Workspace {
                         s.records = loaded.imported.records.len();
                         (s.from, s.to) = (from, to);
                         s.offset_ms = offset;
+                        s.timestamp_issue = loaded.timestamp_issue.take();
                     }
                     if let Some(seed) = loaded.seed {
                         let path = PathBuf::from(&self.sources[self.sources.len() - 1].path);
@@ -573,6 +574,7 @@ impl Workspace {
             from: None,
             to: None,
             offset_ms: 0,
+            timestamp_issue: None,
         });
         id
     }
@@ -800,6 +802,7 @@ struct Loaded {
     imported: crate::importers::Imported,
     stats: Vec<crate::pipeline::StepStats>,
     seed: Option<tail::TailSeed>,
+    timestamp_issue: Option<crate::api::TimestampIssue>,
 }
 
 /// The file read, or why it could not be read.
@@ -892,6 +895,7 @@ fn import_bytes(
     }
     let ctx = ImportCtx { profile, path, file_date };
     let mut append = None;
+    let mut text = None;
     let (id, mut imported) = match importers.select_binary(&ctx, &bytes[..bytes.len().min(64 * 1024)]) {
         Some(importer) => (importer.id(), importer.import(&ctx, bytes).map_err(|e| format!("{e:#}"))?),
         None => {
@@ -907,6 +911,7 @@ fn import_bytes(
                     last_line: imported.records.last().map(|r| r.line),
                 });
             }
+            text = Some(content);
             (importer.id(), imported)
         }
     };
@@ -922,11 +927,13 @@ fn import_bytes(
     });
     let (records, stats) = profile.ingest(std::mem::take(&mut imported.records), source_name);
     imported.records = records;
+    let timestamp_issue = text.and_then(|t| crate::timestamp_issue::assess(id, &imported.records, &t, &profile.timestamps));
     Ok(Loaded {
         importer: id.to_string(),
         imported,
         stats,
         seed,
+        timestamp_issue,
     })
 }
 
