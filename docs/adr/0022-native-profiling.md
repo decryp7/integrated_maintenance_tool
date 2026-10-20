@@ -1,0 +1,172 @@
+# 22. Native (C/C++) profiling: ETW and suspend-and-sample captures as NetTrace, one symbol library
+
+- Status: accepted (2026-10-21)
+- Related: [ADR 0019](0019-dotnet-profiling.md) (.NET profiling: the template), [ADR 0017](0017-one-ipc-out-of-process-plugins.md)
+  (out-of-process plugins, elevated plugin processes), ADR 0016 (jobs, tool polling, typed `denied` errors),
+  [docs/profiling.md](../profiling.md), AGENTS.md
+
+## Context
+
+IMT can record .NET processes (ADR 0019) but not native C/C++ services and desktop applications, which are the other
+half of the Windows estates its users maintain. They want to know where a native process burns CPU, where its threads
+wait (locks, I/O, sleeps), which call stacks grow its heap, and to open `.etl` traces recorded by WPR/xperf in the same
+views. Many of these processes run in production: nothing may be loaded into them, and recording must work without
+administrator rights when the user has none (with less detail) and with them (full detail).
+
+## Decision
+
+### 1. Safety boundary: events and debugger-style sampling only
+
+Captures use only what the OS publishes (ETW) or what a debugger may read from outside the process (thread contexts and
+memory, read while the thread is suspended). IMT **never** injects code, DLLs, threads, hooks or APCs into the target:
+no `CreateRemoteThread`, `WriteProcessMemory`, `SetWindowsHookEx`, `QueueUserAPC`, profiler-API attach or IAT/inline
+hooking. Anything that can only be learned by injection (exact call counts, instrumentation, allocations of a process that
+is not traced by the heap provider) is out of scope; a future need requires a new ADR.
+
+### 2. One built-in plugin, two capture modes
+
+The plugin crate `crates/imt-plugin-native` (`net.decryptology.native`, served by `imt-plugins` on `imt-plugin-api`)
+contributes:
+
+| Tool | Process | Operations |
+|---|---|---|
+| `native-profiler` | normal | `defaults`, `processes`, `start` (suspend-and-sample), `status` (pollable), `stop`, `etl-processes`, `etl-convert` |
+| `native-profiler.etw` | **elevated** (ADR 0017 §7) | `start`, `status` (pollable), `stop` |
+
+and a profile importer for `.etl` files. Two tools rather than one with mixed operations because a task is cancelled
+(`Tool::stop`, the Jobs pane) in the process that owns it, and the host routes a tool's `stop` to its elevated process
+only when every operation of the tool is elevated.
+
+- **ETW (administrator).** One real-time system-logger session per capture (`IMT-native-<imt pid>-<target>-<n>`):
+  kernel `PROFILE` (1 ms) with stack walks, `CSWITCH` + `DISPATCHER` (ready thread) with stack walks for waits,
+  process/thread/image-load events; optionally the **heap provider** (`{222962AB-6180-4B88-A825-346B75F2A24A}`,
+  PID-filtered, with stacks) for allocations, and the CLR runtime and rundown providers when the target has loaded
+  the CLR (mixed stacks, §5). It is the plugin's first elevated operation: the host starts the plugin's elevated
+  process through the administrator prompt on first use; declining is a typed `denied` failure whose hint is
+  "Restart as administrator". x86 (WOW64) and x64 targets are recorded from the 64-bit IMT (kernel stack walks keep
+  the 32-bit user frames; pointer size from the event header).
+- **Suspend-and-sample (no administrator).** A sampler thread in the normal plugin process opens the target with
+  `PROCESS_VM_READ | PROCESS_QUERY_INFORMATION` and each thread with `THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT |
+  THREAD_QUERY_INFORMATION`; per tick it suspends one thread, reads its context (`GetThreadContext`, or
+  `Wow64GetThreadContext` for a 32-bit target), **resumes it** and walks the stack with DbgHelp `StackWalkEx` over
+  `ReadProcessMemory` (the stack is copied while the thread is suspended, so the walk itself does not hold it).
+  The resume is an RAII guard: it runs on every return path, on error and on unwinding. Rate: 100 Hz by default,
+  capped at 1 kHz, one thread suspended at a time for at most the copy of its context and stack (bounded to 256 KiB).
+  A thread whose CPU time (`GetThreadTimes`) advanced since its previous sample counts as running (a CPU sample); one
+  that did not counts as waiting (a `ThreadWait` of one interval at its stack, the wait reason derived from the leaf
+  frame: delay, lock, object, I/O completion). Wall-clock sampling therefore gives CPU and lock/wait hot spots
+  without rights the user does not have.
+
+Both modes run captures as tool tasks of kind `capture` (Jobs of kind Capture, several at once), are stopped with
+`stop` (kept) or cancelled from the Jobs pane (file deleted), have a duration cap (1 h) and a size cap (1 GiB), and
+stop by themselves when the target exits.
+
+### 3. One file format: NetTrace with IMT's extension events
+
+Every capture is written as NetTrace through the **shared streaming writer** and converter in `crates/imt-etw`
+(§6), so the existing nettrace importer, views and findings open it. Kernel samples become
+`SampleProfiler/ThreadSample`, waits `IMT-Windows-Kernel/ThreadWait`, images `ImageLoad` (ADR 0019). New
+`IMT-Windows-Kernel` events (documented in `imt_plugin_profiling::nettrace::ext`):
+
+| Event | Id | Payload |
+|---|---|---|
+| `NativeSymbol` | 4 | address `u64`, function start `u64`, line `u32`, function name, source file (UTF-16, NUL-terminated) |
+| `HeapAlloc` | 5 | heap `u64`, address `u64`, size `u64` (stack: the allocating stack) |
+| `HeapFree` | 6 | heap `u64`, address `u64` |
+| `HeapReAlloc` | 7 | heap `u64`, new address `u64`, old address `u64`, new size `u64` (stack: the reallocating stack) |
+
+The importer resolves addresses in this order: CLR methods (managed frames), `NativeSymbol`s (native frames named
+`function`, module from the image, the function's source file and first line), images (`module+0xoffset`), `0x…`.
+Heap events pair by address: allocations become `allocBytes`/`allocCount` samples at their stacks, and allocations
+not freed by the end of the capture become **`liveBytes`** samples (a new inclusive metric, "Unfreed bytes": the heap
+growth by stack). The table of outstanding allocations is bounded (`Limits::max_samples`); beyond it the importer
+notes the cut.
+
+### 4. Symbols: `crates/imt-symbols`, a library shared with dumps (batch 8)
+
+Symbolisation runs once per capture, after recording, in the process that recorded it: the converter collects the
+distinct user-mode addresses (bounded) and the images, `imt-symbols` resolves them, and the `NativeSymbol` events are
+appended before the stream ends. The library's API (stable; the dumps/UMDH work uses it):
+
+```rust
+pub struct SymbolConfig { pub paths: Vec<PathBuf>, pub cache: Option<PathBuf>, pub server: Option<ServerConfig> }
+pub fn parse_search_path(text: &str) -> Result<Vec<PathBuf>, SymbolError>;   // "C:\a;D:\b": absolute folders only
+pub struct ServerConfig { pub url: String, pub timeout: Duration, pub max_bytes: u64 } // ::microsoft()
+pub struct Module { pub path: PathBuf, pub base: u64, pub size: u64 }
+pub struct Symbol { pub function: String, pub start: u64, pub module: String, pub file: Option<String>, pub line: Option<u32> }
+pub trait Resolver: Send {
+    fn add_module(&mut self, module: &Module) -> ModuleSymbols;               // Pdb | Exports | None (+ why)
+    fn resolve(&mut self, address: u64) -> Option<Symbol>;
+}
+pub fn resolver(config: &SymbolConfig) -> Result<Box<dyn Resolver>, SymbolError>; // DbgHelp; Unavailable off Windows
+pub fn resolve_all(r: &mut dyn Resolver, modules: &[Module], addresses: &[u64], max: usize) -> HashMap<u64, Symbol>;
+pub fn with_dbghelp<R>(f: impl FnOnce() -> R) -> R;                       // DbgHelp is single-threaded: one lock per process
+pub mod pe    { pub fn parse(bytes: &[u8]) -> Result<PeInfo, PeError>; pub struct PdbId { guid, age, name } /* .key() */ }
+pub mod fetch { pub trait Fetcher { fn fetch(&self, id: &PdbId, cache: &Path) -> Result<PathBuf, FetchError>; } pub struct HttpFetcher; }
+#[cfg(windows)] pub mod walk {                                            // StackWalkEx over a memory source
+    pub trait Memory { fn read(&self, address: u64, out: &mut [u8]) -> usize; }
+    pub enum Context { Amd64(..), X86(..) }
+    pub struct Walker; /* ::live(process) | ::offline(); add_module, walk(&Context, &dyn Memory, max) -> Vec<u64> */
+}
+```
+
+- The symbol search path is configurable (plugin settings: *Symbol path*; the dialog prefills it); the cache is
+  `<app data>/symbols` in symstore layout (`<pdb>/<GUID><age>/<pdb>`).
+- **The Microsoft symbol server is off by default.** When the user enables it (*Settings ▸ Native profiling ▸ Download
+  symbols from Microsoft*), missing PDBs of system modules are downloaded over HTTPS (certificate checking always on,
+  platform verifier) into the cache, size- and time-bounded, at most one download per PDB per capture; the plugin
+  process has network access only because its manifest asks for `Permission::Network` (the Plugins settings show it).
+  The app has no shared download stack for plugins yet (ADR 0017 §8, `SafeHttp`, deferred), so the AI *Download proxy*
+  setting does not apply to symbol downloads; that is a known gap.
+- Modules without a PDB resolve through exports (DbgHelp's default) and are flagged; addresses no module covers stay
+  `module+0xoffset` or `0x…`, and the profile notes say how many and why.
+
+### 5. Mixed .NET and native stacks (best effort)
+
+When the target has loaded the CLR, the ETW capture also enables the CLR runtime provider (loader, JIT) and, at stop,
+the rundown provider, as ADR 0019 does. Kernel stack walks contain both native and JIT-compiled frames; the importer
+resolves JIT addresses from the method load/rundown events and native ones from the symbols, so one stack shows both.
+Limits: suspend-and-sample walks stop at JIT frames whose unwind data the runtime registered only in-process (x64
+dynamic function tables need the runtime's out-of-process callback, which would mean loading runtime code into IMT's
+sampler; not done), so managed parts of sampled stacks are truncated; frames of methods JIT-compiled and unloaded
+before the rundown show as addresses.
+
+### 6. Shared ETW code: `crates/imt-etw`
+
+The ETW consumer glue, the kernel and heap payload decoders, the `.etl` scanner, the ETW → NetTrace converter and the
+NetTrace writer move out of `imt-plugin-dotnet` into a library crate, generalised (session configuration by flags and
+providers, converter options for heap events and symbol collection). The extraction is additive: the native plugin
+uses `imt-etw`; `imt-plugin-dotnet` switches to it when it is migrated onto `imt-plugin-api` (ADR 0017's deferred
+item), deleting its own copies.
+
+### 7. Elevated output
+
+ADR 0017 §7 wants elevated processes to stream capture bytes back to the host. The frame protocol has no byte-stream
+reply for tool operations yet, so the elevated ETW collector writes its file itself, under these rules: it takes no
+path argument; it writes only below the user's own application-data folder (the host's data folder is accepted only
+when it lies under the elevated token's `%APPDATA%` or `%LOCALAPPDATA%`; otherwise the capture is refused) at a file
+name it chooses; and it reports the path as a tool output so only the calling window may open it. Moving to streamed
+output is a redesign item (R3 follow-up).
+
+### 8. Findings
+
+Native findings are engine findings in `imt-profile` (ADR 0019's pattern): **hot native function** (self time in a
+native frame with a symbol, with its module and source file), **wait hot spot** (the native function in which threads
+waited longest, by `waitNs` at the first non-system frame above the wait), and **heap growth by stack** (the call
+path holding most `liveBytes`). Each links to its evidence view.
+
+### 9. `.etl` import
+
+`.etl` files open through the plugin's profile importer (the process with the most CPU samples; notes name the
+others) and through `etl-processes` / `etl-convert` for choosing another process, with the same converter and
+symbolisation. Windows only; elsewhere "ETL import needs Windows".
+
+## Consequences
+
+- Native processes can be profiled without rights (sampling, wall-clock, coarser) or with them (ETW, every CPU sample,
+  waits with their readying thread, heap stacks), with the same views and findings as .NET captures.
+- Suspend-and-sample briefly stops one target thread at a time (microseconds per sample); its overhead is bounded by
+  the rate cap and documented. ETW heap tracing slows allocation-heavy targets noticeably while it runs.
+- Real ETW recordings need an elevated machine: they are `#[ignore]` tests behind `IMT_ETW_TESTS=1`. Suspend-and-sample
+  is tested for real in CI against a Rust fixture (`tests/fixtures/native-busy`), with symbols from its PDB.
+- Two copies of the ETW code exist until `imt-plugin-dotnet` moves onto `imt-etw`.
