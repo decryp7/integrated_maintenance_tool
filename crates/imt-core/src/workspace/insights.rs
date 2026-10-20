@@ -5,23 +5,21 @@
 use super::Workspace;
 use crate::analysis::{self, Anomaly, AnomalyConfig, CompareConfig, Comparison, FieldStats, RequestSpan, WaterfallRow};
 use crate::api::{
-    ActivityItem, CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MetricWindow, MomentInstance, MomentRequest,
-    MomentSummary, QueryRequest, RequestsRequest, TraceRequest, TraceSummary, UserCount,
+    CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MomentRequest, MomentSummary, QueryRequest, RequestsRequest,
+    TraceRequest, TraceSummary,
 };
 use crate::exceptions::{self, ExceptionGroup};
-use crate::model::{Level, Record};
-use crate::patterns::{self, MinerConfig, Pattern};
+use crate::model::Record;
+use crate::patterns::Pattern;
 use crate::ql::{self, Cancelled, Completion, QlError, QlResult, QueryControl, RunError};
 use crate::query::{group_key, Query};
+use crate::row::RecordRow;
 use anyhow::Result;
-use std::collections::{BTreeMap, HashMap};
 
 /// Most records any single analysis looks at, to keep the UI responsive.
 const MAX_ANALYSED: usize = 2_000_000;
-const MAX_ACTIVITY: usize = 200;
-const MAX_TRACES: usize = 200;
-const MAX_REQUESTS: usize = 500;
-const MAX_CORRELATED: usize = 10_000;
+/// Most events a correlation lists.
+pub const MAX_CORRELATED: usize = 10_000;
 
 impl Workspace {
     fn matched(&self, q: &Query) -> Result<Vec<&Record>> {
@@ -124,7 +122,7 @@ impl Workspace {
     pub fn field_stats(&self, req: &FieldStatsRequest) -> Result<FieldStats> {
         let records = self.matched(&req.query)?;
         Ok(analysis::field_stats(
-            records.iter().copied(),
+            records.iter().map(|r| self.row(r)),
             &req.field,
             req.buckets.clamp(1, 200),
         ))
@@ -132,7 +130,7 @@ impl Workspace {
 
     /// Ids (time order) of every event carrying `field = value`, across all sources.
     pub fn correlate(&self, req: &CorrelateRequest) -> Vec<u32> {
-        let mut ids = analysis::correlate(self.records.iter(), &req.field, &req.value);
+        let mut ids = analysis::correlate(self.records.iter().map(|r| self.row(r)), &req.field, &req.value);
         ids.truncate(MAX_CORRELATED);
         ids
     }
@@ -145,34 +143,7 @@ impl Workspace {
         if !req.trace_id.is_empty() {
             return Ok((Vec::new(), analysis::waterfall(&spans, &req.trace_id)));
         }
-        let mut by_trace: BTreeMap<&str, Vec<&analysis::Span>> = BTreeMap::new();
-        for s in &spans {
-            by_trace.entry(s.trace_id.as_str()).or_default().push(s);
-        }
-        let mut out: Vec<TraceSummary> = by_trace
-            .into_iter()
-            .map(|(id, spans)| {
-                let start = spans.iter().map(|s| s.start).min().unwrap_or(0);
-                let end = spans.iter().map(|s| s.start as f64 + s.duration_ms).fold(start as f64, f64::max);
-                let root = spans
-                    .iter()
-                    .find(|s| s.parent.is_none())
-                    .or(spans.first())
-                    .map(|s| s.name.clone())
-                    .unwrap_or_default();
-                TraceSummary {
-                    trace_id: id.to_string(),
-                    spans: spans.len(),
-                    errors: spans.iter().map(|s| s.errors).sum(),
-                    start,
-                    duration_ms: end - start as f64,
-                    root,
-                }
-            })
-            .collect();
-        out.sort_by(|a, b| b.duration_ms.total_cmp(&a.duration_ms).then_with(|| a.trace_id.cmp(&b.trace_id)));
-        out.truncate(MAX_TRACES);
-        Ok((out, Vec::new()))
+        Ok((analysis::moment::trace_summaries(&spans), Vec::new()))
     }
 
     /// Requests (by id field) in the matching records, longest first.
@@ -180,8 +151,7 @@ impl Workspace {
         let records = self.matched(&req.query)?;
         let keyed = self.keyed(&records, &req.query);
         let mut out = analysis::request_durations(keyed.iter().map(|(r, k)| (*r, k.as_str())), &req.id_field);
-        out.sort_by(|a, b| (b.last - b.first).cmp(&(a.last - a.first)).then_with(|| a.id.cmp(&b.id)));
-        out.truncate(MAX_REQUESTS);
+        analysis::trace::rank_requests(&mut out);
         Ok(out)
     }
 
@@ -196,156 +166,29 @@ impl Workspace {
             window: None,
             ..req.query.clone()
         };
-        let window = Query {
-            from: Some(from),
-            to: Some(to),
-            ..base.clone()
-        };
-        let records = self.matched(&window)?;
-        let keyed = self.keyed(&records, &window);
+        let [window, previous, all] = analysis::moment::moment_queries(&base, from, to);
         let activity_cfg = &self.profile.profile.activity;
-
-        let mut levels: BTreeMap<Level, usize> = Level::ALL.iter().map(|l| (*l, 0)).collect();
-        let mut per_instance: BTreeMap<&str, Vec<&Record>> = BTreeMap::new();
-        let mut users: HashMap<(String, String), u64> = HashMap::new();
-        let mut activity = Vec::new();
-        for (r, key) in &keyed {
-            *levels.get_mut(&r.level).unwrap() += 1;
-            per_instance.entry(key.as_str()).or_default().push(r);
-            let source = self.source_name(r.source);
-            let user = first_present_field(r, &activity_cfg.user, source).map(|(field, value)| {
-                *users.entry((field.to_string(), value.clone())).or_default() += 1;
-                value
-            });
-            let action = first_present(r, &activity_cfg.action, source);
-            if (user.is_some() || action.is_some()) && activity.len() < MAX_ACTIVITY {
-                activity.push(ActivityItem {
-                    id: r.id,
-                    ts: r.ts.unwrap_or(from),
-                    instance: key.clone(),
-                    user,
-                    action: action.unwrap_or_else(|| r.message.chars().take(200).collect()),
-                    level: r.level,
-                });
-            }
+        let records = self.matched(&window)?;
+        let mut builder = analysis::moment::MomentBuilder::new(activity_cfg, from);
+        for (r, key) in self.keyed(&records, &window) {
+            builder.add(&self.row(r), &key);
         }
-
-        let mut instances: Vec<MomentInstance> = per_instance
-            .into_iter()
-            .map(|(key, recs)| {
-                let errors = recs.iter().filter(|r| r.level >= Level::Error).count();
-                let mut patterns = patterns::mine(recs.iter().copied(), &MinerConfig::default());
-                patterns.truncate(3);
-                MomentInstance {
-                    key: key.to_string(),
-                    events: recs.len(),
-                    warnings: recs.iter().filter(|r| r.level == Level::Warning).count(),
-                    errors,
-                    patterns,
-                    first_error: recs.iter().find(|r| r.level >= Level::Error).map(|r| r.id),
-                }
-            })
-            .collect();
-        instances.sort_by(|a, b| b.errors.cmp(&a.errors).then_with(|| b.events.cmp(&a.events)));
-
-        let span = (to - from).max(1);
-        let previous = Query {
-            from: Some(from - span),
-            to: Some(from - 1),
-            ..base.clone()
-        };
+        let mut before = analysis::moment::MetricCollector::new(&activity_cfg.metrics);
         let prev_records = self.matched(&previous)?;
-        let metrics = self.metric_windows(&keyed, &self.keyed(&prev_records, &previous), &activity_cfg.metrics);
-
-        let mut users: Vec<UserCount> = users
-            .into_iter()
-            .map(|((field, value), count)| UserCount { field, value, count })
-            .collect();
-        users.sort_by(|a, b| {
-            b.count
-                .cmp(&a.count)
-                .then_with(|| a.value.cmp(&b.value))
-                .then_with(|| a.field.cmp(&b.field))
-        });
-        users.truncate(20);
-
-        let all = self.anomalies(&QueryRequest {
-            query: Query {
-                from: None,
-                to: None,
-                ..base.clone()
-            },
-        })?;
+        for (r, key) in self.keyed(&prev_records, &previous) {
+            before.add(&self.row(r), &key);
+        }
+        let all = self.anomalies(&QueryRequest { query: all })?;
         let anomalies = all.into_iter().filter(|a| a.from <= to && a.to >= from).collect();
-
-        Ok(MomentSummary {
-            from,
-            to,
-            total: records.len(),
-            levels,
-            instances,
-            metrics,
-            users,
-            activity,
-            anomalies,
-        })
+        Ok(builder.finish(to, before, anomalies))
     }
 
-    fn metric_windows(&self, now: &[(&Record, String)], before: &[(&Record, String)], fields: &[String]) -> Vec<MetricWindow> {
-        type Series = BTreeMap<(String, String), Vec<f64>>;
-        let collect = |rows: &[(&Record, String)]| -> Series {
-            let mut out: Series = BTreeMap::new();
-            for (r, key) in rows {
-                // PerfMon long format: one counter value per record.
-                if let (Some(counter), Some(value)) = (r.fields.get("Counter"), r.field_number("Value")) {
-                    let machine = r.field_text("MachineName", "").map(|m| m.into_owned()).unwrap_or_default();
-                    let series = match r.field_text("Instance", "") {
-                        Some(i) if !i.is_empty() => format!("{machine} · {i}"),
-                        _ => machine,
-                    };
-                    out.entry((series, crate::model::value_text(counter).into_owned()))
-                        .or_default()
-                        .push(value);
-                    continue;
-                }
-                for f in fields {
-                    if let Some(v) = r.field_number(f) {
-                        out.entry((key.clone(), f.clone())).or_default().push(v);
-                    }
-                }
-            }
-            out
-        };
-        let prev = collect(before);
-        let mut result: Vec<MetricWindow> = collect(now)
-            .into_iter()
-            .map(|((series, metric), values)| {
-                let avg = values.iter().sum::<f64>() / values.len() as f64;
-                let previous_avg = prev
-                    .get(&(series.clone(), metric.clone()))
-                    .map(|p| p.iter().sum::<f64>() / p.len() as f64);
-                let change_pct = previous_avg.filter(|p| *p != 0.0).map(|p| (avg - p) / p.abs() * 100.0);
-                MetricWindow {
-                    samples: values.len(),
-                    min: values.iter().copied().fold(f64::INFINITY, f64::min),
-                    max: values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
-                    last: *values.last().unwrap(),
-                    avg,
-                    previous_avg,
-                    change_pct,
-                    series,
-                    metric,
-                }
-            })
-            .collect();
-        result.sort_by(|a, b| {
-            let ca = a.change_pct.map(f64::abs).unwrap_or(0.0);
-            let cb = b.change_pct.map(f64::abs).unwrap_or(0.0);
-            cb.total_cmp(&ca)
-                .then_with(|| a.series.cmp(&b.series))
-                .then_with(|| a.metric.cmp(&b.metric))
-        });
-        result
+    /// A record with its source name.
+    fn row<'a>(&'a self, rec: &'a Record) -> RecordRow<'a> {
+        RecordRow {
+            rec,
+            source: self.source_name(rec.source),
+        }
     }
 }
 
@@ -414,132 +257,20 @@ impl Workspace {
     /// The automatic health check: what went wrong and what needs attention,
     /// most severe first, each with a suggested action.
     pub fn overview(&self, req: &QueryRequest) -> Result<Vec<crate::api::Finding>> {
-        use crate::analysis::AnomalyKind;
-        use crate::api::{Finding, FindingAction, FindingKind, Severity};
-        let mut out = Vec::new();
-        let zoom = |a: &Anomaly| FindingAction::Zoom {
-            from: a.from,
-            to: a.to,
-            record_id: a.sample_ids.first().copied(),
-        };
-        for a in self.anomalies(req)? {
-            let severity = match a.kind {
-                AnomalyKind::Crash => Severity::Critical,
-                AnomalyKind::ErrorSpike | AnomalyKind::MemoryGrowth | AnomalyKind::Silence => Severity::Warning,
-                AnomalyKind::SlowOutlier | AnomalyKind::RateChange => Severity::Info,
-            };
-            let (kind, title) = match a.kind {
-                AnomalyKind::Crash => (FindingKind::Crash, "Crash"),
-                AnomalyKind::ErrorSpike => (FindingKind::ErrorSpike, "Error spike"),
-                AnomalyKind::MemoryGrowth => (FindingKind::MemoryGrowth, "Memory growth"),
-                AnomalyKind::Silence => (FindingKind::Silence, "Went silent"),
-                AnomalyKind::SlowOutlier => (FindingKind::SlowOutlier, "Slow outliers"),
-                AnomalyKind::RateChange => (FindingKind::RateChange, "Rate change"),
-            };
-            out.push(Finding {
-                kind,
-                severity,
-                title: title.into(),
-                detail: a.message.clone(),
-                action: Some(zoom(&a)),
-            });
-        }
-        for g in self.exception_groups(req)?.into_iter().filter(|g| g.count >= 5).take(5) {
-            let instances = g.instances.len();
-            out.push(Finding {
-                kind: FindingKind::Exception,
-                severity: Severity::Warning,
-                title: format!("{} ×{}", short_type(&g.type_name), g.count),
-                detail: format!(
-                    "{} on {} instance{}{}",
-                    g.message.chars().take(160).collect::<String>(),
-                    instances,
-                    if instances == 1 { "" } else { "s" },
-                    g.top_frame.as_deref().map(|f| format!(", at {f}")).unwrap_or_default()
-                ),
-                action: Some(FindingAction::Exception {
-                    fingerprint: g.fingerprint.clone(),
-                    record_id: g.sample_ids.first().copied(),
-                }),
-            });
-        }
-        for s in &self.sources {
-            let lines = s.records + s.skipped;
-            if s.skipped > 0 && s.skipped * 5 > lines {
-                out.push(Finding {
-                    kind: FindingKind::UnreadLines,
-                    severity: Severity::Warning,
-                    title: "Lines not understood".into(),
-                    detail: format!(
-                        "{}: {}% of the lines could not be read as events",
-                        s.name,
-                        s.skipped * 100 / lines.max(1)
-                    ),
-                    action: Some(FindingAction::SetupFormat { path: s.path.clone() }),
-                });
-            }
-            if s.from.is_none() && s.records > 0 {
-                out.push(Finding {
-                    kind: FindingKind::NoTimestamps,
-                    severity: Severity::Info,
-                    title: "No timestamps".into(),
-                    detail: format!("{} has no recognisable timestamps, so it is missing from the timeline", s.name),
-                    action: Some(FindingAction::SetupFormat { path: s.path.clone() }),
-                });
-            }
-        }
-        for u in &self.unrecognized {
-            out.push(Finding {
-                kind: FindingKind::FileNotOpened,
-                severity: Severity::Info,
-                title: "File not opened".into(),
-                detail: format!("{}: {}", u.name, u.reason),
-                action: Some(FindingAction::SetupFormat { path: u.path.clone() }),
-            });
-        }
-        let dropped: usize = self.sources.iter().map(|s| s.dropped).sum();
-        if dropped > 0 {
-            out.push(Finding {
-                kind: FindingKind::Dropped,
-                severity: Severity::Info,
-                title: "Events removed by the pipeline".into(),
-                detail: format!("{dropped} events were dropped by the profile's cleaning steps (your files are unchanged)"),
-                action: Some(FindingAction::OpenPanel { panel: "pipeline".into() }),
-            });
-        }
-        for p in self
+        let anomalies = self.anomalies(req)?;
+        let groups = self.exception_groups(req)?;
+        let quarantined = self
             .registry
             .plugins()
             .into_iter()
             .filter(|p| p.status == crate::plugin::PluginStatus::Quarantined)
-        {
-            out.push(Finding {
-                kind: FindingKind::PluginQuarantined,
-                severity: Severity::Warning,
-                title: "Plugin disabled after crashes".into(),
-                detail: format!("{}: {}", p.name, p.last_error.unwrap_or_default()),
-                action: Some(FindingAction::OpenPanel { panel: "plugins".into() }),
-            });
-        }
-        out.sort_by_key(|f| f.severity);
-        Ok(out)
+            .map(|p| (p.name, p.last_error.unwrap_or_default()))
+            .collect();
+        let inputs = analysis::moment::OverviewInputs {
+            sources: &self.sources,
+            unrecognized: &self.unrecognized,
+            quarantined,
+        };
+        Ok(analysis::moment::findings(&anomalies, &groups, &inputs))
     }
-}
-
-/// "System.Net.Http.HttpRequestException" -> "HttpRequestException".
-fn short_type(t: &str) -> &str {
-    t.rsplit('.').next().unwrap_or(t)
-}
-
-fn first_present(r: &Record, fields: &[String], source: &str) -> Option<String> {
-    first_present_field(r, fields, source).map(|(_, v)| v)
-}
-
-/// The first of `fields` with a non-empty value on `r`, with the field's name.
-fn first_present_field<'f>(r: &Record, fields: &'f [String], source: &str) -> Option<(&'f str, String)> {
-    fields.iter().find_map(|f| {
-        r.field_text(f, source)
-            .filter(|v| !v.is_empty())
-            .map(|v| (f.as_str(), v.into_owned()))
-    })
 }

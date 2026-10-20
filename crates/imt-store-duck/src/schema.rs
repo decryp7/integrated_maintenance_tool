@@ -7,6 +7,12 @@ use imt_core::batch::{ColumnType, EventSchema};
 /// Version of the database layout this build writes and reads.
 pub const FORMAT_VERSION: u32 = 1;
 
+/// The analysis cache (engine review finding 18): results per data version, analysis kind and
+/// canonical query (its FNV-1a hash and text).
+pub const CACHE_DDL: &str = "CREATE TABLE IF NOT EXISTS analysis_cache (
+  version UBIGINT NOT NULL, kind VARCHAR NOT NULL, hash VARCHAR NOT NULL, query VARCHAR NOT NULL, value VARCHAR NOT NULL,
+  PRIMARY KEY (version, kind, hash));";
+
 /// The DuckDB type of a declared column.
 fn sql_type(t: ColumnType) -> &'static str {
     match t {

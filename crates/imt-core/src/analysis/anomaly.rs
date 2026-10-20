@@ -4,8 +4,9 @@
 use super::trend::{memory_growth, TrendConfig};
 use super::util::{fmt_clock, fmt_duration, fmt_num, mad, median, median_sorted, percentile_sorted, sorted, truncate};
 use crate::chart::nice_bucket;
-use crate::model::{Level, Record};
+use crate::model::Level;
 use crate::query::GROUP_SEPARATOR;
+use crate::row::RowRef;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -79,17 +80,22 @@ pub struct Anomaly {
     pub sample_ids: Vec<u32>,
 }
 
-type Events<'a> = Vec<(i64, &'a Record)>;
+type Events<R> = Vec<(i64, R)>;
 
-struct Ctx<'a> {
-    instances: BTreeMap<String, Events<'a>>,
+/// An event's id as the DTOs carry it (saturating until 6c widens them).
+fn sid(r: &dyn RowRef) -> u32 {
+    u32::try_from(r.id()).unwrap_or(u32::MAX)
+}
+
+struct Ctx<R> {
+    instances: BTreeMap<String, Events<R>>,
     start: i64,
     end: i64,
     bucket: i64,
     buckets: usize,
 }
 
-impl Ctx<'_> {
+impl<R> Ctx<R> {
     fn index(&self, ts: i64) -> usize {
         (((ts - self.start) / self.bucket) as usize).min(self.buckets - 1)
     }
@@ -107,10 +113,11 @@ impl Ctx<'_> {
 
 /// Runs every detector over `(event, instance key)` pairs. Events without a
 /// timestamp are ignored. Results are ordered by start time, then score.
-pub fn detect<'a>(records: impl IntoIterator<Item = (&'a Record, &'a str)>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
-    let mut instances: BTreeMap<String, Events<'a>> = BTreeMap::new();
+pub fn detect<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
+    let mut instances: BTreeMap<String, Events<R>> = BTreeMap::new();
     for (rec, key) in records {
-        let Some(ts) = rec.ts else { continue };
+        let key = key.as_ref();
+        let Some(ts) = rec.ts() else { continue };
         match instances.get_mut(key) {
             Some(v) => v.push((ts, rec)),
             None => {
@@ -164,16 +171,16 @@ fn runs(flags: &[Option<f64>]) -> Vec<(usize, usize, f64)> {
     out
 }
 
-fn is_error(r: &Record) -> bool {
-    r.level >= Level::Error
+fn is_error(r: &dyn RowRef) -> bool {
+    r.level() >= Level::Error
 }
 
-fn error_spikes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
+fn error_spikes<R: RowRef>(ctx: &Ctx<R>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     let mut out = Vec::new();
     for (key, events) in &ctx.instances {
         let (first, last) = (ctx.index(events[0].0), ctx.index(events[events.len() - 1].0));
         let mut counts = vec![0f64; ctx.buckets];
-        for (ts, _) in events.iter().filter(|e| is_error(e.1)) {
+        for (ts, _) in events.iter().filter(|e| is_error(&e.1)) {
             counts[ctx.index(*ts)] += 1.0;
         }
         let life = &counts[first..=last];
@@ -204,7 +211,7 @@ fn error_spikes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
                 sample_ids: events
                     .iter()
                     .filter(|(ts, r)| is_error(r) && *ts >= from && *ts <= to)
-                    .map(|(_, r)| r.id)
+                    .map(|(_, r)| sid(r))
                     .take(MAX_SAMPLES)
                     .collect(),
             });
@@ -215,7 +222,7 @@ fn error_spikes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
 
 /// The event that explains why an instance ended, if it looks like a crash: a
 /// fatal event or an error with an exception close to the instance's last event.
-fn crash_trigger<'a>(events: &Events<'a>, end: i64, cfg: &AnomalyConfig) -> Option<(i64, &'a Record)> {
+fn crash_trigger<'a, R: RowRef>(events: &'a Events<R>, end: i64, cfg: &AnomalyConfig) -> Option<(i64, &'a R)> {
     let last_ts = events[events.len() - 1].0;
     if last_ts >= end {
         return None;
@@ -224,11 +231,11 @@ fn crash_trigger<'a>(events: &Events<'a>, end: i64, cfg: &AnomalyConfig) -> Opti
         .iter()
         .rev()
         .take_while(|(ts, _)| *ts >= last_ts - cfg.crash_window)
-        .find(|(_, r)| r.level == Level::Fatal || (r.exception.is_some() && is_error(r)))
-        .copied()
+        .find(|(_, r)| r.level() == Level::Fatal || (r.exception().is_some() && is_error(r)))
+        .map(|(ts, r)| (*ts, r))
 }
 
-fn silences(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
+fn silences<R: RowRef>(ctx: &Ctx<R>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     let mut out = Vec::new();
     for (key, events) in &ctx.instances {
         if events.len() < MIN_STEADY_EVENTS {
@@ -253,9 +260,9 @@ fn silences(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
                 report(w[0].0, w[1].0);
             }
         }
-        let (last_ts, last) = events[events.len() - 1];
+        let (last_ts, last) = (events[events.len() - 1].0, &events[events.len() - 1].1);
         let stopped = {
-            let m = last.message.to_ascii_lowercase();
+            let m = last.message().to_ascii_lowercase();
             m.contains("stop") || m.contains("shutting down")
         };
         if (ctx.end - last_ts) as f64 >= threshold && !stopped && crash_trigger(events, ctx.end, cfg).is_none() {
@@ -271,13 +278,13 @@ fn machine(key: &str) -> &str {
     key.rsplit_once(GROUP_SEPARATOR).map_or(key, |(head, _)| head)
 }
 
-fn crashes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
+fn crashes<R: RowRef>(ctx: &Ctx<R>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     let mut out = Vec::new();
     for (key, events) in &ctx.instances {
         let Some((crash_ts, trigger)) = crash_trigger(events, ctx.end, cfg) else {
             continue;
         };
-        let last = events[events.len() - 1].1;
+        let last = &events[events.len() - 1].1;
         let restart = ctx
             .instances
             .iter()
@@ -288,14 +295,14 @@ fn crashes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
         let mut message = format!(
             "{key} crashed at {} ({} \"{}\")",
             fmt_clock(crash_ts),
-            trigger.level.as_str(),
-            truncate(&trigger.message, 80)
+            trigger.level().as_str(),
+            truncate(trigger.message(), 80)
         );
         if let Some((next, first)) = restart {
             message.push_str(&format!("; restarted as {next} {} later", fmt_duration(first - crash_ts)));
         }
-        let mut ids: Vec<u32> = vec![trigger.id, last.id];
-        ids.extend(events.iter().rev().filter(|e| is_error(e.1)).map(|e| e.1.id));
+        let mut ids: Vec<u32> = vec![sid(trigger), sid(last)];
+        ids.extend(events.iter().rev().filter(|e| is_error(&e.1)).map(|e| sid(&e.1)));
         let mut seen = Vec::new();
         ids.retain(|id| {
             let fresh = !seen.contains(id);
@@ -308,7 +315,7 @@ fn crashes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
             instance: Some(key.clone()),
             from: crash_ts,
             to: restart.map_or(crash_ts, |(_, first)| first),
-            score: if trigger.level == Level::Fatal { 10.0 } else { 5.0 },
+            score: if trigger.level() == Level::Fatal { 10.0 } else { 5.0 },
             message,
             sample_ids: ids,
         });
@@ -316,14 +323,14 @@ fn crashes(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     out
 }
 
-fn slow_outliers(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
+fn slow_outliers<R: RowRef>(ctx: &Ctx<R>, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     let mut out = Vec::new();
     for field in &cfg.latency_fields {
         let mut samples: Vec<(i64, f64, u32, &str)> = Vec::new();
         for (key, events) in &ctx.instances {
             for (ts, r) in events {
-                if let Some(v) = r.field_number(field) {
-                    samples.push((*ts, v, r.id, key));
+                if let Some(v) = r.number_of(field) {
+                    samples.push((*ts, v, sid(r), key));
                 }
             }
         }
@@ -362,14 +369,14 @@ fn slow_outliers(ctx: &Ctx, cfg: &AnomalyConfig) -> Vec<Anomaly> {
     out
 }
 
-fn rate_changes(ctx: &Ctx) -> Vec<Anomaly> {
+fn rate_changes<R: RowRef>(ctx: &Ctx<R>) -> Vec<Anomaly> {
     let mut counts = vec![0f64; ctx.buckets];
     let mut ids: Vec<Vec<u32>> = vec![Vec::new(); ctx.buckets];
     for (ts, r) in ctx.instances.values().flatten() {
         let i = ctx.index(*ts);
         counts[i] += 1.0;
         if ids[i].len() < MAX_SAMPLES {
-            ids[i].push(r.id);
+            ids[i].push(sid(r));
         }
     }
     let mut up = vec![None; ctx.buckets];

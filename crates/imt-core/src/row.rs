@@ -107,6 +107,7 @@ pub trait RowRef {
     fn ts(&self) -> Option<i64>;
     fn level(&self) -> Level;
     fn source(&self) -> u32;
+    /// The source's display name (empty for a bare [`Record`]).
     fn source_name(&self) -> &str;
     fn line(&self) -> u32;
     fn markers(&self) -> MarkerMask;
@@ -119,6 +120,8 @@ pub trait RowRef {
     fn named_number(&self, sym: Sym, name: &str) -> Option<f64>;
     /// A named field as a JSON value.
     fn named_value(&self, sym: Sym, name: &str) -> Option<Value>;
+    /// Every named field with its value.
+    fn for_each_field(&self, f: &mut dyn FnMut(&str, Cow<'_, Value>));
 
     /// A field or pseudo-field as text (as [`Record::field_text`]).
     fn text(&self, key: &FieldKey) -> Option<Cow<'_, str>> {
@@ -152,6 +155,125 @@ pub trait RowRef {
             FieldKey::Named { sym, name } => self.named_value(*sym, name),
         }
     }
+
+    /// A field by name, as text (for code that does not intern its names).
+    fn text_of(&self, name: &str) -> Option<Cow<'_, str>> {
+        match Pseudo::parse(name) {
+            Some(p) => self.text(&FieldKey::Pseudo(p)),
+            None => self.named_text(Sym(u32::MAX), name),
+        }
+    }
+
+    /// A field by name, as a number.
+    fn number_of(&self, name: &str) -> Option<f64> {
+        match Pseudo::parse(name) {
+            Some(p) => self.number(&FieldKey::Pseudo(p)),
+            None => self.named_number(Sym(u32::MAX), name),
+        }
+    }
+}
+
+/// A bare record (its source name is unknown, so `@source` is empty).
+impl RowRef for Record {
+    fn id(&self) -> u64 {
+        u64::from(self.id)
+    }
+    fn ts(&self) -> Option<i64> {
+        self.ts
+    }
+    fn level(&self) -> Level {
+        self.level
+    }
+    fn source(&self) -> u32 {
+        self.source
+    }
+    fn source_name(&self) -> &str {
+        ""
+    }
+    fn line(&self) -> u32 {
+        self.line
+    }
+    fn markers(&self) -> MarkerMask {
+        self.markers
+    }
+    fn message(&self) -> &str {
+        &self.message
+    }
+    fn template(&self) -> Option<&str> {
+        self.template.as_deref()
+    }
+    fn exception(&self) -> Option<&str> {
+        self.exception.as_deref()
+    }
+    fn named_text(&self, _sym: Sym, name: &str) -> Option<Cow<'_, str>> {
+        self.fields.get(name).map(value_text)
+    }
+    fn named_number(&self, _sym: Sym, name: &str) -> Option<f64> {
+        self.fields.get(name).and_then(value_number)
+    }
+    fn named_value(&self, _sym: Sym, name: &str) -> Option<Value> {
+        self.fields.get(name).cloned()
+    }
+    fn for_each_field(&self, f: &mut dyn FnMut(&str, Cow<'_, Value>)) {
+        for (k, v) in &self.fields {
+            f(k, Cow::Borrowed(v));
+        }
+    }
+}
+
+/// Forwards every method but `id` and `source_name` to the row `$e` (an expression of `$s`, which is
+/// `self`).
+macro_rules! forward_row {
+    ($s:ident => $e:expr) => {
+        fn ts(&self) -> Option<i64> {
+            let $s = self;
+            $e.ts()
+        }
+        fn level(&self) -> Level {
+            let $s = self;
+            $e.level()
+        }
+        fn source(&self) -> u32 {
+            let $s = self;
+            $e.source()
+        }
+        fn line(&self) -> u32 {
+            let $s = self;
+            $e.line()
+        }
+        fn markers(&self) -> MarkerMask {
+            let $s = self;
+            $e.markers()
+        }
+        fn message(&self) -> &str {
+            let $s = self;
+            $e.message()
+        }
+        fn template(&self) -> Option<&str> {
+            let $s = self;
+            $e.template()
+        }
+        fn exception(&self) -> Option<&str> {
+            let $s = self;
+            $e.exception()
+        }
+        fn named_text(&self, sym: Sym, name: &str) -> Option<Cow<'_, str>> {
+            let $s = self;
+            $e.named_text(sym, name)
+        }
+        fn named_number(&self, sym: Sym, name: &str) -> Option<f64> {
+            let $s = self;
+            $e.named_number(sym, name)
+        }
+        fn named_value(&self, sym: Sym, name: &str) -> Option<Value> {
+            let $s = self;
+            $e.named_value(sym, name)
+        }
+        fn for_each_field(&self, f: &mut dyn FnMut(&str, Cow<'_, Value>)) {
+            let $s = self;
+            $e.for_each_field(f)
+        }
+    };
 }
 
 /// A [`Record`] with its source name.
@@ -165,42 +287,10 @@ impl RowRef for RecordRow<'_> {
     fn id(&self) -> u64 {
         u64::from(self.rec.id)
     }
-    fn ts(&self) -> Option<i64> {
-        self.rec.ts
-    }
-    fn level(&self) -> Level {
-        self.rec.level
-    }
-    fn source(&self) -> u32 {
-        self.rec.source
-    }
     fn source_name(&self) -> &str {
         self.source
     }
-    fn line(&self) -> u32 {
-        self.rec.line
-    }
-    fn markers(&self) -> MarkerMask {
-        self.rec.markers
-    }
-    fn message(&self) -> &str {
-        &self.rec.message
-    }
-    fn template(&self) -> Option<&str> {
-        self.rec.template.as_deref()
-    }
-    fn exception(&self) -> Option<&str> {
-        self.rec.exception.as_deref()
-    }
-    fn named_text(&self, _sym: Sym, name: &str) -> Option<Cow<'_, str>> {
-        self.rec.fields.get(name).map(value_text)
-    }
-    fn named_number(&self, _sym: Sym, name: &str) -> Option<f64> {
-        self.rec.fields.get(name).and_then(value_number)
-    }
-    fn named_value(&self, _sym: Sym, name: &str) -> Option<Value> {
-        self.rec.fields.get(name).cloned()
-    }
+    forward_row!(s => s.rec);
 }
 
 /// An owned event: a [`Record`], its store id and its source name, for code that streams events out
@@ -212,115 +302,22 @@ pub struct OwnedRow {
     pub source: Arc<str>,
 }
 
-impl OwnedRow {
-    /// The row as a [`RecordRow`] (with the record's own id).
-    pub fn as_record_row(&self) -> RecordRow<'_> {
-        RecordRow {
-            rec: &self.rec,
-            source: &self.source,
-        }
-    }
-}
-
-/// Forwards every method to `$inner` (an expression of `self`).
-macro_rules! forward_row {
-    ($inner:ident => $e:expr) => {
-        fn ts(&self) -> Option<i64> {
-            let $inner = self;
-            $e.ts()
-        }
-        fn level(&self) -> Level {
-            let $inner = self;
-            $e.level()
-        }
-        fn source(&self) -> u32 {
-            let $inner = self;
-            $e.source()
-        }
-        fn source_name(&self) -> &str {
-            let $inner = self;
-            $e.source_name()
-        }
-        fn line(&self) -> u32 {
-            let $inner = self;
-            $e.line()
-        }
-        fn markers(&self) -> MarkerMask {
-            let $inner = self;
-            $e.markers()
-        }
-        fn message(&self) -> &str {
-            let $inner = self;
-            $e.message()
-        }
-        fn template(&self) -> Option<&str> {
-            let $inner = self;
-            $e.template()
-        }
-        fn exception(&self) -> Option<&str> {
-            let $inner = self;
-            $e.exception()
-        }
-        fn named_text(&self, sym: Sym, name: &str) -> Option<Cow<'_, str>> {
-            let $inner = self;
-            $e.named_text(sym, name)
-        }
-        fn named_number(&self, sym: Sym, name: &str) -> Option<f64> {
-            let $inner = self;
-            $e.named_number(sym, name)
-        }
-        fn named_value(&self, sym: Sym, name: &str) -> Option<Value> {
-            let $inner = self;
-            $e.named_value(sym, name)
-        }
-    };
-}
-
 impl RowRef for OwnedRow {
     fn id(&self) -> u64 {
         self.id
     }
-    fn ts(&self) -> Option<i64> {
-        self.rec.ts
-    }
-    fn level(&self) -> Level {
-        self.rec.level
-    }
-    fn source(&self) -> u32 {
-        self.rec.source
-    }
     fn source_name(&self) -> &str {
         &self.source
     }
-    fn line(&self) -> u32 {
-        self.rec.line
-    }
-    fn markers(&self) -> MarkerMask {
-        self.rec.markers
-    }
-    fn message(&self) -> &str {
-        &self.rec.message
-    }
-    fn template(&self) -> Option<&str> {
-        self.rec.template.as_deref()
-    }
-    fn exception(&self) -> Option<&str> {
-        self.rec.exception.as_deref()
-    }
-    fn named_text(&self, _sym: Sym, name: &str) -> Option<Cow<'_, str>> {
-        self.rec.fields.get(name).map(value_text)
-    }
-    fn named_number(&self, _sym: Sym, name: &str) -> Option<f64> {
-        self.rec.fields.get(name).and_then(value_number)
-    }
-    fn named_value(&self, _sym: Sym, name: &str) -> Option<Value> {
-        self.rec.fields.get(name).cloned()
-    }
+    forward_row!(s => s.rec);
 }
 
 impl<T: RowRef + ?Sized> RowRef for &T {
     fn id(&self) -> u64 {
         (**self).id()
+    }
+    fn source_name(&self) -> &str {
+        (**self).source_name()
     }
     forward_row!(s => (**s));
 }
@@ -435,6 +432,11 @@ impl RowRef for ArrowRow<'_> {
     }
     fn named_value(&self, sym: Sym, name: &str) -> Option<Value> {
         self.value(sym, name).map(json_value)
+    }
+    fn for_each_field(&self, f: &mut dyn FnMut(&str, Cow<'_, Value>)) {
+        for (name, v) in self.row.fields() {
+            f(name, Cow::Owned(json_value(v)));
+        }
     }
 }
 

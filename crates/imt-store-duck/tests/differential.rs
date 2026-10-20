@@ -5,56 +5,15 @@
 
 mod common;
 
-use common::{log_samples, sample_profile, store_with, TempDir};
+use common::{pair, ranged, sample_profile, store_with, Pair, TempDir};
 use imt_core::api::{FacetRequest, PageRequest, TimelineRequest};
 use imt_core::model::Level;
 use imt_core::ports::{Diagnostics, Filter, Ingest, PageQuery, Profiles, Query, Search, SearchRequest, StoreError};
 use imt_core::query::FieldFilter;
-use imt_core::{Profile, Workspace};
+use imt_core::Profile;
 use imt_store_duck::DuckStore;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::ControlFlow;
-
-struct Pair {
-    ws: Workspace,
-    duck: DuckStore,
-    _dir: TempDir,
-    /// Source id → path, per store.
-    ws_paths: HashMap<u32, String>,
-    duck_paths: HashMap<u32, String>,
-    /// The time range of all timed events.
-    range: (i64, i64),
-}
-
-fn pair(profile: Profile) -> Pair {
-    let paths = log_samples();
-    let mut ws = Workspace::new(profile.clone()).unwrap();
-    ws.open(&paths).unwrap();
-    let dir = TempDir::new("diff");
-    let (duck, report) = store_with(&dir, profile, &paths).unwrap();
-    assert!(report.events > 10_000, "{} events", report.events);
-    let ws_paths = ws.sources().iter().map(|s| (s.id, s.path.clone())).collect();
-    let summary = duck.summary().unwrap();
-    let duck_paths = summary.sources.iter().map(|s| (s.id, s.path.clone())).collect();
-    let s = ws.summary();
-    let range = (s.from.unwrap(), s.to.unwrap());
-    Pair {
-        ws,
-        duck,
-        _dir: dir,
-        ws_paths,
-        duck_paths,
-        range,
-    }
-}
-
-fn ranged(p: &Pair, q: Filter) -> Filter {
-    Filter {
-        from: q.from.or(Some(p.range.0)),
-        to: q.to.or(Some(p.range.1)),
-        ..q
-    }
-}
 
 /// Queries covering the SQL path (time, levels, text, sources, markers) and the scan fallback (regex,
 /// field filters, instance selection, query language).

@@ -4,6 +4,8 @@
 //! Phase R2a: in-process, sequential import; `Query` serves summary, page, timeline, facet and scan.
 //! The other operations answer [`StoreError::Unsupported`] naming the phase that adds them.
 
+mod analysis;
+mod qlang;
 mod read;
 mod schema;
 mod sql;
@@ -120,6 +122,25 @@ impl Inner {
         &self.registry
     }
 
+    pub(crate) fn is_importing(&self) -> bool {
+        self.importing.load(Ordering::SeqCst)
+    }
+
+    /// Bumps the persisted data version (cached analyses of older versions are dropped).
+    fn bump_version(&self, conn: &Connection) -> StoreResult<()> {
+        let current: u64 = conn
+            .query_row("SELECT value FROM meta WHERE key = 'data_version'", [], |r| r.get::<_, String>(0))
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        let next = current + 1;
+        conn.execute("INSERT OR REPLACE INTO meta VALUES ('data_version', ?)", params![next.to_string()])
+            .map_err(engine)?;
+        conn.execute("DELETE FROM analysis_cache WHERE version < ?", params![next])
+            .map_err(engine)?;
+        Ok(())
+    }
+
     pub(crate) fn unrecognized(&self) -> Vec<UnrecognizedFile> {
         read_lock(&self.state).unrecognized.clone()
     }
@@ -152,6 +173,7 @@ impl Inner {
         let mut writer = writer::DuckWriter::new(&conn, &self.generation).map_err(|e| engine(format!("{e:#}")))?;
         let outcomes = ingest::import_files(&env, &files, &removed, progress, &mut writer);
         writer.finish().map_err(|e| engine(format!("{e:#}")))?;
+        self.bump_version(&conn)?;
         // Write the import into the database file now (the WAL may grow to `checkpoint_threshold`
         // while importing), so a reopen does not replay it.
         // Not fatal: DuckDB checkpoints again later.
@@ -232,7 +254,7 @@ impl DuckStore {
             conn.execute("INSERT INTO marker_kinds VALUES (0, ?, ?, ?)", params![bit as u8, m.kind, m.owner])
                 .map_err(engine)?;
         }
-        Ok(Self::with(conn, schema, compiled, registry))
+        Self::with(conn, schema, compiled, registry)
     }
 
     /// Reopens the store in `dir`. A database written by a newer IMT is refused with a message.
@@ -255,11 +277,13 @@ impl DuckStore {
         }
         let schema =
             schema::decode_declared(&meta("declared")?).ok_or_else(|| StoreError::Invalid("the store's column list is damaged".into()))?;
-        Ok(Self::with(conn, schema, compiled, registry))
+        Self::with(conn, schema, compiled, registry)
     }
 
-    fn with(conn: Connection, schema: EventSchema, profile: CompiledProfile, registry: PluginRegistry) -> DuckStore {
-        DuckStore {
+    fn with(conn: Connection, schema: EventSchema, profile: CompiledProfile, registry: PluginRegistry) -> StoreResult<DuckStore> {
+        // Added after format 1 was first written; created on open so older stores gain it.
+        conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
+        Ok(DuckStore {
             inner: Arc::new(Inner {
                 db: Mutex::new(conn),
                 pool: Mutex::new(Vec::new()),
@@ -276,7 +300,7 @@ impl DuckStore {
                 progress: Arc::new(ImportProgress::default()),
                 derived: Mutex::new(None),
             }),
-        }
+        })
     }
 
     /// Progress of the running (or last) import.
@@ -302,8 +326,9 @@ impl DuckStore {
         Ok(())
     }
 
-    fn changed(&self) {
+    fn changed(&self) -> StoreResult<()> {
         self.inner.generation.fetch_add(1, Ordering::SeqCst);
+        self.inner.bump_version(&*self.inner.conn()?)
     }
 }
 
@@ -364,8 +389,7 @@ impl Ingest for DuckStore {
         s.roots.retain(|r| *r != p);
         s.removed.insert(p);
         drop(s);
-        self.changed();
-        Ok(())
+        self.changed()
     }
 
     fn clear(&self) -> StoreResult<()> {
@@ -378,8 +402,7 @@ impl Ingest for DuckStore {
         s.removed.clear();
         s.unrecognized.clear();
         drop(s);
-        self.changed();
-        Ok(())
+        self.changed()
     }
 
     fn restore(&self, _state: &WorkspaceState) -> StoreResult<ImportSession> {

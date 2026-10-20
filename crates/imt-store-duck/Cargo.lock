@@ -773,6 +773,7 @@ dependencies = [
  "imt-core",
  "log",
  "memory-stats",
+ "serde",
  "serde_json",
 ]
 

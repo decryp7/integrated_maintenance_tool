@@ -358,4 +358,30 @@ mod tests {
         b.cancel();
         assert!(a.is_cancelled());
     }
+
+    #[test]
+    fn cancel_hooks_run_once_and_unregister() {
+        use std::sync::atomic::AtomicUsize;
+        let control = QueryControl::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let c = calls.clone();
+        let guard = control.on_cancel(Box::new(move || {
+            c.fetch_add(1, Ordering::SeqCst);
+        }));
+        let dropped = calls.clone();
+        drop(control.on_cancel(Box::new(move || {
+            dropped.fetch_add(100, Ordering::SeqCst);
+        })));
+        control.cancel();
+        control.cancel();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        drop(guard);
+        // Registering after the cancel runs the hook at once.
+        let late = calls.clone();
+        let _g = control.on_cancel(Box::new(move || {
+            late.fetch_add(10, Ordering::SeqCst);
+        }));
+        assert_eq!(calls.load(Ordering::SeqCst), 11);
+        assert!(format!("{control:?}").contains("cancelled"));
+    }
 }

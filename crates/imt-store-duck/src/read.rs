@@ -6,18 +6,15 @@ use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{BooleanArray, RecordBatch, StructArray};
 use duckdb::arrow::compute::filter_record_batch;
 use duckdb::Connection;
-use imt_core::analysis::{Anomaly, Comparison, FieldStats, RequestSpan, WaterfallRow};
+use imt_core::analysis::FieldStats;
 use imt_core::api::{
-    ChartData, ChartRequest, CompareRequest, CompletionRequest, ContextRequest, CorrelateRequest, ExportRequest, ExportResult, Facet,
-    FacetRequest, FacetValue, FieldInfo, FieldStatsRequest, FileKind, Finding, Lane, MarkerCluster, MomentRequest, MomentSummary,
-    QueryRequest, RequestsRequest, SourceContext, SourceInfo, Timeline, TimelineRequest, TraceRequest, TraceSummary, MAX_LANE_SOURCES,
+    ChartData, ChartRequest, CompletionRequest, ContextRequest, ExportRequest, ExportResult, Facet, FacetRequest, FacetValue, FieldInfo,
+    FieldStatsRequest, FileKind, Lane, MarkerCluster, QueryRequest, SourceContext, SourceInfo, Timeline, TimelineRequest, MAX_LANE_SOURCES,
 };
-use imt_core::batch::{BatchRow, EventBatch, EventId, EventSchema, BATCH_ROWS};
-use imt_core::exceptions::ExceptionGroup;
+use imt_core::batch::{BatchRow, EventBatch, EventSchema, BATCH_ROWS};
 use imt_core::ingest::SourceReport;
 use imt_core::model::Level;
-use imt_core::patterns::Pattern;
-use imt_core::ports::{Analysis, EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
+use imt_core::ports::{EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
 use imt_core::ql::{Completion, QlError, QlResult};
 use imt_core::query::{group_key, CompiledQuery};
 use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, RowRef};
@@ -68,21 +65,23 @@ pub(crate) fn report_source(r: &SourceReport) -> SourceInfo {
 }
 
 /// What every read needs besides the filter.
-struct Ctx {
-    names: HashMap<u32, String>,
-    marker_kinds: Vec<String>,
-    visible: u64,
-    lifecycle: u64,
-    default_group_by: Vec<String>,
+pub(crate) struct Ctx {
+    pub(crate) names: HashMap<u32, String>,
+    /// The same names, shared by the rows streamed to analyses.
+    pub(crate) shared_names: HashMap<u32, Arc<str>>,
+    pub(crate) marker_kinds: Vec<String>,
+    pub(crate) visible: u64,
+    pub(crate) lifecycle: u64,
+    pub(crate) default_group_by: Vec<String>,
 }
 
 impl Ctx {
-    fn name(&self, source: u32) -> &str {
+    pub(crate) fn name(&self, source: u32) -> &str {
         self.names.get(&source).map_or("", String::as_str)
     }
 
     /// Calls `f` with each row of `batch` that matches `cq` (every row when the SQL was `exact`).
-    fn each_match(&self, batch: &EventBatch, cq: &CompiledQuery, exact: bool, f: &mut dyn FnMut(&ArrowRow<'_>)) {
+    pub(crate) fn each_match(&self, batch: &EventBatch, cq: &CompiledQuery, exact: bool, f: &mut dyn FnMut(&ArrowRow<'_>)) {
         let slots = if exact {
             BatchSlots::default()
         } else {
@@ -111,7 +110,7 @@ impl Ctx {
 
 /// Runs `sql` (selecting `e.*`) and hands its rows to `f` as validated batches of at most
 /// [`BATCH_ROWS`] events, streaming (the result is never materialised whole).
-fn for_each_batch(
+pub(crate) fn for_each_batch(
     conn: &Connection,
     sql: &str,
     schema: &Arc<EventSchema>,
@@ -135,12 +134,12 @@ fn for_each_batch(
     Ok(())
 }
 
-fn count(conn: &Connection, sql: &str) -> StoreResult<usize> {
+pub(crate) fn count(conn: &Connection, sql: &str) -> StoreResult<usize> {
     conn.query_row(sql, [], |r| r.get::<_, u64>(0)).map(|n| n as usize).map_err(engine)
 }
 
 impl Inner {
-    fn ctx(&self, conn: &Connection) -> StoreResult<Ctx> {
+    pub(crate) fn ctx(&self, conn: &Connection) -> StoreResult<Ctx> {
         let profile = self.profile();
         let mut names = HashMap::new();
         let mut stmt = conn.prepare("SELECT id, name FROM sources").map_err(engine)?;
@@ -152,6 +151,7 @@ impl Inner {
             names.insert(id, name);
         }
         Ok(Ctx {
+            shared_names: names.iter().map(|(k, v)| (*k, Arc::from(v.as_str()))).collect(),
             names,
             marker_kinds: profile.markers.iter().map(|m| m.kind.clone()).collect(),
             visible: self.registry().visible_markers(&profile.markers),
@@ -241,7 +241,7 @@ impl Inner {
         Ok(d)
     }
 
-    fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
+    pub(crate) fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
         sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &self.schema)
     }
 
@@ -368,7 +368,7 @@ impl Inner {
         Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
     }
 
-    fn summary(&self) -> StoreResult<SummaryReply> {
+    pub(crate) fn summary(&self) -> StoreResult<SummaryReply> {
         let conn = self.conn()?;
         let derived = self.derived(&conn)?;
         let (total, untimed, from, to) = conn
@@ -922,64 +922,31 @@ impl Query for DuckStore {
         self.inner.scan(filter, visit)
     }
 
-    fn chart(&self, _req: &ChartRequest) -> StoreResult<ChartData> {
-        Err(StoreError::unsupported("charts", "R2c"))
+    fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData> {
+        self.inner.chart(req)
     }
 
-    fn field_stats(&self, _req: &FieldStatsRequest) -> StoreResult<FieldStats> {
-        Err(StoreError::unsupported("field statistics", "R2c"))
+    fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats> {
+        self.inner.field_stats(req)
     }
 
     fn source_context(&self, _req: &ContextRequest) -> StoreResult<SourceContext> {
         Err(StoreError::unsupported("source context", "R2c"))
     }
 
-    fn run_query(&self, _req: &QueryRequest) -> StoreResult<QlResult> {
-        Err(StoreError::unsupported("the query language", "R2c"))
+    fn run_query_with(&self, req: &QueryRequest, control: &imt_core::ql::QueryControl) -> StoreResult<QlResult> {
+        self.inner.run_query_with(req, control)
     }
 
-    fn check_query(&self, _text: &str) -> StoreResult<Option<QlError>> {
-        Err(StoreError::unsupported("the query language", "R2c"))
+    fn check_query(&self, text: &str) -> StoreResult<Option<QlError>> {
+        self.inner.check_query(text)
     }
 
-    fn complete_query(&self, _req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
-        Err(StoreError::unsupported("query completion", "R2c"))
+    fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>> {
+        self.inner.complete_query(req)
     }
 
     fn export(&self, _req: &ExportRequest) -> StoreResult<ExportResult> {
         Err(StoreError::unsupported("export", "R2c"))
-    }
-}
-
-impl Analysis for DuckStore {
-    fn patterns(&self, _req: &QueryRequest) -> StoreResult<Vec<Pattern>> {
-        Err(StoreError::unsupported("patterns", "R2c"))
-    }
-    fn exception_groups(&self, _req: &QueryRequest) -> StoreResult<Vec<ExceptionGroup>> {
-        Err(StoreError::unsupported("exception groups", "R2c"))
-    }
-    fn anomalies(&self, _req: &QueryRequest) -> StoreResult<Vec<Anomaly>> {
-        Err(StoreError::unsupported("anomalies", "R2c"))
-    }
-    fn compare(&self, _req: &CompareRequest) -> StoreResult<Comparison> {
-        Err(StoreError::unsupported("compare", "R2c"))
-    }
-    fn correlate(&self, _req: &CorrelateRequest) -> StoreResult<Vec<EventId>> {
-        Err(StoreError::unsupported("correlate", "R2c"))
-    }
-    fn traces(&self, _req: &TraceRequest) -> StoreResult<(Vec<TraceSummary>, Vec<WaterfallRow>)> {
-        Err(StoreError::unsupported("traces", "R2c"))
-    }
-    fn requests(&self, _req: &RequestsRequest) -> StoreResult<Vec<RequestSpan>> {
-        Err(StoreError::unsupported("requests", "R2c"))
-    }
-    fn moment(&self, _req: &MomentRequest) -> StoreResult<MomentSummary> {
-        Err(StoreError::unsupported("moment", "R2c"))
-    }
-    fn overview(&self, _req: &QueryRequest) -> StoreResult<Vec<Finding>> {
-        Err(StoreError::unsupported("overview", "R2c"))
-    }
-    fn runs(&self, _req: &imt_core::spans::RunsRequest) -> StoreResult<imt_core::spans::RunsReply> {
-        Err(StoreError::unsupported("runs", "R2c"))
     }
 }

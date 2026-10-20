@@ -124,6 +124,42 @@ impl DiagnosticRow {
     }
 }
 
+/// How much of the matching data an analysis looked at (engine review finding 16: no silent caps).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Coverage {
+    /// Events the analysis's query matched.
+    pub matched: u64,
+    /// Events it looked at (fewer than `matched` when a limit stopped it).
+    pub analysed: u64,
+    /// The limits that bounded the result, in words (e.g. "patterns: 10,000 kept; 312 events in the
+    /// overflow pattern").
+    pub limits: Vec<String>,
+}
+
+impl Coverage {
+    /// Whether every matching event was analysed and no limit bounded the result.
+    pub fn complete(&self) -> bool {
+        self.analysed == self.matched && self.limits.is_empty()
+    }
+
+    /// Both coverages together (an analysis over two queries).
+    pub fn and(mut self, other: Coverage) -> Coverage {
+        self.matched += other.matched;
+        self.analysed += other.analysed;
+        self.limits.extend(other.limits);
+        self
+    }
+}
+
+/// An analysis result with its [`Coverage`].
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Analyzed<T> {
+    pub result: T,
+    pub coverage: Coverage,
+}
+
 /// A proposed profile override (TOML merged over the active profile) for some sources.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]

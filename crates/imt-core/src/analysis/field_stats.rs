@@ -1,7 +1,7 @@
 //! Distribution of one field over a set of events.
 
 use super::util::{percentile_sorted, sorted};
-use crate::model::Record;
+use crate::row::RowRef;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -54,17 +54,17 @@ pub struct FieldStats {
 
 /// Statistics of `field` (a field name or `@pseudo` field; `@source` is empty
 /// here because no source names are available).
-pub fn field_stats<'a>(records: impl IntoIterator<Item = &'a Record>, field: &str, buckets: usize) -> FieldStats {
+pub fn field_stats<R: RowRef>(records: impl IntoIterator<Item = R>, field: &str, buckets: usize) -> FieldStats {
     let (mut count, mut missing) = (0u64, 0u64);
     let mut values: HashMap<String, u64> = HashMap::new();
     let mut numbers: Vec<f64> = Vec::new();
     for r in records {
-        let Some(text) = r.field_text(field, "") else {
+        let Some(text) = r.text_of(field) else {
             missing += 1;
             continue;
         };
         count += 1;
-        if let Some(n) = r.field_number(field) {
+        if let Some(n) = r.number_of(field) {
             numbers.push(n);
         }
         if let Some(c) = values.get_mut(text.as_ref()) {

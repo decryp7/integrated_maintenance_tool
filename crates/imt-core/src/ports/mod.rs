@@ -14,8 +14,8 @@ mod dto;
 mod session;
 
 pub use dto::{
-    DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix, SearchReply, SearchRequest,
-    SummaryReply,
+    Analyzed, Coverage, DiagnosticRow, EventView, FixEvaluation, ImportReport, IndexStatus, PageQuery, PageReply, QuickFix, SearchReply,
+    SearchRequest, SummaryReply,
 };
 pub use session::ImportSession;
 
@@ -30,7 +30,7 @@ use crate::batch::{EventBatch, EventId, SourceId};
 use crate::exceptions::ExceptionGroup;
 use crate::patterns::Pattern;
 use crate::profile::Profile;
-use crate::ql::{Completion, QlError, QlResult};
+use crate::ql::{Completion, QlError, QlResult, QueryControl};
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 
@@ -46,6 +46,9 @@ pub enum StoreError {
     /// The request is invalid (a bad regex, an unknown field type...); the message says what to fix.
     #[error("{0}")]
     Invalid(String),
+    /// The query-language text is invalid (with the span to underline).
+    #[error("query: {}", .0.message)]
+    Query(QlError),
     #[error("not found: {0}")]
     NotFound(String),
     /// Another operation holds what this one needs (e.g. an import is running); try again later.
@@ -116,23 +119,29 @@ pub trait Query: Send + Sync {
     fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats>;
     /// The original lines around an event.
     fn source_context(&self, req: &ContextRequest) -> StoreResult<SourceContext>;
-    fn run_query(&self, req: &QueryRequest) -> StoreResult<QlResult>;
+    fn run_query(&self, req: &QueryRequest) -> StoreResult<QlResult> {
+        self.run_query_with(req, &QueryControl::new())
+    }
+    /// [`run_query`](Self::run_query), stopped (with [`StoreError::Cancelled`]) when `control` is cancelled.
+    fn run_query_with(&self, req: &QueryRequest, control: &QueryControl) -> StoreResult<QlResult>;
     fn check_query(&self, text: &str) -> StoreResult<Option<QlError>>;
     fn complete_query(&self, req: &CompletionRequest) -> StoreResult<Vec<Completion>>;
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult>;
 }
 
-/// Analyses that need code over event batches (patterns, exceptions, anomalies...).
+/// Analyses that need code over event batches (patterns, exceptions, anomalies...). Each result says
+/// how much of the matching data it covers ([`Coverage`]).
 pub trait Analysis: Send + Sync {
-    fn patterns(&self, req: &QueryRequest) -> StoreResult<Vec<Pattern>>;
-    fn exception_groups(&self, req: &QueryRequest) -> StoreResult<Vec<ExceptionGroup>>;
-    fn anomalies(&self, req: &QueryRequest) -> StoreResult<Vec<Anomaly>>;
-    fn compare(&self, req: &CompareRequest) -> StoreResult<Comparison>;
-    fn correlate(&self, req: &CorrelateRequest) -> StoreResult<Vec<EventId>>;
-    fn traces(&self, req: &TraceRequest) -> StoreResult<(Vec<TraceSummary>, Vec<WaterfallRow>)>;
-    fn requests(&self, req: &RequestsRequest) -> StoreResult<Vec<RequestSpan>>;
-    fn moment(&self, req: &MomentRequest) -> StoreResult<MomentSummary>;
-    fn overview(&self, req: &QueryRequest) -> StoreResult<Vec<Finding>>;
+    fn patterns(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Pattern>>>;
+    fn exception_groups(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<ExceptionGroup>>>;
+    fn anomalies(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Anomaly>>>;
+    fn compare(&self, req: &CompareRequest) -> StoreResult<Analyzed<Comparison>>;
+    /// Every event (whatever the query) whose field equals the value, in time order.
+    fn correlate(&self, req: &CorrelateRequest) -> StoreResult<Analyzed<Vec<EventId>>>;
+    fn traces(&self, req: &TraceRequest) -> StoreResult<Analyzed<(Vec<TraceSummary>, Vec<WaterfallRow>)>>;
+    fn requests(&self, req: &RequestsRequest) -> StoreResult<Analyzed<Vec<RequestSpan>>>;
+    fn moment(&self, req: &MomentRequest) -> StoreResult<Analyzed<MomentSummary>>;
+    fn overview(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Finding>>>;
     fn runs(&self, req: &crate::spans::RunsRequest) -> StoreResult<crate::spans::RunsReply>;
 }
 

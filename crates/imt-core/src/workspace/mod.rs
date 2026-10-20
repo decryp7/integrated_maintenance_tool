@@ -750,21 +750,7 @@ impl Workspace {
     }
 
     fn chart_defs(&self) -> Vec<ChartDef> {
-        self.profile
-            .profile
-            .chart
-            .iter()
-            .enumerate()
-            .map(|(i, c)| ChartDef {
-                id: c.id.clone().unwrap_or_else(|| format!("chart-{}", i + 1)),
-                title: c.title.clone(),
-                y: c.y.clone(),
-                bucket: c.bucket.clone(),
-                split_by: c.split_by.clone(),
-                kind: c.kind.clone(),
-                unit: c.unit.clone(),
-            })
-            .collect()
+        crate::chart::chart_defs(&self.profile.profile)
     }
 }
 
