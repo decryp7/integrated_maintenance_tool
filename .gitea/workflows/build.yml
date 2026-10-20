@@ -391,11 +391,34 @@ jobs:
         shell: bash
         run: node e2e-tauri/scripts/fetch-msedgedriver.mjs
 
+      # Windows host: unpacking ~900 packages into a fresh node_modules took 7–14 min per job even with the npm cache
+      # on disk. A finished node_modules per package-lock.json lives in %USERPROFILE%\.imt-ci and is linked into the
+      # job's checkout (a directory junction); npm ci runs only when the lockfile changed. The last step removes the
+      # junction before the runner deletes the work folder, so its cleanup never walks into the shared copy (if a
+      # killed job skips that step, the worst case is one reinstall).
+      - name: Reuse node_modules for this lockfile (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          key=$(sha256sum app/package-lock.json | cut -c1-16)
+          base="$USERPROFILE/.imt-ci"
+          cached="$base/node_modules-$key"
+          mkdir -p "$base"
+          if [ ! -f "$cached/.complete" ]; then
+            rm -rf "$cached"
+            (cd app && npm ci)
+            mv app/node_modules "$cached"
+            touch "$cached/.complete"
+          fi
+          powershell.exe -NoProfile -Command "New-Item -ItemType Junction -Path '$(cygpath -w "$PWD/app/node_modules")' -Target '$(cygpath -w "$cached")' | Out-Null"
+          # Older lockfiles' copies go.
+          for old in "$base"/node_modules-*; do [ "$old" = "$cached" ] || rm -rf "$old"; done
+
       - name: Debug app binary
         working-directory: app
         shell: bash
         run: |
-          npm ci
+          [ -d node_modules ] || npm ci
           npm run e2e:tauri:build
 
       - name: Smoke tests (Windows)
@@ -448,6 +471,12 @@ jobs:
           name: tauri-smoke-${{ runner.os }}
           path: app/e2e-tauri/.artifacts
           if-no-files-found: ignore
+
+      # Unlink the shared node_modules (rmdir on a junction removes the link only, never the target's files).
+      - name: Unlink the shared node_modules (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: cmd
+        run: if exist app\node_modules rmdir app\node_modules
 
   # Installers only for v* tags, the nightly run and manual runs (workflow_dispatch), never for pushes or pull
   # requests: they are the slowest jobs and the Windows leg runs on a developer PC. A change that breaks the
