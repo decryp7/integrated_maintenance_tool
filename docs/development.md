@@ -149,19 +149,22 @@ cargo deny --workspace check
 
 Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):
 
-- **`build.yml`** runs on pushes to `main`, pull requests and `v*` tags:
+- **`build.yml`** runs on pushes to `main`, pull requests, `v*` tags, nightly (00:30 UTC, on `main`) and on
+  demand (`workflow_dispatch`):
   1. *check* (Linux): `cargo test`, `fmt`, `clippy -D warnings`, `cargo-deny`, the commit-message
      check (pull requests), the Angular build with `npm audit`, the i18n extraction check, `ng lint`,
      unit tests with coverage, the Playwright end-to-end tests, and a check that the generated
      third-party notices are up to date.
   2. *real-app smoke* (Windows and Linux): builds the debug app and runs the `tauri-driver` tests.
-  3. *bundle* (matrix): `.deb`/`.rpm` on `ubuntu-latest`, `.msi`/NSIS `.exe` on `windows-latest` and
-     `.dmg` on `macos-latest`, uploaded as run artifacts.
+  3. *bundle* (matrix), only for `v*` tags, the nightly run and manual runs (not for pushes or pull
+     requests, so an installer breakage shows up within 24 hours): `.deb`/`.rpm` on `ubuntu-latest`,
+     `.msi`/NSIS `.exe` on `windows-latest` and `.dmg` on `macos-latest`, uploaded as run artifacts.
   4. *release*: on a `v*` tag, creates a Gitea release with all installers, release notes
      (git-cliff), CycloneDX SBOMs for the Rust and UI dependencies and the signed updater manifest
      `latest.json` ([docs/releasing.md](releasing.md)).
-- **`fuzz.yml`** fuzzes every parser nightly (and on demand) and uploads reproducers on failure.
-- **`bench.yml`** runs the engine benchmarks on pushes to `main` and uploads the criterion report.
+- **`fuzz.yml`** fuzzes every parser nightly (and on demand) in four shards and uploads reproducers on failure.
+- **`bench.yml`** runs the engine benchmarks on pushes to `main` that change `crates/imt-core`, nightly and
+  on demand, and uploads the criterion report.
 - **`mutants.yml`** runs cargo-mutants weekly over `imt-core` and, on pull requests, over the changed lines.
 
 Runners are expected to carry the labels `ubuntu-latest`, `windows-latest` and `macos-latest`. Creating

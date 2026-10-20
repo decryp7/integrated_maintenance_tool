@@ -1,5 +1,5 @@
-# Builds IMT on every push and pull request; a v* tag also publishes a Gitea
-# release with the installers attached.
+# Checks IMT on every push and pull request. Installers are built only for v* tags (which also publish a
+# Gitea release with them attached), the nightly run and manual runs (see the bundle job).
 #
 # Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
 # if your act_runner instances use other labels.
@@ -15,6 +15,11 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # Nightly on the default branch (main), with the installers; after midnight UTC so it does not compete
+  # with the fuzz (02:17) and bench (03:47) runs for the Linux runners.
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,8 +29,9 @@ env:
 
 # A newer push to the same branch (or pull request) supersedes the run still going; tags have their own ref,
 # so releases are never cancelled by later pushes.
+# The event is part of the group, so a push to main never cancels the nightly or a manual run of main.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -443,9 +449,13 @@ jobs:
           path: app/e2e-tauri/.artifacts
           if-no-files-found: ignore
 
+  # Installers only for v* tags, the nightly run and manual runs (workflow_dispatch), never for pushes or pull
+  # requests: they are the slowest jobs and the Windows leg runs on a developer PC. A change that breaks the
+  # installers still shows up within 24 hours, in the nightly run.
   bundle:
     name: bundle (${{ matrix.os }})
     needs: [rust-lint]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:

@@ -3,6 +3,9 @@
 A `v*` tag on `main` runs `.gitea/workflows/build.yml`: the `bundle` jobs build the installers on Linux,
 Windows and macOS, and the `release` job publishes a Gitea release with the installers, release notes
 (`RELEASE_NOTES.md`, from git-cliff), SBOMs and `latest.json`, the release information IMT's updater reads.
+Installers are built only for tags, the nightly run of `main` and manual runs (*Run workflow* on `build`,
+`workflow_dispatch`); pushes and pull requests check the code without them. To try installers before tagging,
+start the workflow by hand or take them from the latest nightly run's artifacts.
 
 ```sh
 git tag v1.2.0 && git push origin v1.2.0
