@@ -12,6 +12,11 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 
 - One lane per instance (by default machine + process; configurable with `[instance] key`), each
   with an event-density histogram and markers for start, stop, crash, exception, error and warning.
+- **Mixed and shared files.** A file several products write (a log server, a shared log) is read line
+  by line with each line's own format, JSON lines included; lines no format reads are reported instead
+  of silently joining another product's events. Each product gets lanes from its own fields (syslog
+  hosts, apps and process ids included), and profile routes (`[[route]]`) split the file into logical
+  sources listed under it in the Explorer.
 - Drag to zoom, `Zoom in`/`Zoom out`/`Fit`, and previous/next range history (`Alt+←` / `Alt+→`).
 - Lifecycle markers (start/stop) can be kept visible at any zoom level.
 - **Runs.** Each start → stop on a lane is drawn as a band, even when many instances share one log
