@@ -402,8 +402,10 @@ jobs:
         run: |
           key=$(sha256sum app/package-lock.json | cut -c1-16)
           base="$USERPROFILE/.imt-ci"
-          cached="$base/node_modules-$key"
-          mkdir -p "$base"
+          # <hash>/node_modules, not node_modules-<hash>: Node resolves packages from the junction's real path, so it
+          # must still contain a folder named node_modules (else e.g. @tauri-apps/cli cannot find its native binary).
+          cached="$base/node-cache/$key/node_modules"
+          mkdir -p "$base/node-cache/$key"
           if [ ! -f "$cached/.complete" ]; then
             rm -rf "$cached"
             (cd app && npm ci)
@@ -411,8 +413,9 @@ jobs:
             touch "$cached/.complete"
           fi
           powershell.exe -NoProfile -Command "New-Item -ItemType Junction -Path '$(cygpath -w "$PWD/app/node_modules")' -Target '$(cygpath -w "$cached")' | Out-Null"
-          # Older lockfiles' copies go.
-          for old in "$base"/node_modules-*; do [ "$old" = "$cached" ] || rm -rf "$old"; done
+          # Older lockfiles' copies go (and the first layout's node_modules-<hash> folders).
+          for old in "$base"/node-cache/*; do [ "$old" = "$base/node-cache/$key" ] || rm -rf "$old"; done
+          rm -rf "$base"/node_modules-*
 
       - name: Debug app binary
         working-directory: app
