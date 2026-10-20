@@ -52,3 +52,17 @@ tower = { version = "0.5", default-features = false, features = ["util"] }
 # Every Windows API user needs these; members add the API areas they call.
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+# Dependencies are optimised even in debug builds: parsing, regex and compression run at a usable speed in
+# `tauri dev` and in the tests, and they are compiled once. Workspace crates stay at opt-level 0 for fast rebuilds.
+[profile.dev.package."*"]
+opt-level = 2
+
+# Shipped builds (tag builds and installers: `cargo build --profile dist`, `tauri build -- --profile dist`):
+# release plus cross-crate inlining, one codegen unit and no symbols. Slower to build, so day-to-day
+# `--release` builds keep the defaults.
+[profile.dist]
+inherits = "release"
+lto = "thin"
+codegen-units = 1
+strip = true
