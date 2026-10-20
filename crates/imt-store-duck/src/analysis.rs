@@ -4,7 +4,7 @@
 //! database per data version and canonical query (engine review finding 18).
 
 use crate::read::{count, Ctx};
-use crate::sql::{expr_sql, group_key_expr, lit, number_expr, row_columns, rows_sql, text_expr, Columns, SqlFilter, FROM};
+use crate::sql::{expr_sql, group_key_expr, lit, number_expr, order_by, row_columns, rows_sql, text_expr, Columns, SqlFilter, FROM};
 use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{RecordBatch, StructArray};
 use duckdb::{params, Connection, Statement};
@@ -341,12 +341,11 @@ impl Inner {
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
         let sql = format!(
-            "SELECT {} FROM {} WHERE {} AND {} {}",
+            "SELECT {} FROM {FROM} WHERE {} AND {} {}",
             self.select_list(&sf, &cq, &read.columns),
-            if read.ordered { ctx.time.from() } else { FROM },
             sf.all_sql(),
             read.extra.unwrap_or("TRUE"),
-            if read.ordered { ctx.time.order_by() } else { String::new() }
+            if read.ordered { order_by(false) } else { String::new() }
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, MAX_ANALYSED)?;
         let result = f(&mut stream, &cq);
@@ -360,11 +359,10 @@ impl Inner {
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
         let sql = format!(
-            "SELECT {} FROM {} WHERE {} {}",
+            "SELECT {} FROM {FROM} WHERE {} {}",
             rows_sql(&self.schema),
-            ctx.time.from(),
             sf.all_sql(),
-            ctx.time.order_by()
+            order_by(false)
         );
         let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, sf.exact, limit)?;
         for r in stream.by_ref() {
@@ -595,11 +593,7 @@ impl Inner {
                 imt_core::spans::Per::Instance => None,
             });
             let select = row_columns(&self.schema, &Columns::only(true, per.chain(ctx.default_group_by.iter().cloned())));
-            let sql = format!(
-                "SELECT {select} FROM {} WHERE e.ts IS NOT NULL {}",
-                ctx.time.from(),
-                ctx.time.order_by()
-            );
+            let sql = format!("SELECT {select} FROM {FROM} WHERE e.ts IS NOT NULL {}", order_by(false));
             let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;
             for r in stream.by_ref() {
                 let lane = imt_core::query::group_key(&ctx.default_group_by, &r.rec, &r.source);
@@ -758,12 +752,8 @@ impl Inner {
         ordered: bool,
         f: &mut dyn FnMut(OwnedRow),
     ) -> StoreResult<()> {
-        let (from, order) = if ordered {
-            (ctx.time.from(), ctx.time.order_by())
-        } else {
-            (FROM, String::new())
-        };
-        let sql = format!("SELECT {select} FROM {from} WHERE {filter} {order}");
+        let order = if ordered { order_by(false) } else { String::new() };
+        let sql = format!("SELECT {select} FROM {FROM} WHERE {filter} {order}");
         let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, exact, usize::MAX)?;
         for r in stream.by_ref() {
             f(r);
@@ -903,11 +893,10 @@ impl Inner {
         let mut lifecycle = Vec::new();
         if mask != 0 {
             let sql = format!(
-                "SELECT {} FROM {} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
+                "SELECT {} FROM {FROM} WHERE {} AND (e.markers & {mask}::UBIGINT) <> 0 AND e.ts >= {from} AND e.ts <= {to} {}",
                 self.select_list(&sf, &cq, &Columns::only(false, Vec::<String>::new())),
-                ctx.time.from(),
                 sf.structural_sql(),
-                ctx.time.order_by()
+                order_by(false)
             );
             // Only the structural criteria apply to lifecycle markers.
             let mut stream = EventStream::new(&conn, &sql, self.schema.clone(), &ctx, &cq, true, usize::MAX)?;

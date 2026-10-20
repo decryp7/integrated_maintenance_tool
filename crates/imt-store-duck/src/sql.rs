@@ -142,36 +142,6 @@ pub fn rows_sql(schema: &EventSchema) -> String {
 /// Sort key of time order: untimed events last.
 pub const TIME_KEY: &str = "coalesce(e.ts, 9223372036854775807)";
 
-/// [`FROM`] with each event's time-order position as `o.pos`.
-pub const FROM_POSITIONED: &str = "events_wide e JOIN sources s ON s.id = e.source JOIN ord o ON o.id = e.id";
-
-/// How statements read events in time order: through the time-order positions (`ord`, R2b) when every
-/// event has one, so the sort is on one narrow key, else by sorting on the time key and its ties.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TimeOrder {
-    pub positioned: bool,
-}
-
-impl TimeOrder {
-    /// The `FROM` clause (events with their source; and their position when positioned).
-    pub fn from(self) -> &'static str {
-        if self.positioned {
-            FROM_POSITIONED
-        } else {
-            FROM
-        }
-    }
-
-    /// The `ORDER BY` of time order, for a statement over [`TimeOrder::from`].
-    pub fn order_by(self) -> String {
-        if self.positioned {
-            "ORDER BY o.pos".into()
-        } else {
-            order_by(false)
-        }
-    }
-}
-
 /// `ORDER BY` of time order (ties by source, line, id), or its reverse.
 pub fn order_by(descending: bool) -> String {
     let d = if descending { " DESC" } else { "" };

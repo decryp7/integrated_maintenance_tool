@@ -76,8 +76,6 @@ pub(crate) struct Ctx {
     pub(crate) default_group_by: Vec<String>,
     /// Where fields are read from (declared and promoted columns).
     pub(crate) fields: Fields,
-    /// How to read events in time order.
-    pub(crate) time: sql::TimeOrder,
 }
 
 impl Ctx {
@@ -163,26 +161,7 @@ impl Inner {
             lifecycle: profile.lifecycle_mask,
             default_group_by: self.derived(conn)?.default_group_by.clone(),
             fields: self.fields(conn)?,
-            time: sql::TimeOrder {
-                positioned: self.positioned(conn)?,
-            },
         })
-    }
-
-    /// Whether every visible event has a time-order position (not while importing, when new events
-    /// have none until the import ends).
-    pub(crate) fn positioned(&self, conn: &Connection) -> StoreResult<bool> {
-        if self.is_importing() {
-            return Ok(false);
-        }
-        let (positions, events): (u64, u64) = conn
-            .query_row(
-                "SELECT (SELECT count(*) FROM ord), (SELECT coalesce(sum(events), 0) FROM sources WHERE ready)",
-                [],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .map_err(engine)?;
-        Ok(positions > 0 && positions == events)
     }
 
     /// The schema and the keys every segment promotes to a text column.
@@ -355,11 +334,10 @@ impl Inner {
     fn matching_ids(&self, conn: &Connection, ctx: &Ctx, f: &SqlFilter, cq: &CompiledQuery) -> StoreResult<Vec<u64>> {
         let mut ids = Vec::new();
         let sql = format!(
-            "SELECT {} FROM {} WHERE {} {}",
+            "SELECT {} FROM {FROM} WHERE {} {}",
             rows_sql(&self.schema),
-            ctx.time.from(),
             f.all_sql(),
-            ctx.time.order_by()
+            order_by(false)
         );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             ctx.each_match(&batch, cq, f.exact, &mut |row| ids.push(row.id()));
@@ -684,11 +662,10 @@ impl Inner {
         let ctx = self.ctx(&conn)?;
         let (f, cq) = self.compile(&ctx, q)?;
         let sql = format!(
-            "SELECT {} FROM {} WHERE {} {}",
+            "SELECT {} FROM {FROM} WHERE {} {}",
             rows_sql(&self.schema),
-            ctx.time.from(),
             f.all_sql(),
-            ctx.time.order_by()
+            order_by(false)
         );
         let mut failed = None;
         for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
@@ -1225,11 +1202,10 @@ impl Inner {
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut cands: Vec<Candidate> = Vec::new();
         let sql = format!(
-            "SELECT {} FROM {} WHERE e.ts IS NOT NULL AND {} {}",
+            "SELECT {} FROM {FROM} WHERE e.ts IS NOT NULL AND {} {}",
             rows_sql(&self.schema),
-            ctx.time.from(),
             f.structural_sql(),
-            ctx.time.order_by()
+            order_by(false)
         );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
             let slots = BatchSlots::resolve(cq.keys(), batch.schema());
