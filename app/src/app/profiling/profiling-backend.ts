@@ -15,6 +15,8 @@ import {
   HeapDiffPage,
   HeapDiffRequest,
   HeapDominatorsRequest,
+  HeapFinding,
+  HeapFindingsRequest,
   HeapGrowthPage,
   HeapGrowthRequest,
   HeapInstancesRequest,
@@ -75,6 +77,8 @@ export abstract class ProfilingBackend {
   abstract heapDominators(request: HeapDominatorsRequest): Promise<HeapObjectsPage>;
   abstract heapInstances(request: HeapInstancesRequest): Promise<HeapObjectsPage>;
   abstract heapPaths(request: HeapPathsRequest): Promise<HeapPaths>;
+  /** Automatic findings over a snapshot, with growth against `baselineId`. */
+  abstract heapFindings(request: HeapFindingsRequest): Promise<HeapFinding[]>;
 }
 
 /** Talks to the Rust shell; `invoke` is Tauri's (tests pass a fake). Rejections become `ProfilingFailure`s. */
@@ -156,6 +160,9 @@ export class TauriProfilingBackend extends ProfilingBackend {
   }
   heapPaths(request: HeapPathsRequest) {
     return this.call<HeapPaths>('profiling_heap_paths', { request });
+  }
+  heapFindings(request: HeapFindingsRequest) {
+    return this.call<HeapFinding[]>('profiling_heap_findings', { request });
   }
 }
 

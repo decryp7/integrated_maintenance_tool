@@ -50,7 +50,7 @@ impl<R: tauri::Runtime> PluginClient<R> {
     }
 
     fn found(&self) -> Option<tauri_plugin_updater::Update> {
-        self.found.lock().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::lock(&self.found).clone()
     }
 }
 
@@ -80,7 +80,7 @@ impl<R: tauri::Runtime> UpdateClient for PluginClient<R> {
                 .map_err(|e| classify(&e, Step::Check))?;
             let found = updater.check().await.map_err(|e| classify(&e, Step::Check))?;
             let info = found.as_ref().map(describe).transpose()?;
-            *self.found.lock().unwrap_or_else(|p| p.into_inner()) = found;
+            *crate::sync::lock(&self.found) = found;
             self.discard();
             Ok(info)
         })
@@ -95,7 +95,7 @@ impl<R: tauri::Runtime> UpdateClient for PluginClient<R> {
                 .download(|n, total| on_chunk(n as u64, total), || {})
                 .await
                 .map_err(|e| classify(&e, Step::Download))?;
-            *self.bytes.lock().unwrap_or_else(|p| p.into_inner()) = Some(bytes);
+            *crate::sync::lock(&self.bytes) = Some(bytes);
             Ok(())
         })
     }
@@ -120,6 +120,6 @@ impl<R: tauri::Runtime> UpdateClient for PluginClient<R> {
     }
 
     fn discard(&self) {
-        *self.bytes.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *crate::sync::lock(&self.bytes) = None;
     }
 }

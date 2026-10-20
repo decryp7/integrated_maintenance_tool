@@ -56,11 +56,16 @@ impl<R: Runtime> ShellTasks<R> {
 
 /// The collection jobs of tool tasks, by task id: the job ends when the tool reports the task finished.
 #[derive(Default)]
-struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>>);
+/// Each entry keeps the task's kind hint: one task per hint runs at a time (a second diagnostics collection is
+/// stopped), while tasks of different tools (a collection and a .NET capture) may run together.
+struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, CollectionJob>>);
+
+/// A collection job: its id, the sender that ends it, and the task's kind hint.
+type CollectionJob = (crate::jobs::JobId, std::sync::mpsc::Sender<()>, String);
 
 impl CollectionJobs {
-    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>> {
-        self.0.lock().unwrap_or_else(|p| p.into_inner())
+    fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, CollectionJob>> {
+        crate::sync::lock(&self.0)
     }
 }
 
@@ -75,7 +80,7 @@ impl<R: Runtime> ShellTasks<R> {
         self.host.stop(tool, id, &ctx).map_err(anyhow::Error::from)
     }
 
-    /// Lists a collection as a collection job, or stops it when another one runs.
+    /// Lists a collection as a collection job, or stops it when another of the same kind runs.
     fn track_collection(&self, tool: &str, task: &ToolTask) {
         let Some(jobs) = self.app.try_state::<crate::jobs::Jobs>() else {
             return;
@@ -86,8 +91,8 @@ impl<R: Runtime> ShellTasks<R> {
         let Some(registry) = self.app.try_state::<CollectionJobs>() else {
             return;
         };
-        if !jobs.find_active(|j| j.kind == crate::jobs::JobKind::Collection).is_empty() {
-            log::warn!(Tool = tool; "A second collection was stopped: one runs at a time");
+        if task.kind != CAPTURE_HINT && registry.lock().values().any(|(_, _, hint)| *hint == task.kind) {
+            log::warn!(Tool = tool; "A second collection was stopped: one of each kind runs at a time");
             let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
             // Off the caller's thread: stopping may run a system tool.
             let _ = std::thread::Builder::new().name("imt-tool-stop".into()).spawn(move || {
@@ -98,7 +103,7 @@ impl<R: Runtime> ShellTasks<R> {
             return;
         }
         let (tx, rx) = std::sync::mpsc::channel::<()>();
-        let mut spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Collection, task.label.clone());
+        let mut spec = crate::jobs::JobSpec::new(job_kind(&task.kind), task.label.clone());
         if !task.stoppable {
             spec = spec.not_cancellable();
         }
@@ -111,16 +116,28 @@ impl<R: Runtime> ShellTasks<R> {
         let rx = std::sync::Mutex::new(rx);
         match jobs.submit_work(spec, controls, move |_| {
             // The tool says when it is done (or the sender goes with IMT).
-            let _ = rx.lock().unwrap_or_else(|p| p.into_inner()).recv();
+            let _ = crate::sync::lock(&rx).recv();
             crate::jobs::queue::JobEnd::Done(None)
         }) {
             Ok(job) => {
-                registry.lock().insert(task.id.clone(), (job, tx));
+                registry.lock().insert(task.id.clone(), (job, tx, task.kind.clone()));
             }
             Err(e) => log::warn!(Tool = tool; "collection not listed as a job: {e}"),
         }
     }
 }
+
+/// The job kind of a tool task that ends by itself: profiler captures (hint `capture`) run several at once;
+/// everything else is a collection.
+fn job_kind(hint: &str) -> crate::jobs::JobKind {
+    match hint {
+        CAPTURE_HINT => crate::jobs::JobKind::Capture,
+        _ => crate::jobs::JobKind::Collection,
+    }
+}
+
+/// The task kind hint of profiler captures.
+const CAPTURE_HINT: &str = "capture";
 
 /// The tray icon of a tool's task kind hint.
 fn task_kind(hint: &str) -> TaskKind {
@@ -160,7 +177,7 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
         let job = self
             .app
             .try_state::<CollectionJobs>()
-            .and_then(|r| r.lock().get(task).map(|(id, _)| *id));
+            .and_then(|r| r.lock().get(task).map(|(id, _, _)| *id));
         match (job, self.app.try_state::<crate::jobs::Jobs>()) {
             (Some(id), Some(jobs)) => jobs.report(
                 id,
@@ -178,7 +195,7 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
     }
 
     fn finished(&self, _tool: &str, task: &str) {
-        if let Some((_, done)) = self.app.try_state::<CollectionJobs>().and_then(|r| r.lock().remove(task)) {
+        if let Some((_, done, _)) = self.app.try_state::<CollectionJobs>().and_then(|r| r.lock().remove(task)) {
             let _ = done.send(());
             return;
         }
@@ -188,16 +205,23 @@ impl<R: Runtime> TaskSink for ShellTasks<R> {
     }
 }
 
-/// What the user can do when a tool is missing.
-fn missing(error: ToolError, safe_mode: bool) -> String {
+/// A tool error as the command's error: its kind is the code (missing rights and programs are typed by the
+/// tool, see `ToolFailure`); a missing tool says what the user can do.
+fn missing(error: ToolError, safe_mode: bool) -> crate::CmdError {
+    use crate::{CmdError, ErrorCode};
     match error {
-        ToolError::UnknownTool(tool) if safe_mode => {
-            format!("\"{tool}\" is not available in safe mode (plugins are off); restart normally to use it")
-        }
-        ToolError::UnknownTool(tool) => {
-            format!("no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)")
-        }
-        other => other.to_string(),
+        ToolError::UnknownTool(tool) if safe_mode => CmdError::unavailable(format!(
+            "\"{tool}\" is not available in safe mode (plugins are off); restart normally to use it"
+        )),
+        ToolError::UnknownTool(tool) => CmdError::not_found(format!(
+            "no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)"
+        )),
+        e @ ToolError::UnknownOp { .. } => CmdError::not_found(e.to_string()),
+        e @ ToolError::InvalidArgs { .. } => CmdError::invalid(e.to_string()).field("args"),
+        ToolError::Unsupported(m) => CmdError::new(ErrorCode::Unsupported, m),
+        ToolError::Denied(m) => CmdError::new(ErrorCode::Denied, m).hint("Restart IMT as administrator, then try again."),
+        ToolError::Missing(m) => CmdError::new(ErrorCode::Missing, m),
+        ToolError::Failed(m) => CmdError::failed(m),
     }
 }
 
@@ -245,24 +269,8 @@ fn tail(text: &str, max: usize) -> String {
     format!("…{}", &text[start..])
 }
 
-/// True for a failure the user can fix (missing rights, missing program), logged as a warning.
-fn user_fixable(message: &str) -> bool {
-    let m = message.to_ascii_lowercase();
-    [
-        "access is denied",
-        "access denied",
-        "elevat",
-        "administrator",
-        "permission denied",
-        "not found",
-        "not installed",
-    ]
-    .iter()
-    .any(|s| m.contains(s))
-}
-
 /// Logs a failed tool operation: bad requests and unavailable tools at Warning, failures of the tool or
-/// of the external program it runs (exit code, timeout, stderr) at Error unless the user can fix them.
+/// of the external program it runs (exit code, timeout, stderr) at Error; missing rights or programs at Warning.
 /// The text is redacted and bounded.
 fn log_failure(tool: &str, op: &str, e: &ToolError) {
     let full = crate::activity::privacy::redact(&e.to_string());
@@ -274,8 +282,11 @@ fn log_failure(tool: &str, op: &str, e: &ToolError) {
         ToolError::Unsupported(_) => "unsupported",
         ToolError::InvalidArgs { .. } => "invalid-args",
         ToolError::Failed(_) => "failed",
+        ToolError::Denied(_) => "denied",
+        ToolError::Missing(_) => "missing",
     };
-    if matches!(e, ToolError::Failed(_)) && !user_fixable(&message) {
+    // Missing rights and programs are the user's to fix (warnings); other failures are errors.
+    if matches!(e, ToolError::Failed(_)) {
         log::error!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
     } else {
         log::warn!(Tool = tool, Op = op, ErrorKind = kind, Timeout = timeout, Error = message.as_str(); "Tool {tool} {op} failed");
@@ -293,15 +304,81 @@ pub async fn tool_invoke<R: Runtime>(
     op: String,
     args: Option<Value>,
 ) -> CmdResult<Value> {
-    invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await
+    let result = invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await?;
+    // What a tool wrote (a collected bundle, an event-log capture folder) may be opened from this window.
+    crate::paths::grant_read_all(&app, window.label(), &tool_outputs(&result), crate::paths::GrantSource::Output);
+    Ok(result)
+}
+
+/// The files and folders a tool reports it wrote: the top-level `bundle`, `dir` and `path` of its result and
+/// the paths listed in `outputs` (the tool output contract; plugin code, not the webview, names them).
+pub(crate) fn tool_outputs(result: &Value) -> Vec<PathBuf> {
+    let listed = result
+        .get("outputs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str);
+    ["bundle", "dir", "path"]
+        .iter()
+        .filter_map(|k| result.get(*k).and_then(Value::as_str))
+        .chain(listed)
+        .filter(|p| crate::paths::parse(p).is_ok())
+        .map(PathBuf::from)
+        .collect()
 }
 
 /// The tools of the calling window's plugins, with their availability
 /// (unsupported platform or inactive/quarantined plugin, with the reason).
 /// Empty in safe mode.
 #[tauri::command]
-pub fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
+pub async fn tools_list(window: CurrentWindow) -> Vec<ToolEntry> {
     window.tools.as_ref().map(ToolHost::list).unwrap_or_default()
+}
+
+/// Whether `tool`'s `op` is declared a pollable status operation.
+fn is_poll_op(window: &CurrentWindow, tool: &str, op: &str) -> bool {
+    window
+        .tools
+        .as_ref()
+        .map(ToolHost::list)
+        .unwrap_or_default()
+        .iter()
+        .find(|t| t.info.id == tool)
+        .is_some_and(|t| t.info.ops.iter().any(|o| o.name == op && o.poll))
+}
+
+/// Runs a tool's read-only status operation (declared with `OpSpec::polling`): what a dialog polls while
+/// work runs. Quiet in the activity log; any other operation is refused (use `tool_invoke`).
+#[tauri::command]
+pub async fn tool_poll<R: Runtime>(
+    app: AppHandle<R>,
+    window: CurrentWindow,
+    state: State<'_, AppState>,
+    tool: String,
+    op: String,
+    args: Option<Value>,
+) -> CmdResult<Value> {
+    if !is_poll_op(&window, &tool, &op) {
+        return Err(crate::CmdError::invalid(format!(
+            "\"{tool}\" \"{op}\" is not a status operation; call it with tool_invoke"
+        )));
+    }
+    let result = invoke(&app, &window, state.safe_mode, &tool, &op, args.unwrap_or(Value::Null)).await?;
+    crate::paths::grant_read_all(&app, window.label(), &tool_outputs(&result), crate::paths::GrantSource::Output);
+    Ok(result)
+}
+
+/// The job of a running tool task (a capture, a collection), so the UI cancels it with `jobs_cancel`: Jobs
+/// are the one cancel authority. `None` when the task has no job (it ended, or runs as a background task).
+#[tauri::command]
+pub async fn tool_task_job<R: Runtime>(app: AppHandle<R>, task: String) -> CmdResult<Option<u64>> {
+    if task.len() > MAX_ID_LEN {
+        return Err(crate::CmdError::invalid("task ids are at most 64 characters").field("task"));
+    }
+    Ok(app
+        .try_state::<CollectionJobs>()
+        .and_then(|r| r.lock().get(&task).map(|(id, _, _)| id.0)))
 }
 
 #[cfg(test)]
@@ -379,8 +456,17 @@ pub(crate) mod tests {
     fn tools_are_listed_and_invoked_through_ipc() {
         let app = test_app_with_commands(None);
         let main = window(&app, "main");
-        let listed = ipc(&main, "tools_list", json!({})).unwrap();
-        let ids: Vec<&str> = listed.as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
+        let all = ipc(&main, "tools_list", json!({})).unwrap();
+        // Other built-in plugins contribute tools too (the .NET profiler); these are the System tools.
+        assert!(all.as_array().unwrap().iter().any(|t| t["id"] == "dotnet-profiler"));
+        let listed: Vec<Value> = all
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| t["plugin"] == "net.decryptology.tools")
+            .cloned()
+            .collect();
+        let ids: Vec<&str> = listed.iter().map(|t| t["id"].as_str().unwrap()).collect();
         assert_eq!(
             ids,
             [
@@ -415,18 +501,18 @@ pub(crate) mod tests {
             json!({ "tool": "perfmon.templates", "op": "generate", "args": { "template": 3 } }),
         );
         assert_eq!(
-            bad.unwrap_err(),
+            bad.unwrap_err()["message"],
             json!("perfmon.templates generate: args.template must be an object, not a number")
         );
         let unknown = ipc(&main, "tool_invoke", json!({ "tool": "nope", "op": "x" })).unwrap_err();
         assert!(
-            unknown.as_str().unwrap().contains("is the System tools plugin disabled"),
+            unknown["message"].as_str().unwrap().contains("is the System tools plugin disabled"),
             "{unknown}"
         );
         let op = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "dance" })).unwrap_err();
-        assert!(op.as_str().unwrap().contains("has no operation \"dance\""), "{op}");
+        assert!(op["message"].as_str().unwrap().contains("has no operation \"dance\""), "{op}");
         let long = ipc(&main, "tool_invoke", json!({ "tool": "x".repeat(65), "op": "x" })).unwrap_err();
-        assert!(long.as_str().unwrap().contains("at most 64"), "{long}");
+        assert!(long["message"].as_str().unwrap().contains("at most 64"), "{long}");
         #[cfg(not(windows))]
         {
             let e = ipc(
@@ -435,7 +521,7 @@ pub(crate) mod tests {
                 json!({ "tool": "perfmon.sets", "op": "outputs", "args": { "name": "IMT" } }),
             )
             .unwrap_err();
-            assert!(e.as_str().unwrap().contains("only available on Windows"), "{e}");
+            assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{e}");
         }
     }
 
@@ -445,9 +531,16 @@ pub(crate) mod tests {
         std::fs::write(dir.0.join("plugins.json"), r#"{"disabled":["net.decryptology.tools"]}"#).unwrap();
         let app = test_app_with_commands(Some(dir.0.join("profiles")));
         let main = window(&app, "main");
-        assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
+        let listed = ipc(&main, "tools_list", json!({})).unwrap();
+        assert!(
+            listed.as_array().unwrap().iter().all(|t| t["plugin"] != "net.decryptology.tools"),
+            "{listed}"
+        );
         let e = ipc(&main, "tool_invoke", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
-        assert!(e.as_str().unwrap().contains("is the System tools plugin disabled"), "{e}");
+        assert!(
+            e["message"].as_str().unwrap().contains("is the System tools plugin disabled"),
+            "{e}"
+        );
     }
 
     #[test]
@@ -505,6 +598,24 @@ pub(crate) mod tests {
         sink.started("diag", &task("collect-2"));
         assert_eq!(collections().len(), 1);
         assert!(crate::activity::captured().iter().any(|c| c.message.contains("second collection")));
+        // Captures are jobs of their own kind, several at once, beside a collection; each one's job is known.
+        let captures = || jobs.find_active(|j| j.kind == crate::jobs::JobKind::Capture);
+        let capture = |id: &str| ToolTask {
+            id: id.into(),
+            label: "Recording CPU of Shop.exe".into(),
+            kind: CAPTURE_HINT.into(),
+            stoppable: true,
+        };
+        sink.started("dotnet-profiler", &capture("dotnet-1"));
+        sink.started("dotnet-profiler", &capture("dotnet-2"));
+        crate::jobs::wait_until("the captures' jobs", || captures().len() == 2);
+        assert_eq!(collections().len(), 1);
+        let job = app.state::<CollectionJobs>().lock().get("dotnet-1").map(|(id, _, _)| *id);
+        assert!(job.is_some_and(|j| captures().contains(&j)));
+        assert_eq!(job_kind("collect"), crate::jobs::JobKind::Collection);
+        sink.finished("dotnet-profiler", "dotnet-1");
+        sink.finished("dotnet-profiler", "dotnet-2");
+        crate::jobs::wait_until("the captures to end", || captures().is_empty());
         sink.finished("diag", "collect-1");
         crate::jobs::wait_until("the job to end", || collections().is_empty());
         // Unknown tasks are ignored.
@@ -534,15 +645,18 @@ pub(crate) mod tests {
         assert!(std::fs::read_to_string(&path).unwrap().contains("OrderService"));
         // The file exists now: replaced only when confirmed.
         let again = gen(json!({ "template": template, "xmlPath": path })).unwrap_err();
-        assert_eq!(again, json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX)));
+        assert_eq!(
+            again["message"],
+            json!(format!("{path}{}", imt_core::overwrite::FILE_EXISTS_SUFFIX))
+        );
         assert!(gen(json!({ "template": template, "xmlPath": path, "overwrite": true })).is_ok());
         let bad = gen(json!({ "template": { "name": "", "sampleIntervalSecs": 0 } })).unwrap_err();
-        assert!(bad.as_str().unwrap().contains("collector name"), "{bad}");
+        assert!(bad["message"].as_str().unwrap().contains("collector name"), "{bad}");
 
         let plan = call(&main, "diagnostics", "default-plan", json!({})).unwrap();
         assert!(plan.as_str().unwrap().contains("redact"));
         let e = call(&main, "diagnostics", "collect", json!({ "plan": "{ nope", "outDir": dir.0 })).unwrap_err();
-        assert!(e.is_string());
+        assert!(e["message"].is_string() && e["code"] == "failed");
         // A bundle of the same name is replaced only when confirmed (the name has a one-second stamp).
         let out = dir.0.join("bundles");
         let plan = json!({ "name": "tool", "eventLogs": [], "environment": false }).to_string();
@@ -556,7 +670,10 @@ pub(crate) mod tests {
         }
         let refused = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap_err();
         assert!(
-            refused.as_str().unwrap().ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
+            refused["message"]
+                .as_str()
+                .unwrap()
+                .ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
             "{refused}"
         );
         assert!(call(
@@ -573,7 +690,7 @@ pub(crate) mod tests {
             ("perfmon.sets", "outputs", json!({ "name": "IMT-test" })),
         ] {
             let e = call(&main, tool, op, args).unwrap_err();
-            assert!(e.as_str().unwrap().contains("only available on Windows"), "{op}: {e}");
+            assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{op}: {e}");
         }
     }
 
@@ -586,13 +703,13 @@ pub(crate) mod tests {
         let started = call(&a, "process-monitor", "start", json!({ "config": config, "dir": dir.0 })).unwrap();
         assert_eq!(call(&b, "process-monitor", "status", json!({})).unwrap()["running"], true);
         let again = call(&b, "process-monitor", "start", json!({ "config": config })).unwrap_err();
-        assert_eq!(again, json!("the process monitor is already running"));
+        assert_eq!(again["message"], json!("the process monitor is already running"));
         let listed = app.state::<BackgroundTasks>().list();
         assert_eq!((listed[0].id.as_str(), listed[0].kind), ("monitor", TaskKind::ProcessMonitor));
         assert_eq!(call(&b, "process-monitor", "stop", json!({})).unwrap(), started);
         assert!(app.state::<BackgroundTasks>().list().is_empty());
         let bad = call(&a, "process-monitor", "start", json!({ "config": { "targets": [] } })).unwrap_err();
-        assert!(bad.as_str().unwrap().contains("at least one entry"), "{bad}");
+        assert!(bad["message"].as_str().unwrap().contains("at least one entry"), "{bad}");
     }
 
     #[test]
@@ -609,7 +726,7 @@ pub(crate) mod tests {
         log_failure(
             "perfmon.sets",
             "stop",
-            &ToolError::Failed("logman failed: Access is denied.".into()),
+            &ToolError::Denied("logman failed: Access is denied.".into()),
         );
         log_failure(
             "relog",
@@ -646,11 +763,47 @@ pub(crate) mod tests {
         let main = window(&app, "main");
         assert_eq!(ipc(&main, "tools_list", json!({})).unwrap(), json!([]));
         let e = ipc(&main, "tool_invoke", json!({ "tool": "process-monitor", "op": "status" })).unwrap_err();
-        assert!(e.as_str().unwrap().contains("not available in safe mode"), "{e}");
+        assert!(e["message"].as_str().unwrap().contains("not available in safe mode"), "{e}");
         // Elevation falls back to the shell's own token check (not a blanket "not elevated").
         let info = ipc(&main, "elevation", json!({})).unwrap();
         assert_eq!(info["canRestartElevated"], cfg!(windows));
         assert_eq!(info["elevated"], crate::system::process_elevated());
-        assert!(missing(ToolError::Failed("x".into()), true) == "x");
+        assert_eq!(missing(ToolError::Failed("x".into()), true).message, "x");
+        assert_eq!(missing(ToolError::Denied("d".into()), false).code, crate::ErrorCode::Denied);
+        assert_eq!(missing(ToolError::Missing("m".into()), false).code, crate::ErrorCode::Missing);
+        assert_eq!(
+            missing(ToolError::UnknownTool("t".into()), true).code,
+            crate::ErrorCode::Unavailable
+        );
+        assert_eq!(
+            missing(ToolError::Unsupported("u".into()), false).code,
+            crate::ErrorCode::Unsupported
+        );
+    }
+
+    #[test]
+    fn polling_is_only_for_status_operations_and_task_jobs_are_found() {
+        let app = test_app_with_commands(None);
+        let main = window(&app, "main");
+        let status = ipc(&main, "tool_poll", json!({ "tool": "dotnet-profiler", "op": "status" })).unwrap();
+        assert!(status["captures"].is_array(), "{status}");
+        let e = ipc(&main, "tool_poll", json!({ "tool": "elevation", "op": "info" })).unwrap_err();
+        assert_eq!(e["code"], "invalid", "{e}");
+        let e = ipc(&main, "tool_poll", json!({ "tool": "nope", "op": "status" })).unwrap_err();
+        assert_eq!(e["code"], "invalid", "{e}");
+        assert_eq!(ipc(&main, "tool_task_job", json!({ "task": "dotnet-99" })).unwrap(), json!(null));
+        let e = ipc(&main, "tool_task_job", json!({ "task": "x".repeat(65) })).unwrap_err();
+        assert_eq!(e["code"], "invalid", "{e}");
+        assert_eq!(crate::commands::kind_of("tool_poll"), crate::commands::Kind::Quiet);
+    }
+
+    #[test]
+    fn tool_outputs_are_the_reported_bundle_and_folder() {
+        let abs = std::env::temp_dir().join("out").to_string_lossy().into_owned();
+        let found = tool_outputs(&json!({ "bundle": abs, "dir": "relative", "other": abs, "manifest": {} }));
+        assert_eq!(found, vec![PathBuf::from(&abs)]);
+        assert!(tool_outputs(&json!(null)).is_empty());
+        let listed = tool_outputs(&json!({ "path": abs, "outputs": [abs, "relative", 3] }));
+        assert_eq!(listed, vec![PathBuf::from(&abs), PathBuf::from(&abs)]);
     }
 }

@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import { APP_LOAD_TIMEOUT } from './app';
 import { chooseMenu } from './menu-support';
 
 /**
@@ -8,7 +9,7 @@ import { chooseMenu } from './menu-support';
  */
 export async function openProfiles(page: Page, search = ''): Promise<void> {
   await page.goto(`/${search}`);
-  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
+  await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');
   await chooseMenu(page, 'File', 'Open profile…');
   await expect(hotspots(page).locator('tbody tr[aria-rowindex]').first()).toBeVisible();

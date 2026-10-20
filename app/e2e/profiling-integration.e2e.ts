@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { APP_LOAD_TIMEOUT } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { hotspots, openProfiles, runCommand } from './profiling-support';
 
@@ -44,6 +45,7 @@ test.describe('Profiling with the logs', () => {
 
 async function openProfilesWithFailure(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/?mockProfilingFail=hotspots:1');
+  await expect(page.locator('imt-status-bar')).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
   await expect(page.locator('imt-status-bar')).toContainText('events');
   await runCommand(page, 'Open profile');
   await expect(hotspots(page)).toBeVisible();

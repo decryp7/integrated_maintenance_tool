@@ -671,7 +671,7 @@ pub struct SaveResult {
 }
 
 #[tauri::command]
-pub fn save_error_snapshot<R: tauri::Runtime>(
+pub async fn save_error_snapshot<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     webview: tauri::Webview<R>,
     image: String,
@@ -718,7 +718,7 @@ fn publish_snapshot_taken<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str
 }
 
 #[tauri::command]
-pub fn list_error_snapshots<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<Vec<SnapshotInfo>> {
+pub async fn list_error_snapshots<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<Vec<SnapshotInfo>> {
     let mut all = store(&app)?.list();
     all.reverse(); // newest first
     Ok(all)
@@ -726,13 +726,13 @@ pub fn list_error_snapshots<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdR
 
 /// The image as a `data:` URL (the CSP allows data images, not files or blobs).
 #[tauri::command]
-pub fn read_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> CmdResult<String> {
+pub async fn read_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> CmdResult<String> {
     let (format, bytes) = store(&app)?.read_image(&id).map_err(|e| e.to_string())?;
     Ok(format!("data:{};base64,{}", format.mime(), STANDARD.encode(bytes)))
 }
 
 #[tauri::command]
-pub fn delete_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> CmdResult<()> {
+pub async fn delete_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: String) -> CmdResult<()> {
     store(&app)?.delete(&id).map_err(|e| e.to_string())?;
     log::info!(SnapshotId = id.as_str(); "Error snapshot deleted");
     Ok(())
@@ -740,7 +740,7 @@ pub fn delete_error_snapshot<R: tauri::Runtime>(app: tauri::AppHandle<R>, id: St
 
 /// Shows the snapshots folder in the OS file manager; returns its path.
 #[tauri::command]
-pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
+pub async fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> CmdResult<String> {
     let store = store(&app)?;
     std::fs::create_dir_all(store.dir()).map_err(err)?;
     let open = crate::opener::open_folder(crate::opener::Os::CURRENT, store.dir());
@@ -751,7 +751,7 @@ pub fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Cmd
 /// Zips the chosen snapshots and the recent IMT log to `path` (chosen in the save dialog) as a background
 /// export job; returns the job at once ("Show in folder" when the zip is there).
 #[tauri::command]
-pub fn export_diagnostics<R: tauri::Runtime>(
+pub async fn export_diagnostics<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     grants: crate::paths::WindowGrants,
     path: String,
@@ -759,7 +759,7 @@ pub fn export_diagnostics<R: tauri::Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = grants.write(&path, &["zip"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false)).map_err(err)?;
+    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let store = store(&app)?;
     let path = target.to_string_lossy().into_owned();
     let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
@@ -773,6 +773,7 @@ pub fn export_diagnostics<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::Now as _;
 
     fn temp(tag: &str) -> PathBuf {
         static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -1270,16 +1271,17 @@ mod tests {
         let handle = app.handle().clone();
         let image = STANDARD.encode(png(20));
         let saved = save_snapshot(&handle, "main", image.clone(), "image/png".into(), ctx("cmd")).unwrap();
-        let listed = list_error_snapshots(handle.clone()).unwrap();
+        let listed = list_error_snapshots(handle.clone()).now().unwrap();
         assert!(listed.iter().any(|i| i.id == saved.id));
         assert!(read_error_snapshot(handle.clone(), saved.id.clone())
+            .now()
             .unwrap()
             .starts_with("data:image/png;base64,"));
         let bad = save_snapshot(&handle, "main", "AAAA".into(), "image/png".into(), ctx("bad"));
         assert!(bad.is_err());
         let out = std::env::temp_dir().join(format!("imt-snap-cmd-{}.zip", std::process::id()));
         let grants = || crate::paths::WindowGrants::of(&handle, "main");
-        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![], None);
+        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![], None).now();
         assert!(refused.unwrap_err().contains("only writes where you choose"));
         crate::paths::grant(
             &handle,
@@ -1296,19 +1298,20 @@ mod tests {
             vec![saved.id.clone()],
             Some(true),
         )
+        .now()
         .unwrap();
         let line = crate::test_support::job_done(&app, job);
         let n: usize = line.split(' ').next().unwrap().parse().unwrap();
         assert!(n >= 2, "{line}");
-        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![saved.id.clone()], None);
+        let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![saved.id.clone()], None).now();
         assert_eq!(
             refused.unwrap_err(),
-            format!("{} already exists; confirm to replace it", out.display())
+            crate::error::file_exists(format!("{} already exists; confirm to replace it", out.display()))
         );
         let _ = std::fs::remove_file(out);
         prune_on_startup(&handle);
-        delete_error_snapshot(handle.clone(), saved.id).unwrap();
-        assert!(delete_error_snapshot(handle.clone(), "../x".into()).is_err());
+        delete_error_snapshot(handle.clone(), saved.id).now().unwrap();
+        assert!(delete_error_snapshot(handle.clone(), "../x".into()).now().is_err());
         emit_engine_error(
             &handle,
             "main",

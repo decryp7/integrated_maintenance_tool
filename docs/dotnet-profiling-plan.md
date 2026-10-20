@@ -1,6 +1,7 @@
 # .NET profiling — implementation plan
 
-Status: planned (2026-10-17), not started. Priority order: **E** (ETW, .NET Framework 4.6.2+ on Windows) → **C** (CLR event
+Status: implemented (2026-10-20) as the plugin `crates/imt-plugin-dotnet`; ADR 0019 records the decisions and supersedes
+this brief where they differ (plugin tool instead of `dotnet_*` shell commands, .etl import, ETW waits). Priority order was: **E** (ETW, .NET Framework 4.6.2+ on Windows) → **C** (CLR event
 decoding for allocations and heap snapshots) → **D** (app + UI) → **B** (NetTrace V6) → **A** (EventPipe attach, .NET Core/5+).
 Work on E and the real-attach checks happens on a Windows machine; everything else also runs on macOS/Linux.
 The roadmap entry is in [roadmap.md](roadmap.md) ("Profiling"); this file is the working brief.

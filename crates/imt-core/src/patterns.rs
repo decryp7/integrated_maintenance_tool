@@ -11,7 +11,7 @@
 //! counts as a match when scoring similarity, so templates do not become harder
 //! to match as they generalise.
 
-use crate::model::Record;
+use crate::row::RowRef;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -23,6 +23,11 @@ const MAX_TOKENS: usize = 128;
 /// Longest quoted span that is masked as one value.
 const MAX_QUOTE_SPAN: usize = 1024;
 const MAX_SAMPLES: usize = 5;
+/// Most clusters a miner keeps (engine review finding 13); lines that would start another one are
+/// counted in one overflow pattern instead.
+pub const MAX_CLUSTERS: usize = 10_000;
+/// Template of the overflow pattern.
+pub const OVERFLOW_TEMPLATE: &str = "(other messages: more distinct patterns than the miner keeps)";
 
 /// Tuning knobs for [`PatternMiner`].
 #[derive(Debug, Clone, PartialEq)]
@@ -46,7 +51,7 @@ impl Default for MinerConfig {
 }
 
 /// Where a pattern's template came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub enum TemplateSource {
     /// The record carried its own message template.
     Serilog,
@@ -55,7 +60,7 @@ pub enum TemplateSource {
 }
 
 /// A group of records sharing one template.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pattern {
     pub id: usize,
@@ -94,15 +99,15 @@ impl Cluster {
         }
     }
 
-    fn observe(&mut self, r: &Record) {
+    fn observe(&mut self, r: &dyn RowRef) {
         self.count += 1;
-        self.levels[r.level.index()] += 1;
-        if let Some(ts) = r.ts {
+        self.levels[r.level().index()] += 1;
+        if let Some(ts) = r.ts() {
             self.first_ts = Some(self.first_ts.map_or(ts, |t| t.min(ts)));
             self.last_ts = Some(self.last_ts.map_or(ts, |t| t.max(ts)));
         }
         if self.samples.len() < MAX_SAMPLES {
-            self.samples.push(r.id);
+            self.samples.push(u32::try_from(r.id()).unwrap_or(u32::MAX));
         }
     }
 }
@@ -119,6 +124,8 @@ pub struct PatternMiner {
     clusters: Vec<Cluster>,
     by_length: HashMap<usize, Node>,
     serilog: HashMap<String, usize>,
+    max_clusters: usize,
+    overflow: Option<usize>,
 }
 
 impl PatternMiner {
@@ -128,22 +135,54 @@ impl PatternMiner {
             clusters: Vec::new(),
             by_length: HashMap::new(),
             serilog: HashMap::new(),
+            max_clusters: MAX_CLUSTERS,
+            overflow: None,
         }
     }
 
-    /// Assigns the record to a cluster (creating it if needed) and returns the cluster id.
-    pub fn add(&mut self, record: &Record) -> usize {
-        let id = match record.template.as_deref().filter(|t| !t.is_empty()) {
+    /// A miner keeping at most `max` clusters (at least 1) besides the overflow pattern.
+    pub fn with_limit(config: MinerConfig, max: usize) -> Self {
+        PatternMiner {
+            max_clusters: max.max(1),
+            ..PatternMiner::new(config)
+        }
+    }
+
+    /// Assigns the event to a cluster (creating it if needed) and returns the cluster id.
+    pub fn add<R: RowRef + ?Sized>(&mut self, record: &R) -> usize {
+        let id = match record.template().filter(|t| !t.is_empty()) {
             Some(t) => self.add_serilog(t),
-            None => self.add_mined(&record.message),
+            None => self.add_mined(record.message()),
         };
-        self.clusters[id].observe(record);
+        self.clusters[id].observe(&record);
+        id
+    }
+
+    /// Events counted in the overflow pattern because the miner was full.
+    pub fn overflowed(&self) -> usize {
+        self.overflow.map_or(0, |id| self.clusters[id].count)
+    }
+
+    fn full(&self) -> bool {
+        self.clusters.len() - usize::from(self.overflow.is_some()) >= self.max_clusters
+    }
+
+    fn overflow_cluster(&mut self) -> usize {
+        if let Some(id) = self.overflow {
+            return id;
+        }
+        let id = self.clusters.len();
+        self.clusters.push(Cluster::new(vec![OVERFLOW_TEMPLATE.into()], None));
+        self.overflow = Some(id);
         id
     }
 
     fn add_serilog(&mut self, template: &str) -> usize {
         if let Some(&id) = self.serilog.get(template) {
             return id;
+        }
+        if self.full() {
+            return self.overflow_cluster();
         }
         let id = self.clusters.len();
         self.clusters.push(Cluster::new(Vec::new(), Some(template.to_string())));
@@ -192,6 +231,9 @@ impl PatternMiner {
                 return cid;
             }
         }
+        if self.clusters.len() - usize::from(self.overflow.is_some()) >= self.max_clusters {
+            return self.overflow_cluster();
+        }
         let cid = self.clusters.len();
         self.clusters
             .push(Cluster::new(tokens.iter().map(|t| t.as_ref().into()).collect(), None));
@@ -229,10 +271,10 @@ impl PatternMiner {
 }
 
 /// Mines all `records` and returns their patterns, most frequent first.
-pub fn mine<'a>(records: impl IntoIterator<Item = &'a Record>, config: &MinerConfig) -> Vec<Pattern> {
+pub fn mine<R: RowRef>(records: impl IntoIterator<Item = R>, config: &MinerConfig) -> Vec<Pattern> {
     let mut miner = PatternMiner::new(config.clone());
     for r in records {
-        miner.add(r);
+        miner.add(&r);
     }
     miner.clusters()
 }

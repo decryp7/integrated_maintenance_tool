@@ -369,6 +369,30 @@ pub mod payload {
         p
     }
 
+    /// `GCAllocationTick_V3` with a pointer-sized type id and address.
+    pub fn alloc_tick(bytes: u64, kind: u32, type_name: &str, ptr: usize) -> Vec<u8> {
+        let mut p = Vec::new();
+        p.extend_from_slice(&(bytes.min(u64::from(u32::MAX)) as u32).to_le_bytes());
+        p.extend_from_slice(&kind.to_le_bytes());
+        p.extend_from_slice(&0u16.to_le_bytes());
+        p.extend_from_slice(&bytes.to_le_bytes());
+        p.extend_from_slice(&0x7f00_1234u64.to_le_bytes()[..ptr]); // type id
+        utf16z(&mut p, type_name);
+        p.extend_from_slice(&0u32.to_le_bytes()); // heap index
+        p.extend_from_slice(&0x0200_0000u64.to_le_bytes()[..ptr]); // address
+        p
+    }
+
+    /// `ThreadPoolWorkerThreadAdjustmentAdjustment`.
+    pub fn pool_adjust(workers: u32, reason: u32) -> Vec<u8> {
+        let mut p = Vec::new();
+        p.extend_from_slice(&2.5f64.to_le_bytes());
+        p.extend_from_slice(&workers.to_le_bytes());
+        p.extend_from_slice(&reason.to_le_bytes());
+        p.extend_from_slice(&0u16.to_le_bytes());
+        p
+    }
+
     /// `ContentionStart_V1` / `ContentionStop`.
     pub fn contention(native: bool) -> Vec<u8> {
         let mut p = vec![u8::from(native)];
@@ -408,5 +432,201 @@ mod tests {
             },
         );
         assert_eq!(p.len(), 4 + 80);
+    }
+}
+
+/// A NetTrace V6 writer (tests and fuzz seeds): header, blocks with a 4-byte size/kind header, no
+/// alignment, varuint-length UTF-8 strings, threads by index.
+pub mod v6 {
+    use super::var;
+
+    /// Block kinds.
+    pub const TRACE: u8 = 1;
+    pub const EVENT: u8 = 2;
+    pub const METADATA: u8 = 3;
+    pub const SEQUENCE_POINT: u8 = 4;
+    pub const STACK: u8 = 5;
+    pub const THREAD: u8 = 6;
+    pub const LABEL_LIST: u8 = 8;
+
+    pub fn string(out: &mut Vec<u8>, s: &str) {
+        var(out, s.len() as u64);
+        out.extend_from_slice(s.as_bytes());
+    }
+
+    /// An event row: (metadata id, thread index, stack id, timestamp, payload).
+    pub type Event<'a> = (u32, u64, u32, i64, &'a [u8]);
+
+    pub struct V6Writer {
+        out: Vec<u8>,
+        pointer_size: u32,
+    }
+
+    impl V6Writer {
+        /// Header and Trace block.
+        pub fn new(major: u32, pointer_size: u32, process_id: u32, sampling_ns: u32) -> V6Writer {
+            let mut w = V6Writer {
+                out: b"Nettrace".to_vec(),
+                pointer_size,
+            };
+            for v in [0u32, major, 0] {
+                w.out.extend_from_slice(&v.to_le_bytes());
+            }
+            let mut p = Vec::new();
+            for v in [2026u16, 10, 2, 20, 8, 0, 0, 0] {
+                p.extend_from_slice(&v.to_le_bytes());
+            }
+            p.extend_from_slice(&1_000_000i64.to_le_bytes());
+            p.extend_from_slice(&10_000_000i64.to_le_bytes());
+            p.extend_from_slice(&pointer_size.to_le_bytes());
+            p.extend_from_slice(&3u32.to_le_bytes());
+            for (k, v) in [
+                ("ProcessId", process_id.to_string()),
+                ("HardwareThreadCount", "8".to_string()),
+                ("ExpectedCPUSamplingRate", sampling_ns.to_string()),
+            ] {
+                string(&mut p, k);
+                string(&mut p, &v);
+            }
+            w.block(TRACE, &p);
+            w
+        }
+
+        pub fn block(&mut self, kind: u8, payload: &[u8]) -> &mut Self {
+            self.out
+                .extend_from_slice(&((payload.len() as u32) | (u32::from(kind) << 24)).to_le_bytes());
+            self.out.extend_from_slice(payload);
+            self
+        }
+
+        /// Metadata rows: (id, provider, event id, name).
+        pub fn metadata(&mut self, rows: &[(u32, &str, u32, &str)]) -> &mut Self {
+            let mut p = 0u16.to_le_bytes().to_vec();
+            for (id, provider, event_id, name) in rows {
+                let mut r = Vec::new();
+                var(&mut r, u64::from(*id));
+                string(&mut r, provider);
+                var(&mut r, u64::from(*event_id));
+                string(&mut r, name);
+                r.extend_from_slice(&0u16.to_le_bytes()); // no field descriptions
+                r.extend_from_slice(&2u16.to_le_bytes()); // optional data: Version 1
+                r.extend_from_slice(&[9, 1]);
+                p.extend_from_slice(&(r.len() as u16).to_le_bytes());
+                p.extend_from_slice(&r);
+            }
+            self.block(METADATA, &p)
+        }
+
+        /// Thread rows: (index, OS thread id, name).
+        pub fn threads(&mut self, rows: &[(u64, u64, &str)]) -> &mut Self {
+            let mut p = Vec::new();
+            for (index, tid, name) in rows {
+                let mut r = Vec::new();
+                var(&mut r, *index);
+                r.push(1);
+                string(&mut r, name);
+                r.push(2);
+                var(&mut r, 4242);
+                r.push(3);
+                var(&mut r, *tid);
+                r.push(4);
+                string(&mut r, "k");
+                string(&mut r, "v");
+                p.extend_from_slice(&(r.len() as u16).to_le_bytes());
+                p.extend_from_slice(&r);
+            }
+            self.block(THREAD, &p)
+        }
+
+        /// A Stack block with ids `first_id..` (addresses leaf first).
+        pub fn stacks(&mut self, first_id: u32, stacks: &[Vec<u64>]) -> &mut Self {
+            let mut p = Vec::new();
+            p.extend_from_slice(&first_id.to_le_bytes());
+            p.extend_from_slice(&(stacks.len() as u32).to_le_bytes());
+            for s in stacks {
+                p.extend_from_slice(&(s.len() as u32 * self.pointer_size).to_le_bytes());
+                for a in s {
+                    p.extend_from_slice(&a.to_le_bytes()[..self.pointer_size as usize]);
+                }
+            }
+            self.block(STACK, &p)
+        }
+
+        /// An Event block, with V6 header compression or uncompressed rows.
+        pub fn events(&mut self, compressed: bool, rows: &[Event<'_>]) -> &mut Self {
+            let mut p = Vec::new();
+            p.extend_from_slice(&20u16.to_le_bytes());
+            p.extend_from_slice(&u16::from(compressed).to_le_bytes());
+            p.extend_from_slice(&[0u8; 16]);
+            let (mut meta, mut thread, mut stack, mut ts, mut len) = (0u32, 0u64, 0u32, 0i64, 0usize);
+            for (m, t, s, at, payload) in rows {
+                if compressed {
+                    let mut fl = 0u8;
+                    let mut h = Vec::new();
+                    if *m != meta {
+                        var(&mut h, u64::from(*m));
+                        fl |= 1;
+                    }
+                    if *t != thread {
+                        // Sequence delta, capture thread, processor.
+                        var(&mut h, 0);
+                        var(&mut h, *t);
+                        var(&mut h, 0);
+                        fl |= 2;
+                        var(&mut h, *t);
+                        fl |= 4;
+                    }
+                    if *s != stack {
+                        var(&mut h, u64::from(*s));
+                        fl |= 8;
+                    }
+                    var(&mut h, at.wrapping_sub(ts) as u64);
+                    // A label list id (ignored by the reader).
+                    var(&mut h, 0);
+                    fl |= 0x10;
+                    if payload.len() != len {
+                        var(&mut h, payload.len() as u64);
+                        fl |= 0x80;
+                    }
+                    p.push(fl);
+                    p.extend_from_slice(&h);
+                    p.extend_from_slice(payload);
+                    (meta, thread, stack, ts, len) = (*m, *t, *s, *at, payload.len());
+                } else {
+                    let size = 4 + 4 + 8 + 8 + 4 + 4 + 8 + 4 + 4 + payload.len();
+                    p.extend_from_slice(&(size as u32).to_le_bytes());
+                    p.extend_from_slice(&m.to_le_bytes());
+                    p.extend_from_slice(&1u32.to_le_bytes());
+                    p.extend_from_slice(&t.to_le_bytes());
+                    p.extend_from_slice(&t.to_le_bytes());
+                    p.extend_from_slice(&0u32.to_le_bytes());
+                    p.extend_from_slice(&s.to_le_bytes());
+                    p.extend_from_slice(&at.to_le_bytes());
+                    p.extend_from_slice(&0u32.to_le_bytes());
+                    p.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+                    p.extend_from_slice(payload);
+                }
+            }
+            self.block(EVENT, &p)
+        }
+
+        /// A SequencePoint block (stack ids are reset after it).
+        pub fn sequence_point(&mut self, ts: i64) -> &mut Self {
+            let mut p = ts.to_le_bytes().to_vec();
+            p.extend_from_slice(&1u32.to_le_bytes());
+            p.extend_from_slice(&0u32.to_le_bytes());
+            self.block(SEQUENCE_POINT, &p)
+        }
+
+        /// The stream with its EndOfStream block.
+        pub fn finish(mut self) -> Vec<u8> {
+            self.block(0, &[]);
+            self.out
+        }
+
+        /// The stream without an EndOfStream block (a capture cut short).
+        pub fn unfinished(self) -> Vec<u8> {
+            self.out
+        }
     }
 }

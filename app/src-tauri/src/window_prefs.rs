@@ -89,11 +89,11 @@ pub struct SharedPrefs(Arc<RwLock<WindowPrefs>>);
 
 impl SharedPrefs {
     pub fn get(&self) -> WindowPrefs {
-        *self.0.read().unwrap_or_else(|p| p.into_inner())
+        *crate::sync::read(&self.0)
     }
 
     fn set(&self, prefs: WindowPrefs) {
-        *self.0.write().unwrap_or_else(|p| p.into_inner()) = prefs;
+        *crate::sync::write(&self.0) = prefs;
     }
 }
 

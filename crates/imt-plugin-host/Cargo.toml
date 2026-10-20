@@ -34,6 +34,7 @@ imt-plugin-windows = { path = "../imt-plugin-windows" }
 imt-plugin-web = { path = "../imt-plugin-web" }
 imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
+imt-plugin-dotnet = { path = "../imt-plugin-dotnet" }
 anyhow.workspace = true
 bytes.workspace = true
 log.workspace = true

@@ -2,9 +2,9 @@
 // app/src-tauri/src/jobs/{model,queue,persist}.rs. Change both sides together.
 
 /** Each kind has its own queue and limit (enforced by the engine). */
-export type JobKind = 'ai' | 'research' | 'analysis' | 'import' | 'export' | 'download' | 'collection' | 'maintenance';
+export type JobKind = 'ai' | 'research' | 'analysis' | 'import' | 'export' | 'download' | 'collection' | 'capture' | 'maintenance';
 
-export const JOB_KINDS: readonly JobKind[] = ['ai', 'research', 'analysis', 'import', 'export', 'download', 'collection', 'maintenance'];
+export const JOB_KINDS: readonly JobKind[] = ['ai', 'research', 'analysis', 'import', 'export', 'download', 'collection', 'capture', 'maintenance'];
 
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled' | 'interrupted';
 
@@ -91,6 +91,15 @@ export interface PausedKind {
 /** The window's visible jobs (running, queued in order, then finished newest first) and paused queues. */
 export interface JobsSnapshot {
   jobs: JobInfo[];
+  paused: PausedKind[];
+}
+
+/** What `imt://jobs` carries: the change since the window's last event (`version` follows the one before by 1): the jobs
+ * in their order by id, those new or changed in full, the paused queues. Mirrors `jobs::JobsDelta`. */
+export interface JobsDelta {
+  version: number;
+  order: number[];
+  changed: JobInfo[];
   paused: PausedKind[];
 }
 

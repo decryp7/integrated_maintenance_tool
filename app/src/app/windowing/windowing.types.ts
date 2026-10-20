@@ -27,12 +27,6 @@ export interface BackgroundTask {
   startedAt: number;
 }
 
-/** One entry of the tray's "Recent projects" menu. */
-export interface RecentProjectEntry {
-  path: string;
-  name: string;
-}
-
 /** The answer to "Close IMT?" when the last window closes. */
 export type CloseChoice = 'quit' | 'tray';
 

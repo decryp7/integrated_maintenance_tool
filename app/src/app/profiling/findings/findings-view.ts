@@ -10,6 +10,7 @@ import { formatNs, formatPct } from '../profiling-format';
 import { ActiveProfile, ProfilingNavigator } from '../profiling-navigator';
 import { NoCapture, ProfileBar } from '../profiling-shared';
 import { PROFILING_STYLES } from '../profiling-styles';
+import { FindingsExplainer } from './explain-findings';
 
 const VIEW_LABEL: Record<EvidenceView, string> = {
   hotspots: $localize`:@@profiling.findings.view.hotspots:hotspots`,
@@ -50,8 +51,12 @@ export function evidenceSummary(e: Evidence): string {
       <div class="bar">
         <span class="section-title" i18n="@@profiling.findings.title">Findings</span>
         @if (state.baselineId() !== null) { <span class="muted" i18n="@@profiling.findings.regressions">including regressions against the baseline</span> }
+        @if (res.data()?.length) {
+          <span class="spacer"></span>
+          <button class="btn" type="button" (click)="explain(p.name)" data-testid="findings-explain" i18n="@@profiling.findings.explain">Explain with AI</button>
+        }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
         <ul class="list body" aria-label="Findings" i18n-aria-label="@@profiling.findings.listLabel">
           @for (f of res.data() ?? []; track f.kind + ':' + f.title) {
             <li class="finding" [attr.data-kind]="f.kind">
@@ -81,6 +86,7 @@ export function evidenceSummary(e: Evidence): string {
       .title { color: var(--text); }
       .detail { margin: 4px 0 6px; color: var(--text-2); }
       .foot { display: flex; align-items: center; gap: 8px; }
+      .spacer { flex: 1; }
     `,
   ],
 })
@@ -104,6 +110,13 @@ export class FindingsView {
 
   protected evidenceLabel(f: ProfileFinding): string {
     return $localize`:@@profiling.findings.evidenceLabel:Open evidence for ${f.title}:title:`;
+  }
+
+  private readonly explainer = inject(FindingsExplainer);
+
+  /** Asks the AI chat about these findings (a compact summary of what the engine found). */
+  protected explain(name: string): void {
+    void this.explainer.explain(name, this.res.data() ?? [], (f) => evidenceSummary(f.evidence));
   }
 
   protected open(f: ProfileFinding): void {

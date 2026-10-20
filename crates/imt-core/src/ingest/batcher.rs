@@ -8,6 +8,7 @@ use crate::batch::{ColumnType, EventBatchBuilder, EventSchema, EventTime, FieldV
 use crate::model::{value_text, Record};
 use crate::pipeline::StepStats;
 use crate::profile::CompiledProfile;
+use crate::profile::FieldType;
 use anyhow::Result;
 use serde_json::Value;
 use std::borrow::Cow;
@@ -16,13 +17,13 @@ use std::sync::Arc;
 
 /// The column type of an extractor field type (`[extract.fields]`); `auto` and unknown types are
 /// stored in `extra`.
-pub fn column_type(kind: &str) -> Option<ColumnType> {
+pub fn column_type(kind: FieldType) -> Option<ColumnType> {
     match kind {
-        "string" => Some(ColumnType::Utf8),
-        "integer" => Some(ColumnType::Int64),
-        "number" | "bytes" | "duration" => Some(ColumnType::Float64),
-        "bool" => Some(ColumnType::Boolean),
-        _ => None,
+        FieldType::String => Some(ColumnType::Utf8),
+        FieldType::Integer => Some(ColumnType::Int64),
+        FieldType::Number | FieldType::Bytes | FieldType::Duration => Some(ColumnType::Float64),
+        FieldType::Bool => Some(ColumnType::Boolean),
+        FieldType::Auto => None,
     }
 }
 
@@ -32,7 +33,7 @@ pub fn schema_for(profile: &CompiledProfile) -> EventSchema {
         .extractors
         .iter()
         .flat_map(|e| e.fields.iter())
-        .filter_map(|(name, spec)| column_type(&spec.kind).map(|t| (name.clone(), t)));
+        .filter_map(|(name, spec)| column_type(spec.kind).map(|t| (name.clone(), t)));
     // Field names come from regex capture groups, which are never empty or contain control characters.
     EventSchema::new(declared).unwrap_or_else(|_| EventSchema::plain())
 }
@@ -339,11 +340,11 @@ when = [{ field = "Ms", op = "gt", value = "100" }]
 
     #[test]
     fn field_types_map_to_columns() {
-        assert_eq!(column_type("integer"), Some(ColumnType::Int64));
-        assert_eq!(column_type("duration"), Some(ColumnType::Float64));
-        assert_eq!(column_type("bool"), Some(ColumnType::Boolean));
-        assert_eq!(column_type("string"), Some(ColumnType::Utf8));
-        assert_eq!(column_type("auto"), None);
+        assert_eq!(column_type(FieldType::Integer), Some(ColumnType::Int64));
+        assert_eq!(column_type(FieldType::Duration), Some(ColumnType::Float64));
+        assert_eq!(column_type(FieldType::Bool), Some(ColumnType::Boolean));
+        assert_eq!(column_type(FieldType::String), Some(ColumnType::Utf8));
+        assert_eq!(column_type(FieldType::Auto), None);
         let schema = EventSchema::new([("S", ColumnType::Utf8), ("B", ColumnType::Boolean), ("F", ColumnType::Float64)]).unwrap();
         assert_eq!(typed(&schema, "S", &serde_json::json!("x")), Some(FieldValue::Text("x")));
         assert_eq!(typed(&schema, "B", &serde_json::json!(true)), Some(FieldValue::Bool(true)));

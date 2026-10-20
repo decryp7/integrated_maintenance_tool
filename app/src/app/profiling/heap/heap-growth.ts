@@ -28,7 +28,7 @@ import { HeapSelection, sparkline } from './heap-selection';
     @if (chosen().length < 3) {
       <div class="state" role="status">{{ needMore() }}</div>
     } @else {
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types grew." i18n-emptyText="@@profiling.heapGrowth.empty" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" emptyText="No types grew." i18n-emptyText="@@profiling.heapGrowth.empty" (retry)="res.retry()">
         <div class="body tight" tabindex="0" role="region" aria-label="Growth rows" i18n-aria-label="@@profiling.heapGrowth.rowsRegion">
           <table class="grid" aria-label="Growth across snapshots" i18n-aria-label="@@profiling.heapGrowth.tableLabel">
             <thead><tr><th scope="col" i18n="@@profiling.heapGrowth.col.type">Type</th><th scope="col" i18n="@@profiling.heapGrowth.col.trend">Trend</th><th scope="col" i18n="@@profiling.heapGrowth.col.bytes">Bytes per snapshot</th><th scope="col" class="num" i18n="@@profiling.heapGrowth.col.growth">Growth</th><th scope="col" i18n="@@profiling.heapGrowth.col.flag">Flag</th></tr></thead>

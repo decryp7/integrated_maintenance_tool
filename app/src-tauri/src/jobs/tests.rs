@@ -84,7 +84,7 @@ fn the_pane_lists_running_jobs_after_two_seconds_and_the_tray_can_stop_them() {
             .lock()
             .unwrap()
             .iter()
-            .any(|e| e["jobs"].as_array().is_some_and(|j| !j.is_empty()))
+            .any(|e| e["order"].as_array().is_some_and(|j| !j.is_empty()) && e["version"].as_u64().is_some())
     });
     let task = format!("{TASK_PREFIX}{id}");
     wait_until("the tray entry", || {
@@ -142,7 +142,7 @@ fn long_jobs_post_a_message_and_view_opens_their_result() {
     assert_eq!(ipc(&main, "jobs_result", json!({"id": id.0})).unwrap()["type"], "file");
     std::fs::remove_file(&file).unwrap();
     let gone = ipc(&main, "jobs_reveal", json!({"id": id.0})).unwrap_err();
-    assert!(gone.as_str().unwrap().contains("no longer exists"));
+    assert!(gone["message"].as_str().unwrap().contains("no longer exists"));
     assert!(ipc(&main, "jobs_reveal", json!({"id": 999})).is_err());
 }
 
@@ -202,7 +202,7 @@ fn failures_always_ask_for_attention_with_retry() {
     assert_eq!(n["secondary"], json!({"type": "showJobs"}));
     // Exports have no retry handler: a clear message.
     let e = ipc(&main, "jobs_retry", json!({"id": id.0})).unwrap_err();
-    assert!(e.as_str().unwrap().contains("cannot be retried"), "{e}");
+    assert!(e["message"].as_str().unwrap().contains("cannot be retried"), "{e}");
     assert!(ipc(&main, "jobs_move", json!({"id": id.0, "up": true})).is_err());
     assert_eq!(ipc(&main, "jobs_mark_seen", json!({"id": id.0})).unwrap(), true);
 }
@@ -220,10 +220,10 @@ fn a_window_acts_only_on_its_own_and_app_wide_jobs() {
     assert_eq!(listed(&other).len(), 1);
     for cmd in ["jobs_cancel", "jobs_retry", "jobs_mark_seen", "jobs_result", "jobs_reveal"] {
         let e = ipc(&main, cmd, json!({"id": id.0})).unwrap_err();
-        assert!(e.as_str().unwrap().contains("another window"), "{cmd}: {e}");
+        assert!(e["message"].as_str().unwrap().contains("another window"), "{cmd}: {e}");
     }
     let e = ipc(&main, "jobs_move", json!({"id": id.0, "up": false})).unwrap_err();
-    assert!(e.as_str().unwrap().contains("another window"));
+    assert!(e["message"].as_str().unwrap().contains("another window"));
     // Closing the window stops its jobs and drops its history.
     forget_window(app.handle(), "w-2");
     wait_until("stopped", || jobs(&app).find_active(|_| true).is_empty());
@@ -378,4 +378,33 @@ fn mirroring_never_notifies_under_its_lock() {
     );
     assert_eq!(mirrored.lock().unwrap().len(), 1);
     release.send(Ok(None)).unwrap();
+}
+
+/// Windows get what changed, versioned; nothing when nothing did.
+#[test]
+fn job_events_are_versioned_deltas() {
+    let app = test_app_with_commands(None);
+    let jobs = app.state::<Jobs>().inner().clone();
+    let empty = jobs.snapshot(Some("main"));
+    let first = delta(None, &empty, 1).expect("the first event is always sent");
+    assert_eq!((first.version, first.order.len(), first.changed.len()), (1, 0, 0));
+    assert_eq!(delta(Some(&empty), &empty, 2), None, "unchanged: nothing is sent");
+    let (tx, rx) = mpsc::channel::<()>();
+    let rx = std::sync::Mutex::new(rx);
+    jobs.submit_work(
+        JobSpec::new(JobKind::Export, "Waits").window("main"),
+        Controls::default(),
+        move |_| {
+            let _ = rx.lock().unwrap().recv();
+            queue::JobEnd::Done(None)
+        },
+    )
+    .unwrap();
+    // Jobs show once they ran a moment.
+    app.state::<TestClock>().0.advance(60_000);
+    let running = jobs.snapshot(Some("main"));
+    let d = delta(Some(&empty), &running, 2).unwrap();
+    assert_eq!((d.order.len(), d.changed.len()), (1, 1));
+    assert_eq!(delta(Some(&running), &running, 3), None);
+    let _ = tx.send(());
 }

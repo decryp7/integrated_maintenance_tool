@@ -56,7 +56,7 @@ pub async fn elevation<R: tauri::Runtime>(
 
 /// The tool's answer, or what the shell knows itself (`elevated` asks the process token).
 fn elevation_from(answer: CmdResult<serde_json::Value>, elevated: impl FnOnce() -> bool) -> ElevationInfo {
-    match answer.and_then(|v| serde_json::from_value::<ElevationInfo>(v).map_err(err)) {
+    match answer.and_then(|v| crate::error::lift(serde_json::from_value::<ElevationInfo>(v).map_err(err))) {
         Ok(info) => info,
         Err(e) => {
             log::debug!("Elevation tool unavailable ({e}); checking the process token");
@@ -117,7 +117,7 @@ pub(crate) fn process_elevated() -> bool {
 /// when `reopen_session`, and exits this instance. Elsewhere: an error. The command line is built in Rust
 /// ([`crate::lifecycle::relaunch_args`]): nothing the webview sends reaches the elevated process.
 #[tauri::command]
-pub fn restart_elevated<R: tauri::Runtime>(
+pub async fn restart_elevated<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     state: CurrentWindow,
     lifecycle: State<'_, crate::lifecycle::Lifecycle>,

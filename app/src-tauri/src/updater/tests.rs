@@ -3,6 +3,7 @@ use super::manifest::{self, MAX_MANIFEST_BYTES, MAX_NOTES_CHARS};
 use super::section::{Channel, SharedSettings, UpdateSettings, UpdatesSection};
 use super::state::{auto_check_due, Event};
 use super::*;
+use crate::test_support::Now as _;
 use crate::test_support::TempDir;
 use base64::Engine;
 use imt_core::settings::{sanitize, validate, Configurable};
@@ -804,4 +805,32 @@ fn corrupt_or_newer_records_are_ignored() {
     record::save(None, &record::Record::default());
     let r = rig_in(dir, std::env::temp_dir().join("imt-updater-missing").join("x"), true);
     assert_eq!(r.updates.status().phase, UpdatePhase::Idle);
+}
+
+/// The download is a job: its id is in the status, `jobs_cancel` stops it (the update stays available),
+/// and a downloaded update is dropped with `updates_discard`.
+#[test]
+fn the_download_is_a_job_that_jobs_cancel_stops() {
+    use tauri::Manager;
+    let r = rig("download-job", true);
+    let app = crate::test_support::test_app(None);
+    app.manage(r.updates.clone());
+    *r.fake.found.lock().unwrap() = Some(Ok(Some(info(None))));
+    crate::test_support::block(r.updates.check()).unwrap();
+    let s = updates_download(app.handle().clone()).now().unwrap();
+    let job = s.download_job.expect("the download's job");
+    assert!(
+        updates_discard(app.handle().clone()).now().is_err(),
+        "a download in flight is cancelled through its job"
+    );
+    app.state::<crate::jobs::Jobs>().cancel(crate::jobs::JobId(job)).unwrap();
+    wait_for(&r.updates, "cancelled", |p| matches!(p, UpdatePhase::Available { .. }));
+    assert_eq!(crate::test_support::job_end(&app, job).state, crate::jobs::JobState::Cancelled);
+    assert_eq!(r.updates.status().download_job, None);
+    // Downloaded, then discarded.
+    *r.fake.chunks.lock().unwrap() = Some(vec![5]);
+    updates_download(app.handle().clone()).now().unwrap();
+    wait_for(&r.updates, "ready", |p| matches!(p, UpdatePhase::Ready { .. }));
+    let s = updates_discard(app.handle().clone()).now().unwrap();
+    assert!(matches!(s.phase, UpdatePhase::Available { .. }));
 }

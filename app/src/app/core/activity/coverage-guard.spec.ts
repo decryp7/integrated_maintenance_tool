@@ -148,6 +148,7 @@ import { CollectBackend, EventLogBackend, LifecycleBackend, PerfmonBackend, Proj
 import { ConfigDiffBackend } from '../../config-diff/config-diff-backend';
 import { PopoutBackend } from '../../popout/popout-backend';
 import { ProfilingBackend } from '../../profiling/profiling-backend';
+import { DotnetBackend } from '../../profiling/dotnet/dotnet-backend';
 import { SchedulesBackend } from '../../schedules/schedules-backend';
 import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
@@ -161,6 +162,7 @@ import { SnapshotBackend } from '../../diagnostics/snapshot-backend';
 import { UpdatesBackend } from '../../updates/updates-backend';
 import { UxBackend } from '../ux-backend';
 import { WindowingBackend } from '../../windowing/windowing-backend';
+import { RecentBackend } from '../recent/recent-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { NotificationsBackend } from '../../notifications/notifications-backend';
 import { at, must } from '../../../testing/must';
@@ -182,6 +184,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   ConfigDiffBackend,
   PopoutBackend,
   ProfilingBackend,
+  DotnetBackend,
   SchedulesBackend,
   SettingsBackend,
   StorageBackend,
@@ -193,6 +196,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   UxBackend,
   UpdatesBackend,
   WindowingBackend,
+  RecentBackend,
   JobsBackend,
   NotificationsBackend,
 };

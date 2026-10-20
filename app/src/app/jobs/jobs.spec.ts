@@ -121,9 +121,32 @@ describe('TauriJobsBackend', () => {
     const seen: JobsSnapshot[] = [];
     await b.onChange((s) => seen.push(s));
     const h = must(handlers[0]);
-    h({ jobs: [], paused: [] });
-    for (const bad of [null, 'junk', 7, {}, { jobs: [] }, { paused: [] }, { jobs: 1, paused: [] }, { jobs: [], paused: 'x' }]) h(bad);
+    h({ version: 1, order: [], changed: [], paused: [] });
+    for (const bad of [null, 'junk', 7, {}, { jobs: [], paused: [] }, { version: 2, order: 1, changed: [], paused: [] }]) h(bad);
     expect(seen).toEqual([{ jobs: [], paused: [] }]);
+  });
+
+  it('rebuilds the snapshot from versioned deltas and asks again after a gap', async () => {
+    const job = (id: number, title: string) => ({ id, title, state: 'running' }) as never;
+    const calls: string[] = [];
+    const call = (async (cmd: string) => (calls.push(cmd), { jobs: [job(9, 'listed')], paused: [] })) as never;
+    let h: (p: unknown) => void = () => undefined;
+    const b = new TauriJobsBackend(call, async (_e, handler) => ((h = handler), () => undefined));
+    const seen: JobsSnapshot[] = [];
+    await b.onChange((s) => seen.push(s));
+    h({ version: 1, order: [1, 2], changed: [job(1, 'a'), job(2, 'b')], paused: [] });
+    h({ version: 2, order: [2, 1], changed: [job(1, 'a2')], paused: [] });
+    h({ version: 3, order: [2], changed: [], paused: [] });
+    expect(seen.map((s) => s.jobs.map((j) => j.title))).toEqual([['a', 'b'], ['b', 'a2'], ['b']]);
+    // A missed version: the list is asked for again.
+    h({ version: 5, order: [2], changed: [], paused: [] });
+    await vi.waitFor(() => expect(seen.at(-1)?.jobs.map((j) => j.title)).toEqual(['listed']));
+    expect(calls).toEqual(['jobs_list']);
+    // The next version applies on top of the list; a job it does not explain asks again.
+    h({ version: 6, order: [9, 2], changed: [job(2, 'b2')], paused: [] });
+    expect(seen.at(-1)?.jobs.map((j) => j.title)).toEqual(['listed', 'b2']);
+    h({ version: 7, order: [3], changed: [], paused: [] });
+    await vi.waitFor(() => expect(calls).toEqual(['jobs_list', 'jobs_list']));
   });
 });
 
@@ -755,7 +778,7 @@ describe('JobsStore', () => {
 
 describe('jobs-text', () => {
   it('names every kind and state', () => {
-    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Maintenance']);
+    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Capture', 'Maintenance']);
     expect((['queued', 'running', 'done', 'failed', 'cancelled', 'interrupted'] as const).map(stateLabel)).toEqual(['Queued', 'Running', 'Done', 'Failed', 'Cancelled', 'Interrupted']);
   });
 

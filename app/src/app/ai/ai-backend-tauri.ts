@@ -1,6 +1,7 @@
 import { invoke } from '../core/activity/ipc';
 import { listenHere } from '../windowing/window-events';
 import { AiBackend, toAiError, Unlisten } from './ai-backend';
+import { cancelJob } from '../jobs/job-cancel';
 import {
   AI_CHAT_EVENT,
   AI_RUNTIME_EVENT,
@@ -40,6 +41,10 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 
 /** Talks to the Rust shell; `call` is Tauri's `invoke` and `listen` the window-scoped listener (tests pass fakes). */
 export class TauriAiBackend extends AiBackend {
+  /** The jobs of the set-up and runtime install this window started (Jobs are the one cancel authority). */
+  private setupJob: number | null = null;
+  private runtimeJob: number | null = null;
+
   constructor(
     private readonly call: typeof invoke = invoke,
     private readonly listen: ListenFn = listenHere,
@@ -70,17 +75,24 @@ export class TauriAiBackend extends AiBackend {
   setupPlan(modelId?: string | null) {
     return this.run<SetupPlan>('ai_setup_plan', { modelId: modelId ?? null });
   }
-  setupRun(modelId: string) {
-    return this.run<void>('ai_setup_run', { modelId });
+  async setupRun(modelId: string) {
+    this.setupJob = await this.run<number>('ai_setup_run', { modelId });
   }
-  setupCancel() {
-    return this.run<boolean>('ai_setup_cancel');
+  /** Cancels the set-up (or activation) this window started, through its job. */
+  async setupCancel() {
+    const id = this.setupJob;
+    this.setupJob = null;
+    try {
+      return await cancelJob(this.call, id);
+    } catch (e) {
+      throw toAiError(e);
+    }
   }
   models() {
     return this.run<InstalledModel[]>('ai_models');
   }
-  activateModel(fileName: string) {
-    return this.run<void>('ai_model_activate', { fileName });
+  async activateModel(fileName: string) {
+    this.setupJob = await this.run<number>('ai_model_activate', { fileName });
   }
   deleteModel(fileName: string) {
     return this.run<void>('ai_model_delete', { fileName });
@@ -94,11 +106,11 @@ export class TauriAiBackend extends AiBackend {
   runtimes() {
     return this.run<AiRuntimeOverview>('ai_runtimes');
   }
-  runtimeInstall(id: string) {
-    return this.run<void>('ai_runtime_install', { id });
+  async runtimeInstall(id: string) {
+    this.runtimeJob = await this.run<number>('ai_runtime_install', { id });
   }
-  runtimeAddArchives(id: string, paths: string[]) {
-    return this.run<void>('ai_runtime_add_archives', { id, paths });
+  async runtimeAddArchives(id: string, paths: string[]) {
+    this.runtimeJob = await this.run<number>('ai_runtime_add_archives', { id, paths });
   }
   updatesStatus() {
     return this.run<AiUpdatesStatus>('ai_updates_status');
@@ -121,8 +133,15 @@ export class TauriAiBackend extends AiBackend {
   openManualDownload(kind: ManualKind, id: string, index: number) {
     return this.run<void>('ai_manual_download_open', { kind, id, index });
   }
-  runtimeCancel() {
-    return this.run<boolean>('ai_runtime_cancel');
+  /** Cancels the runtime install this window started, through its job. */
+  async runtimeCancel() {
+    const id = this.runtimeJob;
+    this.runtimeJob = null;
+    try {
+      return await cancelJob(this.call, id);
+    } catch (e) {
+      throw toAiError(e);
+    }
   }
   runtimeDelete(tag: string, id: string) {
     return this.run<void>('ai_runtime_delete', { tag, id });

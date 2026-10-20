@@ -1,10 +1,9 @@
 import { ApplicationInitStatus } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, testLogger, text } from '../../testing/helpers';
+import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
-import { RECENT_PROJECTS, RecentProjects } from '../projects/recent-projects';
-import { MemoryRecentProjects, provideToolsTesting } from '../tools/mock/test-support';
+import { provideToolsTesting } from '../tools/mock/test-support';
 import { DialogService } from '../ui/dialog.service';
 import { DialogHost } from '../ui/dialog-host';
 import { BackgroundWork } from './background-work';
@@ -12,7 +11,6 @@ import { ClosePromptService } from './close-prompt';
 import { memoryHost, MockWindowingBackend } from './mock-windowing-backend';
 import { OpenAskService, openAskTitle } from './open-ask-dialog';
 import { provideWindowing } from './provide-windowing';
-import { TrayRecentProjects } from './tray-recent-projects';
 import { WindowingBackend } from './windowing-backend';
 import { WindowingService } from './windowing.service';
 
@@ -210,40 +208,10 @@ describe('BackgroundWork', () => {
   });
 });
 
-describe('TrayRecentProjects', () => {
-  it('pushes the list at startup and after every change, capped at 10', async () => {
-    const backend = { setRecentProjects: vi.fn(async () => undefined) };
-    TestBed.configureTestingModule({ providers: provideTinyBackend() });
-    const inner = new MemoryRecentProjects();
-    inner.items = Array.from({ length: 12 }, (_, i) => ({ path: `/p${i}`, name: `P${i}` }));
-    const recent: RecentProjects = new TrayRecentProjects(inner, backend, testLogger());
-    expect(backend.setRecentProjects).toHaveBeenCalledTimes(1);
-    expect(backend.setRecentProjects.mock.calls[0]).toEqual([inner.items.slice(0, 10)]);
-    recent.add({ path: '/new', name: 'New' });
-    recent.remove('/p0');
-    recent.clear();
-    expect(backend.setRecentProjects).toHaveBeenCalledTimes(4);
-    expect(backend.setRecentProjects.mock.calls.at(-1)).toEqual([[]]);
-    expect(recent.list()).toEqual([]);
-  });
-
-  it('never throws when the shell fails', async () => {
-    TestBed.configureTestingModule({ providers: provideTinyBackend() });
-    const rejecting = { setRecentProjects: vi.fn(async () => Promise.reject('no tray')) };
-    const recent = new TrayRecentProjects(new MemoryRecentProjects(), rejecting, testLogger());
-    const throwing = { setRecentProjects: vi.fn(() => { throw new Error('sync'); }) };
-    expect(() => new TrayRecentProjects(new MemoryRecentProjects(), throwing, testLogger()).add({ path: '/a', name: 'A' })).not.toThrow();
-    recent.add({ path: '/a', name: 'A' });
-    await settle();
-    expect(testLogger().entries.filter((e) => e.message === 'Could not update the tray recent projects')).toHaveLength(4);
-  });
-});
-
 describe('provideWindowing', () => {
-  it('registers the commands, the tray recents and starts the service', async () => {
+  it('registers the commands and starts the service', async () => {
     TestBed.configureTestingModule({ providers: [...provideToolsTesting(), provideWindowing()] });
     await TestBed.inject(ApplicationInitStatus).donePromise;
-    expect(TestBed.inject(RECENT_PROJECTS)).toBeInstanceOf(TrayRecentProjects);
     expect(TestBed.inject(CommandRegistry).find('window.new')?.title).toBe('New window');
     await settle();
     expect(TestBed.inject(WindowingService).windows().map((w) => w.label)).toEqual(['main']);

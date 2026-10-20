@@ -88,8 +88,8 @@ Navigation and layout details the UI relies on (it never recomputes them):
 
 ## Errors
 
-Every profiling command rejects with `{ code, message }` (`ProfilingErrorDto`, mirrored as
-`ProfilingError` in `api.types.ts`). The UI turns it into a `ProfilingFailure` (an `Error` with
+Every profiling command rejects with the one command error `{ code, message, retryable }` (`CmdError`,
+ADR 0016; the engine's `ProfilingErrorDto` codes below are part of its `ErrorCode`). The UI turns it into a `ProfilingFailure` (an `Error` with
 the code) at the backend edge and decides by code, never by message text:
 
 | Code | Meaning | Engine errors |
@@ -151,7 +151,7 @@ Paths to roots stop after 2M visited objects. At most 32 captures can be open pe
 | `chrome-trace` | Chrome trace event JSON | `Profile`/`ProfileChunk` CPU samples. Without those, `X` and `B`/`E` duration events become an exact wall-clock profile. |
 | `pprof` | `profile.proto` (gzip or raw) | prost messages written from google/pprof's `profile.proto` (Apache-2.0), no protoc. Sample types map to metrics. Inlined frames are expanded. Threads come from labels. |
 | `perf-script` | `perf script` text | Kernel, `[unknown]` and JIT-map frames are recognised. Period → `timeNs` for cpu-clock and task-clock. |
-| `nettrace` | .NET EventPipe (NetTrace V4/V5) | Details below the table. |
+| `nettrace` | .NET EventPipe and IMT ETW captures (NetTrace V4/V5/V6) | Details below the table. |
 | `heapsnapshot` | V8 `.heapsnapshot` | Field layout comes from `meta`. Weak and shortcut edges are skipped. Only V8's synthetic root (node 0) is a GC root. |
 
 `nettrace` decodes the following:
@@ -159,14 +159,21 @@ Paths to roots stop after 2M visited objects. At most 32 captures can be open pe
 - SampleProfiler thread samples.
 - Method and module load and rundown events, used to name the frames.
 - GC start/end, exceptions, contention start/stop, and JIT.
+- `GCAllocationTick` → allocation samples (`allocBytes`, `allocCount`) with the allocated type as the leaf frame.
+- Thread-pool worker starts (thread names) and starvation adjustments (markers).
+- GC heap walks (`GCBulkType`/`Node`/`Edge` and root events): a trace with one imports as a heap snapshot
+  (roots grouped as `[Stack roots]`, `[Finalizer queue]`, `[Handles]`, `[Static variables]`, ...).
+- IMT's ETW extension events (`IMT-Windows-Kernel`, ADR 0019): image loads (native frames as
+  `module+0xoffset`), context-switch waits (`wait` events, `waitNs`) and thread names.
 
-It follows PerfView's `EventPipeFormat.md` and the runtime's `ep-file.c` and `ep-block.c`. It was
-checked against PerfView's test traces, which are not committed. NetTrace V6 (.NET 10) is reported
-as unsupported.
+It follows PerfView's `EventPipeFormat.md` / `NetTraceFormat.md` and the runtime's `ep-file.c` and
+`ep-block.c`. It reads NetTrace V4/V5 (FastSerialization objects) and V6 (.NET 10 blocks, threads by
+index). Pointer-sized payload fields follow the trace's pointer size (the target's bitness).
 
 Every importer meets these requirements:
 
-- **Format detection:** it sniffs the file content, never only the file extension.
+- **Format detection:** it sniffs the file content, never only the file extension (exception: `.etl`, whose
+  buffer header has no signature, is recognised by its extension and checked when read).
 - **No panics:** it never panics on any input.
 - **Bounds:** it checks every count against the bytes that remain and against `Limits` before
   allocating.
@@ -192,11 +199,9 @@ snapshots and other files apart without importing anything: the best importer's 
   source. Per ADR 0004, .NET-specific decoding belongs in the Windows/.NET helper process, which
   uses TraceEvent itself. That helper will turn a `.gcdump` into a `HeapSnapshot` (types plus graph)
   through the protobuf contract.
-- **`.etl`** (WPR/PerfView): this needs Windows' TDH/TraceEvent and symbol resolution from PDBs.
-  It is deferred to the same helper. Converted captures will reach the engine through
-  `profiling.importers`.
-- **NetTrace V6:** the new block layout of .NET 10 is not parsed yet. Such files are reported as
-  unsupported.
+- **`.etl`** (WPR/PerfView/logman): read on Windows by the `.NET profiling` plugin (`imt-plugin-dotnet`,
+  ADR 0019), which converts one process to NetTrace; native frames stay `module+offset` until PDB
+  symbolisation comes with the native profiler.
 
 ## Samples
 

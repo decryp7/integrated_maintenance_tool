@@ -52,6 +52,7 @@ impl Workspace {
             source_name: source.name.clone(),
             line: record.line,
             lines,
+            note: None,
         })
     }
 }

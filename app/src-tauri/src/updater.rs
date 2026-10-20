@@ -16,7 +16,7 @@
 //!   with a next step ([`error`]). Installing happens in [`on_exit`], after windows and plugins shut
 //!   down, so sessions are saved as on any quit.
 //!
-//! Commands: `updates_status`, `updates_check`, `updates_download`, `updates_cancel`,
+//! Commands: `updates_status`, `updates_check`, `updates_download`, `updates_discard`,
 //! `updates_install_on_quit`, `updates_restart`, `updates_open_releases`. Event: `imt://updates`
 //! (the [`UpdateStatus`], to every window: the updater is app-wide). Wire types:
 //! `app/src/app/updates/updates.types.ts`.
@@ -87,6 +87,8 @@ pub struct UpdateStatus {
     /// The host a check contacts (`None` in a build without updates).
     pub endpoint_host: Option<String>,
     pub releases_page: &'static str,
+    /// The job of the download in flight (cancel it with `jobs_cancel`).
+    pub download_job: Option<u64>,
 }
 
 /// What happens when IMT exits.
@@ -105,6 +107,8 @@ struct Inner {
     task: Option<tauri::async_runtime::JoinHandle<()>>,
     last_progress: Option<Instant>,
     on_exit: OnExit,
+    /// The job listing the download in flight.
+    job: Option<u64>,
 }
 
 type Emit = Box<dyn Fn(&UpdateStatus) + Send + Sync>;
@@ -161,6 +165,7 @@ impl Updates {
                 task: None,
                 last_progress: None,
                 on_exit: OnExit::Nothing,
+                job: None,
             }),
             emit,
             started: Instant::now(),
@@ -168,7 +173,7 @@ impl Updates {
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.inner)
     }
 
     fn status_of(&self, inner: &Inner) -> UpdateStatus {
@@ -181,7 +186,23 @@ impl Updates {
             channel: settings.channel.as_str(),
             endpoint_host: self.endpoint_host.clone(),
             releases_page: RELEASES_PAGE,
+            download_job: inner.job.filter(|_| matches!(inner.phase, UpdatePhase::Downloading { .. })),
         }
+    }
+
+    /// The download in flight is listed as job `id`.
+    pub fn set_download_job(&self, id: u64) {
+        let status = {
+            let mut inner = self.lock();
+            inner.job = Some(id);
+            self.status_of(&inner)
+        };
+        (self.emit)(&status);
+    }
+
+    /// Whether a download is in flight.
+    pub fn downloading(&self) -> bool {
+        matches!(self.lock().phase, UpdatePhase::Downloading { .. })
     }
 
     pub fn status(&self) -> UpdateStatus {
@@ -461,35 +482,74 @@ fn updates_state<'a>(state: &'a Option<State<'_, Arc<Updates>>>) -> Result<&'a A
 }
 
 #[tauri::command]
-pub fn updates_status<R: Runtime>(app: AppHandle<R>) -> Result<UpdateStatus, UpdateError> {
+pub async fn updates_status<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<UpdateStatus> {
     let state = app.try_state::<Arc<Updates>>();
     Ok(updates_state(&state)?.status())
 }
 
 #[tauri::command]
-pub async fn updates_check<R: Runtime>(app: AppHandle<R>) -> Result<UpdateStatus, UpdateError> {
+pub async fn updates_check<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<UpdateStatus> {
     let updates = updates_state(&app.try_state::<Arc<Updates>>())?.clone();
-    updates.check().await
+    Ok(updates.check().await?)
+}
+
+/// Starts downloading the update as a download job (its id is the status's `downloadJob`; `jobs_cancel`
+/// stops it, the update stays available).
+#[tauri::command]
+pub async fn updates_download<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<UpdateStatus> {
+    let updates = updates_state(&app.try_state::<Arc<Updates>>())?.clone();
+    let status = updates.download()?;
+    if !matches!(status.phase, UpdatePhase::Downloading { .. }) {
+        return Ok(status);
+    }
+    let (stop, watch) = (updates.clone(), updates.clone());
+    let controls = crate::jobs::Controls::cancel(move || {
+        let _ = stop.cancel();
+    });
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Download, "Downloading the IMT update");
+    let job = crate::jobs::spawn(&app, spec, controls, move |ctx| {
+        // The transfer runs on the async runtime; the job follows its phase.
+        while watch.downloading() && !ctx.is_cancelled() {
+            std::thread::sleep(DOWNLOAD_WATCH);
+        }
+        match watch.status().phase {
+            UpdatePhase::Ready { .. } => Ok(crate::jobs::Done::new(())),
+            UpdatePhase::Failed { error, .. } => Err(error.to_string()),
+            _ => Ok(crate::jobs::Done::new(()).cancelled_if(true)),
+        }
+    });
+    match job {
+        Ok(id) => updates.set_download_job(id.0),
+        Err(e) => log::warn!("the update download is not listed as a job: {e}"),
+    }
+    Ok(updates.status())
+}
+
+/// How often the download job looks at the transfer.
+const DOWNLOAD_WATCH: Duration = Duration::from_millis(250);
+
+/// Drops a downloaded update (it stays available). A download in flight is stopped through its job.
+#[tauri::command]
+pub async fn updates_discard<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<UpdateStatus> {
+    let state = app.try_state::<Arc<Updates>>();
+    let updates = updates_state(&state)?;
+    if updates.downloading() {
+        return Err(UpdateError::Busy {
+            detail: "the update is still downloading: cancel its job".into(),
+        }
+        .into());
+    }
+    Ok(updates.cancel()?)
 }
 
 #[tauri::command]
-pub fn updates_download<R: Runtime>(app: AppHandle<R>) -> Result<UpdateStatus, UpdateError> {
-    updates_state(&app.try_state::<Arc<Updates>>())?.download()
-}
-
-#[tauri::command]
-pub fn updates_cancel<R: Runtime>(app: AppHandle<R>) -> Result<UpdateStatus, UpdateError> {
-    updates_state(&app.try_state::<Arc<Updates>>())?.cancel()
-}
-
-#[tauri::command]
-pub fn updates_install_on_quit<R: Runtime>(app: AppHandle<R>, enabled: bool) -> Result<UpdateStatus, UpdateError> {
-    updates_state(&app.try_state::<Arc<Updates>>())?.install_on_quit(enabled)
+pub async fn updates_install_on_quit<R: Runtime>(app: AppHandle<R>, enabled: bool) -> crate::CmdResult<UpdateStatus> {
+    Ok(updates_state(&app.try_state::<Arc<Updates>>())?.install_on_quit(enabled)?)
 }
 
 /// Quits IMT, installs the verified update and starts the new version.
 #[tauri::command]
-pub fn updates_restart<R: Runtime>(app: AppHandle<R>) -> Result<(), UpdateError> {
+pub async fn updates_restart<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<()> {
     updates_state(&app.try_state::<Arc<Updates>>())?.prepare_restart()?;
     log::info!("Restarting to update");
     crate::window_manager::quit(&app);
@@ -498,6 +558,6 @@ pub fn updates_restart<R: Runtime>(app: AppHandle<R>) -> Result<(), UpdateError>
 
 /// Opens the releases page in the browser (only that fixed address).
 #[tauri::command]
-pub fn updates_open_releases() -> crate::CmdResult<()> {
-    open::that_detached(RELEASES_PAGE).map_err(crate::err)
+pub async fn updates_open_releases() -> crate::CmdResult<()> {
+    crate::opener::open_url(RELEASES_PAGE)
 }

@@ -208,13 +208,15 @@ fn crashing_plugins_are_contained_and_quarantined() {
                 .map(|u| u.reason.clone())
                 .unwrap_or_default()
         };
+        // Files import in parallel: the plugin may already be quarantined when bad.txt's turn comes; either way the
+        // reason names the plugin.
+        let bad = reason("bad.txt");
         assert!(
-            reason("bad.txt").contains("test.chaos") && reason("bad.txt").contains("import exploded"),
-            "{}",
-            reason("bad.txt")
+            bad.contains("test.chaos") && (bad.contains("import exploded") || bad.contains("disabled after repeated crashes")),
+            "{bad}"
         );
-        // Files import in parallel: if the plugin was quarantined before bin.dat's turn, its crashing binary
-        // importer is skipped and the file is simply an unrecognised binary file.
+        // Likewise, if the plugin was quarantined before bin.dat's turn, its crashing binary importer is skipped and
+        // the file is simply an unrecognised binary file.
         assert!(
             reason("bin.dat").contains("binary exploded") || reason("bin.dat").contains("binary file"),
             "{}",

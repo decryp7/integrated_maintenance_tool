@@ -1,53 +1,31 @@
-import { InjectionToken } from '@angular/core';
+import { inject, InjectionToken } from '@angular/core';
+import { RecentService } from '../core/recent/recent.service';
 
-/** Remembers the folders and files the user opened, newest first. Implementations must never throw. */
+/** The folders and files the user opened, newest first. Implementations must never throw. */
 export interface RecentStore {
+  /** Reads a signal where the implementation has one, so `computed` follows changes. */
   list(): string[];
-  /** Puts paths at the front (deduplicated, capped). */
+  /** The UI opened these (Rust records them itself; see `RecentBackend.opened`). */
   add(paths: string[]): void;
   clear(): void;
 }
 
-export const RECENT_KEY = 'imt.recent';
-export const RECENT_VERSION = 1;
-export const RECENT_MAX = 8;
-
-/** `localStorage` implementation: a versioned JSON envelope. */
-export class LocalStorageRecentStore implements RecentStore {
-  constructor(
-    private readonly key = RECENT_KEY,
-    private readonly max = RECENT_MAX,
-  ) {}
+/** The recent files of Rust's list (see `RecentService`). */
+export class BackendRecentStore implements RecentStore {
+  constructor(private readonly recent: RecentService) {}
 
   list(): string[] {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(this.key) ?? 'null') as { version?: number; paths?: unknown } | null;
-      if (!parsed || parsed.version !== RECENT_VERSION || !Array.isArray(parsed.paths)) return [];
-      return parsed.paths.filter((p): p is string => typeof p === 'string').slice(0, this.max);
-    } catch {
-      return [];
-    }
+    return this.recent.files();
   }
-
   add(paths: string[]): void {
-    const next = [...paths, ...this.list().filter((p) => !paths.includes(p))].slice(0, this.max);
-    this.write(next);
+    void this.recent.opened(paths);
   }
-
   clear(): void {
-    this.write([]);
-  }
-
-  private write(paths: string[]): void {
-    try {
-      localStorage.setItem(this.key, JSON.stringify({ version: RECENT_VERSION, paths }));
-    } catch {
-      /* storage unavailable: recents are a convenience only */
-    }
+    void this.recent.clear('files');
   }
 }
 
 export const RECENT_STORE = new InjectionToken<RecentStore>('RECENT_STORE', {
   providedIn: 'root',
-  factory: () => new LocalStorageRecentStore(),
+  factory: () => new BackendRecentStore(inject(RecentService)),
 });

@@ -26,8 +26,14 @@ describe('ProfileEdits', () => {
     expect((await backend.getProfile()).name).toBe('Edited');
     expect(store.busy()).toEqual({ kind: 'import', label: 'Applying the profile…', jobId: job });
     expect(undo.undoLabel()).toBe('drop step');
-    await vi.waitFor(() => expect(store.busy()).toBeNull(), { timeout: 5000 });
-    expect(store.summary()?.profileName).toBe('Edited');
+    // The summary is refreshed after the job ends: wait for both (a loaded CI machine stretches the gap).
+    await vi.waitFor(
+      () => {
+        expect(store.busy()).toBeNull();
+        expect(store.summary()?.profileName).toBe('Edited');
+      },
+      { timeout: 20_000 },
+    );
     expect(store.profileVersion()).toBe(version + 1);
   });
 

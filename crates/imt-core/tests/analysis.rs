@@ -118,7 +118,7 @@ fn incident_scenario_finds_spike_and_crash_with_restart() {
 #[test]
 fn empty_single_and_untimed_input() {
     let cfg = AnomalyConfig::default();
-    assert!(detect(std::iter::empty(), &cfg).is_empty());
+    assert!(detect(std::iter::empty::<(&imt_core::model::Record, &str)>(), &cfg).is_empty());
 
     let mut log = Log::new();
     log.add("A", rec(0, Some(T0), Level::Error));
@@ -399,8 +399,10 @@ fn compare_two_windows() {
     }
     let cfg = CompareConfig::default();
     let c = compare_windows(a.iter(), b.iter(), &cfg);
-    assert_eq!(c.numeric_changes.len(), 2);
+    // Numeric text counts as a number (stores keep undeclared fields as text): the status codes too.
+    assert_eq!(c.numeric_changes.len(), 3);
     assert!(c.numeric_changes.iter().any(|n| n.field == "Elapsed"));
+    assert!(c.numeric_changes.iter().any(|n| n.field == "StatusCode"));
     assert_eq!(c.a.count, 60);
     assert_eq!(c.b.count, 120);
     assert_eq!(c.a.levels.len(), 6);
@@ -815,4 +817,51 @@ fn restart_must_share_the_machine_not_just_the_application() {
     let found = log.detect(&AnomalyConfig::default());
     let c = of_kind(&found, AnomalyKind::Crash);
     assert!(c[0].message.contains("restarted as App · WEB02 · 2 40 s later"), "{}", c[0].message);
+}
+
+#[test]
+fn compare_bounds_the_values_it_tracks() {
+    // Regression (engine review finding 13): compare counted every distinct value of every field.
+    let cfg = CompareConfig::default();
+    let side = |offset: u32| -> Vec<Record> {
+        (0..200)
+            .map(|i| {
+                let r = rec(i + offset, Some(T0 + i as i64 * SEC), Level::Information);
+                with(
+                    with(r, "Unique", json!(format!("u{}", i + offset))),
+                    "Mode",
+                    json!(if offset == 0 { "a" } else { "b" }),
+                )
+            })
+            .collect()
+    };
+    let (a, b) = (side(0), side(1000));
+    let c = compare_windows(a.iter(), b.iter(), &cfg);
+    // High-cardinality fields are not compared; a low-cardinality shift is.
+    assert!(c.changed_fields.iter().all(|f| f.field != "Unique"));
+    assert!(c.new_values.iter().all(|f| f.field != "Unique"));
+    assert!(c.changed_fields.iter().any(|f| f.field == "Mode"));
+}
+
+#[test]
+fn waterfall_of_a_long_chain_is_linear() {
+    // Regression (engine review finding 19): roots.contains and the root walk were quadratic.
+    let n = 20_000u32;
+    let recs: Vec<Record> = (0..n)
+        .map(|i| {
+            let r = rec(i, Some(T0 + i as i64), Level::Information);
+            let r = with(with(r, "TraceId", json!("t")), "SpanId", json!(format!("s{i}")));
+            if i > 0 {
+                with(r, "ParentSpanId", json!(format!("s{}", i - 1)))
+            } else {
+                r
+            }
+        })
+        .collect();
+    let spans = imt_core::analysis::spans(recs.iter());
+    let started = std::time::Instant::now();
+    let rows = imt_core::analysis::waterfall(&spans, "t");
+    assert_eq!(rows.len(), n as usize);
+    assert_eq!(rows.last().unwrap().depth, n - 1);
+    assert!(started.elapsed().as_secs() < 5, "{:?}", started.elapsed());
 }

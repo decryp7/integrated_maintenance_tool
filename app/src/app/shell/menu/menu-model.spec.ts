@@ -269,6 +269,15 @@ describe('menu model', () => {
     expect(labels(menu(buildMenus(state()), 'tools').items)).toContain('Settings…');
   });
 
+  it('quits IMT from File ▸ Exit, or last in the app menu on macOS', () => {
+    const commands = new Map([...state().commands, ['app.quit', { id: 'app.quit', title: 'Exit' }]]);
+    const file = menu(buildMenus(state({ commands })), 'file').items;
+    expect(labels(file).slice(-3)).toEqual(['Close window', '—', 'Exit']);
+    const mac = buildMenus(state({ nativeAppMenu: true, commands }));
+    expect(labels(at(mac, 0).items).at(-1)).toBe('Quit IMT');
+    expect(labels(menu(mac, 'file').items)).not.toContain('Exit');
+  });
+
   it('tidies separators and empty submenus and groups', () => {
     const item = { kind: 'item', id: 'a', label: 'A' } as const;
     expect(

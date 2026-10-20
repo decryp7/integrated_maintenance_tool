@@ -20,6 +20,16 @@ pub enum ProblemKind {
     LineNotParsed,
     /// Events without a readable timestamp (kept, marked untimed).
     TimestampUnparsed,
+    /// A field value that does not fit its declared type (kept as text).
+    FieldInvalid,
+    /// Bytes that are not valid in the file's encoding (replaced).
+    Encoding,
+    /// A file no importer recognises (not imported).
+    UnknownFormat,
+    /// An archive that ends early or is damaged (the readable part was imported).
+    TruncatedArchive,
+    /// An event split at a chunk boundary of a parallel import.
+    EventSplit,
     /// A line that looks like the start of an event (a date, time or syslog header) but that no text format
     /// of the profile reads; it was kept as a continuation of the event above (ADR 0020).
     UnmatchedLine,
@@ -27,6 +37,21 @@ pub enum ProblemKind {
     /// in the file's own source (ADR 0020).
     RouteLimit,
 }
+
+/// Every kind.
+const ALL_KINDS: [ProblemKind; 11] = [
+    ProblemKind::LineTooLong,
+    ProblemKind::EventTooLarge,
+    ProblemKind::LineNotParsed,
+    ProblemKind::TimestampUnparsed,
+    ProblemKind::FieldInvalid,
+    ProblemKind::Encoding,
+    ProblemKind::UnknownFormat,
+    ProblemKind::TruncatedArchive,
+    ProblemKind::EventSplit,
+    ProblemKind::UnmatchedLine,
+    ProblemKind::RouteLimit,
+];
 
 impl ProblemKind {
     /// Stable id, as stored in the `diagnostics` table.
@@ -36,31 +61,33 @@ impl ProblemKind {
             ProblemKind::EventTooLarge => "eventTooLarge",
             ProblemKind::LineNotParsed => "lineNotParsed",
             ProblemKind::TimestampUnparsed => "timestampUnparsed",
+            ProblemKind::FieldInvalid => "fieldInvalid",
+            ProblemKind::Encoding => "encoding",
+            ProblemKind::UnknownFormat => "unknownFormat",
+            ProblemKind::TruncatedArchive => "truncatedArchive",
+            ProblemKind::EventSplit => "eventSplit",
             ProblemKind::UnmatchedLine => "unmatchedLine",
             ProblemKind::RouteLimit => "routeLimit",
         }
     }
 
-    /// Every kind, in declaration order.
-    pub const ALL: [ProblemKind; 6] = [
-        ProblemKind::LineTooLong,
-        ProblemKind::EventTooLarge,
-        ProblemKind::LineNotParsed,
-        ProblemKind::TimestampUnparsed,
-        ProblemKind::UnmatchedLine,
-        ProblemKind::RouteLimit,
-    ];
-
     pub fn from_id(id: &str) -> Option<ProblemKind> {
-        Self::ALL.into_iter().find(|k| k.id() == id)
+        ALL_KINDS.into_iter().find(|k| k.id() == id)
     }
 
     pub fn severity(self) -> Severity {
         match self {
-            ProblemKind::LineTooLong | ProblemKind::EventTooLarge | ProblemKind::TimestampUnparsed | ProblemKind::UnmatchedLine => {
-                Severity::Warning
-            }
-            ProblemKind::LineNotParsed | ProblemKind::RouteLimit => Severity::Info,
+            ProblemKind::LineTooLong
+            | ProblemKind::EventTooLarge
+            | ProblemKind::TimestampUnparsed
+            | ProblemKind::UnknownFormat
+            | ProblemKind::TruncatedArchive
+            | ProblemKind::UnmatchedLine => Severity::Warning,
+            ProblemKind::LineNotParsed
+            | ProblemKind::FieldInvalid
+            | ProblemKind::Encoding
+            | ProblemKind::EventSplit
+            | ProblemKind::RouteLimit => Severity::Info,
         }
     }
 }
@@ -142,7 +169,7 @@ mod tests {
         assert_eq!(v.len(), 2);
         assert_eq!(v[0].sample_lines.len(), MAX_SAMPLES);
         assert_eq!(v[1].sample_lines, [7]);
-        for k in ProblemKind::ALL {
+        for k in ALL_KINDS {
             assert_eq!(ProblemKind::from_id(k.id()), Some(k));
             // The id is the JSON name.
             assert_eq!(serde_json::to_value(k).unwrap(), k.id());

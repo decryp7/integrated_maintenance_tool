@@ -113,6 +113,24 @@ Child processes' standard error and start/exit lines go to `<IMT log folder>/chi
 | 52 | Edit the sample's `manifest.json` to `"schemaVersion": 99` (or break its JSON) and open it. | It opens as a plain archive with a notice saying why (newer format / not valid). |
 | 53 | Restart IMT with the sample open (session restore). | The panel shows the report again while the zip still exists. |
 
+## Profile a .NET process (Windows, ADR 0019)
+
+Build the fixture once: `dotnet build crates/imt-plugin-dotnet/tests/fixtures/Busy -c Release -f net462` (and
+`-p:PlatformTarget=x86 -o <dir>` for 32-bit, `-f net10.0` for .NET 10); run `Busy.exe 600` (it burns CPU, allocates,
+throws, contends on a lock and sleeps for 10 minutes). *Tools ▸ Profile .NET process…* lists it.
+
+| # | Steps | Expected |
+|---|-------|----------|
+| 54 | Run IMT **not** elevated. Pick the net462 `Busy.exe`, *CPU and waits*, *Record*. | The process is marked "needs administrator"; the capture fails with the administrator message and *Restart as administrator*. Pick the net10.0 `Busy.exe`: it records (EventPipe, no elevation). |
+| 55 | Elevated: record the net462 x64 `Busy.exe` for 10 s (*Stop after 10 seconds*). | The capture shows elapsed time and a growing size, ends by itself, opens on Hotspots: `Busy.Program.HotLoop` is hot; *Profile findings* shows a hot path, exceptions per second with the throw site `Busy.Program.Fail`, lock contention, and "Threads were blocked …" with the sleep and lock waits; the thread timeline shows wait events. |
+| 56 | Same with the **x86** (`PlatformTarget=x86`) build. | The process shows `x86`; the capture opens with managed method names (no 0x… frames for `Busy.*`). |
+| 57 | *Allocations* for 10 s. | *Profile findings* shows MB allocated with `System.Byte[]` as the top type (and the large object heap share); the call tree has the type as leaf below `AllocateBuffer`. |
+| 58 | *Heap snapshot*, twice, a minute apart. | Each ends by itself within seconds and opens the Memory view on *Findings* (top retainer, `[Static variables]` keeping `Busy.Cache.Head` alive); the second also shows growth since the first; *Compare snapshots* works. |
+| 59 | Start a CPU capture without a duration, then *Stop*; start another and *Cancel*; start a third and close the dialog, then stop it from the Jobs pane. | Stop keeps and opens the capture (method names collected first); Cancel deletes the file; the Jobs pane lists the running capture and its Cancel stops it. |
+| 60 | Start a capture, then end `Busy.exe` in Task Manager. | The capture ends by itself with "The process exited during the recording" and still opens. |
+| 61 | Record with PerfView or WPR (`wpr -start CPU -start DotNET`, …, `wpr -stop trace.etl`) while `Busy.exe` runs; drop `trace.etl` on IMT; then *File ▸ Open process from .etl…* and pick another process. | Dropping opens the busiest .NET process (notes list the others); the dialog lists the trace's processes with samples, .NET first, and opens the chosen one. Native frames show as `module+0x…`. |
+| 62 | Kill IMT (Task Manager) during an elevated capture, start it again and capture again; run `logman query -ets`. | No `IMT-dotnet-*` session is left running after the second capture starts. |
+
 
 ## Smoke tests of the real app (WebdriverIO + tauri-driver)
 

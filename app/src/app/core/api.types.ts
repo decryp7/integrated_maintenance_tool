@@ -90,10 +90,23 @@ export interface SourceInfo {
 
 /**
  * What went wrong while reading a source (Rust `ingest::ProblemKind`): a line over the size limit, an event over the
- * size limit, a line that is not an event, events without a readable timestamp, a line that looks like an event but
- * matches no format (kept with the event above), events past the logical-source limit of `[[route]]`.
+ * size limit, a line that is not an event, events without a readable timestamp, a field value that does not fit its
+ * declared type, bytes invalid in the file's encoding, a format no importer recognises, a damaged archive, an event
+ * split at a parallel chunk boundary, a line that looks like an event but matches no format (kept with the event
+ * above), events past the logical-source limit of `[[route]]`.
  */
-export type SourceProblemKind = 'lineTooLong' | 'eventTooLarge' | 'lineNotParsed' | 'timestampUnparsed' | 'unmatchedLine' | 'routeLimit';
+export type SourceProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit'
+  | 'unmatchedLine'
+  | 'routeLimit';
 
 /** One kind of import problem in one source (Rust `ingest::Problem`). */
 export interface SourceProblem {
@@ -1482,7 +1495,7 @@ export type Measurement = 'sampled' | 'exact';
 export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
 export type ProfileKind = 'cpu' | 'alloc' | 'wall' | 'mixed';
 export type FrameKind = 'managed' | 'native' | 'kernel' | 'unknown';
-export type ProfileEventKind = 'gc' | 'jit' | 'exception' | 'lockWait' | 'marker';
+export type ProfileEventKind = 'gc' | 'jit' | 'exception' | 'lockWait' | 'wait' | 'marker';
 /** Values per metric; only the profile's metrics are present. */
 export type MetricValues = Partial<Record<MetricId, number>>;
 
@@ -1917,7 +1930,17 @@ export interface FindingsRequest {
   thresholds?: FindingThresholds;
 }
 
-export type ProfileFindingKind = 'topSelf' | 'gcPressure' | 'lockContention' | 'exceptionHotPath' | 'threadPoolStarvation' | 'regression';
+export type ProfileFindingKind =
+  | 'topSelf'
+  | 'gcPressure'
+  | 'lockContention'
+  | 'exceptionHotPath'
+  | 'threadPoolStarvation'
+  | 'regression'
+  | 'hotPath'
+  | 'blocking'
+  | 'jitTime'
+  | 'allocations';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
 
@@ -2078,6 +2101,27 @@ export interface HeapObjectsPage {
   rows: HeapObjectRow[];
   totalRows: number;
   totalBytes: number;
+}
+
+/** `profiling_heap_findings({ request })` → HeapFinding[] (Rust `HeapFindingsRequest`). */
+export interface HeapFindingsRequest {
+  snapshotId: number;
+  /** The snapshot before it, for growth. */
+  baselineId?: number | null;
+}
+
+export type HeapFindingKind = 'topRetainers' | 'largeObjects' | 'finalizable' | 'staticRetention' | 'eventHandlers' | 'strings' | 'growth';
+/** The memory view that shows a heap finding's evidence. */
+export type HeapFindingView = 'types' | 'dominators' | 'paths' | 'diff';
+
+export interface HeapFinding {
+  kind: HeapFindingKind;
+  severity: FindingSeverity;
+  title: string;
+  detail: string;
+  valueBytes: number | null;
+  typeName: string | null;
+  view: HeapFindingView;
 }
 
 /** `profiling_heap_paths({ request })` → HeapPaths ("why is this alive"). */
@@ -2417,7 +2461,6 @@ export interface BundleOpened {
 // Ease of use: import progress, profile history and templates, the demo, overwrite protection
 // (crates/imt-core/src/{workspace,templates}, app/src-tauri/src/{workspace_commands,profile}.rs)
 //   import_progress    {}                         -> ImportProgress   (readable while an import runs)
-//   cancel_import      {}                         -> void             (stops after the files in flight)
 //   profile_history    {}                         -> ProfileVersionInfo[]  (newest first, at most 20)
 //   profile_version    { file }                   -> ProfileDoc       (not applied until saved again)
 //   profile_templates  {}                         -> ProfileTemplate[]  (ready-made profiles, built into the engine)
@@ -2486,12 +2529,11 @@ export interface ProfileTemplate {
 // ---- Cancellable queries -------------------------------------------------------------------
 
 /**
- * Query-language runs with progress and cancellation. Mirrors `app/src-tauri/src/query_cancel.rs` and
- * `crates/imt-core/src/ql/control.rs`. `queryId` is chosen by the UI (1-64 of `[A-Za-z0-9-]`, unique per window
- * while running); `onProgress` is a Tauri `Channel<QueryProgress>`, sampled every ~150 ms.
+ * Query-language runs with progress, as analysis jobs. Mirrors `app/src-tauri/src/query_cancel.rs` and
+ * `crates/imt-core/src/ql/control.rs`. `onProgress` is a Tauri `Channel<QueryStreamEvent>`: first the run's job
+ * (cancel it with `jobs_cancel`), then progress sampled every ~150 ms.
  *
- *   run_query_stream { request: { query }, queryId, onProgress } -> StreamedQueryOutcome
- *   cancel_query     { queryId }                                 -> boolean (false: not running any more)
+ *   run_query_stream { request: { query }, onProgress } -> StreamedQueryOutcome
  */
 
 /** What a running query is doing: `done` of `total` records of the current `stage`. */
@@ -2501,24 +2543,90 @@ export interface QueryProgress {
   total: number;
 }
 
-/** Like `QueryOutcome`, or `{ cancelled: true }` after `cancel_query` (a normal outcome, not an error). */
+/** What a run's channel carries. Mirrors `query_cancel::QueryStreamEvent`. */
+export type QueryStreamEvent = { kind: 'started'; jobId: number } | ({ kind: 'progress' } & QueryProgress);
+
+/** Like `QueryOutcome`, or `{ cancelled: true }` after its job was cancelled (a normal outcome, not an error). */
 export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 
-/** What a native dialog asks for (`pick_paths`, see core/native-dialog.ts). Mirrors `paths::PickRequest`. */
-export type PickKind = 'openFile' | 'openFiles' | 'openFolder' | 'openFolders' | 'save';
-
-/** `pick_paths` request: the engine shows the dialog and grants the chosen paths to the window. */
-export interface PickRequest {
-  kind: PickKind;
-  title: string;
-  /** File types offered (extensions without the dot, letters and digits only). */
-  filters?: { name: string; extensions: string[] }[];
-  /** Suggested name of a save dialog (a file name, not a path). */
-  defaultName?: string;
-}
+// What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
+export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
 /** How many of a query's matching events the analyses look at (`analysis_coverage`); `analysed < total`: partial results. */
 export interface AnalysisCoverage {
   analysed: number;
   total: number;
 }
+
+// ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/imt-plugin-dotnet) ----
+
+/** A process that can be recorded (Rust `ProcessInfo`). */
+export interface DotnetProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  runtimeVersion: string | null;
+  /** `x86`, `x64`, `arm64` when known. */
+  arch: string | null;
+  /** .NET Framework processes are recorded with ETW (administrator), .NET Core with EventPipe. */
+  runtime: 'framework' | 'core';
+  /** Recording it needs administrator rights IMT does not have. */
+  needsElevation: boolean;
+}
+
+export type DotnetCaptureKind = 'cpu' | 'allocations' | 'heap';
+
+/** `start` (Rust `Request`). */
+export interface DotnetCaptureRequest {
+  pid: number;
+  kind: DotnetCaptureKind;
+  /** null = until stopped (a heap snapshot ends by itself). 1..3600. */
+  durationSec: number | null;
+}
+
+export type DotnetCaptureState = 'recording' | 'stopping' | 'done' | 'failed' | 'cancelled';
+
+/** A capture (Rust `Status`). */
+export interface DotnetCaptureStatus {
+  id: string;
+  pid: number;
+  processName: string;
+  kind: DotnetCaptureKind;
+  state: DotnetCaptureState;
+  elapsedMs: number;
+  bytes: number;
+  /** The NetTrace file once done; open it with `profiling_open`. */
+  path: string | null;
+  error: string | null;
+  /** The error is missing rights: offer "Restart as administrator". */
+  needsElevation: boolean;
+  /** It stopped at the size limit. */
+  truncated: boolean;
+  notes: string[];
+}
+
+/** A process in an `.etl` trace (Rust `EtlProcess`). */
+export interface EtlProcess {
+  pid: number;
+  name: string;
+  commandLine: string | null;
+  samples: number;
+  /** CLR events (0: not .NET or not recorded). */
+  clrEvents: number;
+  pointerSize: number;
+}
+
+/** `etl-convert` result. */
+export interface EtlConverted {
+  path: string;
+  notes: string[];
+}
+
+// ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
+// Generated from `recent.rs`. Rust records an entry after a granted open or save.
+export type { RecentKind, RecentLists, RecentProject } from './generated/recent';
+
+// ---- The one error of every command (app/src-tauri/src/error.rs; ADR 0016) ----
+
+// What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.
+export type { CmdErrorDto, ErrorCode } from './generated/errors';

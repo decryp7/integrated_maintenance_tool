@@ -1,6 +1,6 @@
 import type { WindowingBackend } from './windowing-backend';
 import type { Unlisten } from './window-events';
-import { BackgroundTask, CloseChoice, OpenAsk, OpenChoice, RecentProjectEntry, WindowInfo } from './windowing.types';
+import { BackgroundTask, CloseChoice, OpenAsk, OpenChoice, WindowInfo } from './windowing.types';
 
 /** localStorage key of the mock's "when the last window is closed" preference. */
 export const MOCK_ON_CLOSE_KEY = 'imt.mock.onClose';
@@ -98,8 +98,6 @@ class Handlers<T> {
 export class MockWindowingBackend implements WindowingBackend {
   /** Every call, for assertions. */
   readonly calls: string[] = [];
-  /** The list last sent with `setRecentProjects`. */
-  recent: RecentProjectEntry[] = [];
   private readonly ownLabel: string;
   private readonly opened = new Map<string, Window | null>();
   private tasks: BackgroundTask[];
@@ -143,6 +141,12 @@ export class MockWindowingBackend implements WindowingBackend {
     // 'tray': the window would hide into the tray; nothing to show in a browser tab.
     // Visible to end-to-end tests, which cannot read `calls` (and need a sign that the close was handled).
     console.info(`[mock windowing] close_window ${onClose}`);
+  }
+
+  async quitApp(): Promise<void> {
+    this.calls.push('quitApp');
+    // Visible to end-to-end tests, which cannot read `calls`.
+    console.info('[mock windowing] quit_app');
   }
 
   async listWindows(): Promise<WindowInfo[]> {
@@ -191,11 +195,6 @@ export class MockWindowingBackend implements WindowingBackend {
     this.tasks = this.tasks.filter((t) => t.id !== id);
     if (task.kind === 'liveTail' && task.window === this.ownLabel) this.liveStopped.emit();
     this.tasksChanged.emit(structuredClone(this.tasks));
-  }
-
-  async setRecentProjects(projects: RecentProjectEntry[]): Promise<void> {
-    this.calls.push('setRecentProjects');
-    this.recent = projects.slice(0, 10);
   }
 
   onCloseRequested(handler: () => void): Promise<Unlisten> {

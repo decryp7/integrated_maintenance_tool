@@ -1009,8 +1009,11 @@ dependencies = [
  "memory-stats",
  "parquet",
  "rayon",
+ "serde",
  "serde_json",
  "tantivy",
+ "toml",
+ "zip",
 ]
 
 [[package]]

@@ -6,6 +6,7 @@ import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
 import { browserMocks } from './mock-registry';
+import { cancelActiveJobs } from '../jobs/job-cancel';
 
 /**
  * The engine commands behind the ease-of-use features: import progress and cancel, profile history,
@@ -37,8 +38,9 @@ export class TauriUxBackend extends UxBackend {
   importProgress() {
     return this.call<ImportProgress>('import_progress');
   }
-  cancelImport() {
-    return this.call<void>('cancel_import');
+  /** Cancels the window's import job (Jobs are the one cancel authority). */
+  async cancelImport() {
+    await cancelActiveJobs(this.call, (j) => j.kind === 'import');
   }
   profileHistory() {
     return this.call<ProfileVersionInfo[]>('profile_history');

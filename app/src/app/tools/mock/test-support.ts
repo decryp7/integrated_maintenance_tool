@@ -13,18 +13,23 @@ import {
 import { provideFakeDock, provideTinyBackend } from '../../../testing/helpers';
 import { ProjectPicker } from '../../projects/project-picker';
 import { RECENT_PROJECTS, RecentProjects, RecentProject } from '../../projects/recent-projects';
-import { inject } from '@angular/core';
+import { inject, signal } from '@angular/core';
 import { MOCK_DEFAULTS, MockToolsBackend, MockToolsOptions } from './mock-tools-backend';
 import { hasSkew } from '../../core/skew-backend';
 
-/** In-memory recent list for tests. */
+/** In-memory recent list for tests (a signal, like `RecentService`). */
 export class MemoryRecentProjects implements RecentProjects {
-  items: RecentProject[] = [];
-  list = () => [...this.items];
-  add = (p: RecentProject) =>
-    void (this.items = [p, ...this.items.filter((x) => x.path !== p.path)]);
-  remove = (path: string) => void (this.items = this.items.filter((x) => x.path !== path));
-  clear = () => void (this.items = []);
+  private readonly state = signal<RecentProject[]>([]);
+  get items(): RecentProject[] {
+    return this.state();
+  }
+  set items(v: RecentProject[]) {
+    this.state.set(v);
+  }
+  list = () => [...this.state()];
+  add = (p: RecentProject) => this.state.update((l) => [p, ...l.filter((x) => x.path !== p.path)]);
+  remove = (path: string) => this.state.update((l) => l.filter((x) => x.path !== path));
+  clear = () => this.state.set([]);
 }
 
 /** A picker whose answers the test sets. */

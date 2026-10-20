@@ -20,7 +20,7 @@ import { MeasurementTag } from '../profiling-shared';
   template: `
     @if (backend && (res.loading() || res.error() || res.data()?.length)) {
       <h3 class="sec" i18n="@@profiling.moment.title">Profile samples in this window</h3>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" (retry)="res.retry()">
+      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" (retry)="res.retry()">
         @for (m of res.data() ?? []; track m.profileId) {
           <section class="card" [attr.aria-label]="profileLabel(m.name)">
             <div class="head">

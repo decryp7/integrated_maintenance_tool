@@ -42,7 +42,8 @@ Options considered:
    macOS; transient on Linux), not resizable, not in the taskbar, does not take the focus, and covers the top
    40 logical pixels of the browser's client area. It follows the browser's move, resize and scale changes,
    and is hidden when the AI stops. Its Stop calls `browser_agent_stop` (with the chat) or
-   `browser_research_stop` through the browser backend, like the chat and the Web panel. Its capability
+   cancels the research jobs (`jobs_cancel`; Jobs are the one cancel authority, ADR 0016) through the browser
+   backend, like the chat and the Web panel. Its capability
    (`capabilities/ai-browsing.json`) is `core:default` and `log:default`; commands from it work on its IMT
    window's state (`CurrentWindow` resolves `aib-<owner>` to `<owner>`), and it is an auxiliary window (not
    listed, not restored, closing it does not close IMT).

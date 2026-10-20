@@ -6,7 +6,7 @@
 //!
 //! Frames are always ordered top of stack first. For chained exceptions `inner` is the cause.
 
-use crate::model::Record;
+use crate::row::RowRef;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,7 +49,7 @@ impl ExceptionInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExceptionGroup {
     pub fingerprint: String,
@@ -507,11 +507,12 @@ struct Acc {
 
 /// Groups the exceptions of `records` by fingerprint. Each item pairs a record with an instance key
 /// (such as its source file). Records without an exception are skipped. Result is ordered by count, most frequent first.
-pub fn group<'a>(records: impl IntoIterator<Item = (&'a Record, &'a str)>) -> Vec<ExceptionGroup> {
+pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>) -> Vec<ExceptionGroup> {
     let mut index: HashMap<String, usize> = HashMap::new();
     let mut accs: Vec<Acc> = Vec::new();
     for (r, instance) in records {
-        let Some(text) = r.exception.as_deref() else { continue };
+        let instance = instance.as_ref();
+        let Some(text) = r.exception() else { continue };
         let (fp, type_name, message, top_frame) = match parse_exception(text) {
             Some(info) => {
                 let top = significant_frames(info.root(), 1).first().map(|(_, f)| f.function.clone());
@@ -543,12 +544,12 @@ pub fn group<'a>(records: impl IntoIterator<Item = (&'a Record, &'a str)>) -> Ve
         let a = &mut accs[i];
         a.group.count += 1;
         *a.instances.entry(instance.to_string()).or_default() += 1;
-        if let Some(ts) = r.ts {
+        if let Some(ts) = r.ts() {
             a.group.first_ts = Some(a.group.first_ts.map_or(ts, |t| t.min(ts)));
             a.group.last_ts = Some(a.group.last_ts.map_or(ts, |t| t.max(ts)));
         }
         if a.group.sample_ids.len() < MAX_SAMPLES {
-            a.group.sample_ids.push(r.id);
+            a.group.sample_ids.push(u32::try_from(r.id()).unwrap_or(u32::MAX));
         }
     }
     let mut out: Vec<ExceptionGroup> = accs

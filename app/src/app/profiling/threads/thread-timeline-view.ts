@@ -21,6 +21,7 @@ export const EVENT_GLYPHS: Record<ProfileEventKind, { label: string; path: strin
   jit: { label: $localize`:@@profiling.threads.event.jit:JIT`, path: 'M6 1L11 11H1Z', color: 'var(--s3)' },
   exception: { label: $localize`:@@profiling.threads.event.exception:Exception`, path: 'M2 2L10 10M10 2L2 10', color: 'var(--lvl-error)' },
   lockWait: { label: $localize`:@@profiling.threads.event.lockWait:Lock wait`, path: 'M2 2H10V10H2Z', color: 'var(--s4)' },
+  wait: { label: $localize`:@@profiling.threads.event.wait:Wait`, path: 'M1 6H11M6 1V6', color: 'var(--s1)' },
   marker: { label: $localize`:@@profiling.threads.event.marker:Marker`, path: 'M6 0V12M3 3H9', color: 'var(--text-2)' },
 };
 
@@ -83,7 +84,7 @@ interface EventVm {
       @if (!p.hasTime) {
         <div class="state" role="status" i18n="@@profiling.threads.noTimestamps">This capture has no timestamps (e.g. folded stacks), so there is no timeline.</div>
       } @else {
-        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
+        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
           @if (res.data(); as t) {
             <div class="axis mono" aria-hidden="true">
               <span [style.left.px]="labelW">{{ axisLabel(t, t.fromNs) }}</span>

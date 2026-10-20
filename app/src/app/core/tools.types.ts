@@ -353,6 +353,8 @@ export interface ToolOp {
   args: ToolSchema;
   /** Time the operation may take before it is abandoned; null = unlimited. */
   budgetMs: number | null;
+  /** A read-only status operation the UI may poll with `tool_poll` (quiet in the activity log). */
+  poll?: boolean;
 }
 
 /** Whether a tool can be used now, and if not, why. */

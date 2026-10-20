@@ -26,7 +26,8 @@ Tauri's default native menu bar (File Edit View Window Help) and IMT's own menu 
   the webview's Undo..Select All, Window with Minimize/Zoom) and applies it, updating check marks in
   place when only states changed. Clicks go to the focused window as `imt://menu`. The in-app bar
   is hidden. The page sees shortcuts first; an echo of the same command from the menu bar within
-  400 ms is ignored.
+  400 ms is ignored. Quit is the model's `app.quit` (last in the app menu, ⌘Q), not the system's, so it
+  asks about unsaved work like *File ▸ Exit* elsewhere (amended 2026-10-20).
 - **Auto-open is opt-in** (`ImtView.autoOpen`): `when` only decides whether a view is offered.
   The default layout is the core views; profiling views open with a profile, Tail status and
   Alerts when live tail starts unless the user closed them before.

@@ -16,7 +16,7 @@ use imt_ai::worker::WorkerEnv;
 use imt_ai::AiError;
 use serde::Serialize;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 /// Builds the runtime download source from the current settings (proxy) and the pinned catalog.
@@ -67,7 +67,7 @@ impl RuntimeDeps {
         let store = self.store.clone();
         let tag = self.catalog.tag.clone();
         Arc::new(move || {
-            let s = settings.read().unwrap_or_else(|p| p.into_inner()).clone();
+            let s = crate::sync::read(&settings).clone();
             s.worker_env(&builds_dir(&store, &tag))
         })
     }
@@ -176,9 +176,7 @@ pub struct RuntimeJobs {
     report: Mutex<Option<(String, Result<BuildsReport, String>)>>,
 }
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 impl AiCore {
     /// What the runtime manager shows: every build for this platform, installed or not, whether it works

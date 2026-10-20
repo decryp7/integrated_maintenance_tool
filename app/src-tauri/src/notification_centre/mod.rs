@@ -25,7 +25,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
 
 pub const NOTIFICATIONS_EVENT: &str = "imt://notifications";
@@ -33,6 +34,8 @@ pub const OPEN_EVENT: &str = "imt://notifications-open";
 /// An OS notification clicked (IMT focused) within this time opens its message.
 const OPEN_WITHIN_MS: i64 = 120_000;
 const FILE_NAME: &str = "notifications.json";
+/// How long changes to the app list wait before they are written (bursts are written once).
+const SAVE_DELAY: Duration = Duration::from_millis(250);
 
 /// A window's messages: its project's and the app's, newest first.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -64,14 +67,13 @@ pub struct NotificationCentre {
     app: Mutex<Centre>,
     projects: Mutex<HashMap<String, Centre>>,
     next: AtomicU64,
-    file: Option<PathBuf>,
+    /// Writes the app list to its file, debounced, off the centre's locks (none: in memory only).
+    writer: Option<Arc<crate::config_store::Debounced<Vec<Notice>>>>,
     clock: Arc<dyn Clock>,
     pending: Mutex<Option<PendingOpen>>,
 }
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 impl NotificationCentre {
     /// Loads the app's messages from `file` (missing or damaged: none).
@@ -82,7 +84,13 @@ impl NotificationCentre {
             next: AtomicU64::new(app.max_id() + 1),
             app: Mutex::new(app),
             projects: Mutex::new(HashMap::new()),
-            file,
+            writer: file.map(|path| {
+                crate::config_store::Debounced::new(SAVE_DELAY, move |notices: Vec<Notice>| {
+                    if let Err(e) = persist::save_file(&path, &notices) {
+                        log::warn!("The notifications could not be saved: {e}");
+                    }
+                })
+            }),
             clock,
             pending: Mutex::new(None),
         }
@@ -92,11 +100,17 @@ impl NotificationCentre {
         NoticeId(self.next.fetch_add(1, Ordering::SeqCst))
     }
 
+    /// Queues the app list for its file (written by the debounced writer, never under the centre's locks).
     fn save_app(&self, app: &Centre) {
-        if let Some(path) = &self.file {
-            if let Err(e) = persist::save_file(path, app.notices()) {
-                log::warn!("The notifications could not be saved: {e}");
-            }
+        if let Some(w) = &self.writer {
+            w.schedule(app.notices().to_vec());
+        }
+    }
+
+    /// Writes what is pending now (IMT is closing; tests).
+    pub fn flush(&self) {
+        if let Some(w) = &self.writer {
+            w.flush(Duration::from_secs(2));
         }
     }
 
@@ -267,9 +281,15 @@ pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice
         NoticeScope::Project => emit_snapshot(app, &centre, window.unwrap_or_default(), Some(&notice)),
     }
     if let Some(kind) = os {
-        if crate::notify::notify(app, kind, imt_focused(app), &notice.title, &notice.body) {
-            centre.note_shown(notice.id, window);
-        }
+        // Focus is a window getter, which waits for the main thread: decided there, never here.
+        let (shown, window) = (notice.clone(), window.map(str::to_string));
+        crate::ui_dispatch::run(app, move |app| {
+            if crate::notify::notify(app, kind, imt_focused(app), &shown.title, &shown.body) {
+                if let Some(centre) = app.try_state::<NotificationCentre>() {
+                    centre.note_shown(shown.id, window.as_deref());
+                }
+            }
+        });
     }
     Some(notice)
 }
@@ -296,7 +316,7 @@ pub fn forget_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
 
 fn centre<'a, R: Runtime>(app: &'a AppHandle<R>) -> crate::CmdResult<tauri::State<'a, NotificationCentre>> {
     app.try_state::<NotificationCentre>()
-        .ok_or_else(|| "IMT is not ready yet".to_string())
+        .ok_or_else(|| crate::CmdError::unavailable("IMT is not ready yet"))
 }
 
 fn changed<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &str, app_wide: bool) {
@@ -310,12 +330,12 @@ fn changed<R: Runtime>(app: &AppHandle<R>, centre: &NotificationCentre, label: &
 }
 
 #[tauri::command]
-pub fn notifications_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesSnapshot> {
+pub async fn notifications_list<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesSnapshot> {
     Ok(centre(&app)?.snapshot(win.label()))
 }
 
 #[tauri::command]
-pub fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
+pub async fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
     let c = centre(&app)?;
     let done = c.mark_read(win.label(), NoticeId(id));
     changed(&app, &c, win.label(), true);
@@ -323,7 +343,7 @@ pub fn notifications_mark_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow
 }
 
 #[tauri::command]
-pub fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
+pub async fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<usize> {
     let c = centre(&app)?;
     let n = c.mark_all_read(win.label());
     changed(&app, &c, win.label(), true);
@@ -331,7 +351,7 @@ pub fn notifications_mark_all_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
 }
 
 #[tauri::command]
-pub fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
+pub async fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> crate::CmdResult<bool> {
     let c = centre(&app)?;
     let done = c.dismiss(win.label(), NoticeId(id));
     changed(&app, &c, win.label(), true);
@@ -340,7 +360,7 @@ pub fn notifications_dismiss<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
 
 /// The window's project messages for saving (`NoticesRecord` v1).
 #[tauri::command]
-pub fn notifications_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesRecord> {
+pub async fn notifications_record<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> crate::CmdResult<NoticesRecord> {
     Ok(centre(&app)?.record(win.label()))
 }
 
@@ -353,7 +373,7 @@ pub struct RestoredNotices {
 
 /// Replaces the window's project messages with saved ones (a damaged or newer record gives none).
 #[tauri::command]
-pub fn notifications_restore<R: Runtime>(
+pub async fn notifications_restore<R: Runtime>(
     app: AppHandle<R>,
     win: CurrentWindow,
     record: Option<Value>,
@@ -412,16 +432,19 @@ mod tests {
         assert_eq!(main.notices.iter().find(|n| n.source == NoticeSource::LiveAlert).unwrap().count, 2);
         assert_eq!(c.snapshot("w-2").notices.len(), 3);
         // App messages are in the data file; project ones are not.
+        c.flush();
         let saved = persist::load_file(&file);
         assert_eq!(saved.len(), 2);
         assert!(saved.iter().all(|n| n.scope == NoticeScope::App));
         assert!(c.mark_read("main", update.notice.id), "app messages are reachable from any window");
         assert_eq!(c.snapshot("w-2").unread, 2);
         assert_eq!(c.mark_all_read("main"), 2);
+        c.flush();
         assert!(persist::load_file(&file).iter().all(|n| n.read));
         assert!(c.dismiss("w-2", update.notice.id));
         assert!(!c.dismiss("w-2", update.notice.id));
         assert!(!c.mark_read("main", NoticeId(999)));
+        c.flush();
         // A restart reads the app file back, with fresh ids after the saved ones.
         let again = NotificationCentre::new(Some(file), clock);
         assert_eq!(again.snapshot("main").notices.len(), 1);

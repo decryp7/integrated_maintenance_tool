@@ -200,6 +200,8 @@ export function buildMenus(state: MenuState): TopMenu[] {
               cmd('help.checkForUpdates', $localize`:@@shell.menu.help.checkForUpdates:Check for updates…`),
               SEP,
               cmd('settings.open', $localize`:@@shell.menu.settings:Settings…`),
+              SEP,
+              cmd('app.quit', $localize`:@@shell.menu.app.quit:Quit IMT`),
             ]),
           },
         ]
@@ -230,6 +232,9 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         cmd('file.close'),
         cmd('window.close'),
+        SEP,
+        // On macOS Quit is in the app menu.
+        state.nativeAppMenu ? null : cmd('app.quit'),
       ]),
     },
     {
