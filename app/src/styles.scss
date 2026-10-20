@@ -77,6 +77,14 @@
   --s4: #b16ec0;
   --s-other: #5b6478;
 
+  /* Source / instance markers on log lines, the Explorer, the inspector and timeline lanes (pattern repeats past 4).
+     All pairs separate under protan/deutan/tritan simulation and normal vision, each >= 3:1 on every row and panel
+     surface (--bg-1..--bg-3, --bg-hover, --bg-active, --bg-sel). Checked by app/src/app/sources/source-colors.spec.ts. */
+  --src-1: #1795fa;
+  --src-2: #db551d;
+  --src-3: #0a9068;
+  --src-4: #b16ec0;
+
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
 }
@@ -144,6 +152,12 @@
   --s3: #29a077;
   --s4: #a664fe;
   --s-other: #9aa1b0;
+
+  /* Source markers (light surfaces, including hovered and selected rows), validated like the dark ones. */
+  --src-1: #1c89de;
+  --src-2: #e85033;
+  --src-3: #034728;
+  --src-4: #773891;
 }
 
 @media (prefers-color-scheme: light) {

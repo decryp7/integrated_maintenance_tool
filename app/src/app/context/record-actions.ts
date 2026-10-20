@@ -11,6 +11,7 @@ import { proposeHighlight } from '../markers/highlight';
 import { MarkDialog } from './mark-dialog';
 import { MaskDialog } from './mask-dialog';
 import { fieldValueConditions, likeThisConditions, recordFieldText } from './rule-builders';
+import { SourceFileActions } from '../sources/source-file-actions';
 
 /** A field and value the user pointed at (inspector property row). */
 export interface FieldRef {
@@ -42,8 +43,8 @@ export type RecordMenuContribution = (record: RecordView, target: ActionTarget) 
 export const IMT_RECORD_MENU_ITEMS = new InjectionToken<readonly RecordMenuContribution[]>('IMT_RECORD_MENU_ITEMS');
 
 /**
- * The actions offered on a record or one of its values: filter, and the "teach IMT from this event"
- * dialogs (drop, mask, extract, mark). Builds menu entries; the grid and inspector only open the menu.
+ * The actions offered on a record or one of its values: filter, the "teach IMT from this event"
+ * dialogs (drop, mask, extract, mark), and opening its file outside IMT. Builds menu entries; the grid and inspector only open the menu.
  */
 @Injectable({ providedIn: 'root' })
 export class RecordActions {
@@ -51,6 +52,7 @@ export class RecordActions {
   private readonly dialogs = inject(DialogService);
   private readonly menu = inject(ContextMenuService);
   private readonly gridSelection = inject(GridSelection);
+  private readonly files = inject(SourceFileActions);
   private readonly contributions = inject(IMT_RECORD_MENU_ITEMS, { optional: true }) ?? [];
 
   itemsFor(record: RecordView, target: ActionTarget = {}): MenuEntry[] {
@@ -73,6 +75,7 @@ export class RecordActions {
     if (sel?.text.trim()) {
       items.push({ label: $localize`:@@context.recordActions.menu.mask:Mask in message…`, run: () => this.mask(record, sel) }, { label: $localize`:@@context.recordActions.menu.extract:Extract value…`, run: () => this.extract(record, sel) });
     }
+    items.push(...this.files.itemsForRecord(record));
     for (const contribute of this.contributions) items.push(...contribute(record, target));
     return items;
   }

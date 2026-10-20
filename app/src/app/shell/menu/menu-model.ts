@@ -97,6 +97,8 @@ export interface MenuState {
   views: readonly MenuView[];
   sidebarOpen: boolean;
   theme: 'system' | 'dark' | 'light';
+  /** What the source colour marker stands for (View › Source colours); default by file. */
+  sourceColors?: 'source' | 'instance' | 'off';
   timezone: 'utc' | 'local';
   markedOnly: boolean;
   undoLabel: string | null;
@@ -363,6 +365,11 @@ function viewMenu(state: MenuState, cmd: Cmd, sub: Sub): MenuNode[] {
       cmd('view.theme.system', $localize`:@@shell.menu.view.theme.system:System`, state.theme === 'system'),
       cmd('view.theme.dark', $localize`:@@shell.menu.view.theme.dark:Dark`, state.theme === 'dark'),
       cmd('view.theme.light', $localize`:@@shell.menu.view.theme.light:Light`, state.theme === 'light'),
+    ]),
+    sub('view.sourceColors', $localize`:@@shell.menu.view.sourceColors:Source colours`, [
+      cmd('view.sourceColors.source', $localize`:@@shell.menu.view.sourceColors.source:By file`, (state.sourceColors ?? 'source') === 'source'),
+      cmd('view.sourceColors.instance', $localize`:@@shell.menu.view.sourceColors.instance:By instance`, state.sourceColors === 'instance'),
+      cmd('view.sourceColors.off', $localize`:@@shell.menu.view.sourceColors.off:Off`, state.sourceColors === 'off'),
     ]),
   ]);
 }

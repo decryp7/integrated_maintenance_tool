@@ -153,6 +153,7 @@ import { SettingsBackend } from '../../settings/settings-backend';
 import { StorageBackend } from '../../settings/storage/storage-backend';
 import { ShareBackend } from '../../share/share-backend';
 import { SkewBackend } from '../skew-backend';
+import { FilesBackend } from '../files-backend';
 import { RunsBackend } from '../../timeline/runs-backend';
 import { FolderSetupBackend } from '../../ai/folder-setup/folder-setup-backend';
 import { BrowserBackend, ChatBrowserBackend } from '../../browser/browser-backend';
@@ -186,6 +187,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   StorageBackend,
   ShareBackend,
   SkewBackend,
+  FilesBackend,
   RunsBackend,
   SnapshotBackend,
   UxBackend,

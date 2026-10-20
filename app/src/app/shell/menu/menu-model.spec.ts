@@ -283,3 +283,28 @@ describe('menu model', () => {
     ).toEqual(['A']);
   });
 });
+
+describe('View › Source colours', () => {
+  const withColors = (sourceColors?: MenuState['sourceColors']) => {
+    const s = state(sourceColors ? { sourceColors } : {});
+    const commands = new Map(s.commands);
+    for (const [id, title] of [
+      ['view.sourceColors.source', 'Source colours: by file'],
+      ['view.sourceColors.instance', 'Source colours: by instance'],
+      ['view.sourceColors.off', 'Source colours: off'],
+    ] as const)
+      commands.set(id, { id, title, keybinding: undefined });
+    return sub(menu(buildMenus({ ...s, commands }), 'view').items, 'Source colours');
+  };
+
+  it('offers by file, by instance and off as a choice, by file by default', () => {
+    expect(labels(withColors())).toEqual(['By file', 'By instance', 'Off']);
+    expect(withColors().map((n) => n.kind === 'item' && n.checked)).toEqual([true, false, false]);
+    expect(withColors('instance').map((n) => n.kind === 'item' && n.checked)).toEqual([false, true, false]);
+    expect(withColors('off').map((n) => n.kind === 'item' && n.checked)).toEqual([false, false, true]);
+  });
+
+  it('is left out when the commands are not available', () => {
+    expect(() => sub(menu(buildMenus(state()), 'view').items, 'Source colours')).toThrow(/no submenu/);
+  });
+});

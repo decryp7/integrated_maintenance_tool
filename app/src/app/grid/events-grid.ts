@@ -32,6 +32,8 @@ import { GridSelection } from './grid-selection';
 import { contains, EMPTY_SELECTION, extendTo, indices, RowSelection, shift, single, toggle, withFocus } from './row-selection';
 import { makeGeometry, navigate, rowAtTop, rowY, scrollToTop, topForRow, topToScroll, visibleWindow, wheelToPixels, clamp } from './scroll-map';
 import { NextSteps } from '../ui/next-steps';
+import { SourceColors } from '../sources/source-colors.store';
+import { stripeBackground } from '../sources/source-colors';
 
 /** Row heights for the two grid densities (px). */
 const ROW_HEIGHT = { comfortable: 26, compact: 22 } as const;
@@ -123,6 +125,7 @@ interface VisibleRow {
               [attr.aria-selected]="isSelected(v.index, r)"
               [class.sel]="isSelected(v.index, r)"
               [class.hl]="!!highlight.colorFor(r)"
+              [class.marked]="colors.enabled()"
               [style.--hl]="highlight.colorFor(r)"
               [style.top.px]="v.y"
               [style.grid-template-columns]="columns()"
@@ -131,6 +134,9 @@ interface VisibleRow {
               (contextmenu)="openRowMenu($event, v.index, r)"
             >
               <span class="mk" role="gridcell">
+                @if (colors.forRecord(r); as m) {
+                  <span class="srcmark" role="img" data-testid="source-stripe" [style.background]="stripe(m.swatch)" [attr.data-pattern]="m.swatch.pattern" [attr.aria-label]="m.label" [title]="m.label"></span>
+                }
                 @if (r.markers[0]; as mk) { <imt-marker-icon [kind]="mk" [color]="markerColor(mk)" [label]="markerLabel(mk)" /> }
               </span>
               <span class="mono time" role="gridcell">{{ time(r.ts) }}</span>
@@ -187,6 +193,12 @@ interface VisibleRow {
     .row.hl { background-image: linear-gradient(color-mix(in srgb, var(--hl) var(--row-hl-tint, 12%), transparent) 0 0); }
     .row.hl::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--hl); }
     .row.hl.sel { box-shadow: inset 6px 0 0 var(--accent); }
+    /* Source / instance colour: a 4px stripe at the row start (dashed or dotted past four colours), before any highlight bar. */
+    .srcmark { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+    .srcmark::after { content: ''; position: absolute; inset: 0 -6px 0 0; }
+    .row.marked.hl::before { left: 4px; }
+    .row.marked.sel { box-shadow: inset 6px 0 0 var(--accent); }
+    .row.marked.hl.sel { box-shadow: inset 10px 0 0 var(--accent); }
     .mk { display: flex; justify-content: center; }
     .time { font-size: 12px; color: var(--muted); white-space: nowrap; }
     .lvl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-2); }
@@ -208,6 +220,9 @@ export class EventsGrid {
   /** Live refreshes: whether to reload the rows in view (following) or keep them ("N new events"). */
   private readonly feed = inject(LiveFeed);
   protected readonly highlight = inject(HighlightRules);
+  /** Source / instance colour of each row (View › Source colours). */
+  protected readonly colors = inject(SourceColors);
+  protected readonly stripe = stripeBackground;
   /** Where the grid publishes its multi-selection for palette commands and other panels. */
   private readonly published = inject(GridSelection);
   protected readonly rowH = computed(() => ROW_HEIGHT[this.settings.density()]);

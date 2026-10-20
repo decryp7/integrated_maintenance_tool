@@ -1,3 +1,4 @@
+import { SettingsStore } from '../../settings/settings.store';
 import { afterNextRender, computed, inject, Injectable, InjectionToken, Injector } from '@angular/core';
 import { isTauri } from '../../core/platform';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -32,6 +33,7 @@ export class AppMenu {
   private readonly palette = inject(PaletteService);
   private readonly panelWindows = inject(PANEL_WINDOWS, { optional: true });
   private readonly injector = inject(Injector);
+  private readonly prefs = inject(SettingsStore);
   readonly mode = inject(MENU_MODE);
 
   readonly menus = computed<TopMenu[]>(() => {
@@ -44,6 +46,7 @@ export class AppMenu {
       views: this.views.available().map((v) => ({ id: v.id, title: v.title, category: v.category, plugin: v.plugin, menu: v.menu, open: open.has(v.id) })),
       sidebarOpen: this.store.sidebarOpen(),
       theme: this.store.theme(),
+      sourceColors: this.prefs.sourceColors(),
       timezone: this.store.timezone(),
       markedOnly: this.store.markedOnly(),
       undoLabel: this.undo.undoLabel(),

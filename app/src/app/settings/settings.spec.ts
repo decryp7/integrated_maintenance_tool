@@ -15,9 +15,11 @@ describe('settings storage', () => {
   it('round-trips and validates', () => {
     const storage = new LocalStorageSettingsStorage();
     expect(storage.load()).toEqual({});
-    storage.save({ dateFormat: 'iso', density: 'compact' });
-    expect(storage.load()).toEqual({ dateFormat: 'iso', density: 'compact' });
-    expect(sanitizeSettings({ dateFormat: 'weird' as never, density: 'compact' })).toEqual({ dateFormat: 'readable', density: 'compact' });
+    storage.save({ dateFormat: 'iso', density: 'compact', sourceColors: 'instance' });
+    expect(storage.load()).toEqual({ dateFormat: 'iso', density: 'compact', sourceColors: 'instance' });
+    expect(sanitizeSettings({ dateFormat: 'weird' as never, density: 'compact' })).toEqual({ dateFormat: 'readable', density: 'compact', sourceColors: 'source' });
+    expect(sanitizeSettings({ sourceColors: 'rainbow' as never }).sourceColors).toBe('source');
+    expect(sanitizeSettings({ sourceColors: 'off' }).sourceColors).toBe('off');
     expect(sanitizeSettings({})).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -84,7 +86,10 @@ describe('GeneralSettings', () => {
     expect(overview.autoOpen()).toBe(false);
     expect(localStorage.getItem(OVERVIEW_AUTO_OPEN_KEY)).toBe('false');
     await settle(fixture);
-    expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'Local', 'ISO', 'compact']);
+    expect(all(fixture, '[aria-pressed=true]').map((b) => b.textContent?.trim())).toEqual(['light', 'Local', 'ISO', 'compact', 'By file']);
+    // Source colours: by file, by instance or off, remembered with the other display settings.
+    all<HTMLButtonElement>(fixture, '[data-testid=source-colors] button')[2]?.click();
+    expect(settings.sourceColors()).toBe('off');
     expect(text(fixture)).toContain('Always show start/stop markers');
     expect(text(fixture)).toContain('Overview: show after every import');
   });

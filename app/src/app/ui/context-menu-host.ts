@@ -10,7 +10,12 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
       <div class="backdrop" (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
       <div #box class="menu popover" role="menu" aria-label="Actions" i18n-aria-label="@@ui.contextMenu.actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
         @for (item of m.items; track item.label) {
-          <button type="button" role="menuitem" class="item" tabindex="-1" [disabled]="item.disabled" (click)="run(item)">{{ item.label }}</button>
+          <button type="button" role="menuitem" class="item" [class.hinted]="!!item.hint" tabindex="-1" [disabled]="item.disabled" (click)="run(item)">
+            <span>{{ item.label }}</span>
+            @if (item.hint) {
+              <span class="hint">{{ item.hint }}</span>
+            }
+          </button>
         }
       </div>
     }
@@ -22,6 +27,8 @@ import { ContextMenuService, MenuEntry } from './context-menu.service';
     .item:hover:not(:disabled), .item:focus { background: var(--bg-hover); color: var(--text); outline: none; }
     .item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     .item:disabled { color: var(--faint); cursor: default; }
+    .item.hinted { height: auto; min-height: 28px; padding: 4px 10px; flex-direction: column; align-items: flex-start; justify-content: center; white-space: normal; max-width: 360px; }
+    .hint { font-size: 11px; color: var(--faint); }
   `,
 })
 export class ContextMenuHost {

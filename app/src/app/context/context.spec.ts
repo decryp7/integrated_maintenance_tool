@@ -267,7 +267,7 @@ describe('RecordActions and the context menu', () => {
   it('offers row actions and opens the drop dialog prefilled from the record', async () => {
     const { rec, actions, dialogs } = await setup();
     const labels = actions.itemsFor(rec).map((i) => i.label);
-    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…']);
+    expect(labels).toEqual(['Drop events like this (pipeline)…', 'Mark events like this…', 'Highlight lines…', 'Infer pattern from lines…', 'Open file', `Open at line ${rec.line}`, 'Show in folder']);
     at(actions.itemsFor(rec), 0).run();
     expect(dialogs.stack()[0]?.component).toBe(DropDialog);
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
@@ -287,6 +287,9 @@ describe('RecordActions and the context menu', () => {
       'Infer pattern from lines…',
       'Mask in message…',
       'Extract value…',
+      'Open file',
+      `Open at line ${rec.line}`,
+      'Show in folder',
     ]);
     at(items, 0).run();
     at(items, 1).run();
@@ -301,7 +304,7 @@ describe('RecordActions and the context menu', () => {
     at(items, 7).run();
     expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
     expect(dialogs.stack()[2]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
-    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(4);
+    expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(7);
   });
 
   it('infers from every selected record, or from the record alone', async () => {
@@ -356,11 +359,11 @@ describe('RecordActions and the context menu', () => {
     key('ArrowUp');
     expect(document.activeElement).toBe(items[0]);
     key('ArrowUp');
-    expect(document.activeElement).toBe(items[3]);
+    expect(document.activeElement).toBe(items[items.length - 1]);
     key('ArrowDown');
     expect(document.activeElement).toBe(items[0]);
     key('End');
-    expect(document.activeElement).toBe(items[3]);
+    expect(document.activeElement).toBe(items[items.length - 1]);
     key('Home');
     expect(document.activeElement).toBe(items[0]);
     key('x');

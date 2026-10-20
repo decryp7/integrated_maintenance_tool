@@ -13,6 +13,9 @@ import { ContextMenuService } from '../ui/context-menu.service';
 import { ClockDialogService } from '../skew/clock-section';
 import { formatOffset } from '../skew/skew-format';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
+import { SourceColors } from '../sources/source-colors.store';
+import { SourceFileActions } from '../sources/source-file-actions';
+import { SourceSwatch } from '../sources/source-swatch';
 
 type TailFileStateOf = Extract<TailFileState, { kind: NotableState }>;
 
@@ -24,7 +27,7 @@ function shortPath(path: string): string {
 @Component({
   selector: 'imt-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, FieldsPanel, NgTemplateOutlet],
+  imports: [Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
@@ -95,7 +98,11 @@ function shortPath(path: string): string {
 
     <ng-template #file let-s let-member="member">
       <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
-        <imt-icon name="file" [size]="13" class="faint" />
+        @if (colors.forExplorer(s); as m) {
+          <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
+        } @else {
+          <imt-icon name="file" [size]="13" class="faint" />
+        }
         <span class="ellipsis name">{{ member ? s.name : short(s.path) }}</span>
         @if (notable(s.id); as st) {
           <span class="state" [class]="'state ' + st.kind" [title]="hint(st)" [attr.aria-label]="label(st) + ': ' + hint(st)" role="img">{{ label(st) }}</span>
@@ -105,6 +112,7 @@ function shortPath(path: string): string {
         }
         <span class="badge">{{ s.importer }}</span>
         <span class="mono count">{{ compact(s.records) }}</span>
+        <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
         <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
         <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><imt-icon name="close" [size]="12" /></button>
       </div>
@@ -158,6 +166,8 @@ export class Sidebar {
   private readonly tail = inject(TailStatusStore);
   private readonly menu = inject(ContextMenuService);
   private readonly clock = inject(ClockDialogService);
+  private readonly files = inject(SourceFileActions);
+  protected readonly colors = inject(SourceColors);
   protected readonly offset = formatOffset;
   protected readonly sources = computed(() => this.store.summary()?.sources ?? []);
   /** Sources with rolling files of one log collapsed into expandable groups. */
@@ -204,6 +214,10 @@ export class Sidebar {
     return $localize`:@@shell.sidebar.adjustClockTitle:Adjust clock of ${name}:name:…`;
   }
 
+  protected actionsLabel(name: string): string {
+    return $localize`:@@shell.sidebar.actionsLabel:Actions for ${name}:name:`;
+  }
+
   protected removeLabel(name: string): string {
     return $localize`:@@shell.sidebar.removeLabel:Remove ${name}:name:`;
   }
@@ -240,14 +254,18 @@ export class Sidebar {
 
   protected sourceMenu(event: MouseEvent, s: SourceInfo): void {
     event.preventDefault();
+    const anchor = event.currentTarget as HTMLElement | null;
+    // A keyboard "click" has no pointer position: open below the button instead.
+    const r = event.clientX || event.clientY ? null : anchor?.getBoundingClientRect();
     this.menu.open(
-      event.clientX,
-      event.clientY,
+      r ? r.left : event.clientX,
+      r ? r.bottom : event.clientY,
       [
+        ...this.files.items(s),
         { label: $localize`:@@shell.sidebar.menu.adjustClock:Adjust clock…`, run: () => this.adjustClock(s) },
         { label: $localize`:Context menu item@@shell.sidebar.menu.remove:Remove`, run: () => void this.store.removeSource(s.id) },
       ],
-      event.currentTarget as HTMLElement | null,
+      anchor,
     );
   }
 

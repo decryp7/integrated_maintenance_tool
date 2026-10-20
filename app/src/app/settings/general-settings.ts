@@ -6,7 +6,8 @@ import { LanguageService } from '../i18n/language.service';
 import { LanguageChoice } from '../i18n/locale';
 import { OverviewPrefs } from '../overview/overview-prefs';
 import { HelpHint } from '../ui/help-hint';
-import { GridDensity, SettingsStore } from './settings.store';
+import { GridDensity, SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
+import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
 
 /**
  * UI-only preferences (kept in the browser): language (applied after a restart), theme, time zone, date format,
@@ -57,6 +58,14 @@ import { GridDensity, SettingsStore } from './settings.store';
       <div class="seg">
         @for (d of densities; track d) {
           <button class="btn" type="button" [class.active]="settings.density() === d" [attr.aria-pressed]="settings.density() === d" (click)="settings.setDensity(d)">{{ densityLabels[d] }}</button>
+        }
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend i18n="@@settings.general.sourceColors">Source colours <imt-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
+      <div class="seg" data-testid="source-colors">
+        @for (m of sourceColorModes; track m) {
+          <button class="btn" type="button" [class.active]="settings.sourceColors() === m" [attr.aria-pressed]="settings.sourceColors() === m" (click)="settings.setSourceColors(m)">{{ sourceColorLabels[m] }}</button>
         }
       </div>
     </fieldset>
@@ -114,6 +123,8 @@ export class GeneralSettings {
     { id: 'readable', label: $localize`:Date format option@@settings.general.dateFormat.readable:Readable` },
     { id: 'iso', label: 'ISO' },
   ];
+  protected readonly sourceColorModes = SOURCE_COLOR_MODES;
+  protected readonly sourceColorLabels = SOURCE_COLOR_LABELS;
   protected readonly densities: GridDensity[] = ['comfortable', 'compact'];
   protected readonly densityLabels: Record<GridDensity, string> = {
     comfortable: $localize`:Grid density option (capitalised by CSS)@@settings.general.density.comfortable:comfortable`,
