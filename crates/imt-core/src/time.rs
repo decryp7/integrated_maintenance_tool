@@ -39,7 +39,7 @@ fn numeric_date_re() -> &'static Regex {
         Regex::new(
             r"(?x)^
             (?P<a>\d{4}|\d{1,2})[-/.](?P<b>\d{1,2})[-/.](?P<c>\d{1,4})
-            (?:(?:[\sT]+|:)(?P<time>\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d{1,9})?)\s*(?P<ampm>[AaPp][Mm])?)?
+            (?:(?:[\sT]+|[:,]\s*)(?P<time>\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d{1,9})?)\s*(?P<ampm>[AaPp][Mm])?)?
             \s*(?P<zone>Z|UTC|GMT|[+-]\d{2}:?\d{2}|[+-]\d{2})?\s*$",
         )
         .unwrap()
@@ -87,6 +87,13 @@ impl TimestampParser {
 
     pub fn with_day_first(&self, day_first: Option<bool>) -> Self {
         TimestampParser { day_first, ..self.clone() }
+    }
+
+    /// This parser with `format` (.NET style or strftime) tried before its own formats.
+    pub fn with_format(&self, format: &str) -> Self {
+        let mut custom = vec![to_strftime(format)];
+        custom.extend(self.custom.iter().cloned());
+        TimestampParser { custom, ..self.clone() }
     }
 
     /// Parses a full timestamp into epoch milliseconds.
@@ -383,11 +390,20 @@ pub fn to_strftime(fmt: &str) -> String {
             'm' => out.push_str("%M"),
             's' => out.push_str("%S"),
             'f' | 'F' => {
-                // ".fff" -> "%.f" (the dot is consumed by %.f)
-                if out.ends_with('.') || out.ends_with(',') {
-                    out.pop();
+                if out.ends_with(',') {
+                    // ",fff": chrono's "%.f" only reads a dot, so the comma stays literal before fixed digits.
+                    out.push_str(match n {
+                        1..=3 => "%3f",
+                        4..=6 => "%6f",
+                        _ => "%9f",
+                    });
+                } else {
+                    // ".fff" -> "%.f" (the dot is consumed by %.f)
+                    if out.ends_with('.') {
+                        out.pop();
+                    }
+                    out.push_str("%.f");
                 }
-                out.push_str("%.f");
             }
             't' => out.push_str("%p"),
             'z' => out.push_str(if n >= 3 { "%:z" } else { "%z" }),
@@ -557,7 +573,48 @@ mod tests {
         );
         assert_eq!(to_strftime("dddd, MMMM d yyyy 'at' h:mm zz"), "%A, %B %d %Y at %I:%M %z");
         assert_eq!(to_strftime("yyyy-MM-dd\\THH"), "%Y-%m-%dT%H");
-        assert_eq!(to_strftime("ddd MMM HH:mm:ss,FFF"), "%a %b %H:%M:%S%.f");
+        assert_eq!(to_strftime("ddd MMM HH:mm:ss,FFF"), "%a %b %H:%M:%S,%3f");
+        assert_eq!(to_strftime("HH:mm:ss,ffffff"), "%H:%M:%S,%6f");
+        assert_eq!(to_strftime("HH:mm:ss,fffffffff"), "%H:%M:%S,%9f");
+        // A comma before the fraction stays a comma (chrono's "%.f" reads only a dot).
+        assert_eq!(
+            f("dd.MM.yyyy HH:mm:ss,fff", "14.10.2026 10:00:00,250"),
+            Some(ms(2026, 10, 14, 10, 0, 0, 250))
+        );
         assert_eq!(to_strftime("'unterminated"), "unterminated");
+    }
+
+    #[test]
+    fn comma_between_date_and_time() {
+        // Slashes, a comma between date and time, milliseconds and an offset (reported from a real log).
+        let want = ms(2025, 11, 7, 23, 4, 37, 759);
+        assert_eq!(p().parse("2025/11/08,00:04:37.759+01:00"), Some(want));
+        assert_eq!(p().parse("2025-11-08,00:04:37.759+0100"), Some(want));
+        assert_eq!(p().parse("2025/11/08,00:04:37"), Some(ms(2025, 11, 8, 0, 4, 37, 0)));
+        assert_eq!(p().parse("2025/11/08,00:04:37.759Z"), Some(ms(2025, 11, 8, 0, 4, 37, 759)));
+        assert_eq!(p().parse("2025/11/08, 00:04:37"), Some(ms(2025, 11, 8, 0, 4, 37, 0)));
+        assert_eq!(p().parse("[2025/11/08,00:04:37.759+01:00]"), Some(want));
+        assert_eq!(p().parse("08/11/2025,00:04:37"), Some(ms(2025, 8, 11, 0, 4, 37, 0)));
+        // The comma as the decimal separator (log4j) still reads as before.
+        assert_eq!(p().parse("2025-11-08 00:04:37,759"), Some(ms(2025, 11, 8, 0, 4, 37, 759)));
+        assert_eq!(p().parse("2025/11/08,00:04:37,759"), Some(ms(2025, 11, 8, 0, 4, 37, 759)));
+        // Two commas or a comma with nothing after it are not a timestamp.
+        assert_eq!(p().parse("2025/11/08,,00:04:37"), None);
+        assert_eq!(p().parse("2025/11/08,"), None);
+        assert_eq!(detect_day_first(["25/11/2025,00:04:37"]), Some(true));
+    }
+
+    #[test]
+    fn with_format_is_tried_first() {
+        let base = TimestampParser::new(&[], "+01:00", None).unwrap();
+        let extended = base.with_format("%a %b %d %H:%M:%S %Y");
+        assert_eq!(base.parse("Sat Nov 08 00:04:37 2025"), None);
+        assert_eq!(extended.parse("Sat Nov 08 00:04:37 2025"), Some(ms(2025, 11, 7, 23, 4, 37, 0)));
+        // The rest of the parser is kept.
+        assert_eq!(extended.parse("2025-11-08 00:04:37"), Some(ms(2025, 11, 7, 23, 4, 37, 0)));
+        assert_eq!(
+            TimestampParser::default().with_format("yyyy|MM|dd").parse("2025|11|08"),
+            Some(ms(2025, 11, 8, 0, 0, 0, 0))
+        );
     }
 }

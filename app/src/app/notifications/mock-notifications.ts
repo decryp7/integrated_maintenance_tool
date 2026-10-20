@@ -11,6 +11,8 @@ export interface MockNewNotice {
   primary?: NoticeAction | null;
   secondary?: NoticeAction | null;
   dedupeKey?: string | null;
+  /** Posting the same key again changes nothing (the engine's `NewNotice::once`). */
+  once?: boolean;
   scope?: NoticeScope;
   link?: Partial<NoticeLink>;
 }
@@ -43,6 +45,7 @@ export class MockNotifications implements NotificationsBackend {
     const key = n.dedupeKey ?? null;
     const existing = key ? this.notices.find((m) => m.dedupeKey === key) : undefined;
     let notice: Notice;
+    if (existing && n.once) return existing;
     if (existing) {
       notice = { ...existing, count: existing.count + 1, at: now, read: false, title: n.title, body: n.body ?? '', severity: n.severity, primary: n.primary ?? null, secondary: n.secondary ?? null };
       this.notices = [...this.notices.filter((m) => m !== existing), notice];

@@ -30,19 +30,23 @@ output_templates = [
 # fields), tried after the templates.
 regexes = [
   # log4net / NLog: %date [%thread] %-5level %logger [%ndc] - %message
-  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
+  '^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)\s+\[(?P<Thread>[^\]]+)\]\s+(?P<level>[A-Za-z]+)\s+(?P<Logger>\S+)\s+(?:\[?(?P<Ndc>[^\]\s]*)\]?\s+)?-\s(?P<message>.*)$',
   # Python logging: %(asctime)s - %(name)s - %(levelname)s - %(message)s
   '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?) - (?P<Logger>\S+) - (?P<level>[A-Za-z]+) - (?P<message>.*)$',
   # Generic: a timestamp, maybe in brackets or followed by "," or " - " (log4j,
   # Kafka, Elasticsearch, ZooKeeper, CBS), then maybe a thread or process number
   # and a level in any case (MySQL, OpenStack), then the message.
-  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
+  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
 ]
 # Extra timestamp formats, .NET style ("dd/MM/yyyy HH:mm:ss.fff") or strftime
 # ("%d/%m/%Y %H:%M:%S%.f"). Common ISO/RFC/Serilog/epoch formats are always
 # recognised.
 # A format without a year ("%b %e %H:%M:%S", BSD syslog) takes the current year,
 # or the previous one when that would be more than a day in the future.
+# A comma before the fraction stays a comma (.NET "HH:mm:ss,fff", strftime
+# "%H:%M:%S,%3f"). When many lines of a file have no readable timestamp, IMT
+# proposes a format for this list (checked against those lines) in the Explorer
+# and the Notifications centre.
 timestamp_formats = []
 # Timezone for timestamps without an offset: "UTC", "local" or "+08:00".
 assume_timezone = "UTC"

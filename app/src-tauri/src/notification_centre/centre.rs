@@ -75,6 +75,12 @@ pub enum NoticeAction {
     SetUpFormat {
         path: String,
     },
+    /// Opens the format wizard for a file whose timestamps were not read, with the format the engine
+    /// verified (none: the wizard starts empty).
+    FixTimestamps {
+        path: String,
+        format: Option<String>,
+    },
     ResetAi,
     InstallUpdate,
     /// Shows a live alert's evidence (its time range in the grid).

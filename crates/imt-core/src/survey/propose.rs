@@ -19,11 +19,11 @@ const MAX_QUERIES: usize = 3;
 const FORMATS: &[(&str, &str)] = &[
     (
         "day-first or US date",
-        r"^\[?(?P<timestamp>\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}[ T]\d{1,2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\]?\s*(?:\[?(?P<level>(?i:TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL))\]?\s*[:|-]?\s*)?(?P<message>.*)$",
+        r"^\[?(?P<timestamp>\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}[ T,]\d{1,2}:\d{2}:\d{2}(?:[.,]\d{1,9})?)\]?\s*(?:\[?(?P<level>(?i:TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL))\]?\s*[:|-]?\s*)?(?P<message>.*)$",
     ),
     (
         "ISO timestamp",
-        r"^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?:Z|[+-]\d{2}:?\d{2})?)\]?\s*(?:\[?(?P<level>(?i:TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL))\]?\s*[:|-]?\s*)?(?P<message>.*)$",
+        r"^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?:Z|[+-]\d{2}:?\d{2})?)\]?\s*(?:\[?(?P<level>(?i:TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL))\]?\s*[:|-]?\s*)?(?P<message>.*)$",
     ),
     (
         "time of day",

@@ -31,12 +31,13 @@ const TEMPLATE = '{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:
 describe('FormatWizard', () => {
   const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
 
-  async function mount(backend = tinyBackend(), path = '/logs/system/export.reg') {
+  async function mount(backend = tinyBackend(), path = '/logs/system/export.reg', timestampFormat?: string | null) {
     ref.close.mockClear();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), { provide: DIALOG_REF, useValue: ref }] });
     const fixture = TestBed.createComponent(FormatWizard as Type<FormatWizard>);
     fixture.componentRef.setInput('path', path);
     fixture.componentRef.setInput('name', 'export.reg');
+    if (timestampFormat !== undefined) fixture.componentRef.setInput('timestampFormat', timestampFormat);
     await settle(fixture);
     return { fixture, backend, store: TestBed.inject(WorkspaceStore) };
   }
@@ -203,6 +204,50 @@ describe('FormatWizard', () => {
     inst.pending.set({ start: 20, end: 22 });
     (inst as unknown as { mark(p: string): void }).mark('timestamp');
     expect(Object.keys(inst.marks()).sort()).toEqual(['level', 'timestamp']);
+  });
+
+  it('offers the timestamp format only when opened for unreadable timestamps', async () => {
+    const { fixture } = await mount();
+    expect(all(fixture, 'button').some((b) => b.textContent?.includes('Timestamp format'))).toBe(false);
+    expect(all(fixture, '[data-testid=timestamp-format]')).toHaveLength(0);
+  });
+
+  it('starts on the proposed timestamp format, previews it and saves it first in parse.timestamp_formats', async () => {
+    const backend = tinyBackend();
+    const requests: ParsePreviewRequest[] = [];
+    const original = backend.previewParse.bind(backend);
+    vi.spyOn(backend, 'previewParse').mockImplementation((r) => (requests.push(r), original(r)));
+    const { fixture } = await mount(backend, '/logs/system/export.reg', '%a %b %d %H:%M:%S %Y');
+    expect(text(fixture)).toContain('but not their timestamps');
+    const input = el(fixture, '[data-testid=timestamp-format]') as HTMLInputElement;
+    expect(input.value).toBe('%a %b %d %H:%M:%S %Y');
+    expect(text(fixture)).toContain('IMT checked this format');
+    await preview(fixture);
+    expect(at(requests, 0).toml).toContain('timestamp_formats = [ "%a %b %d %H:%M:%S %Y" ]');
+    // An edited format is no longer the checked one; an empty one has nothing to preview.
+    input.value = '%Y';
+    input.dispatchEvent(new Event('input'));
+    await settle(fixture);
+    expect(text(fixture)).not.toContain('IMT checked this format');
+    input.value = '  ';
+    input.dispatchEvent(new Event('input'));
+    await settle(fixture);
+    expect(all(fixture, '[data-testid=format-summary]')).toHaveLength(0);
+    input.value = '%a %b %d %H:%M:%S %Y';
+    input.dispatchEvent(new Event('input'));
+    await preview(fixture);
+    buttonByText(fixture, 'Save and re-import').click();
+    await vi.waitFor(() => expect(ref.close).toHaveBeenCalledWith(true));
+    const saved = (await backend.getProfile()).toml;
+    expect(saved).toContain('timestamp_formats = [ "%a %b %d %H:%M:%S %Y" ]');
+    // The other modes stay available.
+    expect(all(fixture, 'button').some((b) => b.textContent?.includes('Mark on a sample line'))).toBe(true);
+  });
+
+  it('starts on an empty timestamp format when the engine had none to propose', async () => {
+    const { fixture } = await mount(tinyBackend(), '/logs/system/export.reg', null);
+    expect((el(fixture, '[data-testid=timestamp-format]') as HTMLInputElement).value).toBe('');
+    expect(text(fixture)).not.toContain('IMT checked this format');
   });
 
   it('does nothing on save without anything to save', async () => {

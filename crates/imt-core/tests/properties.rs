@@ -149,11 +149,13 @@ const TS_SHAPES: &[&str] = &[
     "10:00:00.5",
     "2026-10-14T10:00:00-05:00",
     "14.10.2026 10:00:00",
+    "2025/11/08,00:04:37.759+01:00",
+    "Sat Nov 08 00:04:37 2025",
 ];
 
 fn timestamp_like() -> impl Strategy<Value = String> {
     prop_oneof![
-        "[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}:[0-9]{2}([.,][0-9]{1,12})?(Z|[+-][0-9]{2}:?[0-9]{2})?",
+        "[0-9]{4}[-/][0-9]{2}[-/][0-9]{2}[T ,][0-9]{2}:[0-9]{2}:[0-9]{2}([.,][0-9]{1,12})?(Z|[+-][0-9]{2}:?[0-9]{2})?",
         "[0-9]{1,4}[/.-][0-9]{1,2}[/.-][0-9]{1,4} [0-9]{1,2}:[0-9]{2}(:[0-9]{2})? ?([AaPp][Mm])?",
         "[0-9.eE+-]{1,30}",
         "[A-Za-z]{3} +[0-9]{1,2} [0-9:]{4,8}",
@@ -224,6 +226,19 @@ proptest! {
             let _ = time::utc_date_of(ms);
             let _ = time::to_strftime(&f);
             let _ = time::detect_day_first(samples.iter().map(String::as_str));
+        });
+    }
+
+    /// The timestamp diagnosis (format inference and its verification) never panics on any lines.
+    #[test]
+    fn timestamp_suggestion_never_panics(lines in prop::collection::vec(prop_oneof![timestamp_like(), any::<String>()], 0..8)) {
+        guard(move || {
+            let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+            for p in parsers() {
+                let _ = imt_core::timestamp_issue::suggest::propose(&refs, &p);
+            }
+            let records: Vec<Record> = (1..=lines.len() as u32).map(Record::new).collect();
+            let _ = imt_core::timestamp_issue::assess("text", &records, &lines.join("\n"), &parsers()[0]);
         });
     }
 

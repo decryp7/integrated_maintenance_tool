@@ -39,7 +39,13 @@ import type { ImtBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
 import { generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
-import { mockPreviewSpans, mockQueryRuns, mockRunAnnotations, RunContext, spanRules } from './mock-runs';
+import {
+  mockPreviewSpans,
+  mockQueryRuns,
+  mockRunAnnotations,
+  RunContext,
+  spanRules,
+} from './mock-runs';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
 import { MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
@@ -48,7 +54,17 @@ import { mockPreviewParse } from './mock-parse';
 import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
-import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
+import {
+  emptyReport,
+  LEGACY_LIVE,
+  MockAlertMutes,
+  MockLiveConfig,
+  MockLiveSim,
+  mockGroupOf,
+  mockResolveLiveOptions,
+  mockResolveWindow,
+  mockWatchMode,
+} from './mock-live';
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
 import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashboards';
@@ -58,7 +74,16 @@ import { firstChanged, mockSuggest, recordKey, resolveOffset, shiftSource } from
 import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from '../api.types';
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
-import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
+import { timestampNotice, withTimestampIssue } from './mock-timestamps';
+import {
+  IDLE_PROGRESS,
+  isMockDemoPath,
+  MockFiles,
+  MockImportSim,
+  MockProfileHistory,
+  NOT_IMPORTED_REASON,
+  slowImportFiles,
+} from './mock-import';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
 const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
@@ -145,7 +170,8 @@ export class MockBackend implements ImtBackend {
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
     this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs) : null;
-    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
+    if (options.exposeLiveCalls)
+      (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
 
@@ -158,7 +184,9 @@ export class MockBackend implements ImtBackend {
         reject(e instanceof Error ? e.message : String(e));
       }
     };
-    return new Promise((resolve, reject) => (this.latency ? setTimeout(() => run(resolve, reject), ms) : run(resolve, reject)));
+    return new Promise((resolve, reject) =>
+      this.latency ? setTimeout(() => run(resolve, reject), ms) : run(resolve, reject),
+    );
   }
 
   /** Rejects (like a failing Tauri command) while the command still has simulated failures left. */
@@ -215,6 +243,7 @@ export class MockBackend implements ImtBackend {
         to: perSource.get(s.id)?.to ?? null,
         offsetMs: s.offsetMs ?? 0,
         fileKind: mockFileKind(s.path),
+        timestampIssue: s.timestampIssue ?? null,
       })),
       unrecognized: this.dataset.unrecognized,
       total: synthetic ?? e.records.length,
@@ -248,7 +277,10 @@ export class MockBackend implements ImtBackend {
       return;
     }
     const redactor = new MockRedactor(mockRedactCfg(this.profile), String(Math.random()));
-    if (redactor.empty) throw new Error('the profile has no redaction rules: add detectors or [[redact.rule]] to its [redact] section');
+    if (redactor.empty)
+      throw new Error(
+        'the profile has no redaction rules: add detectors or [[redact.rule]] to its [redact] section',
+      );
     this.redactor = redactor;
   }
 
@@ -261,7 +293,9 @@ export class MockBackend implements ImtBackend {
     const r = this.redactor;
     if (!r) return page;
     const fields = (f: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(f).map(([k, v]) => [k, typeof v === 'string' ? r.field(k, v) : v]));
+      Object.fromEntries(
+        Object.entries(f).map(([k, v]) => [k, typeof v === 'string' ? r.field(k, v) : v]),
+      );
     return {
       ...page,
       rows: page.rows.map((row) => ({
@@ -282,7 +316,9 @@ export class MockBackend implements ImtBackend {
       const key = r.field(facet.field, v.value);
       merged.set(key, (merged.get(key) ?? 0) + v.count);
     }
-    const values = [...merged].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+    const values = [...merged]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
     return { ...facet, values, distinct: values.length };
   }
 
@@ -299,6 +335,7 @@ export class MockBackend implements ImtBackend {
       for (const path of others) this.addExtra(path);
       this.apply();
       this.quickProgress = { ...IDLE_PROGRESS, done: paths.length, total: paths.length };
+      this.reportTimestampIssues();
       return this.summary();
     }, 300);
   }
@@ -307,7 +344,8 @@ export class MockBackend implements ImtBackend {
   private addExtra(path: string): void {
     if (this.dataset.sources.some((s) => s.path === path)) return;
     const id = this.nextSourceId++;
-    const extra = generateExtraSource(id, path, id);
+    const generated = generateExtraSource(id, path, id);
+    const extra = withTimestampIssue(path, generated.source, generated.records);
     this.dataset.sources.push(extra.source);
     this.dataset.records.push(...extra.records);
   }
@@ -326,7 +364,11 @@ export class MockBackend implements ImtBackend {
       ids.set(s.id, id);
       this.dataset.sources.push({ ...s, id });
     }
-    this.dataset.records.push(...demo.records.filter((r) => ids.has(r.source)).map((r) => ({ ...r, source: ids.get(r.source)! })));
+    this.dataset.records.push(
+      ...demo.records
+        .filter((r) => ids.has(r.source))
+        .map((r) => ({ ...r, source: ids.get(r.source)! })),
+    );
   }
 
   /** A slow, cancellable import: the files not read before a cancel are listed as not imported. */
@@ -335,7 +377,12 @@ export class MockBackend implements ImtBackend {
     const files = slowImportFiles(paths);
     const { skipped } = await sim.run(files, (file) => this.addExtra(file));
     for (const file of skipped) {
-      if (!this.dataset.unrecognized.some((u) => u.path === file)) this.dataset.unrecognized.push({ path: file, name: file.split('/').pop() ?? file, reason: NOT_IMPORTED_REASON });
+      if (!this.dataset.unrecognized.some((u) => u.path === file))
+        this.dataset.unrecognized.push({
+          path: file,
+          name: file.split('/').pop() ?? file,
+          reason: NOT_IMPORTED_REASON,
+        });
     }
     this.apply();
     return this.summary();
@@ -379,10 +426,19 @@ export class MockBackend implements ImtBackend {
     });
   }
 
+  /** As the engine does after an import: one message per file whose timestamps were not read (once per file). */
+  private reportTimestampIssues(): void {
+    for (const s of this.dataset.sources) {
+      const notice = timestampNotice(s);
+      if (notice) mockNotifications().post(notice);
+    }
+  }
+
   reloadWorkspace() {
     return this.delay(() => {
       this.dataset = this.makeDataset();
       this.apply();
+      this.reportTimestampIssues();
       return this.summary();
     }, 400);
   }
@@ -391,20 +447,37 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('queryPage') ??
       this.delay(() => {
-        const page = this.redactPage(this.options.syntheticTotal ? syntheticPage(request, this.syntheticCount()) : this.engine.page(this.windowed(request)));
-        return this.options.corruptMarkers ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) } : page;
+        const page = this.redactPage(
+          this.options.syntheticTotal
+            ? syntheticPage(request, this.syntheticCount())
+            : this.engine.page(this.windowed(request)),
+        );
+        return this.options.corruptMarkers
+          ? { ...page, rows: page.rows.map((r) => ({ ...r, markers: undefined as never })) }
+          : page;
       }, 20)
     );
   }
 
   queryTimeline(request: TimelineRequest): Promise<Timeline> {
-    return this.failing('queryTimeline') ?? this.delay(() => this.engine.timeline(this.windowed(request)), 30);
+    return (
+      this.failing('queryTimeline') ??
+      this.delay(() => this.engine.timeline(this.windowed(request)), 30)
+    );
   }
 
   queryFacet(request: FacetRequest): Promise<Facet> {
     return (
       this.failing('queryFacet') ??
-      this.delay(() => this.redactFacet(this.options.syntheticFacetValues ? syntheticFacet(request, this.options.syntheticFacetValues) : this.engine.facet(this.windowed(request))), 20)
+      this.delay(
+        () =>
+          this.redactFacet(
+            this.options.syntheticFacetValues
+              ? syntheticFacet(request, this.options.syntheticFacetValues)
+              : this.engine.facet(this.windowed(request)),
+          ),
+        20,
+      )
     );
   }
 
@@ -413,7 +486,11 @@ export class MockBackend implements ImtBackend {
   }
 
   getProfile(): Promise<ProfileDoc> {
-    return this.delay(() => ({ name: this.profile.name ?? 'Unnamed profile', path: null, toml: this.profileToml }));
+    return this.delay(() => ({
+      name: this.profile.name ?? 'Unnamed profile',
+      path: null,
+      toml: this.profileToml,
+    }));
   }
 
   validateProfile(toml: string): Promise<ProfileValidation> {
@@ -439,21 +516,34 @@ export class MockBackend implements ImtBackend {
   previewExtractor(request: ExtractPreviewRequest): Promise<ExtractPreview> {
     return this.delay(() => {
       const { validation, model } = validate(request.toml);
-      if (!model) return { candidates: 0, matches: 0, failed: 0, samples: [], error: validation.error };
+      if (!model)
+        return { candidates: 0, matches: 0, failed: 0, samples: [], error: validation.error };
       const rule = model.extract?.find((x) => x.name === request.extractor);
-      if (!rule) return { candidates: 0, matches: 0, failed: 0, samples: [], error: `No extractor named '${request.extractor}'` };
+      if (!rule)
+        return {
+          candidates: 0,
+          matches: 0,
+          failed: 0,
+          samples: [],
+          error: `No extractor named '${request.extractor}'`,
+        };
       return this.engine.previewExtractor(rule, request.query, request.limit);
     }, 40);
   }
 
   importProfile(path: string): Promise<ProfileDoc> {
     // Browser demo: there is no file system, so "importing" returns the demo profile under the chosen name.
-    return this.delay(() => ({ name: this.profile.name ?? 'Imported profile', path, toml: this.profileToml }));
+    return this.delay(() => ({
+      name: this.profile.name ?? 'Imported profile',
+      path,
+      toml: this.profileToml,
+    }));
   }
 
   exportEvents(request: ExportRequest): Promise<ExportResult> {
     return this.delay(() => {
-      if (!MOCK_EXPORTERS.some((x) => x.id === request.format)) throw new Error(`Unknown export format '${request.format}'`);
+      if (!MOCK_EXPORTERS.some((x) => x.id === request.format))
+        throw new Error(`Unknown export format '${request.format}'`);
       this.files.write(request.path, request.overwrite);
       // The browser demo writes nothing: it only reports what the desktop app would export.
       const matched = this.engine.matching(this.windowed(request).query);
@@ -480,10 +570,20 @@ export class MockBackend implements ImtBackend {
         const first = Math.max(1, rec.line - before);
         const lines = [];
         for (let n = first; n <= rec.line + after; n++) {
-          lines.push({ line: n, text: n === rec.line ? `${rec.ts === null ? '' : new Date(rec.ts).toISOString()} [${rec.level}] ${rec.message}` : `context line ${n} of ${this.engine.sources.find((s) => s.id === rec.source)?.name ?? ''}` });
+          lines.push({
+            line: n,
+            text:
+              n === rec.line
+                ? `${rec.ts === null ? '' : new Date(rec.ts).toISOString()} [${rec.level}] ${rec.message}`
+                : `context line ${n} of ${this.engine.sources.find((s) => s.id === rec.source)?.name ?? ''}`,
+          });
         }
         const r = this.redactor;
-        return { sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '', line: rec.line, lines: r ? lines.map((l) => ({ ...l, text: r.apply(l.text) })) : lines };
+        return {
+          sourceName: this.engine.sources.find((s) => s.id === rec.source)?.name ?? '',
+          line: rec.line,
+          lines: r ? lines.map((l) => ({ ...l, text: r.apply(l.text) })) : lines,
+        };
       }, 20)
     );
   }
@@ -497,7 +597,9 @@ export class MockBackend implements ImtBackend {
     return (
       this.failing('readFileHead') ??
       this.delay(() => {
-        const known = this.dataset.sources.some((s) => s.path === path) || this.dataset.unrecognized.some((u) => u.path === path);
+        const known =
+          this.dataset.sources.some((s) => s.path === path) ||
+          this.dataset.unrecognized.some((u) => u.path === path);
         if (!known) throw new Error('only files in the workspace can be previewed');
         return SAMPLE_HEAD.slice(0, Math.max(1, maxBytes));
       }, 20)
@@ -511,8 +613,14 @@ export class MockBackend implements ImtBackend {
   /** The request with its sliding window resolved against the newest record (mock approximation of the engine). */
   private windowed<R extends { query: Query }>(request: R): R {
     if (!request.query.window) return request;
-    const wall = String((this.profile['live'] as { clock?: unknown } | undefined)?.clock ?? '').toLowerCase() === 'wall';
-    return { ...request, query: mockResolveWindow(request.query, wall ? Date.now() : this.engine.newestTs()) };
+    const wall =
+      String(
+        (this.profile['live'] as { clock?: unknown } | undefined)?.clock ?? '',
+      ).toLowerCase() === 'wall';
+    return {
+      ...request,
+      query: mockResolveWindow(request.query, wall ? Date.now() : this.engine.newestTs()),
+    };
   }
 
   setLive(enabled: boolean, options?: LiveOptions): Promise<number> {
@@ -545,12 +653,21 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => {
       const counts = new Map<number, number>();
       for (const r of this.engine.records) counts.set(r.source, (counts.get(r.source) ?? 0) + 1);
-      return this.liveSim.status(this.dataset.sources, (id) => counts.get(id) ?? 0, mockWatchMode(this.liveOn, this.liveOptions), this.evicted, this.engine.records.length);
+      return this.liveSim.status(
+        this.dataset.sources,
+        (id) => counts.get(id) ?? 0,
+        mockWatchMode(this.liveOn, this.liveOptions),
+        this.evicted,
+        this.engine.records.length,
+      );
     }, 15);
   }
 
   liveState(): Promise<LiveState> {
-    return this.delay(() => ({ enabled: this.liveOn, options: mockResolveLiveOptions(this.liveOptions) }), 5);
+    return this.delay(
+      () => ({ enabled: this.liveOn, options: mockResolveLiveOptions(this.liveOptions) }),
+      5,
+    );
   }
 
   muteAlerts(target: AlertTarget, untilMs: number): Promise<void> {
@@ -568,7 +685,13 @@ export class MockBackend implements ImtBackend {
         if (this.dataset.sources.some((s) => s.path === path)) continue;
         // Only lines written from now on: the file's history is skipped, so the source starts empty.
         const id = this.nextSourceId++;
-        this.dataset.sources.push({ id, path, name: path.split(/[\\/]/).pop() || path, importer: 'text', skipped: 0 });
+        this.dataset.sources.push({
+          id,
+          path,
+          name: path.split(/[\\/]/).pop() || path,
+          importer: 'text',
+          skipped: 0,
+        });
         this.liveSim.follow(id);
       }
       this.apply();
@@ -586,7 +709,12 @@ export class MockBackend implements ImtBackend {
       report.appended = 1;
     } else {
       const last = this.lastBySource();
-      const batch = this.liveSim.tick(this.dataset.sources, this.engine.newestTs(), (id) => last.get(id), Date.now());
+      const batch = this.liveSim.tick(
+        this.dataset.sources,
+        this.engine.newestTs(),
+        (id) => last.get(id),
+        Date.now(),
+      );
       for (const r of batch.rotations) {
         const rotated = this.dataset.sources.find((s) => s.id === r.sourceId);
         if (rotated) {
@@ -596,14 +724,19 @@ export class MockBackend implements ImtBackend {
         this.dataset.sources.push(r.replacement);
         report.rotated.push({ sourceId: r.sourceId, from: r.from, to: r.to });
         report.added.push(r.replacement.id);
-        report.fileStates.push({ sourceId: r.sourceId, state: { kind: 'rotated' } }, { sourceId: r.replacement.id, state: { kind: 'tailing' } });
+        report.fileStates.push(
+          { sourceId: r.sourceId, state: { kind: 'rotated' } },
+          { sourceId: r.replacement.id, state: { kind: 'tailing' } },
+        );
       }
       if (batch.rotations.length) this.engine.setSources(this.dataset.sources);
       this.dataset.records.push(...batch.records);
       const appended = this.engine.append(batch.records, this.profile);
       this.liveAdded += batch.records.length;
       report.appended = appended.length;
-      report.sourcesChanged = [...new Set([...batch.records.map((r) => r.source), ...report.added])];
+      report.sourcesChanged = [
+        ...new Set([...batch.records.map((r) => r.source), ...report.added]),
+      ];
       this.applyRetention(report);
       alerts = batch.alerts.filter((a) => !this.mutes.covers(a));
     }
@@ -636,7 +769,10 @@ export class MockBackend implements ImtBackend {
     const maxRecords = retention?.maxRecords ?? null;
     if (maxAge === null && maxRecords === null) return;
     const before = this.dataset.records.length;
-    let kept = maxAge !== null && newest !== null ? this.dataset.records.filter((r) => r.ts === null || r.ts >= newest - maxAge) : this.dataset.records;
+    let kept =
+      maxAge !== null && newest !== null
+        ? this.dataset.records.filter((r) => r.ts === null || r.ts >= newest - maxAge)
+        : this.dataset.records;
     if (maxRecords !== null && kept.length > maxRecords) {
       kept = [...kept].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0)).slice(kept.length - maxRecords);
     }
@@ -655,7 +791,8 @@ export class MockBackend implements ImtBackend {
 
   explainRegex(pattern: string): Promise<ExplainNode[]> {
     return this.delay(() => {
-      if (!safeRegex(pattern)) throw new Error('regex parse error: the pattern is not a valid regex');
+      if (!safeRegex(pattern))
+        throw new Error('regex parse error: the pattern is not a valid regex');
       return mockExplainRegex(pattern);
     }, 20);
   }
@@ -667,8 +804,16 @@ export class MockBackend implements ImtBackend {
         const groupBy = this.engine.defaultGroupBy;
         const runs = mockRunAnnotations(spanRules(this.profile), this.runContext())
           .flat()
-          .filter((a) => (request.from == null || a.to >= request.from) && (request.to == null || a.from <= request.to) && (request.instance == null || a.instance === request.instance));
-        return [...mockAnnotations(this.engine.records, (r) => this.engine.groupKey(r, groupBy), request), ...runs].sort((a, b) => a.from - b.from || a.kind.localeCompare(b.kind));
+          .filter(
+            (a) =>
+              (request.from == null || a.to >= request.from) &&
+              (request.to == null || a.from <= request.to) &&
+              (request.instance == null || a.instance === request.instance),
+          );
+        return [
+          ...mockAnnotations(this.engine.records, (r) => this.engine.groupKey(r, groupBy), request),
+          ...runs,
+        ].sort((a, b) => a.from - b.from || a.kind.localeCompare(b.kind));
       }, 25)
     );
   }
@@ -676,7 +821,11 @@ export class MockBackend implements ImtBackend {
   /** The run context over the current records (lanes by the default group-by). */
   private runContext(): RunContext {
     const groupBy = this.engine.defaultGroupBy;
-    return { records: this.engine.records, laneOf: (r) => this.engine.groupKey(r, groupBy), groupBy };
+    return {
+      records: this.engine.records,
+      laneOf: (r) => this.engine.groupKey(r, groupBy),
+      groupBy,
+    };
   }
 
   /** `query_runs`; see mock-runs.ts. */
@@ -685,14 +834,26 @@ export class MockBackend implements ImtBackend {
       this.failing('queryRuns') ??
       this.delay(() => {
         const rules = spanRules(this.profile);
-        return mockQueryRuns(rules, mockRunAnnotations(rules, this.runContext()), request, this.engine.markerKinds);
+        return mockQueryRuns(
+          rules,
+          mockRunAnnotations(rules, this.runContext()),
+          request,
+          this.engine.markerKinds,
+        );
       }, 25)
     );
   }
 
   /** `preview_spans`; see mock-runs.ts. */
   previewSpans(request: SpanPreviewRequest): Promise<SpanPreview> {
-    return this.failing('previewSpans') ?? this.delay(() => mockPreviewSpans(request.draft, this.profile, this.runContext(), this.engine.markerKinds), 30);
+    return (
+      this.failing('previewSpans') ??
+      this.delay(
+        () =>
+          mockPreviewSpans(request.draft, this.profile, this.runContext(), this.engine.markerKinds),
+        30,
+      )
+    );
   }
 
   /** Clock-skew correction (`set_source_offset`); see mock-skew.ts. */
@@ -720,7 +881,9 @@ export class MockBackend implements ImtBackend {
   }
 
   pluginEvents(): Promise<SubscriberMetrics[]> {
-    return this.delay(() => MOCK_EVENT_METRICS.map((m) => ({ ...m, delivered: m.delivered + this.liveAdded })));
+    return this.delay(() =>
+      MOCK_EVENT_METRICS.map((m) => ({ ...m, delivered: m.delivered + this.liveAdded })),
+    );
   }
 
   exportProfile(path: string, toml: string, overwrite = false): Promise<void> {
@@ -747,15 +910,38 @@ function liveConfig(options: MockBackendOptions): MockLiveConfig {
   };
 }
 
-const PLUGIN_DEFAULTS = { failures: 0, lastError: null, requires: [], provides: [], inactiveReason: null, dependents: [], warnings: [], hung: false };
+const PLUGIN_DEFAULTS = {
+  failures: 0,
+  lastError: null,
+  requires: [],
+  provides: [],
+  inactiveReason: null,
+  dependents: [],
+  warnings: [],
+  hung: false,
+};
 const MOCK_PLUGINS: PluginInfo[] = [
-  { ...PLUGIN_DEFAULTS, id: 'net.decryptology.registry', name: 'Windows registry importer', version: '0.1.0', contributes: ['importer:registry'], status: 'active' },
+  {
+    ...PLUGIN_DEFAULTS,
+    id: 'net.decryptology.registry',
+    name: 'Windows registry importer',
+    version: '0.1.0',
+    contributes: ['importer:registry'],
+    status: 'active',
+  },
   {
     ...PLUGIN_DEFAULTS,
     id: MOCK_WINDOWS_PLUGIN,
     name: 'Windows event logs',
     version: '0.2.0',
-    contributes: ['importer:evtx', 'marker:app-crash', 'marker:service-stop', 'annotator:windows.reboots', 'annotator:windows.services', 'service:net.decryptology.windows.events'],
+    contributes: [
+      'importer:evtx',
+      'marker:app-crash',
+      'marker:service-stop',
+      'annotator:windows.reboots',
+      'annotator:windows.services',
+      'service:net.decryptology.windows.events',
+    ],
     status: 'active',
     provides: [{ id: 'net.decryptology.windows.events', version: '1.0.0' }],
     dependents: ['net.decryptology.web'],
@@ -786,8 +972,26 @@ const MOCK_PLUGINS: PluginInfo[] = [
 ];
 /** Event-bus counters the demo reports (delivered grows with live tail). */
 const MOCK_EVENT_METRICS: SubscriberMetrics[] = [
-  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'imt_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
-  { id: 2, plugin: 'net.decryptology.web', event: 'imt_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
+  {
+    id: 1,
+    plugin: MOCK_WINDOWS_PLUGIN,
+    event: 'imt_core::events::RecordsAppended',
+    delivered: 3,
+    dropped: 0,
+    failures: 0,
+    skipped: 0,
+    queued: 0,
+  },
+  {
+    id: 2,
+    plugin: 'net.decryptology.web',
+    event: 'imt_core::events::ProfileChanged',
+    delivered: 1,
+    dropped: 0,
+    failures: 1,
+    skipped: 0,
+    queued: 0,
+  },
 ];
 /** What `readFileHead` returns for any file in the browser demo. */
 const SAMPLE_HEAD = [
@@ -809,7 +1013,10 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
     model = parse(toml) as ProfileModel;
   } catch (e) {
     const err = e as TomlError;
-    return { validation: { ok: false, error: err.message.split('\n')[0] ?? '', line: err.line ?? null }, model: null };
+    return {
+      validation: { ok: false, error: err.message.split('\n')[0] ?? '', line: err.line ?? null },
+      model: null,
+    };
   }
   const lines = toml.split('\n');
   const lineOf = (needle: string) => {
@@ -817,14 +1024,57 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
     return i >= 0 ? i + 1 : null;
   };
   for (const x of model.extract ?? []) {
-    if (!x.name) return { validation: { ok: false, error: '[[extract]] is missing a name', line: lineOf('[[extract]]') }, model };
-    if (!safeRegex(x.regex ?? '')) return { validation: { ok: false, error: `Extractor '${x.name}': invalid regex`, line: lineOf(x.regex) }, model };
+    if (!x.name)
+      return {
+        validation: {
+          ok: false,
+          error: '[[extract]] is missing a name',
+          line: lineOf('[[extract]]'),
+        },
+        model,
+      };
+    if (!safeRegex(x.regex ?? ''))
+      return {
+        validation: {
+          ok: false,
+          error: `Extractor '${x.name}': invalid regex`,
+          line: lineOf(x.regex),
+        },
+        model,
+      };
   }
   for (const m of model.marker ?? []) {
-    if (!m.kind) return { validation: { ok: false, error: '[[marker]] is missing a kind', line: lineOf('[[marker]]') }, model };
-    if (m['badge'] !== undefined && [...String(m['badge'])].length > 3) return { validation: { ok: false, error: `marker "${m.kind}": badge must be 1 to 3 characters`, line: lineOf('badge') }, model };
-    if (m['icon'] && !(model['icon'] as { name: string }[] | undefined)?.some((i) => i.name === m['icon']) && !MOCK_ICONS.has(String(m['icon']))) {
-      return { validation: { ok: false, error: `marker "${m.kind}": unknown icon "${m['icon']}"`, line: lineOf('icon') }, model };
+    if (!m.kind)
+      return {
+        validation: {
+          ok: false,
+          error: '[[marker]] is missing a kind',
+          line: lineOf('[[marker]]'),
+        },
+        model,
+      };
+    if (m['badge'] !== undefined && [...String(m['badge'])].length > 3)
+      return {
+        validation: {
+          ok: false,
+          error: `marker "${m.kind}": badge must be 1 to 3 characters`,
+          line: lineOf('badge'),
+        },
+        model,
+      };
+    if (
+      m['icon'] &&
+      !(model['icon'] as { name: string }[] | undefined)?.some((i) => i.name === m['icon']) &&
+      !MOCK_ICONS.has(String(m['icon']))
+    ) {
+      return {
+        validation: {
+          ok: false,
+          error: `marker "${m.kind}": unknown icon "${m['icon']}"`,
+          line: lineOf('icon'),
+        },
+        model,
+      };
     }
   }
   const live = validateLiveSection(model, lineOf);
@@ -832,23 +1082,63 @@ function validate(toml: string): { validation: ProfileValidation; model: Profile
   try {
     mockRedactCfg(model);
   } catch (e) {
-    return { validation: { ok: false, error: e instanceof Error ? e.message : String(e), line: lineOf('[redact]') }, model };
+    return {
+      validation: {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+        line: lineOf('[redact]'),
+      },
+      model,
+    };
   }
   const dashboards = mockDashboardsError(mockDashboards(model));
-  if (dashboards) return { validation: { ok: false, error: `[[dashboard]]: ${dashboards}`, line: lineOf('[[dashboard]]') }, model };
+  if (dashboards)
+    return {
+      validation: {
+        ok: false,
+        error: `[[dashboard]]: ${dashboards}`,
+        line: lineOf('[[dashboard]]'),
+      },
+      model,
+    };
   for (const c of model.chart ?? []) {
-    if (!c.id || !c.y) return { validation: { ok: false, error: '[[chart]] needs id and y', line: lineOf('[[chart]]') }, model };
-    if (!/^(count|avg|min|max|sum|last)\(\s*[^)]*\)$/.test(c.y)) return { validation: { ok: false, error: `Chart '${c.id}': y must look like avg(field)`, line: lineOf(c.y) }, model };
+    if (!c.id || !c.y)
+      return {
+        validation: { ok: false, error: '[[chart]] needs id and y', line: lineOf('[[chart]]') },
+        model,
+      };
+    if (!/^(count|avg|min|max|sum|last)\(\s*[^)]*\)$/.test(c.y))
+      return {
+        validation: {
+          ok: false,
+          error: `Chart '${c.id}': y must look like avg(field)`,
+          line: lineOf(c.y),
+        },
+        model,
+      };
   }
   return { validation: { ok: true, error: null, line: null }, model };
 }
 
 /** A live alert as the engine posts it to the notification centre: repeats merge per kind and instance (or rule). */
 function alertNotice(alert: LiveAlert) {
-  const names: Record<string, string> = { errorSpike: 'Error spike', silence: 'Silence', crash: 'Crash', slowOutlier: 'Slow outlier', rateChange: 'Rate change', memoryGrowth: 'Memory growth' };
-  const what = alert.kind === 'rule' ? (alert.rule ?? 'Alert rule') : (names[alert.kind] ?? alert.kind);
+  const names: Record<string, string> = {
+    errorSpike: 'Error spike',
+    silence: 'Silence',
+    crash: 'Crash',
+    slowOutlier: 'Slow outlier',
+    rateChange: 'Rate change',
+    memoryGrowth: 'Memory growth',
+  };
+  const what =
+    alert.kind === 'rule' ? (alert.rule ?? 'Alert rule') : (names[alert.kind] ?? alert.kind);
   const who = alert.rule ?? alert.instance ?? '';
-  const severity = alert.severity === 'critical' ? ('error' as const) : alert.severity === 'warning' ? ('warning' as const) : ('info' as const);
+  const severity =
+    alert.severity === 'critical'
+      ? ('error' as const)
+      : alert.severity === 'warning'
+        ? ('warning' as const)
+        : ('info' as const);
   return {
     source: 'liveAlert' as const,
     severity,

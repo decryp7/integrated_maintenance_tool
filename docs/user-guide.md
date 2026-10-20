@@ -59,8 +59,20 @@ deleted or replaced by a folder since it was opened is reported, not opened; a f
 locked is still opened or shown (IMT does not read it).
 
 Timestamps: ISO 8601/RFC 3339, Serilog defaults, `/` and `.` dates (day-first or month-first, detected
-per file), month names, 12-hour clocks, epoch seconds/milliseconds, time-only console logs, and your own
-.NET (`dd/MM/yyyy HH:mm:ss.fff`) or strftime formats. Timezone for offset-less times is configurable.
+per file), a space, `T` or comma between date and time (`2025/11/08,00:04:37.759+01:00`), a dot or comma
+before the fraction (`00:04:37,759`), month names, 12-hour clocks, epoch seconds/milliseconds, time-only
+console logs, and your own .NET (`dd/MM/yyyy HH:mm:ss.fff`, `HH:mm:ss,fff`) or strftime formats. Timezone
+for offset-less times is configurable.
+
+**Timestamps not recognised.** When IMT reads a file's lines but not the timestamps of more than 5 % of
+its events, or of none of its first 20, the file gets a warning icon in the Explorer (its tooltip counts
+the lines and quotes one) and a message in the Notifications centre. Files without any date-like text
+(settings files, data tables) and formats read by plugins are not flagged. IMT also looks at the
+lines for a date and time it can describe (`Sat Nov 08 00:04:37 2025` → `%a %b %d %H:%M:%S %Y`) and
+proposes that format only after checking that it reads them. **Fix timestamps** (the message's button,
+or a click on the icon) opens the format wizard on the proposed format: the preview shows how the file
+reads with it, and **Save and re-import** adds it to the profile's `timestamp_formats`. The message is
+posted once per file; a reload does not repeat it.
 
 ## Profiles
 

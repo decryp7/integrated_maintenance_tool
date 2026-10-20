@@ -7,5 +7,5 @@ name = "Plain timestamped text"
 format = "text"
 output_templates = []
 regexes = [
-  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
+  '^\[?(?P<timestamp>\d{4}[-/.]\d{2}[-/.]\d{2}[ T,]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?: ?(?:Z|[+-]\d{2}:?\d{2}))?)(?:\],?\s*|,?\s+)(?:-\s+)?(?:(?:\d+\s+)?\[?(?P<level>(?i:VRB|DBG|INF|WRN|ERR|FTL|TRACE|DEBUG|INFO|NOTICE|NOTE|WARN|WARNING|ERROR|FATAL|CRITICAL|VERBOSE|INFORMATION))\s*(?:\][:|-]?\s*|[:|-]?\s+))?(?P<message>.*)$',
 ]

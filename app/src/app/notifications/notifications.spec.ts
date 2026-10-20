@@ -545,6 +545,17 @@ describe('NoticeActions', () => {
     expect(at(dialogs.open.mock.calls, 1)[1]).toMatchObject({ inputs: { name: 'syslog' } });
   });
 
+  it('opens the format wizard on the timestamp format the engine proposed', async () => {
+    const { run, dialogs } = setup();
+    expect(await run({ type: 'fixTimestamps', path: '/logs/app.csv', format: '%a %b %d %H:%M:%S %Y' })).toBeNull();
+    expect(dialogs.open).toHaveBeenCalledWith(
+      FormatWizard,
+      expect.objectContaining({ title: 'Fix timestamps', inputs: { path: '/logs/app.csv', name: 'app.csv', timestampFormat: '%a %b %d %H:%M:%S %Y' } }),
+    );
+    await run({ type: 'fixTimestamps', path: 'C:\\logs\\x.log', format: null });
+    expect(at(dialogs.open.mock.calls, 1)[1]).toMatchObject({ inputs: { name: 'x.log', timestampFormat: null } });
+  });
+
   it('shows a live alert, or the alerts view when it is gone', async () => {
     const { run, live, ctx, alertEntries } = setup();
     expect(await run({ type: 'showAlert', alertId: 'a1' })).toBeNull();
@@ -578,6 +589,7 @@ describe('NoticeActions', () => {
       [{ type: 'reviewProposals', jobId: 1 }, 'Review proposals'],
       [{ type: 'resetPlugin', pluginId: 'p' }, 'Reset plugin'],
       [{ type: 'setUpFormat', path: 'p' }, 'Set up format'],
+      [{ type: 'fixTimestamps', path: 'p', format: null }, 'Fix timestamps'],
       [{ type: 'resetAi' }, 'Reset AI'],
       [{ type: 'installUpdate' }, 'Install update'],
       [{ type: 'showAlert', alertId: 'a' }, 'Show'],

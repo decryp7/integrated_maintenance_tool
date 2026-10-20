@@ -16,6 +16,9 @@ fuzz_target!(|data: &[u8]| {
         let p = TimestampParser::new(fmts, zone, day_first).unwrap();
         let _ = p.parse(&s);
         let _ = p.parse_time_on(&s, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
+        // The input's lines as lines whose timestamps were not read.
+        let lines: Vec<&str> = s.lines().take(32).collect();
+        let _ = imt_core::timestamp_issue::suggest::propose(&lines, &p);
     }
     // Also treat the input as a user-supplied format.
     let _ = TimestampParser::new(&[s.to_string()], "UTC", None).map(|p| p.parse("2026-10-14 10:00:00,123"));
