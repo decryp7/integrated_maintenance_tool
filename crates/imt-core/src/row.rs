@@ -102,6 +102,8 @@ impl FieldKeys {
 
 /// Read access to one event.
 pub trait RowRef {
+    /// The event's id (a [`Record`]'s position in the in-memory store, an `EventId` in the database).
+    fn id(&self) -> u64;
     fn ts(&self) -> Option<i64>;
     fn level(&self) -> Level;
     fn source(&self) -> u32;
@@ -115,6 +117,8 @@ pub trait RowRef {
     fn named_text(&self, sym: Sym, name: &str) -> Option<Cow<'_, str>>;
     /// A named field as a number (numbers, numeric text, booleans as 1/0).
     fn named_number(&self, sym: Sym, name: &str) -> Option<f64>;
+    /// A named field as a JSON value.
+    fn named_value(&self, sym: Sym, name: &str) -> Option<Value>;
 
     /// A field or pseudo-field as text (as [`Record::field_text`]).
     fn text(&self, key: &FieldKey) -> Option<Cow<'_, str>> {
@@ -139,6 +143,15 @@ pub trait RowRef {
             FieldKey::Named { sym, name } => self.named_number(*sym, name),
         }
     }
+
+    /// A field as a JSON value: `@line` is a number, the other pseudo-fields text.
+    fn value(&self, key: &FieldKey) -> Option<Value> {
+        match key {
+            FieldKey::Pseudo(Pseudo::Line) => Some(Value::from(self.line())),
+            FieldKey::Pseudo(_) => self.text(key).map(|t| Value::String(t.into_owned())),
+            FieldKey::Named { sym, name } => self.named_value(*sym, name),
+        }
+    }
 }
 
 /// A [`Record`] with its source name.
@@ -149,6 +162,9 @@ pub struct RecordRow<'a> {
 }
 
 impl RowRef for RecordRow<'_> {
+    fn id(&self) -> u64 {
+        u64::from(self.rec.id)
+    }
     fn ts(&self) -> Option<i64> {
         self.rec.ts
     }
@@ -182,6 +198,131 @@ impl RowRef for RecordRow<'_> {
     fn named_number(&self, _sym: Sym, name: &str) -> Option<f64> {
         self.rec.fields.get(name).and_then(value_number)
     }
+    fn named_value(&self, _sym: Sym, name: &str) -> Option<Value> {
+        self.rec.fields.get(name).cloned()
+    }
+}
+
+/// An owned event: a [`Record`], its store id and its source name, for code that streams events out
+/// of a store (a scan yields these one at a time; nothing borrows the store).
+#[derive(Debug, Clone)]
+pub struct OwnedRow {
+    pub id: u64,
+    pub rec: Record,
+    pub source: Arc<str>,
+}
+
+impl OwnedRow {
+    /// The row as a [`RecordRow`] (with the record's own id).
+    pub fn as_record_row(&self) -> RecordRow<'_> {
+        RecordRow {
+            rec: &self.rec,
+            source: &self.source,
+        }
+    }
+}
+
+/// Forwards every method to `$inner` (an expression of `self`).
+macro_rules! forward_row {
+    ($inner:ident => $e:expr) => {
+        fn ts(&self) -> Option<i64> {
+            let $inner = self;
+            $e.ts()
+        }
+        fn level(&self) -> Level {
+            let $inner = self;
+            $e.level()
+        }
+        fn source(&self) -> u32 {
+            let $inner = self;
+            $e.source()
+        }
+        fn source_name(&self) -> &str {
+            let $inner = self;
+            $e.source_name()
+        }
+        fn line(&self) -> u32 {
+            let $inner = self;
+            $e.line()
+        }
+        fn markers(&self) -> MarkerMask {
+            let $inner = self;
+            $e.markers()
+        }
+        fn message(&self) -> &str {
+            let $inner = self;
+            $e.message()
+        }
+        fn template(&self) -> Option<&str> {
+            let $inner = self;
+            $e.template()
+        }
+        fn exception(&self) -> Option<&str> {
+            let $inner = self;
+            $e.exception()
+        }
+        fn named_text(&self, sym: Sym, name: &str) -> Option<Cow<'_, str>> {
+            let $inner = self;
+            $e.named_text(sym, name)
+        }
+        fn named_number(&self, sym: Sym, name: &str) -> Option<f64> {
+            let $inner = self;
+            $e.named_number(sym, name)
+        }
+        fn named_value(&self, sym: Sym, name: &str) -> Option<Value> {
+            let $inner = self;
+            $e.named_value(sym, name)
+        }
+    };
+}
+
+impl RowRef for OwnedRow {
+    fn id(&self) -> u64 {
+        self.id
+    }
+    fn ts(&self) -> Option<i64> {
+        self.rec.ts
+    }
+    fn level(&self) -> Level {
+        self.rec.level
+    }
+    fn source(&self) -> u32 {
+        self.rec.source
+    }
+    fn source_name(&self) -> &str {
+        &self.source
+    }
+    fn line(&self) -> u32 {
+        self.rec.line
+    }
+    fn markers(&self) -> MarkerMask {
+        self.rec.markers
+    }
+    fn message(&self) -> &str {
+        &self.rec.message
+    }
+    fn template(&self) -> Option<&str> {
+        self.rec.template.as_deref()
+    }
+    fn exception(&self) -> Option<&str> {
+        self.rec.exception.as_deref()
+    }
+    fn named_text(&self, _sym: Sym, name: &str) -> Option<Cow<'_, str>> {
+        self.rec.fields.get(name).map(value_text)
+    }
+    fn named_number(&self, _sym: Sym, name: &str) -> Option<f64> {
+        self.rec.fields.get(name).and_then(value_number)
+    }
+    fn named_value(&self, _sym: Sym, name: &str) -> Option<Value> {
+        self.rec.fields.get(name).cloned()
+    }
+}
+
+impl<T: RowRef + ?Sized> RowRef for &T {
+    fn id(&self) -> u64 {
+        (**self).id()
+    }
+    forward_row!(s => (**s));
 }
 
 /// Where an interned field lives in one batch schema.
@@ -191,10 +332,11 @@ enum Slot {
     Extra,
 }
 
-/// Interned keys resolved against a batch schema.
-#[derive(Debug, Clone)]
+/// Interned keys resolved against a batch schema. Each slot remembers its name, so a key interned by
+/// other [`FieldKeys`] (whose symbol means another field here) is still read correctly, by name.
+#[derive(Debug, Clone, Default)]
 pub struct BatchSlots {
-    slots: Vec<Slot>,
+    slots: Vec<(Arc<str>, Slot)>,
 }
 
 impl BatchSlots {
@@ -202,7 +344,7 @@ impl BatchSlots {
         let slots = keys
             .names()
             .iter()
-            .map(|n| schema.declared_index(n).map_or(Slot::Extra, Slot::Declared))
+            .map(|n| (n.clone(), schema.declared_index(n).map_or(Slot::Extra, Slot::Declared)))
             .collect();
         BatchSlots { slots }
     }
@@ -219,10 +361,10 @@ pub struct ArrowRow<'a> {
 impl<'a> ArrowRow<'a> {
     fn value(&self, sym: Sym, name: &str) -> Option<FieldValue<'a>> {
         match self.slots.slots.get(sym.0 as usize) {
-            Some(Slot::Declared(i)) => self.row.declared(*i).or_else(|| self.row.extra(name).map(FieldValue::Text)),
-            Some(Slot::Extra) => self.row.extra(name).map(FieldValue::Text),
-            // A key interned after the slots were resolved.
-            None => self.row.field(name),
+            Some((n, Slot::Declared(i))) if &**n == name => self.row.declared(*i).or_else(|| self.row.extra(name).map(FieldValue::Text)),
+            Some((n, Slot::Extra)) if &**n == name => self.row.extra(name).map(FieldValue::Text),
+            // A key interned after the slots were resolved, or by other keys.
+            _ => self.row.field(name),
         }
     }
 }
@@ -255,6 +397,9 @@ fn level_of(code: u8) -> Level {
 }
 
 impl RowRef for ArrowRow<'_> {
+    fn id(&self) -> u64 {
+        self.row.id().0
+    }
     fn ts(&self) -> Option<i64> {
         self.row.ts()
     }
@@ -287,6 +432,9 @@ impl RowRef for ArrowRow<'_> {
     }
     fn named_number(&self, sym: Sym, name: &str) -> Option<f64> {
         self.value(sym, name).and_then(field_number)
+    }
+    fn named_value(&self, sym: Sym, name: &str) -> Option<Value> {
+        self.value(sym, name).map(json_value)
     }
 }
 

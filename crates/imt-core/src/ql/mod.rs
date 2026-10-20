@@ -37,10 +37,11 @@ mod suggest;
 
 pub use calc::CalcExpr;
 pub use complete::{completions, Completion, CompletionKind};
-pub use control::{Cancelled, QueryControl, QueryProgress, QueryStage, RunError, Watched, BATCH};
+pub use control::{CancelHook, Cancelled, HookGuard, QueryControl, QueryProgress, QueryStage, RunError, Watched, BATCH};
 pub use error::QlError;
-pub use exec::{run, run_with};
-pub use expr::{Filter, Row};
+pub use exec::{run, run_rows, run_with};
+pub use expr::{full_text_match, EventRow, Expr, Filter, Literal, NumOp, Operand, Row, TableRow, TextSearch};
+pub use lexer::CmpOp;
 pub use parser::{parse, AggFn, AggSpec, FieldRef, Program, SortKeySpec, Stage};
 pub use stats::MAX_PERCENTILE_VALUES;
 pub use suggest::{closest, distance, unknown_field, PSEUDO_FIELDS};

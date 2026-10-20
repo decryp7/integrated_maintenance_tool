@@ -1,7 +1,7 @@
 //! The `Query` port: summary, page, timeline and facet as SQL where the filter compiles exactly, else a
 //! scan of the SQL-prefiltered events in time order through the engine's `CompiledQuery`.
 
-use crate::sql::{self, group_key_expr, order_by, text_expr, SqlFilter, TIME_KEY};
+use crate::sql::{self, group_key_expr, order_by, text_expr, SqlFilter, FROM, ROWS, TIME_KEY};
 use crate::{engine, DuckStore, Inner};
 use duckdb::arrow::array::{BooleanArray, RecordBatch, StructArray};
 use duckdb::arrow::compute::filter_record_batch;
@@ -15,12 +15,12 @@ use imt_core::api::{
 use imt_core::batch::{BatchRow, EventBatch, EventId, EventSchema, BATCH_ROWS};
 use imt_core::exceptions::ExceptionGroup;
 use imt_core::ingest::SourceReport;
-use imt_core::model::{Level, Record};
+use imt_core::model::Level;
 use imt_core::patterns::Pattern;
 use imt_core::ports::{Analysis, EventView, Filter, PageQuery, PageReply, Query, StoreError, StoreResult, SummaryReply};
 use imt_core::ql::{Completion, QlError, QlResult};
 use imt_core::query::{group_key, CompiledQuery};
-use imt_core::row::to_record;
+use imt_core::row::{to_record, ArrowRow, BatchSlots, FieldKeys, RowRef};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::ControlFlow;
 use std::sync::Arc;
@@ -79,6 +79,25 @@ struct Ctx {
 impl Ctx {
     fn name(&self, source: u32) -> &str {
         self.names.get(&source).map_or("", String::as_str)
+    }
+
+    /// Calls `f` with each row of `batch` that matches `cq` (every row when the SQL was `exact`).
+    fn each_match(&self, batch: &EventBatch, cq: &CompiledQuery, exact: bool, f: &mut dyn FnMut(&ArrowRow<'_>)) {
+        let slots = if exact {
+            BatchSlots::default()
+        } else {
+            BatchSlots::resolve(cq.keys(), batch.schema())
+        };
+        for r in batch.rows() {
+            let row = ArrowRow {
+                row: r,
+                source: self.name(r.source().0),
+                slots: &slots,
+            };
+            if exact || cq.matches_row(&row) {
+                f(&row);
+            }
+        }
     }
 
     fn marker_names(&self, mask: u64) -> Vec<String> {
@@ -223,7 +242,7 @@ impl Inner {
     }
 
     fn compile(&self, ctx: &Ctx, q: &Filter) -> StoreResult<(SqlFilter, CompiledQuery)> {
-        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds)
+        sql::compile(q, &ctx.default_group_by, &ctx.marker_kinds, &self.schema)
     }
 
     fn view(&self, ctx: &Ctx, row: &BatchRow<'_>, group_by: &[String]) -> EventView {
@@ -250,13 +269,9 @@ impl Inner {
     /// Ids of the matching events in time order (the scan fallback).
     fn matching_ids(&self, conn: &Connection, ctx: &Ctx, f: &SqlFilter, cq: &CompiledQuery) -> StoreResult<Vec<u64>> {
         let mut ids = Vec::new();
-        let sql = format!("SELECT e.* FROM events e WHERE {} {}", f.all_sql(), order_by(false));
+        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
-            for row in batch.rows() {
-                if f.exact || cq.matches(&to_record(&row), ctx.name(row.source().0)) {
-                    ids.push(row.id().0);
-                }
-            }
+            ctx.each_match(&batch, cq, f.exact, &mut |row| ids.push(row.id()));
             ControlFlow::Continue(())
         })?;
         Ok(ids)
@@ -268,16 +283,15 @@ impl Inner {
         let (f, cq) = self.compile(&ctx, &req.query)?;
         let limit = req.rows();
         let display = |pos: usize, total: usize| if req.descending { total - 1 - pos } else { pos };
-        let mut rows = Vec::new();
         if f.exact {
             let w = f.all_sql();
-            let total = count(&conn, &format!("SELECT count(*) FROM events e WHERE {w}"))?;
+            let total = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {w}"))?;
             let mut offset = req.offset;
             let mut anchor_index = None;
             if let Some(a) = req.anchor {
                 let key: Option<(i64, u32, u32)> = conn
                     .query_row(
-                        &format!("SELECT {TIME_KEY}, e.source, e.line FROM events e WHERE {w} AND e.id = {}", a.0),
+                        &format!("SELECT {TIME_KEY}, e.source, e.line FROM {FROM} WHERE {w} AND e.id = {}", a.0),
                         [],
                         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                     )
@@ -287,21 +301,26 @@ impl Inner {
                         "{TIME_KEY} < {k} OR ({TIME_KEY} = {k} AND (e.source < {s} OR (e.source = {s} AND (e.line < {l} OR (e.line = {l} AND e.id < {})))))",
                         a.0
                     );
-                    let pos = count(&conn, &format!("SELECT count(*) FROM events e WHERE {w} AND ({before})"))?;
+                    let pos = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {w} AND ({before})"))?;
                     let idx = display(pos, total);
                     anchor_index = Some(idx);
                     offset = idx - idx % limit;
                 }
             }
             let offset = offset.min(total);
-            let sql = format!(
-                "SELECT e.* FROM events e WHERE {w} {} LIMIT {limit} OFFSET {offset}",
-                order_by(req.descending)
-            );
-            for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
-                rows.extend(batch.rows().map(|r| self.view(&ctx, &r, &cq.group_by)));
-                ControlFlow::Continue(())
-            })?;
+            // Two phases: the page's ids by the sort key (narrow columns only), then their rows.
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT e.id FROM {FROM} WHERE {w} {} LIMIT {limit} OFFSET {offset}",
+                    order_by(req.descending)
+                ))
+                .map_err(engine)?;
+            let wanted = stmt
+                .query_map([], |r| r.get::<_, u64>(0))
+                .map_err(engine)?
+                .collect::<Result<Vec<u64>, _>>()
+                .map_err(engine)?;
+            let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
             return Ok(PageReply {
                 total,
                 offset,
@@ -323,24 +342,30 @@ impl Inner {
         let offset = offset.min(total);
         let end = (offset + limit).min(total);
         let wanted: Vec<u64> = (offset..end).map(|i| ids[display(i, total)]).collect();
-        if !wanted.is_empty() {
-            let list: Vec<String> = wanted.iter().map(u64::to_string).collect();
-            let mut by_id: HashMap<u64, EventView> = HashMap::new();
-            let sql = format!("SELECT e.* FROM events e WHERE e.id IN ({})", list.join(", "));
-            for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
-                for r in batch.rows() {
-                    by_id.insert(r.id().0, self.view(&ctx, &r, &cq.group_by));
-                }
-                ControlFlow::Continue(())
-            })?;
-            rows = wanted.iter().filter_map(|id| by_id.remove(id)).collect();
-        }
+        let rows = self.rows_by_id(&conn, &ctx, &wanted, &cq.group_by)?;
         Ok(PageReply {
             total,
             offset,
             rows,
             anchor_index,
         })
+    }
+
+    /// The grid rows of `ids` (at most a page), in that order.
+    fn rows_by_id(&self, conn: &Connection, ctx: &Ctx, ids: &[u64], group_by: &[String]) -> StoreResult<Vec<EventView>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let list: Vec<String> = ids.iter().map(u64::to_string).collect();
+        let mut by_id: HashMap<u64, EventView> = HashMap::new();
+        let sql = format!("SELECT {ROWS} FROM events e WHERE e.id IN ({})", list.join(", "));
+        for_each_batch(conn, &sql, &self.schema, &mut |batch| {
+            for r in batch.rows() {
+                by_id.insert(r.id().0, self.view(ctx, &r, group_by));
+            }
+            ControlFlow::Continue(())
+        })?;
+        Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
     }
 
     fn summary(&self) -> StoreResult<SummaryReply> {
@@ -459,24 +484,20 @@ impl Inner {
         }
         let mut counts: HashMap<String, usize> = HashMap::new();
         let mut total = 0;
-        let sql = format!("SELECT e.* FROM events e WHERE {} {}", f.all_sql(), order_by(false));
+        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
+        let key = FieldKeys::new().key(&req.field);
         for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
-            for row in batch.rows() {
-                let rec = to_record(&row);
-                let source = ctx.name(row.source().0);
-                if !f.exact && !cq.matches(&rec, source) {
-                    continue;
-                }
+            ctx.each_match(&batch, &cq, f.exact, &mut |row| {
                 let value = if req.field == "@group" {
-                    Some(cq.group_key(&rec, source))
+                    Some(cq.group_key_of(row))
                 } else {
-                    rec.field_text(&req.field, source).map(|c| c.into_owned())
+                    row.text(&key).map(|c| c.into_owned())
                 };
                 if let Some(v) = value {
                     total += 1;
                     *counts.entry(v).or_default() += 1;
                 }
-            }
+            });
             ControlFlow::Continue(())
         })?;
         let distinct = counts.len();
@@ -495,16 +516,15 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (f, cq) = self.compile(&ctx, q)?;
-        let sql = format!("SELECT e.* FROM events e WHERE {} {}", f.all_sql(), order_by(false));
+        let sql = format!("SELECT {ROWS} FROM {FROM} WHERE {} {}", f.all_sql(), order_by(false));
         let mut failed = None;
         for_each_batch(&conn, &sql, &self.schema, &mut |batch| {
             if f.exact {
                 return visit(&batch);
             }
-            let keep: BooleanArray = batch
-                .rows()
-                .map(|r| Some(cq.matches(&to_record(&r), ctx.name(r.source().0))))
-                .collect();
+            let mut keep = vec![false; batch.num_rows()];
+            ctx.each_match(&batch, &cq, false, &mut |row| keep[row.row.index()] = true);
+            let keep = BooleanArray::from(keep);
             if keep.true_count() == 0 {
                 return ControlFlow::Continue(());
             }
@@ -786,38 +806,42 @@ impl Inner {
         let mut index: HashMap<String, usize> = HashMap::new();
         let mut cands: Vec<Candidate> = Vec::new();
         let sql = format!(
-            "SELECT e.* FROM events e WHERE e.ts IS NOT NULL AND {} {}",
+            "SELECT {ROWS} FROM {FROM} WHERE e.ts IS NOT NULL AND {} {}",
             f.structural_sql(),
             order_by(false)
         );
         for_each_batch(conn, &sql, &self.schema, &mut |batch| {
-            for row in batch.rows() {
-                let rec: Record = to_record(&row);
-                let source = ctx.name(rec.source);
-                let key = cq.group_key(&rec, source);
-                if !cq.structural(&rec, source, Some(&key)) {
+            let slots = BatchSlots::resolve(cq.keys(), batch.schema());
+            for r in batch.rows() {
+                let row = ArrowRow {
+                    row: r,
+                    source: ctx.name(r.source().0),
+                    slots: &slots,
+                };
+                let key = cq.group_key_of(&row);
+                if !cq.structural_row(&row, Some(&key)) {
                     continue;
                 }
                 let lane = *index.entry(key).or_insert_with_key(|k| {
                     keys.push(k.clone());
                     keys.len() - 1
                 });
-                let matched = cq.content(&rec, source);
+                let matched = cq.content_row(&row);
                 let mask = if matched {
-                    rec.markers & ctx.visible
+                    r.markers() & ctx.visible
                 } else {
-                    rec.markers & lifecycle
+                    r.markers() & lifecycle
                 };
                 cands.push(Candidate {
-                    ts: rec.ts.unwrap_or_default(),
+                    ts: r.ts().unwrap_or_default(),
                     lane,
-                    level: rec.level.index(),
+                    level: row.level().index(),
                     matched,
                     mask,
-                    source: rec.source,
-                    line: rec.line,
-                    id: row.id().0,
-                    message: (mask != 0).then_some(rec.message),
+                    source: r.source().0,
+                    line: r.line(),
+                    id: r.id().0,
+                    message: (mask != 0).then(|| r.message().to_string()),
                 });
             }
             ControlFlow::Continue(())

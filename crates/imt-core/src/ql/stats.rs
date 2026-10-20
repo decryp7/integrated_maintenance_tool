@@ -78,15 +78,15 @@ impl Acc {
 
     /// Returns false when a limit was exceeded.
     fn feed(&mut self, row: &dyn Row, field: Option<&FieldRef>) -> bool {
-        let name = field.map_or("", |f| f.name.as_str());
+        let key = field.map(|f| &f.key);
         match self {
             Acc::Count(n) => *n += 1,
             Acc::Distinct(set) => {
-                if let Some(t) = row.text(name) {
+                if let Some(t) = key.and_then(|k| row.text(k)) {
                     set.insert(t.into_owned());
                 }
             }
-            Acc::Num(acc) => return row.number(name).is_none_or(|v| acc.add(v)),
+            Acc::Num(acc) => return key.and_then(|k| row.number(k)).is_none_or(|v| acc.add(v)),
         }
         true
     }
@@ -127,7 +127,7 @@ pub fn aggregate<R: Row>(
     let mut index: HashMap<String, usize> = HashMap::new();
     let mut groups: Vec<Group> = Vec::new();
     for row in rows {
-        let keys: Vec<Value> = by.iter().map(|f| row.value(&f.name).unwrap_or(Value::Null)).collect();
+        let keys: Vec<Value> = by.iter().map(|f| row.value(&f.key).unwrap_or(Value::Null)).collect();
         let id = keys.iter().map(Value::to_string).collect::<Vec<_>>().join("\u{1f}");
         let slot = *index.entry(id).or_insert_with(|| {
             groups.push(new_group(keys));

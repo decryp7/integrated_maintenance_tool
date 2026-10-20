@@ -378,10 +378,108 @@ fn check_summary(p: &Pair) {
     );
 }
 
+/// Every condition operator (as a field filter) and every query-language form: the SQL compiler
+/// matches the engine's evaluator (the in-memory store) on the samples.
+fn check_operators(p: &Pair) {
+    let filters: &[(&str, &str, Option<&str>)] = &[
+        ("MachineName", "eq", Some("WEB01")),
+        ("MachineName", "ne", Some("WEB01")),
+        ("@level", "eq", Some("warning")),
+        ("@level", "ne", Some("Warning")),
+        ("@message", "contains", Some("order")),
+        ("@message", "notContains", Some("order")),
+        ("Path", "matches", Some("^/api/.*s$")),
+        ("StatusCode", "exists", None),
+        ("StatusCode", "missing", None),
+        ("ElapsedMs", "gt", Some("250")),
+        ("ElapsedMs", "lt", Some("20")),
+        ("ElapsedMs", "eq", Some("12")),
+        ("@level", "gt", Some("2")),
+        ("@line", "lt", Some("100")),
+        ("MachineName", "in", Some("WEB01|WEB02")),
+        ("@source", "contains", Some("web")),
+        ("CpuPercent", "gt", Some("50")),
+        ("Threads", "lt", Some("40")),
+        ("WorkingSetMb", "eq", Some("512")),
+    ];
+    let mut cases: Vec<(String, Filter)> = filters
+        .iter()
+        .map(|(field, op, value)| {
+            (
+                format!("{field} {op} {value:?}"),
+                Filter {
+                    filters: vec![FieldFilter {
+                        field: field.to_string(),
+                        op: op.to_string(),
+                        value: value.map(str::to_string),
+                    }],
+                    ..Filter::default()
+                },
+            )
+        })
+        .collect();
+    for ql in [
+        "ElapsedMs > 250",
+        "ElapsedMs <= 3",
+        "ElapsedMs != 5",
+        "Path = '/api/orders'",
+        "MachineName != WEB01",
+        "level in (warning, error)",
+        "level < information",
+        "StatusCode in (500, 404)",
+        "message contains timeout",
+        "message !contains order",
+        "not exists(StatusCode)",
+        "missing(Upstream) or level >= error",
+        "Path ~ 'orders$'",
+        "Path !~ 'orders'",
+        "timeout",
+        "\"payment failed\"",
+        "@line >= 10 and @line < 20",
+        "source contains gateway",
+        "Upstream > m",
+        "CpuPercent >= 50 or Threads < 30",
+        "| where ElapsedMs > 100 | where MachineName = WEB02",
+    ] {
+        cases.push((
+            format!("ql {ql}"),
+            Filter {
+                ql: ql.into(),
+                ..Filter::default()
+            },
+        ));
+    }
+    let group =
+        p.ws.facet(&FacetRequest {
+            query: Filter::default(),
+            field: "@group".into(),
+            limit: 3,
+        })
+        .unwrap();
+    cases.push((
+        "instance selection".into(),
+        Filter {
+            groups: group.values.iter().take(2).map(|v| v.value.clone()).collect(),
+            ..Filter::default()
+        },
+    ));
+    let mut matched = 0;
+    for (name, q) in cases {
+        let q = ranged(p, q);
+        let (wt, wr) = ws_rows(p, &q, 0, 300, false);
+        let (dt, dr) = duck_rows(p, &q, 0, 300, false);
+        assert_eq!(dt, wt, "{name}: total");
+        assert_eq!(dr, wr, "{name}: rows");
+        matched += usize::from(wt > 0);
+    }
+    assert!(matched > 20, "most cases match events ({matched})");
+}
+
 #[test]
 fn answers_like_the_workspace_with_the_default_profile() {
     let p = pair(Profile::default_profile());
     check_summary(&p);
+    check_operators(&p);
     check_pages(&p);
     check_sources_filter(&p);
     check_anchor(&p);
@@ -394,6 +492,7 @@ fn answers_like_the_workspace_with_the_sample_profile() {
     // Typed extractor fields (declared columns), marker rules, an instance key.
     let p = pair(sample_profile());
     check_summary(&p);
+    check_operators(&p);
     check_pages(&p);
     check_facets(&p);
     check_timelines(&p);

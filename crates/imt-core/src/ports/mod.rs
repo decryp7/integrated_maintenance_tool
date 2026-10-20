@@ -109,7 +109,8 @@ pub trait Query: Send + Sync {
     fn timeline(&self, req: &TimelineRequest) -> StoreResult<Timeline>;
     /// Value counts of one field.
     fn facet(&self, req: &FacetRequest) -> StoreResult<Facet>;
-    /// Every matching event in time order, batch by batch, until `visit` breaks.
+    /// Every matching event in time order, batch by batch, until `visit` breaks. The batches leave the
+    /// wide `raw` column empty (re-deriving from `raw` is the store's own job, see [`Profiles`]).
     fn scan(&self, filter: &Filter, visit: &mut dyn FnMut(&EventBatch) -> ControlFlow<()>) -> StoreResult<()>;
     fn chart(&self, req: &ChartRequest) -> StoreResult<ChartData>;
     fn field_stats(&self, req: &FieldStatsRequest) -> StoreResult<FieldStats>;

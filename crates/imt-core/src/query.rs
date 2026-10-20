@@ -1,11 +1,12 @@
 //! Query model shared by the grid, timeline, facets and charts.
 
 use crate::condition::Condition;
-use crate::model::{Level, Record};
+use crate::model::{Level, MarkerMask, Record};
+use crate::ql::{Expr, TextSearch};
+use crate::row::{FieldKey, FieldKeys, RecordRow, RowRef};
 use anyhow::{Context, Result};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -58,20 +59,19 @@ pub struct FieldFilter {
 pub const GROUP_SEPARATOR: &str = " · ";
 const MISSING: &str = "–";
 
-/// A query ready to evaluate. Split in two parts so the timeline can show
-/// instance lifetimes (structural) separately from what matches (content).
+/// A query ready to evaluate: every criterion lowered into the one predicate language ([`Expr`]).
+/// Split in two parts so the timeline can show instance lifetimes (structural) separately from what
+/// matches (content).
 pub struct CompiledQuery {
     from: Option<i64>,
     to: Option<i64>,
-    level_mask: u8,
-    text: Option<Regex>,
-    filters: Vec<Condition>,
     pub group_by: Vec<String>,
-    groups: Option<HashSet<String>>,
-    sources: Option<HashSet<u32>>,
-    marker_mask: crate::model::MarkerMask,
-    match_nothing: bool,
-    ql: Vec<crate::ql::Filter>,
+    keys: FieldKeys,
+    group_keys: Vec<FieldKey>,
+    /// Sources, time range, field filters and instance selection, in that order (all must hold).
+    structural: Vec<Expr>,
+    /// Levels, markers, the search box and the query language (all must hold).
+    content: Vec<Expr>,
 }
 
 impl CompiledQuery {
@@ -82,51 +82,70 @@ impl CompiledQuery {
                 q.sources.len()
             );
         }
-        let text = if q.text.trim().is_empty() {
-            None
-        } else {
-            let pattern = if q.regex { q.text.clone() } else { regex::escape(q.text.trim()) };
-            Some(crate::user_regex::compile(&pattern, !q.case_sensitive).context("invalid search regex")?)
-        };
-        let filters = q
-            .filters
-            .iter()
-            .map(|f| Condition::new(&f.field, &f.op, f.value.as_deref()))
-            .collect::<Result<Vec<_>>>()?;
-        let mut marker_mask: crate::model::MarkerMask = 0;
-        for m in &q.markers {
-            if let Some(i) = marker_kinds.iter().position(|k| k == m) {
-                marker_mask |= 1 << i;
-            }
+        let mut keys = FieldKeys::new();
+        let mut content = Vec::new();
+        if !q.levels.is_empty() {
+            content.push(Expr::Levels(q.levels.iter().fold(0u8, |m, l| m | (1 << l.index()))));
         }
-        let ql = if q.ql.trim().is_empty() {
-            Vec::new()
-        } else {
+        if !q.markers.is_empty() {
+            let mut mask: MarkerMask = 0;
+            for m in &q.markers {
+                if let Some(i) = marker_kinds.iter().position(|k| k == m) {
+                    mask |= 1 << i;
+                }
+            }
+            // Asking only for marker kinds that do not exist matches nothing.
+            content.push(if mask == 0 { Expr::Const(false) } else { Expr::Markers(mask) });
+        }
+        if !q.text.trim().is_empty() {
+            let literal = (!q.regex).then(|| q.text.trim().to_string());
+            let pattern = literal.as_deref().map_or_else(|| q.text.clone(), regex::escape);
+            let re = crate::user_regex::compile(&pattern, !q.case_sensitive).context("invalid search regex")?;
+            content.push(Expr::Search(TextSearch {
+                re,
+                literal,
+                case_sensitive: q.case_sensitive,
+            }));
+        }
+        if !q.ql.trim().is_empty() {
             let program = crate::ql::parse(&q.ql).map_err(|e| anyhow::anyhow!("query: {e}"))?;
+            // Stages after sort/head/fields/stats shape the output, not which records match.
             let wheres = program.stages.iter().map_while(|s| match s {
                 crate::ql::Stage::Where(f) => Some(f.clone()),
-                crate::ql::Stage::Sort(_) | crate::ql::Stage::Head(_) | crate::ql::Stage::Fields(_) => None,
-                crate::ql::Stage::Stats { .. } => None,
+                _ => None,
             });
-            std::iter::once(program.filter).chain(wheres).collect()
+            content.extend(std::iter::once(program.filter.clone()).chain(wheres).filter_map(|f| f.expr));
+        }
+        let mut structural = Vec::new();
+        if !q.sources.is_empty() {
+            structural.push(Expr::Sources(Arc::new(q.sources.iter().copied().collect())));
+        }
+        if q.from.is_some() || q.to.is_some() {
+            structural.push(Expr::Time { from: q.from, to: q.to });
+        }
+        for f in &q.filters {
+            structural.push(Condition::new(&f.field, &f.op, f.value.as_deref())?.check().lower(&mut keys));
+        }
+        let group_by = if q.group_by.is_empty() {
+            default_group_by.to_vec()
+        } else {
+            q.group_by.clone()
         };
+        let group_keys: Vec<FieldKey> = group_by.iter().map(|f| keys.key(f)).collect();
+        if !q.groups.is_empty() {
+            structural.push(Expr::Group {
+                by: group_keys.clone(),
+                set: Arc::new(q.groups.iter().cloned().collect()),
+            });
+        }
         Ok(CompiledQuery {
-            ql,
             from: q.from,
             to: q.to,
-            level_mask: q.levels.iter().fold(0u8, |m, l| m | (1 << l.index())),
-            text,
-            filters,
-            group_by: if q.group_by.is_empty() {
-                default_group_by.to_vec()
-            } else {
-                q.group_by.clone()
-            },
-            groups: (!q.groups.is_empty()).then(|| q.groups.iter().cloned().collect()),
-            sources: (!q.sources.is_empty()).then(|| q.sources.iter().copied().collect()),
-            marker_mask,
-            // Asking only for marker kinds that do not exist matches nothing.
-            match_nothing: !q.markers.is_empty() && marker_mask == 0,
+            group_by,
+            keys,
+            group_keys,
+            structural,
+            content,
         })
     }
 
@@ -135,55 +154,72 @@ impl CompiledQuery {
     }
 
     pub fn in_range(&self, rec: &Record) -> bool {
-        match rec.ts {
-            Some(ts) => self.from.is_none_or(|f| ts >= f) && self.to.is_none_or(|t| ts <= t),
-            None => !self.has_range(),
-        }
+        in_range(self.from, self.to, rec.ts)
+    }
+
+    /// The structural criteria (sources, time range, field filters, instance selection), all of which must hold.
+    pub fn structural_exprs(&self) -> &[Expr] {
+        &self.structural
+    }
+
+    /// The content criteria (levels, markers, search box, query language), all of which must hold.
+    pub fn content_exprs(&self) -> &[Expr] {
+        &self.content
+    }
+
+    /// The names the criteria refer to (resolve [`crate::row::BatchSlots`] with these).
+    pub fn keys(&self) -> &FieldKeys {
+        &self.keys
+    }
+
+    /// The instance key fields, interned.
+    pub fn group_keys(&self) -> &[FieldKey] {
+        &self.group_keys
     }
 
     /// Source selection, time range, field filters and instance selection.
     pub fn structural(&self, rec: &Record, source_name: &str, key: Option<&str>) -> bool {
-        if self.sources.as_ref().is_some_and(|s| !s.contains(&rec.source)) {
-            return false;
-        }
-        if !self.in_range(rec) || !self.filters.iter().all(|f| f.eval(rec, source_name)) {
-            return false;
-        }
-        match (&self.groups, key) {
-            (Some(groups), Some(k)) => groups.contains(k),
-            (Some(groups), None) => groups.contains(&self.group_key(rec, source_name)),
-            (None, _) => true,
-        }
+        self.structural_row(&RecordRow { rec, source: source_name }, key)
     }
 
-    /// Levels, text search and marker kinds.
+    /// [`structural`](Self::structural) of any event; `key` is its instance key when already known.
+    pub fn structural_row(&self, row: &dyn RowRef, key: Option<&str>) -> bool {
+        self.structural.iter().all(|e| match (e, key) {
+            (Expr::Group { set, .. }, Some(k)) => set.contains(k),
+            _ => e.matches(row),
+        })
+    }
+
+    /// Levels, text search, marker kinds and the query language.
     pub fn content(&self, rec: &Record, source_name: &str) -> bool {
-        if self.match_nothing {
-            return false;
-        }
-        if self.level_mask != 0 && self.level_mask & (1 << rec.level.index()) == 0 {
-            return false;
-        }
-        if self.marker_mask != 0 && rec.markers & self.marker_mask == 0 {
-            return false;
-        }
-        if let Some(re) = &self.text {
-            let hit = re.is_match(&rec.message)
-                || rec.exception.as_deref().is_some_and(|x| re.is_match(x))
-                || rec.template.as_deref().is_some_and(|t| re.is_match(t));
-            if !hit {
-                return false;
-            }
-        }
-        self.ql.iter().all(|f| f.matches(rec, source_name))
+        self.content_row(&RecordRow { rec, source: source_name })
+    }
+
+    pub fn content_row(&self, row: &dyn RowRef) -> bool {
+        self.content.iter().all(|e| e.matches(row))
     }
 
     pub fn matches(&self, rec: &Record, source_name: &str) -> bool {
-        self.content(rec, source_name) && self.structural(rec, source_name, None)
+        self.matches_row(&RecordRow { rec, source: source_name })
+    }
+
+    pub fn matches_row(&self, row: &dyn RowRef) -> bool {
+        self.content_row(row) && self.structural_row(row, None)
     }
 
     pub fn group_key(&self, rec: &Record, source_name: &str) -> String {
-        group_key(&self.group_by, rec, source_name)
+        group_key_row(&self.group_keys, &RecordRow { rec, source: source_name })
+    }
+
+    pub fn group_key_of(&self, row: &dyn RowRef) -> String {
+        group_key_row(&self.group_keys, row)
+    }
+}
+
+fn in_range(from: Option<i64>, to: Option<i64>, ts: Option<i64>) -> bool {
+    match ts {
+        Some(ts) => from.is_none_or(|f| ts >= f) && to.is_none_or(|t| ts <= t),
+        None => from.is_none() && to.is_none(),
     }
 }
 
@@ -191,16 +227,25 @@ impl CompiledQuery {
 /// carry none of the fields (e.g. a log4net file among Serilog logs) are keyed
 /// by their source file instead of collapsing into one anonymous instance.
 pub fn group_key(fields: &[String], rec: &Record, source_name: &str) -> String {
-    if fields.is_empty() {
+    group_key_with(fields.len(), |i| rec.field_text(&fields[i], source_name), source_name)
+}
+
+/// [`group_key`] of any event, with interned fields.
+pub fn group_key_row(fields: &[FieldKey], row: &dyn RowRef) -> String {
+    group_key_with(fields.len(), |i| row.text(&fields[i]), row.source_name())
+}
+
+fn group_key_with<'a>(n: usize, text: impl Fn(usize) -> Option<std::borrow::Cow<'a, str>>, source_name: &str) -> String {
+    if n == 0 {
         return "all".into();
     }
     let mut key = String::new();
     let mut found = false;
-    for (i, f) in fields.iter().enumerate() {
+    for i in 0..n {
         if i > 0 {
             key.push_str(GROUP_SEPARATOR);
         }
-        match rec.field_text(f, source_name) {
+        match text(i) {
             Some(v) if !v.is_empty() => {
                 found = true;
                 key.push_str(&v);
