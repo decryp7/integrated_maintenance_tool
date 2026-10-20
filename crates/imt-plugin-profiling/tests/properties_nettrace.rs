@@ -128,6 +128,50 @@ fn generated(compressed: bool) -> Vec<u8> {
     w.finish()
 }
 
+/// A heap walk (both pointer sizes are covered by the importer tests) with roots and a static.
+fn heap_walk() -> Vec<u8> {
+    use imt_plugin_profiling::nettrace::heap::{ids as h, payload as hp};
+    let meta = |id, event_id| Meta {
+        id,
+        provider: RUNTIME,
+        event_id,
+        name: "",
+    };
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(
+        true,
+        &[
+            meta(1, h::BULK_TYPE),
+            meta(2, h::BULK_NODE),
+            meta(3, h::BULK_EDGE),
+            meta(4, h::BULK_ROOT_EDGE),
+            meta(5, h::BULK_ROOT_STATIC),
+            meta(6, h::BULK_ROOT_CWT),
+        ],
+    );
+    let row = |metadata_id, payload| Row {
+        metadata_id,
+        thread: 1,
+        capture_thread: 1,
+        ts: 1_000_100,
+        payload,
+        ..Row::default()
+    };
+    let list: &[u64] = &[2];
+    w.events(
+        true,
+        &[
+            row(1, hp::bulk_type(&[(1, "A", &[]), (2, "B", list)])),
+            row(2, hp::bulk_node(0, &[(0x10, 8, 1, 2), (0x20, 8, 2, 0)], 8)),
+            row(3, hp::bulk_edge(0, &[0x20, 0x10], 8)),
+            row(4, hp::bulk_root_edge(0, &[(0x10, 0, 0), (0x20, 1, 0)], 8)),
+            row(5, hp::bulk_root_static(&[(0x20, 1, "F")])),
+            row(6, hp::bulk_root_cwt(0, &[(0x10, 0x20)], 8)),
+        ],
+    );
+    w.finish()
+}
+
 /// The committed sample's first 64 KiB plus writer-generated traces.
 fn seeds() -> &'static Vec<Vec<u8>> {
     static S: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
@@ -135,7 +179,7 @@ fn seeds() -> &'static Vec<Vec<u8>> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/profiling/orders.nettrace");
         let mut sample = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         sample.truncate(64 * 1024);
-        vec![sample, generated(true), generated(false)]
+        vec![sample, generated(true), generated(false), heap_walk()]
     })
 }
 
@@ -195,9 +239,10 @@ proptest! {
 #[test]
 fn seeds_import_cleanly() {
     for s in seeds().iter().skip(1) {
-        let c = NettraceImporter.import("seed.nettrace", s, &Limits::default()).unwrap();
-        let Capture::Profile(p) = c else { panic!("not a profile") };
-        assert!(!p.samples.is_empty());
+        match NettraceImporter.import("seed.nettrace", s, &Limits::default()).unwrap() {
+            Capture::Profile(p) => assert!(!p.samples.is_empty()),
+            Capture::Heap(h) => assert!(h.graph.is_some_and(|g| g.len() > 2)),
+        }
     }
     // The sample's 64 KiB prefix is truncated (an error, not a panic) unless the sample is smaller.
     let prefix = &seeds()[0];
