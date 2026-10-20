@@ -277,7 +277,7 @@ export class TemplatesGallery implements OnInit {
       }
       await this.undo.save($localize`:@@templates.gallery.undoLabel:profile template`, t.toml);
       const name = t.name;
-      this.store.setNotice($localize`:@@templates.gallery.applying:Applying the ${name}:name: template; the files are re-imported with it.`);
+      this.store.setNotice($localize`:@@templates.gallery.applyingNotice:Applying the ${name}:name: template; the files are re-imported with it.`);
       this.ref.close(true);
     } catch (e) {
       this.applyError.set(describeError(e));
