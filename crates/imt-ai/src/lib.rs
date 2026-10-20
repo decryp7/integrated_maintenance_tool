@@ -14,6 +14,7 @@ pub mod error;
 pub mod gguf;
 pub mod hardware;
 pub mod llm;
+pub mod manual;
 pub mod models;
 pub mod net;
 pub mod recommend;

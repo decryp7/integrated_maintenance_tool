@@ -89,6 +89,17 @@ describe('TauriAiBackend', () => {
       [() => b.runtimeCancel(), 'ai_runtime_cancel', undefined],
       [() => b.runtimeDelete('b1', 'cpu'), 'ai_runtime_delete', { tag: 'b1', id: 'cpu' }],
       [() => b.runtimeChoose('auto'), 'ai_runtime_choose', { id: 'auto' }],
+      [
+        () => b.runtimeAddArchives('cpu', ['/d/a.zip']),
+        'ai_runtime_add_archives',
+        { id: 'cpu', paths: ['/d/a.zip'] },
+      ],
+      [() => b.manualDownload('model', 'm'), 'ai_manual_download', { kind: 'model', id: 'm' }],
+      [
+        () => b.openManualDownload('runtime', 'cpu', 1),
+        'ai_manual_download_open',
+        { kind: 'runtime', id: 'cpu', index: 1 },
+      ],
       [() => b.proposeRegex(['a']), 'ai_propose_regex', { lines: ['a'], intent: null }],
       [() => b.proposeRegex(['a'], 'ids'), 'ai_propose_regex', { lines: ['a'], intent: 'ids' }],
       [

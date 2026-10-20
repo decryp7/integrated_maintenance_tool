@@ -5,15 +5,45 @@
  */
 import { AiError } from '../../ai/ai-backend';
 import {
+  AiErrorCode,
   AiInstalledRuntime,
   AiRuntimeDevice,
   AiRuntimeEntry,
   AiRuntimeEvent,
   AiRuntimeOverview,
+  ManualFile,
 } from '../../ai/ai.types';
 
 /** `installed`: Vulkan installed and working (CUDA suggested); `none`: nothing installed; `broken`: Vulkan installed but it sees no GPU. */
 export type MockRuntimeMode = 'installed' | 'none' | 'broken';
+
+/** How a download fails on a corporate network (`?mockAiNet=`), as the engine classifies it. */
+export const MOCK_NET_FAILURES = ['tls', 'proxyAuth', 'proxy', 'offline', 'timeout', 'httpStatus'] as const;
+export type MockNetFailure = (typeof MOCK_NET_FAILURES)[number];
+
+/** The engine's message for a failed request to `host` (plausible, not the reference). */
+export function mockNetError(kind: MockNetFailure, host: string): AiError {
+  const messages: Record<MockNetFailure, string> = {
+    tls: `the secure connection to ${host} could not be verified (invalid peer certificate: UnknownIssuer). A proxy or security tool on your network probably intercepts HTTPS (for example Zscaler): its root certificate must be installed in Windows' certificate store; ask your IT department, or download the file manually`,
+    proxyAuth: 'the proxy asks for a sign-in (proxy server responded 407/407): put the user name and password in the Download proxy setting (http://user:password@proxy:port), or download the file manually',
+    proxy: 'the download proxy could not be used (the connection failed): check the Download proxy setting in Settings → AI',
+    offline: `cannot reach ${host} (the name could not be resolved): check that this computer is online; if your network needs a proxy, set Download proxy in Settings → AI`,
+    timeout: `${host} did not answer in time (timeout: global): try again later, or download the file manually`,
+    httpStatus: `${host} answered with status 403; a proxy on your network may block the download: download the file manually or ask your IT department`,
+  };
+  return new AiError(kind as AiErrorCode, messages[kind]);
+}
+
+/** A plausible SHA-256 for a mock asset (stable per name). */
+function fakeSha(name: string): string {
+  let h = 0x811c9dc5;
+  let out = '';
+  for (let round = 0; out.length < 64; round++) {
+    for (const c of `${name}#${round}`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+    out += h.toString(16).padStart(8, '0');
+  }
+  return out.slice(0, 64);
+}
 
 const MB = 1_000_000;
 export const MOCK_RUNTIME_TAG = 'b11669';
@@ -103,6 +133,12 @@ interface Installed {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+function assetNames(b: (typeof BUILDS)[number]): string[] {
+  return Array.from({ length: b.assets }, (_, i) =>
+    i === 0 ? `llama-${MOCK_RUNTIME_TAG}-bin-win-${b.id}-x64.zip` : `cudart-llama-bin-win-${b.id}-x64.zip`,
+  );
+}
+
 export class MockRuntimes {
   private installed: Installed[];
   private choice = 'auto';
@@ -112,8 +148,8 @@ export class MockRuntimes {
   constructor(
     mode: MockRuntimeMode,
     private readonly stepMs: number,
-    /** Downloads fail with a network error half-way. */
-    private readonly failDownloads: boolean,
+    /** Downloads fail half-way with this error (none when null); archives added by hand still install. */
+    private readonly failure: AiError | null = null,
   ) {
     this.installed =
       mode === 'none'
@@ -193,7 +229,35 @@ export class MockRuntimes {
     };
   }
 
+  /** The archives of build `id` (as `imt_ai::manual::runtime_files`). */
+  manualFiles(id: string): ManualFile[] {
+    const b = BUILDS.find((x) => x.id === id);
+    if (!b) throw new AiError('notFound', `there is no inference build '${id}' for this computer`);
+    const per = Math.round(b.downloadBytes / b.assets);
+    return assetNames(b).map((name) => ({
+      name,
+      url: `https://github.com/ggml-org/llama.cpp/releases/download/${MOCK_RUNTIME_TAG}/${name}`,
+      sizeBytes: per,
+      sha256: fakeSha(name),
+    }));
+  }
+
+  /** Installs `id` from archives downloaded by hand: every asset by name, like the engine checks them. */
+  installFrom(id: string, paths: string[]): void {
+    const files = this.manualFiles(id);
+    const given = paths.map((p) => (p.split(/[\\/]/).pop() ?? '').toLowerCase());
+    const wrong = given.find((g) => !files.some((f) => f.name.toLowerCase() === g));
+    if (wrong) throw new AiError('invalid', `${wrong} is not a file of this build; it needs ${files.map((f) => f.name).join(' and ')}`);
+    if (new Set(given).size !== files.length)
+      throw new AiError('invalid', `this build needs ${files.map((f) => f.name).join(' and ')}: choose all of them`);
+    this.start(id, true);
+  }
+
   install(id: string): void {
+    this.start(id, false);
+  }
+
+  private start(id: string, manual: boolean): void {
     const b = BUILDS.find((x) => x.id === id);
     if (!b) throw new AiError('notFound', `there is no inference build '${id}' for this computer`);
     if (this.job)
@@ -202,10 +266,10 @@ export class MockRuntimes {
         `The ${BUILDS.find((x) => x.id === this.job!.id)?.label} runtime is being downloaded; wait for it or cancel it first.`,
       );
     this.job = { id, cancel: false };
-    void this.run(b);
+    void this.run(b, manual);
   }
 
-  private async run(b: (typeof BUILDS)[number]): Promise<void> {
+  private async run(b: (typeof BUILDS)[number], manual: boolean): Promise<void> {
     const job = this.job!;
     const step = async (e: AiRuntimeEvent) => {
       if (job.cancel) throw new AiError('cancelled', 'cancelled');
@@ -214,11 +278,9 @@ export class MockRuntimes {
     };
     try {
       const per = Math.round(b.downloadBytes / b.assets);
+      const names = assetNames(b);
       for (let a = 1; a <= b.assets; a++) {
-        const asset =
-          a === 1
-            ? `llama-${MOCK_RUNTIME_TAG}-bin-win-${b.id}-x64.zip`
-            : `cudart-llama-bin-win-${b.id}-x64.zip`;
+        const asset = names[a - 1]!;
         await step({ stage: 'downloading', id: b.id, asset, index: a, count: b.assets });
         const steps = 6;
         for (let i = 0; i <= steps; i++) {
@@ -232,8 +294,7 @@ export class MockRuntimes {
             etaSecs: Math.ceil((per - bytes) / (24 * MB)),
             verifying: false,
           });
-          if (this.failDownloads && i === 3)
-            throw new AiError('network', 'network error: the connection to github.com was reset');
+          if (this.failure && !manual && i === 3) throw this.failure;
         }
         await step({
           stage: 'progress',

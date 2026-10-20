@@ -271,15 +271,26 @@ impl AiCore {
         }
     }
 
-    /// Downloads, verifies and unpacks build `id`. Blocks; call between
-    /// [`begin_runtime_install`](Self::begin_runtime_install) and [`end_runtime_install`](Self::end_runtime_install).
-    pub fn install_runtime(&self, id: &str, progress: &Progress, on_stage: &mut dyn FnMut(RuntimeStage)) -> AiResult<InstalledRuntime> {
+    /// Downloads, verifies and unpacks build `id`. With `archives` (the build's files the user downloaded
+    /// themselves, already canonical paths) those are checked against the pinned SHA-256 and used instead of
+    /// downloading. Blocks; call between [`begin_runtime_install`](Self::begin_runtime_install) and
+    /// [`end_runtime_install`](Self::end_runtime_install).
+    pub fn install_runtime(
+        &self,
+        id: &str,
+        archives: &[PathBuf],
+        progress: &Progress,
+        on_stage: &mut dyn FnMut(RuntimeStage),
+    ) -> AiResult<InstalledRuntime> {
         let rt = &self.deps.runtimes;
         let build = rt
             .catalog
             .find(&rt.platform, id)
             .cloned()
             .ok_or_else(|| AiCmdError::not_found(format!("there is no inference build '{id}' for this computer")))?;
+        if !archives.is_empty() {
+            rt.store.import_archives(&build, archives, progress)?;
+        }
         let s = self.settings();
         let source = (rt.source)(&s, &rt.catalog)?;
         let opts = DownloadOptions {

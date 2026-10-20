@@ -17,6 +17,8 @@ import {
   ChatRecord,
   Citation,
   InstalledModel,
+  ManualDownload,
+  ManualKind,
   Narrative,
   Proposal,
   QueryProposal,
@@ -40,7 +42,7 @@ import {
   mockRegexProposal,
 } from './mock-ai-data';
 import { FILE_EXISTS_SUFFIX } from '../api.types';
-import { MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
+import { MOCK_NET_FAILURES, MockNetFailure, mockNetError, MockRuntimeMode, MockRuntimes } from './mock-ai-runtimes';
 import { mockWeb } from '../../browser/mock-browser-backend';
 import { mockBrowserTurn } from './mock-ai-browser';
 import { MockJobCancelled, mockJobs, mockSteps } from '../../jobs/mock-jobs';
@@ -70,6 +72,8 @@ export interface MockAiOptions {
   fail?: AiFailable[];
   /** The inference runtimes on disk (default `installed`: Vulkan works, CUDA is suggested). */
   runtime?: MockRuntimeMode;
+  /** Model and runtime downloads fail like on a corporate network (e.g. `tls`: a TLS-inspecting proxy). */
+  net?: MockNetFailure;
 }
 
 /**
@@ -77,6 +81,7 @@ export interface MockAiOptions {
  *   ?mockAi=setup|off        start without a model, or with AI unavailable (hidden)
  *   ?mockAiFail=chat,setup   these operations fail (`runtime`: runtime downloads)
  *   ?mockAiRuntime=none|broken  no inference runtime installed, or one that finds no GPU
+ *   ?mockAiNet=tls|proxyAuth|proxy|offline|timeout|httpStatus  downloads fail like behind a corporate proxy
  *   ?mockAiStepMs=5          streaming speed
  */
 export function mockAiOptionsFromSearch(search: string): MockAiOptions {
@@ -92,6 +97,8 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   if (fail.length) o.fail = fail;
   const runtime = p.get('mockAiRuntime');
   if (runtime === 'none' || runtime === 'broken' || runtime === 'installed') o.runtime = runtime;
+  const net = p.get('mockAiNet');
+  if ((MOCK_NET_FAILURES as readonly (string | null)[]).includes(net)) o.net = net as MockNetFailure;
   return o;
 }
 
@@ -105,10 +112,14 @@ interface MockChat {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** The AI folder of the demo machine (Windows, like the mock hardware). */
+const MOCK_AI_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\IMT\\ai';
+
 export class MockAiBackend extends AiBackend {
   private readonly mode: 'ready' | 'setup' | 'off';
   private readonly stepMs: number;
   private readonly fails: Set<AiFailable>;
+  private readonly net: MockNetFailure | null;
   private installed: InstalledModel[];
   private activeFile: string | null;
   private backend: string | null;
@@ -129,13 +140,18 @@ export class MockAiBackend extends AiBackend {
     this.mode = options.mode ?? 'ready';
     this.stepMs = options.stepMs ?? 25;
     this.fails = new Set(options.fail ?? []);
+    this.net = options.net ?? null;
     const ready = this.mode === 'ready';
     this.installed = ready ? [installedFrom(catalogModel(1), true)] : [];
     this.activeFile = ready ? catalogModel(1).file : null;
     this.rt = new MockRuntimes(
       options.runtime ?? 'installed',
       this.stepMs,
-      this.fails.has('runtime'),
+      this.net
+        ? mockNetError(this.net, 'github.com')
+        : this.fails.has('runtime')
+          ? new AiError('network', 'network error: the connection to github.com was reset')
+          : null,
     );
     this.backend = ready ? (this.rt.backendName() ?? 'Vulkan') : null;
   }
@@ -297,6 +313,7 @@ export class MockAiBackend extends AiBackend {
             etaSecs: Math.ceil((size - bytes) / 48_000_000),
           });
         }
+        if (this.net) throw mockNetError(this.net, 'huggingface.co');
         if (this.fails.has('setup'))
           throw new AiError('network', 'network error: the connection to the model host was reset');
         await step({ stage: 'verifying', bytes: size, total: size });
@@ -376,13 +393,17 @@ export class MockAiBackend extends AiBackend {
       this.check();
       if (!/\.gguf$/i.test(path)) throw new AiError('invalid', 'model files end in .gguf');
       const name = (path.split(/[\\/]/).pop() ?? 'model.gguf').replace(/[^A-Za-z0-9.+_-]/g, '_');
-      const m: InstalledModel = {
-        ...installedFrom(catalogModel(2), false),
-        fileName: name,
-        name: name.replace(/\.gguf$/i, ''),
-        catalogId: null,
-        license: null,
-      };
+      // A catalog model downloaded by hand is "verified" and filed under its catalog name, like the engine.
+      const known = MOCK_CATALOG.find((c) => c.file.toLowerCase() === name.toLowerCase());
+      const m: InstalledModel = known
+        ? installedFrom(known, false)
+        : {
+            ...installedFrom(catalogModel(2), false),
+            fileName: name,
+            name: name.replace(/\.gguf$/i, ''),
+            catalogId: null,
+            license: null,
+          };
       this.installed = [...this.installed.filter((i) => i.fileName !== name), m];
       return structuredClone(m);
     });
@@ -404,8 +425,53 @@ export class MockAiBackend extends AiBackend {
     this.check();
     this.rt.install(id);
   }
+  async runtimeAddArchives(id: string, paths: string[]): Promise<void> {
+    this.check();
+    this.rt.installFrom(id, paths);
+  }
   runtimeCancel() {
     return this.later(() => this.rt.cancel(), 0);
+  }
+
+  // ---- manual downloads ----
+
+  manualDownload(kind: ManualKind, id: string) {
+    return this.later((): ManualDownload => {
+      this.check();
+      if (kind === 'runtime') {
+        const b = this.rt.overview().builds.find((x) => x.id === id);
+        return {
+          kind,
+          id,
+          name: b?.label ?? id,
+          files: this.rt.manualFiles(id),
+          folder: `${MOCK_AI_DIR}\\runtimes\\b11669\\${id}`,
+        };
+      }
+      const m = MOCK_CATALOG.find((c) => c.id === id);
+      if (!m) throw new AiError('notFound', `'${id}' is not in the model list`);
+      return {
+        kind,
+        id,
+        name: m.name,
+        files: [
+          {
+            name: m.file,
+            url: `https://huggingface.co/${m.hfRepo}/resolve/main/${m.file}?download=true`,
+            sizeBytes: m.sizeBytes,
+            sha256: m.sha256,
+          },
+        ],
+        folder: `${MOCK_AI_DIR}\\models`,
+      };
+    }, 0);
+  }
+  openManualDownload(kind: ManualKind, id: string, index: number) {
+    return this.manualDownload(kind, id).then((d) => {
+      const f = d.files[index];
+      if (!f) throw new AiError('invalid', 'that file is not part of this download');
+      this.opened.push(f.url);
+    });
   }
   runtimeDelete(tag: string, id: string) {
     return this.later(() => {

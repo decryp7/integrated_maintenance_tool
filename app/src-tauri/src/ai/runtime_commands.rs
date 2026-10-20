@@ -12,10 +12,14 @@ use crate::settings::AI_SECTION;
 use imt_ai::runtimes::builds::label;
 use imt_ai::runtimes::RuntimeOverview;
 use serde_json::Value;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime};
 
 const MAX_ID_CHARS: usize = 32;
+const MAX_PATH_CHARS: usize = 4096;
+/// A build has one or two archives; a few more are refused with a clear message by the store.
+const MAX_ARCHIVES: usize = 8;
 /// How often the download ticker reports progress.
 const TICK: Duration = Duration::from_millis(250);
 
@@ -48,10 +52,44 @@ pub async fn ai_runtimes<R: Runtime>(app: AppHandle<R>) -> AiResult<RuntimeOverv
 /// events ending in `ready`, `failed` or `cancelled`. Runs as a download job (Cancel stops it).
 #[tauri::command]
 pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<()> {
+    start_install(app, id, vec![])
+}
+
+/// Installs a build from its archives the user downloaded themselves ("Download manually"): they are
+/// checked against the pinned SHA-256 and unpacked like a download. Events and job as [`ai_runtime_install`].
+#[tauri::command]
+pub fn ai_runtime_add_archives<R: Runtime>(app: AppHandle<R>, id: String, paths: Vec<String>) -> AiResult<()> {
+    if paths.is_empty() || paths.len() > MAX_ARCHIVES {
+        return Err(AiCmdError::invalid("choose the downloaded archives of the build"));
+    }
+    let archives = paths.iter().map(|p| archive_path(p)).collect::<AiResult<Vec<_>>>()?;
+    start_install(app, id, archives)
+}
+
+/// A file the user picked: absolute, of reasonable length, an existing file (canonicalized).
+fn archive_path(path: &str) -> AiResult<PathBuf> {
+    if path.is_empty() || path.chars().count() > MAX_PATH_CHARS || path.contains('\0') {
+        return Err(AiCmdError::invalid("choose the downloaded archives of the build"));
+    }
+    let p = Path::new(path);
+    if !p.is_absolute() {
+        return Err(AiCmdError::invalid("the archive path must be absolute"));
+    }
+    let canon = p
+        .canonicalize()
+        .map_err(|e| AiCmdError::not_found(format!("cannot open {path}: {e}")))?;
+    if !canon.is_file() {
+        return Err(AiCmdError::invalid(format!("{path} is not a file")));
+    }
+    Ok(canon)
+}
+
+fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<()> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
-    let spec = JobSpec::new(JobKind::Download, format!("Downloading the {} inference runtime", label(&id)))
+    let verb = if archives.is_empty() { "Downloading" } else { "Installing" };
+    let spec = JobSpec::new(JobKind::Download, format!("{verb} the {} inference runtime", label(&id)))
         .link(JobLink::Model { id: id.clone() })
         .retry_with(serde_json::json!({"op": "runtime", "runtimeId": id}));
     let c = core.clone();
@@ -67,8 +105,10 @@ pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult
                 let mut on_stage = |st| {
                     let _ = a.emit(RUNTIME_EVENT, RuntimeEvent::of_stage(&id, st));
                 };
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| core.install_runtime(&id, &progress, &mut on_stage)))
-                    .unwrap_or_else(|_| Err(AiCmdError::new(AiErrorCode::Engine, "the runtime install stopped unexpectedly")))
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    core.install_runtime(&id, &archives, &progress, &mut on_stage)
+                }))
+                .unwrap_or_else(|_| Err(AiCmdError::new(AiErrorCode::Engine, "the runtime install stopped unexpectedly")))
             });
             let mut last = None;
             while !worker.is_finished() {

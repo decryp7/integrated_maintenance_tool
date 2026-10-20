@@ -1,9 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  OnInit,
+  signal,
+  untracked,
+} from '@angular/core';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
 import { formatBytes } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
-import { AiInstalledRuntime, AiRuntimeEntry } from '../ai.types';
+import { AiErrorCode, AiInstalledRuntime, AiRuntimeEntry } from '../ai.types';
+import { AiManualDownload } from '../manual/manual-download';
+import { offersManualDownload } from '../manual/manual-download-view';
 import { AiRuntimeStore } from './ai-runtime.store';
 import {
   deviceLine,
@@ -21,6 +32,7 @@ import {
  */
 @Component({
   selector: 'imt-ai-runtime-panel',
+  imports: [AiManualDownload],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="intro muted">
@@ -118,6 +130,9 @@ import {
           </p>
         }
       }
+    }
+    @if (manual(); as m) {
+      <imt-ai-manual-download kind="runtime" [id]="m.id" [code]="m.code" />
     }
     <div class="choice" data-testid="ai-runtime-choice">
       @if (store.overview(); as o) {
@@ -378,6 +393,9 @@ export class AiRuntimePanel implements OnInit {
   private readonly dialogs = inject(DialogService);
 
   protected readonly busy = computed(() => this.store.busy());
+  /** The build whose download failed in a way a manual download works around; kept while the user tries
+   * the files they downloaded (a rejected archive keeps the instructions), cleared once it is installed. */
+  protected readonly manual = signal<{ id: string; code: AiErrorCode } | null>(null);
   protected readonly pct = computed(() => runtimePercent(this.store.job()?.stage ?? null));
   protected readonly progressText = computed(() =>
     runtimeProgressText(this.store.job()?.stage ?? null),
@@ -405,6 +423,16 @@ export class AiRuntimePanel implements OnInit {
   protected readonly state = entryState;
   protected readonly stateLabel = entryStateLabel;
   protected readonly device = deviceLine;
+
+  constructor() {
+    effect(() => {
+      const out = this.store.outcome();
+      untracked(() => {
+        if (out?.stage === 'failed' && offersManualDownload(out.code)) this.manual.set({ id: out.id, code: out.code });
+        else if (out?.stage === 'ready' && this.manual()?.id === out.id) this.manual.set(null);
+      });
+    });
+  }
 
   ngOnInit(): void {
     void this.store.load();

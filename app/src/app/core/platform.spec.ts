@@ -119,3 +119,25 @@ describe('platform save and open dialogs for shared files', () => {
     expect(await p.pickOpenPath('Open bundle', [])).toBeNull();
   });
 });
+
+describe('platform multi-file open dialog', () => {
+  afterEach(() => {
+    setTauri(false);
+    history.replaceState(null, '', '/');
+  });
+
+  it('returns a browser placeholder or ?mockOpen, then the native choice', async () => {
+    setTauri(false);
+    const p = new Platform();
+    expect(await p.pickOpenPaths('Add', [{ name: 'Archives', extensions: ['zip'] }])).toEqual(['/demo/shared.zip']);
+    expect(await p.pickOpenPaths('Add', [])).toEqual(['/demo/shared.txt']);
+    history.replaceState(null, '', '/?mockOpen=/d/a.zip,/d/b.zip');
+    expect(await p.pickOpenPaths('Add', [])).toEqual(['/d/a.zip', '/d/b.zip']);
+    setTauri(true);
+    dialog.open.mockResolvedValueOnce(['/a.zip', '/b.zip']).mockResolvedValueOnce('/c.zip').mockResolvedValueOnce(null);
+    expect(await p.pickOpenPaths('Add archives', [{ name: 'Archives', extensions: ['zip'] }])).toEqual(['/a.zip', '/b.zip']);
+    expect(dialog.open.mock.calls.at(-1)![0]).toMatchObject({ multiple: true, directory: false, title: 'Add archives' });
+    expect(await p.pickOpenPaths('Add', [])).toEqual(['/c.zip']);
+    expect(await p.pickOpenPaths('Add', [])).toEqual([]);
+  });
+});

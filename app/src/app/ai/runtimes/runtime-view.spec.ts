@@ -28,7 +28,7 @@ const entry = (over: Partial<AiRuntimeEntry> = {}): AiRuntimeEntry => ({
 });
 
 const overview = (mode: 'installed' | 'none' | 'broken'): AiRuntimeOverview =>
-  new MockRuntimes(mode, 0, false).overview();
+  new MockRuntimes(mode, 0, null).overview();
 
 describe('runtime view helpers', () => {
   it('names the install stages and their progress', () => {

@@ -10,6 +10,7 @@ use imt_ai::gguf::{self, GgufInfo};
 use imt_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
 use imt_ai::llm::{LazyProvider, LlmProvider, LoadState, ModelLoader};
 use imt_ai::models::source::{ModelSource, Progress};
+use imt_ai::models::verify::verify_local;
 use imt_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
 use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommendations};
 use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, LoadRequest, ModelRuntime};
@@ -681,8 +682,11 @@ impl AiCore {
         Ok(())
     }
 
-    /// Adds a GGUF file the user chose (hard link when possible, otherwise a copy) after validating it.
-    pub fn add_local(&self, path: &str) -> AiResult<ModelDto> {
+    /// Adds a GGUF file the user chose (hard link when possible, otherwise a copy) after validating it. A file
+    /// named like a catalog model, or of its exact size, must have the catalog's SHA-256 (a manual download is
+    /// checked like IMT's own); a verified one is filed under the catalog's file name. Hashing reads the whole
+    /// file: call off the UI thread; `progress` reports it and cancels it.
+    pub fn add_local(&self, path: &str, progress: &Progress) -> AiResult<ModelDto> {
         if path.is_empty() || path.chars().count() > MAX_PATH_CHARS || path.contains('\0') {
             return Err(AiCmdError::invalid("choose a .gguf model file"));
         }
@@ -699,7 +703,10 @@ impl AiCore {
         if !canon.is_file() {
             return Err(AiCmdError::invalid(format!("{path} is not a file")));
         }
-        let added = self.store().add_local(&canon, AddMode::Link)?;
+        // Not a model at all: say so before reading gigabytes for the checksum.
+        gguf::inspect(&canon)?;
+        let known = verify_local(&self.catalog, &canon, progress)?.map(|m| m.file.clone());
+        let added = self.store().add_local_as(&canon, AddMode::Link, known.as_deref())?;
         self.models()
             .into_iter()
             .find(|m| m.file_name == added.file_name)

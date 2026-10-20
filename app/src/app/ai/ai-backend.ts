@@ -7,6 +7,8 @@ import {
   AiRuntimeOverview,
   AiStatus,
   ChatContext,
+  ManualDownload,
+  ManualKind,
   ChatEnvelope,
   ChatEventEnvelope,
   ChatHistoryRecord,
@@ -87,6 +89,14 @@ export abstract class AiBackend {
   abstract runtimeDelete(tag: string, id: string): Promise<void>;
   /** Makes an installed build (or `auto`) the one that runs the model; the engine restarts with it. */
   abstract runtimeChoose(id: string): Promise<void>;
+  /** Installs a build from its archives downloaded by hand (checked against the pinned SHA-256); progress
+   * arrives through `onRuntime` like a download. */
+  abstract runtimeAddArchives(id: string, paths: string[]): Promise<void>;
+
+  /** The files to download by hand for a model or runtime build ("Download manually"). */
+  abstract manualDownload(kind: ManualKind, id: string): Promise<ManualDownload>;
+  /** Opens file `index` of that download in the system browser (the engine computes the address). */
+  abstract openManualDownload(kind: ManualKind, id: string, index: number): Promise<void>;
 
   abstract proposeRegex(lines: string[], intent?: string | null): Promise<RegexProposal>;
   abstract proposeProfile(source: SampleSource): Promise<ProfileProposal>;

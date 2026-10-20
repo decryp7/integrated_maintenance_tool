@@ -113,4 +113,15 @@ describe('AiRuntimeStore', () => {
     expect(store.installing()).toBe(false);
     expect(store.outcome()?.stage).toBe('cancelled');
   });
+
+  it('installs from archives downloaded by hand and reports a refused choice', async () => {
+    const { store } = setup({ runtime: 'none', net: 'offline' });
+    await store.load();
+    await store.installFromArchives('cpu', ['/d/wrong.zip']);
+    expect(store.job()).toBeNull();
+    expect(store.outcome()).toMatchObject({ stage: 'failed', id: 'cpu', code: 'invalid' });
+    await store.installFromArchives('cpu', ['/d/llama-b11669-bin-win-cpu-x64.zip']);
+    await until(() => store.outcome()?.stage === 'ready');
+    expect(store.overview()?.builds.find((b) => b.id === 'cpu')?.installed).toBe(true);
+  });
 });

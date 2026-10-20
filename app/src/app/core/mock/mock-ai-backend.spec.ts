@@ -38,6 +38,9 @@ describe('mockAiOptionsFromSearch', () => {
     expect(mockAiOptionsFromSearch('?mockAiRuntime=broken').runtime).toBe('broken');
     expect(mockAiOptionsFromSearch('?mockAiRuntime=odd')).toEqual({});
     expect(AI_FAILABLE).toContain('propose');
+    expect(mockAiOptionsFromSearch('?mockAiNet=tls').net).toBe('tls');
+    expect(mockAiOptionsFromSearch('?mockAiNet=proxyAuth').net).toBe('proxyAuth');
+    expect(mockAiOptionsFromSearch('?mockAiNet=evil')).toEqual({});
   });
 });
 
@@ -273,5 +276,43 @@ describe('MockAiBackend', () => {
     expect((await fresh.chatRestore('junk')).warning).toContain('damaged');
     expect((await fresh.chatRestore({ version: 2, sessions: [] })).warning).toContain('newer');
     expect((await fresh.suggestedPrompts()).length).toBeGreaterThan(2);
+  });
+});
+
+describe('MockAiBackend manual downloads', () => {
+  it('fails downloads like a corporate network and names the files to get by hand', async () => {
+    const b = new MockAiBackend({ stepMs: 0, mode: 'setup', net: 'tls' });
+    const events: { stage: string; code?: string; message?: string }[] = [];
+    void b.onSetup((e) => events.push(e as never));
+    await b.setupRun('qwen3.5-4b-q4km');
+    await vi.waitFor(() => expect(events.at(-1)?.stage).toBe('failed'));
+    expect(events.at(-1)).toMatchObject({ code: 'tls' });
+    expect(events.at(-1)!.message).toContain('Zscaler');
+    const m = await b.manualDownload('model', 'qwen3.5-4b-q4km');
+    expect(m.files[0]!.url).toBe('https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf?download=true');
+    expect(m.folder).toContain('models');
+    const r = await b.manualDownload('runtime', 'cuda-12');
+    expect(r.files.map((f) => f.name)).toEqual(['llama-b11669-bin-win-cuda-12-x64.zip', 'cudart-llama-bin-win-cuda-12-x64.zip']);
+    expect(r.files.every((f) => /^[0-9a-f]{64}$/.test(f.sha256!))).toBe(true);
+    expect(r.name).toBe('CUDA 12 (NVIDIA)');
+    expect(await code(b.manualDownload('model', 'nope'))).toBe('notFound');
+    expect(await code(b.manualDownload('runtime', 'nope'))).toBe('notFound');
+    await b.openManualDownload('runtime', 'cuda-12', 1);
+    expect(b.opened.at(-1)).toContain('cudart');
+    expect(await code(b.openManualDownload('model', 'qwen3.5-4b-q4km', 5))).toBe('invalid');
+    expect(await code(b.runtimeAddArchives('cuda-12', ['/d/llama-b11669-bin-win-cuda-12-x64.zip']))).toBe('invalid');
+    // The catalog model downloaded by hand is recognised.
+    expect((await b.addLocalModel('/d/Qwen3.5-4B-Q4_K_M.gguf')).catalogId).toBe('qwen3.5-4b-q4km');
+  });
+
+  it('classifies every simulated network failure', async () => {
+    for (const net of ['proxyAuth', 'proxy', 'offline', 'timeout', 'httpStatus'] as const) {
+      const b = new MockAiBackend({ stepMs: 0, mode: 'setup', runtime: 'none', net });
+      const events: { stage: string; code?: string }[] = [];
+      void b.onRuntime((e) => events.push(e as never));
+      await b.runtimeInstall('cpu');
+      await vi.waitFor(() => expect(events.at(-1)?.stage).toBe('failed'));
+      expect(events.at(-1)!.code).toBe(net);
+    }
   });
 });
