@@ -11,7 +11,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConditionCfg {
     pub field: String,
@@ -21,7 +21,7 @@ pub struct ConditionCfg {
 }
 
 /// Lets TOML write `value = 5`, `value = true`, `value = "x"` or `value = ["a", "b"]`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CondValue {
     Text(String),

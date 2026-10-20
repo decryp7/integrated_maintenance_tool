@@ -402,6 +402,29 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   (still in Rust) will miss the 0.5 s budget; they need SQL pre-aggregation (field stats, `stats`), the
   position order of R2b instead of a sort, or to run as jobs with cached results.
 
+### Span rule inference (R2c)
+
+- `Profiles::propose_span_rule(SpanRuleRequest { examples: [{ start, end }], hints: { name?, keyField? } })`
+  reads the example events and returns `SpanProposal { candidates, notes }`; `imt_core::spans::infer::propose` is
+  pure. What tells starts from ends: the words only every start line (or only every end line) has, wherever they
+  are ("open X" / "close X", "X started" / "X ended", "View X loaded" / "View X closed"), else a field whose value
+  differs (`Phase = begin` / `end`). The key: a token both lines of each pair share, captured by a bounded regex
+  (`user_regex`) anchored on the verbs or on the neighbouring token (`[Tab:42]` gives `Tab:(?P<SpanKey>…)`),
+  or a field both events carry with the same value (JSON logs); a token that does not vary across several
+  examples is not a key; up to three candidates, alternatives when several tokens qualify.
+- A candidate is a profile override (the profile's lists repeated, since lists replace): an extractor for
+  `SpanKey` (untyped, so no new column), `<kind>-start` / `<kind>-stop` markers (whole-word, case-insensitive
+  message conditions plus `SpanKey` exists) and a `[[span]]` with `per = "field:SpanKey"`. Applying it is
+  `set_profile(active.with_override(..))` (a derivation change, undoable by setting the old profile back).
+- `Profiles::evaluate_span_rule(SpanRuleCheck { profileOverride, kind })` evaluates any rule, the engine's or
+  an AI's: the candidate profile's extractors and markers run on each event as an import would and its runs
+  are paired by the same `Pairer` as the Runs table. `SpanEvaluation`: spans, distinct keys, open, unmatched
+  starts and ends, longest and shortest, the most runs open at once in a lane, `dropped` (beyond a rule's
+  per-lane and key limits), up to 20 sample pairs, events looked at. The store reads only events that can be a
+  start or stop (the markers' conditions on fields no extractor makes, compiled to SQL), in time order; the pure
+  evaluator skips other events with the same test (10M events in 0.8 s, release). As in every `[[span]]`, a key
+  started twice before it stops is one run.
+
 ### For 6c (`api.types.ts`)
 
 - `Analysis` results: `{ result, coverage: { matched, analysed, limits } }`.
@@ -409,3 +432,5 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   kinds; `FixEvaluation`: `{ fixed, checked, unchecked, notes? }`.
 - `SourceContext.note?`; `StoreError::Query` carries the `QlError` (message, offset, len, suggestions).
 - Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
+- Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
+  kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.

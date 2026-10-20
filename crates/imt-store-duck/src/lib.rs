@@ -12,6 +12,7 @@ mod project;
 mod qlang;
 mod read;
 mod schema;
+mod spans;
 mod sql;
 mod writer;
 

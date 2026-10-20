@@ -154,6 +154,10 @@ pub trait Profiles: Send + Sync {
     fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession>;
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview>;
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
+    /// Proposes `[[span]]` rules that pair the example start/end events, each evaluated on the data.
+    fn propose_span_rule(&self, req: &crate::spans::infer::SpanRuleRequest) -> StoreResult<crate::spans::infer::SpanProposal>;
+    /// What a rule (a profile override adding a `[[span]]`) does on the data; verifies AI-proposed rules.
+    fn evaluate_span_rule(&self, req: &crate::spans::infer::SpanRuleCheck) -> StoreResult<Analyzed<crate::spans::infer::SpanEvaluation>>;
 }
 
 /// Import problems and engine-verified quick fixes (ADR 0014 §5).
