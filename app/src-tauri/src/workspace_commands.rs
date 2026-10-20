@@ -119,6 +119,47 @@ fn report_not_imported<R: Runtime>(
     crate::notification_centre::post(app, Some(label), notice, None);
 }
 
+/// A source whose timestamps could not be read for many events becomes a message with "Fix timestamps"
+/// (the format wizard, pre-filled with the format the engine verified). Once per file: a reload or a
+/// second import of the same file does not repeat it. The body carries counts and the format, never
+/// lines of the file (messages are saved with the project).
+pub(crate) fn timestamp_notice(source: &imt_core::api::SourceInfo) -> Option<crate::notification_centre::centre::NewNotice> {
+    use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource};
+    let issue = source.timestamp_issue.as_ref()?;
+    let format = issue.suggestion.as_ref().map(|s| s.format.clone());
+    let mut body = format!(
+        "{} of {} events have no readable timestamp, so they are missing from the timeline.",
+        issue.unparsed_lines, issue.total_lines
+    );
+    if let Some(f) = &format {
+        body.push_str(&format!(" The format {f} reads them."));
+    }
+    let notice = NewNotice::new(
+        NoticeSource::Import,
+        NoticeSeverity::Warning,
+        format!("Timestamps not recognised in {}", source.name),
+        NoticeScope::Project,
+    )
+    .body(body)
+    .primary(NoticeAction::FixTimestamps {
+        path: source.path.clone(),
+        format,
+    })
+    .dedupe(format!("import:timestamps:{}", source.path))
+    .once()
+    .link(NoticeLink {
+        path: Some(source.path.clone()),
+        ..NoticeLink::default()
+    });
+    Some(notice)
+}
+
+fn report_timestamp_issues<R: Runtime>(app: &AppHandle<R>, label: &str, sources: &[imt_core::api::SourceInfo]) {
+    for notice in sources.iter().filter_map(timestamp_notice) {
+        crate::notification_centre::post(app, Some(label), notice, None);
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<Value> {
     let paths = crate::activity::report::open::divert(&app, state.label(), paths).await;
@@ -132,6 +173,7 @@ pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWind
         let summary = ws.summary();
         log_unrecognized(&summary.unrecognized, &before);
         report_not_imported(&handle, &label, &summary.unrecognized, &before);
+        report_timestamp_issues(&handle, &label, &summary.sources);
         // Counts only: file names and contents stay out of the logs.
         log::info!(
             Sources = summary.sources.len() as u64,
@@ -194,10 +236,13 @@ pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Value> {
 
 #[tauri::command]
 pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<Value> {
-    let summary = import_job(&app, &state, JobSpec::new(JobKind::Import, "Reload the files"), |ws| {
+    let (handle, label) = (app.clone(), state.label().to_string());
+    let summary = import_job(&app, &state, JobSpec::new(JobKind::Import, "Reload the files"), move |ws| {
         ws.reload()?;
-        log_unrecognized(&ws.summary().unrecognized, &Default::default());
-        serde_json::to_value(ws.summary()).map_err(anyhow::Error::from)
+        let summary = ws.summary();
+        log_unrecognized(&summary.unrecognized, &Default::default());
+        report_timestamp_issues(&handle, &label, &summary.sources);
+        serde_json::to_value(summary).map_err(anyhow::Error::from)
     })
     .await?;
     crate::window_manager::import_finished(&app, state.label(), &summary);
@@ -386,9 +431,12 @@ pub(crate) async fn open_project<R: Runtime>(app: AppHandle<R>, state: CurrentWi
         offsets: project.clock.clone(),
     };
     let spec = JobSpec::new(JobKind::Import, format!("Open project {}", project.name)).link(JobLink::Path { path: path.clone() });
+    let (handle, label) = (app.clone(), state.label().to_string());
     let (summary, missing) = import_job(&app, &state, spec, move |ws| {
         let missing = ws.restore(profile, &ws_state)?;
-        Ok((serde_json::to_value(ws.summary())?, missing))
+        let summary = ws.summary();
+        report_timestamp_issues(&handle, &label, &summary.sources);
+        Ok((serde_json::to_value(summary)?, missing))
     })
     .await?;
     state.set_profile_doc(doc.clone());
@@ -852,6 +900,73 @@ mod tests {
             .iter()
             .any(|c| c.message == "More files not imported" && c.props["More"] == "3"));
         let _ = dir;
+    }
+
+    #[test]
+    fn unreadable_timestamps_become_one_message_per_file() {
+        use crate::notification_centre::centre::{NoticeAction, NoticeSeverity};
+        use imt_core::api::{SourceInfo, TimestampIssue, TimestampSuggestion};
+        let mut source = SourceInfo {
+            id: 0,
+            path: "/logs/app.csv".into(),
+            name: "app.csv".into(),
+            group: "app.csv".into(),
+            importer: "csv".into(),
+            records: 4,
+            skipped: 0,
+            dropped: 0,
+            step_stats: Vec::new(),
+            error: None,
+            from: None,
+            to: None,
+            offset_ms: 0,
+            timestamp_issue: None,
+        };
+        assert_eq!(timestamp_notice(&source), None);
+        source.timestamp_issue = Some(TimestampIssue {
+            unparsed_lines: 4,
+            total_lines: 4,
+            examples: vec!["Sat Nov 08 00:04:37 2025,secret".into()],
+            example_lines: vec![1],
+            suggestion: Some(TimestampSuggestion {
+                format: "%a %b %d %H:%M:%S %Y".into(),
+                sample: "Sat Nov 08 00:04:37 2025".into(),
+                profile_snippet: String::new(),
+                parsed_samples: 4,
+                checked_samples: 4,
+            }),
+        });
+        let n = timestamp_notice(&source).unwrap();
+        assert_eq!(
+            (n.severity, n.title.as_str()),
+            (NoticeSeverity::Warning, "Timestamps not recognised in app.csv")
+        );
+        assert!(
+            n.body.contains("4 of 4 events") && n.body.contains("%a %b %d %H:%M:%S %Y"),
+            "{}",
+            n.body
+        );
+        // No line of the file goes into the message (it is saved with the project).
+        assert!(!n.body.contains("secret"));
+        assert_eq!(
+            n.primary,
+            Some(NoticeAction::FixTimestamps {
+                path: "/logs/app.csv".into(),
+                format: Some("%a %b %d %H:%M:%S %Y".into())
+            })
+        );
+        assert!(n.once && n.dedupe_key.as_deref() == Some("import:timestamps:/logs/app.csv"));
+        // Without a suggestion the wizard opens empty.
+        source.timestamp_issue.as_mut().unwrap().suggestion = None;
+        let n = timestamp_notice(&source).unwrap();
+        assert!(matches!(n.primary, Some(NoticeAction::FixTimestamps { format: None, .. })));
+        assert!(!n.body.contains("format"));
+        // Posted twice (a reload), it is one message.
+        let centre = crate::notification_centre::NotificationCentre::new(None, std::sync::Arc::new(crate::jobs::SystemClock));
+        centre.post(Some("main"), timestamp_notice(&source).unwrap());
+        centre.post(Some("main"), timestamp_notice(&source).unwrap());
+        let snap = centre.snapshot("main");
+        assert_eq!((snap.notices.len(), snap.notices[0].count), (1, 1));
     }
 
     #[test]
