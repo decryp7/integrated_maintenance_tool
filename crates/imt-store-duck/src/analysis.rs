@@ -63,33 +63,92 @@ const MAX_CORRELATED: usize = 10_000;
 /// Lifecycle markers drawn on a chart.
 const MAX_LIFECYCLE: usize = 500;
 
-/// Events read in time order by id, a chunk at a time (see [`EventStream::ordered`]).
+/// Events read in time order a window of time at a time (see [`EventStream::ordered`]).
 struct Chunks<'c> {
     conn: &'c Connection,
-    /// `SELECT <columns> FROM <events>`; a chunk adds its ids and the order.
+    /// `SELECT <columns> FROM <events> WHERE (<filter>)`; a window adds its time range and the order.
     select: String,
-    ids: Vec<u64>,
+    /// The windows' conditions, in time order (untimed events last).
+    windows: Vec<String>,
     next: usize,
+    /// `SELECT count(*)` of the stream's events (for the events not read past an exact stream's limit).
+    count: String,
 }
 
-/// Ids read per chunk of a time-ordered stream.
-const CHUNK_IDS: usize = 32_768;
+/// Events per window of a time-ordered stream (from the minute histogram: whole minutes, a busy minute
+/// split into equal parts), so DuckDB sorts a window within its memory limit.
+const WINDOW_EVENTS: u64 = 100_000;
 
 impl<'c> Chunks<'c> {
-    /// The statement of the next chunk, or `None` after the last.
+    /// The windows of time over every event: `e.ts` ranges with about [`WINDOW_EVENTS`] events each, then
+    /// the untimed events.
+    fn windows(conn: &Connection, per: u64) -> StoreResult<Vec<String>> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT minute, sum(n) FROM histogram WHERE minute IS NOT NULL AND source IN (SELECT id FROM sources WHERE ready) GROUP BY minute ORDER BY minute",
+            )
+            .map_err(engine)?;
+        let minutes = stmt
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, u64>(1)?)))
+            .map_err(engine)?
+            .collect::<duckdb::Result<Vec<_>>>()
+            .map_err(engine)?;
+        Ok(time_windows(&minutes, per))
+    }
+
+    /// The statement of the next window, or `None` after the last.
     fn next_statement(&mut self) -> Option<duckdb::Result<Statement<'c>>> {
-        if self.next >= self.ids.len() {
-            return None;
-        }
-        let end = (self.next + CHUNK_IDS).min(self.ids.len());
-        let list = self.ids[self.next..end].iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
-        self.next = end;
-        let sql = format!("{} WHERE e.id IN ({list}) {}", self.select, order_by(false));
+        let window = self.windows.get(self.next)?;
+        self.next += 1;
+        let sql = format!("{} AND {window} {}", self.select, order_by(false));
         Some(self.conn.prepare(&sql).and_then(|mut stmt| {
             let _ = stmt.stream_arrow([])?;
             Ok(stmt)
         }))
     }
+}
+
+/// Conditions on `e.ts` that split time into windows of about `per` events each from per-minute counts
+/// (minutes in order), then `e.ts IS NULL`; together they cover every event exactly once.
+fn time_windows(minutes: &[(i64, u64)], per: u64) -> Vec<String> {
+    const MINUTE: i64 = 60_000;
+    let per = per.max(1);
+    // Window starts (ms); the first is open below, the last open above.
+    let mut starts: Vec<i64> = Vec::new();
+    let mut acc = 0u64;
+    for &(minute, n) in minutes {
+        let start = minute.saturating_mul(MINUTE);
+        if n > per {
+            // A busy minute: equal parts of it, and the next window starts after it.
+            let parts = n.div_ceil(per).min(MINUTE as u64) as i64;
+            starts.extend((0..parts).map(|k| start + k * MINUTE / parts));
+            starts.push(start + MINUTE);
+            acc = 0;
+        } else {
+            if acc + n > per && acc > 0 {
+                starts.push(start);
+                acc = 0;
+            }
+            acc += n;
+        }
+    }
+    starts.sort_unstable();
+    starts.dedup();
+    let mut windows = Vec::with_capacity(starts.len() + 2);
+    let mut lower: Option<i64> = None;
+    for &s in &starts {
+        windows.push(match lower {
+            None => format!("e.ts < {s}"),
+            Some(l) => format!("e.ts >= {l} AND e.ts < {s}"),
+        });
+        lower = Some(s);
+    }
+    windows.push(match lower {
+        None => "e.ts IS NOT NULL".to_string(),
+        Some(l) => format!("e.ts >= {l}"),
+    });
+    windows.push("e.ts IS NULL".to_string());
+    windows
 }
 
 /// Matching events of one statement, in its order, one owned row at a time (the wide `raw` column is
@@ -162,10 +221,10 @@ impl<'c> EventStream<'c> {
         }
     }
 
-    /// The events of `FROM .. WHERE filter` with the columns `select`, in time order, without sorting wide
-    /// rows (which needs more memory than DuckDB is given at 10M events): the matching ids are sorted
-    /// first (only the time key), then read a chunk at a time. With an `exact` filter only the first `limit`
-    /// ids are read (the rest are counted); otherwise every candidate is, for the engine to check.
+    /// The events of `FROM .. WHERE filter` with the columns `select`, in time order, without sorting all of
+    /// them at once (wide rows of 10M events need more memory than DuckDB is given): a window of time
+    /// at a time, each sorted on its own. An `exact` stream stops reading at its limit (the rest are
+    /// counted); otherwise every candidate is read, for the engine to check.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn ordered(
         conn: &'c Connection,
@@ -177,29 +236,28 @@ impl<'c> EventStream<'c> {
         exact: bool,
         limit: usize,
     ) -> StoreResult<EventStream<'c>> {
-        let cap = if exact && limit < i64::MAX as usize {
-            format!("LIMIT {limit}")
-        } else {
-            String::new()
-        };
-        let mut stmt = conn
-            .prepare(&format!("SELECT e.id FROM {FROM} WHERE {filter} {} {cap}", order_by(false)))
-            .map_err(engine)?;
-        let ids = stmt
-            .query_map([], |r| r.get::<_, u64>(0))
-            .map_err(engine)?
-            .collect::<duckdb::Result<Vec<u64>>>()
-            .map_err(engine)?;
-        let unread = if exact && ids.len() == limit {
-            count(conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64 - ids.len() as u64
-        } else {
-            0
-        };
+        EventStream::windowed(conn, select, filter, schema, ctx, cq, exact, limit, WINDOW_EVENTS)
+    }
+
+    /// [`EventStream::ordered`] with windows of about `per` events.
+    #[allow(clippy::too_many_arguments)]
+    fn windowed(
+        conn: &'c Connection,
+        select: &str,
+        filter: &str,
+        schema: Arc<EventSchema>,
+        ctx: &'c Ctx,
+        cq: &'c CompiledQuery,
+        exact: bool,
+        limit: usize,
+        per: u64,
+    ) -> StoreResult<EventStream<'c>> {
         let mut chunks = Chunks {
             conn,
-            select: format!("SELECT {select} FROM {FROM}"),
-            ids,
+            select: format!("SELECT {select} FROM {FROM} WHERE ({filter})"),
+            windows: Chunks::windows(conn, per)?,
             next: 0,
+            count: format!("SELECT count(*) FROM {FROM} WHERE {filter}"),
         };
         let first = match chunks.next_statement() {
             Some(stmt) => stmt.map_err(engine)?,
@@ -211,7 +269,6 @@ impl<'c> EventStream<'c> {
         };
         let mut stream = EventStream::from_statement(first, schema, ctx, cq, exact, limit);
         stream.chunks = Some(chunks);
-        stream.unread = unread;
         Ok(stream)
     }
 
@@ -265,6 +322,19 @@ impl<'c> EventStream<'c> {
         }
     }
 
+    /// Ends a windowed exact stream at its limit: the matching events not read are counted in SQL.
+    fn stop_counting(&mut self) {
+        self.done = true;
+        if let Some(chunks) = self.chunks.take() {
+            match count(chunks.conn, &chunks.count) {
+                Ok(n) => self.unread = (n as u64).saturating_sub(self.matched - 1),
+                Err(e) => self.error = Some(e),
+            }
+            // The event that hit the limit is counted with the rest.
+            self.matched -= 1;
+        }
+    }
+
     /// Drains the rest (counting matches) and returns how much was analysed.
     pub(crate) fn finish(mut self) -> StoreResult<Coverage> {
         while self.next().is_some() {}
@@ -309,6 +379,11 @@ impl Iterator for EventStream<'_> {
                         continue;
                     }
                     self.matched += 1;
+                    if self.exact && self.yielded == self.limit as u64 && self.chunks.is_some() {
+                        // The rest of a windowed exact stream is counted, not read.
+                        self.stop_counting();
+                        return None;
+                    }
                     if self.yielded < self.limit as u64 {
                         self.yielded += 1;
                         return Some(OwnedRow {
@@ -1111,11 +1186,30 @@ mod tests {
     }
 
     #[test]
-    fn ordered_streams_read_chunks_in_time_order_and_count_the_rest() {
+    fn time_windows_cover_every_event_once() {
+        assert_eq!(time_windows(&[], 10), vec!["e.ts IS NOT NULL", "e.ts IS NULL"]);
+        // 6 + 5 > 10: a new window at minute 1; minute 2 (25 events) in three parts; minute 3 after it.
+        let w = time_windows(&[(0, 6), (1, 5), (2, 25), (3, 1)], 10);
+        assert_eq!(
+            w,
+            vec![
+                "e.ts < 60000",
+                "e.ts >= 60000 AND e.ts < 120000",
+                "e.ts >= 120000 AND e.ts < 140000",
+                "e.ts >= 140000 AND e.ts < 160000",
+                "e.ts >= 160000 AND e.ts < 180000",
+                "e.ts >= 180000",
+                "e.ts IS NULL",
+            ]
+        );
+    }
+
+    #[test]
+    fn ordered_streams_read_windows_in_time_order_and_count_the_rest() {
         let root = std::env::temp_dir().join(format!("imt-ordered-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("logs")).unwrap();
-        let n = CHUNK_IDS / 2 + 1_000;
+        let n = 3_000;
         let paths = interleaved(&root.join("logs"), n);
         let store = DuckStore::create(
             &root.join("store"),
@@ -1129,9 +1223,11 @@ mod tests {
         let ctx = inner.ctx(&conn).unwrap();
         let (sf, cq) = inner.compile(&ctx, &Filter::default()).unwrap();
         let select = rows_sql(&inner.schema);
-        // Exact: the first `limit` events by SQL (across a chunk boundary), the rest only counted.
-        let limit = CHUNK_IDS + 10;
-        let mut stream = EventStream::ordered(&conn, &select, &sf.all_sql(), inner.schema.clone(), &ctx, &cq, true, limit).unwrap();
+        let schema = || inner.schema.clone();
+        // Exact: the first `limit` events, across windows of 500 events (about four minutes); the rest
+        // only counted.
+        let limit = 4_321;
+        let mut stream = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, limit, 500).unwrap();
         let messages: Vec<String> = stream.by_ref().map(|r| r.rec.message.clone()).collect();
         assert_eq!(messages.len(), limit);
         assert!(
@@ -1141,11 +1237,15 @@ mod tests {
         let coverage = stream.finish().unwrap();
         assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, limit as u64));
         assert_eq!(coverage.limits.len(), 1);
+        // Exact under the limit: everything, nothing counted twice.
+        let all = EventStream::windowed(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, true, usize::MAX, 500).unwrap();
+        let coverage = all.finish().unwrap();
+        assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, 2 * n as u64));
         // Not exact: every candidate is read and checked by the engine (all match here). No match: empty.
-        let stream = EventStream::ordered(&conn, &select, &sf.all_sql(), inner.schema.clone(), &ctx, &cq, false, 5).unwrap();
+        let stream = EventStream::ordered(&conn, &select, &sf.all_sql(), schema(), &ctx, &cq, false, 5).unwrap();
         let coverage = stream.finish().unwrap();
         assert_eq!((coverage.matched, coverage.analysed), (2 * n as u64, 5));
-        let mut empty = EventStream::ordered(&conn, &select, "FALSE", inner.schema.clone(), &ctx, &cq, true, 5).unwrap();
+        let mut empty = EventStream::ordered(&conn, &select, "FALSE", schema(), &ctx, &cq, true, 5).unwrap();
         assert!(empty.next().is_none());
         assert_eq!(empty.finish().unwrap().matched, 0);
         drop(conn);

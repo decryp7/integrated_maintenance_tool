@@ -3,7 +3,8 @@
 //!
 //! - `IMT_BENCH_READS=<n>` imports n copies of the samples (28k events each; 360 copies ≈ 10M events);
 //!   `IMT_BENCH_STORE=<folder>` opens the store there (e.g. R2b's 10M-event store), or, when there is none
-//!   yet, imports into it and stops (run again to measure in a process that did not import).
+//!   yet, imports into it and stops (run again to measure in a process that did not import). Analyses
+//!   cached by an earlier run are dropped first.
 //! - `IMT_BENCH_STRICT=1` fails above the budgets (0.5 s per interactive call, 300 MB query RSS).
 //!
 //! Run with `--release --test bench_reads -- --nocapture`.
@@ -59,6 +60,10 @@ fn read_operations_meet_the_budget() {
     let dir = TempDir::new("reads");
     let store = match &existing {
         Some(folder) if folder.join(imt_store_duck::DB_FILE).is_file() => {
+            // Cold analyses: results cached by an earlier run are dropped.
+            if let Ok(conn) = duckdb::Connection::open(folder.join(imt_store_duck::DB_FILE)) {
+                let _ = conn.execute_batch("DELETE FROM analysis_cache; CHECKPOINT;");
+            }
             DuckStore::open(folder, Profile::default_profile(), PluginRegistry::new()).unwrap()
         }
         _ => {
