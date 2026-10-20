@@ -166,25 +166,40 @@ impl Inner {
 
     /// The schema and the keys every segment promotes to a text column.
     pub(crate) fn fields(&self, conn: &Connection) -> StoreResult<Fields> {
-        let mut stmt = conn.prepare("SELECT promoted FROM segments").map_err(engine)?;
-        let rows = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(engine)?;
-        let mut common: Option<std::collections::BTreeSet<String>> = None;
+        use std::collections::BTreeSet;
+        // Per segment file, the keys it promotes as text.
+        let mut text: HashMap<String, BTreeSet<String>> = HashMap::new();
+        let mut stmt = conn.prepare("SELECT file, promoted FROM segments").map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(engine)?;
         for row in rows {
-            let p = crate::promote::Promotion::decode(&row.map_err(engine)?);
-            let text: std::collections::BTreeSet<String> = p
+            let (file, promoted) = row.map_err(engine)?;
+            let p = crate::promote::Promotion::decode(&promoted);
+            let keys = p
                 .keys
                 .into_iter()
                 .filter(|(_, t)| *t == crate::promote::PType::Text)
                 .map(|(k, _)| k)
                 .collect();
-            common = Some(match common {
-                None => text,
-                Some(c) => c.intersection(&text).cloned().collect(),
-            });
+            text.insert(file, keys);
+        }
+        // A key is read from its column when every segment that has the key promotes it as text (a
+        // segment without the key reads the column as NULL, as the key is missing there).
+        let mut promoted: BTreeSet<String> = text.values().flatten().cloned().collect();
+        let mut stmt = conn.prepare("SELECT file, key FROM segment_fields").map_err(engine)?;
+        let rows = stmt
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .map_err(engine)?;
+        for row in rows {
+            let (file, key) = row.map_err(engine)?;
+            if promoted.contains(&key) && !text.get(&file).is_some_and(|t| t.contains(&key)) {
+                promoted.remove(&key);
+            }
         }
         Ok(Fields {
             schema: self.schema.clone(),
-            promoted_text: common.unwrap_or_default(),
+            promoted_text: promoted,
         })
     }
 
@@ -590,10 +605,7 @@ impl Inner {
             text_expr(&req.field, &ctx.fields)
         };
         if let (true, Some(expr)) = (f.exact, expr) {
-            let inner = format!(
-                "SELECT {expr} AS v FROM events e JOIN sources s ON s.id = e.source WHERE {}",
-                f.all_sql()
-            );
+            let inner = format!("SELECT {expr} AS v FROM {FROM} WHERE {}", f.all_sql());
             // One scan: the groups, with the totals over all groups alongside the top ones.
             let mut stmt = conn
                 .prepare(&format!(

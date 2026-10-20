@@ -1162,7 +1162,7 @@ impl Analysis for DuckStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::ports::Ingest;
+    use imt_core::ports::{Ingest, Query};
 
     /// Two CLEF files of `n` events each whose times interleave (a: even seconds, b: odd).
     fn interleaved(dir: &std::path::Path, n: usize) -> Vec<std::path::PathBuf> {
@@ -1173,8 +1173,14 @@ mod tests {
                 let text: String = (0..n)
                     .map(|i| {
                         let s = 2 * i + k;
+                        // Only file a has a `Host`.
+                        let host = if k == 0 {
+                            format!(",\"Host\":\"h{}\"", i % 3)
+                        } else {
+                            String::new()
+                        };
                         format!(
-                            "{{\"@t\":\"2026-01-01T{:02}:{:02}:{:02}Z\",\"@mt\":\"event {s}\"}}
+                            "{{\"@t\":\"2026-01-01T{:02}:{:02}:{:02}Z\",\"@mt\":\"event {s}\"{host}}}
 ",
                             s / 3600,
                             s / 60 % 60,
@@ -1226,6 +1232,16 @@ mod tests {
         let conn = inner.conn().unwrap();
         let ctx = inner.ctx(&conn).unwrap();
         let (sf, cq) = inner.compile(&ctx, &Filter::default()).unwrap();
+        // A key only some segments' events have is still read from its promoted column.
+        assert!(ctx.fields.promoted_text.contains("Host"), "{:?}", ctx.fields.promoted_text);
+        let facet = store
+            .facet(&imt_core::api::FacetRequest {
+                query: Filter::default(),
+                field: "Host".into(),
+                limit: 10,
+            })
+            .unwrap();
+        assert_eq!((facet.total, facet.distinct), (n, 3));
         let select = rows_sql(&inner.schema);
         let schema = || inner.schema.clone();
         // Exact: the first `limit` events, across windows of 500 events (about four minutes); the rest
