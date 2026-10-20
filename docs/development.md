@@ -134,6 +134,10 @@ cargo deny --workspace check
 - **Lint and i18n:** `cd app && npm run lint` (angular-eslint); `npm run i18n` extracts the
   translations and regenerates the pseudo-locale, and CI fails on duplicate message ids or an
   out-of-date pseudo-locale.
+- **Desktop rules the build enforces:** child processes start through `imt_core::process::quiet_command`
+  (no console window on Windows; `clippy.toml` disallows `Command::new`), and every Tauri command that
+  builds a window is `async` (a window built from a synchronous command stays white on Windows;
+  `app/src-tauri/tests/window_commands.rs`).
 - **Commit messages** are checked against Conventional Commits (`node scripts/commit-lint.mjs`).
 - **Real-app smoke tests** drive the built Tauri app with WebdriverIO and `tauri-driver`
   (`cd app && npm run e2e:tauri:build && npm run e2e:tauri`; Windows and Linux). Checks that need a
