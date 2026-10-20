@@ -124,7 +124,7 @@ fn read_operations_meet_the_budget() {
         limit: 500,
         ..PageQuery::default()
     };
-    let mut results: Vec<(&str, u128, bool, u64)> = Vec::new();
+    let mut results: Vec<(&str, u128, bool, u64, bool)> = Vec::new();
     let op_peak = peak.clone();
     let mut time = |name: &'static str, interactive: bool, f: &mut dyn FnMut() -> bool| {
         // The peak RSS during this operation alone.
@@ -132,10 +132,9 @@ fn read_operations_meet_the_budget() {
         let started = Instant::now();
         let ok = f();
         let ms = started.elapsed().as_millis();
-        assert!(ok, "{name} failed");
         let mb = op_peak.load(Ordering::Relaxed).max(rss()) >> 20;
         overall.fetch_max(mb, Ordering::Relaxed);
-        results.push((name, ms, interactive, mb));
+        results.push((name, ms, interactive, mb, ok));
     };
     let any = Filter::default();
     time("summary (cold)", true, &mut || {
@@ -274,8 +273,16 @@ fn read_operations_meet_the_budget() {
     let peak_mb = overall.load(Ordering::Relaxed).max(peak.load(Ordering::Relaxed) >> 20);
     eprintln!("{:<26} {:>9}  {:>7}  budget", "operation", "ms", "RSS MB");
     let mut over = Vec::new();
-    for (name, ms, interactive, mb) in &results {
-        let mark = if *interactive && *ms > BUDGET_MS { "  OVER" } else { "" };
+    let mut failed = Vec::new();
+    for (name, ms, interactive, mb, ok) in &results {
+        let mark = if !ok {
+            failed.push(*name);
+            "  FAILED"
+        } else if *interactive && *ms > BUDGET_MS {
+            "  OVER"
+        } else {
+            ""
+        };
         eprintln!(
             "{name:<26} {ms:>9}  {mb:>7}{}{mark}",
             if *interactive { "  0.5 s" } else { "  batch" }
@@ -285,6 +292,7 @@ fn read_operations_meet_the_budget() {
         }
     }
     eprintln!("peak RSS while querying: {peak_mb} MB (budget {QUERY_RSS_MB} MB)");
+    assert!(failed.is_empty(), "failed: {failed:?}");
     if strict {
         assert!(over.is_empty(), "over the 0.5 s budget: {over:?}");
         assert!(peak_mb <= QUERY_RSS_MB, "query RSS {peak_mb} MB");
