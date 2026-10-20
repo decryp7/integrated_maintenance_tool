@@ -8,7 +8,7 @@
 //!
 //! Events: `imt://ai-setup` (set-up and activation stages, all windows), `imt://ai-status` (engine state
 //! changed, all windows), `imt://ai-chat` (chat stream, to the window of the chat), `imt://ai-runtime`
-//! (inference runtime downloads, all windows).
+//! (inference runtime downloads, all windows), `imt://ai-updates` (runtime and model update checks, all windows).
 
 mod chats;
 pub(crate) mod commands;
@@ -22,6 +22,8 @@ mod runtimes;
 mod settings_section;
 #[cfg(test)]
 mod tests;
+pub(crate) mod update_commands;
+pub(crate) mod updates;
 
 pub use self::core::{AiCore, AiDeps};
 pub use chats::WindowChats;
@@ -36,6 +38,8 @@ pub const STATUS_EVENT: &str = "imt://ai-status";
 pub const CHAT_EVENT: &str = "imt://ai-chat";
 /// Inference runtime installs (`runtimes::RuntimeEvent`, all windows).
 pub const RUNTIME_EVENT: &str = "imt://ai-runtime";
+/// The AI update checks' status (`updates::AiUpdatesStatus`, all windows).
+pub const UPDATES_EVENT: &str = "imt://ai-updates";
 
 /// The app-wide AI runtime, managed as Tauri state.
 pub struct AiState(pub Arc<AiCore>);
@@ -83,6 +87,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
     let deps = AiDeps::system(imt_ai::worker::default_worker_path(), &data);
     let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
     manage(app, core.clone());
+    update_commands::init(app, core.clone());
     core.autoload();
     match core.status() {
         s if s.available => log::info!(State = format!("{:?}", s.state).as_str(); "AI assistant ready to use"),

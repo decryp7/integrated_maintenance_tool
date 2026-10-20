@@ -30,6 +30,13 @@ import { titleWithCount } from './notifications-text';
             @if (t.primary; as a) {
               <button type="button" class="btn primary" (click)="act(t, a)" data-testid="notice-toast-primary">{{ actionLabel(a) }}</button>
             }
+            <!-- A question with three answers ("Update", "Later", "Skip this version") shows all of them. -->
+            @if (t.tertiary; as c) {
+              @if (t.secondary; as b) {
+                <button type="button" class="btn" (click)="act(t, b)" data-testid="notice-toast-secondary">{{ actionLabel(b) }}</button>
+              }
+              <button type="button" class="btn" (click)="act(t, c)" data-testid="notice-toast-tertiary">{{ actionLabel(c) }}</button>
+            }
             @if (t.id > 0) {
               <button type="button" class="btn ghost" (click)="show(t)" data-testid="notice-toast-show" i18n="@@notifications.toasts.show">Show in Notifications</button>
             }

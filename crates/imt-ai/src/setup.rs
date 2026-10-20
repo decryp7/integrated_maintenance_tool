@@ -140,7 +140,10 @@ impl Setup<'_> {
         self.activate_inner(file_name, &hardware, progress, on_stage)
     }
 
-    fn download(&self, choice: &CatalogModel, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> Result<()> {
+    /// Downloads `choice` into the models folder and verifies it against the catalog, without loading it (also
+    /// how a model update fetches its new file: the installed one is untouched until this succeeds). The file
+    /// appears under its real name only once its SHA-256 matches.
+    pub fn download(&self, choice: &CatalogModel, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> Result<()> {
         let remote = self.source.describe(&choice.hf_repo, &choice.file)?;
         if remote.sha256 != choice.sha256.to_ascii_lowercase() || remote.size != choice.size_bytes {
             return Err(AiError::Integrity(

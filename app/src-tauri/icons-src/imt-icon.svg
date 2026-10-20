@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>IMT</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4c8dff"/>
+      <stop offset="1" stop-color="#2a63d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Tile: IMT accent blue; the darker rim keeps it visible on light and dark taskbars. -->
+  <rect x="40" y="40" width="944" height="944" rx="216" fill="url(#tile)" stroke="#173f94" stroke-width="16"/>
+  <!-- Log lines, behind the signal. -->
+  <path d="M232 296H600M232 728H520" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="104" stroke-linecap="round"/>
+  <!-- Timeline pulse: the finding that stands out of the log. -->
+  <path d="M232 512H392L472 400L584 624L664 512H792" fill="none" stroke="#ffffff" stroke-width="104" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Marker on the timeline. -->
+  <circle cx="792" cy="296" r="76" fill="#ffc24b"/>
+</svg>

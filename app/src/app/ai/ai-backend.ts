@@ -6,6 +6,8 @@ import {
   AiRuntimeEvent,
   AiRuntimeOverview,
   AiStatus,
+  AiUpdateKind,
+  AiUpdatesStatus,
   ChatContext,
   ManualDownload,
   ManualKind,
@@ -86,6 +88,17 @@ export abstract class AiBackend {
    * arrives through `onRuntime` like a download. */
   abstract runtimeAddArchives(id: string, paths: string[]): Promise<void>;
 
+  /** The runtime and model update checks: policies, last check, what is available. */
+  abstract updatesStatus(): Promise<AiUpdatesStatus>;
+  /** "Check now" for one kind, or both; resolves when the check is done. */
+  abstract updatesCheck(kind?: AiUpdateKind | null): Promise<AiUpdatesStatus>;
+  /** "Update": installs an update now, as a download job. */
+  abstract updatesApply(key: string): Promise<AiUpdatesStatus>;
+  /** "Skip this version". */
+  abstract updatesSkip(key: string): Promise<AiUpdatesStatus>;
+  /** "Later": asked again at the next check. */
+  abstract updatesLater(key: string): Promise<AiUpdatesStatus>;
+
   /** The files to download by hand for a model or runtime build ("Download manually"). */
   abstract manualDownload(kind: ManualKind, id: string): Promise<ManualDownload>;
   /** Opens file `index` of that download in the system browser (the engine computes the address). */
@@ -124,6 +137,7 @@ export abstract class AiBackend {
   abstract onSetup(handler: (e: SetupEvent) => void): Promise<Unlisten>;
   abstract onRuntime(handler: (e: AiRuntimeEvent) => void): Promise<Unlisten>;
   abstract onStatus(handler: (s: AiStatus) => void): Promise<Unlisten>;
+  abstract onUpdates(handler: (s: AiUpdatesStatus) => void): Promise<Unlisten>;
   abstract onChat(handler: (e: ChatEventEnvelope) => void): Promise<Unlisten>;
 }
 

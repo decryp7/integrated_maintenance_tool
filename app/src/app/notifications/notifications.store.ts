@@ -122,6 +122,7 @@ export const NotificationsStore = signalStore(
           read: false,
           primary: n.primary ?? null,
           secondary: null,
+          tertiary: null,
           link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
           dedupeKey: null,
           scope: 'project',

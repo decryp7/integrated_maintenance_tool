@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>IMT</title>
+  <!-- Small-size variant (16-32 px): same motif as imt-icon.svg, snapped to a 16 px grid (64 units per pixel), heavier strokes. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4c8dff"/>
+      <stop offset="1" stop-color="#2a63d4"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="992" height="992" rx="224" fill="url(#tile)" stroke="#173f94" stroke-width="32"/>
+  <path d="M256 256H384M256 768H448" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="128" stroke-linecap="round"/>
+  <path d="M256 512H448L544 352L640 672L704 512H768" fill="none" stroke="#ffffff" stroke-width="112" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="768" cy="256" r="88" fill="#ffc24b"/>
+</svg>

@@ -22,7 +22,10 @@ export type NoticeAction =
   | { type: 'installUpdate' }
   | { type: 'showAlert'; alertId: string }
   | { type: 'showJobs' }
-  | { type: 'showInFolder'; jobId: number };
+  | { type: 'showInFolder'; jobId: number }
+  | { type: 'updateAi'; key: string }
+  | { type: 'laterAiUpdate'; key: string }
+  | { type: 'skipAiUpdate'; key: string };
 
 export interface NoticeLink {
   window: string | null;
@@ -46,6 +49,8 @@ export interface Notice {
   read: boolean;
   primary: NoticeAction | null;
   secondary: NoticeAction | null;
+  /** A third button (e.g. "Skip this version" next to "Update" and "Later"). */
+  tertiary: NoticeAction | null;
   link: NoticeLink;
   dedupeKey: string | null;
   scope: NoticeScope;
