@@ -6,6 +6,7 @@
 use super::catalog::{RuntimeAsset, RuntimeCatalog};
 use crate::error::{AiError, Result};
 use crate::models::{ModelSource, RemoteFile};
+use crate::net::{self, HttpConfig};
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -23,8 +24,6 @@ const MAX_HOPS: usize = 6;
 pub struct ReleaseConfig {
     /// HTTP(S) proxy for downloads only (the AI download proxy setting).
     pub proxy: Option<String>,
-    /// Trust the operating system's certificate store (for TLS-inspecting proxies).
-    pub system_certs: bool,
     pub connect_timeout: Duration,
     pub chunk_bytes: u64,
     pub chunk_timeout: Duration,
@@ -37,7 +36,6 @@ impl Default for ReleaseConfig {
     fn default() -> Self {
         ReleaseConfig {
             proxy: None,
-            system_certs: false,
             connect_timeout: Duration::from_secs(15),
             chunk_bytes: 32 * 1024 * 1024,
             chunk_timeout: Duration::from_secs(180),
@@ -54,15 +52,6 @@ pub struct GithubReleases {
     resolved: Mutex<Option<(String, String)>>,
 }
 
-fn net(e: impl std::fmt::Display) -> AiError {
-    // Signed CDN addresses carry credentials in the query string; keep them out of messages.
-    let s = e.to_string();
-    AiError::Network(match s.find('?') {
-        Some(i) => format!("{}…", &s[..i]),
-        None => s,
-    })
-}
-
 fn is_loopback(host: &str) -> bool {
     host == "localhost"
         || host
@@ -73,27 +62,13 @@ fn is_loopback(host: &str) -> bool {
 
 impl GithubReleases {
     pub fn new(cfg: ReleaseConfig, catalog: RuntimeCatalog) -> Result<Self> {
-        let mut b = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .max_redirects(0)
-            .timeout_connect(Some(cfg.connect_timeout))
-            .timeout_global(Some(cfg.chunk_timeout))
-            .user_agent("imt-ai/0.1")
-            .proxy(None);
-        if let Some(p) = &cfg.proxy {
-            b = b.proxy(Some(
-                ureq::Proxy::new(p).map_err(|e| AiError::Invalid(format!("invalid proxy address: {e}")))?,
-            ));
-        }
-        if cfg.system_certs {
-            b = b.tls_config(
-                ureq::tls::TlsConfig::builder()
-                    .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-                    .build(),
-            );
-        }
+        let agent = net::agent(&HttpConfig {
+            proxy: cfg.proxy.clone(),
+            connect_timeout: cfg.connect_timeout,
+            timeout: cfg.chunk_timeout,
+        })?;
         Ok(GithubReleases {
-            agent: b.build().into(),
+            agent,
             cfg,
             catalog,
             resolved: Mutex::new(None),
@@ -143,7 +118,13 @@ impl GithubReleases {
                     uri.host().unwrap_or("that address")
                 )));
             }
-            let resp = self.agent.get(&url).header("Range", range).call().map_err(net)?;
+            let host = uri.host().unwrap_or("").to_string();
+            let resp = self
+                .agent
+                .get(&url)
+                .header("Range", range)
+                .call()
+                .map_err(|e| net::classify(e, &host, self.cfg.proxy.is_some()))?;
             let status = resp.status().as_u16();
             if matches!(status, 301 | 302 | 303 | 307 | 308) {
                 let loc = resp
@@ -175,8 +156,8 @@ impl GithubReleases {
             401 | 403 | 429 => Err(AiError::Network(format!(
                 "GitHub refused the download (status {status}); try again later"
             ))),
-            500..=599 => Err(AiError::Network(format!("GitHub had a problem (status {status})"))),
-            _ => Err(AiError::Refused(format!("GitHub answered with status {status}"))),
+            500..=599 => Err(net::status_error(status, "github.com", "GitHub had a problem")),
+            _ => Err(net::status_error(status, "github.com", "")),
         }
     }
 
@@ -214,6 +195,11 @@ impl GithubReleases {
             s => Self::check_status(s, "the runtime")?,
         }
         let want = end - pos + 1;
+        let host = url
+            .parse::<Uri>()
+            .ok()
+            .and_then(|u| u.host().map(str::to_string))
+            .unwrap_or_default();
         let mut reader = resp.into_body().into_reader().take(want);
         let mut buf = vec![0u8; 64 * 1024];
         let mut got = 0u64;
@@ -221,7 +207,9 @@ impl GithubReleases {
             if cancel.load(Ordering::Relaxed) {
                 return Err(AiError::Cancelled);
             }
-            let n = reader.read(&mut buf).map_err(net)?;
+            let n = reader
+                .read(&mut buf)
+                .map_err(|e| net::classify_io(e, &host, self.cfg.proxy.is_some()))?;
             if n == 0 {
                 break;
             }

@@ -14,6 +14,7 @@
 use super::source::{ModelSource, RemoteFile};
 use crate::catalog::is_safe_file_name;
 use crate::error::{AiError, Result};
+use crate::net::{self, HttpConfig};
 use serde_json::{json, Value};
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,8 +40,6 @@ pub struct HfConfig {
     pub proxy: Option<String>,
     /// Access token for gated repositories. Held in memory only: never written to disk or logs.
     pub token: Option<String>,
-    /// Trust the operating system's certificate store (for TLS-inspecting proxies).
-    pub system_certs: bool,
     pub connect_timeout: Duration,
     pub api_timeout: Duration,
     /// Bytes requested per `Range` request.
@@ -57,7 +56,6 @@ impl Default for HfConfig {
             extra_hosts: vec![],
             proxy: None,
             token: None,
-            system_certs: false,
             connect_timeout: Duration::from_secs(15),
             api_timeout: Duration::from_secs(30),
             chunk_bytes: 32 * 1024 * 1024,
@@ -92,25 +90,6 @@ fn parse(url: &str) -> Result<Uri> {
         .map_err(|_| AiError::Refused("the model host returned an invalid address".into()))
 }
 
-fn strip_query(s: &str) -> String {
-    // Signed URLs carry credentials in the query string; keep them out of messages.
-    let mut out = String::new();
-    for w in s.split_inclusive(char::is_whitespace) {
-        out.push_str(match w.find("://") {
-            Some(_) => w.split('?').next().unwrap_or(w),
-            None => w,
-        });
-        if w.contains("://") && w.ends_with(char::is_whitespace) && w.contains('?') {
-            out.push(' ');
-        }
-    }
-    out
-}
-
-fn net(e: ureq::Error) -> AiError {
-    AiError::Network(strip_query(&e.to_string()))
-}
-
 pub struct HuggingFace {
     cfg: HfConfig,
     api: ureq::Agent,
@@ -120,27 +99,11 @@ pub struct HuggingFace {
 }
 
 fn agent(cfg: &HfConfig, timeout: Duration) -> Result<ureq::Agent> {
-    let mut b = ureq::Agent::config_builder()
-        .http_status_as_error(false)
-        .max_redirects(0)
-        .timeout_connect(Some(cfg.connect_timeout))
-        .timeout_global(Some(timeout))
-        .user_agent("imt-ai/0.1")
-        // No proxy from the environment: a proxy is used only when the user configures one.
-        .proxy(None);
-    if let Some(p) = &cfg.proxy {
-        b = b.proxy(Some(
-            ureq::Proxy::new(p).map_err(|e| AiError::Invalid(format!("invalid proxy address: {e}")))?,
-        ));
-    }
-    if cfg.system_certs {
-        b = b.tls_config(
-            ureq::tls::TlsConfig::builder()
-                .root_certs(ureq::tls::RootCerts::PlatformVerifier)
-                .build(),
-        );
-    }
-    Ok(b.build().into())
+    net::agent(&HttpConfig {
+        proxy: cfg.proxy.clone(),
+        connect_timeout: cfg.connect_timeout,
+        timeout,
+    })
 }
 
 impl HuggingFace {
@@ -215,7 +178,7 @@ impl HuggingFace {
                     }
                     r.call()
                 };
-                result.map_err(net)?
+                result.map_err(|e| net::classify(e, uri.host().unwrap_or(""), self.cfg.proxy.is_some()))?
             };
             let status = resp.status().as_u16();
             if matches!(status, 301 | 302 | 303 | 307 | 308) {
@@ -252,11 +215,13 @@ impl HuggingFace {
             200..=299 => Ok(()),
             401 | 403 => Err(self.gated_error(repo)),
             404 => Err(AiError::NotFound(format!("{repo} on the model host"))),
-            429 => Err(AiError::Network(
-                "the model host is rate limiting requests; try again in a minute".into(),
+            429 => Err(net::status_error(
+                status,
+                &self.endpoint_host(),
+                "the model host is rate limiting requests; try again in a minute",
             )),
-            500..=599 => Err(AiError::Network(format!("the model host had a problem (status {status})"))),
-            _ => Err(AiError::Refused(format!("the model host answered with status {status}"))),
+            500..=599 => Err(net::status_error(status, &self.endpoint_host(), "the model host had a problem")),
+            _ => Err(net::status_error(status, &self.endpoint_host(), "")),
         }
     }
 
@@ -266,7 +231,7 @@ impl HuggingFace {
             .into_reader()
             .take(MAX_JSON_BYTES)
             .read_to_end(&mut buf)
-            .map_err(|e| AiError::Network(e.to_string()))?;
+            .map_err(|e| net::classify_io(e, &self.endpoint_host(), self.cfg.proxy.is_some()))?;
         serde_json::from_slice(&buf).map_err(|_| AiError::Malformed("the model host sent an unreadable answer".into()))
     }
 
@@ -319,6 +284,7 @@ impl HuggingFace {
             self.check_status(status, &remote.repo)?;
         }
         let want = end - pos + 1;
+        let host = parse(url).ok().and_then(|u| u.host().map(str::to_string)).unwrap_or_default();
         let mut reader = resp.into_body().into_reader().take(want);
         let mut buf = vec![0u8; 64 * 1024];
         let mut got = 0u64;
@@ -326,7 +292,9 @@ impl HuggingFace {
             if cancel.load(Ordering::Relaxed) {
                 return Err(AiError::Cancelled);
             }
-            let n = reader.read(&mut buf).map_err(|e| AiError::Network(strip_query(&e.to_string())))?;
+            let n = reader
+                .read(&mut buf)
+                .map_err(|e| net::classify_io(e, &host, self.cfg.proxy.is_some()))?;
             if n == 0 {
                 break;
             }

@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../../core/logger';
 import { MockAiBackend, MockAiOptions } from '../../core/mock/mock-ai-backend';
 import { DialogService } from '../../ui/dialog.service';
 import { MemoryLogger, settle } from '../../../testing/helpers';
 import { AiBackend } from '../ai-backend';
+import { Platform } from '../../core/platform';
 import { AiRuntimeStore } from './ai-runtime.store';
 import { AiRuntimePanel } from './runtime-panel';
 
@@ -146,5 +147,29 @@ describe('AiRuntimePanel', () => {
     backend.runtimes = real;
     q('ai-runtime-load-error')!.querySelector('button')!.click();
     await until(fixture, () => !q('ai-runtime-load-error'));
+  });
+
+  it('offers the manual download behind a TLS-inspecting proxy and keeps it until the archives install', async () => {
+    const platform = {
+      pickOpenPaths: vi.fn(async () => ['/Downloads/other.zip']),
+      pickOpenPath: vi.fn(),
+    };
+    TestBed.overrideProvider(Platform, { useValue: platform });
+    const { fixture, q, button } = setup({ runtime: 'none', net: 'tls' });
+    await until(fixture, () => !!button('Download CPU'));
+    expect(q('ai-manual-download')).toBeNull();
+    button('Download CPU')!.click();
+    await until(fixture, () => !!q('ai-manual-file-0'));
+    expect(q('ai-runtime-error')!.textContent).toContain('Zscaler');
+    expect(q('ai-manual-kind')!.textContent).toContain('intercepts HTTPS');
+    expect(q('ai-manual-file-0')!.textContent).toContain('llama-b11669-bin-win-cpu-x64.zip');
+    // The wrong file: refused, and the instructions stay.
+    q('ai-manual-add')!.click();
+    await until(fixture, () => q('ai-runtime-error')?.textContent?.includes('not a file of this build') ?? false);
+    expect(q('ai-manual-download')).not.toBeNull();
+    platform.pickOpenPaths.mockResolvedValueOnce(['C:\\Downloads\\llama-b11669-bin-win-cpu-x64.zip']);
+    q('ai-manual-add')!.click();
+    await until(fixture, () => !!q('ai-runtime-ready'));
+    expect(q('ai-manual-download')).toBeNull();
   });
 });

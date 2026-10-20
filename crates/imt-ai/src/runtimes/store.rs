@@ -15,10 +15,12 @@
 use super::catalog::{RuntimeBuild, RuntimeCatalog};
 use super::unpack::{unpack, UnpackLimits};
 use crate::error::{AiError, Result};
-use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelSource, Progress};
+use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelSource, Phase, Progress};
 use serde::Serialize;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -79,6 +81,34 @@ fn is_asset_name(name: &str) -> bool {
         && !name.starts_with('.')
         && (name.ends_with(".zip") || name.ends_with(".tar.gz"))
         && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+}
+
+/// Copies `src` to `dest` and returns its SHA-256 (lowercase hex), reporting progress and honouring cancel.
+fn copy_hashing(src: &Path, dest: &Path, progress: &Progress) -> Result<String> {
+    let mut input = std::fs::File::open(src)?;
+    let mut out = std::fs::File::create(dest)?;
+    let mut h = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        if progress.is_cancelled() {
+            return Err(AiError::Cancelled);
+        }
+        let n = input.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+        out.write_all(&buf[..n]).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::StorageFull {
+                AiError::Disk("the disk is full".into())
+            } else {
+                AiError::Io(e.to_string())
+            }
+        })?;
+        progress.add(n as u64);
+    }
+    out.flush()?;
+    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
 struct BusyGuard<'a> {
@@ -161,6 +191,63 @@ impl RuntimeStore {
                 dir.display()
             ))
         })
+    }
+
+    /// The folder an install looks in for its archives first (where [`Self::import_archives`] puts them).
+    pub fn downloads_dir(&self) -> PathBuf {
+        self.downloads()
+    }
+
+    /// Takes the archives of `build` the user downloaded themselves (when IMT's own download is blocked, e.g.
+    /// by a TLS-inspecting proxy): each must be one of the build's assets by name, with the pinned size and
+    /// SHA-256, and all of them must be given. They are copied into the downloads folder, so the next
+    /// [`Self::install`] unpacks them without downloading. Reads every file once: call off the UI thread;
+    /// `progress` reports the check (phase `Verifying`) and cancels it.
+    pub fn import_archives(&self, build: &RuntimeBuild, files: &[PathBuf], progress: &Progress) -> Result<()> {
+        let names = || build.assets.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(" and ");
+        let mut chosen: Vec<(&super::catalog::RuntimeAsset, &PathBuf)> = Vec::new();
+        for f in files {
+            let name = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let asset = build
+                .assets
+                .iter()
+                .find(|a| a.name.eq_ignore_ascii_case(&name))
+                .ok_or_else(|| AiError::Invalid(format!("{name} is not a file of this build; it needs {}", names())))?;
+            if chosen.iter().any(|(a, _)| a.name == asset.name) {
+                return Err(AiError::Invalid(format!("{} was chosen twice", asset.name)));
+            }
+            chosen.push((asset, f));
+        }
+        if chosen.len() != build.assets.len() {
+            return Err(AiError::Invalid(format!("this build needs {}: choose all of them", names())));
+        }
+        let dir = self.downloads();
+        std::fs::create_dir_all(&dir)?;
+        for (asset, src) in chosen {
+            let size = std::fs::metadata(src)?.len();
+            if size != asset.size {
+                return Err(AiError::Integrity(format!(
+                    "{} should be {} bytes but is {size}: the download is incomplete or it is another file; download it again",
+                    asset.name, asset.size
+                )));
+            }
+            progress.begin(Phase::Verifying, size, 0);
+            let part = dir.join(format!("{}.import", asset.name));
+            let got = copy_hashing(src, &part, progress).inspect_err(|_| {
+                let _ = std::fs::remove_file(&part);
+            })?;
+            if got != asset.sha256 {
+                let _ = std::fs::remove_file(&part);
+                return Err(AiError::Integrity(format!(
+                    "{} is not the original: its SHA-256 is {got}, expected {}; the file is damaged or was changed, download it again",
+                    asset.name, asset.sha256
+                )));
+            }
+            let dest = dir.join(&asset.name);
+            let _ = std::fs::remove_file(dir.join(format!("{}.part", asset.name)));
+            std::fs::rename(&part, &dest)?;
+        }
+        Ok(())
     }
 
     /// Downloads, verifies and unpacks `build` of `catalog`, replacing an older copy of the same build.
@@ -317,5 +404,54 @@ mod tests {
         assert_eq!(s.list("b2").len(), 1);
         assert!(matches!(s.delete("b1", "vulkan"), Err(AiError::NotFound(_))));
         assert!(matches!(s.delete("..", "cpu"), Err(AiError::Refused(_))));
+    }
+
+    fn asset(name: &str, data: &[u8]) -> super::super::catalog::RuntimeAsset {
+        super::super::catalog::RuntimeAsset {
+            name: name.into(),
+            url: format!("https://github.com/ggml-org/llama.cpp/releases/download/b1/{name}"),
+            size: data.len() as u64,
+            sha256: Sha256::digest(data).iter().map(|b| format!("{b:02x}")).collect(),
+        }
+    }
+
+    #[test]
+    fn archives_downloaded_by_hand_are_checked_before_they_are_used() {
+        let dir = tempfile::tempdir().unwrap();
+        let s = RuntimeStore::new(dir.path().join("rt"));
+        let (a, b) = (b"server archive".to_vec(), b"cuda runtime".to_vec());
+        let build = RuntimeBuild {
+            id: "cuda-12".into(),
+            assets: vec![asset("llama-b1-cuda.zip", &a), asset("cudart-b1.zip", &b)],
+        };
+        let put = |name: &str, data: &[u8]| {
+            let p = dir.path().join("dl").join(name);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(&p, data).unwrap();
+            p
+        };
+        let (pa, pb) = (put("llama-b1-cuda.zip", &a), put("CUDART-b1.zip", &b));
+        let p = Progress::new();
+        let err = |files: &[PathBuf]| s.import_archives(&build, files, &Progress::new()).unwrap_err().to_string();
+        assert!(err(std::slice::from_ref(&pa)).contains("choose all of them"));
+        assert!(err(&[pa.clone(), pa.clone()]).contains("twice"));
+        assert!(err(&[pa.clone(), put("other.zip", b"x")]).contains("not a file of this build"));
+        assert!(err(&[pa.clone(), put("x/cudart-b1.zip", b"short")]).contains("incomplete"));
+        let mut changed = b.clone();
+        changed[0] ^= 1;
+        let e = err(&[pa.clone(), put("y/cudart-b1.zip", &changed)]);
+        assert!(e.contains("SHA-256") && e.contains(&build.assets[1].sha256), "{e}");
+        assert!(!s.downloads_dir().join("cudart-b1.zip").exists());
+        assert!(!s.downloads_dir().join("cudart-b1.zip.import").exists(), "no leftovers");
+        let cancelled = Progress::new();
+        cancelled.cancel();
+        assert_eq!(
+            s.import_archives(&build, &[pa.clone(), pb.clone()], &cancelled),
+            Err(AiError::Cancelled)
+        );
+        s.import_archives(&build, &[pb, pa], &p).unwrap();
+        assert_eq!(std::fs::read(s.downloads_dir().join("llama-b1-cuda.zip")).unwrap(), a);
+        assert_eq!(std::fs::read(s.downloads_dir().join("cudart-b1.zip")).unwrap(), b);
+        assert_eq!(p.snapshot().phase, Phase::Verifying);
     }
 }

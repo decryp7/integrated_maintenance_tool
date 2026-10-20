@@ -37,5 +37,3 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", 
 
 [dev-dependencies]
 tempfile = "3"
-# Only for the opt-in end-to-end test (IMT_LLAMA_E2E=1), which downloads a tiny model.
-ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }

@@ -54,6 +54,24 @@ export const AiRuntimeStore = signalStore(
   })),
   withMethods((store, backend = inject(AiBackend)) => {
     const fail = (e: unknown) => patchState(store, { error: toAiError(e).message });
+    /** Starts an install of `id` (one at a time); its events arrive through `onEvent`. */
+    const start = async (id: string, run: () => Promise<void>): Promise<void> => {
+      if (store.job()) return;
+      patchState(store, {
+        job: { id, stage: null, cancelling: false },
+        outcome: null,
+        error: null,
+      });
+      try {
+        await run();
+      } catch (e) {
+        const err = toAiError(e);
+        patchState(store, {
+          job: null,
+          outcome: { stage: 'failed', id, code: err.code, message: err.message },
+        });
+      }
+    };
     const methods = {
       async load(): Promise<AiRuntimeOverview | null> {
         patchState(store, { loading: true, error: null });
@@ -69,21 +87,11 @@ export const AiRuntimeStore = signalStore(
         }
       },
       async install(id: string): Promise<void> {
-        if (store.job()) return;
-        patchState(store, {
-          job: { id, stage: null, cancelling: false },
-          outcome: null,
-          error: null,
-        });
-        try {
-          await backend.runtimeInstall(id);
-        } catch (e) {
-          const err = toAiError(e);
-          patchState(store, {
-            job: null,
-            outcome: { stage: 'failed', id, code: err.code, message: err.message },
-          });
-        }
+        return start(id, () => backend.runtimeInstall(id));
+      },
+      /** Installs `id` from its archives downloaded by hand ("Download manually"); the engine checks them. */
+      async installFromArchives(id: string, paths: string[]): Promise<void> {
+        return start(id, () => backend.runtimeAddArchives(id, paths));
       },
       async cancel(): Promise<void> {
         const i = store.job();

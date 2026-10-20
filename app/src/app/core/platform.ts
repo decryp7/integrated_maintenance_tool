@@ -85,6 +85,21 @@ export async function pickOpenPath(title: string, filters: FileFilter[]): Promis
   return typeof result === 'string' ? result : null;
 }
 
+/**
+ * Native open dialog for several files; empty when cancelled. Browser mode returns `?mockOpen=` (comma
+ * separated paths, UI tests) or one `/demo/shared.<first extension>` file.
+ */
+export async function pickOpenPaths(title: string, filters: FileFilter[]): Promise<string[]> {
+  if (!isTauri()) {
+    const forced = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('mockOpen');
+    return forced ? forced.split(',') : [`/demo/shared.${filters[0]?.extensions[0] ?? 'txt'}`];
+  }
+  const { open } = await import('@tauri-apps/plugin-dialog');
+  const result = await open({ multiple: true, directory: false, title, filters });
+  if (result === null) return [];
+  return Array.isArray(result) ? result : [result];
+}
+
 /** Injectable facade over the host functions, so components and the store can be tested with fakes. */
 /**
  * Whether a path from the native save dialog was already confirmed there when it names an existing file.
@@ -120,5 +135,8 @@ export class Platform {
   }
   pickOpenPath(title: string, filters: FileFilter[]): Promise<string | null> {
     return pickOpenPath(title, filters);
+  }
+  pickOpenPaths(title: string, filters: FileFilter[]): Promise<string[]> {
+    return pickOpenPaths(title, filters);
   }
 }

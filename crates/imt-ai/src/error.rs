@@ -28,6 +28,9 @@ pub enum AiError {
     Memory(String),
     #[error("network error: {0}")]
     Network(String),
+    /// A request failed for a reason the user can act on (certificate, proxy, offline, timeout, HTTP status).
+    #[error("{0}")]
+    Connection(crate::net::NetError),
     #[error("this model needs a Hugging Face account: open {url}, accept the licence, then provide an access token")]
     Gated { url: String },
     #[error("not found: {0}")]
@@ -53,6 +56,10 @@ impl From<std::io::Error> for AiError {
 impl AiError {
     /// Worth retrying after a pause (flaky network), as opposed to a definite answer.
     pub fn is_transient(&self) -> bool {
-        matches!(self, AiError::Network(_))
+        match self {
+            AiError::Network(_) => true,
+            AiError::Connection(n) => n.is_transient(),
+            _ => false,
+        }
     }
 }

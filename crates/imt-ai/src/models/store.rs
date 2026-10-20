@@ -97,9 +97,16 @@ impl ModelStore {
 
     /// Validates `src` as a GGUF model and puts it in the folder.
     pub fn add_local(&self, src: &Path, mode: AddMode) -> Result<InstalledModel> {
+        self.add_local_as(src, mode, None)
+    }
+
+    /// [`Self::add_local`] under `name` (e.g. the catalog file name of a verified download the browser
+    /// renamed) instead of the source's own name. A name already taken gets a `-2`, `-3`, ... suffix.
+    pub fn add_local_as(&self, src: &Path, mode: AddMode, name: Option<&str>) -> Result<InstalledModel> {
         let info = gguf::inspect(src)?;
         std::fs::create_dir_all(&self.dir)?;
-        let base = sanitize_file_name(&src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+        let original = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let base = sanitize_file_name(name.unwrap_or(&original));
         let mut name = base.clone();
         let mut n = 1;
         while self.dir.join(&name).exists() {
@@ -167,6 +174,9 @@ mod tests {
         assert_eq!(a.info.as_ref().unwrap().architecture, "qwen3");
         let b = store.add_local(&src, AddMode::Link).unwrap();
         assert_eq!(b.file_name, "my_model-2.gguf");
+        let c = store.add_local_as(&src, AddMode::Copy, Some("Catalog-Q4.gguf")).unwrap();
+        assert_eq!(c.file_name, "Catalog-Q4.gguf");
+        store.delete("Catalog-Q4.gguf").unwrap();
         let list = store.list();
         assert_eq!(list.len(), 2);
         assert!(list.iter().all(|m| m.problem.is_none() && m.size_bytes > 0));

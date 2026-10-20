@@ -23,6 +23,8 @@ import {
 import { AiStatusStore } from '../ai-status.store';
 import { Recommendation, SetupEvent } from '../ai.types';
 import { AiRuntimeStore } from '../runtimes/ai-runtime.store';
+import { AiManualDownload } from '../manual/manual-download';
+import { offersManualDownload } from '../manual/manual-download-view';
 import { AiRuntimePanel } from '../runtimes/runtime-panel';
 import {
   canStart,
@@ -42,7 +44,7 @@ import {
  */
 @Component({
   selector: 'imt-ai-setup-wizard',
-  imports: [AiRuntimePanel],
+  imports: [AiManualDownload, AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="local" data-testid="ai-local-note" i18n="@@ai.setup.localNote">
@@ -215,6 +217,9 @@ import {
       @case ('failed') {
         @if (failed(); as f) {
           <p class="err" role="alert" data-testid="ai-setup-error">{{ f.message }}</p>
+          @if (manualModel(); as id) {
+            <imt-ai-manual-download kind="model" [id]="id" [code]="f.code" (added)="retry()" />
+          }
           @if (f.code === 'noRuntime') {
             <section aria-labelledby="ai-runtime-fix-title" data-testid="ai-setup-runtime">
               <h3 id="ai-runtime-fix-title" i18n="@@ai.models.runtime">Inference runtime</h3>
@@ -402,6 +407,11 @@ export class AiSetupWizard implements OnInit {
   protected readonly failed = computed(() => {
     const s = this.state();
     return s.kind === 'failed' ? s : null;
+  });
+  /** The model whose download failed in a way a manual download works around (a proxy, no network). */
+  protected readonly manualModel = computed(() => {
+    const f = this.failed();
+    return f?.modelId && offersManualDownload(f.code) ? f.modelId : null;
   });
   protected readonly step = computed(() => {
     const r = this.running();

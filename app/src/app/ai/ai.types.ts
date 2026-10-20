@@ -27,6 +27,16 @@ export type AiErrorCode =
   | 'modelFile'
   | 'memory'
   | 'network'
+  /** The server certificate could not be verified (a TLS-inspecting proxy such as Zscaler). */
+  | 'tls'
+  /** The proxy asks for a sign-in (HTTP 407). */
+  | 'proxyAuth'
+  /** The configured download proxy cannot be used. */
+  | 'proxy'
+  | 'offline'
+  | 'timeout'
+  /** The server (or a proxy in between) answered with an unexpected HTTP status. */
+  | 'httpStatus'
   | 'gated'
   | 'notFound'
   | 'integrity'
@@ -231,6 +241,31 @@ export interface AiRuntimeOverview {
   needsDownload: boolean;
   /** Why the builds could not be checked, if they could not. */
   problem: string | null;
+}
+
+// ---- manual downloads (`ai_manual_download`) ----
+
+/** What is downloaded by hand: a catalog model or an inference runtime build. */
+export type ManualKind = 'model' | 'runtime';
+
+export interface ManualFile {
+  name: string;
+  /** The https address the browser downloads it from (computed by the engine from its catalogs). */
+  url: string;
+  sizeBytes: number;
+  /** The expected SHA-256, when known. */
+  sha256: string | null;
+}
+
+/** The files of a manual download and where IMT keeps them once checked. */
+export interface ManualDownload {
+  kind: ManualKind;
+  id: string;
+  /** The model's name or the build's label. */
+  name: string;
+  files: ManualFile[];
+  /** The models folder, or the folder the build is unpacked into. */
+  folder: string;
 }
 
 /** Progress of a runtime install (`imt://ai-runtime`); `ready`, `failed` and `cancelled` end it. */

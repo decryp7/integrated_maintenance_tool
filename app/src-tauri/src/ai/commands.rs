@@ -255,13 +255,27 @@ pub async fn ai_model_delete<R: Runtime>(app: AppHandle<R>, file_name: String) -
     Ok(())
 }
 
-/// Adds a `.gguf` the user picked in the open dialog to the models folder.
+/// Adds a `.gguf` the user picked in the open dialog to the models folder. A catalog model (a manual
+/// download) is checked against its SHA-256 first, as a download job with progress that Cancel stops.
 #[tauri::command]
 pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, path: String) -> Ai<ModelDto> {
     let core = core(&app)?;
-    blocking(move || {
-        core.availability()?;
-        core.add_local(&path)
+    core.availability()?;
+    let name = Path::new(&path)
+        .file_name()
+        .map(|n| n.to_string_lossy().chars().take(120).collect::<String>())
+        .unwrap_or_default();
+    let progress = Arc::new(imt_ai::models::Progress::new());
+    let (p, q) = (progress.clone(), progress.clone());
+    let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
+        let s = q.snapshot();
+        (s.total > 0).then(|| JobProgress::counts(s.bytes, s.total))
+    });
+    let spec = JobSpec::new(JobKind::Download, format!("Checking the model file {name}")).link(JobLink::Path { path: path.clone() });
+    jobs::run(&app, spec, controls, move |_ctx: &jobs::JobCtx| -> Ai<Done<ModelDto>> {
+        let m = core.add_local(&path, &progress)?;
+        let file_name = Some(m.file_name.clone());
+        Ok(Done::new(m).with_result(JobResult::Model { file_name }))
     })
     .await
 }

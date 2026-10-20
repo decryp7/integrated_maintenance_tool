@@ -7,6 +7,7 @@ import { DIALOG_REF } from '../../ui/dialog.service';
 import { MemoryLogger, settle } from '../../../testing/helpers';
 import { AiBackend, AiError } from '../ai-backend';
 import { SetupPlan } from '../ai.types';
+import { Platform } from '../../core/platform';
 import { AiSetupWizard } from './setup-wizard';
 
 function setup(options: MockAiOptions = { mode: 'setup' }, modelId: string | null = null) {
@@ -131,8 +132,36 @@ describe('AiSetupWizard', () => {
     await until(fixture, () => !!q('ai-setup-error'));
     expect(q('ai-setup-error')!.textContent).toContain('connection');
     expect(q('ai-setup-live')!.textContent).toContain('failed');
-    (el.querySelector('.btn.primary') as HTMLButtonElement).click();
+    // A network failure offers the manual download of that model.
+    expect(q('ai-manual-download')).not.toBeNull();
+    [...el.querySelectorAll<HTMLButtonElement>('.foot .btn.primary')].find((b) => b.textContent!.includes('Retry'))!.click();
     await until(fixture, () => !!q('ai-setup-start'));
+  });
+
+  it('explains a TLS-inspecting proxy and sets up the model downloaded by hand', async () => {
+    const platform = { pickOpenPath: vi.fn(async () => '/Downloads/Qwen3.5-9B-Q4_K_M.gguf') };
+    TestBed.overrideProvider(Platform, { useValue: platform });
+    const { fixture, q, backend } = setup({ mode: 'setup', net: 'tls' });
+    await until(fixture, () => !!q('ai-setup-start'));
+    q('ai-setup-start')!.click();
+    await until(fixture, () => !!q('ai-manual-file-0'));
+    expect(q('ai-setup-error')!.textContent).toContain('Zscaler');
+    expect(q('ai-manual-kind')!.textContent).toContain('intercepts HTTPS');
+    expect(q('ai-manual-file-0')!.textContent).toContain('Qwen3.5-9B-Q4_K_M.gguf');
+    q('ai-manual-add')!.click();
+    // Added and verified: the wizard starts again with the model installed.
+    await until(fixture, () => !!q('ai-plan-summary'));
+    expect(q('ai-plan-summary')!.textContent).toContain('already downloaded');
+    expect((await backend.models()).some((m) => m.catalogId === 'qwen3.5-9b-q4km')).toBe(true);
+  });
+
+  it('does not offer the manual download for failures it cannot work around', async () => {
+    const { fixture, q } = setup({ mode: 'setup' });
+    await until(fixture, () => !!q('ai-setup-start'));
+    fixture.componentInstance.dispatch({ type: 'failed', code: 'disk', message: 'not enough disk space' });
+    fixture.detectChanges();
+    expect(q('ai-setup-error')).not.toBeNull();
+    expect(q('ai-manual-download')).toBeNull();
   });
 
   it('reports an unavailable engine and a rejected start', async () => {

@@ -52,6 +52,8 @@ tracing-appender = "0.2.5"
 tracing-log = { version = "0.2", default-features = false, features = ["std"] }
 # >= 2.12 fixes GHSA-j38x-g3m3-95fr (downgrade through the unsigned manifest version), 2.13.3 rejects non-canonical signatures: see `updater.rs`.
 # No "zip": IMT publishes v2 updater artifacts (the installers themselves), and zip 4 has open advisories.
+# "rustls-tls" is reqwest 0.13's `rustls-no-provider`, whose default verifier is rustls-platform-verifier: update checks
+# trust the OS certificate store like the AI downloads (`imt_ai::net`), so they work behind TLS-inspecting proxies.
 tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
 semver = "1"
 notify-debouncer-mini = "0.7"

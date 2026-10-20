@@ -15,6 +15,7 @@ pub(crate) mod commands;
 mod core;
 pub(crate) mod error;
 pub(crate) mod folder_setup;
+pub(crate) mod manual;
 pub(crate) mod requests;
 pub(crate) mod runtime_commands;
 mod runtimes;

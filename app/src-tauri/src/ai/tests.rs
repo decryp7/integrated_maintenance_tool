@@ -503,7 +503,10 @@ fn local_models_are_added_activated_and_deleted() {
     let src = f.tmp.0.join("My Model.gguf");
     std::fs::write(&src, model_bytes()).unwrap();
     let added = ipc(&main, "ai_model_add_local", json!({"path": src.to_string_lossy()})).unwrap();
-    assert_eq!(added["fileName"], "My_Model.gguf");
+    // The bytes are the catalog model's (a manual download the browser saved under another name): verified
+    // by SHA-256 and filed under the catalog's name, so it is recognised.
+    assert_eq!(added["fileName"], TEST_FILE);
+    assert_eq!(added["catalogId"], TEST_MODEL);
     assert_eq!(added["active"], false);
     for bad in [
         json!("relative.gguf"),
@@ -517,7 +520,7 @@ fn local_models_are_added_activated_and_deleted() {
         code(ipc(&main, "ai_model_activate", json!({"fileName": "../x.gguf"})).unwrap_err()),
         "invalid"
     );
-    ipc(&main, "ai_model_activate", json!({"fileName": "My_Model.gguf"})).unwrap();
+    ipc(&main, "ai_model_activate", json!({"fileName": TEST_FILE})).unwrap();
     wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
     wait_until("idle setup", || !core.setup_running());
     assert_eq!(ipc(&main, "ai_models", json!({})).unwrap()[0]["active"], true);
@@ -527,11 +530,11 @@ fn local_models_are_added_activated_and_deleted() {
     assert!(events.lock().unwrap().last().unwrap()["message"].as_str().is_some());
     wait_until("idle setup", || !core.setup_running());
     // Deleting the active model leaves no model.
-    ipc(&main, "ai_model_delete", json!({"fileName": "My_Model.gguf"})).unwrap();
+    ipc(&main, "ai_model_delete", json!({"fileName": TEST_FILE})).unwrap();
     assert_eq!(ipc(&main, "ai_status", json!({})).unwrap()["state"], "noModel");
     assert!(ipc(&main, "ai_models", json!({})).unwrap().as_array().unwrap().is_empty());
     assert_eq!(
-        code(ipc(&main, "ai_model_delete", json!({"fileName": "My_Model.gguf"})).unwrap_err()),
+        code(ipc(&main, "ai_model_delete", json!({"fileName": TEST_FILE})).unwrap_err()),
         "notFound"
     );
     // Reset is harmless without a quarantine.
@@ -1581,4 +1584,147 @@ fn research_with_workspace_data_in_the_search_asks_to_confirm_first() {
         code(ipc(&main, "ai_research", json!({"args": {"recordId": u32::MAX}})).unwrap_err()),
         "notFound"
     );
+}
+
+#[test]
+fn a_manual_download_is_checked_against_the_catalog_before_it_is_added() {
+    let f = Fixture::new("manual-model");
+    let app = f.app(f.core());
+    let main = window(&app, "main");
+    // Named like the catalog model, same size, other bytes: damaged or not the original.
+    let mut bad = model_bytes();
+    let last = bad.len() - 1;
+    bad[last] ^= 0x55;
+    let dir = f.tmp.0.join("Downloads");
+    std::fs::create_dir_all(&dir).unwrap();
+    let damaged = dir.join(TEST_FILE);
+    std::fs::write(&damaged, &bad).unwrap();
+    let e = ipc(&main, "ai_model_add_local", json!({"path": damaged.to_string_lossy()})).unwrap_err();
+    assert_eq!(code(e.clone()), "integrity", "{e}");
+    assert!(e["message"].as_str().unwrap().contains("SHA-256"));
+    // Incomplete (the browser stopped early).
+    std::fs::write(&damaged, &model_bytes()[..model_bytes().len() - 7]).unwrap();
+    let e = ipc(&main, "ai_model_add_local", json!({"path": damaged.to_string_lossy()})).unwrap_err();
+    assert!(e["message"].as_str().unwrap().contains("incomplete"), "{e}");
+    assert!(ipc(&main, "ai_models", json!({})).unwrap().as_array().unwrap().is_empty());
+    // The user's own model (not in the catalog) is added without a checksum.
+    let own = dir.join("my-own.gguf");
+    let mut other = model_bytes();
+    other.extend_from_slice(&[0; 32]);
+    std::fs::write(&own, &other).unwrap();
+    let added = ipc(&main, "ai_model_add_local", json!({"path": own.to_string_lossy()})).unwrap();
+    assert_eq!(
+        (added["fileName"].as_str(), added["catalogId"].as_str()),
+        (Some("my-own.gguf"), None)
+    );
+    // The original file is accepted.
+    std::fs::write(&damaged, model_bytes()).unwrap();
+    let added = ipc(&main, "ai_model_add_local", json!({"path": damaged.to_string_lossy()})).unwrap();
+    assert_eq!(added["catalogId"], TEST_MODEL);
+}
+
+#[test]
+fn manual_downloads_name_the_catalog_files_and_open_only_those() {
+    let f = Fixture::new("manual-info");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let main = window(&app, "main");
+    let m = ipc(&main, "ai_manual_download", json!({"kind": "model", "id": TEST_MODEL})).unwrap();
+    assert_eq!(m["kind"], "model");
+    assert_eq!(m["name"], "Test 4B");
+    let file = &m["files"][0];
+    assert_eq!(
+        file["url"],
+        format!("https://huggingface.co/test/Test-4B-GGUF/resolve/main/{TEST_FILE}?download=true")
+    );
+    assert_eq!(file["sizeBytes"], model_bytes().len());
+    assert_eq!(file["sha256"], sha256_of(&model_bytes(), &f.tmp.0));
+    assert!(m["folder"].as_str().unwrap().ends_with("models"));
+    let r = ipc(&main, "ai_manual_download", json!({"kind": "runtime", "id": "cpu"})).unwrap();
+    assert_eq!(r["files"][0]["name"], "llama-b7-bin-test-cpu.zip");
+    assert!(r["files"][0]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/"));
+    assert!(r["files"][0]["sha256"].as_str().is_some_and(|s| s.len() == 64));
+    assert!(r["folder"].as_str().unwrap().contains("runtimes"));
+    // Unknown ids, kinds and files are refused; the address is never taken from the webview.
+    assert_eq!(
+        code(ipc(&main, "ai_manual_download", json!({"kind": "model", "id": "nope"})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_manual_download", json!({"kind": "runtime", "id": "../x"})).unwrap_err()),
+        "notFound"
+    );
+    assert_eq!(
+        code(ipc(&main, "ai_manual_download", json!({"kind": "model", "id": ""})).unwrap_err()),
+        "invalid"
+    );
+    assert!(ipc(&main, "ai_manual_download", json!({"kind": "url", "id": "https://evil.example"})).is_err());
+    let e = ipc(
+        &main,
+        "ai_manual_download_open",
+        json!({"kind": "model", "id": TEST_MODEL, "index": 3}),
+    )
+    .unwrap_err();
+    assert_eq!(code(e), "invalid");
+    assert_eq!(
+        core.manual_download_url(super::manual::ManualKind::Runtime, "cpu", 0).unwrap(),
+        format!("https://github.com/ggml-org/llama.cpp/releases/download/{RT_TAG}/llama-b7-bin-test-cpu.zip")
+    );
+}
+
+#[test]
+fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
+    let f = Fixture::new("manual-runtime");
+    let core = f.core();
+    let app = f.app(core.clone());
+    let events = runtime_events(&app);
+    let main = window(&app, "main");
+    let dir = f.tmp.0.join("Downloads");
+    std::fs::create_dir_all(&dir).unwrap();
+    let (name, data) = runtime_assets().into_iter().next().unwrap();
+    let archive = dir.join(&name);
+    // A damaged archive: refused with the expected checksum, nothing installed, nothing downloaded.
+    let mut bad = data.clone();
+    bad[0] ^= 1;
+    std::fs::write(&archive, &bad).unwrap();
+    ipc(
+        &main,
+        "ai_runtime_add_archives",
+        json!({"id": "cpu", "paths": [archive.to_string_lossy()]}),
+    )
+    .unwrap();
+    let end = install_end(&events, "cpu");
+    assert_eq!(
+        (end["stage"].as_str(), end["code"].as_str()),
+        (Some("failed"), Some("integrity")),
+        "{end}"
+    );
+    // The install slot is free once the end event is out.
+    events.lock().unwrap().clear();
+    // The original: installed without downloading.
+    std::fs::write(&archive, &data).unwrap();
+    ipc(
+        &main,
+        "ai_runtime_add_archives",
+        json!({"id": "cpu", "paths": [archive.to_string_lossy()]}),
+    )
+    .unwrap();
+    let end = install_end(&events, "cpu");
+    assert_eq!(end["stage"], "ready", "{end}");
+    assert!(build(&ipc(&main, "ai_runtimes", json!({})).unwrap(), "cpu")["installed"] == true);
+    // Bad arguments.
+    for (paths, want) in [
+        (json!([]), "invalid"),
+        (json!(["relative.zip"]), "invalid"),
+        (json!([f.tmp.0.join("missing.zip").to_string_lossy()]), "notFound"),
+        (json!([dir.to_string_lossy()]), "invalid"),
+    ] {
+        assert_eq!(
+            code(ipc(&main, "ai_runtime_add_archives", json!({"id": "cpu", "paths": paths})).unwrap_err()),
+            want
+        );
+    }
 }

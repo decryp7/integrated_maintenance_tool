@@ -11,6 +11,8 @@ import {
   AiStatus,
   ChatContext,
   ChatEnvelope,
+  ManualDownload,
+  ManualKind,
   ChatEventEnvelope,
   ChatHistoryRecord,
   ChatRecord,
@@ -98,6 +100,15 @@ export class TauriAiBackend extends AiBackend {
   }
   runtimeInstall(id: string) {
     return this.run<void>('ai_runtime_install', { id });
+  }
+  runtimeAddArchives(id: string, paths: string[]) {
+    return this.run<void>('ai_runtime_add_archives', { id, paths });
+  }
+  manualDownload(kind: ManualKind, id: string) {
+    return this.run<ManualDownload>('ai_manual_download', { kind, id });
+  }
+  openManualDownload(kind: ManualKind, id: string, index: number) {
+    return this.run<void>('ai_manual_download_open', { kind, id, index });
   }
   runtimeCancel() {
     return this.run<boolean>('ai_runtime_cancel');
