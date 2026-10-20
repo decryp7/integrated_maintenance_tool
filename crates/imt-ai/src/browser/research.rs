@@ -329,7 +329,7 @@ fn is_engine_property(url: &WebUrl, engine: &super::url::Site) -> bool {
         ("duckduckgo", &["duck.com", "duckduckgo.co"]),
     ];
     let host_labels: Vec<&str> = host.split('.').collect();
-    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].iter().any(|l| *l == brand);
+    let same_brand = host_labels.len() >= 2 && host_labels[..host_labels.len() - 1].contains(&brand);
     let extra = EXTRA
         .iter()
         .filter(|(b, _)| *b == brand)
