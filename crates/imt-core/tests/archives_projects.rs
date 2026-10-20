@@ -365,6 +365,7 @@ fn imports_report_progress_and_can_be_cancelled() {
             Ok(imt_core::importers::Imported {
                 records: vec![r],
                 skipped: 0,
+                ..Default::default()
             })
         }
     }

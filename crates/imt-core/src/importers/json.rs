@@ -17,11 +17,16 @@ impl Importer for JsonImporter {
         "json"
     }
 
-    fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
+    fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
         let Some(first) = first_lines(head, 1).next() else { return 0 };
         let first = first.trim_start();
         if first.starts_with('{') && serde_json::from_str::<Map<String, Value>>(first).is_ok() {
-            95
+            // JSON lines mixed with text events: below the text importer (70), which reads both (ADR 0020).
+            if super::lines::has_text_events(ctx.profile, head) {
+                65
+            } else {
+                95
+            }
         } else if (first.starts_with('[') || first.starts_with('{')) && starts_with_json(head) {
             // Pretty-printed array or object (possibly cut off at the end of the head).
             60

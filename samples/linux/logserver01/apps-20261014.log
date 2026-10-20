@@ -1,0 +1,768 @@
+# logserver01: forwarded application logs (rsyslog omfile, raw messages)
+2026-10-14 10:00:06.745 +00:00 [ERR] Payment capture failed for order 88821 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88821}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:00:08.700 +00:00 [INF] Order 88357 placed in 130 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88357}
+2026-10-14 10:00:11,494 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 353 items
+{"@t":"2026-10-14T10:00:30.162Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-1941","Amount":348,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:00:34.918 +00:00 [INF] Order 88971 placed in 119 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88971}
+2026-10-14 10:00:36,334 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 278 items
+2026-10-14 10:00:36,840 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 322 items
+2026-10-14 10:00:41.657 +00:00 [INF] Order 89750 placed in 116 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89750}
+2026-10-14 10:00:41.965 +00:00 [INF] Order 89264 placed in 216 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89264}
+2026-10-14 10:00:44.436 +00:00 [INF] Order 88429 placed in 64 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88429}
+2026-10-14 10:00:44.985 +00:00 [INF] Order 89762 placed in 151 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89762}
+2026-10-14 10:00:52.785 +00:00 [INF] Order 88965 placed in 192 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88965}
+2026-10-14 10:01:00.714 +00:00 [INF] Order 89288 placed in 222 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89288}
+2026-10-14 10:01:02.766 +00:00 [INF] Order 89005 placed in 171 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89005}
+2026-10-14 10:01:07.082 +00:00 [INF] Order 88644 placed in 27 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88644}
+2026-10-14 10:01:09.705 +00:00 [INF] Order 88973 placed in 125 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88973}
+2026-10-14 10:01:10.160 +00:00 [INF] Order 89864 placed in 230 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89864}
+2026-10-14 10:01:12.362 +00:00 [INF] Order 89725 placed in 239 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89725}
+2026-10-14 10:01:12,468 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:01:13.246 +00:00 [INF] Order 89255 placed in 51 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89255}
+2026-10-14 10:01:13.485 +00:00 [INF] Order 89104 placed in 72 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89104}
+2026-10-14 10:01:16.788 +00:00 [INF] Order 89313 placed in 74 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89313}
+2026-10-14 10:01:20,110 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 257 items
+2026-10-14 10:01:23.308 +00:00 [INF] Order 89262 placed in 171 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89262}
+2026-10-14 10:01:23,709 [sync-2] ERROR Inventory.Sync - host=SRV2 pid=7002 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:01:24.611 +00:00 [INF] Order 88162 placed in 93 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88162}
+2026-10-14 10:01:25,379 [sync-2] ERROR Inventory.Sync - host=SRV2 pid=7002 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:01:30,031 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 189 items
+2026-10-14 10:01:32.424 +00:00 [ERR] Payment capture failed for order 89426 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89426}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:01:33.464 +00:00 [INF] Order 89502 placed in 223 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89502}
+2026-10-14 10:01:43,952 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 246 items
+2026-10-14 10:01:52.328 +00:00 [INF] Order 89865 placed in 44 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89865}
+2026-10-14 10:02:01,992 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 6 s
+2026-10-14 10:02:03.961 +00:00 [INF] Order 88866 placed in 209 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88866}
+2026-10-14 10:02:04.076 +00:00 [INF] Order 89142 placed in 21 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89142}
+2026-10-14 10:02:07,812 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 154 items
+2026-10-14 10:02:08,120 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 330 items
+2026-10-14 10:02:19.179 +00:00 [INF] Order 88594 placed in 127 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88594}
+2026-10-14 10:02:22,066 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 396 items
+2026-10-14 10:02:22.230 +00:00 [INF] Order 88884 placed in 166 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88884}
+Oct 14 10:02:27 edge01 haproxy[812]: backend orders has no server available!
+2026-10-14 10:02:30.203 +00:00 [INF] Order 89715 placed in 150 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89715}
+2026-10-14 10:02:31,247 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 332 items
+2026-10-14 10:02:31.854 +00:00 [INF] Order 89835 placed in 216 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89835}
+2026-10-14 10:02:35.957 +00:00 [INF] Order 89286 placed in 72 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89286}
+2026-10-14 10:02:43.215 +00:00 [ERR] Payment capture failed for order 88598 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88598}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:02:43.241 +00:00 [INF] Order 89556 placed in 228 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89556}
+2026-10-14 10:02:43.534 +00:00 [INF] Order 89134 placed in 216 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89134}
+2026-10-14 10:02:49.786 +00:00 [ERR] Payment capture failed for order 89302 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89302}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:02:50,576 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 17 items
+2026-10-14 10:02:50.713 +00:00 [INF] Order 88118 placed in 74 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88118}
+2026-10-14 10:02:52.949 +00:00 [INF] Order 88467 placed in 225 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88467}
+2026-10-14 10:02:57.709 +00:00 [INF] Order 89375 placed in 205 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89375}
+2026-10-14 10:03:02,876 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 289 items
+2026-10-14 10:03:06,898 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 284 items
+{"@t":"2026-10-14T10:03:08.570Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-8939","Amount":659,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:03:09.814 +00:00 [INF] Order 88936 placed in 38 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88936}
+2026-10-14 10:03:14.789 +00:00 [INF] Order 89621 placed in 137 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89621}
+2026-10-14 10:03:15,879 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 399 items
+2026-10-14 10:03:18.347 +00:00 [INF] Order 89047 placed in 12 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89047}
+2026-10-14 10:03:20.738 +00:00 [INF] Order 88844 placed in 106 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88844}
+2026-10-14 10:03:23,529 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 316 items
+2026-10-14 10:03:23.936 +00:00 [INF] Order 89685 placed in 191 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89685}
+2026-10-14 10:03:32.734 +00:00 [INF] Order 89644 placed in 125 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89644}
+2026-10-14 10:03:33.488 +00:00 [INF] Order 88642 placed in 145 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88642}
+2026-10-14 10:03:35,627 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 133 items
+2026-10-14 10:03:35,693 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 40 items
+2026-10-14 10:03:39.323 +00:00 [INF] Order 89762 placed in 217 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89762}
+2026-10-14 10:03:40,689 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 259 items
+2026-10-14 10:03:40.857 +00:00 [INF] Order 89290 placed in 38 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89290}
+2026-10-14 10:03:41.419 +00:00 [INF] Order 88894 placed in 238 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88894}
+2026-10-14 10:03:43,289 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 125 items
+2026-10-14 10:03:44,986 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 279 items
+2026-10-14 10:03:45,831 [sync-2] ERROR Inventory.Sync - host=SRV2 pid=7002 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:03:52.825 +00:00 [INF] Order 89326 placed in 20 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89326}
+{"@t":"2026-10-14T10:04:04.349Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-5108","Amount":492,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:04:05.697 +00:00 [INF] Order 89539 placed in 177 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89539}
+2026-10-14 10:04:11,549 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 219 items
+2026-10-14 10:04:12.518 +00:00 [INF] Order 88822 placed in 180 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88822}
+2026-10-14 10:04:18,713 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 322 items
+2026-10-14 10:04:21.449 +00:00 [INF] Order 89578 placed in 31 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89578}
+2026-10-14 10:04:30.432 +00:00 [INF] Order 89023 placed in 94 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89023}
+2026-10-14 10:04:31.456 +00:00 [INF] Order 88060 placed in 87 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88060}
+2026-10-14 10:04:34,279 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 29 items
+2026-10-14 10:04:35.453 +00:00 [INF] Order 88266 placed in 53 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88266}
+2026-10-14 10:04:39.353 +00:00 [INF] Order 88598 placed in 184 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88598}
+2026-10-14 10:04:39,968 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 6 s
+2026-10-14 10:04:40.007 +00:00 [INF] Order 89362 placed in 29 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89362}
+Oct 14 10:04:43 edge01 haproxy[812]: backend orders has no server available!
+2026-10-14 10:04:43.418 +00:00 [INF] Order 89717 placed in 240 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89717}
+2026-10-14 10:04:51.681 +00:00 [INF] Order 88808 placed in 70 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88808}
+2026-10-14 10:04:53.183 +00:00 [ERR] Payment capture failed for order 88283 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88283}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:04:57.791 +00:00 [INF] Order 89911 placed in 210 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89911}
+2026-10-14 10:04:59.923 +00:00 [INF] Order 88055 placed in 182 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88055}
+2026-10-14 10:05:01.115 +00:00 [INF] Order 89049 placed in 126 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89049}
+2026-10-14 10:05:03,867 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 124 items
+2026-10-14 10:05:05.001 +00:00 [INF] Order 89805 placed in 231 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89805}
+2026-10-14 10:05:07,611 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 97 items
+2026-10-14 10:05:14.318 +00:00 [INF] Order 88565 placed in 124 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88565}
+2026-10-14 10:05:16.532 +00:00 [ERR] Payment capture failed for order 88058 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88058}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:05:17.897 +00:00 [INF] Order 89095 placed in 29 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89095}
+2026-10-14 10:05:19.902 +00:00 [INF] Order 88573 placed in 128 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88573}
+2026-10-14 10:05:22.535 +00:00 [INF] Order 88339 placed in 120 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88339}
+2026-10-14 10:05:25.015 +00:00 [ERR] Payment capture failed for order 89984 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89984}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:05:31,820 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 9 s
+2026-10-14 10:05:33,863 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 199 items
+2026-10-14 10:05:34.509 +00:00 [INF] Order 89660 placed in 40 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89660}
+2026-10-14 10:05:35.757 +00:00 [INF] Order 88176 placed in 200 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88176}
+2026-10-14 10:05:38.269 +00:00 [INF] Order 89375 placed in 176 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89375}
+2026-10-14 10:05:38,293 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 209 items
+2026-10-14 10:05:43.743 +00:00 [INF] Order 88732 placed in 129 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88732}
+2026-10-14 10:05:45.191 +00:00 [INF] Order 88580 placed in 114 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88580}
+2026-10-14 10:05:52.563 +00:00 [INF] Order 88772 placed in 237 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88772}
+2026-10-14 10:05:53,753 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 113 items
+2026-10-14 10:06:04.734 +00:00 [INF] Order 89368 placed in 28 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89368}
+2026-10-14 10:06:08,536 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 8 s
+2026-10-14 10:06:11,028 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 222 items
+2026-10-14 10:06:12.705 +00:00 [INF] Order 88897 placed in 151 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88897}
+2026-10-14 10:06:16,600 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 7 s
+2026-10-14 10:06:28.746 +00:00 [INF] Order 89927 placed in 197 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89927}
+2026-10-14 10:06:29.409 +00:00 [INF] Order 89886 placed in 230 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89886}
+2026-10-14 10:06:30.280 +00:00 [INF] Order 88770 placed in 204 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88770}
+2026-10-14 10:06:44.192 +00:00 [INF] Order 89080 placed in 217 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89080}
+2026-10-14 10:06:52.679 +00:00 [INF] Order 88444 placed in 124 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88444}
+2026-10-14 10:06:56.298 +00:00 [INF] Order 88366 placed in 65 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88366}
+2026-10-14 10:06:57.981 +00:00 [INF] Order 89793 placed in 107 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89793}
+2026-10-14 10:06:57,983 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 177 items
+2026-10-14 10:06:59,010 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:07:00,090 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 63 items
+2026-10-14 10:07:11.355 +00:00 [INF] Order 88590 placed in 105 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88590}
+2026-10-14 10:07:17,187 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 25 items
+2026-10-14 10:07:18.613 +00:00 [INF] Order 89472 placed in 179 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89472}
+2026-10-14 10:07:25,348 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 317 items
+2026-10-14 10:07:26,711 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 241 items
+2026-10-14 10:07:26.813 +00:00 [INF] Order 89409 placed in 82 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89409}
+2026-10-14 10:07:32,398 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 143 items
+2026-10-14 10:07:33.987 +00:00 [ERR] Payment capture failed for order 88427 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88427}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:07:35.743 +00:00 [INF] Order 89129 placed in 108 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89129}
+2026-10-14 10:07:36.552 +00:00 [INF] Order 89213 placed in 108 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89213}
+2026-10-14 10:07:41.354 +00:00 [INF] Order 89604 placed in 227 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89604}
+2026-10-14 10:07:44.139 +00:00 [INF] Order 89974 placed in 19 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89974}
+2026-10-14 10:07:45.481 +00:00 [INF] Order 89417 placed in 238 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89417}
+2026-10-14 10:07:46,939 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 71 items
+2026-10-14 10:07:51,158 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 256 items
+2026-10-14 10:07:51.269 +00:00 [INF] Order 88945 placed in 187 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88945}
+2026-10-14 10:07:52,235 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 153 items
+2026-10-14 10:08:01,494 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 8 s
+2026-10-14 10:08:03.278 +00:00 [INF] Order 89370 placed in 49 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89370}
+2026-10-14 10:08:15.177 +00:00 [ERR] Payment capture failed for order 89061 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89061}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:08:15,775 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 4 s
+2026-10-14 10:08:22.221 +00:00 [INF] Order 88485 placed in 228 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88485}
+{"@t":"2026-10-14T10:08:25.398Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-4094","Amount":680,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:08:25.821 +00:00 [INF] Order 88285 placed in 184 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88285}
+2026-10-14 10:08:27,827 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 389 items
+2026-10-14 10:08:30.257 +00:00 [INF] Order 88738 placed in 115 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88738}
+2026-10-14 10:08:32.127 +00:00 [INF] Order 89673 placed in 126 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89673}
+2026-10-14 10:08:36.597 +00:00 [INF] Order 88225 placed in 90 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88225}
+2026-10-14 10:08:38.894 +00:00 [INF] Order 88232 placed in 195 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88232}
+2026-10-14 10:08:41,389 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 27 items
+2026-10-14 10:08:42.023 +00:00 [INF] Order 89604 placed in 154 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89604}
+2026-10-14 10:08:43.261 +00:00 [INF] Order 89011 placed in 199 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89011}
+2026-10-14 10:08:43,414 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 2 s
+2026-10-14 10:08:46.240 +00:00 [INF] Order 89979 placed in 205 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89979}
+2026-10-14 10:08:49,439 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 2 s
+2026-10-14 10:08:50.175 +00:00 [INF] Order 89251 placed in 150 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89251}
+2026-10-14 10:08:50.293 +00:00 [INF] Order 88015 placed in 81 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88015}
+2026-10-14 10:08:54.373 +00:00 [INF] Order 89466 placed in 210 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89466}
+2026-10-14 10:09:05.940 +00:00 [INF] Order 88521 placed in 101 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88521}
+2026-10-14 10:09:06.447 +00:00 [INF] Order 89556 placed in 236 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89556}
+2026-10-14 10:09:08,152 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 75 items
+2026-10-14 10:09:10.187 +00:00 [INF] Order 88065 placed in 135 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88065}
+2026-10-14 10:09:11.388 +00:00 [INF] Order 89092 placed in 122 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89092}
+2026-10-14 10:09:13.129 +00:00 [INF] Order 88988 placed in 152 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88988}
+2026-10-14 10:09:25,426 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 259 items
+2026-10-14 10:09:27.673 +00:00 [INF] Order 89694 placed in 57 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89694}
+2026-10-14 10:09:28.181 +00:00 [INF] Order 88854 placed in 114 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88854}
+2026-10-14 10:09:28,822 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 213 items
+2026-10-14 10:09:36,703 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 90 items
+2026-10-14 10:09:40,459 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 56 items
+2026-10-14 10:09:43.514 +00:00 [INF] Order 89799 placed in 220 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89799}
+2026-10-14 10:09:44.399 +00:00 [INF] Order 89808 placed in 185 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89808}
+2026-10-14 10:09:46.678 +00:00 [INF] Order 89914 placed in 83 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89914}
+2026-10-14 10:09:50.198 +00:00 [INF] Order 89280 placed in 209 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89280}
+2026-10-14 10:09:50,800 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 147 items
+2026-10-14 10:09:53,245 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 109 items
+2026-10-14 10:09:53.786 +00:00 [INF] Order 88928 placed in 154 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88928}
+2026-10-14 10:09:54.537 +00:00 [INF] Order 88523 placed in 160 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88523}
+2026-10-14 10:09:57.464 +00:00 [INF] Order 89150 placed in 118 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89150}
+2026-10-14 10:09:57,995 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 190 items
+2026-10-14 10:09:58.493 +00:00 [ERR] Payment capture failed for order 88299 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88299}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:10:00.818 +00:00 [INF] Order 89215 placed in 162 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89215}
+2026-10-14 10:10:00,861 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 3 s
+2026-10-14 10:10:02.394 +00:00 [INF] Order 88875 placed in 35 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88875}
+2026-10-14 10:10:05,641 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 65 items
+2026-10-14 10:10:07.107 +00:00 [INF] Order 89838 placed in 73 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89838}
+2026-10-14 10:10:07,594 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 73 items
+2026-10-14 10:10:09.020 +00:00 [ERR] Payment capture failed for order 88749 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88749}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:10:09.354 +00:00 [INF] Order 88800 placed in 99 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88800}
+2026-10-14 10:10:12.583 +00:00 [INF] Order 89480 placed in 154 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89480}
+2026-10-14 10:10:14.976 +00:00 [INF] Order 89331 placed in 87 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89331}
+2026-10-14 10:10:16,287 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 91 items
+2026-10-14 10:10:17,317 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 8 s
+2026-10-14 10:10:22.836 +00:00 [INF] Order 88725 placed in 135 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88725}
+2026-10-14 10:10:23,042 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 283 items
+2026-10-14 10:10:24.467 +00:00 [INF] Order 89992 placed in 92 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89992}
+2026-10-14 10:10:25.526 +00:00 [ERR] Payment capture failed for order 89904 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89904}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:10:25,775 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 57 items
+2026-10-14 10:10:28,018 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 88 items
+2026-10-14 10:10:32.017 +00:00 [INF] Order 88606 placed in 204 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88606}
+2026-10-14 10:10:36.251 +00:00 [INF] Order 88637 placed in 87 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88637}
+2026-10-14 10:10:36.850 +00:00 [INF] Order 89517 placed in 114 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89517}
+2026-10-14 10:10:38,066 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 3 s
+2026-10-14 10:10:42,339 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 293 items
+2026-10-14 10:10:51.482 +00:00 [INF] Order 89223 placed in 127 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89223}
+2026-10-14 10:10:55.142 +00:00 [INF] Order 89309 placed in 37 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89309}
+2026-10-14 10:10:56.861 +00:00 [INF] Order 88871 placed in 189 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88871}
+2026-10-14 10:11:01.750 +00:00 [INF] Order 88023 placed in 32 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88023}
+2026-10-14 10:11:04.770 +00:00 [INF] Order 88595 placed in 141 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88595}
+2026-10-14 10:11:14,563 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 241 items
+2026-10-14 10:11:14.680 +00:00 [INF] Order 89400 placed in 60 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89400}
+2026-10-14 10:11:14.855 +00:00 [INF] Order 89151 placed in 192 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89151}
+2026-10-14 10:11:21,313 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 284 items
+2026-10-14 10:11:25.365 +00:00 [INF] Order 88338 placed in 150 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88338}
+2026-10-14 10:11:27,376 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 369 items
+2026-10-14 10:11:29.779 +00:00 [INF] Order 88000 placed in 81 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88000}
+2026-10-14 10:11:31,178 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 216 items
+2026-10-14 10:11:34.162 +00:00 [INF] Order 89872 placed in 30 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 89872}
+2026-10-14 10:11:38.300 +00:00 [INF] Order 88093 placed in 84 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88093}
+2026-10-14 10:11:43.185 +00:00 [INF] Order 88457 placed in 161 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88457}
+2026-10-14 10:11:43,243 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 257 items
+2026-10-14 10:11:45.049 +00:00 [INF] Order 88762 placed in 95 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88762}
+2026-10-14 10:11:53.166 +00:00 [INF] Order 88645 placed in 55 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88645}
+2026-10-14 10:11:57.458 +00:00 [INF] Order 88083 placed in 54 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88083}
+2026-10-14 10:11:57.790 +00:00 [INF] Order 88700 placed in 49 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88700}
+2026-10-14 10:12:00.581 +00:00 [INF] Order 88071 placed in 98 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88071}
+2026-10-14 10:12:03.762 +00:00 [INF] Order 89442 placed in 114 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89442}
+2026-10-14 10:12:03,773 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 192 items
+2026-10-14 10:12:04.785 +00:00 [INF] Order 89307 placed in 157 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89307}
+2026-10-14 10:12:06.269 +00:00 [INF] Order 88713 placed in 57 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88713}
+2026-10-14 10:12:11.447 +00:00 [INF] Order 88687 placed in 119 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88687}
+2026-10-14 10:12:11.541 +00:00 [INF] Order 88434 placed in 215 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120, "OrderId": 88434}
+2026-10-14 10:12:12,308 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 289 items
+2026-10-14 10:12:15,308 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 327 items
+2026-10-14 10:12:16,658 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 83 items
+2026-10-14 10:12:18,693 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 6 s
+2026-10-14 10:12:25.768 +00:00 [INF] Order 89447 placed in 233 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89447}
+2026-10-14 10:12:28.447 +00:00 [INF] Order 88638 placed in 54 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88638}
+2026-10-14 10:12:30.250 +00:00 [INF] Checkout stopping: application pool recycle {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120}
+2026-10-14 10:12:30,287 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 41 items
+2026-10-14 10:12:31,172 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 63 items
+2026-10-14 10:12:36.151 +00:00 [INF] Order 88821 placed in 93 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88821}
+2026-10-14 10:12:37.731 +00:00 [INF] Order 88303 placed in 105 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88303}
+2026-10-14 10:12:45.935 +00:00 [INF] Order 88859 placed in 170 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88859}
+{"@t":"2026-10-14T10:12:54.959Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-7191","Amount":297,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:12:55,938 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 314 items
+2026-10-14 10:13:06,577 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 2 s
+2026-10-14 10:13:11.250 +00:00 [INF] Checkout 4.2.1 starting {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388}
+2026-10-14 10:13:12,347 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 64 items
+2026-10-14 10:13:13.400 +00:00 [INF] Order 88161 placed in 98 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88161}
+2026-10-14 10:13:14.650 +00:00 [INF] Order 89656 placed in 187 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89656}
+2026-10-14 10:13:15.255 +00:00 [ERR] Payment capture failed for order 88174 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88174}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:13:17.815 +00:00 [INF] Order 89523 placed in 133 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89523}
+2026-10-14 10:13:20.983 +00:00 [INF] Order 89322 placed in 173 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89322}
+2026-10-14 10:13:23.332 +00:00 [INF] Order 89342 placed in 102 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89342}
+2026-10-14 10:13:32,424 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 32 items
+2026-10-14 10:13:34.034 +00:00 [INF] Order 89967 placed in 41 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89967}
+2026-10-14 10:13:38.550 +00:00 [INF] Order 89303 placed in 87 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89303}
+2026-10-14 10:13:41.587 +00:00 [INF] Order 88365 placed in 161 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88365}
+2026-10-14 10:13:41.854 +00:00 [ERR] Payment capture failed for order 88795 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88795}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:13:46.077 +00:00 [INF] Order 89666 placed in 71 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89666}
+2026-10-14 10:14:04,617 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 250 items
+2026-10-14 10:14:07.805 +00:00 [INF] Order 88031 placed in 183 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88031}
+2026-10-14 10:14:11,429 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 301 items
+2026-10-14 10:14:12.424 +00:00 [INF] Order 89339 placed in 75 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89339}
+2026-10-14 10:14:15,841 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 247 items
+2026-10-14 10:14:15.939 +00:00 [INF] Order 88689 placed in 28 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88689}
+2026-10-14 10:14:17,295 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 163 items
+2026-10-14 10:14:18,640 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 301 items
+2026-10-14 10:14:19.949 +00:00 [INF] Order 89555 placed in 39 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89555}
+2026-10-14 10:14:24.411 +00:00 [INF] Order 88180 placed in 63 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88180}
+2026-10-14 10:14:27.999 +00:00 [INF] Order 89877 placed in 181 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89877}
+2026-10-14 10:14:35.144 +00:00 [INF] Order 88800 placed in 19 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88800}
+2026-10-14 10:14:36,992 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 372 items
+2026-10-14 10:14:49,975 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 330 items
+2026-10-14 10:14:51.094 +00:00 [INF] Order 89525 placed in 140 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89525}
+{"@t":"2026-10-14T10:14:56.214Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-3569","Amount":22,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:15:02.432 +00:00 [INF] Order 88601 placed in 189 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88601}
+2026-10-14 10:15:02.873 +00:00 [INF] Order 89177 placed in 62 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89177}
+2026-10-14 10:15:06.372 +00:00 [INF] Order 88660 placed in 212 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88660}
+{"@t":"2026-10-14T10:15:08.839Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-7292","Amount":693,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:15:09.718 +00:00 [INF] Order 88198 placed in 201 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88198}
+2026-10-14 10:15:17.537 +00:00 [INF] Order 89634 placed in 55 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89634}
+{"@t":"2026-10-14T10:15:18.690Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-1328","Amount":238,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:15:22,097 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 350 items
+2026-10-14 10:15:22,913 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 273 items
+2026-10-14 10:15:26.605 +00:00 [INF] Order 88246 placed in 99 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88246}
+2026-10-14 10:15:28.267 +00:00 [INF] Order 89686 placed in 172 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89686}
+2026-10-14 10:15:32,164 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 8 s
+2026-10-14 10:15:36.412 +00:00 [INF] Order 89033 placed in 82 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89033}
+2026-10-14 10:15:36.902 +00:00 [INF] Order 88737 placed in 239 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88737}
+2026-10-14 10:15:39.873 +00:00 [INF] Order 89551 placed in 143 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89551}
+2026-10-14 10:15:45.822 +00:00 [INF] Order 88033 placed in 121 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88033}
+2026-10-14 10:15:52.245 +00:00 [INF] Order 89766 placed in 111 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89766}
+2026-10-14 10:15:55.404 +00:00 [INF] Order 89358 placed in 219 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89358}
+2026-10-14 10:15:56.625 +00:00 [ERR] Payment capture failed for order 88787 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88787}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:16:03.020 +00:00 [INF] Order 88133 placed in 60 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88133}
+2026-10-14 10:16:03,192 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 333 items
+2026-10-14 10:16:04,898 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 249 items
+2026-10-14 10:16:05.778 +00:00 [INF] Order 88222 placed in 37 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88222}
+2026-10-14 10:16:09.480 +00:00 [INF] Order 88810 placed in 183 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88810}
+2026-10-14 10:16:10.719 +00:00 [INF] Order 88298 placed in 180 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88298}
+2026-10-14 10:16:15.085 +00:00 [ERR] Payment capture failed for order 89508 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89508}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:16:21.021 +00:00 [INF] Order 88569 placed in 178 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88569}
+2026-10-14 10:16:26.164 +00:00 [INF] Order 89043 placed in 17 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89043}
+2026-10-14 10:16:28.368 +00:00 [INF] Order 88721 placed in 240 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88721}
+2026-10-14 10:16:33,017 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 294 items
+2026-10-14 10:16:35.887 +00:00 [INF] Order 89600 placed in 133 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89600}
+2026-10-14 10:16:36.314 +00:00 [INF] Order 89930 placed in 64 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89930}
+2026-10-14 10:16:42,408 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 4 s
+2026-10-14 10:16:43.651 +00:00 [INF] Order 89314 placed in 157 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89314}
+{"@t":"2026-10-14T10:16:47.475Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-1911","Amount":661,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:16:48.880 +00:00 [INF] Order 89536 placed in 92 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89536}
+2026-10-14 10:16:50,663 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 385 items
+2026-10-14 10:16:54,926 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 8 s
+2026-10-14 10:16:55.245 +00:00 [INF] Order 89267 placed in 12 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89267}
+2026-10-14 10:16:56.715 +00:00 [INF] Order 89148 placed in 132 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89148}
+2026-10-14 10:16:59.678 +00:00 [ERR] Payment capture failed for order 88970 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88970}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:16:59,748 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 346 items
+2026-10-14 10:17:01.540 +00:00 [INF] Order 89017 placed in 23 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89017}
+2026-10-14 10:17:02.091 +00:00 [INF] Order 89942 placed in 126 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89942}
+2026-10-14 10:17:03.404 +00:00 [INF] Order 89516 placed in 220 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89516}
+2026-10-14 10:17:05.073 +00:00 [INF] Order 89016 placed in 172 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89016}
+2026-10-14 10:17:06.960 +00:00 [INF] Order 89162 placed in 43 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89162}
+2026-10-14 10:17:09.278 +00:00 [INF] Order 88601 placed in 75 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88601}
+{"@t":"2026-10-14T10:17:13.906Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-9268","Amount":365,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+{"@t":"2026-10-14T10:17:17.706Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-1736","Amount":676,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:17:18.875 +00:00 [INF] Order 88544 placed in 88 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88544}
+2026-10-14 10:17:20.363 +00:00 [INF] Order 89172 placed in 123 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89172}
+2026-10-14 10:17:26.838 +00:00 [ERR] Payment capture failed for order 88999 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88999}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:17:27,168 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 280 items
+2026-10-14 10:17:31.132 +00:00 [INF] Order 88160 placed in 84 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88160}
+2026-10-14 10:17:31.646 +00:00 [INF] Order 88019 placed in 43 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88019}
+2026-10-14 10:17:35.862 +00:00 [INF] Order 89127 placed in 156 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89127}
+2026-10-14 10:17:45.380 +00:00 [INF] Order 89462 placed in 108 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89462}
+2026-10-14 10:17:48.964 +00:00 [INF] Order 89438 placed in 187 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89438}
+2026-10-14 10:17:50.996 +00:00 [INF] Order 89214 placed in 240 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89214}
+2026-10-14 10:17:55.207 +00:00 [INF] Order 88794 placed in 191 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88794}
+2026-10-14 10:17:58.793 +00:00 [INF] Order 88119 placed in 32 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88119}
+2026-10-14 10:18:06,925 [sync-2] ERROR Inventory.Sync - host=SRV2 pid=7002 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:18:08,456 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:18:11.905 +00:00 [INF] Order 88334 placed in 39 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88334}
+2026-10-14 10:18:13.233 +00:00 [INF] Order 89872 placed in 198 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89872}
+2026-10-14 10:18:25,031 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 254 items
+2026-10-14 10:18:30.136 +00:00 [INF] Order 88361 placed in 171 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88361}
+2026-10-14 10:18:31.309 +00:00 [ERR] Payment capture failed for order 89050 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89050}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:18:52,057 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 196 items
+2026-10-14 10:18:54.020 +00:00 [INF] Order 89135 placed in 77 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89135}
+2026-10-14 10:18:55,554 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 7 s
+2026-10-14 10:18:55.674 +00:00 [INF] Order 89028 placed in 77 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89028}
+2026-10-14 10:19:00.620 +00:00 [INF] Order 88955 placed in 141 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88955}
+2026-10-14 10:19:07.693 +00:00 [INF] Order 89903 placed in 132 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89903}
+2026-10-14 10:19:08.631 +00:00 [INF] Order 88643 placed in 41 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88643}
+2026-10-14 10:19:11.640 +00:00 [INF] Order 89083 placed in 211 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89083}
+2026-10-14 10:19:16.842 +00:00 [INF] Order 88207 placed in 194 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88207}
+2026-10-14 10:19:16.945 +00:00 [INF] Order 88162 placed in 156 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88162}
+2026-10-14 10:19:17.979 +00:00 [INF] Order 88510 placed in 239 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88510}
+2026-10-14 10:19:19.594 +00:00 [INF] Order 88953 placed in 80 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88953}
+2026-10-14 10:19:25,977 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 344 items
+2026-10-14 10:19:27,193 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:19:28.126 +00:00 [INF] Order 89171 placed in 151 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89171}
+2026-10-14 10:19:28.449 +00:00 [ERR] Payment capture failed for order 89729 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89729}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:19:28,593 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 218 items
+2026-10-14 10:19:32.393 +00:00 [INF] Order 89450 placed in 117 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89450}
+2026-10-14 10:19:35,684 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 386 items
+2026-10-14 10:19:39.699 +00:00 [INF] Order 89051 placed in 204 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89051}
+2026-10-14 10:19:42.368 +00:00 [INF] Order 88212 placed in 114 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88212}
+2026-10-14 10:19:42.739 +00:00 [INF] Order 89273 placed in 147 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89273}
+2026-10-14 10:19:56.938 +00:00 [INF] Order 89670 placed in 60 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89670}
+2026-10-14 10:20:00,256 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 197 items
+2026-10-14 10:20:08,224 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 355 items
+2026-10-14 10:20:09.469 +00:00 [INF] Order 89338 placed in 225 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89338}
+2026-10-14 10:20:11,462 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 325 items
+2026-10-14 10:20:19,039 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 226 items
+2026-10-14 10:20:25.602 +00:00 [INF] Order 88458 placed in 29 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88458}
+2026-10-14 10:20:31.060 +00:00 [ERR] Payment capture failed for order 88708 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88708}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:20:38.056 +00:00 [INF] Order 88478 placed in 12 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88478}
+2026-10-14 10:20:41.049 +00:00 [INF] Order 89849 placed in 25 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89849}
+2026-10-14 10:20:43,296 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 317 items
+2026-10-14 10:20:45.575 +00:00 [INF] Order 89442 placed in 81 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89442}
+2026-10-14 10:20:47.660 +00:00 [INF] Order 89933 placed in 78 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89933}
+2026-10-14 10:20:49.534 +00:00 [INF] Order 88153 placed in 52 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88153}
+2026-10-14 10:20:53.107 +00:00 [INF] Order 88429 placed in 215 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88429}
+2026-10-14 10:20:54.254 +00:00 [INF] Order 89111 placed in 68 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89111}
+2026-10-14 10:20:55,770 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 15 items
+2026-10-14 10:20:57,161 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 122 items
+2026-10-14 10:20:57.626 +00:00 [INF] Order 88130 placed in 62 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88130}
+2026-10-14 10:20:58.847 +00:00 [ERR] Payment capture failed for order 89286 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89286}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:21:00.376 +00:00 [INF] Order 89419 placed in 145 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89419}
+2026-10-14 10:21:02.822 +00:00 [INF] Order 88207 placed in 193 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88207}
+2026-10-14 10:21:05.103 +00:00 [INF] Order 89737 placed in 171 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89737}
+2026-10-14 10:21:09.259 +00:00 [ERR] Payment capture failed for order 89328 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89328}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:21:10.200 +00:00 [INF] Order 89847 placed in 180 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89847}
+2026-10-14 10:21:11.561 +00:00 [INF] Order 88557 placed in 202 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88557}
+2026-10-14 10:21:13.660 +00:00 [INF] Order 88681 placed in 73 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88681}
+2026-10-14 10:21:17.705 +00:00 [INF] Order 88769 placed in 170 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88769}
+2026-10-14 10:21:23.959 +00:00 [INF] Order 88373 placed in 55 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88373}
+2026-10-14 10:21:33.281 +00:00 [ERR] Payment capture failed for order 88399 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88399}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+{"@t":"2026-10-14T10:21:36.447Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-1334","Amount":155,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:21:45,153 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 332 items
+2026-10-14 10:21:47.744 +00:00 [INF] Order 89045 placed in 144 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89045}
+2026-10-14 10:21:48,812 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 36 items
+2026-10-14 10:21:52,382 [sync-2] ERROR Inventory.Sync - host=SRV2 pid=7002 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:21:52.773 +00:00 [INF] Order 89998 placed in 238 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89998}
+2026-10-14 10:21:52,931 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 308 items
+2026-10-14 10:21:56.151 +00:00 [INF] Order 88584 placed in 198 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88584}
+2026-10-14 10:21:58.793 +00:00 [INF] Order 88132 placed in 84 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88132}
+2026-10-14 10:22:10.495 +00:00 [INF] Order 88509 placed in 40 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88509}
+2026-10-14 10:22:12.017 +00:00 [INF] Order 89569 placed in 182 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89569}
+2026-10-14 10:22:15.404 +00:00 [INF] Order 89067 placed in 72 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89067}
+2026-10-14 10:22:17.843 +00:00 [INF] Order 88876 placed in 182 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88876}
+2026-10-14 10:22:18,657 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 110 items
+2026-10-14 10:22:19.293 +00:00 [INF] Order 88044 placed in 24 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88044}
+2026-10-14 10:22:21.164 +00:00 [INF] Order 89840 placed in 90 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89840}
+2026-10-14 10:22:21,502 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 138 items
+2026-10-14 10:22:24,472 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 275 items
+2026-10-14 10:22:25.359 +00:00 [INF] Order 88127 placed in 215 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88127}
+2026-10-14 10:22:27.278 +00:00 [INF] Order 89760 placed in 33 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89760}
+2026-10-14 10:22:28,212 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:22:29,316 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 5 s
+2026-10-14 10:22:31.070 +00:00 [INF] Order 89874 placed in 161 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89874}
+2026-10-14 10:22:44,061 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 366 items
+Oct 14 10:22:48 edge01 haproxy[812]: backend orders has no server available!
+2026-10-14 10:22:49.506 +00:00 [INF] Order 88655 placed in 156 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88655}
+2026-10-14 10:22:53.452 +00:00 [INF] Order 89746 placed in 184 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89746}
+2026-10-14 10:22:54.688 +00:00 [INF] Order 89314 placed in 112 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89314}
+2026-10-14 10:22:56.389 +00:00 [ERR] Payment capture failed for order 89984 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89984}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:22:57.675 +00:00 [INF] Order 88646 placed in 77 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88646}
+2026-10-14 10:22:58.510 +00:00 [ERR] Payment capture failed for order 88571 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88571}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:23:01,897 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 340 items
+2026-10-14 10:23:05,849 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 81 items
+2026-10-14 10:23:07.961 +00:00 [INF] Order 89256 placed in 176 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89256}
+2026-10-14 10:23:08.461 +00:00 [INF] Order 89452 placed in 57 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89452}
+2026-10-14 10:23:10.937 +00:00 [INF] Order 89249 placed in 240 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89249}
+2026-10-14 10:23:11.247 +00:00 [INF] Order 88809 placed in 41 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88809}
+2026-10-14 10:23:20,529 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 124 items
+2026-10-14 10:23:20.779 +00:00 [INF] Order 89769 placed in 68 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89769}
+2026-10-14 10:23:20,882 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 118 items
+2026-10-14 10:23:21.219 +00:00 [INF] Order 88263 placed in 235 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88263}
+2026-10-14 10:23:23,559 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 4 s
+2026-10-14 10:23:31.808 +00:00 [INF] Order 89352 placed in 222 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89352}
+2026-10-14 10:23:34,176 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 296 items
+2026-10-14 10:23:35,129 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 39 items
+2026-10-14 10:23:36,282 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 14 items
+2026-10-14 10:23:37.001 +00:00 [INF] Order 88560 placed in 106 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88560}
+2026-10-14 10:23:40.676 +00:00 [INF] Order 88460 placed in 146 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88460}
+2026-10-14 10:23:46,960 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 235 items
+2026-10-14 10:23:51,672 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 9 s
+2026-10-14 10:23:54.096 +00:00 [INF] Order 89291 placed in 146 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89291}
+2026-10-14 10:23:55,270 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 95 items
+2026-10-14 10:23:56.303 +00:00 [INF] Order 89816 placed in 142 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89816}
+2026-10-14 10:24:02.283 +00:00 [ERR] Payment capture failed for order 89306 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89306}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:24:03.035 +00:00 [INF] Order 88677 placed in 157 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88677}
+2026-10-14 10:24:05.182 +00:00 [INF] Order 89673 placed in 75 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89673}
+2026-10-14 10:24:08,274 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 153 items
+2026-10-14 10:24:13.814 +00:00 [INF] Order 88915 placed in 232 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88915}
+2026-10-14 10:24:14.301 +00:00 [ERR] Payment capture failed for order 89676 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89676}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:24:18.119 +00:00 [ERR] Payment capture failed for order 89476 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89476}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+{"@t":"2026-10-14T10:24:24.864Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-9685","Amount":228,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:24:27,070 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 177 items
+2026-10-14 10:24:27.310 +00:00 [INF] Order 88475 placed in 74 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88475}
+2026-10-14 10:24:27,679 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 280 items
+{"@t":"2026-10-14T10:24:29.923Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-4602","Amount":309,"Application":"Payments","MachineName":"PAY01","ProcessId":6100,"@l":"Warning"}
+2026-10-14 10:24:33.230 +00:00 [INF] Order 89081 placed in 102 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89081}
+2026-10-14 10:24:34,337 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 21 items
+2026-10-14 10:24:35,198 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 19 items
+2026-10-14 10:24:36,213 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 246 items
+2026-10-14 10:24:36,911 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 275 items
+2026-10-14 10:24:38,294 [sync-1] ERROR Inventory.Sync - host=SRV2 pid=7001 Stock feed failed
+java.io.IOException: Connection reset by peer
+	at inventory.Feed.read(Feed.java:88)
+2026-10-14 10:24:43,997 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 84 items
+{"@t":"2026-10-14T10:24:50.073Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-4486","Amount":377,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:24:52.044 +00:00 [INF] Order 88707 placed in 120 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88707}
+2026-10-14 10:24:52,715 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 375 items
+2026-10-14 10:24:57.736 +00:00 [INF] Order 88035 placed in 17 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88035}
+2026-10-14 10:25:02.770 +00:00 [INF] Order 89167 placed in 212 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89167}
+2026-10-14 10:25:06.154 +00:00 [INF] Order 88492 placed in 201 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88492}
+2026-10-14 10:25:06.200 +00:00 [INF] Order 88933 placed in 124 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88933}
+2026-10-14 10:25:12,050 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 326 items
+2026-10-14 10:25:16.868 +00:00 [ERR] Payment capture failed for order 88578 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88578}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:25:24,121 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 3 s
+2026-10-14 10:25:25.491 +00:00 [ERR] Payment capture failed for order 88603 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88603}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:25:29.665 +00:00 [INF] Order 88164 placed in 51 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88164}
+2026-10-14 10:25:41.065 +00:00 [INF] Order 88978 placed in 27 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88978}
+2026-10-14 10:25:42,057 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 40 items
+2026-10-14 10:25:42.869 +00:00 [INF] Order 88142 placed in 196 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88142}
+Oct 14 10:25:43 edge01 haproxy[812]: backend orders has no server available!
+2026-10-14 10:25:43.729 +00:00 [INF] Order 88641 placed in 56 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88641}
+2026-10-14 10:25:45.465 +00:00 [INF] Order 89527 placed in 103 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89527}
+2026-10-14 10:25:50.869 +00:00 [INF] Order 88637 placed in 200 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88637}
+2026-10-14 10:25:59,178 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 312 items
+2026-10-14 10:26:01.232 +00:00 [INF] Order 89820 placed in 163 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89820}
+2026-10-14 10:26:02.095 +00:00 [INF] Order 89084 placed in 62 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89084}
+2026-10-14 10:26:02.734 +00:00 [INF] Order 89178 placed in 200 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89178}
+2026-10-14 10:26:04,337 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 199 items
+2026-10-14 10:26:07,126 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 7 s
+2026-10-14 10:26:13,490 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 299 items
+2026-10-14 10:26:16.695 +00:00 [INF] Order 88414 placed in 138 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88414}
+2026-10-14 10:26:21.515 +00:00 [INF] Order 88599 placed in 212 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88599}
+2026-10-14 10:26:26.839 +00:00 [INF] Order 88274 placed in 102 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88274}
+2026-10-14 10:26:30.437 +00:00 [INF] Order 88741 placed in 144 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88741}
+2026-10-14 10:26:32.011 +00:00 [INF] Order 89351 placed in 134 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89351}
+2026-10-14 10:26:32.580 +00:00 [INF] Order 89031 placed in 29 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89031}
+2026-10-14 10:26:38.998 +00:00 [INF] Order 88923 placed in 126 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88923}
+2026-10-14 10:26:39,425 [sync-2] WARN  Inventory.Sync - host=SRV2 pid=7002 Stock feed slow: 5 s
+2026-10-14 10:26:41,433 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 46 items
+2026-10-14 10:26:53,749 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 50 items
+2026-10-14 10:26:55.568 +00:00 [ERR] Payment capture failed for order 88997 {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88997}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:26:55,819 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 203 items
+2026-10-14 10:26:59.521 +00:00 [INF] Order 89177 placed in 174 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89177}
+2026-10-14 10:27:01.632 +00:00 [INF] Order 89918 placed in 44 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89918}
+2026-10-14 10:27:05,109 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 264 items
+2026-10-14 10:27:05.702 +00:00 [INF] Order 88871 placed in 48 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88871}
+2026-10-14 10:27:08.786 +00:00 [INF] Order 89656 placed in 221 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89656}
+2026-10-14 10:27:13,077 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 346 items
+2026-10-14 10:27:19.922 +00:00 [INF] Order 89598 placed in 72 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89598}
+2026-10-14 10:27:21,112 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 287 items
+2026-10-14 10:27:24.659 +00:00 [INF] Order 89075 placed in 203 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89075}
+2026-10-14 10:27:27.548 +00:00 [INF] Order 88037 placed in 41 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88037}
+2026-10-14 10:27:31,658 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 267 items
+2026-10-14 10:27:31,835 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 316 items
+2026-10-14 10:27:32,416 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 26 items
+2026-10-14 10:27:34,819 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 9 s
+2026-10-14 10:27:35.314 +00:00 [INF] Order 89779 placed in 47 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89779}
+2026-10-14 10:27:50.831 +00:00 [INF] Order 88324 placed in 130 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88324}
+2026-10-14 10:27:52.153 +00:00 [INF] Order 88297 placed in 213 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88297}
+2026-10-14 10:27:54,956 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 136 items
+2026-10-14 10:27:58.385 +00:00 [INF] Order 88908 placed in 240 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88908}
+2026-10-14 10:27:59.033 +00:00 [INF] Order 89962 placed in 186 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89962}
+2026-10-14 10:28:01.047 +00:00 [INF] Order 89546 placed in 145 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89546}
+2026-10-14 10:28:01.633 +00:00 [INF] Order 88156 placed in 239 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88156}
+2026-10-14 10:28:12,010 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 298 items
+{"@t":"2026-10-14T10:28:21.207Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-4262","Amount":192,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:28:23,124 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 195 items
+2026-10-14 10:28:23.913 +00:00 [INF] Order 88970 placed in 184 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88970}
+2026-10-14 10:28:25.673 +00:00 [INF] Order 88249 placed in 104 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88249}
+2026-10-14 10:28:26,508 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 318 items
+2026-10-14 10:28:34.484 +00:00 [INF] Order 88484 placed in 113 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88484}
+2026-10-14 10:28:46,572 [sync-1] WARN  Inventory.Sync - host=SRV2 pid=7001 Stock feed slow: 8 s
+2026-10-14 10:28:52.216 +00:00 [INF] Order 88663 placed in 229 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88663}
+2026-10-14 10:28:54.907 +00:00 [INF] Order 88697 placed in 49 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88697}
+2026-10-14 10:28:56.296 +00:00 [ERR] Payment capture failed for order 88197 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88197}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:28:58.836 +00:00 [INF] Order 89458 placed in 104 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89458}
+2026-10-14 10:29:08.061 +00:00 [ERR] Payment capture failed for order 88492 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88492}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:29:11.526 +00:00 [INF] Order 88489 placed in 212 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 88489}
+2026-10-14 10:29:12.086 +00:00 [INF] Order 88409 placed in 43 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88409}
+2026-10-14 10:29:16,953 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 41 items
+{"@t":"2026-10-14T10:29:17.750Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-3004","Amount":790,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:29:20,186 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Synced 295 items
+2026-10-14 10:29:20.391 +00:00 [INF] Order 89108 placed in 101 ms {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89108}
+2026-10-14 10:29:23.644 +00:00 [ERR] Payment capture failed for order 89247 {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410, "OrderId": 89247}
+System.TimeoutException: The operation has timed out.
+   at Microsoft.Data.SqlClient.SqlInternalConnection.OnError(SqlException exception, Boolean breakConnection)
+   at Microsoft.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+   at OrderService.Payments.CaptureHandler.Handle(CaptureCommand cmd, CancellationToken ct) in /src/Payments/CaptureHandler.cs:line 88
+2026-10-14 10:29:27.054 +00:00 [INF] Order 88654 placed in 69 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88654}
+2026-10-14 10:29:36.239 +00:00 [INF] Order 88589 placed in 95 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88589}
+2026-10-14 10:29:37,743 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Synced 201 items
+2026-10-14 10:29:38.560 +00:00 [INF] Order 88069 placed in 36 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 88069}
+{"@t":"2026-10-14T10:29:52.339Z","@mt":"Captured {PaymentId} for {Amount}","PaymentId":"p-3168","Amount":318,"Application":"Payments","MachineName":"PAY01","ProcessId":6100}
+2026-10-14 10:29:55.460 +00:00 [INF] Order 89894 placed in 209 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89894}
+2026-10-14 10:29:59.200 +00:00 [INF] Order 89294 placed in 197 ms {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388, "OrderId": 89294}
+2026-10-14 10:30:00.000 +00:00 [INF] Checkout heartbeat {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388}
+2026-10-14 10:30:00.000 +00:00 [INF] Checkout heartbeat {"Application": "Checkout", "MachineName": "APP02", "ProcessId": 3410}
+2026-10-14 10:30:00,000 [sync-1] INFO  Inventory.Sync - host=SRV2 pid=7001 Idle
+2026-10-14 10:30:00,000 [sync-2] INFO  Inventory.Sync - host=SRV2 pid=7002 Idle

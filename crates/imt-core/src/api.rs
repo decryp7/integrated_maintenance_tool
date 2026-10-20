@@ -38,6 +38,17 @@ pub struct SourceInfo {
     pub file_kind: FileKind,
     /// Many events without a readable timestamp (see [`crate::timestamp_issue`]).
     pub timestamp_issue: Option<TimestampIssue>,
+    /// Display name of the file this logical source was split from by a `[[route]]` (ADR 0020); `None` for a
+    /// file's own source. Logical sources of one file share its `path`.
+    #[serde(default)]
+    pub routed_from: Option<String>,
+    /// Import problems of this source, one entry per kind (e.g. lines that look like events but match no
+    /// format).
+    #[serde(default)]
+    pub problems: Vec<crate::ingest::Problem>,
+    /// Fields the source's importer declares as identifying who wrote an event (instance-key candidates).
+    #[serde(skip)]
+    pub identity: Vec<String>,
 }
 
 /// How a source is stored on disk: what "Open file", "Open at line" and "Show in folder" can do with it.

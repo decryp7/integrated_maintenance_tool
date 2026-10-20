@@ -63,7 +63,49 @@ fn the_workspace_picks_the_syslog_and_journald_importers() {
         assert_eq!((src.importer.as_str(), src.skipped), (importer, 0), "{suffix}");
         assert!(src.records > 0 && src.from.is_some(), "{suffix}");
     }
-    assert_eq!(s.sources.len(), 3);
+    // Plus the log server's relay files (linux/logserver01): its syslog and the shared application log.
+    assert_eq!(s.sources.len(), 5);
+}
+
+const RELAY: &str = "linux/logserver01/syslog-20261014.log";
+
+/// A log server's syslog from several hosts: one lane per host, application and process, from the identity
+/// fields the importer declares even when the profile names no candidates (ADR 0020).
+#[test]
+fn a_relay_syslog_gets_a_lane_per_host_app_and_process() {
+    assert_eq!(SyslogImporter.identity_fields(), ["Host", "App", "ProcId"]);
+    assert_eq!(JournaldImporter.identity_fields(), ["Host", "App", "ProcId"]);
+    let want: std::collections::BTreeSet<String> = std::fs::read_to_string(samples().join(RELAY))
+        .unwrap()
+        .lines()
+        .map(|l| {
+            let parts: Vec<&str> = l.split(' ').collect();
+            format!("{} · {} · {}", parts[2], parts[3], parts[4])
+        })
+        .collect();
+    assert_eq!(want.len(), 6, "{want:?}");
+    for profile in [
+        Profile::default_profile(),
+        Profile::from_toml(
+            "[instance]
+candidates = []",
+        )
+        .unwrap(),
+    ] {
+        let mut registry = PluginRegistry::new();
+        registry.install(&imt_plugin_syslog::SyslogPlugin).unwrap();
+        let mut ws = Workspace::with_registry(profile, registry).unwrap();
+        ws.open(&[samples().join(RELAY)]).unwrap();
+        let s = ws.summary();
+        assert_eq!(s.sources[0].importer, "syslog");
+        assert_eq!(s.default_group_by, ["Host", "App", "ProcId"]);
+        let lanes: std::collections::BTreeSet<String> = ws
+            .records()
+            .iter()
+            .map(|r| imt_core::query::group_key(&s.default_group_by, r, &s.sources[0].name))
+            .collect();
+        assert_eq!(lanes, want);
+    }
 }
 
 #[test]

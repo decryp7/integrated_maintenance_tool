@@ -513,7 +513,11 @@ impl BinaryImporter for Blob {
                 r
             })
             .collect();
-        Ok(Imported { records, skipped: 0 })
+        Ok(Imported {
+            records,
+            skipped: 0,
+            ..Default::default()
+        })
     }
 }
 
@@ -575,7 +579,11 @@ impl Importer for Crashy {
                 r
             })
             .collect();
-        Ok(Imported { records, skipped: 0 })
+        Ok(Imported {
+            records,
+            skipped: 0,
+            ..Default::default()
+        })
     }
     fn import_tail(&self, _: &ImportCtx, _: &str, tail: &str) -> Option<anyhow::Result<Imported>> {
         if tail.contains("boom") {
@@ -1605,4 +1613,23 @@ fn a_session_dropped_from_its_own_batch_does_not_deadlock() {
     sink(WatchSignal::Paths(vec![d.0.join("app.log")]));
     finished.recv_timeout(Duration::from_secs(5)).expect("the batch finished");
     assert!(slot.lock().unwrap().is_none());
+}
+
+#[test]
+fn a_whole_file_read_again_keeps_the_events_routes_would_claim() {
+    // A file without routed events is tailed; when it is read again, events a route names stay in its source.
+    let d = Dir::new("routed-reread");
+    let p = d.write("app.json", r#"[{"@t":"2026-10-14T10:00:00Z","@m":"a"}]"#);
+    let mut ws = Workspace::new(Profile::from_toml("[[route]]\nsource = '{Application}'\n").unwrap()).unwrap();
+    ws.open(std::slice::from_ref(&d.0)).unwrap();
+    assert_eq!(ws.sources().len(), 1);
+    std::fs::write(
+        &p,
+        r#"[{"@t":"2026-10-14T10:00:00Z","@m":"a"},{"@t":"2026-10-14T10:00:01Z","@m":"b","Application":"x"}]"#,
+    )
+    .unwrap();
+    let r = ws.refresh_tail(std::slice::from_ref(&p)).unwrap();
+    assert_eq!(r.reimported.len(), 1);
+    assert_eq!(messages(&ws), ["a", "b"]);
+    assert_eq!(ws.sources().len(), 1);
 }

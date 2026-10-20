@@ -116,6 +116,7 @@ pub fn read_minidump(bytes: &[u8]) -> Result<Imported> {
     Ok(Imported {
         records: out.records,
         skipped,
+        ..Default::default()
     })
 }
 

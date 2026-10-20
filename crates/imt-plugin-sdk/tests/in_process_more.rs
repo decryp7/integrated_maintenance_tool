@@ -37,6 +37,7 @@ impl Importer for Imp {
                 Ok(Imported {
                     records: vec![r],
                     skipped: 2,
+                    ..Default::default()
                 })
             }
         }

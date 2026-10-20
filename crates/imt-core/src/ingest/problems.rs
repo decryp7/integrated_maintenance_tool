@@ -30,10 +30,16 @@ pub enum ProblemKind {
     TruncatedArchive,
     /// An event split at a chunk boundary of a parallel import.
     EventSplit,
+    /// A line that looks like the start of an event (a date, time or syslog header) but that no text format
+    /// of the profile reads; it was kept as a continuation of the event above (ADR 0020).
+    UnmatchedLine,
+    /// Events whose `[[route]]` label would have made more logical sources than a file may have; they stay
+    /// in the file's own source (ADR 0020).
+    RouteLimit,
 }
 
 /// Every kind.
-const ALL_KINDS: [ProblemKind; 9] = [
+const ALL_KINDS: [ProblemKind; 11] = [
     ProblemKind::LineTooLong,
     ProblemKind::EventTooLarge,
     ProblemKind::LineNotParsed,
@@ -43,6 +49,8 @@ const ALL_KINDS: [ProblemKind; 9] = [
     ProblemKind::UnknownFormat,
     ProblemKind::TruncatedArchive,
     ProblemKind::EventSplit,
+    ProblemKind::UnmatchedLine,
+    ProblemKind::RouteLimit,
 ];
 
 impl ProblemKind {
@@ -58,6 +66,8 @@ impl ProblemKind {
             ProblemKind::UnknownFormat => "unknownFormat",
             ProblemKind::TruncatedArchive => "truncatedArchive",
             ProblemKind::EventSplit => "eventSplit",
+            ProblemKind::UnmatchedLine => "unmatchedLine",
+            ProblemKind::RouteLimit => "routeLimit",
         }
     }
 
@@ -71,14 +81,19 @@ impl ProblemKind {
             | ProblemKind::EventTooLarge
             | ProblemKind::TimestampUnparsed
             | ProblemKind::UnknownFormat
-            | ProblemKind::TruncatedArchive => Severity::Warning,
-            ProblemKind::LineNotParsed | ProblemKind::FieldInvalid | ProblemKind::Encoding | ProblemKind::EventSplit => Severity::Info,
+            | ProblemKind::TruncatedArchive
+            | ProblemKind::UnmatchedLine => Severity::Warning,
+            ProblemKind::LineNotParsed
+            | ProblemKind::FieldInvalid
+            | ProblemKind::Encoding
+            | ProblemKind::EventSplit
+            | ProblemKind::RouteLimit => Severity::Info,
         }
     }
 }
 
 /// One kind of problem in one source.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Problem {
     pub kind: ProblemKind,
@@ -154,16 +169,15 @@ mod tests {
         assert_eq!(v.len(), 2);
         assert_eq!(v[0].sample_lines.len(), MAX_SAMPLES);
         assert_eq!(v[1].sample_lines, [7]);
-        for k in [
-            ProblemKind::LineTooLong,
-            ProblemKind::EventTooLarge,
-            ProblemKind::LineNotParsed,
-            ProblemKind::TimestampUnparsed,
-        ] {
+        for k in ALL_KINDS {
             assert_eq!(ProblemKind::from_id(k.id()), Some(k));
+            // The id is the JSON name.
+            assert_eq!(serde_json::to_value(k).unwrap(), k.id());
         }
         assert_eq!(ProblemKind::from_id("nope"), None);
         assert_eq!(ProblemKind::LineNotParsed.severity(), Severity::Info);
         assert_eq!(ProblemKind::LineTooLong.severity(), Severity::Warning);
+        assert_eq!(ProblemKind::UnmatchedLine.severity(), Severity::Warning);
+        assert_eq!(ProblemKind::RouteLimit.severity(), Severity::Info);
     }
 }

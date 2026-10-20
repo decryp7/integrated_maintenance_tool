@@ -4,6 +4,7 @@
 
 mod csv;
 mod json;
+pub mod lines;
 pub mod text;
 
 use crate::model::Record;
@@ -17,7 +18,7 @@ pub use self::json::JsonImporter;
 pub use self::text::TextImporter;
 // Shared with the streaming importers (`crate::ingest`).
 pub(crate) use self::json::{to_record as json_to_record, Depth as JsonDepth};
-pub(crate) use self::text::{best_format as text_best_format, finish as text_finish, split_trailing_properties};
+pub(crate) use self::text::{finish as text_finish, SNIFF_LINES};
 
 /// Lines longer than this (4 MiB) are skipped and counted, so one corrupt
 /// line cannot blow up memory in later processing.
@@ -34,6 +35,9 @@ pub struct ImportCtx<'a> {
 pub struct Imported {
     pub records: Vec<Record>,
     pub skipped: usize,
+    /// Problems met while reading, aggregated per kind (e.g. lines that look like events but match no
+    /// format). Importers that find none leave it empty (`..Default::default()`).
+    pub problems: crate::ingest::Problems,
 }
 
 pub trait Importer: Send + Sync {
@@ -61,6 +65,14 @@ pub trait Importer: Send + Sync {
     fn multiline(&self) -> bool {
         true
     }
+
+    /// Fields this importer writes that identify who wrote an event (host, application, process), in
+    /// order from the widest to the narrowest, e.g. syslog's `Host`, `App`, `ProcId`. They join the
+    /// profile's `[instance] candidates` for the automatic instance key of this importer's sources. The
+    /// default is none; must not fail.
+    fn identity_fields(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// An importer for binary formats (e.g. Windows `.evtx`). Binary importers
@@ -74,6 +86,12 @@ pub trait BinaryImporter: Send + Sync {
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8;
 
     fn import(&self, ctx: &ImportCtx, bytes: &[u8]) -> Result<Imported>;
+
+    /// As [`Importer::identity_fields`]: fields that identify who wrote an event (e.g. EVTX `Computer`,
+    /// `ProcessId`). The default is none; must not fail.
+    fn identity_fields(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 pub struct Importers {

@@ -16,6 +16,11 @@ impl Importer for CriImporter {
         "cri"
     }
 
+    /// Where the container runs, from the log path (`Namespace`/`Pod`/`Container`) and its id.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Namespace", "Pod", "Container", "ContainerId"].map(String::from).to_vec()
+    }
+
     /// Above the generic text importer (70) and syslog (75).
     fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
         if first_line(head).and_then(parse_line).is_some() {
@@ -84,6 +89,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
     Imported {
         records: joiner.finish(),
         skipped,
+        ..Default::default()
     }
 }
 
@@ -104,6 +110,14 @@ not a cri line
 
 2026-10-17T12:00:04Z stderr F:x E1017 12:00:04.000000 1 main.go:1] failed
 ";
+
+    #[test]
+    fn declares_identity_fields() {
+        assert_eq!(
+            imt_core::importers::Importer::identity_fields(&CriImporter),
+            ["Namespace", "Pod", "Container", "ContainerId"]
+        );
+    }
 
     #[test]
     fn parses_joins_partials_and_levels() {

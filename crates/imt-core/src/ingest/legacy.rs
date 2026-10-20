@@ -28,6 +28,7 @@ pub fn import_text_whole(
         Some((start, end))
     };
     let lines: Vec<u32> = imported.records.iter().map(|r| r.line).collect();
+    sink.problems(imported.problems);
     for (i, record) in imported.records.into_iter().enumerate() {
         let (raw, byte_offset) = match line_text(record.line) {
             Some((start, first_end)) => {
@@ -50,6 +51,7 @@ pub fn import_text_whole(
 /// Runs a binary importer on the bytes; events have no raw text.
 pub fn import_binary(importer: &dyn BinaryImporter, ctx: &ImportCtx, bytes: &[u8], sink: &mut dyn EventSink) -> Result<usize> {
     let imported = importer.import(ctx, bytes)?;
+    sink.problems(imported.problems);
     for record in imported.records {
         sink.event(ParsedEvent {
             record,
@@ -84,7 +86,7 @@ mod tests {
     use std::path::Path;
 
     #[derive(Default)]
-    struct Events(Vec<ParsedEvent>);
+    struct Events(Vec<ParsedEvent>, crate::ingest::Problems);
 
     impl EventSink for Events {
         fn event(&mut self, ev: ParsedEvent) -> Result<()> {
@@ -92,6 +94,9 @@ mod tests {
             Ok(())
         }
         fn problem(&mut self, _kind: ProblemKind, _line: u32) {}
+        fn problems(&mut self, problems: crate::ingest::Problems) {
+            self.1.merge(problems);
+        }
     }
 
     #[test]
@@ -133,6 +138,11 @@ mod tests {
                     })
                     .collect(),
                 skipped: 2,
+                problems: {
+                    let mut p = crate::ingest::Problems::default();
+                    p.add(ProblemKind::UnmatchedLine, 4);
+                    p
+                },
             })
         }
     }
@@ -162,8 +172,10 @@ mod tests {
         assert_eq!(skipped, 2);
         let raws: Vec<&str> = out.0.iter().map(|e| e.raw.as_str()).collect();
         assert_eq!(raws, ["bb", "aé\nbb", "m9"]);
+        assert_eq!(out.1.count(ProblemKind::UnmatchedLine), 1, "the importer's problems reach the sink");
         let mut out = Events::default();
         assert_eq!(import_binary(&Fixed(vec![1]), &ctx, b"x", &mut out).unwrap(), 2);
+        assert_eq!(out.1.count(ProblemKind::UnmatchedLine), 1);
         assert_eq!(out.0[0].raw, "");
         assert_eq!(floor_char_boundary("é", 1), 0);
         assert_eq!(line_starts("a\nb\n"), [0, 2]);

@@ -209,6 +209,7 @@ impl Hosted {
                 binary: false,
                 tail: true,
                 multiline: i.multiline(),
+                identity_fields: i.identity_fields(),
             }));
         }
         for i in self.registry.hosted_binary_importers() {
@@ -217,6 +218,7 @@ impl Hosted {
                 binary: true,
                 tail: false,
                 multiline: false,
+                identity_fields: i.identity_fields(),
             }));
         }
         for t in self.registry.hosted_transforms() {
