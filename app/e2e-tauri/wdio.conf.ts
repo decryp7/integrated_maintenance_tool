@@ -188,6 +188,8 @@ export const config: WebdriverIO.Config = {
     await ensureDriverPortsFree();
     driver = spawn(tauriDriver(), args, { stdio: [null, process.stdout, process.stderr] });
     await waitForPort(DRIVER_PORT, 20_000);
+    // tauri-driver starts the native driver too: a session asked for before it listens is refused.
+    await waitForPort(NATIVE_PORT, 20_000);
   },
 
   // Every spec ends with a clean quit, so the next one does not start after a "crash" (a killed app leaves its
