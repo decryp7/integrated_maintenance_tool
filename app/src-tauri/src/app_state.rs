@@ -58,9 +58,11 @@ impl AppState {
         workspace.set_profile(profile)?;
         let progress = workspace.progress();
         let profiling = crate::profiling::ProfilingSlot::from_registry(workspace.registry());
+        let dumps = crate::dumps::DumpsSlot::from_registry(workspace.registry());
         let store: Box<dyn LogStore> = Box::new(workspace);
         let mut state = WindowState::new(label, store, progress, doc);
         state.profiling = profiling;
+        state.dumps = dumps;
         Ok(state)
     }
 

@@ -1,0 +1,7 @@
+// + BYTES_DELTA (NEW_BYTES - OLD_BYTES) NEW_COUNT allocs BackTrace TRACEID
++   80000 (  80000 -      0)      1 allocs	BackTrace4920
++       1 (      1 -      0)	BackTrace4920	allocations
+
+	ntdll!RtlAllocateHeap+00000021
+
+Total increase == 80000 requested + 30 overhead = 80030

@@ -9,6 +9,38 @@ use std::time::Duration;
 /// How long one read may take.
 const READ_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// A file read by ranges: a [`HostFile`] in a plugin process, a byte slice in tests.
+pub trait RangeRead {
+    fn len(&self) -> u64;
+    /// Up to `len` bytes at `offset` (fewer at the end of the file).
+    fn read_at(&self, offset: u64, len: u32) -> Result<Vec<u8>>;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl RangeRead for &[u8] {
+    fn len(&self) -> u64 {
+        <[u8]>::len(self) as u64
+    }
+
+    fn read_at(&self, offset: u64, len: u32) -> Result<Vec<u8>> {
+        let start = usize::try_from(offset).unwrap_or(usize::MAX).min(<[u8]>::len(self));
+        let end = start.saturating_add(len as usize).min(<[u8]>::len(self));
+        Ok(self[start..end].to_vec())
+    }
+}
+
+impl RangeRead for HostFile<'_> {
+    fn len(&self) -> u64 {
+        HostFile::len(self)
+    }
+
+    fn read_at(&self, offset: u64, len: u32) -> Result<Vec<u8>> {
+        HostFile::read_at(self, offset, len)
+    }
+}
+
 /// A host file, readable through `peer`.
 pub struct HostFile<'a> {
     peer: &'a Peer,

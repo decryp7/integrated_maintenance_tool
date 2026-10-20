@@ -59,10 +59,13 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_syslog` | syslog and journald importers (first byte selects) |
 | `fuzz_perfmon_csv` | PerfMon CSV and `.nfo` importers, counter path parser |
 | `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_heapsnapshot` | profiling importers (`imt-plugin-profiling`, built without the plugin feature), then every view over what they produced (`imt_profile::fuzz_views`) |
+| `fuzz_dump_minidump` | the dumps plugin's minidump reader (`imt-plugin-dumps` without the plugin feature: ranges, full-dump compaction, stack walks), then the dump engine's findings, views and wire round trip |
+| `fuzz_dump_umdh` | the UMDH snapshot/diff reader, then growth, grouping, tree and leak findings |
+| `fuzz_dump_wire` | `imt_dump::wire::decode_result`: what IMT accepts from the dumps plugin's process |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the
-`crashes-<target>` artifact. Four shards of seven targets each build the fuzz workspace once
+`crashes-<target>` artifact. Five shards of up to seven targets each build the fuzz workspace once
 and then fuzz their targets one after another, on the dated nightly in `FUZZ_TOOLCHAIN`
 (use the same one locally, e.g. `cargo +nightly-2026-10-01 fuzz run ...`, to reproduce CI).
 

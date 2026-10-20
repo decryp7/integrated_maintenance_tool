@@ -2,8 +2,9 @@
 
 use crate::annotate::Annotator;
 use crate::config::ConfigParser;
+use crate::host_file::RangeRead;
 use crate::importer::{BinaryImporter, TextImporter};
-use crate::manifest::{ConfigParserCap, ImporterCap, Manifest, PermissionRequest, ProfileImporterCap, CONTRACT};
+use crate::manifest::{ConfigParserCap, DocumentImporterCap, ImporterCap, Manifest, PermissionRequest, ProfileImporterCap, CONTRACT};
 use crate::markers::PluginMarkerKind;
 use crate::model::Record;
 use crate::settings::Configurable;
@@ -41,6 +42,20 @@ pub trait ProfileImporter: Send + Sync {
     fn sniff(&self, file_name: &str, head: &[u8]) -> u8;
     /// Parses the file; returns the encoded result (capture or typed error) for the host.
     fn import_encoded(&self, file_name: &str, bytes: &[u8], limits: &serde_json::Value) -> Vec<u8>;
+}
+
+/// A document format (ADR 0023: crash/memory dumps, UMDH heap logs). Like a [`ProfileImporter`], the result
+/// crosses as bytes its library (`imt-dump`) encodes and the host decodes; unlike it, the file is read by ranges
+/// ([`RangeRead`]), so a multi-gigabyte full dump never has to fit in the plugin's memory.
+pub trait DocumentImporter: Send + Sync {
+    fn id(&self) -> &str;
+    /// What it produces, in the host engine's words (`dump`, `umdh`).
+    fn produces(&self) -> &str;
+    /// Confidence 0–100 from the file's name and first bytes.
+    fn sniff(&self, file_name: &str, head: &[u8]) -> u8;
+    /// Reads the file; returns the encoded result (document or typed error) for the host. `options` are the
+    /// host's import options as JSON.
+    fn import_encoded(&self, file_name: &str, file: &dyn RangeRead, options: &serde_json::Value) -> Vec<u8>;
 }
 
 /// What a transform does with a record.
@@ -95,6 +110,7 @@ pub struct Contributions {
     pub(crate) tools: Vec<(ToolInfo, Arc<dyn Tool>)>,
     pub(crate) settings: Option<Arc<dyn Configurable>>,
     pub(crate) profile_importers: Vec<Arc<dyn ProfileImporter>>,
+    pub(crate) document_importers: Vec<Arc<dyn DocumentImporter>>,
 }
 
 impl Contributions {
@@ -143,6 +159,11 @@ impl Contributions {
 
     pub fn add_profile_importer(&mut self, importer: impl ProfileImporter + 'static) -> &mut Self {
         self.profile_importers.push(Arc::new(importer));
+        self
+    }
+
+    pub fn add_document_importer(&mut self, importer: impl DocumentImporter + 'static) -> &mut Self {
+        self.document_importers.push(Arc::new(importer));
         self
     }
 
@@ -200,6 +221,14 @@ impl Contributions {
                 .map(|p| ProfileImporterCap {
                     id: p.id().into(),
                     heap: p.heap(),
+                })
+                .collect(),
+            document_importers: self
+                .document_importers
+                .iter()
+                .map(|d| DocumentImporterCap {
+                    id: d.id().into(),
+                    produces: d.produces().into(),
                 })
                 .collect(),
         }

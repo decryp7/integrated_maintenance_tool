@@ -22,6 +22,7 @@ imt-plugin-web = { path = "../imt-plugin-web" }
 imt-plugin-formats = { path = "../imt-plugin-formats" }
 imt-plugin-profiling = { path = "../imt-plugin-profiling" }
 imt-plugin-tools = { path = "../imt-plugin-tools" }
+imt-plugin-dumps = { path = "../imt-plugin-dumps" }
 serde_json.workspace = true
 
 [dev-dependencies]
@@ -29,6 +30,7 @@ chrono.workspace = true
 imt-core = { path = "../imt-core" }
 imt-plugin-host = { path = "../imt-plugin-host" }
 imt-profile = { path = "../imt-profile" }
+imt-dump = { path = "../imt-dump" }
 imt-ipc = { path = "../imt-ipc" }
 insta.workspace = true
 proptest.workspace = true

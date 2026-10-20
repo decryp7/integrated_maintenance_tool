@@ -33,6 +33,7 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod dumps;
 mod engine_errors;
 mod error;
 mod file_commands;
@@ -187,6 +188,20 @@ command_table! {
     Query [WINDOW] => profiling::profiling_heap_dominators,
     Query [WINDOW] => profiling::profiling_heap_instances,
     Query [WINDOW] => profiling::profiling_heap_paths,
+    Query [WINDOW] => dumps::dumps_sniff,
+    Mutation [WINDOW] => dumps::dumps_open,
+    Query [WINDOW] => dumps::dumps_list,
+    Mutation [WINDOW] => dumps::dumps_close,
+    Query [WINDOW] => dumps::dumps_overview,
+    Query [WINDOW] => dumps::dumps_threads,
+    Query [WINDOW] => dumps::dumps_stack,
+    Query [WINDOW] => dumps::dumps_modules,
+    Query [WINDOW] => dumps::dumps_findings,
+    Query [WINDOW] => dumps::dumps_umdh_diff,
+    Query [WINDOW] => dumps::dumps_umdh_stack,
+    Query [WINDOW] => dumps::dumps_umdh_tree,
+    Query [WINDOW] => dumps::dumps_markers,
+    Query [WINDOW] => dumps::dumps_explain,
     Query [WINDOW] => profile::get_profile,
     Query [WINDOW] limit MIB => profile::validate_profile,
     Mutation [WINDOW] limit MIB => profile::save_profile,

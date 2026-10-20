@@ -18,8 +18,9 @@ fn samples() -> PathBuf {
 /// Folders of `/samples` that are not logs: `profiling` holds profiler
 /// captures (opened by the profiling plugin, tested in `imt-plugin-profiling`),
 /// `configs` the configuration-diff pairs, `share` a project and a bundle
-/// (opened as such, tested below) and `live` the live-tail demo script.
-const NOT_LOGS: &[&str] = &["profiling", "configs", "share", "live"];
+/// (opened as such, tested below), `live` the live-tail demo script and `dumps` crash dumps and UMDH heap logs
+/// (opened by the dumps plugin, tested in `imt-plugin-dumps`).
+const NOT_LOGS: &[&str] = &["profiling", "configs", "share", "live", "dumps"];
 
 /// Folders whose formats only plugins read (tested in the plugin crates):
 /// Windows event logs, ProcMon/PerfMon CSV, the crash dump, msinfo/registry

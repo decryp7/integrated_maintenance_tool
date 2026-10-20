@@ -25,6 +25,8 @@ imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
 imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
 imt-profile = { path = "../crates/imt-profile" }
 imt-plugin-profiling = { path = "../crates/imt-plugin-profiling", default-features = false }
+imt-dump = { path = "../crates/imt-dump" }
+imt-plugin-dumps = { path = "../crates/imt-plugin-dumps", default-features = false }
 serde_json = "1"
 chrono = "0.4"
 
@@ -258,6 +260,27 @@ bench = false
 [[bin]]
 name = "fuzz_worker_http"
 path = "fuzz_targets/fuzz_worker_http.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_dump_minidump"
+path = "fuzz_targets/fuzz_dump_minidump.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_dump_umdh"
+path = "fuzz_targets/fuzz_dump_umdh.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_dump_wire"
+path = "fuzz_targets/fuzz_dump_wire.rs"
 test = false
 doc = false
 bench = false

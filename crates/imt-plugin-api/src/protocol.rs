@@ -122,6 +122,20 @@ pub enum PluginRequest {
         content: HostFileRef,
         limits: Json,
     },
+    /// → `u8`.
+    SniffDocument {
+        importer: Arc<str>,
+        file_name: String,
+        head: Vec<u8>,
+    },
+    /// Items: pieces (`Vec<u8>`) of the document, encoded by the plugin's document library; → [`DocumentDone`].
+    /// The plugin reads `content` by ranges.
+    ImportDocument {
+        importer: Arc<str>,
+        file_name: String,
+        content: HostFileRef,
+        options: Json,
+    },
 }
 
 /// The end of an import.
@@ -143,6 +157,12 @@ pub struct TailDone {
 pub struct ProfileDone {
     pub bytes: u64,
     pub heap: bool,
+}
+
+/// The end of a document import: the encoded document's size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocumentDone {
+    pub bytes: u64,
 }
 
 /// A failed tool call.
