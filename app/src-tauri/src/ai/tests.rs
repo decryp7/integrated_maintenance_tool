@@ -505,8 +505,8 @@ fn a_set_up_can_be_cancelled_from_the_app_or_the_tray() {
     let app = f.app(f.core());
     let events = setup_events(&app);
     let main = window(&app, "main");
-    assert_eq!(ipc(&main, "ai_setup_cancel", json!({})).unwrap(), false);
-    ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    let job = ipc(&main, "ai_setup_run", json!({"modelId": TEST_MODEL})).unwrap();
+    assert!(job.as_u64().is_some(), "the set-up is a job: {job}");
     wait_until("downloading", || stages(&events).contains(&"downloading".to_string()));
     // Stop it like the tray does (the running download job is listed there).
     let task = job_task(&app, &main);
@@ -1251,8 +1251,8 @@ fn a_runtime_install_can_be_cancelled_and_only_one_runs() {
     let app = f.app(f.core());
     let events = runtime_events(&app);
     let main = window(&app, "main");
-    assert_eq!(ipc(&main, "ai_runtime_cancel", json!({})).unwrap(), false);
-    ipc(&main, "ai_runtime_install", json!({"id": "vulkan"})).unwrap();
+    let job = ipc(&main, "ai_runtime_install", json!({"id": "vulkan"})).unwrap();
+    assert!(job.as_u64().is_some(), "the install is a job: {job}");
     assert_eq!(code(ipc(&main, "ai_runtime_install", json!({"id": "cpu"})).unwrap_err()), "busy");
     let task = job_task(&app, &main);
     wait_until("progress", || events.lock().unwrap().iter().any(|e| e["stage"] == "progress"));

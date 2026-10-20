@@ -216,8 +216,7 @@ fn research_settings_default_to_automatic_with_five_results_and_are_validated() 
 #[test]
 fn research_stop_and_retry_need_a_research_to_act_on() {
     let app = test_app_with_commands(None);
-    let main = window(&app, "main");
-    assert_eq!(ipc(&main, "browser_research_stop", json!({})).unwrap(), 0);
+    let _main = window(&app, "main");
     let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Research, "Research: x")
         .window("main")
         .retry_with(json!({"op": "research"}));
@@ -288,7 +287,9 @@ fn the_banner_window_shows_its_windows_driver_and_stop_clears_it() {
     assert!(hub.begin_driving("main", &key));
     super::driving::refresh(app.handle(), "main");
     assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), json!({"kind": "research"}));
-    ipc(&banner, "browser_research_stop", json!({})).unwrap();
+    // What the research job's Cancel does (`jobs_cancel` from the banner).
+    hub.stop_research("main");
+    super::driving::refresh(app.handle(), "main");
     assert_eq!(ipc(&banner, "browser_driving", json!({})).unwrap(), Value::Null);
     let by = seen.lock().unwrap().clone();
     assert_eq!(

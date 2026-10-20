@@ -209,9 +209,8 @@ pub fn quit<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Tells the user an import finished in a window that is not in front.
+/// Called from commands and workers: the window getters run on the main thread ([`crate::ui_dispatch::run`]).
 pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Value) {
-    let Some(w) = app.get_webview_window(label) else { return };
-    let seen = w.is_focused().unwrap_or(false) && w.is_visible().unwrap_or(false);
     let events = summary["total"].as_u64().unwrap_or(0);
     let title = app
         .try_state::<Windows>()
@@ -223,13 +222,12 @@ pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, summary: &Va
     } else {
         format!("\u{201c}{title}\u{201d}")
     };
-    notify(
-        app,
-        NotificationKind::ImportFinished,
-        seen,
-        "Import finished",
-        &format!("{events} events loaded in {place}."),
-    );
+    let (label, body) = (label.to_string(), format!("{events} events loaded in {place}."));
+    crate::ui_dispatch::run(app, move |app| {
+        let Some(w) = app.get_webview_window(&label) else { return };
+        let seen = w.is_focused().unwrap_or(false) && w.is_visible().unwrap_or(false);
+        notify(app, NotificationKind::ImportFinished, seen, "Import finished", &body);
+    });
 }
 
 /// A webview whose content process died is reloaded at most this often per window within

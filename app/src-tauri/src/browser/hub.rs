@@ -23,7 +23,7 @@ pub fn research_key(job: u64) -> String {
 }
 
 /// Who drives a window's browser now, as the browser window shows it ("AI is browsing — Stop"). The Stop of
-/// an agent calls `browser_agent_stop` with its chat; the Stop of research calls `browser_research_stop`.
+/// an agent calls `browser_agent_stop` with its chat; the Stop of research cancels its job (`jobs_cancel`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum AiDriver {

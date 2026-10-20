@@ -67,6 +67,41 @@ describe('TauriAiBackend', () => {
     return cmd;
   });
 
+  it('cancels the set-up and runtime install it started through their jobs', async () => {
+    const seen: [string, unknown][] = [];
+    const call = vi.fn(async (cmd: string, args?: unknown) => {
+      seen.push([cmd, args]);
+      return cmd === 'ai_setup_run' ? 7 : cmd === 'ai_runtime_install' ? 9 : undefined;
+    });
+    const b = new TauriAiBackend(call as never, vi.fn() as never);
+    expect(await b.setupCancel()).toBe(false);
+    await b.setupRun('m');
+    expect(await b.setupCancel()).toBe(true);
+    expect(await b.setupCancel()).toBe(false);
+    await b.runtimeInstall('cpu');
+    expect(await b.runtimeCancel()).toBe(true);
+    expect(seen.filter(([c]) => c === 'jobs_cancel')).toEqual([
+      ['jobs_cancel', { id: 7 }],
+      ['jobs_cancel', { id: 9 }],
+    ]);
+    expect(seen.filter(([c]) => c !== 'jobs_cancel')).toEqual([
+      ['ai_setup_run', { modelId: 'm' }],
+      ['ai_runtime_install', { id: 'cpu' }],
+    ]);
+    seen.length = 0;
+    await b.activateModel('f.gguf');
+    await b.runtimeAddArchives('cpu', ['/d/a.zip']);
+    expect(seen).toEqual([
+      ['ai_model_activate', { fileName: 'f.gguf' }],
+      ['ai_runtime_add_archives', { id: 'cpu', paths: ['/d/a.zip'] }],
+    ]);
+    const failing = new TauriAiBackend((async (cmd: string) => (cmd === 'jobs_cancel' ? Promise.reject({ code: 'busy', message: 'no' }) : 3)) as never, vi.fn() as never);
+    await failing.runtimeAddArchives('cpu', ['/a.zip']);
+    await expect(failing.runtimeCancel()).rejects.toMatchObject({ code: 'busy' });
+    await failing.activateModel('f.gguf');
+    await expect(failing.setupCancel()).rejects.toMatchObject({ code: 'busy' });
+  });
+
   it('maps every method to its command and arguments', async () => {
     const b = new TauriAiBackend(invoke as never, vi.fn() as never);
     const cases: [() => Promise<unknown>, string, unknown][] = [
@@ -76,23 +111,13 @@ describe('TauriAiBackend', () => {
       [() => b.catalog(), 'ai_catalog', undefined],
       [() => b.setupPlan(), 'ai_setup_plan', { modelId: null }],
       [() => b.setupPlan('m'), 'ai_setup_plan', { modelId: 'm' }],
-      [() => b.setupRun('m'), 'ai_setup_run', { modelId: 'm' }],
-      [() => b.setupCancel(), 'ai_setup_cancel', undefined],
       [() => b.models(), 'ai_models', undefined],
-      [() => b.activateModel('f.gguf'), 'ai_model_activate', { fileName: 'f.gguf' }],
       [() => b.deleteModel('f.gguf'), 'ai_model_delete', { fileName: 'f.gguf' }],
       [() => b.addLocalModel('/p.gguf'), 'ai_model_add_local', { path: '/p.gguf' }],
       [() => b.reset(), 'ai_reset', undefined],
       [() => b.runtimes(), 'ai_runtimes', undefined],
-      [() => b.runtimeInstall('cuda-13'), 'ai_runtime_install', { id: 'cuda-13' }],
-      [() => b.runtimeCancel(), 'ai_runtime_cancel', undefined],
       [() => b.runtimeDelete('b1', 'cpu'), 'ai_runtime_delete', { tag: 'b1', id: 'cpu' }],
       [() => b.runtimeChoose('auto'), 'ai_runtime_choose', { id: 'auto' }],
-      [
-        () => b.runtimeAddArchives('cpu', ['/d/a.zip']),
-        'ai_runtime_add_archives',
-        { id: 'cpu', paths: ['/d/a.zip'] },
-      ],
       [() => b.manualDownload('model', 'm'), 'ai_manual_download', { kind: 'model', id: 'm' }],
       [
         () => b.openManualDownload('runtime', 'cpu', 1),

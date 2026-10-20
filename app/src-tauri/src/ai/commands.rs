@@ -124,18 +124,18 @@ pub async fn ai_setup_plan<R: Runtime>(app: AppHandle<R>, model_id: Option<Strin
     blocking(move || core.plan(model_id.as_deref())).await
 }
 
-/// A set-up that downloads a model: shown as a download job (Cancel stops it, Retry runs it again).
-struct Download {
+/// The job a set-up or activation runs as (Cancel stops it; a download can be retried).
+struct SetupJob {
     title: String,
-    model_id: String,
+    model_id: Option<String>,
     file_name: String,
 }
 
 type SetupWork = Box<dyn FnOnce(&AiCore, &imt_ai::models::Progress, &mut dyn FnMut(SetupStage)) -> Ai<()> + Send>;
 
-/// Runs a set-up or activation off the UI thread, streaming `imt://ai-setup`. A set-up that downloads is a
-/// download job; an activation (the model is on disk) runs on its own thread.
-fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, download: Option<Download>, work: SetupWork) -> Ai<()> {
+/// Runs a set-up or activation as a download job (Jobs are the one cancel authority: `jobs_cancel` with
+/// the returned id stops it), streaming `imt://ai-setup`. Returns the job.
+fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, work: SetupWork) -> Ai<u64> {
     let progress = core.begin_setup()?;
     let run = {
         let (app, core) = (app.clone(), core.clone());
@@ -160,33 +160,30 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, download: Optio
             r
         }
     };
-    let Some(d) = download else {
-        let spawned = std::thread::Builder::new().name("imt-ai-setup".into()).spawn(move || {
-            let _ = run(&|_| {});
-        });
-        return spawned
-            .map(|_| ())
-            .map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot start the set-up: {e}")));
-    };
-    let spec = JobSpec::new(JobKind::Download, d.title)
-        .link(JobLink::Model { id: d.model_id.clone() })
-        .retry_with(json!({"op": "model", "modelId": d.model_id}));
+    let mut spec = JobSpec::new(JobKind::Download, job.title);
+    if let Some(id) = &job.model_id {
+        spec = spec
+            .link(JobLink::Model { id: id.clone() })
+            .retry_with(json!({"op": "model", "modelId": id}));
+    }
     let c = core.clone();
     let controls = Controls::cancel(move || {
         c.cancel_setup();
     });
-    let file_name = d.file_name;
+    let file_name = job.file_name;
     let queued = jobs::spawn(&app, spec, controls, move |ctx: &jobs::JobCtx| -> Ai<Done<()>> {
         run(&|p| ctx.progress(p))?;
         Ok(Done::new(()).with_result(JobResult::Model {
             file_name: Some(file_name.clone()),
         }))
     });
-    if let Err(e) = queued {
-        core.end_setup();
-        return Err(AiCmdError::busy(e));
+    match queued {
+        Ok(id) => Ok(id.0),
+        Err(e) => {
+            core.end_setup();
+            Err(AiCmdError::busy(e))
+        }
     }
-    Ok(())
 }
 
 /// Retry of a model or runtime download job: the download starts again as a new job.
@@ -197,13 +194,14 @@ pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::
         (Some("runtime"), _, Some(id)) => super::runtime_commands::ai_runtime_install(app.clone(), id.to_string()),
         _ => return Err("this download cannot be run again".into()),
     };
-    r.map(|_| None).map_err(|e| e.message)
+    r.map(|id| Some(JobId(id))).map_err(|e| e.message)
 }
 
-/// Downloads (when needed), verifies, loads and warms up a catalog model, then makes it active.
-/// Returns at once; progress arrives as `imt://ai-setup` events ending in `ready`, `failed` or `cancelled`.
+/// Downloads (when needed), verifies, loads and warms up a catalog model, then makes it active, as a job
+/// (returned; `jobs_cancel` stops it). Progress arrives as `imt://ai-setup` events ending in `ready`,
+/// `failed` or `cancelled`.
 #[tauri::command]
-pub fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<()> {
+pub fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
     let core = core(&app)?;
     let entry = core
         .catalog()
@@ -211,17 +209,16 @@ pub fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<()> {
         .map(|m| (m.name.clone(), m.file.clone()))
         .ok_or_else(|| AiCmdError::not_found(format!("'{model_id}' is not in the model list")))?;
     let installed = core.models().iter().any(|m| m.file_name == entry.1);
-    let download = (!installed).then(|| Download {
-        title: format!("Downloading AI model {}", entry.0),
-        model_id: model_id.clone(),
-        file_name: entry.1.clone(),
-    });
-    spawn_setup(app, core, download, Box::new(move |c, p, on| c.run_setup(&model_id, p, on)))
-}
-
-#[tauri::command]
-pub fn ai_setup_cancel<R: Runtime>(app: AppHandle<R>) -> Ai<bool> {
-    Ok(core(&app)?.cancel_setup())
+    let job = SetupJob {
+        title: if installed {
+            format!("Loading AI model {}", entry.0)
+        } else {
+            format!("Downloading AI model {}", entry.0)
+        },
+        model_id: (!installed).then(|| model_id.clone()),
+        file_name: entry.1,
+    };
+    spawn_setup(app, core, job, Box::new(move |c, p, on| c.run_setup(&model_id, p, on)))
 }
 
 #[tauri::command]
@@ -230,16 +227,20 @@ pub async fn ai_models<R: Runtime>(app: AppHandle<R>) -> Ai<Vec<ModelDto>> {
     blocking(move || Ok(core.models())).await
 }
 
-/// Loads an installed model and makes it active (same events as the set-up).
+/// Loads an installed model and makes it active (same events as the set-up), as a job (returned).
 #[tauri::command]
-pub fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<()> {
+pub fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<u64> {
     let core = core(&app)?;
     if !imt_ai::catalog::is_safe_file_name(&file_name) {
         return Err(AiCmdError::invalid(format!("'{file_name}' is not a model file name")));
     }
-    spawn_setup(app, core, None, Box::new(move |c, p, on| c.activate(&file_name, p, on)))
+    let job = SetupJob {
+        title: format!("Loading AI model {file_name}"),
+        model_id: None,
+        file_name: file_name.clone(),
+    };
+    spawn_setup(app, core, job, Box::new(move |c, p, on| c.activate(&file_name, p, on)))
 }
-
 #[tauri::command]
 pub async fn ai_model_delete<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<()> {
     let core = core(&app)?;

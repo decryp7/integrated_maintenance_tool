@@ -219,6 +219,23 @@ where
     T: Send + 'static,
     E: JobFailure + From<Stopped> + Send + 'static,
 {
+    run_announced(app, spec, controls, |_| {}, f).await
+}
+
+/// Like [`run`], telling `announce` the job's id once it is queued (the caller hands it to the UI, which
+/// cancels with `jobs_cancel`: Jobs are the one cancel authority).
+pub(crate) async fn run_announced<R, T, E>(
+    app: &AppHandle<R>,
+    spec: JobSpec,
+    controls: Controls,
+    announce: impl FnOnce(JobId),
+    f: impl FnOnce(&JobCtx) -> Result<Done<T>, E> + Send + 'static,
+) -> Result<T, E>
+where
+    R: Runtime,
+    T: Send + 'static,
+    E: JobFailure + From<Stopped> + Send + 'static,
+{
     let Some(jobs) = app.try_state::<Jobs>().map(|j| j.inner().clone()) else {
         return tauri::async_runtime::spawn_blocking(move || f(&JobCtx::detached()).map(|d| d.value))
             .await
@@ -227,6 +244,7 @@ where
     let handle = jobs
         .submit(spec, controls, f)
         .map_err(|r| E::from(Stopped::Refused(r.to_string())))?;
+    announce(handle.id);
     tauri::async_runtime::spawn_blocking(move || handle.wait())
         .await
         .map_err(|e| E::from(Stopped::Failed(format!("the task stopped unexpectedly ({e})"))))?
@@ -254,6 +272,21 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
     controls: Controls,
     f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
 ) -> CmdResult<T> {
+    analysis_announced(app, win, title, view, ql, controls, |_| {}, f).await
+}
+
+/// [`analysis`], telling `announce` the job's id once it is queued (see [`run_announced`]).
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn analysis_announced<R: Runtime, T: Send + 'static>(
+    app: &AppHandle<R>,
+    win: &CurrentWindow,
+    title: &str,
+    view: &str,
+    ql: Option<String>,
+    controls: Controls,
+    announce: impl FnOnce(JobId),
+    f: impl FnOnce(&dyn imt_core::LogStore, &JobCtx) -> anyhow::Result<T> + Send + 'static,
+) -> CmdResult<T> {
     let mut spec = JobSpec::new(JobKind::Analysis, title).window(win.label());
     let ql = ql.filter(|q| !q.trim().is_empty());
     if let Some(q) = &ql {
@@ -264,7 +297,7 @@ pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
         ql,
     };
     let w = win.arc().clone();
-    run(app, spec, controls, move |ctx| {
+    run_announced(app, spec, controls, announce, move |ctx| {
         read_store(&w, |ws| f(ws, ctx))
             .map(|v| Done::new(v).with_result(result))
             .map_err(crate::err)

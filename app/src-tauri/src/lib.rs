@@ -96,7 +96,6 @@ macro_rules! commands {
             workspace_commands::take_pending_open,
             workspace_commands::set_live,
             workspace_commands::import_progress,
-            workspace_commands::cancel_import,
             workspace_commands::overview,
             workspace_commands::annotations,
             workspace_commands::query_runs,
@@ -112,7 +111,6 @@ macro_rules! commands {
             // Analysis (per window)
             insights::run_query,
             query_cancel::run_query_stream,
-            query_cancel::cancel_query,
             insights::check_query,
             insights::complete_query,
             insights::query_patterns,
@@ -256,7 +254,6 @@ macro_rules! commands {
             notification_centre::notifications_record,
             notification_centre::notifications_restore,
             browser::research::ai_research,
-            browser::research::browser_research_stop,
             browser::driving::browser_driving,
             browser::commands::browser_open_and_read,
             // Local AI assistant (set-up, models, use cases, chat; see ai.rs)
@@ -266,7 +263,6 @@ macro_rules! commands {
             ai::commands::ai_catalog,
             ai::commands::ai_setup_plan,
             ai::commands::ai_setup_run,
-            ai::commands::ai_setup_cancel,
             ai::commands::ai_models,
             ai::commands::ai_model_activate,
             ai::commands::ai_model_delete,
@@ -310,7 +306,6 @@ macro_rules! commands {
             ai::runtime_commands::ai_runtime_add_archives,
             ai::manual::ai_manual_download,
             ai::manual::ai_manual_download_open,
-            ai::runtime_commands::ai_runtime_cancel,
             ai::runtime_commands::ai_runtime_delete,
             ai::runtime_commands::ai_runtime_choose,
             // Explain and share (per window)
@@ -327,7 +322,7 @@ macro_rules! commands {
             updater::updates_status,
             updater::updates_check,
             updater::updates_download,
-            updater::updates_cancel,
+            updater::updates_discard,
             updater::updates_install_on_quit,
             updater::updates_restart,
             updater::updates_open_releases,
@@ -434,7 +429,6 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(tray::TrayState::default());
     app.manage(instance::SingleInstance(single));
     app.manage(recent::Recents::load(app_dirs::config(app.handle()).ok().as_deref()));
-    app.manage(query_cancel::QueryJobs::default());
     jobs::init(app.handle());
     notification_centre::init(app.handle());
 
@@ -608,8 +602,8 @@ pub(crate) mod test_support {
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
         app.manage(recent::Recents::load(None));
-        app.manage(query_cancel::QueryJobs::default()); // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
-                                                        // and attention thresholds by accident.
+        // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
+        // and attention thresholds by accident.
         let clock = std::sync::Arc::new(jobs::ManualClock::default());
         app.manage(TestClock(clock.clone()));
         let jobs = jobs::Jobs::new(clock.clone());

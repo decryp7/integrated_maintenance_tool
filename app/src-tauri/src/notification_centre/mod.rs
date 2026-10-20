@@ -267,9 +267,15 @@ pub fn post<R: Runtime>(app: &AppHandle<R>, window: Option<&str>, new: NewNotice
         NoticeScope::Project => emit_snapshot(app, &centre, window.unwrap_or_default(), Some(&notice)),
     }
     if let Some(kind) = os {
-        if crate::notify::notify(app, kind, imt_focused(app), &notice.title, &notice.body) {
-            centre.note_shown(notice.id, window);
-        }
+        // Focus is a window getter, which waits for the main thread: decided there, never here.
+        let (shown, window) = (notice.clone(), window.map(str::to_string));
+        crate::ui_dispatch::run(app, move |app| {
+            if crate::notify::notify(app, kind, imt_focused(app), &shown.title, &shown.body) {
+                if let Some(centre) = app.try_state::<NotificationCentre>() {
+                    centre.note_shown(shown.id, window.as_deref());
+                }
+            }
+        });
     }
     Some(notice)
 }

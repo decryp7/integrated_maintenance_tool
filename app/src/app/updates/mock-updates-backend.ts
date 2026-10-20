@@ -75,6 +75,7 @@ export class MockUpdatesBackend implements UpdatesBackend {
       channel: 'stable',
       endpointHost: this.scenario === 'unavailable' ? null : 'dev.decryptology.net',
       releasesPage: 'https://dev.decryptology.net/decryp7/integrated_maintenance_tool/releases',
+      downloadJob: null,
     };
   }
 

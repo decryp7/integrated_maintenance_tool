@@ -50,7 +50,11 @@ pub(crate) fn start_import<R: Runtime>(
 /// An import's Cancel and progress (the window's import progress).
 fn import_controls(state: &CurrentWindow) -> Controls {
     let (cancel, probe) = (state.progress.clone(), state.progress.clone());
-    Controls::cancel(move || cancel.cancel()).with_probe(move || {
+    Controls::cancel(move || {
+        log::info!("Import cancelled by the user");
+        cancel.cancel();
+    })
+    .with_probe(move || {
         let p = probe.snapshot();
         p.running.then(|| JobProgress {
             fraction: (p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
@@ -353,13 +357,6 @@ pub(crate) async fn preview_extractor(state: CurrentWindow, request: ExtractPrev
 #[tauri::command]
 pub(crate) fn import_progress(state: CurrentWindow) -> imt_core::workspace::ProgressSnapshot {
     state.progress.snapshot()
-}
-
-/// Stops the running import after the files in flight; files not read are not added.
-#[tauri::command]
-pub(crate) fn cancel_import(state: CurrentWindow) {
-    log::info!("Import cancelled by the user");
-    state.progress.cancel();
 }
 
 /// The automatic health check: findings, most severe first.

@@ -189,9 +189,6 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
     if report.alerts.is_empty() {
         return;
     }
-    let seen = app
-        .get_webview_window(label)
-        .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false));
     for alert in &report.alerts {
         log::info!(Kind = alert.kind.as_str(); "Live alert");
         emit_to_window(app, label, ALERT_EVENT, alert);
@@ -201,7 +198,14 @@ pub(crate) fn emit_report<R: Runtime>(app: &AppHandle<R>, label: &str, report: &
         1 => "A live tail alert was raised. Open IMT to see it.".to_string(),
         n => format!("{n} live tail alerts were raised. Open IMT to see them."),
     };
-    notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
+    // Window getters wait for the main thread: they run there, never on this worker.
+    let label = label.to_string();
+    crate::ui_dispatch::run(app, move |app| {
+        let seen = app
+            .get_webview_window(&label)
+            .is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false));
+        notify(app, NotificationKind::LiveAlert, seen, "IMT live alert", &body);
+    });
 }
 
 /// A live alert as a notification-centre message: repeats of the same kind on the same instance (or rule)

@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// How often progress is sampled and listeners told while jobs are active.
 pub const TICK: Duration = Duration::from_millis(400);
@@ -576,16 +576,10 @@ impl Jobs {
                 self.pump();
                 Ok(())
             }
-            Cancel::Running => {
-                if let Some(stop) = stop {
-                    if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| stop())) {
-                        let message = imt_core::guard::panic_message(&*p);
-                        log::error!(Job = id.0; "Stopping a job crashed: {message}");
-                        return Err(format!("stopping failed: {message}"));
-                    }
-                }
-                Ok(())
-            }
+            Cancel::Running => match stop {
+                Some(stop) => run_stop(id, stop, STOP_WAIT),
+                None => Ok(()),
+            },
             Cancel::NotCancellable => Err("this job cannot be cancelled".into()),
             Cancel::AlreadyFinished => Ok(()),
         }
@@ -790,10 +784,52 @@ impl Jobs {
             }
             stops
         };
-        for stop in stops {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| stop()));
+        // All at once, each on its own thread: the slowest bounds the wait, not their sum.
+        let waits: Vec<_> = stops.into_iter().map(|stop| spawn_stop(JobId(0), stop)).collect();
+        let deadline = Instant::now() + STOP_WAIT;
+        for rx in waits.into_iter().flatten() {
+            let _ = rx.recv_timeout(deadline.saturating_duration_since(Instant::now()));
         }
         self.emit(&JobsEvent::Changed);
+    }
+}
+
+/// How long a caller waits for a job's stop action before it returns (the action goes on by itself).
+pub const STOP_WAIT: Duration = Duration::from_secs(2);
+
+/// Runs a stop action on a thread of its own: it may block (join a worker, run a system tool, wait for the
+/// main thread), so it never runs on the caller's thread, which may be the main thread or hold its locks.
+/// The receiver gets the outcome (a crash as `Err`).
+fn spawn_stop(id: JobId, stop: CancelFn) -> Option<mpsc::Receiver<Result<(), String>>> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let spawned = std::thread::Builder::new().name("imt-job-stop".into()).spawn(move || {
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| stop())).map_err(|p| {
+            let message = imt_core::guard::panic_message(&*p);
+            log::error!(Job = id.0; "Stopping a job crashed: {message}");
+            format!("stopping failed: {message}")
+        });
+        let _ = tx.send(r);
+    });
+    match spawned {
+        Ok(_) => Some(rx),
+        Err(e) => {
+            log::warn!(Job = id.0; "could not stop the job: {e}");
+            None
+        }
+    }
+}
+
+/// [`spawn_stop`], waiting at most `limit` for the outcome; one that takes longer goes on by itself.
+fn run_stop(id: JobId, stop: CancelFn, limit: Duration) -> Result<(), String> {
+    let Some(rx) = spawn_stop(id, stop) else {
+        return Err("the job could not be told to stop".into());
+    };
+    match rx.recv_timeout(limit) {
+        Ok(r) => r,
+        Err(_) => {
+            log::warn!(Job = id.0; "A job's stop action is still running; it goes on in the background");
+            Ok(())
+        }
     }
 }
 
@@ -1172,5 +1208,29 @@ pub(crate) mod tests {
         ctx.message("nothing happens");
         assert!(!ctx.is_cancelled() && !ctx.cancel_flag().load(Ordering::SeqCst));
         assert_eq!(state_name(JobState::Interrupted), "interrupted");
+    }
+
+    /// A stop action runs on its own thread: one that blocks (waits for the main thread, a worker, a
+    /// system tool) holds the caller for at most the limit; one that crashes is an error.
+    #[test]
+    fn stop_actions_run_off_the_caller_thread_and_are_bounded() {
+        let caller = std::thread::current().id();
+        let (tx, rx) = mpsc::channel();
+        let ran_on: CancelFn = Arc::new(move || {
+            let _ = tx.send(std::thread::current().id());
+        });
+        assert_eq!(run_stop(JobId(1), ran_on, STOP_WAIT), Ok(()));
+        assert_ne!(rx.recv().unwrap(), caller);
+        let (release, wait) = mpsc::channel::<()>();
+        let wait = Mutex::new(wait);
+        let blocked: CancelFn = Arc::new(move || {
+            let _ = wait.lock().unwrap().recv();
+        });
+        let started = Instant::now();
+        assert_eq!(run_stop(JobId(2), blocked, Duration::from_millis(50)), Ok(()));
+        assert!(started.elapsed() < Duration::from_secs(5), "the caller did not wait for it");
+        let _ = release.send(());
+        let crashing: CancelFn = Arc::new(|| panic!("stop crashed"));
+        assert!(run_stop(JobId(3), crashing, STOP_WAIT).unwrap_err().contains("stop crashed"));
     }
 }

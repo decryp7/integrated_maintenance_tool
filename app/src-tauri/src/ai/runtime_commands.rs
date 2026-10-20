@@ -48,9 +48,9 @@ pub async fn ai_runtimes<R: Runtime>(app: AppHandle<R>) -> AiResult<RuntimeOverv
 }
 
 /// Downloads, verifies and unpacks a build. Returns at once; progress arrives as `imt://ai-runtime`
-/// events ending in `ready`, `failed` or `cancelled`. Runs as a download job (Cancel stops it).
+/// events ending in `ready`, `failed` or `cancelled`. Runs as a download job, returned (`jobs_cancel` stops it).
 #[tauri::command]
-pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<()> {
+pub fn ai_runtime_install<R: Runtime>(app: AppHandle<R>, id: String) -> AiResult<u64> {
     start_install(app, id, vec![])
 }
 
@@ -62,7 +62,7 @@ pub fn ai_runtime_add_archives<R: Runtime>(
     grants: crate::paths::WindowGrants,
     id: String,
     paths: Vec<String>,
-) -> AiResult<()> {
+) -> AiResult<u64> {
     if paths.is_empty() || paths.len() > MAX_ARCHIVES {
         return Err(AiCmdError::invalid("choose the downloaded archives of the build"));
     }
@@ -81,7 +81,7 @@ fn archive_path(grants: &crate::paths::WindowGrants, path: &str) -> AiResult<Pat
         .map_err(AiCmdError::invalid)
 }
 
-fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<()> {
+fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBuf>) -> AiResult<u64> {
     let core = core(&app)?;
     let id = short("an inference build", &id)?;
     let progress = core.begin_runtime_install(&id)?;
@@ -134,16 +134,10 @@ fn start_install<R: Runtime>(app: AppHandle<R>, id: String, archives: Vec<PathBu
         emit_status(&app, &core);
         result.map(|_| Done::new(()).with_result(JobResult::Model { file_name: None }))
     });
-    queued.map(|_| ()).map_err(|e| {
+    queued.map(|j| j.0).map_err(|e| {
         core.end_runtime_install();
         AiCmdError::busy(e)
     })
-}
-
-/// Stops the running runtime install. False when none runs.
-#[tauri::command]
-pub fn ai_runtime_cancel<R: Runtime>(app: AppHandle<R>) -> AiResult<bool> {
-    Ok(core(&app)?.cancel_runtime_install())
 }
 
 /// Deletes an installed build (of the pinned release or an older one); stops the engine first if it may

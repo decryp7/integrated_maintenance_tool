@@ -4,7 +4,7 @@
  *   updates_status                      -> UpdateStatus
  *   updates_check                       -> UpdateStatus   (rejects with UpdateError)
  *   updates_download                    -> UpdateStatus   (progress arrives as events)
- *   updates_cancel                      -> UpdateStatus
+ *   updates_discard                     -> UpdateStatus   (drops a downloaded update; a download is cancelled through its job)
  *   updates_install_on_quit { enabled } -> UpdateStatus
  *   updates_restart                     -> void           (IMT quits, installs and starts again)
  *   updates_open_releases               -> void
@@ -67,6 +67,8 @@ export interface UpdateStatus {
   /** The host a check contacts (null in a build without updates). */
   endpointHost: string | null;
   releasesPage: string;
+  /** The job of the download in flight (cancel it with `jobs_cancel`). */
+  downloadJob: number | null;
 }
 
 /** Turns whatever a rejected request carries into an `UpdateError`. */
