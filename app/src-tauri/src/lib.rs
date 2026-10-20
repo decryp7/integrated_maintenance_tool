@@ -360,6 +360,11 @@ pub fn run() {
     let single = instance::wants_single_instance(&launch, safe_mode_env);
     let safe_mode = launch.safe_mode || safe_mode_env;
 
+    let mut context = tauri::generate_context!();
+    // Debug test runs with their own data folder also get their own identifier, which keys the single-instance lock.
+    let identifier = dev_overrides::instance_identifier(&context.config().identifier, dev_overrides::current().data_dir.as_deref());
+    context.config_mut().identifier = identifier;
+
     let mut builder = tauri::Builder::default();
     // Must be the first plugin: a second launch hands over and exits before anything else runs.
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
@@ -383,7 +388,7 @@ pub fn run() {
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page
         // in the internal browser gets no command at all: see `browser::guard`.
         .invoke_handler(browser::guard(activity::logged(commands!())))
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building IMT")
         .run(on_run_event);
 }

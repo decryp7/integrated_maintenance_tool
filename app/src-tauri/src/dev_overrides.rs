@@ -5,7 +5,9 @@
 //!   variable, but WebView2 ignores it for elevated host processes. It still honours arguments given through
 //!   the API, so debug builds pass the value to every webview they create, merged with wry's defaults.
 //! - `IMT_DATA_DIR`: an absolute folder that replaces IMT's data, config, cache and log folders and the
-//!   webview's user data folder, so a test run never touches the user's profile (see [`crate::app_dirs`]).
+//!   webview's user data folder, so a test run never touches the user's profile (see [`crate::app_dirs`]). It
+//!   also gives the run its own app identifier ([`instance_identifier`]), so the single-instance lock never hands
+//!   a test launch to another run or to an installed IMT.
 //! - `IMT_OPEN_PATHS`: absolute paths (separated like `PATH`) to open at start-up, as if given on the command
 //!   line. msedgedriver turns every launch argument into a `--switch` (a path arrives as `--c:\…`), so a driven
 //!   app on Windows cannot receive paths on its command line.
@@ -152,6 +154,23 @@ pub fn current() -> &'static Overrides {
         open_paths: Vec::new(),
     };
     OVERRIDES.get().unwrap_or(&NONE)
+}
+
+/// The app identifier for this process: with a relocated data folder, `base` plus a suffix derived from that
+/// folder, so parallel test runs on one machine (and an installed IMT) each get their own single-instance lock;
+/// otherwise `base` unchanged. The suffix is a valid D-Bus name element (the lock's name on Linux).
+pub fn instance_identifier(base: &str, data_dir: Option<&Path>) -> String {
+    match data_dir {
+        Some(dir) => format!("{base}.run_{:016x}", fnv1a(dir.as_os_str().as_encoded_bytes())),
+        None => base.to_string(),
+    }
+}
+
+/// FNV-1a: a stable hash, so every process of one run derives the same identifier.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
 }
 
 /// Applies the overrides to a window being built: every webview of the app must get the same browser arguments
@@ -489,6 +508,18 @@ mod tests {
         if OVERRIDES.get().is_none() {
             assert_eq!(current(), &Overrides::default());
         }
+    }
+
+    #[test]
+    fn a_relocated_data_folder_gets_its_own_identifier() {
+        let base = "net.decryptology.imt";
+        assert_eq!(instance_identifier(base, None), base);
+        let (a, b) = (PathBuf::from(abs("imt-e2e-a")), PathBuf::from(abs("imt-e2e-b")));
+        let id_a = instance_identifier(base, Some(&a));
+        assert_eq!(id_a, instance_identifier(base, Some(&a)), "stable across processes of one run");
+        assert_ne!(id_a, instance_identifier(base, Some(&b)), "parallel runs do not share the lock");
+        let suffix = id_a.strip_prefix(&format!("{base}.")).unwrap();
+        assert!(suffix.starts_with("run_") && suffix.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
     }
 
     #[test]

@@ -76,6 +76,19 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+/** A port nothing listens on now, asked from the OS (synchronously: the config below needs it at load time). */
+function freePort(): number {
+  const script =
+    "const s=require('net').createServer().listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close()})";
+  return Number(execFileSync(process.execPath, ['-e', script], { encoding: 'utf8' }));
+}
+
+// tauri-driver's port and its native driver's, chosen per run so parallel runs on one machine (a CI runner with
+// capacity > 1, or a developer's run next to CI) never meet. Kept in the environment like the run folder, so the
+// workers that load this file again use the launcher's ports.
+const DRIVER_PORT = Number((process.env['IMT_E2E_DRIVER_PORT'] ??= String(freePort())));
+const NATIVE_PORT = Number((process.env['IMT_E2E_NATIVE_PORT'] ??= String(freePort())));
+
 /** Resolves once something listens on the port (tauri-driver takes a moment to bind). */
 function portOpen(port: number): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
@@ -84,9 +97,9 @@ function portOpen(port: number): Promise<boolean> {
   });
 }
 
-/** tauri-driver's port and its native driver's: a leftover driver there (e.g. from a run that hung) would answer
- *  for the new one, with its own account and settings, so refuse to start instead. */
-const DRIVER_PORTS = [4444, 4445];
+/** A leftover driver on this run's ports (e.g. the previous spec's, still closing) would answer for the new one,
+ *  so wait for them to be free and refuse to start if they stay busy. */
+const DRIVER_PORTS = [DRIVER_PORT, NATIVE_PORT];
 async function ensureDriverPortsFree(): Promise<void> {
   const deadline = Date.now() + 10_000; // the previous spec's driver may still be closing
   for (;;) {
@@ -96,7 +109,8 @@ async function ensureDriverPortsFree(): Promise<void> {
     if (Date.now() > deadline)
       throw new Error(
         `Port ${busy.join(' and ')} is already in use: a leftover tauri-driver or msedgedriver/WebKitWebDriver is running ` +
-          '(e.g. from a smoke run that hung). Stop it (Windows: taskkill /F /IM tauri-driver.exe /IM msedgedriver.exe) and run again.',
+          '(e.g. from a smoke run that hung). Stop that process, or pick other ports with IMT_E2E_DRIVER_PORT and ' +
+          'IMT_E2E_NATIVE_PORT, and run again.',
       );
     await new Promise((r) => setTimeout(r, 250));
   }
@@ -116,7 +130,7 @@ async function waitForPort(port: number, timeoutMs: number): Promise<void> {
 export const config: WebdriverIO.Config = {
   runner: 'local',
   hostname: '127.0.0.1',
-  port: 4444,
+  port: DRIVER_PORT,
   specs: ['./specs/**/*.e2e.ts'],
   maxInstances: 1,
   capabilities: [
@@ -163,10 +177,11 @@ export const config: WebdriverIO.Config = {
   // One tauri-driver per spec file (sessions run one after another).
   async beforeSession() {
     const native = nativeDriver();
-    const args = native ? ['--native-driver', native] : [];
+    const args = ['--port', String(DRIVER_PORT), '--native-port', String(NATIVE_PORT)];
+    if (native) args.push('--native-driver', native);
     await ensureDriverPortsFree();
     driver = spawn(tauriDriver(), args, { stdio: [null, process.stdout, process.stderr] });
-    await waitForPort(4444, 20_000);
+    await waitForPort(DRIVER_PORT, 20_000);
   },
 
   // Every spec ends with a clean quit, so the next one does not start after a "crash" (a killed app leaves its
