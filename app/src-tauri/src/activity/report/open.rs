@@ -44,9 +44,7 @@ const MAX_FIELD: usize = 4000;
 /// The file next to the copied-out logs that names the zip they came from.
 const SOURCE_FILE: &str = "source.json";
 
-fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 /// The manifest as the panel shows it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

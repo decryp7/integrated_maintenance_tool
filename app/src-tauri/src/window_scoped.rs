@@ -50,7 +50,7 @@ impl<R: Runtime> Default for WindowScopes<R> {
 
 impl<R: Runtime> WindowScopes<R> {
     fn list(&self) -> Vec<Arc<Scope<R>>> {
-        self.0.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.0).clone()
     }
 }
 
@@ -63,7 +63,7 @@ fn scopes<R: Runtime>(app: &AppHandle<R>) -> tauri::State<'_, WindowScopes<R>> {
 
 /// Registers a feature's per-window hooks.
 pub fn register<R: Runtime>(app: &AppHandle<R>, scope: Scope<R>) {
-    scopes(app).0.write().unwrap_or_else(|p| p.into_inner()).push(Arc::new(scope));
+    crate::sync::write(&scopes(app).0).push(Arc::new(scope));
 }
 
 /// A window was created: every scope's `on_created`.

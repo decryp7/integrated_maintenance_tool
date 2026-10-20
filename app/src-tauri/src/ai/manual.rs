@@ -5,7 +5,7 @@
 
 use super::commands::{check_link, core};
 use super::core::AiCore;
-use super::error::{AiCmdError, AiErrorCode, AiResult};
+use super::error::{AiCmdError, AiResult};
 use imt_ai::manual::{model_file, runtime_files, ManualFile};
 use imt_ai::runtimes::builds::{is_build_id, label};
 use serde::{Deserialize, Serialize};
@@ -99,5 +99,5 @@ pub async fn ai_manual_download<R: Runtime>(app: AppHandle<R>, kind: ManualKind,
 pub async fn ai_manual_download_open<R: Runtime>(app: AppHandle<R>, kind: ManualKind, id: String, index: usize) -> AiResult<()> {
     let url = core(&app)?.manual_download_url(kind, &id, index)?;
     crate::activity::domain_event("ai.manualDownload", None, &[("Id", id.as_str())]);
-    open::that_detached(&url).map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot open your browser: {e}")))
+    crate::opener::open_url(&url)
 }

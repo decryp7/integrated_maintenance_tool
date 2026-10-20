@@ -112,7 +112,7 @@ impl FileSink {
     /// Whether a line of `len` bytes at `level` may be written today, and the one-time notice to write
     /// first when the limit was just reached.
     fn admit(&self, level: log::Level, len: usize, today: NaiveDate) -> (bool, Option<String>) {
-        let mut b = self.budget.lock().unwrap_or_else(|p| p.into_inner());
+        let mut b = crate::sync::lock(&self.budget);
         if b.day != today {
             *b = Budget {
                 day: today,
@@ -145,7 +145,7 @@ impl FileSink {
 impl LineSink for FileSink {
     fn write_line(&self, level: log::Level, line: &str) {
         let (ok, notice) = self.admit(level, line.len() + 1, Utc::now().date_naive());
-        let mut files = self.files.lock().unwrap_or_else(|p| p.into_inner());
+        let mut files = crate::sync::lock(&self.files);
         // A full disk or a locked file must not take the app down: the line is dropped.
         if let Some(n) = notice {
             let _ = files.write_all(n.as_bytes());
@@ -375,7 +375,7 @@ pub(crate) mod test_support {
 
     impl LineSink for Lines {
         fn write_line(&self, _: log::Level, line: &str) {
-            self.0.lock().unwrap_or_else(|p| p.into_inner()).push(line.to_string());
+            crate::sync::lock(&self.0).push(line.to_string());
         }
     }
 

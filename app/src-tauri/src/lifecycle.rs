@@ -27,19 +27,16 @@
 //! A crashed separate instance is therefore not offered for recovery.
 
 use crate::windows::{CurrentWindow, Windows, MAIN};
-use crate::{err, AppState, CmdResult, State};
+use crate::{err, CmdResult, State};
 use imt_core::project::ProjectFile;
-use imt_core::{Plugin, PluginRegistry};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 /// Command-line flag that starts IMT with built-in importers only and the default profile.
 pub const SAFE_MODE_FLAG: &str = "--safe-mode";
 const MARKER: &str = "running.marker";
-const PLUGINS_FILE: &str = "plugins.json";
 /// File name of an autosaved session (the UI recognises sessions by it).
 const SESSION_FILE: &str = "last-session.imtproj";
 const SESSIONS_DIR: &str = "sessions";
@@ -450,88 +447,6 @@ impl SessionStore {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PluginSettings {
-    #[serde(default)]
-    pub disabled: Vec<String>,
-}
-
-/// The format of `plugins.json`, the one place plugin enablement is kept (the Plugins settings section and
-/// `plugin_set_enabled` both go through [`set_plugin_enabled`]).
-const PLUGINS_VERSION: u32 = 1;
-
-pub fn load_plugin_settings(dir: Option<&Path>) -> PluginSettings {
-    crate::config_store::ConfigStore::new(dir.map(Path::to_path_buf)).load(PLUGINS_FILE, PLUGINS_VERSION)
-}
-
-fn save_plugin_settings(dir: &Path, s: &PluginSettings) -> anyhow::Result<()> {
-    Ok(crate::config_store::ConfigStore::new(Some(dir.to_path_buf())).save(PLUGINS_FILE, PLUGINS_VERSION, s)?)
-}
-
-/// Every compiled-in plugin. Add new plugins here; install order does not
-/// matter (activation follows the dependency graph).
-pub fn builtin_plugins() -> Vec<Arc<dyn Plugin>> {
-    // One list for the app and the `imt-plugin-host` binary that runs them isolated.
-    imt_plugin_host::builtins::all()
-}
-
-/// The engine's plugins: none in safe mode, else every compiled-in plugin
-/// except those the user disabled, resolved (dependencies checked, activation
-/// hooks run in dependency order).
-// The app installs `plugins_with` (it shares the tools plugin); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins(safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    plugins_with(safe_mode, disabled, &[])
-}
-
-/// [`plugins`] plus `shared`: plugins whose state is app-wide, so one value
-/// is installed in every window's registry (the tools plugin, see `AppState`).
-// The app installs `plugins_from` (isolated plugins replaced by their process); tests use this.
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn plugins_with(safe_mode: bool, disabled: &[String], shared: &[Arc<dyn Plugin>]) -> anyhow::Result<PluginRegistry> {
-    plugins_from(safe_mode, disabled, builtin_plugins(), shared)
-}
-
-/// [`plugins_with`] with the built-in plugins given (some may be plugin processes, see
-/// `plugin_isolation`).
-pub fn plugins_from(
-    safe_mode: bool,
-    disabled: &[String],
-    builtins: Vec<Arc<dyn Plugin>>,
-    shared: &[Arc<dyn Plugin>],
-) -> anyhow::Result<PluginRegistry> {
-    let mut all = builtins;
-    all.extend(shared.iter().cloned());
-    install(all, safe_mode, disabled)
-}
-
-/// Installs `all` and resolves them. A plugin that fails to install does not
-/// stop IMT: the error is logged, and a plugin whose registration failed is
-/// listed as inactive with the reason (so are its dependents).
-fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[String]) -> anyhow::Result<PluginRegistry> {
-    let mut registry = PluginRegistry::new();
-    if safe_mode {
-        return Ok(registry);
-    }
-    registry.disable(disabled.iter().cloned());
-    for plugin in all {
-        let id = plugin.id();
-        if let Err(e) = registry.install_shared(plugin) {
-            log::error!(Plugin = id; "Plugin not installed: {e:#}");
-        }
-    }
-    registry.resolve();
-    for p in registry.plugins() {
-        if let Some(reason) = &p.inactive_reason {
-            log::warn!(Plugin = p.id.as_str(); "Plugin inactive: {reason}");
-        }
-        for w in &p.warnings {
-            log::info!(Plugin = p.id.as_str(); "Plugin note: {w}");
-        }
-    }
-    Ok(registry)
-}
-
 /// Longest backtrace logged with a panic (bytes, cut at a line boundary).
 pub const MAX_BACKTRACE: usize = 8 * 1024;
 /// Panics logged with a backtrace per run (capturing one is slow; a panic loop must not stall IMT).
@@ -716,40 +631,6 @@ pub async fn restart_app<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
-#[tauri::command]
-pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, op: crate::activity::OpId, id: String) -> CmdResult<()> {
-    // An isolated plugin's process may be quarantined too.
-    state.isolation.isolation.reset(&id);
-    for w in windows.all() {
-        w.store_read().reset_plugin(&id);
-    }
-    log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
-    crate::activity::domain_event("plugin.reset", op.as_deref(), &[("Plugin", &id)]);
-    Ok(())
-}
-
-/// Enables or disables a plugin from the next start (returns `true`: restart needed).
-#[tauri::command]
-pub async fn plugin_set_enabled(state: State<'_, AppState>, op: crate::activity::OpId, id: String, enabled: bool) -> CmdResult<bool> {
-    set_plugin_enabled(&state, id, enabled, op.as_deref())
-}
-
-/// Enables or disables a plugin from the next start (what `plugin_set_enabled` does); `true`: restart needed.
-pub fn set_plugin_enabled(state: &AppState, id: String, enabled: bool, op: Option<&str>) -> CmdResult<bool> {
-    let dir = state.config_dir.as_ref().ok_or("no configuration folder")?;
-    let mut s = load_plugin_settings(Some(dir));
-    s.disabled.retain(|d| *d != id);
-    if !enabled {
-        s.disabled.push(id.clone());
-    }
-    save_plugin_settings(dir, &s).map_err(err)?;
-    log::info!(Plugin = id.as_str(), Enabled = enabled; "Plugin setting changed");
-    let event = if enabled { "plugin.enabled" } else { "plugin.disabled" };
-    crate::activity::domain_event(event, op, &[("Plugin", &id)]);
-    Ok(true)
-}
-
 /// Autosaves the calling window's session (open files, profile, UI state) for crash recovery.
 #[tauri::command]
 pub async fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>, ui: Value, reports: Option<Vec<Value>>) -> CmdResult<()> {
@@ -815,8 +696,11 @@ pub async fn restore_windows<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::plugin_config::*;
     use crate::test_support::Json as _;
     use crate::test_support::Now as _;
+    use imt_core::{Plugin, PluginRegistry};
+    use std::sync::Arc;
 
     #[test]
     fn teardown_steps_are_bounded_and_say_how_they_ended() {

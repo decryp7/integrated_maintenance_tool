@@ -52,7 +52,7 @@ fn computed(parsers: &ConfigParsers, l: &Path, r: &Path, options: &CompareOption
         files: [stamp(l), stamp(r)],
         options: options.clone(),
     };
-    if let Some(c) = LAST.lock().unwrap_or_else(|p| p.into_inner()).as_ref().filter(|c| c.key == key) {
+    if let Some(c) = crate::sync::lock(&LAST).as_ref().filter(|c| c.key == key) {
         return Ok(c.clone());
     }
     let limits = Limits::default();
@@ -72,7 +72,7 @@ fn computed(parsers: &ConfigParsers, l: &Path, r: &Path, options: &CompareOption
     });
     // Counts only: paths and contents stay out of the logs.
     log::info!(LeftNodes = c.left.nodes as u64, RightNodes = c.right.nodes as u64, Differences = c.diff.counts.differences() as u64; "Configuration diff computed");
-    *LAST.lock().unwrap_or_else(|p| p.into_inner()) = Some(c.clone());
+    *crate::sync::lock(&LAST) = Some(c.clone());
     Ok(c)
 }
 
@@ -92,7 +92,7 @@ async fn parsers(state: &CurrentWindow) -> CmdResult<ConfigParsers> {
 }
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> CmdResult<T> {
-    crate::error::lift(tauri::async_runtime::spawn_blocking(f).await.map_err(err)?.map_err(err))
+    crate::sync::blocking_anyhow("the configuration diff", f).await
 }
 
 /// Supported formats and the default ignore patterns.
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn diffs_pages_and_caches() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff");
         // Nothing chosen yet: the files are refused.
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn exports_csv_and_html() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff-export");
         let l = write(&tmp.0, "a.ini", "[s]\nk=<1>\n");
@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn diffs_snapshot_folders() {
-        let _turn = TURN.lock().unwrap_or_else(|p| p.into_inner());
+        let _turn = crate::sync::lock(&TURN);
         let app = test_app(None);
         let tmp = TempDir::new("config-diff-snap");
         write(&tmp.0, "a/app.yaml", "x: 1\n");

@@ -50,16 +50,16 @@ pub struct WindowAi {
 impl WindowAi {
     /// Registers the cancel flag of a running AI job, so `ai_cancel` reaches it too.
     pub fn track_op(&self, flag: Arc<AtomicBool>) {
-        self.ops.lock().unwrap_or_else(|p| p.into_inner()).push(flag);
+        crate::sync::lock(&self.ops).push(flag);
     }
 
     pub fn end_op(&self, flag: &Arc<AtomicBool>) {
-        self.ops.lock().unwrap_or_else(|p| p.into_inner()).retain(|f| !Arc::ptr_eq(f, flag));
+        crate::sync::lock(&self.ops).retain(|f| !Arc::ptr_eq(f, flag));
     }
 
     /// Cancels every running use case of the window; returns how many there were.
     pub fn cancel_ops(&self) -> usize {
-        let ops = self.ops.lock().unwrap_or_else(|p| p.into_inner());
+        let ops = crate::sync::lock(&self.ops);
         for f in ops.iter() {
             f.store(true, Ordering::Relaxed);
         }

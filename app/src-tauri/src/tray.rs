@@ -258,7 +258,7 @@ fn refresh_now<R: Runtime>(app: &AppHandle<R>) {
     let model = menu_model(&list(app), &recents, &tasks);
     let tip = tooltip(tasks.len());
     {
-        let mut shown = state.shown.lock().unwrap_or_else(|p| p.into_inner());
+        let mut shown = crate::sync::lock(&state.shown);
         if shown.as_ref().is_some_and(|(m, t)| *m == model && *t == tip) {
             return;
         }

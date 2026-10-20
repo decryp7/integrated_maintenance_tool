@@ -106,7 +106,7 @@ impl AppIsolation {
         if !in_process || !isolable || !self.isolation.settings().auto_isolate {
             return;
         }
-        let mut handled = self.handled.lock().unwrap_or_else(|p| p.into_inner());
+        let mut handled = crate::sync::lock(&self.handled);
         if handled.iter().any(|h| h == id) {
             return;
         }

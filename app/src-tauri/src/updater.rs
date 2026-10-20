@@ -173,7 +173,7 @@ impl Updates {
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.inner)
     }
 
     fn status_of(&self, inner: &Inner) -> UpdateStatus {
@@ -559,5 +559,5 @@ pub async fn updates_restart<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<
 /// Opens the releases page in the browser (only that fixed address).
 #[tauri::command]
 pub async fn updates_open_releases() -> crate::CmdResult<()> {
-    crate::error::lift(open::that_detached(RELEASES_PAGE).map_err(crate::err))
+    crate::opener::open_url(RELEASES_PAGE)
 }

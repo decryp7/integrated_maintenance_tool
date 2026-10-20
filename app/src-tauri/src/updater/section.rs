@@ -45,10 +45,10 @@ pub struct SharedSettings(Arc<RwLock<UpdateSettings>>);
 
 impl SharedSettings {
     pub fn get(&self) -> UpdateSettings {
-        *self.0.read().unwrap_or_else(|p| p.into_inner())
+        *crate::sync::read(&self.0)
     }
     pub fn set(&self, s: UpdateSettings) {
-        *self.0.write().unwrap_or_else(|p| p.into_inner()) = s;
+        *crate::sync::write(&self.0) = s;
     }
 }
 

@@ -22,7 +22,7 @@ fn ring() -> &'static Mutex<Breadcrumbs> {
 
 /// The latest activity entries of `window` (every window's when it has none), oldest first.
 pub fn breadcrumbs(window: Option<&str>, n: usize) -> Vec<Breadcrumb> {
-    ring().lock().unwrap_or_else(|e| e.into_inner()).recent_for(window, n)
+    crate::sync::lock(ring()).recent_for(window, n)
 }
 
 /// What [`ErrorDedup`] decides for one error.
@@ -183,7 +183,7 @@ impl log::Log for ActivityLogger {
         if context == SOURCE_CONTEXT {
             let time = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
             if let Some(b) = Breadcrumb::from_props(time, &props) {
-                ring().lock().unwrap_or_else(|e| e.into_inner()).push(b);
+                crate::sync::lock(ring()).push(b);
             }
         }
         let fatal = props.get("Severity").is_some_and(|s| s == "Fatal");
@@ -191,7 +191,7 @@ impl log::Log for ActivityLogger {
             return self.inner.log(record);
         }
         let key = format!("{context}\u{1f}{}", record.args());
-        match self.dedup.lock().unwrap_or_else(|e| e.into_inner()).check(&key, Instant::now()) {
+        match crate::sync::lock(&self.dedup).check(&key, Instant::now()) {
             Dedup::Suppress if !fatal => return,
             Dedup::LogAfterRepeats(n) => self.summary(record, n),
             _ => {}
@@ -213,7 +213,7 @@ impl log::Log for ActivityLogger {
     }
 
     fn flush(&self) {
-        let pending = self.dedup.lock().unwrap_or_else(|e| e.into_inner()).drain_repeats();
+        let pending = crate::sync::lock(&self.dedup).drain_repeats();
         for (key, n) in pending {
             let (context, message) = key.split_once('\u{1f}').unwrap_or(("", key.as_str()));
             log::Log::log(
@@ -258,7 +258,7 @@ mod test_support {
         fn log(&self, record: &log::Record) {
             let mut props = Props(BTreeMap::new());
             let _ = record.key_values().visit(&mut props);
-            sink().lock().unwrap_or_else(|e| e.into_inner()).push(Captured {
+            crate::sync::lock(sink()).push(Captured {
                 level: record.level(),
                 target: record.target().to_string(),
                 message: record.args().to_string(),
@@ -273,7 +273,7 @@ mod test_support {
     /// Serialises tests that touch process-wide logging state.
     pub fn test_lock() -> MutexGuard<'static, ()> {
         static LOCK: Mutex<()> = Mutex::new(());
-        LOCK.lock().unwrap_or_else(|e| e.into_inner())
+        crate::sync::lock(&LOCK)
     }
 
     /// Installs the activity logger over a capturing logger (once per process), clears what it captured,
@@ -283,13 +283,13 @@ mod test_support {
         static INSTALLED: OnceLock<bool> = OnceLock::new();
         INSTALLED.get_or_init(|| log::set_boxed_logger(Box::new(ActivityLogger::new(Box::new(Capture)))).is_ok());
         log::set_max_level(log::LevelFilter::Trace);
-        sink().lock().unwrap_or_else(|e| e.into_inner()).clear();
+        crate::sync::lock(sink()).clear();
         guard
     }
 
     /// Everything captured since [`test_capture`].
     pub fn captured() -> Vec<Captured> {
-        sink().lock().unwrap_or_else(|e| e.into_inner()).clone()
+        crate::sync::lock(sink()).clone()
     }
 }
 

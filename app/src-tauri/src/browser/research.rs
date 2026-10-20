@@ -214,7 +214,7 @@ fn record_in_chat(
             (fresh, t)
         }
     };
-    let mut s = turn.session.lock().unwrap_or_else(|p| p.into_inner());
+    let mut s = crate::sync::lock(&turn.session);
     s.record_answer(&format!("Research: {question}"), &report.answer, report.sources(), &mut |e| {
         chats.push_event(&sid, e);
         emit(&sid, e);

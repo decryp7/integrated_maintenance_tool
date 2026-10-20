@@ -60,7 +60,7 @@ struct CollectionJobs(std::sync::Mutex<std::collections::HashMap<String, (crate:
 
 impl CollectionJobs {
     fn lock(&self) -> std::sync::MutexGuard<'_, std::collections::HashMap<String, (crate::jobs::JobId, std::sync::mpsc::Sender<()>)>> {
-        self.0.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.0)
     }
 }
 
@@ -111,7 +111,7 @@ impl<R: Runtime> ShellTasks<R> {
         let rx = std::sync::Mutex::new(rx);
         match jobs.submit_work(spec, controls, move |_| {
             // The tool says when it is done (or the sender goes with IMT).
-            let _ = rx.lock().unwrap_or_else(|p| p.into_inner()).recv();
+            let _ = crate::sync::lock(&rx).recv();
             crate::jobs::queue::JobEnd::Done(None)
         }) {
             Ok(job) => {

@@ -114,7 +114,7 @@ fn apply_later<R: Runtime>(app: &AppHandle<R>, owner: &str, hub: std::sync::Arc<
 
 /// Makes the browser window show the current driver (the latest state wins, whatever order changes come in).
 fn apply<R: Runtime>(app: &AppHandle<R>, owner: &str, hub: &BrowserHub) {
-    let _one = APPLYING.lock().unwrap_or_else(|p| p.into_inner());
+    let _one = crate::sync::lock(&APPLYING);
     let driving = hub.ai_driver(owner).is_some();
     let Some(browser) = app.get_webview_window(&browser_label(owner)) else {
         close_banner(app, owner);

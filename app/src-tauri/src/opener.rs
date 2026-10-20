@@ -209,6 +209,12 @@ pub(crate) fn installed_vscode() -> Option<PathBuf> {
     find_vscode(Os::CURRENT, &|v| std::env::var_os(v), &|p| p.is_file())
 }
 
+/// Opens a web address in the user's browser (the callers check the address first), as an `io` error
+/// that says so when it fails.
+pub(crate) fn open_url(url: &str) -> crate::CmdResult<()> {
+    open::that_detached(url).map_err(|e| crate::CmdError::new(crate::ErrorCode::Io, format!("cannot open your browser: {e}")))
+}
+
 /// Starts `invocation` without waiting (in tests: builds it only, nothing is launched).
 pub(crate) fn start(invocation: &Invocation) -> std::io::Result<()> {
     let cmd = invocation.command();

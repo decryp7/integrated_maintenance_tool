@@ -136,11 +136,9 @@ async fn read<T: Send + 'static>(
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
     crate::error::lift_dto(
-        tauri::async_runtime::spawn_blocking(move || {
-            f(store.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(ProfilingErrorDto::from)
-        })
-        .await
-        .map_err(join_error)?,
+        tauri::async_runtime::spawn_blocking(move || f(crate::sync::read(&store).as_ref()).map_err(ProfilingErrorDto::from))
+            .await
+            .map_err(join_error)?,
     )
 }
 
@@ -150,11 +148,9 @@ async fn write<T: Send + 'static>(
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
     crate::error::lift_dto(
-        tauri::async_runtime::spawn_blocking(move || {
-            f(store.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(ProfilingErrorDto::from)
-        })
-        .await
-        .map_err(join_error)?,
+        tauri::async_runtime::spawn_blocking(move || f(crate::sync::write(&store).as_mut()).map_err(ProfilingErrorDto::from))
+            .await
+            .map_err(join_error)?,
     )
 }
 

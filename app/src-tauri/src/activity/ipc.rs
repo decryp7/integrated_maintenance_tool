@@ -168,7 +168,7 @@ pub(crate) fn log_call(call: &IpcCall, limiter: &Mutex<RateLimiter>, now: Instan
         return;
     }
     let key = format!("{}@{}", call.command, call.window);
-    let admit = limiter.lock().unwrap_or_else(|e| e.into_inner()).admit(&key, now);
+    let admit = crate::sync::lock(limiter).admit(&key, now);
     let kind_name = match kind {
         CommandKind::Mutation => "mutation",
         CommandKind::Query => "query",

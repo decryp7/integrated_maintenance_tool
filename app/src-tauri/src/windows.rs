@@ -124,43 +124,43 @@ impl WindowState {
     }
 
     pub(crate) fn profile_doc(&self) -> ProfileDoc {
-        self.profile.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.profile).clone()
     }
 
     pub(crate) fn set_profile_doc(&self, doc: ProfileDoc) {
-        *self.profile.write().unwrap_or_else(|p| p.into_inner()) = doc;
+        *crate::sync::write(&self.profile) = doc;
     }
 
     pub(crate) fn queue(&self, paths: impl IntoIterator<Item = String>) {
-        self.pending.lock().unwrap_or_else(|p| p.into_inner()).extend(paths);
+        crate::sync::lock(&self.pending).extend(paths);
     }
 
     pub(crate) fn take_pending(&self) -> Vec<String> {
-        std::mem::take(&mut *self.pending.lock().unwrap_or_else(|p| p.into_inner()))
+        std::mem::take(&mut *crate::sync::lock(&self.pending))
     }
 
     pub(crate) fn set_pending_ask(&self, paths: Vec<String>) {
-        *self.pending_ask.lock().unwrap_or_else(|p| p.into_inner()) = paths;
+        *crate::sync::lock(&self.pending_ask) = paths;
     }
 
     pub(crate) fn take_pending_ask(&self) -> Vec<String> {
-        std::mem::take(&mut *self.pending_ask.lock().unwrap_or_else(|p| p.into_inner()))
+        std::mem::take(&mut *crate::sync::lock(&self.pending_ask))
     }
 
     pub fn title(&self) -> String {
-        self.title.lock().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::lock(&self.title).clone()
     }
 
     pub(crate) fn set_title(&self, title: &str) {
-        *self.title.lock().unwrap_or_else(|p| p.into_inner()) = title.to_string();
+        *crate::sync::lock(&self.title) = title.to_string();
     }
 
     pub fn project(&self) -> Option<String> {
-        self.project.lock().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::lock(&self.project).clone()
     }
 
     pub(crate) fn set_project(&self, path: Option<String>) {
-        *self.project.lock().unwrap_or_else(|p| p.into_inner()) = path;
+        *crate::sync::lock(&self.project) = path;
     }
 
     /// Nothing is open or about to open: files from other apps can go here
@@ -204,7 +204,7 @@ impl Windows {
     }
 
     pub fn get(&self, label: &str) -> Option<Arc<WindowState>> {
-        self.map.read().unwrap_or_else(|p| p.into_inner()).get(label).cloned()
+        crate::sync::read(&self.map).get(label).cloned()
     }
 
     /// The window's state, created on first use. Fails for a window that was closed.
@@ -213,15 +213,15 @@ impl Windows {
             return Ok(w);
         }
         // One build at a time (no window is built twice); lookups and other windows' commands go on.
-        let _building = self.creating.lock().unwrap_or_else(|p| p.into_inner());
+        let _building = crate::sync::lock(&self.creating);
         if let Some(w) = self.get(label) {
             return Ok(w);
         }
-        if self.closed.lock().unwrap_or_else(|p| p.into_inner()).contains(label) {
+        if crate::sync::lock(&self.closed).contains(label) {
             anyhow::bail!("this window was closed");
         }
         let state = Arc::new((self.factory)(label)?);
-        let mut map = self.map.write().unwrap_or_else(|p| p.into_inner());
+        let mut map = crate::sync::write(&self.map);
         map.insert(label.to_string(), state.clone());
         log::info!(Windows = map.len() as u64; "Window workspace created");
         Ok(state)
@@ -230,12 +230,12 @@ impl Windows {
     /// Forgets a window (it was destroyed). Its workspace is freed once no
     /// command still runs on it.
     pub fn remove(&self, label: &str) -> Option<Arc<WindowState>> {
-        self.closed.lock().unwrap_or_else(|p| p.into_inner()).insert(label.to_string());
-        let mut focused = self.focused.lock().unwrap_or_else(|p| p.into_inner());
+        crate::sync::lock(&self.closed).insert(label.to_string());
+        let mut focused = crate::sync::lock(&self.focused);
         if focused.as_deref() == Some(label) {
             *focused = None;
         }
-        let removed = self.map.write().unwrap_or_else(|p| p.into_inner()).remove(label);
+        let removed = crate::sync::write(&self.map).remove(label);
         if let Some(w) = &removed {
             w.shutdown_plugins();
             log::info!("Window workspace freed");
@@ -245,7 +245,7 @@ impl Windows {
 
     /// Every window state, `main` first, then in creation order.
     pub fn all(&self) -> Vec<Arc<WindowState>> {
-        let mut all: Vec<_> = self.map.read().unwrap_or_else(|p| p.into_inner()).values().cloned().collect();
+        let mut all: Vec<_> = crate::sync::read(&self.map).values().cloned().collect();
         all.sort_by_key(|w| label_order(w.label()));
         all
     }
@@ -268,12 +268,12 @@ impl Windows {
     }
 
     pub fn note_focus(&self, label: &str) {
-        *self.focused.lock().unwrap_or_else(|p| p.into_inner()) = Some(label.to_string());
+        *crate::sync::lock(&self.focused) = Some(label.to_string());
     }
 
     /// The window that had the focus last, if it still exists.
     pub fn last_focused(&self) -> Option<String> {
-        let label = self.focused.lock().unwrap_or_else(|p| p.into_inner()).clone()?;
+        let label = crate::sync::lock(&self.focused).clone()?;
         self.get(&label).map(|_| label)
     }
 
@@ -385,7 +385,7 @@ pub(crate) async fn read<T: Send + 'static>(
 ) -> CmdResult<T> {
     let ws = win.workspace.clone();
     crate::error::lift(
-        tauri::async_runtime::spawn_blocking(move || f(ws.read().unwrap_or_else(|p| p.into_inner()).as_ref()).map_err(err))
+        tauri::async_runtime::spawn_blocking(move || f(crate::sync::read(&ws).as_ref()).map_err(err))
             .await
             .map_err(err)?,
     )
@@ -397,7 +397,7 @@ pub(crate) async fn write<T: Send + 'static>(
 ) -> CmdResult<T> {
     let ws = win.workspace.clone();
     crate::error::lift(
-        tauri::async_runtime::spawn_blocking(move || f(ws.write().unwrap_or_else(|p| p.into_inner()).as_mut()).map_err(err))
+        tauri::async_runtime::spawn_blocking(move || f(crate::sync::write(&ws).as_mut()).map_err(err))
             .await
             .map_err(err)?,
     )
@@ -431,7 +431,7 @@ pub(crate) fn write_reporting_blocking<R: Runtime, T>(
 ) -> anyhow::Result<T> {
     let ws = win.workspace.clone();
     let (out, errors) = {
-        let mut guard = ws.write().unwrap_or_else(|p| p.into_inner());
+        let mut guard = crate::sync::write(&ws);
         let store = guard.as_mut();
         let before = crate::engine_errors::HealthSnapshot::of(&store.summary());
         let out = f(store);

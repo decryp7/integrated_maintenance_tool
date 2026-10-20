@@ -169,7 +169,7 @@ impl<R: Runtime> Job<R> {
             app.manage(StorageJobs::default());
         }
         let jobs = app.state::<StorageJobs>();
-        let mut running = jobs.running.lock().unwrap_or_else(|p| p.into_inner());
+        let mut running = crate::sync::lock(&jobs.running);
         if *running {
             return Err("IMT is already clearing its storage; wait for it to finish".into());
         }
@@ -184,7 +184,7 @@ impl<R: Runtime> Job<R> {
 impl<R: Runtime> Drop for Job<R> {
     fn drop(&mut self) {
         if let Some(jobs) = self.app.try_state::<StorageJobs>() {
-            *jobs.running.lock().unwrap_or_else(|p| p.into_inner()) = false;
+            *crate::sync::lock(&jobs.running) = false;
         }
     }
 }

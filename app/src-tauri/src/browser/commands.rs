@@ -49,9 +49,7 @@ fn bounded(what: &str, s: &str) -> CmdResult<String> {
 
 /// Runs page work on the blocking pool (script replies arrive on the main thread).
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> CmdResult<T> + Send + 'static) -> CmdResult<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| format!("the browser task stopped unexpectedly ({e})"))?
+    crate::sync::blocking("the browser task", f).await
 }
 
 /// The Web panel's view of its window's browser.
@@ -166,7 +164,7 @@ pub async fn browser_open_external<R: Runtime>(app: AppHandle<R>, win: CurrentWi
         return Err("refused: only the page shown or a window it asked to open can be opened".into());
     }
     crate::activity::domain_event("browser.openExternal", None, &[("Site", u.site().as_str())]);
-    crate::error::lift(open::that_detached(u.as_str()).map_err(|e| format!("cannot open your browser: {e}")))
+    crate::opener::open_url(u.as_str())
 }
 
 fn sources_event<R: Runtime>(app: &AppHandle<R>, owner: &str, chat: &str, hub: &BrowserHub) -> Vec<SourceInfo> {

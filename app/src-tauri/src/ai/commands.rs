@@ -37,9 +37,7 @@ pub(crate) fn core<R: Runtime>(app: &AppHandle<R>) -> Ai<Arc<AiCore>> {
 
 /// Runs `f` on the blocking pool; a panic becomes an engine error instead of taking the app down.
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Ai<T> + Send + 'static) -> Ai<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the AI task stopped unexpectedly ({e})")))?
+    crate::sync::blocking("the AI task", f).await
 }
 
 fn emit_status<R: Runtime>(app: &AppHandle<R>, core: &AiCore) {
@@ -429,7 +427,7 @@ pub(crate) fn run_turn(
         if let (Some(b), Some(e)) = (browser, browser_env.as_ref()) {
             env = env.with_browser(e).with_pages(b.pages.clone());
         }
-        let mut s = session.lock().unwrap_or_else(|p| p.into_inner());
+        let mut s = crate::sync::lock(&session);
         s.send(&env, text, ctx, &mut |e| {
             if let (Some(b), ChatEvent::LinkSuggestion { url, .. }) = (browser, &e.event) {
                 b.note_suggested(url);
@@ -452,7 +450,7 @@ pub(crate) fn run_turn(
             Err(AiCmdError::new(AiErrorCode::Engine, message))
         }
     };
-    let record = session.lock().unwrap_or_else(|p| p.into_inner()).to_record();
+    let record = crate::sync::lock(&session).to_record();
     chats.end_turn(sid, record);
     outcome
 }
@@ -596,7 +594,7 @@ pub async fn ai_open_link<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, url
             "refused: this link was not part of an answer",
         ));
     }
-    open::that_detached(&url).map_err(|e| AiCmdError::new(AiErrorCode::Io, format!("cannot open the browser: {e}")))
+    crate::opener::open_url(&url)
 }
 
 /// An https URL to a public host, of reasonable length.

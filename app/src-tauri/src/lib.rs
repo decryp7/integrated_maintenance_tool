@@ -20,10 +20,12 @@
 mod activity;
 mod agent_commands;
 mod ai;
+mod app_context;
 mod app_dirs;
 mod app_state;
 mod background;
 mod browser;
+mod builtin_sections;
 mod clef;
 mod commands;
 mod config_diff;
@@ -49,6 +51,7 @@ mod notify;
 mod opener;
 mod panel_windows;
 mod paths;
+mod plugin_config;
 mod plugin_isolation;
 mod pointer;
 mod profile;
@@ -61,6 +64,7 @@ mod share;
 mod skew_commands;
 mod snapshots;
 mod storage;
+mod sync;
 mod system;
 mod tools;
 mod tray;
@@ -224,8 +228,8 @@ command_table! {
     Mutation [WINDOW] => agent_commands::agent_open_run,
     Query [WINDOW] => lifecycle::app_status,
     Mutation [MAIN] => lifecycle::restart_app,
-    Mutation [MAIN] => lifecycle::plugin_reset,
-    Mutation [MAIN] => lifecycle::plugin_set_enabled,
+    Mutation [MAIN] => plugin_config::plugin_reset,
+    Mutation [MAIN] => plugin_config::plugin_set_enabled,
     Query [WINDOW] => plugin_isolation::plugin_isolation_status,
     Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
     Query [MAIN] => lifecycle::last_session,
@@ -410,25 +414,26 @@ pub fn run() {
 
 fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, single: bool) -> Result<(), Box<dyn std::error::Error>> {
     create_main_window(app)?;
-    let diag = diagnostics::load(app_dirs::config(app.handle()).ok().as_deref());
+    // IMT's folders and run flags, resolved once (see `app_context`).
+    let ctx = app_context::AppContext::of(app.handle(), safe_mode, single);
+    let diag = diagnostics::load(ctx.config.as_deref());
     // `tracing` with CLEF to daily files; `log` records pass the activity logger (breadcrumbs, error
     // dedup) on their way to it, the webview's through the log plugin's command: see `logging`.
-    logging::init(app.handle(), app_dirs::log(app.handle()).ok().as_deref(), &diag.log)?;
+    logging::init(app.handle(), ctx.log.as_deref(), &diag.log)?;
     activity::set_config(diag.activity);
     // Child processes' stderr and start/exit lines (for problem reports): `<logs>/children/<name>.log`.
-    if let Ok(dir) = app_dirs::log(app.handle()) {
-        imt_ipc::child_log::set_dir(activity::report::children_dir(&dir));
-    }
-    if let Ok(dir) = app_dirs::log(app.handle()) {
-        diagnostics::prune_old_logs(&dir, diag.log.max_age_days, std::time::SystemTime::now());
+    if let Some(dir) = &ctx.log {
+        imt_ipc::child_log::set_dir(activity::report::children_dir(dir));
+        diagnostics::prune_old_logs(dir, diag.log.max_age_days, std::time::SystemTime::now());
     }
     lifecycle::install_panic_logging();
-    let life = lifecycle::Lifecycle::begin_in(app_dirs::data(app.handle()).ok(), safe_mode, lifecycle::InstanceScope::of(single));
+    let life = lifecycle::Lifecycle::begin_in(ctx.data.clone(), ctx.safe_mode, lifecycle::InstanceScope::of(ctx.single_instance));
     let previous_crash = life.previous_crash;
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
-    let shared = AppState::new(app_dirs::config(app.handle()).ok().map(|d| d.join("profiles")), safe_mode);
+    let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.safe_mode);
+    app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
     windows.get_or_create(windows::MAIN)?.queue(instance::existing(&launch.paths));
@@ -440,10 +445,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(window_prefs::SharedPrefs::default());
     app.manage(notify::Notifier::default());
     app.manage(tray::TrayState::default());
-    app.manage(instance::SingleInstance(single));
-    app.manage(recent::Recents::load(app_dirs::config(app.handle()).ok().as_deref()));
     jobs::init(app.handle());
-    window_scoped::install(app.handle());
     notification_centre::init(app.handle());
 
     // ---- settings ----
@@ -633,7 +635,6 @@ pub(crate) mod test_support {
         app.manage(window_prefs::SharedPrefs::default());
         app.manage(notify::Notifier::default());
         app.manage(tray::TrayState::default());
-        app.manage(recent::Recents::load(None));
         // Time stands still in tests unless a test moves it (`TestClock`): jobs never cross the visibility
         // and attention thresholds by accident.
         let clock = std::sync::Arc::new(jobs::ManualClock::default());
@@ -645,7 +646,7 @@ pub(crate) mod test_support {
         // The repository samples count as chosen in the main window (files in a test's own folder do not).
         paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());
-        window_scoped::install(app.handle());
+        app_context::install(app.handle(), app_context::AppContext::for_tests());
         app
     }
 

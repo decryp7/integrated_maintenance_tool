@@ -55,7 +55,7 @@ impl Approvals {
     }
 
     fn lock(&self) -> MutexGuard<'_, HashMap<Key, SyncSender<Decision>>> {
-        self.pending.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.pending)
     }
 
     /// Delivers the user's answer. False when nothing waits for it (already answered, timed out, stopped).

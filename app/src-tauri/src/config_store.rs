@@ -150,7 +150,7 @@ pub fn read_json(path: &Path) -> Result<serde_json::Value, ReadError> {
 /// a time; creates the folder.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
-    let _one = WRITER.lock().unwrap_or_else(|p| p.into_inner());
+    let _one = crate::sync::lock(&WRITER);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -199,14 +199,14 @@ impl<T: Clone + Serialize + DeserializeOwned + Default> Config<T> {
     }
 
     pub fn get(&self) -> T {
-        self.value.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.value).clone()
     }
 
     /// Changes the document; when `f` says it changed something, writes it (after the cache lock is released)
     /// and says so.
     pub fn update_if(&self, f: impl FnOnce(&mut T) -> bool) -> std::io::Result<bool> {
         let next = {
-            let mut v = self.value.write().unwrap_or_else(|p| p.into_inner());
+            let mut v = crate::sync::write(&self.value);
             if !f(&mut v) {
                 return Ok(false);
             }
@@ -276,7 +276,7 @@ impl<T: Send + 'static> Debounced<T> {
 
     /// Queues a snapshot to write.
     pub fn schedule(&self, snapshot: T) {
-        if let Some(tx) = self.tx.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
+        if let Some(tx) = crate::sync::lock(&self.tx).as_ref() {
             let _ = tx.send(Msg::Write(snapshot));
         }
     }

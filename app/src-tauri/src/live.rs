@@ -77,11 +77,11 @@ pub(crate) struct LiveSlot {
 
 impl LiveSlot {
     fn lock(&self) -> std::sync::MutexGuard<'_, Option<LiveTail>> {
-        self.running.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.running)
     }
 
     fn options(&self) -> std::sync::MutexGuard<'_, Option<LiveOptions>> {
-        self.options.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.options)
     }
 
     /// Whether live tail runs and the options in effect (defaults until it was first started).
@@ -147,7 +147,7 @@ const WATCHER_ERROR_INTERVAL: Duration = Duration::from_secs(10);
 /// left out since the last entry. Returns whether it logged.
 fn log_watcher_error(e: &notify::Error, now: std::time::Instant) -> bool {
     static LAST: std::sync::Mutex<(Option<std::time::Instant>, u64)> = std::sync::Mutex::new((None, 0));
-    let mut last = LAST.lock().unwrap_or_else(|p| p.into_inner());
+    let mut last = crate::sync::lock(&LAST);
     if last.0.is_some_and(|t| now.duration_since(t) < WATCHER_ERROR_INTERVAL) {
         last.1 += 1;
         return false;

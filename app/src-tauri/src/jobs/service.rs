@@ -260,9 +260,7 @@ struct Shared {
 #[derive(Clone)]
 pub struct Jobs(Arc<Shared>);
 
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|p| p.into_inner())
-}
+use crate::sync::lock;
 
 fn log_state(event: &str, job: &Job, now: i64) {
     let (id, kind, ms) = (job.id.to_string(), job.kind.as_str(), job.run_ms(now).to_string());

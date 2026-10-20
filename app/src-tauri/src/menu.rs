@@ -627,7 +627,7 @@ fn set_states<R: Runtime>(app: &AppHandle<R>, changed: &[Item]) -> tauri::Result
 /// Shows `spec` in the menu bar: nothing when unchanged, states in place when only they changed, else a rebuild.
 pub fn apply<R: Runtime>(app: &AppHandle<R>, spec: Vec<Native>) -> tauri::Result<Update> {
     let state = app.state::<NativeMenu>();
-    let mut shown = state.shown.lock().unwrap_or_else(|p| p.into_inner());
+    let mut shown = crate::sync::lock(&state.shown);
     let update = diff(shown.as_deref(), &spec);
     let rebuild = match &update {
         Update::Unchanged => false,
@@ -650,7 +650,7 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) {
         let id = event.id().as_ref();
         let target = {
             let state = app.state::<NativeMenu>();
-            let shown = state.shown.lock().unwrap_or_else(|p| p.into_inner());
+            let shown = crate::sync::lock(&state.shown);
             let ids = shown.as_deref().map(item_ids).unwrap_or_default();
             route(id, &ids, crate::window_manager::target(app).as_deref())
         };

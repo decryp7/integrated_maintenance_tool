@@ -99,7 +99,7 @@ pub struct PathGrants {
 
 impl PathGrants {
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Vec<Grant>>> {
-        self.windows.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.windows)
     }
 
     /// Records that the user chose `path` in `window`. A read grant needs an existing file or folder; a

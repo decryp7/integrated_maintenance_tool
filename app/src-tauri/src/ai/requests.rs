@@ -431,7 +431,7 @@ impl Drop for PendingTurn {
             },
         };
         (self.emit)(&self.sid, &env);
-        let record = turn.session.lock().unwrap_or_else(|p| p.into_inner()).to_record();
+        let record = crate::sync::lock(&turn.session).to_record();
         self.win.ai.chats.end_turn(&self.sid, record);
     }
 }

@@ -111,7 +111,7 @@ fn emit_all<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, sent: &Mutex<Sent>) {
     };
     let labels: Vec<String> = windows.all().iter().map(|w| w.label().to_string()).collect();
     let deltas: Vec<(String, JobsDelta)> = {
-        let mut sent = sent.lock().unwrap_or_else(|p| p.into_inner());
+        let mut sent = crate::sync::lock(sent);
         sent.retain(|l, _| labels.contains(l));
         labels
             .into_iter()
@@ -136,7 +136,7 @@ pub(crate) fn mirror<R: Runtime>(app: &AppHandle<R>, jobs: &Jobs, mirrored: &Mut
     let Some(tasks) = app.try_state::<BackgroundTasks>() else { return };
     let running = jobs.running_visible();
     let now: HashSet<String> = running.iter().map(|j| format!("{TASK_PREFIX}{}", j.id)).collect();
-    let known = std::mem::replace(&mut *mirrored.lock().unwrap_or_else(|p| p.into_inner()), now.clone());
+    let known = std::mem::replace(&mut *crate::sync::lock(mirrored), now.clone());
     for gone in known.difference(&now) {
         tasks.remove(gone);
     }
@@ -309,7 +309,7 @@ pub(crate) fn read_store<T>(
     f: impl FnOnce(&dyn imt_core::LogStore) -> anyhow::Result<T>,
 ) -> anyhow::Result<T> {
     let ws = win.workspace.clone();
-    let guard = ws.read().unwrap_or_else(|p| p.into_inner());
+    let guard = crate::sync::read(&ws);
     f(guard.as_ref())
 }
 

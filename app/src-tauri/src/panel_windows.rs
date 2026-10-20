@@ -170,7 +170,7 @@ pub struct Popouts {
 
 impl Popouts {
     fn lock(&self) -> std::sync::MutexGuard<'_, BTreeMap<String, Entry>> {
-        self.map.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.map)
     }
 
     /// The label of the pop-out showing `view_id` for `host`, if there is one.

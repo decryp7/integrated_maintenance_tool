@@ -92,7 +92,7 @@ pub struct BrowserHub {
 
 impl BrowserHub {
     fn lock(&self) -> MutexGuard<'_, HashMap<String, Owner>> {
-        self.owners.lock().unwrap_or_else(|p| p.into_inner())
+        crate::sync::lock(&self.owners)
     }
 
     fn with<T>(&self, owner: &str, f: impl FnOnce(&mut Owner) -> T) -> T {
@@ -100,11 +100,11 @@ impl BrowserHub {
     }
 
     pub fn settings(&self) -> BrowserSettings {
-        self.settings.read().unwrap_or_else(|p| p.into_inner()).clone()
+        crate::sync::read(&self.settings).clone()
     }
 
     pub fn set_settings(&self, s: BrowserSettings) {
-        *self.settings.write().unwrap_or_else(|p| p.into_inner()) = s;
+        *crate::sync::write(&self.settings) = s;
     }
 
     // ---- the page ----

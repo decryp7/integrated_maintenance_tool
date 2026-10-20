@@ -23,9 +23,7 @@ const MAX_ARCHIVES: usize = 8;
 const TICK: Duration = Duration::from_millis(250);
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> AiResult<T> + Send + 'static) -> AiResult<T> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the AI task stopped unexpectedly ({e})")))?
+    crate::sync::blocking("the AI task", f).await
 }
 
 fn short(what: &str, s: &str) -> AiResult<String> {
