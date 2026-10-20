@@ -1,12 +1,13 @@
 # User guide
 
 Reference for everyday use: which files IMT reads, how to write a profile, the query language, the
-keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
+internal web browser, the keyboard shortcuts and the command line. For what IMT can do, see [features.md](features.md); for a
 first walk-through, see the two-minute tour in the [README](../README.md#quick-start).
 
 - [Supported inputs](#supported-inputs)
 - [Profiles](#profiles)
 - [Query language](#query-language)
+- [Internal web browser](#internal-web-browser)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Command line](#command-line)
 
@@ -121,6 +122,27 @@ level >= warning | stats p50(ElapsedMs) as p50, p95(ElapsedMs) as p95, p99(Elaps
 Plain filters narrow the grid, timeline and charts; `stats` queries show a results table you can
 export as CSV. The full grammar is in
 [`crates/imt-core/src/ql/mod.rs`](../crates/imt-core/src/ql/mod.rs).
+
+## Internal web browser
+
+*Search the web for this error* and the address box of the **Web** panel (Tools ▸ Web) open pages in
+IMT's own browser window. Searches use **Google** unless you pick another engine: Settings ▸ Web browser ▸
+Search engine sets it for every search (DuckDuckGo, Bing, Stack Overflow, or *Custom* with your own address
+containing `{q}`), and the picker next to the address box or in the search dialog changes it for one search.
+
+When a chat's **agent mode** or a **research** drives the browser, the browser window shows it:
+
+- an amber bar across the top of the window: *AI is browsing*, what drives it (a chat or research) and
+  **Stop**;
+- the window title starts with "AI browsing —";
+- on Windows 11, the window frame is amber.
+
+**Stop** in that bar ends agent mode for the chat (a step waiting for your approval is denied) or cancels the
+research, the same as Stop in the chat or the Web panel. The bar, the title prefix and the frame go away as
+soon as the AI lets go of the browser: after Stop, when the answer or the research is done, cancelled or
+failed, when you turn agent mode off, or when you close the browser or its IMT window. The bar is part of
+IMT, not of the web page: a page cannot show, hide or press it. On Linux with Wayland the bar may not sit
+exactly over the browser window, since Wayland does not let apps place windows; the title still says it.
 
 ## Keyboard shortcuts
 

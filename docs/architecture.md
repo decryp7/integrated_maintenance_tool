@@ -99,6 +99,7 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
 | [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode. |
 | [0012](adr/0012-jobs.md) | Jobs and notifications: every long task is a job with per-kind queues and limits in Rust; a notification centre for what needs attention; research mode as a job. |
+| [0013](adr/0013-ai-browsing-banner.md) | "AI is browsing" on the browser window: an owned banner window of IMT's UI with Stop, a title prefix and (Windows 11) an amber frame while agent mode or research drives; the state comes from the browser hub. |
 
 ## Plugin runtime (ADR 0003)
 
