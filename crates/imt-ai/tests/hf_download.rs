@@ -262,7 +262,18 @@ fn gated_and_missing_repositories_give_clear_errors() {
     let all500 = Mock::start(|_, _| Resp::new(500, "{}"));
     assert!(hf(&all500).describe(REPO, FILE).unwrap_err().is_transient());
     let all418 = Mock::start(|_, _| Resp::new(418, "{}"));
-    assert!(matches!(hf(&all418).describe(REPO, FILE), Err(AiError::Refused(_))));
+    let e418 = hf(&all418).describe(REPO, FILE).unwrap_err();
+    assert!(
+        matches!(&e418, AiError::Connection(n) if n.kind == imt_ai::net::NetKind::Http(418)) && !e418.is_transient(),
+        "{e418}"
+    );
+    // a proxy answering a plain-http request with 407 wants a sign-in
+    let all407 = Mock::start(|_, _| Resp::new(407, "{}"));
+    let e407 = hf(&all407).describe(REPO, FILE).unwrap_err();
+    assert!(
+        matches!(&e407, AiError::Connection(n) if n.kind == imt_ai::net::NetKind::ProxyAuth),
+        "{e407}"
+    );
 }
 
 #[test]
@@ -457,7 +468,6 @@ fn endpoint_and_proxy_validation() {
     .is_ok());
     assert!(HuggingFace::new(with(|c| {
         c.proxy = Some("http://proxy.corp:3128".into());
-        c.system_certs = true;
     }))
     .is_ok());
     assert!(matches!(

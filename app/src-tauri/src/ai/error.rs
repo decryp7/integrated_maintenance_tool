@@ -1,6 +1,7 @@
 //! The typed error every AI command returns: a stable `code` the UI can act on (hide AI, offer set-up,
 //! retry) and a message that tells the user what to do next. Never carries file contents or secrets.
 
+use imt_ai::net::NetKind;
 use imt_ai::AiError;
 use serde::Serialize;
 
@@ -24,6 +25,18 @@ pub enum AiErrorCode {
     ModelFile,
     Memory,
     Network,
+    /// The server certificate could not be verified (usually a TLS-inspecting proxy such as Zscaler whose
+    /// root certificate is not in the OS store): offer the manual download.
+    Tls,
+    /// The proxy asks for a sign-in (HTTP 407).
+    ProxyAuth,
+    /// The configured download proxy cannot be used.
+    Proxy,
+    /// No network, or the host cannot be resolved or reached.
+    Offline,
+    Timeout,
+    /// The server (or a proxy in between) answered with an unexpected HTTP status.
+    HttpStatus,
     Gated,
     NotFound,
     Integrity,
@@ -88,6 +101,14 @@ impl From<AiError> for AiCmdError {
             AiError::ModelFile(_) => AiErrorCode::ModelFile,
             AiError::Memory(_) => AiErrorCode::Memory,
             AiError::Network(_) => AiErrorCode::Network,
+            AiError::Connection(n) => match n.kind {
+                NetKind::Tls => AiErrorCode::Tls,
+                NetKind::ProxyAuth => AiErrorCode::ProxyAuth,
+                NetKind::Proxy => AiErrorCode::Proxy,
+                NetKind::Offline => AiErrorCode::Offline,
+                NetKind::Timeout => AiErrorCode::Timeout,
+                NetKind::Http(_) => AiErrorCode::HttpStatus,
+            },
             AiError::Gated { .. } => AiErrorCode::Gated,
             AiError::NotFound(_) => AiErrorCode::NotFound,
             AiError::Integrity(_) => AiErrorCode::Integrity,
@@ -129,6 +150,10 @@ impl From<imt_core::overwrite::FileExists> for AiCmdError {
 mod tests {
     use super::*;
 
+    fn net(kind: NetKind) -> AiError {
+        AiError::Connection(imt_ai::net::NetError::new(kind, "huggingface.co", "x"))
+    }
+
     #[test]
     fn library_errors_keep_their_kind_and_message() {
         let cases = [
@@ -143,6 +168,12 @@ mod tests {
             (AiError::ModelFile("x".into()), AiErrorCode::ModelFile),
             (AiError::Memory("x".into()), AiErrorCode::Memory),
             (AiError::Network("x".into()), AiErrorCode::Network),
+            (net(NetKind::Tls), AiErrorCode::Tls),
+            (net(NetKind::ProxyAuth), AiErrorCode::ProxyAuth),
+            (net(NetKind::Proxy), AiErrorCode::Proxy),
+            (net(NetKind::Offline), AiErrorCode::Offline),
+            (net(NetKind::Timeout), AiErrorCode::Timeout),
+            (net(NetKind::Http(502)), AiErrorCode::HttpStatus),
             (AiError::Gated { url: "u".into() }, AiErrorCode::Gated),
             (AiError::NotFound("x".into()), AiErrorCode::NotFound),
             (AiError::Integrity("x".into()), AiErrorCode::Integrity),
@@ -158,6 +189,8 @@ mod tests {
         let json = serde_json::to_value(AiCmdError::from(AiError::NoModel)).unwrap();
         assert_eq!(json["code"], "noModel");
         assert_eq!(serde_json::to_value(AiErrorCode::NoRuntime).unwrap(), "noRuntime");
+        assert_eq!(serde_json::to_value(AiErrorCode::ProxyAuth).unwrap(), "proxyAuth");
+        assert_eq!(serde_json::to_value(AiErrorCode::HttpStatus).unwrap(), "httpStatus");
         assert_eq!(AiCmdError::busy("b").to_string(), "b");
         let fe = AiCmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));
         assert_eq!(fe.code, AiErrorCode::FileExists);

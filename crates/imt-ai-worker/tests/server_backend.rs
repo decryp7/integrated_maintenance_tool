@@ -485,7 +485,27 @@ fn download_runtime(dir: &Path) -> PathBuf {
 /// A tiny model (stories15M, 19 MB) from the ggml-org test models.
 fn download_model(dir: &Path) -> PathBuf {
     let url = "https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf";
-    let mut body = ureq::get(url).call().unwrap().into_body();
+    // IMT's client (OS certificate store, so it works behind a TLS-inspecting proxy too).
+    let agent = imt_ai::net::agent(&imt_ai::net::HttpConfig {
+        proxy: None,
+        connect_timeout: std::time::Duration::from_secs(15),
+        timeout: std::time::Duration::from_secs(300),
+    })
+    .unwrap();
+    // It follows no redirects by itself (IMT's adapters allow-list them): the CDN hop is followed here.
+    let mut resp = agent.get(url).call().unwrap();
+    for _ in 0..5 {
+        let Some(next) = resp.headers().get("location").and_then(|v| v.to_str().ok()).map(str::to_string) else {
+            break;
+        };
+        let next = if next.starts_with('/') {
+            format!("https://huggingface.co{next}")
+        } else {
+            next
+        };
+        resp = agent.get(&next).call().unwrap();
+    }
+    let mut body = resp.into_body();
     let bytes = body.with_config().limit(64 * 1024 * 1024).read_to_vec().unwrap();
     assert!(bytes.starts_with(b"GGUF"));
     let p = dir.join("stories15M-q4_0.gguf");

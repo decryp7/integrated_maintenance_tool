@@ -15,6 +15,7 @@ pub mod gguf;
 pub mod hardware;
 pub mod llm;
 pub mod models;
+pub mod net;
 pub mod recommend;
 pub mod runtime;
 pub mod runtimes;

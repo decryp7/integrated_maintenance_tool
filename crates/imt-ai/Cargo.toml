@@ -40,6 +40,8 @@ tar = { version = "0.4", default-features = false }
 url = "2"
 percent-encoding = "2"
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
+# The TLS stack ureq already uses; named here only to recognise certificate errors (`net::classify`).
+rustls = { version = "0.23", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security_Authorization", "Win32_System_Memory"] }
@@ -50,4 +52,6 @@ tonic-prost-build = "0.14"
 
 [dev-dependencies]
 tempfile = "3"
+# A local HTTPS server with a certificate no trust store knows (tests/net_tls.rs).
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
 proptest = "1"

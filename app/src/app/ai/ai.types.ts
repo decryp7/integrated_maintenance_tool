@@ -27,6 +27,16 @@ export type AiErrorCode =
   | 'modelFile'
   | 'memory'
   | 'network'
+  /** The server certificate could not be verified (a TLS-inspecting proxy such as Zscaler). */
+  | 'tls'
+  /** The proxy asks for a sign-in (HTTP 407). */
+  | 'proxyAuth'
+  /** The configured download proxy cannot be used. */
+  | 'proxy'
+  | 'offline'
+  | 'timeout'
+  /** The server (or a proxy in between) answered with an unexpected HTTP status. */
+  | 'httpStatus'
   | 'gated'
   | 'notFound'
   | 'integrity'
