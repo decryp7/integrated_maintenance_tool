@@ -10,6 +10,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { REGISTRY_PLUGIN } from '../plugins/registry/registry.plugin';
 import { ImtPlugin, provideImtPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
+import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
 import { DockService, keepGroupsUnscrolled, PANEL, QUERY_HEIGHT, QUERY_VIEW } from './dock.service';
 import { GroupActions } from './group-actions';
@@ -112,15 +113,16 @@ describe('AngularContentRenderer', () => {
 
   beforeEach(() => (Probe.destroyed = 0));
 
-  it('creates the component lazily, refreshes it itself and destroys it on dispose', async () => {
+  it('creates the component lazily, attaches it to the application while visible and destroys it on dispose', async () => {
     const r = renderer(async () => Probe as never);
     const app = TestBed.inject(ApplicationRef);
     const before = app.viewCount;
     r.init({} as never);
     await vi.waitFor(() => expect(r.element.textContent).toBe('probe-content'));
-    // Not attached to the application: this renderer is the panel's error boundary and drives its refresh.
-    expect(app.viewCount).toBe(before);
+    // Attached: Angular's dirty tracking refreshes it (and skips it while it is clean).
+    expect(app.viewCount).toBe(before + 1);
     r.dispose();
+    expect(app.viewCount).toBe(before);
     expect(Probe.destroyed).toBe(1);
     expect(r.element.textContent).toBe('');
   });
@@ -136,8 +138,10 @@ describe('AngularContentRenderer', () => {
     notify({ isVisible: true });
     notify({ isVisible: true });
     await vi.waitFor(() => expect(r.element.textContent).toBe('probe-content'));
-    expect(dispose).toHaveBeenCalled();
+    // It keeps listening (a hidden tab is detached from change detection) until the panel goes away.
+    expect(dispose).not.toHaveBeenCalled();
     r.dispose();
+    expect(dispose).toHaveBeenCalled();
     expect(Probe.destroyed).toBe(1);
   });
 
@@ -214,6 +218,129 @@ class Counter {
     Counter.current = this;
   }
 }
+
+/** A panel that counts how often Angular checks its host binding and runs its template. */
+@Component({
+  selector: 'imt-check-probe',
+  host: { '[attr.data-host-checks]': 'hostCheck()' },
+  template: '<span class="v">{{ render() }}</span>',
+})
+class CheckProbe {
+  static current: CheckProbe | null = null;
+  static hostChecks = 0;
+  static renders = 0;
+  readonly value = signal(0);
+  readonly visible = inject(PANEL_VISIBLE, { optional: true }) ?? signal(true);
+  readonly effects = signal(0);
+  constructor() {
+    CheckProbe.current = this;
+    effect(() => {
+      this.value();
+      this.effects.update((n) => n + 1);
+    });
+  }
+  hostCheck(): number {
+    return ++CheckProbe.hostChecks;
+  }
+  render(): number {
+    CheckProbe.renders++;
+    return this.value();
+  }
+}
+
+describe('Panel change detection', () => {
+  beforeEach(() => {
+    CheckProbe.hostChecks = 0;
+    CheckProbe.renders = 0;
+  });
+
+  function renderer(type: unknown) {
+    return new AngularContentRenderer(async () => type as never, TestBed.inject(ApplicationRef), TestBed.inject(EnvironmentInjector), 'probe');
+  }
+
+  /** A visibility api like dockview's, whose changes the test drives. */
+  function api(isVisible: boolean) {
+    let notify: (e: { isVisible: boolean }) => void = () => undefined;
+    return {
+      params: { api: { id: 'p', isVisible, onDidVisibilityChange: (cb: typeof notify) => ((notify = cb), { dispose: () => undefined }) } } as never,
+      show: (v: boolean) => notify({ isVisible: v }),
+    };
+  }
+
+  it('does not check a clean panel when another panel changes', async () => {
+    const busy = renderer(Counter);
+    busy.init({} as never);
+    const quiet = renderer(CheckProbe);
+    quiet.init({} as never);
+    await vi.waitFor(() => expect(quiet.element.textContent).toBe('0'));
+    await TestBed.inject(ApplicationRef).whenStable();
+    const hostChecks = CheckProbe.hostChecks;
+    const renders = CheckProbe.renders;
+    for (let i = 1; i <= 5; i++) {
+      Counter.current!.n.set(i);
+      await vi.waitFor(() => expect(busy.element.textContent).toBe(String(i)));
+    }
+    // Before: every render of the application re-checked every panel (5 more host checks here).
+    expect(CheckProbe.hostChecks).toBe(hostChecks);
+    expect(CheckProbe.renders).toBe(renders);
+    // Its own signal still updates it.
+    CheckProbe.current!.value.set(7);
+    await vi.waitFor(() => expect(quiet.element.textContent).toBe('7'));
+    busy.dispose();
+    quiet.dispose();
+  });
+
+  it('does not check a hidden panel, and brings it up to date when it is shown again', async () => {
+    const app = TestBed.inject(ApplicationRef);
+    const tab = api(true);
+    const r = renderer(CheckProbe);
+    r.init(tab.params);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
+    const probe = CheckProbe.current!;
+    await app.whenStable();
+    expect(probe.visible()).toBe(true);
+    tab.show(false);
+    expect(probe.visible()).toBe(false);
+    await app.whenStable();
+    const renders = CheckProbe.renders;
+    const effects = probe.effects();
+    probe.value.set(3);
+    await app.whenStable();
+    await new Promise((x) => setTimeout(x, 20));
+    expect(r.element.textContent).toBe('0');
+    expect(CheckProbe.renders).toBe(renders);
+    expect(probe.effects()).toBe(effects);
+    tab.show(true);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('3'));
+    expect(probe.effects()).toBe(effects + 1);
+    r.dispose();
+  });
+
+  it('mounts a panel that starts hidden when it is first shown; setVisible hides and shows it', async () => {
+    const app = TestBed.inject(ApplicationRef);
+    const views = app.viewCount;
+    const tab = api(false);
+    const r = renderer(CheckProbe);
+    r.init(tab.params);
+    await new Promise((x) => setTimeout(x, 0));
+    expect(app.viewCount).toBe(views);
+    tab.show(true);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('0'));
+    expect(app.viewCount).toBe(views + 1);
+    const probe = CheckProbe.current!;
+    r.setVisible(false);
+    expect(probe.visible()).toBe(false);
+    probe.value.set(4);
+    await app.whenStable();
+    expect(r.element.textContent).toBe('0');
+    r.setVisible(true);
+    await vi.waitFor(() => expect(r.element.textContent).toBe('4'));
+    r.dispose();
+    expect(app.viewCount).toBe(views);
+    r.setVisible(true);
+    expect(r.element.textContent).toBe('');
+  });
+});
 
 describe('Panel error boundary', () => {
   let logger: MemoryLogger;
