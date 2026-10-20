@@ -137,8 +137,8 @@ test.describe('pop-out windows', () => {
   test('the pop-out shell is accessible and follows the host theme', async ({ page, context }) => {
     const popup = await popOut(page, context, 'Inspector');
     for (const theme of ['dark', 'light'] as const) {
-      await runCommand(page, `Theme: ${theme}`);
-      await expect(popup.locator('html')).toHaveAttribute('data-theme', theme);
+      await runCommand(page, `Colour scheme: ${theme}`);
+      await expect(popup.locator('html')).toHaveAttribute('data-scheme', theme);
       await expectNoSeriousViolations(popup, test.info(), `popout-shell-${theme}`);
     }
     // The title bar's icon buttons are reachable with the keyboard.

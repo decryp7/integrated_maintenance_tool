@@ -23,7 +23,7 @@ async function openWithShortcut(page: Page) {
   await expect(settingsDialog(page)).toBeVisible();
 }
 
-test('settings dialog changes theme, date format and density, and persists them', async ({ page, browserName }, testInfo) => {
+test('settings dialog changes the theme, colour scheme, date format and density, and persists them', async ({ page, browserName }, testInfo) => {
   const csp = watchCsp(page);
   await openApp(page);
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -31,11 +31,17 @@ test('settings dialog changes theme, date format and density, and persists them'
   await expect(dialog).toBeVisible();
   await expectNoSeriousViolations(page, testInfo, 'settings-general', '[role=dialog]');
 
-  await dialog.getByRole('button', { name: 'light' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await dialog.getByRole('button', { name: 'ISO' }).click();
+  await dialog.getByRole('button', { name: 'Appearance' }).click();
+  await expectNoSeriousViolations(page, testInfo, 'settings-appearance', '[role=dialog]');
+  await dialog.getByRole('button', { name: 'light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light');
+  await dialog.getByRole('radio', { name: /Console/ }).check();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
+  await expect(page.locator('html')).toHaveAttribute('data-surface', 'cards');
   await dialog.getByRole('button', { name: 'compact' }).click();
   await expect(page.locator('imt-events-grid')).toHaveCSS('--row-h', '22px');
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
   await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -44,7 +50,8 @@ test('settings dialog changes theme, date format and density, and persists them'
 
   await page.reload();
   await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   expect(csp).toEqual([]);
 });
 
