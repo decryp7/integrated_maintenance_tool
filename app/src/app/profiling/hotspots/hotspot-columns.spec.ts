@@ -3,7 +3,7 @@ import { HotspotRow, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummar
 import { GROUP_LABELS, hotspotColumns, sameSort } from './hotspot-columns';
 
 const UNITS: Record<MetricId, MetricUnit> = {
-  samples: 'count', timeNs: 'nanoseconds', calls: 'count', allocCount: 'count', allocBytes: 'bytes', exceptions: 'count', waitNs: 'nanoseconds', maxCallNs: 'nanoseconds',
+  samples: 'count', timeNs: 'nanoseconds', calls: 'count', allocCount: 'count', allocBytes: 'bytes', exceptions: 'count', waitNs: 'nanoseconds', maxCallNs: 'nanoseconds', liveBytes: 'bytes',
 };
 const metric = (id: MetricId, measurement: Measurement): MetricDto => ({ id, measurement, unit: UNITS[id], label: id });
 const summary = (metrics: MetricDto[]): ProfileSummary => ({ capture: 'profile', id: 1, metrics, defaultMetric: metrics[0]?.id ?? 'samples' }) as unknown as ProfileSummary;

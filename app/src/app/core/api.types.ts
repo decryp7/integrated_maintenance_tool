@@ -1454,7 +1454,7 @@ export interface SniffResult {
 }
 
 /** What a metric counts. `calls` and `maxCallNs` are per node (not inclusive). */
-export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs';
+export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs' | 'liveBytes';
 /** `sampled` values are statistical estimates (label them so); `exact` were all recorded. */
 export type Measurement = 'sampled' | 'exact';
 export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
@@ -1905,7 +1905,10 @@ export type ProfileFindingKind =
   | 'hotPath'
   | 'blocking'
   | 'jitTime'
-  | 'allocations';
+  | 'allocations'
+  | 'hotNativeFunction'
+  | 'waitHotSpot'
+  | 'nativeHeapGrowth';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
 

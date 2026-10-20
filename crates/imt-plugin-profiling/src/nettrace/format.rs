@@ -100,6 +100,15 @@ pub(super) enum Rt {
     },
 }
 
+/// A native heap operation with its thread, time and stack (ETW heap captures).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct HeapRec {
+    pub op: super::ext::HeapOp,
+    pub thread: u64,
+    pub ts: i64,
+    pub stack: Option<u32>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RtRec {
     pub rt: Rt,
@@ -122,6 +131,10 @@ pub(super) struct Parsed {
     pub images: Vec<super::ext::ImageLoad>,
     /// Thread names (ETW `ThreadName`, thread-pool workers).
     pub thread_names: HashMap<u64, String>,
+    /// Symbols of native code addresses (ADR 0022).
+    pub native_symbols: Vec<super::ext::NativeSymbol>,
+    /// Native heap operations, in file order.
+    pub heap_ops: Vec<HeapRec>,
     /// The GC heap walk, when the trace recorded one.
     pub heap: super::heap::HeapParts,
     /// Earliest and latest event timestamps (QPC).
@@ -134,6 +147,8 @@ pub(super) struct Parsed {
     pub dropped_events: u64,
     pub dropped_methods: u64,
     pub unknown_objects: u64,
+    /// Native heap operations beyond the sample limit.
+    pub dropped_heap_ops: u64,
 }
 
 /// An event row's header (fields persist between rows of one compressed block).
@@ -417,6 +432,27 @@ impl Reader<'_> {
                 match super::ext::decode_image_load(bytes, max_name) {
                     Some(image) if self.out.images.len() < self.limits.max_frames as usize => self.out.images.push(image),
                     Some(_) => self.out.dropped_methods += 1,
+                    None => self.out.damaged_payloads += 1,
+                }
+                return Ok(());
+            }
+            Known::NativeSymbol => {
+                match super::ext::decode_native_symbol(bytes, max_name) {
+                    Some(sym) if self.out.native_symbols.len() < self.limits.max_frames as usize => self.out.native_symbols.push(sym),
+                    Some(_) => self.out.dropped_methods += 1,
+                    None => self.out.damaged_payloads += 1,
+                }
+                return Ok(());
+            }
+            Known::NativeHeap(id) => {
+                match super::ext::decode_heap_op(id, bytes) {
+                    Some(op) if (self.out.heap_ops.len() as u64) < self.limits.max_samples => self.out.heap_ops.push(HeapRec {
+                        op,
+                        thread: h.thread,
+                        ts: h.ts,
+                        stack,
+                    }),
+                    Some(_) => self.out.dropped_heap_ops += 1,
                     None => self.out.damaged_payloads += 1,
                 }
                 return Ok(());

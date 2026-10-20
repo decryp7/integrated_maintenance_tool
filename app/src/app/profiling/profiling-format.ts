@@ -13,6 +13,7 @@ const UNIT_OF: Record<MetricId, MetricUnit> = {
   exceptions: 'count',
   waitNs: 'nanoseconds',
   maxCallNs: 'nanoseconds',
+  liveBytes: 'bytes',
 };
 
 export function unitOf(metric: MetricId, metrics: readonly MetricDto[] = []): MetricUnit {

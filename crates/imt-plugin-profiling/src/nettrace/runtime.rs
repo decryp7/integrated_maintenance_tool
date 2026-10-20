@@ -74,6 +74,9 @@ pub(super) enum Known {
     Image,
     Wait,
     ThreadName,
+    NativeSymbol,
+    /// `HeapAlloc`, `HeapFree` or `HeapReAlloc` (the extension event id).
+    NativeHeap(u32),
 }
 
 /// Classifies an event type by provider and event id (or name for the sampler).
@@ -103,6 +106,8 @@ pub(super) fn classify(provider: &str, event_id: u32, event_name: &str) -> Optio
             super::ext::ids::IMAGE_LOAD => Some(Known::Image),
             super::ext::ids::THREAD_WAIT => Some(Known::Wait),
             super::ext::ids::THREAD_NAME => Some(Known::ThreadName),
+            super::ext::ids::NATIVE_SYMBOL => Some(Known::NativeSymbol),
+            id @ (super::ext::ids::HEAP_ALLOC | super::ext::ids::HEAP_FREE | super::ext::ids::HEAP_REALLOC) => Some(Known::NativeHeap(id)),
             _ => None,
         };
     }
@@ -297,6 +302,8 @@ mod tests {
         assert_eq!(classify(RUNTIME, 10, ""), Some(Known::Alloc));
         assert_eq!(classify(RUNTIME, 18, ""), Some(Known::Heap(super::super::heap::HeapEvent::Node)));
         assert_eq!(classify(super::super::ext::PROVIDER, 2, ""), Some(Known::Wait));
+        assert_eq!(classify(super::super::ext::PROVIDER, 4, ""), Some(Known::NativeSymbol));
+        assert_eq!(classify(super::super::ext::PROVIDER, 6, ""), Some(Known::NativeHeap(6)));
         assert_eq!(classify(super::super::ext::PROVIDER, 9, ""), None);
     }
 
