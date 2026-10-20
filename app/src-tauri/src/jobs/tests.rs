@@ -308,8 +308,11 @@ fn analyses_and_queries_are_analysis_jobs() {
     let ended = finished_jobs(&app);
     let r = ipc(&main, "query_anomalies", json!({"request": {"query": {"ql": "level >= warning"}}})).unwrap();
     assert!(r.is_object() || r.is_array());
-    wait_until("the analysis job", || !ended.lock().unwrap().is_empty());
-    let job = ended.lock().unwrap()[0].clone();
+    // The open runs as an import job that may end after `finished_jobs` started listening: pick the analysis.
+    wait_until("the analysis job", || {
+        ended.lock().unwrap().iter().any(|j| j.kind == JobKind::Analysis)
+    });
+    let job = ended.lock().unwrap().iter().find(|j| j.kind == JobKind::Analysis).cloned().unwrap();
     assert_eq!(job.kind, JobKind::Analysis);
     assert_eq!(
         job.source.link,
