@@ -64,7 +64,7 @@ struct ProgressDetail {
 /// Reason of the files a cancelled import did not read (listed as unrecognised, re-imported on the next open).
 pub const NOT_IMPORTED: &str = "Not imported: the import was cancelled";
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressSnapshot {
     pub running: bool,
@@ -78,6 +78,23 @@ pub struct ProgressSnapshot {
     pub elapsed_ms: u64,
     /// Estimated time left from the bytes read so far; `None` until it can be estimated.
     pub eta_ms: Option<u64>,
+}
+
+impl ProgressSnapshot {
+    /// Nothing running (also what a progress that cannot be asked for reads as).
+    pub fn stopped() -> ProgressSnapshot {
+        ProgressSnapshot {
+            running: false,
+            done: 0,
+            total: 0,
+            cancelled: false,
+            bytes_done: 0,
+            bytes_total: 0,
+            current: None,
+            elapsed_ms: 0,
+            eta_ms: None,
+        }
+    }
 }
 
 /// Time left at the observed rate; `None` before anything was read or after the end.

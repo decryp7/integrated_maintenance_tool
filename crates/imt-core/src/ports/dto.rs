@@ -37,7 +37,7 @@ impl PageQuery {
 }
 
 /// One event as the grid shows it.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventView {
     pub id: EventId,
@@ -57,7 +57,7 @@ pub struct EventView {
     pub markers: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageReply {
     /// Events matching the query.
@@ -69,7 +69,7 @@ pub struct PageReply {
 }
 
 /// What is loaded.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SummaryReply {
     pub total: usize,
@@ -88,7 +88,7 @@ pub struct SummaryReply {
 }
 
 /// The result of an import job.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportReport {
     /// Sources read, with their event counts.
@@ -100,7 +100,7 @@ pub struct ImportReport {
 }
 
 /// One kind of import problem in one source.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRow {
     pub source: SourceId,
@@ -125,7 +125,7 @@ impl DiagnosticRow {
 }
 
 /// A proposed profile override (TOML merged over the active profile) for some sources.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickFix {
     pub profile_override: String,
@@ -133,14 +133,14 @@ pub struct QuickFix {
     pub sources: Vec<SourceId>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FixEvaluation {
     pub fixed: u64,
     pub checked: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchRequest {
     pub text: String,
@@ -148,14 +148,17 @@ pub struct SearchRequest {
     pub limit: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchReply {
+    /// Matching events (with `exact` false: candidates of which not all were checked; an upper bound).
     pub total: u64,
+    /// The first matches in time order.
     pub ids: Vec<EventId>,
+    pub exact: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexStatus {
     pub indexed: u64,

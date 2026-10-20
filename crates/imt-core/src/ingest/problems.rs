@@ -2,14 +2,14 @@
 //! per bad line.
 
 use crate::api::Severity;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Most sample line numbers kept per problem.
 pub const MAX_SAMPLES: usize = 20;
 
 /// What went wrong while reading a source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ProblemKind {
     /// A line longer than the line limit was skipped.

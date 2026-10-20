@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceInfo {
     pub id: u32,
@@ -38,7 +38,7 @@ pub struct SourceInfo {
 }
 
 /// How a source is stored on disk: what "Open file", "Open at line" and "Show in folder" can do with it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FileKind {
     /// A plain text file: event line numbers are lines of the file.
@@ -53,7 +53,7 @@ pub enum FileKind {
 }
 
 /// A source whose timestamps could not be read for many of its events.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimestampIssue {
     /// Events (lines that start an event) without a readable timestamp.
@@ -69,7 +69,7 @@ pub struct TimestampIssue {
 }
 
 /// A timestamp format proposed for `[parse] timestamp_formats`, verified to parse the sample lines.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimestampSuggestion {
     /// strftime format, e.g. `%a %b %d %H:%M:%S %Y`.
@@ -84,7 +84,7 @@ pub struct TimestampSuggestion {
     pub checked_samples: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UnrecognizedFile {
     pub path: String,
@@ -92,7 +92,7 @@ pub struct UnrecognizedFile {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldInfo {
     pub name: String,
@@ -382,7 +382,7 @@ pub struct ParsePreview {
 }
 
 /// How urgent a finding of the health check is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Severity {
     Critical,
@@ -535,7 +535,7 @@ pub struct Page<'a> {
     pub anchor_index: Option<usize>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimelineRequest {
     #[serde(default)]
@@ -553,7 +553,7 @@ fn yes() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkerCluster {
     pub kind: String,
@@ -564,7 +564,7 @@ pub struct MarkerCluster {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Lane {
     pub key: String,
@@ -581,7 +581,7 @@ pub struct Lane {
 /// Most source ids a timeline lane lists.
 pub const MAX_LANE_SOURCES: usize = 16;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Timeline {
     pub from: i64,
@@ -592,7 +592,7 @@ pub struct Timeline {
     pub truncated_lanes: usize,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FacetRequest {
     #[serde(default)]
@@ -606,13 +606,13 @@ fn default_facet_limit() -> usize {
     50
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacetValue {
     pub value: String,
     pub count: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Facet {
     pub field: String,
     pub values: Vec<FacetValue>,

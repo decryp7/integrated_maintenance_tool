@@ -42,7 +42,10 @@ pub use crate::query::Query as Filter;
 pub enum StoreError {
     /// The adapter does not offer this operation yet.
     #[error("{operation} is not available in this store yet (planned for phase {phase})")]
-    Unsupported { operation: &'static str, phase: &'static str },
+    Unsupported {
+        operation: std::borrow::Cow<'static, str>,
+        phase: std::borrow::Cow<'static, str>,
+    },
     /// The request is invalid (a bad regex, an unknown field type...); the message says what to fix.
     #[error("{0}")]
     Invalid(String),
@@ -63,7 +66,10 @@ pub enum StoreError {
 
 impl StoreError {
     pub fn unsupported(operation: &'static str, phase: &'static str) -> StoreError {
-        StoreError::Unsupported { operation, phase }
+        StoreError::Unsupported {
+            operation: operation.into(),
+            phase: phase.into(),
+        }
     }
 
     /// Whether repeating the request later can succeed.
