@@ -3,7 +3,6 @@ import { inject, Injectable, Provider } from '@angular/core';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { MockWindowingBackend } from './mock-windowing-backend';
 import { currentWindowLabel, listenHere, PayloadListenFn, Unlisten } from './window-events';
 import { parseOpenAsk, parseTasks, parseWindows } from './windowing-payloads';
 import {
@@ -20,10 +19,11 @@ import {
   WindowInfo,
   WINDOWS_CHANGED_EVENT,
 } from './windowing.types';
+import { browserMocks } from '../core/mock-registry';
 
 /** The real backend inside Tauri, the in-memory mock in a plain browser; failures are logged and reported. */
 export function createWindowingBackend(): WindowingBackend {
-  const real = isTauri() ? new TauriWindowingBackend() : new MockWindowingBackend();
+  const real = isTauri() ? new TauriWindowingBackend() : new (browserMocks().MockWindowingBackend)();
   return withFailureLogging<WindowingBackend>(real, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

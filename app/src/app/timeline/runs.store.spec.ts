@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { RunsReply } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
-import { FakeDock, provideFakeDock, provideTinyBackend, settle, tinyBackend } from '../../testing/helpers';
+import { FakeDock, provideFakeDock, provideTinyBackend, settle, tinyBackend, useGate } from '../../testing/helpers';
 import { at, must } from '../../testing/must';
 import { TimelineAnnotations } from './annotations.store';
 import { RunsBackend } from './runs-backend';
@@ -16,6 +16,7 @@ async function setup() {
   await ws.refreshSummary();
   ws.setBuckets(100);
   const runs = TestBed.inject(RunsStore);
+  useGate(runs.gate);
   await settle(undefined, 8);
   return { backend, ws, runs, dock };
 }
@@ -67,6 +68,38 @@ describe('RunsStore', () => {
     expect(runs.rows().length).toBe(3);
   });
 
+  it('queries only while a view showing the runs is visible, and never twice for the same request', async () => {
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(tinyBackend()), provideFakeDock(new FakeDock())] });
+    const spy = vi.spyOn(TestBed.inject(RunsBackend), 'queryRuns');
+    const ws = TestBed.inject(WorkspaceStore);
+    const runs = TestBed.inject(RunsStore);
+    await ws.refreshSummary();
+    await settle(undefined, 8);
+    expect(spy).not.toHaveBeenCalled();
+    const view = useGate(runs.gate);
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(1);
+    runs.inView.set(true);
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(2);
+    // The timeline re-queries the same range at another resolution (a resize): the runs are not asked for again.
+    ws.setBuckets(200);
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(2);
+    // Hidden: new data waits until the view is shown again.
+    view.visible.set(false);
+    await ws.refreshSummary();
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(2);
+    view.visible.set(true);
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(3);
+    view.release();
+    runs.retry();
+    await settle(undefined, 8);
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
   it('is empty without data', async () => {
     const { runs, ws } = await setup();
     await ws.clearWorkspace();
@@ -79,6 +112,7 @@ describe('TimelineAnnotations runs', () => {
   it('keeps runs apart from plugin annotations, toggles them and filters to a run', async () => {
     const { ws, dock } = await setup();
     const ann = TestBed.inject(TimelineAnnotations);
+    useGate(ann.gate);
     await settle(undefined, 8);
     expect(ann.runs().length).toBe(3);
     expect(ann.plugin().every((a) => !a.run)).toBe(true);

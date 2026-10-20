@@ -155,6 +155,20 @@ cargo deny --workspace check
   `crates/imt-plugin-host` compares in-process and out-of-process work.
 - **Mutation testing (cargo-mutants)** measures how many injected bugs the engine tests catch.
 
+### UI responsiveness rules
+
+- Dock panels are attached to Angular's change detection only while visible (`dock/angular-panel.ts`): a hidden
+  tab is not checked and its effects do not run until it is shown. A root store that queries the engine for a view
+  gates its effects on a `ConsumerGate` (`core/panel-visibility.ts`) that the views register with `gate.use()`.
+- Pointer moves publish at most once per animation frame (`FrameThrottle` in `shared/throttle.ts`); lines that
+  follow the pointer are drawn by a directive writing styles (`TimeCursorLine`), not by re-rendering the view.
+- Bursty work waits until the burst settles (`Debouncer`): bucket counts on resize (`shared/bucket-count.ts`,
+  also rounded to coarse steps; each chart sizes its own), grid pages while scrolling, the inspector's source context
+  while the selection moves. Failed requests are retried by Retry, never by the next scroll.
+- Mock backends are reached only through `browserMocks()` (`core/mock-registry.ts`); `mock-backends.ts` is loaded
+  dynamically before bootstrapping outside Tauri, so the desktop app never loads mock code. Never import a mock
+  backend statically from app code.
+
 ## CI/CD
 
 Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):

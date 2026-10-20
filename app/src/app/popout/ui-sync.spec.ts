@@ -145,4 +145,55 @@ describe('UiSync', () => {
       vi.useRealTimers();
     }
   });
+
+  it('sends a throttled value at most once per window, ending with the latest one', () => {
+    vi.useFakeTimers();
+    try {
+      const host = value('cursor', 0 as number | null);
+      const pop = value('cursor', null as number | null);
+      host.v.throttleMs = 50;
+      const h = make();
+      const p = make();
+      h.start(bus.port(), true, 'main', [host.v], 'oh');
+      p.start(bus.port(), false, 'p-main-1', [pop.v], 'op');
+      flush();
+      const states = () => bus.log.filter((m) => m.t === 'state');
+      for (let i = 1; i <= 20; i++) {
+        host.s.set(i);
+        flush();
+      }
+      // The first move goes at once; the 19 after it within the window are folded into one.
+      expect(states()).toHaveLength(1);
+      expect(pop.s()).toBe(1);
+      vi.advanceTimersByTime(50);
+      expect(states()).toHaveLength(2);
+      expect(pop.s()).toBe(20);
+      vi.advanceTimersByTime(200);
+      expect(states()).toHaveLength(2);
+      h.stop();
+      p.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends nothing while no other window listens, and sends the next change once one does', () => {
+    let peers = false;
+    const port = Object.assign(bus.port(), { hasPeers: () => peers });
+    const host = value('q', 'a');
+    const h = make();
+    h.start(port, true, 'main', [host.v], 'oh');
+    flush();
+    host.s.set('b');
+    flush();
+    host.s.set('a');
+    flush();
+    expect(bus.log.filter((m) => m.t === 'state')).toEqual([]);
+    peers = true;
+    // The same value as the last one sent before (none was sent): it still goes out.
+    host.s.set('b');
+    flush();
+    expect(bus.log.filter((m) => m.t === 'state').map((m) => (m as { value: unknown }).value)).toEqual(['b']);
+    h.stop();
+  });
 });

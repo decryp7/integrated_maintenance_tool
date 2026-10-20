@@ -10,7 +10,6 @@ import { IMT_COMMANDS } from '../extensions/tokens';
 import { provideImtPlugin } from '../extensions/provide';
 import { BundleCommands } from './bundle/bundle.commands';
 import { DashboardCommands } from './dashboard/dashboard.commands';
-import { MockShareBackend } from './mock/mock-share-backend';
 import { RedactionCommands } from './redaction/redaction.commands';
 import { ReportCommands } from './report/report.commands';
 import { reportMenuItems } from './report/report-menu';
@@ -18,10 +17,11 @@ import { ShareBackend, TauriShareBackend } from './share-backend';
 import { SHARE_VIEWS } from './share.views';
 import { snapshotRedaction } from './snapshot-redaction';
 import { VisualCommands } from './visuals/visual.commands';
+import { browserMocks } from '../core/mock-registry';
 
 /** The engine-backed share backend inside Tauri, the mock (over the mock workspace) in a browser. */
 export function createShareBackend(): ShareBackend {
-  const backend: ShareBackend = isTauri() ? new TauriShareBackend() : new MockShareBackend(inject(ImtBackend), inject(AnalysisBackend));
+  const backend: ShareBackend = isTauri() ? new TauriShareBackend() : new (browserMocks().MockShareBackend)(inject(ImtBackend), inject(AnalysisBackend));
   return withFailureLogging<ShareBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

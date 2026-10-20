@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, tinyDataset } from '../../testing/helpers';
+import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, tinyDataset, manualFrames } from '../../testing/helpers';
 import { MockBackend } from '../core/mock/mock-backend';
 import { Lane } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -116,25 +116,40 @@ describe('TimelinePanel', () => {
 
   it('shows a cursor time while hovering the plot', async () => {
     const { fixture } = await render();
+    const frames = manualFrames();
     wrap(fixture).dispatchEvent(pointer('pointermove', 450));
+    frames.flush();
     await settle(fixture);
     expect(el(fixture, '.cursor-label').textContent).toMatch(/14 Oct/);
     wrap(fixture).dispatchEvent(pointer('pointermove', 5));
+    frames.flush();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.cursor:not([hidden])')).toBeNull();
     wrap(fixture).dispatchEvent(pointer('pointerleave', 5));
+    frames.restore();
   });
 
   it('publishes the hovered time and draws the line for a time hovered in another view', async () => {
     const { fixture, store } = await render();
     const cursor = TestBed.inject(TimeCursor);
     const t = store.timeline()!;
-    wrap(fixture).dispatchEvent(pointer('pointermove', 250 + 400));
+    const frames = manualFrames();
+    const hover = vi.spyOn(cursor, 'hover');
+    // Many moves within one frame publish once (the last one).
+    for (const x of [250 + 100, 250 + 200, 250 + 400]) wrap(fixture).dispatchEvent(pointer('pointermove', x));
+    expect(hover).not.toHaveBeenCalled();
+    frames.flush();
+    expect(hover).toHaveBeenCalledTimes(1);
     expect(cursor.hovered()).toBe(t.from + (t.to - t.from) / 2);
+    // A move still waiting when the pointer leaves is dropped.
+    wrap(fixture).dispatchEvent(pointer('pointermove', 250 + 100));
     wrap(fixture).dispatchEvent(pointer('pointerleave', 0));
+    frames.flush();
+    frames.restore();
     expect(cursor.hovered()).toBeNull();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
+    const shown = () => fixture.nativeElement.querySelector('.cursor:not([hidden])');
+    expect(shown()).toBeNull();
 
     cursor.hover(t.from + (t.to - t.from) / 4);
     await settle(fixture);
@@ -144,7 +159,7 @@ describe('TimelinePanel', () => {
     expect(el<HTMLElement>(fixture, '.cursor').style.left).toBe('0px');
     cursor.hover(t.to + 1);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('.cursor')).toBeNull();
+    expect(shown()).toBeNull();
   });
 
   it('offers "Analyse this moment" on a right-click of the time axis', async () => {

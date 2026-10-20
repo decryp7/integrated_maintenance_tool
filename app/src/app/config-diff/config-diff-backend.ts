@@ -5,9 +5,9 @@ import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { CompareOptions, DiffExportFormat, DiffFormats, DiffOptions, DiffPage, DiffExported, SnapshotDiff } from '../core/config-diff.types';
 import { ConfigDiffBackend } from './config-diff-api';
+import { browserMocks } from '../core/mock-registry';
 
 export { ConfigDiffBackend } from './config-diff-api';
-import { MockConfigDiffBackend } from './mock/mock-config-diff-backend';
 
 /** Talks to the Rust shell; `call` is Tauri's `invoke` (tests pass a fake). */
 export class TauriConfigDiffBackend extends ConfigDiffBackend {
@@ -35,7 +35,7 @@ export function provideConfigDiffBackend(): Provider[] {
     {
       provide: ConfigDiffBackend,
       useFactory: () => {
-        const real = isTauri() ? new TauriConfigDiffBackend() : new MockConfigDiffBackend();
+        const real = isTauri() ? new TauriConfigDiffBackend() : new (browserMocks().MockConfigDiffBackend)();
         return withFailureLogging<ConfigDiffBackend>(real, inject(Logger), { onFailure: reportBackendFailures() });
       },
     },

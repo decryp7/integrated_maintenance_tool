@@ -3,8 +3,8 @@ import { invoke } from '../../core/activity/ipc';
 import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 import { isTauri } from '../../core/platform';
-import { MockStorageBackend } from './mock-storage-backend';
 import { StorageCategoryId, StorageUsage } from './storage.types';
+import { browserMocks } from '../../core/mock-registry';
 
 /**
  * What Settings ▸ Storage asks the engine. Sizes, what may be removed and the removal itself are decided
@@ -40,6 +40,6 @@ export class TauriStorageBackend extends StorageBackend {
 }
 
 export function createStorageBackend(): StorageBackend {
-  const backend: StorageBackend = isTauri() ? new TauriStorageBackend() : new MockStorageBackend(globalThis.location?.search ?? '');
+  const backend: StorageBackend = isTauri() ? new TauriStorageBackend() : new (browserMocks().MockStorageBackend)(globalThis.location?.search ?? '');
   return withFailureLogging<StorageBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

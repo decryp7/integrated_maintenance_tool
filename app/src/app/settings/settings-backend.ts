@@ -3,8 +3,8 @@ import { invoke } from '../core/activity/ipc';
 import { inject, Injectable } from '@angular/core';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { MockSettingsBackend } from './mock-settings-backend';
 import { ImportResult, SetResult, SettingsOverview, SettingValue } from './settings.types';
+import { browserMocks } from '../core/mock-registry';
 
 /**
  * What the Settings screen asks the engine. Validation, defaults and persistence happen in Rust;
@@ -14,7 +14,7 @@ import { ImportResult, SetResult, SettingsOverview, SettingValue } from './setti
 @Injectable({
   providedIn: 'root',
   useFactory: () =>
-    withFailureLogging<SettingsBackend>(isTauri() ? new TauriSettingsBackend() : new MockSettingsBackend(), inject(Logger), {
+    withFailureLogging<SettingsBackend>(isTauri() ? new TauriSettingsBackend() : new (browserMocks().MockSettingsBackend)(), inject(Logger), {
       onFailure: reportBackendFailures(),
     }),
 })

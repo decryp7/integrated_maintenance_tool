@@ -5,6 +5,7 @@ import { describeError, Logger } from '../core/logger';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
 import { DockService, PANEL } from '../dock/dock.service';
+import { ConsumerGate } from '../core/panel-visibility';
 import { annotationKinds } from './annotation-layout';
 import { TimelineZoom } from './zoom';
 import { runKinds, runRange } from './run-layout';
@@ -13,7 +14,9 @@ import { runKinds, runRange } from './run-layout';
  * Plugin annotations for the visible time range. They are fetched again whenever the data changes (open,
  * reload, profile save, and each coalesced live-tail refresh, which bumps the data version) or the visible
  * range moves; responses to superseded requests are ignored. Kinds can be hidden from the legend. Runs between lifecycle
- * markers (annotations with `run`) are kept apart: they have their own legend toggles and click action.
+ * markers (annotations with `run`) are kept apart: they have their own legend toggles and click action. Nothing is
+ * fetched while no view that shows them (`gate`: the timeline, the runs and report views) is open and visible; the
+ * annotations catch up when one is shown again.
  */
 @Injectable({ providedIn: 'root' })
 export class TimelineAnnotations {
@@ -77,11 +80,15 @@ export class TimelineAnnotations {
     this.logger.info('ui.timeline', 'Run shown', { Kind: a.kind, Status: a.run?.status ?? '' });
   }
 
+  /** The views showing the annotations; nothing is fetched while none is visible. */
+  readonly gate = new ConsumerGate();
+
   private seq = 0;
   private readonly retryNonce = signal(0);
 
   constructor() {
     effect(() => {
+      if (!this.gate.active()) return;
       const t = this.ws.timeline();
       const version = this.ws.dataVersion();
       const hasData = !!this.ws.summary()?.sources.length;

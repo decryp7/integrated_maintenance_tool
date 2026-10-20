@@ -1,6 +1,7 @@
-import { AfterRenderRef, afterEveryRender, ApplicationRef, ComponentRef, createComponent, EnvironmentInjector, ErrorHandler, InjectionToken, Injector, Type } from '@angular/core';
+import { ApplicationRef, ChangeDetectorRef, Component, ComponentRef, createComponent, viewChild, ViewContainerRef, EnvironmentInjector, ErrorHandler, InjectionToken, Injector, signal, Type, WritableSignal } from '@angular/core';
 import type { GroupPanelPartInitParameters, IContentRenderer } from 'dockview';
 import { reportFailure } from '../core/failure-reporter';
+import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { describeError, Logger, redactPaths } from '../core/logger';
 
 /** Id of the dock panel a view is rendered in; differs from the view id for a view opened several times (`timeline#2`). */
@@ -9,34 +10,33 @@ export const DOCK_PANEL_ID = new InjectionToken<string>('DOCK_PANEL_ID');
 /**
  * Adapter that renders an Angular standalone component inside a dockview panel, behind an error boundary.
  *
- * The component is created lazily (when the panel is first visible). It is deliberately *not* attached to the
- * `ApplicationRef`: Angular has no per-view error handling, so one view that throws while rendering would abort
- * every later view's refresh on each tick and take the whole layout down. Instead this renderer refreshes the
- * panel itself after each application render (`afterEveryRender`), inside try/catch. Errors Angular reports
- * through the `ErrorHandler` instead of throwing (effects, event handlers) are routed to the panel too, by giving
- * the component its own `ErrorHandler`. Any failure - the
- * constructor, the first render, a later render or an effect - destroys the panel's component and shows an error
- * card ("This panel failed: ...") with Reload panel and Copy details, and is logged. Other panels keep working.
- *
- * TODO(popout): dockview can pop panels out to OS windows; components would then need to be
- * re-parented to the new document. Out of scope for now.
+ * The component is created lazily (when the panel is first visible). Its host view is attached to the
+ * `ApplicationRef`, so Angular's dirty tracking refreshes only the panels whose signals changed; while the panel is
+ * hidden its view is detached from change detection, so a hidden tab is never checked (it catches up when shown). The panel is
+ * its own error boundary: errors in its change detection and lifecycle hooks reach `createComponent`'s `onError`
+ * (Angular then carries on with the other views), errors Angular reports through the `ErrorHandler` instead
+ * (effects, event handlers) reach the component's own `ErrorHandler`, and the constructor and first render run inside
+ * try/catch. Any failure destroys the panel's component and shows an error card ("This panel failed: ...") with
+ * Reload panel and Copy details, and is logged. Other panels keep working.
  */
 export class AngularContentRenderer implements IContentRenderer {
   readonly element = document.createElement('div');
-  private ref: ComponentRef<unknown> | null = null;
+  private ref: ComponentRef<PanelOutlet> | null = null;
   private disposed = false;
   private mounted = false;
   private visibility?: { dispose(): void };
   private card: HTMLElement | null = null;
   private lastDetails = '';
   private failure: unknown = null;
-  private hook: AfterRenderRef | null = null;
+  /** The component's own view (detached from change detection while the panel is hidden). */
+  private view: ChangeDetectorRef | null = null;
+  private attached = true;
+  private readonly visible: WritableSignal<boolean> = signal(true);
   private readonly logger: Logger | null;
 
-  /** `_appRef` is unused (kept so callers do not change): panels are refreshed by this renderer, not by the application. */
   constructor(
     private readonly load: () => Promise<Type<unknown>>,
-    _appRef: ApplicationRef,
+    private readonly appRef: ApplicationRef,
     private readonly injector: EnvironmentInjector,
     private readonly label = 'view',
     /** The panel id; taken from dockview's init parameters when not given (a pop-out window passes it). */
@@ -50,47 +50,62 @@ export class AngularContentRenderer implements IContentRenderer {
   init(params: GroupPanelPartInitParameters): void {
     const api = params.api;
     this.panelId ??= api?.id ?? null;
-    if (!api || api.isVisible) {
-      void this.mount();
-      return;
+    this.visible.set(!api || api.isVisible);
+    if (api) {
+      this.visibility = api.onDidVisibilityChange((e) => this.setVisible(e.isVisible));
     }
-    this.visibility = api.onDidVisibilityChange((e) => {
-      if (e.isVisible) void this.mount();
-    });
+    if (this.visible()) void this.mount();
+  }
+
+  /** Shows or hides the panel (dockview reports it; a host without dockview, such as the auto-hide flyout, calls it). */
+  setVisible(visible: boolean): void {
+    if (this.disposed) return;
+    this.visible.set(visible);
+    if (visible) void this.mount();
+    this.syncAttachment();
+  }
+
+  /**
+   * Includes the component in change detection while the panel is visible and leaves it out while hidden. The outlet's
+   * host view stays attached to the application (detaching it would take the panel's DOM out, and with it scroll
+   * positions); the outlet's own view, which holds the component and everything it declares (effects included), is
+   * detached.
+   */
+  private syncAttachment(): void {
+    const view = this.view;
+    const want = this.visible();
+    if (!view || want === this.attached) return;
+    this.attached = want;
+    if (want) view.reattach();
+    else view.detach();
   }
 
   private async mount(): Promise<void> {
     if (this.mounted || this.disposed) return;
     this.mounted = true;
-    this.visibility?.dispose();
     try {
       const type = await this.load();
       if (this.disposed) return;
       const elementInjector = Injector.create({
         providers: [
           { provide: ErrorHandler, useValue: { handleError: (e: unknown) => this.fail(e) } satisfies ErrorHandler },
+          { provide: PANEL_VISIBLE, useValue: this.visible.asReadonly() },
           ...(this.panelId ? [{ provide: DOCK_PANEL_ID, useValue: this.panelId }] : []),
         ],
         parent: this.injector,
       });
-      const ref: ComponentRef<unknown> = createComponent(type, { environmentInjector: this.injector, elementInjector });
+      const onError = (e: unknown) => this.fail(unwrapBoundaryError(e));
+      const ref = createComponent(PanelOutlet, { environmentInjector: this.injector, onError });
       this.ref = ref;
       this.element.appendChild(ref.location.nativeElement as Node);
+      ref.changeDetectorRef.detectChanges();
+      ref.instance.outlet().createComponent(type, { environmentInjector: this.injector, injector: elementInjector, onError });
+      this.view = ref.injector.get(ChangeDetectorRef);
+      this.attached = true;
       // The first render, so a template that throws is caught here rather than on some later tick.
       ref.changeDetectorRef.detectChanges();
-      const mine = ref;
-      // Registered on the environment injector: hooks of a component's own injector only run while its view is attached.
-      this.hook = afterEveryRender(
-        () => {
-          if (this.ref !== mine || this.disposed || this.failure !== null) return;
-          try {
-            mine.changeDetectorRef.detectChanges();
-          } catch (e) {
-            this.fail(e);
-          }
-        },
-        { injector: this.injector },
-      );
+      this.appRef.attachView(ref.hostView);
+      this.syncAttachment();
     } catch (e) {
       if (this.disposed) return;
       this.fail(e);
@@ -170,8 +185,7 @@ export class AngularContentRenderer implements IContentRenderer {
   }
 
   private destroyComponent(): void {
-    this.hook?.destroy();
-    this.hook = null;
+    this.view = null;
     const ref = this.ref;
     this.ref = null;
     if (!ref) return;
@@ -189,6 +203,24 @@ export class AngularContentRenderer implements IContentRenderer {
     this.destroyComponent();
     this.element.remove();
   }
+}
+
+/**
+ * Holds a panel's component, so that everything the component declares lives in a view this renderer can detach from
+ * change detection while the panel is hidden (effects of a component's constructor belong to its parent view).
+ */
+@Component({
+  selector: 'imt-panel-outlet',
+  host: { style: 'display: contents' },
+  template: '<ng-container #outlet />',
+})
+class PanelOutlet {
+  readonly outlet = viewChild.required('outlet', { read: ViewContainerRef });
+}
+
+/** Angular wraps a thrown non-Error (`throw 'text'`) before handing it to an error boundary; the card shows the original. */
+function unwrapBoundaryError(e: unknown): unknown {
+  return e instanceof Error && e.name === 'ErrorBoundaryWrappedError' && 'cause' in e ? e.cause : e;
 }
 
 /** Placeholder for a panel in a saved layout whose view no longer exists (e.g. a removed plugin). */

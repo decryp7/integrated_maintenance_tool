@@ -4,8 +4,8 @@ import { ImportProgress, ProfileDoc, ProfileTemplate, ProfileVersionInfo } from 
 import { ImtBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
-import { MockUxBackend } from './mock/mock-ux-backend';
 import { isTauri } from './platform';
+import { browserMocks } from './mock-registry';
 
 /**
  * The engine commands behind the ease-of-use features: import progress and cancel, profile history,
@@ -55,6 +55,6 @@ export class TauriUxBackend extends UxBackend {
 }
 
 export function createUxBackend(): UxBackend {
-  const backend: UxBackend = isTauri() ? new TauriUxBackend() : new MockUxBackend(inject(ImtBackend));
+  const backend: UxBackend = isTauri() ? new TauriUxBackend() : new (browserMocks().MockUxBackend)(inject(ImtBackend));
   return withFailureLogging<UxBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

@@ -4,11 +4,11 @@ import { AgentConfigDoc, AgentConfigFile, AgentIssue, AgentSchema, RunManifest, 
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { MockSchedulesBackend } from './mock/mock-schedules-backend';
+import { browserMocks } from '../core/mock-registry';
 
 /** The real backend inside Tauri, the in-memory mock in a plain browser; failures are logged and reported. */
 export function createSchedulesBackend(): SchedulesBackend {
-  const real = isTauri() ? new TauriSchedulesBackend() : new MockSchedulesBackend();
+  const real = isTauri() ? new TauriSchedulesBackend() : new (browserMocks().MockSchedulesBackend)();
   return withFailureLogging<SchedulesBackend>(real, inject(Logger), { onFailure: reportBackendFailures() });
 }
 

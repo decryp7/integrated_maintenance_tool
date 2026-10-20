@@ -3,8 +3,8 @@ import { invoke } from '../core/activity/ipc';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
-import { MockUpdatesBackend } from './mock-updates-backend';
 import { UPDATES_EVENT, UpdateStatus } from './updates.types';
+import { browserMocks } from '../core/mock-registry';
 
 /** The updater in the Rust shell (`updater.rs`). Injected as a class token. */
 export abstract class UpdatesBackend {
@@ -60,6 +60,6 @@ export class TauriUpdatesBackend extends UpdatesBackend {
 
 /** The Rust updater inside Tauri; a simulated one in a plain browser (ng serve, e2e). */
 export function createUpdatesBackend(): UpdatesBackend {
-  const backend = isTauri() ? new TauriUpdatesBackend() : new MockUpdatesBackend(typeof location === 'undefined' ? '' : location.search);
+  const backend = isTauri() ? new TauriUpdatesBackend() : new (browserMocks().MockUpdatesBackend)(typeof location === 'undefined' ? '' : location.search);
   return withFailureLogging<UpdatesBackend>(backend, inject(Logger), { category: 'ui.updates' });
 }

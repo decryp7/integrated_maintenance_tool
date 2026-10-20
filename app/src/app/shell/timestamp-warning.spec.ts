@@ -14,7 +14,7 @@ const ISSUE: TimestampIssue = {
 };
 
 function source(timestampIssue: TimestampIssue | null | undefined): SourceInfo {
-  return { id: 3, path: '/logs/sync.csv', name: 'sync.csv', group: 'sync.csv', importer: 'csv', records: 1300, dropped: 0, skipped: 0, error: null, from: null, to: null, timestampIssue };
+  return { id: 3, path: '/logs/sync.csv', name: 'sync.csv', group: 'sync.csv', importer: 'csv', fileKind: 'text', records: 1300, dropped: 0, skipped: 0, error: null, from: null, to: null, timestampIssue };
 }
 
 describe('timestampWarningText', () => {

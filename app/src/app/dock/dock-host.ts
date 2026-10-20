@@ -262,7 +262,7 @@ export class DockHost implements OnDestroy {
           if (!ids.has(id)) {
             r.dispose();
             this.renderers.delete(id);
-          }
+          } else r.setVisible(id === item?.id && !!body);
         }
         if (!item || !body) return;
         let renderer = this.renderers.get(item.id);

@@ -9,7 +9,7 @@ import { LiveFeed } from '../live/live-feed';
 import { LiveFollow } from '../live/live-follow.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { SettingsStore } from '../settings/settings.store';
-import { EventsGrid } from './events-grid';
+import { EventsGrid, SCROLL_IDLE_MS } from './events-grid';
 import { GridSelection } from './grid-selection';
 import { RecordActions } from '../context/record-actions';
 import { HighlightRules } from '../projects/bookmarks/highlight';
@@ -334,6 +334,7 @@ describe('EventsGrid', () => {
     expect(rows(fixture).length).toBeLessThan(40);
     vp.scrollTop = parseFloat(spacer.style.height);
     vp.dispatchEvent(new Event('scroll'));
+    await new Promise((r) => setTimeout(r, SCROLL_IDLE_MS + 30));
     await settle(fixture);
     const last = rows(fixture).at(-1)!;
     expect(last.textContent).toContain('row 1999999');
@@ -406,7 +407,8 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
   const key = (vp: HTMLElement, k: string) => vp.dispatchEvent(new KeyboardEvent('keydown', { key: k, cancelable: true }));
   const flush = async (f: Awaited<ReturnType<typeof render>>['fixture']) => {
     await settle(f);
-    await new Promise((r) => setTimeout(r, 30));
+    // Pages are fetched once scrolling has paused.
+    await new Promise((r) => setTimeout(r, SCROLL_IDLE_MS + 30));
     await settle(f);
   };
 
@@ -569,6 +571,45 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     await flush(fixture);
     expect(all(fixture, '.err-card')).toHaveLength(0);
     expect(el(fixture, '.total').textContent).toBe('50,000,000');
+  });
+
+  it('fetches pages once scrolling pauses, not for every position passed', async () => {
+    const backend = synthetic();
+    const { fixture, vp } = await render(backend);
+    const query = vi.spyOn(backend, 'queryPage');
+    for (let i = 1; i <= 20; i++) {
+      vp.scrollTop = i * 150_000;
+      vp.dispatchEvent(new Event('scroll'));
+      await fixture.whenStable();
+    }
+    expect(query).not.toHaveBeenCalled();
+    await flush(fixture);
+    // Before: every position passed asked for the pages it showed.
+    expect(query.mock.calls.length).toBeGreaterThan(0);
+    expect(query.mock.calls.length).toBeLessThanOrEqual(2);
+    expect(visibleIds(fixture).length).toBeGreaterThan(10);
+  });
+
+  it('does not retry a failed page on scroll, only on Retry', async () => {
+    const backend = synthetic();
+    const { fixture, vp } = await render(backend);
+    const query = vi.spyOn(backend, 'queryPage').mockRejectedValue('engine down');
+    vp.scrollTop = 4_000_000;
+    vp.dispatchEvent(new Event('scroll'));
+    await flush(fixture);
+    expect(el(fixture, '.err-card').textContent).toContain('engine down');
+    const failedCalls = query.mock.calls.length;
+    for (const top of [4_000_010, 4_000_020, 4_000_030]) {
+      vp.scrollTop = top;
+      vp.dispatchEvent(new Event('scroll'));
+      await flush(fixture);
+    }
+    expect(query.mock.calls.length).toBe(failedCalls);
+    query.mockRestore();
+    buttonByText(fixture, 'Retry').click();
+    await flush(fixture);
+    expect(all(fixture, '.err-card')).toHaveLength(0);
+    expect(visibleIds(fixture).length).toBeGreaterThan(10);
   });
 
   it('retries a page that failed while scrolling', async () => {

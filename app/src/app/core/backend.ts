@@ -36,9 +36,8 @@ import {
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
-import { MockBackend } from './mock/mock-backend';
-import { mockOptionsFromSearch } from './mock/mock-options';
 import { listenHere } from '../windowing/window-events';
+import { browserMocks } from './mock-registry';
 
 /** Everything the UI can ask the backend. Injected as a class token. */
 export abstract class ImtBackend {
@@ -254,7 +253,7 @@ export function provideBackend(): Provider {
   return {
     provide: ImtBackend,
     useFactory: () =>
-      withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new MockBackend(mockOptionsFromSearch(window.location.search)), inject(Logger), {
+      withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new (browserMocks().MockBackend)(browserMocks().mockOptionsFromSearch(window.location.search)), inject(Logger), {
         onFailure: reportBackendFailures(),
       }),
   };

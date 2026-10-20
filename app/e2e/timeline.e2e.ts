@@ -94,7 +94,7 @@ test.describe('timeline and analysis', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page.locator('imt-timeline-panel .cursor-label')).toHaveText(/\d{2}:\d{2}:\d{2}/);
     await page.mouse.move(box.x + box.width / 2, box.y - 200);
-    await expect(page.locator('imt-timeline-panel .cursor')).toHaveCount(0);
+    await expect(page.locator('imt-timeline-panel .cursor')).toBeHidden();
   });
 
   test('a failed timeline request shows an inline error with Retry', async ({ page }) => {

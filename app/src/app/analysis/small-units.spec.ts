@@ -3,7 +3,8 @@ import { ANOMALY_ICONS, ANOMALY_LABELS, anomalyIcon, anomalyLabel, barWidth, dir
 import { qlQuote } from './ql-text';
 import { AsyncResource, errorText } from './async-resource';
 import { HISTORY_STORE, LocalHistoryStore, MAX_HISTORY, QueryHistory } from './history-store';
-import { TimeCursor, TimeCursorSource, timeToFrac, xToTime } from './time-cursor';
+import { TimeCursor, TimeCursorLine, TimeCursorSource, timeToFrac, xToTime } from './time-cursor';
+import { manualFrames } from '../../testing/helpers';
 import { aroundTime, midpoint, previousWindow, span } from './windows';
 import { Component, signal } from '@angular/core';
 import { MemoryHistory } from './test-setup';
@@ -184,14 +185,18 @@ describe('TimeCursor', () => {
     const plot = fixture.nativeElement.querySelector('#plot') as HTMLElement;
     plot.getBoundingClientRect = () => ({ left: 10, width: 200 }) as DOMRect;
     const cursor = TestBed.inject(TimeCursor);
+    const frames = manualFrames();
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 110, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBe(500);
     plot.dispatchEvent(new MouseEvent('pointerleave'));
     expect(cursor.hovered()).toBeNull();
     fixture.componentInstance.range.set(null);
     fixture.detectChanges();
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 110, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBeNull();
+    frames.restore();
   });
 
   it('the directive maps only the plot box given by its insets', () => {
@@ -202,12 +207,17 @@ describe('TimeCursor', () => {
     const plot = fixture.nativeElement.querySelector('#plot') as HTMLElement;
     plot.getBoundingClientRect = () => ({ left: 0, width: 300 }) as DOMRect;
     const cursor = TestBed.inject(TimeCursor);
+    const frames = manualFrames();
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 150, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBe(500);
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 40, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBeNull();
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 251, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBeNull();
+    frames.restore();
   });
 
   it('the directive takes an explicit plot width', () => {
@@ -217,8 +227,71 @@ describe('TimeCursor', () => {
     fixture.detectChanges();
     const plot = fixture.nativeElement.querySelector('#plot') as HTMLElement;
     const cursor = TestBed.inject(TimeCursor);
+    const frames = manualFrames();
     plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 200, bubbles: true }));
+    frames.flush();
     expect(cursor.hovered()).toBe(250);
+    frames.restore();
+  });
+
+  it('the directive publishes at most once per frame, and a leave drops a move still waiting', () => {
+    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [imtTimeCursor]="{ from: 0, to: 1000 }"></div>` })
+    class Host {}
+    const fixture = TestBed.createComponent(Host);
+    fixture.detectChanges();
+    const plot = fixture.nativeElement.querySelector('#plot') as HTMLElement;
+    let rects = 0;
+    plot.getBoundingClientRect = () => (rects++, { left: 0, width: 1000 }) as DOMRect;
+    const cursor = TestBed.inject(TimeCursor);
+    const frames = manualFrames();
+    const hover = vi.spyOn(cursor, 'hover');
+    for (let x = 1; x <= 30; x++) plot.dispatchEvent(new MouseEvent('pointermove', { clientX: x, bubbles: true }));
+    // Before: 30 publishes (and 30 layout reads), each re-rendering every view that draws the cursor.
+    expect(hover).not.toHaveBeenCalled();
+    frames.flush();
+    expect(hover).toHaveBeenCalledTimes(1);
+    expect(rects).toBe(1);
+    expect(cursor.hovered()).toBe(30);
+    plot.dispatchEvent(new MouseEvent('pointermove', { clientX: 500, bubbles: true }));
+    plot.dispatchEvent(new MouseEvent('pointerleave'));
+    frames.flush();
+    expect(cursor.hovered()).toBeNull();
+    frames.restore();
+  });
+
+  it('the cursor line follows the hovered time without re-rendering its view', async () => {
+    let renders = 0;
+    @Component({
+      imports: [TimeCursorLine],
+      template: `{{ count() }}<div class="line" [imtTimeCursorLine]="{ from: 0, to: 1000 }" [imtTimeCursorLineWidth]="width" [imtTimeCursorLineLabel]="label"><span data-cursor-label></span></div>
+        <div class="pct" [imtTimeCursorLine]="{ from: 0, to: 1000 }" [imtTimeCursorLineLeft]="10" [imtTimeCursorLineRight]="30"></div>`,
+    })
+    class Host {
+      width = 200;
+      readonly label = (ts: number) => `at ${ts}`;
+      count(): string {
+        renders++;
+        return '';
+      }
+    }
+    const fixture = TestBed.createComponent(Host);
+    await fixture.whenStable();
+    const line = fixture.nativeElement.querySelector('.line') as HTMLElement;
+    const pct = fixture.nativeElement.querySelector('.pct') as HTMLElement;
+    expect(line.hidden).toBe(true);
+    const cursor = TestBed.inject(TimeCursor);
+    const before = renders;
+    cursor.hover(250);
+    await fixture.whenStable();
+    expect(line.hidden).toBe(false);
+    expect(line.style.left).toBe('50px');
+    expect(line.textContent).toBe('at 250');
+    expect(pct.style.left).toContain('10px');
+    expect(pct.style.left).toContain('0.25');
+    cursor.hover(2000);
+    await fixture.whenStable();
+    expect(line.hidden).toBe(true);
+    expect(renders).toBe(before);
   });
 
   it('maps a time to its fraction of a range', () => {

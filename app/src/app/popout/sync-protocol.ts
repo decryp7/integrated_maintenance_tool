@@ -100,6 +100,11 @@ export class SyncEngine {
     this.known.set(key, fingerprint(value));
   }
 
+  /** Forgets the value last sent for a key (it was not sent: nobody listened), so the next change is sent. */
+  forgetValue(key: string): void {
+    this.known.delete(key);
+  }
+
   /** Forgets a sender (it said bye), so a window reusing nothing from it starts fresh. */
   forget(origin: string): void {
     this.lastSeq.delete(origin);
