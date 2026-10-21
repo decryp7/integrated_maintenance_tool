@@ -165,3 +165,6 @@ mutants.out.old/
 # macOS Finder metadata
 .DS_Store
 ._*
+
+# The example plugins' samples are source (cargo-imt-plugin embeds them).
+!examples/plugins/*/tests/samples/*.log

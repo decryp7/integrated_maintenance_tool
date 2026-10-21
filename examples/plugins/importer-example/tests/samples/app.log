@@ -1,0 +1,4 @@
+2026-10-21T10:00:00Z level=info msg="service started" host=web01 port=8080
+2026-10-21T10:00:05Z level=warn msg="disk almost full" host=web01 used=93
+    at a continuation line without a time
+2026-10-21T10:00:09Z level=error msg="request failed" host=web02 status=500 path=/api/orders

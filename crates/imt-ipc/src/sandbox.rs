@@ -212,7 +212,7 @@ pub(crate) fn contain_before_exec(cmd: &mut std::process::Command, spec: &Sandbo
     // only this hook takes it, so no lock held at fork time can block it.
     unsafe {
         cmd.pre_exec(move || {
-            platform::set_limit(libc::RLIMIT_AS, memory).map_err(std::io::Error::other)?;
+            platform::set_limit(libc::RLIMIT_DATA, memory).map_err(std::io::Error::other)?;
             platform::set_limit(libc::RLIMIT_CPU, cpu).map_err(std::io::Error::other)?;
             if libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 {
                 return Err(std::io::Error::last_os_error());
