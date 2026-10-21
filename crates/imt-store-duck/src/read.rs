@@ -267,19 +267,10 @@ impl Inner {
                 .filter(|(_, e)| !e.4)
                 .filter_map(|(k, _)| text_expr(k, &fields).map(|x| (k, x)))
                 .collect();
-            if !unlisted.is_empty() {
-                let select = unlisted
-                    .iter()
-                    .map(|(_, x)| format!("count(DISTINCT {x})"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let mut stmt = conn.prepare(&format!("SELECT {select} FROM {FROM}")).map_err(engine)?;
-                let mut rows = stmt.query([]).map_err(engine)?;
-                if let Some(r) = rows.next().map_err(engine)? {
-                    for (i, (k, _)) in unlisted.iter().enumerate() {
-                        exact.insert((*k).clone(), r.get::<_, u64>(i).map_err(engine)?);
-                    }
-                }
+            // One key per statement: the distinct values of every key at once exceeded DuckDB's memory limit.
+            for (k, x) in unlisted {
+                let n = count(conn, &format!("SELECT count(DISTINCT {x}) FROM {FROM}"))?;
+                exact.insert(k.clone(), n as u64);
             }
         }
         let fields: Vec<(String, (u64, u64, u64))> = acc

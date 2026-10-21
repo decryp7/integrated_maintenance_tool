@@ -6,6 +6,7 @@
 //! Operations not offered yet answer [`StoreError::Unsupported`] naming the phase that adds them.
 
 mod analysis;
+mod anomalies;
 mod compact;
 mod context;
 mod diag;

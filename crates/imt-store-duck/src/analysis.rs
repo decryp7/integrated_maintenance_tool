@@ -687,32 +687,62 @@ impl Inner {
         })
     }
 
+    /// The SQL condition that selects exactly the events matching a compiled filter: the filter's own SQL when
+    /// it is exact, else the ids of the events that pass the scan's check, written to a file (no limit, bounded
+    /// memory). The returned files must be kept while the condition is used.
+    fn exact_selection(
+        &self,
+        conn: &Connection,
+        ctx: &Ctx,
+        sf: &SqlFilter,
+        cq: &CompiledQuery,
+    ) -> StoreResult<(String, Vec<Arc<crate::hits::HitsFile>>)> {
+        if sf.exact {
+            return Ok((sf.all_sql(), sf.keep.clone()));
+        }
+        let sql = format!(
+            "SELECT {} FROM {FROM} WHERE {}",
+            self.select_list(sf, cq, &Columns::all()),
+            sf.all_sql()
+        );
+        let mut stream = EventStream::new(conn, &sql, self.schema.clone(), ctx, cq, false, usize::MAX)?;
+        let mut ids = self.hits.writer().map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        for r in stream.by_ref() {
+            ids.push(r.id).map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        }
+        stream.finish()?;
+        let hits = ids.finish().map_err(|e| StoreError::Io(format!("{e:#}")))?;
+        let (condition, file) = hits
+            .condition()
+            .ok_or_else(|| StoreError::Engine("the selected events' file has an unusable path".into()))?;
+        Ok((condition, file.into_iter().chain(sf.keep.iter().cloned()).collect()))
+    }
+
+    /// Anomalies detected in SQL (see `crate::anomalies`): memory for per-instance aggregates, not per event,
+    /// and every matching event analysed.
+    fn anomalies_sql(&self, q: &Filter, cfg: &AnomalyConfig) -> StoreResult<Analyzed<Vec<Anomaly>>> {
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let (sf, cq) = self.compile(&ctx, q)?;
+        let key = group_key_expr(&cq.group_by, &ctx.fields)
+            .ok_or_else(|| StoreError::Invalid("the instance fields cannot be grouped (a name contains a NUL character)".into()))?;
+        let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, &ctx.fields);
+        let result = analysis::detect_with(&mut inputs, cfg)?;
+        Ok(Analyzed {
+            result,
+            coverage: Coverage {
+                matched,
+                analysed: matched,
+                limits: Vec::new(),
+            },
+        })
+    }
+
     fn anomalies(&self, req: &QueryRequest) -> StoreResult<Analyzed<Vec<Anomaly>>> {
         self.cached("anomalies", &req.query, || {
-            let cfg = AnomalyConfig::default();
-            let fields = cfg
-                .latency_fields
-                .iter()
-                .chain(&cfg.growth.fields)
-                .cloned()
-                .chain(["Counter", "Value", "MachineName", "ProcessName", "Instance", "InstanceIndex"].map(String::from));
-            // The detectors read the message of error events (crash triggers) and whether an instance's last
-            // event says it stopped: other messages are not read.
-            let cols = Columns {
-                message_when: Some(
-                    "e.level >= 4 OR contains(lower(e.message), 'stop') OR contains(lower(e.message), 'shutting down')".into(),
-                ),
-                ..Columns::only(true, fields)
-            };
-            self.analyse(&req.query, Read::ordered(cols), |rows, cq| {
-                analysis::detect(
-                    rows.map(|r| {
-                        let key = cq.group_key_of(&r);
-                        (r, key)
-                    }),
-                    &AnomalyConfig::default(),
-                )
-            })
+            self.anomalies_sql(&req.query, &AnomalyConfig::default())
         })
     }
 
@@ -725,7 +755,6 @@ impl Inner {
         // Every field is compared, the message is not; the order does not matter.
         let cols = Columns {
             message: false,
-            message_when: None,
             fields: None,
         };
         let sql = |f: &SqlFilter, q: &CompiledQuery| format!("SELECT {} FROM {FROM} WHERE {}", self.select_list(f, q, &cols), f.all_sql());
