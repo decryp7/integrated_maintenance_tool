@@ -6,6 +6,9 @@
  *   workspace_summary      {}                              -> WorkspaceSummary
  *   open_paths             { paths: string[] }             -> WorkspaceSummary
  *   remove_source          { sourceId: number }            -> WorkspaceSummary
+ *   import_problems        {}                              -> DiagnosticRow[]
+ *   evaluate_fix           { fix: QuickFix }               -> FixEvaluation
+ *   index_status           {}                              -> IndexStatus
  *   clear_workspace        {}                              -> WorkspaceSummary
  *   reload_workspace       {}                              -> WorkspaceSummary
  *   query_page             { request: PageRequest }        -> Page
@@ -2506,6 +2509,61 @@ export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 
 // What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
 export type { PickFilter, PickKind, PickRequest } from './generated/paths';
+
+/** What went wrong while reading a source (Rust `ingest::ProblemKind`). */
+export type ProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit';
+
+/** An engine-proposed fix of an import problem (Rust `ports::DiagnosticFix`). */
+export interface DiagnosticFix {
+  title: string;
+  /** TOML merged over the active profile. */
+  profileOverride: string;
+  timestamp?: TimestampSuggestion;
+}
+
+/** One kind of import problem in one source, or a file that was not imported (`import_problems`). */
+export interface DiagnosticRow {
+  source: number | null;
+  sourceName: string;
+  path: string;
+  kind: ProblemKind;
+  severity: Severity;
+  count: number;
+  /** At most 20 1-based line numbers of the first occurrences. */
+  sampleLines: number[];
+  detail?: string;
+  fix?: DiagnosticFix;
+}
+
+/** A proposed profile override for some sources (`evaluate_fix` argument `fix`). */
+export interface QuickFix {
+  profileOverride: string;
+  sources?: number[];
+}
+
+/** How a quick fix does on the stored events it applies to: "fixes `fixed` of `checked`". */
+export interface FixEvaluation {
+  fixed: number;
+  checked: number;
+  unchecked: number;
+  notes?: string[];
+}
+
+/** Progress of the full-text index (`index_status`). */
+export interface IndexStatus {
+  indexed: number;
+  total: number;
+  ready: boolean;
+}
 
 /** How much of the matching data an analysis looked at (Rust `ports::Coverage`); see `isPartial`. */
 export interface Coverage {

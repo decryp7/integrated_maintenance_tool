@@ -346,6 +346,36 @@ pub(crate) async fn preview_spans(
     with_store(&state, move |s| s.preview_spans(&request)).await
 }
 
+/// Import problems of the window's sources (ADR 0014 §5): unreadable timestamps, lines too long, files no
+/// importer reads... counted per source and kind, with sample lines and a checked fix where there is one.
+#[tauri::command]
+pub(crate) async fn import_problems(state: CurrentWindow) -> CmdResult<Vec<imt_core::ports::DiagnosticRow>> {
+    if state.engine.opened().is_none() {
+        return Ok(Vec::new());
+    }
+    with_store(&state, |s| s.problems()).await
+}
+
+/// How many affected events a proposed fix (a profile override, from the engine or the AI) would repair,
+/// checked on the stored events before the user applies it.
+#[tauri::command]
+pub(crate) async fn evaluate_fix(state: CurrentWindow, fix: imt_core::ports::QuickFix) -> CmdResult<imt_core::ports::FixEvaluation> {
+    with_store(&state, move |s| s.evaluate_fix(&fix)).await
+}
+
+/// How far the full-text index is (search covers indexed events only).
+#[tauri::command]
+pub(crate) async fn index_status(state: CurrentWindow) -> CmdResult<imt_core::ports::IndexStatus> {
+    if state.engine.opened().is_none() {
+        return Ok(imt_core::ports::IndexStatus {
+            indexed: 0,
+            total: 0,
+            ready: true,
+        });
+    }
+    with_store(&state, |s| s.index_status()).await
+}
+
 /// Delivery counters of the plugins' event subscribers (plugin health).
 #[tauri::command]
 pub(crate) async fn plugin_events(state: CurrentWindow) -> Vec<SubscriberMetrics> {
@@ -821,6 +851,47 @@ mod tests {
         let other = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
         assert_eq!(block(query_runs(other, Default::default())).unwrap().total, 0);
     }
+    #[test]
+    fn problems_fixes_and_the_index_of_the_calling_window() {
+        let dir = TempDir::new("problems");
+        std::fs::write(
+            dir.0.join("odd.log"),
+            "14.10.2026 10:00:00 INFO first
+14.10.2026 10:00:01 INFO second
+",
+        )
+        .unwrap();
+        let app = test_app(None);
+        // Nothing opened: nothing to report, without starting the store.
+        assert!(block(import_problems(main_window(&app))).unwrap().is_empty());
+        assert!(block(index_status(main_window(&app))).unwrap().ready);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
+        block(open_paths(
+            app.handle().clone(),
+            main_window(&app),
+            vec![dir.0.to_string_lossy().into_owned()],
+        ))
+        .unwrap();
+        let problems = block(import_problems(main_window(&app))).unwrap();
+        assert!(!problems.is_empty(), "the unreadable timestamps are a problem");
+        let fix: imt_core::ports::QuickFix = serde_json::from_value(json!({"profileOverride": "[parse]
+timestamp_formats = ['%d.%m.%Y %H:%M:%S']
+"}))
+        .unwrap();
+        let e = block(evaluate_fix(main_window(&app), fix)).unwrap();
+        assert!(
+            e.fixed <= e.checked && (e.checked > 0 || !e.notes.is_empty()),
+            "the store says what it checked: {e:?}"
+        );
+        let bad: imt_core::ports::QuickFix = serde_json::from_value(json!({"profileOverride": "[parse"})).unwrap();
+        assert_eq!(
+            block(evaluate_fix(main_window(&app), bad)).unwrap_err().code,
+            crate::ErrorCode::Invalid
+        );
+        let index = block(index_status(main_window(&app))).unwrap();
+        assert!(index.indexed <= index.total, "{index:?}");
+    }
+
     #[test]
     fn event_metrics_and_annotations_of_the_calling_window() {
         let app = test_app(None);
