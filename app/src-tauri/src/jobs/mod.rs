@@ -435,7 +435,9 @@ fn service<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Jobs> {
 
 /// The job, when the calling window may act on it (its own or an app-wide one).
 fn owned(jobs: &Jobs, win: &CurrentWindow, id: u64) -> CmdResult<model::Job> {
-    let job = jobs.get(JobId(id)).ok_or_else(|| "this job is no longer listed".to_string())?;
+    let job = jobs.get(JobId(id)).ok_or_else(|| {
+        crate::error::CmdError::not_found("This job is no longer in the Jobs list: it was cleared, so its result is gone.")
+    })?;
     match job.window() {
         Some(w) if w != win.label() => Err("this job belongs to another window".into()),
         _ => Ok(job),
