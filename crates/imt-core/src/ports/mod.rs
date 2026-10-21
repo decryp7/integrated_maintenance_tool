@@ -14,8 +14,9 @@ mod dto;
 mod session;
 
 pub use dto::{
-    Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation, ImportReport, IndexStatus, PageQuery,
-    PageReply, QuickFix, SearchReply, SearchRequest, SummaryReply, MAX_PAGE_ROWS,
+    content_hash, profile_toml, Analyzed, Coverage, DiagnosticFix, DiagnosticRow, EventView, EventsRequest, FixEvaluation, ImportReport,
+    IndexStatus, PageQuery, PageReply, ParserChange, ParserDef, ParserRef, ParserUse, QuickFix, SearchReply, SearchRequest, SummaryReply,
+    MAX_PAGE_ROWS,
 };
 pub use session::ImportSession;
 
@@ -170,8 +171,15 @@ pub trait Profiles: Send + Sync {
     fn active_profile(&self) -> StoreResult<Profile>;
     /// Checks that a profile compiles (with the installed plugins).
     fn validate_profile(&self, profile: &Profile) -> StoreResult<()>;
-    /// Switches profile: a job that re-derives or re-reads what the change needs.
+    /// Switches profile: a job that re-derives or re-reads what the change needs (only the sources whose parser
+    /// changed).
     fn set_profile(&self, profile: Profile) -> StoreResult<ImportSession>;
+    /// Which parser each source was read with (ADR 0026; until then one parser, the profile, for all).
+    fn parsers(&self) -> StoreResult<Vec<ParserUse>>;
+    /// What changing `parser` would do: the change's class and the sources using it (ADR 0026: per parser).
+    fn classify_parser(&self, parser: &ParserDef) -> StoreResult<ParserChange>;
+    /// Reads one source with another parser (ADR 0026; refused until the parser library exists).
+    fn assign_parser(&self, source: SourceId, parser: &ParserDef) -> StoreResult<ImportSession>;
     fn preview_parse(&self, req: &ParsePreviewRequest) -> StoreResult<ParsePreview>;
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
     /// Proposes `[[span]]` rules that pair the example start/end events, each evaluated on the data.

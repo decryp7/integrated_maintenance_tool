@@ -36,6 +36,71 @@ impl PageQuery {
     }
 }
 
+/// The parser a source was read with (ADR 0026: parsers are individual TOML files matched per file; until
+/// then the workspace's one profile is the parser of every source, id [`ParserRef::PROFILE`]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserRef {
+    pub id: String,
+    pub version: String,
+    /// Content hash of the parser's TOML (canonical form): a source is re-read when its parser's hash changed.
+    pub hash: String,
+}
+
+impl ParserRef {
+    /// The id of the interim parser: the workspace's profile.
+    pub const PROFILE: &'static str = "profile";
+
+    /// The workspace's profile as the parser of every source (the interim before ADR 0026).
+    pub fn of_profile(profile: &crate::Profile) -> ParserRef {
+        ParserRef {
+            id: Self::PROFILE.into(),
+            version: profile.name.clone(),
+            hash: content_hash(&profile_toml(profile)),
+        }
+    }
+}
+
+/// A profile's canonical TOML (what its parser hash and the embedded copy are made of).
+pub fn profile_toml(profile: &crate::Profile) -> String {
+    toml::to_string(profile).unwrap_or_default()
+}
+
+/// Hex SHA-256 (the first 16 bytes) of a parser's TOML.
+pub fn content_hash(text: &str) -> String {
+    use sha2::Digest;
+    let d = sha2::Sha256::digest(text.as_bytes());
+    d.iter().take(16).map(|b| format!("{b:02x}")).collect()
+}
+
+/// A parser's definition: its id and version and its TOML (ADR 0026; until then a profile's TOML).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserDef {
+    pub id: String,
+    pub version: String,
+    pub toml: String,
+}
+
+/// Which sources a parser reads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserUse {
+    pub parser: ParserRef,
+    pub sources: Vec<SourceId>,
+}
+
+/// What changing a parser would cost: the class of the change and the sources it touches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserChange {
+    pub class: crate::profile_change::ChangeClass,
+    /// Changed sections, e.g. `parse`, `extract`.
+    pub sections: Vec<String>,
+    /// The sources that would be re-derived or re-read.
+    pub sources: Vec<SourceId>,
+}
+
 /// Events by id (a report's events, bookmarks, AI citations), at most [`MAX_PAGE_ROWS`]; ids that do not
 /// exist (any more) are left out.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

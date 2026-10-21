@@ -106,6 +106,7 @@ fn ask<S: Query + Analysis + Profiles + Diagnostics + Search + Positions>(s: &S,
             text(s.preview_extractor(&req(json!({"toml": EXTRACT, "extractor": "Elapsed", "query": all}))).map(j)),
         ),
         ("problems".into(), text(s.problems().map(j))),
+        ("parsers".into(), text(s.parsers().map(j))),
         (
             "previewSpans".into(),
             text(s.preview_spans(&req(json!({"draft": {"kind": "work", "label": "Work", "start": {"type": "pattern", "pattern": "started"}, "stop": {"type": "pattern", "pattern": "stopped"}}}))).map(j)),

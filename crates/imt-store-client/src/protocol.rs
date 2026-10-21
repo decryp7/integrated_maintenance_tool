@@ -114,6 +114,20 @@ ops! {
     Events,
     /// [`imt_core::spans::SpanPreviewRequest`] → [`imt_core::spans::SpanPreview`]
     PreviewSpans,
+    /// → [`imt_core::ports::ParserUse`]s
+    Parsers,
+    /// [`imt_core::ports::ParserDef`] → [`imt_core::ports::ParserChange`]
+    ClassifyParser,
+    /// [`AssignParser`] → [`Session`]
+    AssignParser,
+}
+
+/// Reads one source with another parser (ADR 0026).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssignParser {
+    pub source: SourceId,
+    pub parser: imt_core::ports::ParserDef,
 }
 
 /// What the app asks the worker.

@@ -699,6 +699,22 @@ impl Profiles for RemoteStore {
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview> {
         self.analysis(StoreOp::PreviewExtractor, req)
     }
+    fn parsers(&self) -> StoreResult<Vec<imt_core::ports::ParserUse>> {
+        self.call(StoreOp::Parsers, &())
+    }
+    fn classify_parser(&self, parser: &imt_core::ports::ParserDef) -> StoreResult<imt_core::ports::ParserChange> {
+        self.call(StoreOp::ClassifyParser, parser)
+    }
+    fn assign_parser(&self, source: SourceId, parser: &imt_core::ports::ParserDef) -> StoreResult<ImportSession> {
+        let s = self.call(
+            StoreOp::AssignParser,
+            &crate::protocol::AssignParser {
+                source,
+                parser: parser.clone(),
+            },
+        )?;
+        self.session(s)
+    }
     fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
         self.analysis(StoreOp::PreviewSpans, req)
     }

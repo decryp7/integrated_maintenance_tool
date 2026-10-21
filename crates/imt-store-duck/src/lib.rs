@@ -10,6 +10,7 @@ mod compact;
 mod context;
 mod diag;
 mod fts;
+mod parsers;
 mod pos;
 mod profiles;
 mod project;
@@ -299,6 +300,8 @@ impl Inner {
         let outcomes = ingest::import_files_parallel(&env, &files, &removed, progress, &opts, &sink);
         let t1 = t0.elapsed();
         sink.finish().map_err(|e| engine(format!("{e:#}")))?;
+        // Every source of this import was read with the active profile, the interim parser (ADR 0026).
+        parsers::record(&conn, &profile.profile).map_err(engine)?;
         let t2 = t0.elapsed();
         self.maintain(&conn);
         self.bump_version(&conn)?;

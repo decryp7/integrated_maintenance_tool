@@ -61,6 +61,9 @@ pub struct ProjectManifest {
     pub layout: toml::Table,
     /// Opened files and folders, for refresh.
     pub roots: Vec<String>,
+    /// The parsers the project's sources were read with (ADR 0026); their TOML is embedded in the store
+    /// (`parsers` table), so a shared project says what read it.
+    pub parsers: Vec<crate::ports::ParserRef>,
 }
 
 impl Default for ProjectManifest {
@@ -73,6 +76,7 @@ impl Default for ProjectManifest {
             clock_offsets: Vec::new(),
             layout: toml::Table::new(),
             roots: Vec::new(),
+            parsers: Vec::new(),
         }
     }
 }

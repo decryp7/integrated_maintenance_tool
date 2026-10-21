@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// The data work a profile change needs, from least to most.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ChangeClass {
     /// Nothing stored changes (charts, dashboards, instance key, activity, spans, live tail, marker

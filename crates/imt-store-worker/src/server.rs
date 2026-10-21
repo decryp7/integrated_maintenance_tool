@@ -296,6 +296,13 @@ impl Worker {
             StoreOp::PreviewExtractor => run!(s.preview_extractor(&body(b)?)),
             StoreOp::ProposeSpanRule => run!(s.propose_span_rule(&body(b)?)),
             StoreOp::PreviewSpans => run!(s.preview_spans(&body(b)?)),
+            StoreOp::Parsers => reply(&s.parsers()?),
+            StoreOp::ClassifyParser => reply(&s.classify_parser(&body(b)?)?),
+            StoreOp::AssignParser => {
+                let r: protocol::AssignParser = body(b)?;
+                let session = s.assign_parser(r.source, &r.parser)?;
+                reply(&self.session(session))
+            }
             StoreOp::EvaluateSpanRule => run!(s.evaluate_span_rule(&body(b)?)),
             StoreOp::Problems => reply(&s.problems()?),
             StoreOp::EvaluateFix => run!(s.evaluate_fix(&body(b)?)),

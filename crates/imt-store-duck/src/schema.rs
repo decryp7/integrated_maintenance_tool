@@ -11,7 +11,8 @@ use crate::sql::ident;
 use imt_core::batch::{ColumnType, EventSchema};
 
 /// Version of the database layout this build writes and reads.
-pub const FORMAT_VERSION: u32 = 2;
+/// 3: sources record their parser (ADR 0026 preparation) and the `parsers` table embeds each parser's TOML.
+pub const FORMAT_VERSION: u32 = 3;
 
 /// The analysis cache (engine review finding 18): results per data version, analysis kind and
 /// canonical query (its FNV-1a hash and text).
@@ -60,7 +61,9 @@ pub fn ddl(schema: &EventSchema) -> String {
 CREATE TABLE sources (
   id UINTEGER PRIMARY KEY, path VARCHAR NOT NULL, name VARCHAR NOT NULL, importer VARCHAR, file_kind VARCHAR,
   events UBIGINT NOT NULL DEFAULT 0, skipped UBIGINT NOT NULL DEFAULT 0, dropped UBIGINT NOT NULL DEFAULT 0,
-  ts_from BIGINT, ts_to BIGINT, bytes UBIGINT NOT NULL DEFAULT 0, ready BOOLEAN NOT NULL DEFAULT FALSE);
+  ts_from BIGINT, ts_to BIGINT, bytes UBIGINT NOT NULL DEFAULT 0, ready BOOLEAN NOT NULL DEFAULT FALSE,
+  parser_id VARCHAR, parser_version VARCHAR, parser_hash VARCHAR);
+CREATE TABLE parsers (hash VARCHAR PRIMARY KEY, id VARCHAR NOT NULL, version VARCHAR NOT NULL, toml VARCHAR NOT NULL);
 CREATE TABLE diagnostics (source UINTEGER NOT NULL, kind VARCHAR NOT NULL, severity VARCHAR NOT NULL, count UBIGINT NOT NULL, samples VARCHAR NOT NULL);
 CREATE TABLE marker_kinds (generation UBIGINT NOT NULL, bit UTINYINT NOT NULL, kind VARCHAR NOT NULL, owner VARCHAR NOT NULL);
 CREATE TABLE segments (file VARCHAR PRIMARY KEY, first_id UBIGINT NOT NULL, end_id UBIGINT NOT NULL, rows UBIGINT NOT NULL, live UBIGINT NOT NULL, indexed BOOLEAN NOT NULL DEFAULT FALSE, promoted VARCHAR NOT NULL DEFAULT '[]');

@@ -63,6 +63,7 @@ impl DuckStore {
 
     /// Writes `project.toml` with `manifest` and the store's opened roots.
     pub fn save_project(&self, manifest: &mut ProjectManifest) -> StoreResult<()> {
+        manifest.parsers = self.parser_refs()?;
         manifest.roots = read_lock(&self.inner.state)
             .roots
             .iter()

@@ -327,6 +327,31 @@ impl Profiles for WorkspaceStore {
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview> {
         Ok(LogStore::preview_extractor(&*self.read(), req))
     }
+    fn parsers(&self) -> StoreResult<Vec<crate::ports::ParserUse>> {
+        let ws = self.read();
+        Ok(vec![crate::ports::ParserUse {
+            parser: crate::ports::ParserRef::of_profile(ws.profile()),
+            sources: ws.sources().iter().map(|s| SourceId(s.id)).collect(),
+        }])
+    }
+    fn classify_parser(&self, parser: &crate::ports::ParserDef) -> StoreResult<crate::ports::ParserChange> {
+        let ws = self.read();
+        let new = Profile::from_toml(&parser.toml).map_err(|e| StoreError::Invalid(e.message))?;
+        let change = crate::profile_change::classify(ws.profile(), &new);
+        let sources = if change.class == crate::profile_change::ChangeClass::Presentation {
+            Vec::new()
+        } else {
+            ws.sources().iter().map(|s| SourceId(s.id)).collect()
+        };
+        Ok(crate::ports::ParserChange {
+            class: change.class,
+            sections: change.sections,
+            sources,
+        })
+    }
+    fn assign_parser(&self, _source: SourceId, _parser: &crate::ports::ParserDef) -> StoreResult<ImportSession> {
+        Err(StoreError::unsupported("assigning a parser to a source", "ADR 0026"))
+    }
     fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> StoreResult<crate::spans::SpanPreview> {
         Ok(self.read().preview_spans(req))
     }
