@@ -95,12 +95,23 @@ pub enum PageKind {
     Consent,
     /// A human check ("unusual traffic from your computer", Google's `/sorry/` page, a CAPTCHA).
     Captcha,
+    /// A page shown on the way to the results ("click here if you are not redirected", Google's `enablejs` page): it
+    /// usually goes on to the results by itself, so it is looked at again.
+    Redirect,
 }
 
 const CONSENT_PHRASES: &[&str] = &[
     "before you continue to google",
     "bevor sie zu google weitergehen",
     "avant d'accéder à google",
+];
+
+const REDIRECT_PHRASES: &[&str] = &[
+    "if you are not redirected",
+    "if you're not redirected",
+    "having trouble accessing google search",
+    "please enable javascript",
+    "turn on javascript to keep searching",
 ];
 
 /// Recognises consent and human-check pages by their address, title and text.
@@ -114,6 +125,9 @@ pub fn page_kind(page: &ResultsPage) -> PageKind {
     }
     if path.starts_with("/sorry/") || CAPTCHA_PHRASES.iter().any(|p| words.contains(p)) {
         return PageKind::Captcha;
+    }
+    if path.contains("enablejs") || REDIRECT_PHRASES.iter().any(|p| words.contains(p)) {
+        return PageKind::Redirect;
     }
     PageKind::Results
 }
@@ -563,6 +577,18 @@ mod tests {
             ..ResultsPage::default()
         };
         assert_eq!(page_kind(&traffic), PageKind::Captcha);
+        let enablejs = ResultsPage {
+            url: "https://www.google.com/httpservice/retry/enablejs?sei=x".into(),
+            ..ResultsPage::default()
+        };
+        assert_eq!(page_kind(&enablejs), PageKind::Redirect);
+        let trouble = ResultsPage {
+            url: GOOGLE.into(),
+            text: "Please click here if you are not redirected within a few seconds. If you're having trouble accessing Google Search, click here."
+                .into(),
+            ..ResultsPage::default()
+        };
+        assert_eq!(page_kind(&trouble), PageKind::Redirect);
         assert_eq!(page_kind(&google()), PageKind::Results);
     }
 

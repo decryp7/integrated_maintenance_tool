@@ -43,7 +43,8 @@ const MAX_QUESTION_CHARS: usize = 1_000;
 pub const MAX_QUERY_CHARS: usize = 300;
 /// How often a page is looked at while it loads, and how many times, before research gives up on it.
 const PAGE_POLL: Duration = Duration::from_millis(500);
-const PAGE_POLLS: usize = 10;
+/// Looks at the results page (15 s): a first visit can show a redirect or script check before the results.
+const PAGE_POLLS: usize = 30;
 /// How often a wait looks at Cancel.
 const SLICE: Duration = Duration::from_millis(100);
 
@@ -451,6 +452,8 @@ enum NoResults {
     Consent,
     /// A human check ("unusual traffic", a CAPTCHA) came instead of the results.
     Captcha,
+    /// Only a redirect page ("click here if you are not redirected") showed, never the results.
+    Redirect,
     /// The results page never showed (the browser stayed on another page).
     NotShown,
 }
@@ -465,13 +468,16 @@ impl NoResults {
             NoResults::Captcha => format!(
                 "{engine} showed a human check (unusual traffic or a CAPTCHA) instead of results: it is in the Browser panel for you."
             ),
+            NoResults::Redirect => {
+                format!("{engine} showed a redirect page instead of results to IMT's browser: it is in the Browser panel for you.")
+            }
             NoResults::NotShown => format!("The results page of {engine} did not show in the browser."),
         }
     }
 
     fn action(self) -> &'static str {
         match self {
-            NoResults::Consent | NoResults::Captcha => "research.links.handOff",
+            NoResults::Consent | NoResults::Captcha | NoResults::Redirect => "research.links.handOff",
             _ => "research.links.none",
         }
     }
@@ -489,7 +495,7 @@ fn engine_name(env: &ResearchEnv<'_>, search: &WebUrl) -> String {
 fn nothing_found(env: &ResearchEnv<'_>, req: &ResearchRequest, search: &WebUrl, why: NoResults) -> ResearchReport {
     let reason = why.reason(&engine_name(env, search));
     let outcome = match why {
-        NoResults::Consent | NoResults::Captcha => ActionOutcome::HandedBack,
+        NoResults::Consent | NoResults::Captcha | NoResults::Redirect => ActionOutcome::HandedBack,
         _ => ActionOutcome::Failed,
     };
     env.log(why.action(), Some(search.site().to_string()), outcome, 0);
@@ -511,6 +517,7 @@ fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &
     let mut last_err = None;
     let mut best: Vec<(WebUrl, String)> = Vec::new();
     let mut shown: Option<found::ResultsPage> = None;
+    let mut redirect = false;
     for i in 0..PAGE_POLLS {
         if i > 0 {
             env.wait(PAGE_POLL)?;
@@ -522,6 +529,10 @@ fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &
                 match found::page_kind(&p) {
                     PageKind::Consent => return Ok(Found::Nothing(NoResults::Consent)),
                     PageKind::Captcha => return Ok(Found::Nothing(NoResults::Captcha)),
+                    PageKind::Redirect => {
+                        redirect = true;
+                        continue;
+                    }
                     PageKind::Results => {}
                 }
                 if !WebUrl::parse(&p.url).is_ok_and(|u| u.site() == search.site()) {
@@ -548,6 +559,13 @@ fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &
         return Ok(Found::Links(best));
     }
     if let Some(page) = shown {
+        // Counts only: the page's title and addresses carry the query, which may come from the user's logs.
+        log::info!(
+            "Research found no result links by the rules: {} links on the page, {} in the results region (found: {})",
+            page.links.len(),
+            page.links.iter().filter(|l| l.in_region).count(),
+            page.region_found
+        );
         let picked = pick_with_model(env, model, question, &page, search, max)?;
         if picked.is_empty() {
             return Ok(Found::Nothing(NoResults::NoLinks));
@@ -558,6 +576,7 @@ fn collect_results(env: &ResearchEnv<'_>, model: &dyn ResearchModel, question: &
     }
     match last_err {
         Some(e) => Err(browser_error(e)),
+        None if redirect => Ok(Found::Nothing(NoResults::Redirect)),
         None => Ok(Found::Nothing(NoResults::NotShown)),
     }
 }
@@ -1343,5 +1362,21 @@ mod tests {
         let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
         assert!(r.no_results.as_deref().is_some_and(|s| s.contains("human check")), "{r:?}");
         assert_eq!(w.visited.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_redirect_page_that_never_goes_on_to_the_results_is_handed_to_the_user() {
+        use super::super::engines::SearchEngine;
+        use super::super::results::fixtures::GOOGLE;
+        let stuck = found::ResultsPage {
+            url: "https://www.google.com/httpservice/retry/enablejs?sei=x".into(),
+            text: "Please click here if you are not redirected within a few seconds.".into(),
+            ..found::ResultsPage::default()
+        };
+        let w = fixture_web(GOOGLE, stuck);
+        let r = run_with(&w, &model(), SearchEngine::Google, "HttpRequestException 504").unwrap();
+        assert!(r.no_results.as_deref().is_some_and(|s| s.contains("redirect page")), "{r:?}");
+        assert!(r.results_page.is_some() && r.read.is_empty());
+        assert_eq!(w.visited.lock().unwrap().len(), 1, "nothing opened");
     }
 }
