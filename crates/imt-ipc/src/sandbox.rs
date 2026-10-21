@@ -27,7 +27,8 @@ pub enum FsAccess {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SandboxSpec {
-    /// Memory cap in bytes (Windows: committed memory, job object; Linux: `RLIMIT_DATA`; macOS: `RLIMIT_AS`).
+    /// Memory cap in bytes (Windows: committed memory, job object; Linux: `RLIMIT_DATA`; macOS: none, see
+    /// [`memory_rlimit`]).
     pub memory_limit: Option<u64>,
     /// CPU share cap in percent of the machine (Windows job object; not enforced on Unix).
     pub cpu_rate_percent: Option<u8>,
@@ -216,7 +217,9 @@ mod platform {
         // RLIMIT_DATA, not RLIMIT_AS: since Linux 4.7 it counts the private writable memory a process uses, while
         // the address space also counts reservations (glibc reserves 64 MiB per malloc arena, one per busy thread),
         // so an address-space cap made a plugin process fail allocations long before it used its memory.
-        set_limit(libc::RLIMIT_DATA, spec.memory_limit)?;
+        if super::memory_rlimit("linux") == Some(super::MemoryRlimit::Data) {
+            set_limit(libc::RLIMIT_DATA, spec.memory_limit)?;
+        }
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         landlock(&spec.fs, notes)?;
         if let Err(e) = seccomp(!spec.network, !spec.children) {
@@ -464,8 +467,13 @@ mod platform {
         fn sandbox_free_error(errorbuf: *mut c_char);
     }
 
-    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, _notes: &mut Vec<super::Note>) -> Result<(), String> {
-        set_limit(libc::RLIMIT_AS, spec.memory_limit)?;
+    pub fn lockdown(spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<super::Note>) -> Result<(), String> {
+        if spec.memory_limit.is_some() && super::memory_rlimit("macos").is_none() {
+            notes.push(super::Note::new(
+                super::Gap::Limits,
+                "no memory cap on macOS: it has no limit on used memory, only on the address space, which the system libraries fill",
+            ));
+        }
         set_limit(libc::RLIMIT_CPU, spec.cpu_seconds)?;
         let Some(profile) = super::macos_profile(spec) else { return Ok(()) };
         let profile = CString::new(profile).map_err(|e| e.to_string())?;
@@ -509,6 +517,26 @@ mod platform {
     pub fn lockdown(_spec: &SandboxSpec, _elevated: bool, notes: &mut Vec<super::Note>) -> Result<(), String> {
         notes.push(super::Note::new(super::Gap::Files, "no sandbox on this platform"));
         Ok(())
+    }
+}
+
+/// The resource limit that caps a Unix process's memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+enum MemoryRlimit {
+    /// `RLIMIT_DATA`: since Linux 4.7 the private writable memory the process uses.
+    Data,
+}
+
+/// How `os` (`std::env::consts::OS`) caps a sandboxed process's memory, `None` when it cannot. Never the address
+/// space (`RLIMIT_AS`): it counts reservations, not use. glibc reserves 64 MiB per malloc arena, and on macOS the
+/// shared system libraries alone take gigabytes of it, so plugin processes failed their first allocations and closed
+/// the connection. macOS does not enforce `RLIMIT_DATA`. Pure, so every platform's choice is tested on every CI runner.
+#[cfg_attr(not(any(target_os = "linux", target_os = "macos")), allow(dead_code))]
+fn memory_rlimit(os: &str) -> Option<MemoryRlimit> {
+    match os {
+        "linux" | "android" => Some(MemoryRlimit::Data),
+        _ => None,
     }
 }
 
@@ -563,6 +591,22 @@ mod tests {
         };
         assert_eq!(serde_json::from_str::<SandboxSpec>(&serde_json::to_string(&p).unwrap()).unwrap(), p);
         assert_eq!(serde_json::from_str::<SandboxSpec>("{}").unwrap(), SandboxSpec::default());
+    }
+
+    #[test]
+    fn memory_is_capped_by_used_memory_never_by_address_space() {
+        assert_eq!(memory_rlimit("linux"), Some(MemoryRlimit::Data));
+        assert_eq!(memory_rlimit("macos"), None, "macOS has no limit on used memory");
+        for os in ["windows", "freebsd", "ios"] {
+            assert_eq!(memory_rlimit(os), None, "{os}");
+        }
+        // The address-space limit must not come back in any platform's lockdown (it broke Linux, then macOS).
+        let src = include_str!("sandbox.rs");
+        let banned = ["RLIMIT", "_AS"].concat();
+        assert!(
+            !src.lines().any(|l| l.contains(&banned) && !l.trim_start().starts_with("//")),
+            "{banned} is used in sandbox.rs"
+        );
     }
 
     #[test]
