@@ -59,6 +59,18 @@ impl SearchEngine {
         }
     }
 
+    /// Where the engine's results page puts its organic results: CSS selectors, tried in order (the results-page link
+    /// collector marks the links inside the first one found). A custom engine has none: `main` is tried then.
+    pub fn results_region(self) -> &'static [&'static str] {
+        match self {
+            SearchEngine::Google => &["#rso", "#search"],
+            SearchEngine::Bing => &["#b_results"],
+            SearchEngine::DuckDuckGo => &["ol.react-results--main", "[data-testid=mainline]", "#links", ".results"],
+            SearchEngine::StackOverflow => &[".js-search-results", "#mainbar"],
+            SearchEngine::Custom => &[],
+        }
+    }
+
     fn template(self) -> Option<&'static str> {
         match self {
             SearchEngine::DuckDuckGo => Some("https://duckduckgo.com/?q={q}"),

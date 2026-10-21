@@ -6,7 +6,7 @@ use super::view::{open, page_webview};
 use imt_ai::browser::policy::ScrollDirection;
 use imt_ai::browser::{
     capture_from, scripts, snapshot_from, BrowserError, DomSnapshot, Element, Nonce, PageCapture, PageDriver, PageReader, ReplyError,
-    ReplyGate, WebUrl,
+    ReplyGate, ResultsPage, ResultsReader, WebUrl,
 };
 use serde_json::{Map, Value};
 use std::sync::mpsc::sync_channel;
@@ -96,6 +96,13 @@ impl<R: Runtime> PageReader for TauriPage<R> {
 
     fn snapshot(&self) -> Result<DomSnapshot, BrowserError> {
         self.eval(scripts::snapshot).map(|m| snapshot_from(&m))
+    }
+}
+
+impl<R: Runtime> ResultsReader for TauriPage<R> {
+    fn results_page(&self, region: &[&str]) -> Result<ResultsPage, BrowserError> {
+        self.eval(|n| scripts::result_links(n, region))
+            .map(|m| imt_ai::browser::results_page_from(&m))
     }
 }
 
