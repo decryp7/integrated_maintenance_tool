@@ -76,6 +76,14 @@ impl Ctx {
             IpcError::Remote(r) if r.code != code::PANIC => anyhow!("plugin \"{id}\" ({what}): {}", r.message),
             IpcError::Denied(m) => anyhow::Error::new(ToolFailure::denied(m)),
             e => {
+                let crash = match &e {
+                    IpcError::Died(m) => Some(imt_core::guard::Crashed::new(format!("plugin \"{id}\" ({what})"), m.clone())),
+                    IpcError::Remote(r) => Some(imt_core::guard::Crashed::new(
+                        format!("plugin \"{id}\" ({what})"),
+                        r.message.clone(),
+                    )),
+                    _ => None,
+                };
                 let message = match &e {
                     IpcError::Timeout => format!(
                         "plugin \"{id}\" ({what}) did not finish within {}; its process was stopped",
@@ -90,7 +98,10 @@ impl Ctx {
                     self.process.shutdown();
                 }
                 self.health.fail(id, &message);
-                anyhow!(message)
+                match crash {
+                    Some(c) => anyhow::Error::new(c),
+                    None => anyhow!(message),
+                }
             }
         }
     }

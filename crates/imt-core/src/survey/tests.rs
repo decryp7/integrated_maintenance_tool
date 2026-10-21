@@ -377,14 +377,14 @@ fn line_diff_marks_added_and_removed_lines() {
 
 // ---- validation ----
 
-fn store_with(lines: &str) -> (Workspace, std::path::PathBuf) {
+fn store_with(lines: &str) -> (crate::workspace::WorkspaceStore, std::path::PathBuf) {
     let dir = std::env::temp_dir().join(format!("imt-survey-{}-{}", std::process::id(), lines.len()));
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("app.log");
     std::fs::write(&file, lines).unwrap();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();
     ws.open(std::slice::from_ref(&dir)).unwrap();
-    (ws, dir)
+    (crate::workspace::WorkspaceStore::new(ws), dir)
 }
 
 fn candidate(id: &str, group: ProposalGroup, fragments: Vec<Fragment>, requires: Vec<&str>) -> Candidate {
@@ -513,9 +513,7 @@ fn invalid_proposals_are_skipped_with_a_reason_and_valid_ones_previewed() {
 #[test]
 fn heuristics_end_to_end_on_a_small_folder() {
     let (ws, dir) = store_with(&log_lines());
-    let setup = ws
-        .survey_folder(DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new())
-        .unwrap();
+    let setup = run(&ws, DEFAULT_PROFILE_TOML, &SurveyRequest::default(), &SurveyControl::new()).unwrap();
     assert!(setup.proposals.iter().any(|p| p.id == "instance:Worker"), "{:?}", setup.proposals);
     assert!(setup.proposals.iter().any(|p| p.id == "extract:ElapsedMs"));
     let composed = compose(&ws, DEFAULT_PROFILE_TOML, &setup.proposals[0].fragments).unwrap();
@@ -570,11 +568,13 @@ fn unrecognised_files_are_grouped_with_their_first_lines() {
             path: path.to_string_lossy().into_owned(),
             name: "dump.reg".into(),
             reason: "no importer recognises this format".into(),
+            crashed: false,
         },
         crate::api::UnrecognizedFile {
             path: "x.zip!/inner.bin".into(),
             name: "x.zip/inner.bin".into(),
             reason: "binary file".into(),
+            crashed: false,
         },
     ];
     let g = unrecognised::groups(&files);

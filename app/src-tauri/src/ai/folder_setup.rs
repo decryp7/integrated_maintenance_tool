@@ -5,7 +5,7 @@
 //! Wire contract: `app/src/app/ai/folder-setup/folder-setup.types.ts`.
 
 use crate::jobs::{Controls, Done, JobKind, JobProgress, JobResult, JobSpec};
-use crate::windows::{read, CurrentWindow};
+use crate::windows::CurrentWindow;
 use crate::CmdResult;
 use imt_core::survey::{self, ComposedProfile, Fragment, SurveyControl, SurveyError, SurveyProgress, SurveyRequest};
 use serde_json::{json, Value};
@@ -82,10 +82,14 @@ pub async fn folder_survey<R: Runtime>(
     crate::error::lift(
         crate::jobs::spawn(&app, spec, controls, move |_| {
             let ticker = Ticker::start(control.clone(), on_progress.clone());
-            let out = crate::jobs::read_store(&win, |ws| outcome(ws.survey_folder(&base, &req, &control)));
+            let out = win
+                .engine
+                .store()
+                .map_err(|e| e.message)
+                .and_then(|store| outcome(survey::run(store.as_ref(), &base, &req, &control)).map_err(|e| format!("{e:#}")));
             drop(ticker);
             let _ = on_progress.send(control.progress());
-            let out = out.map_err(crate::err)?;
+            let out = out?;
             let cancelled = out.get("cancelled").is_some();
             Ok::<_, String>(
                 Done::new(())
@@ -105,7 +109,10 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
         return Err(crate::CmdError::from(format!("select 1 to {MAX_FRAGMENTS} proposals")));
     }
     let base = state.profile_doc().toml;
-    read(&state, move |ws| survey::compose(ws, &base, &fragments)).await
+    crate::engine::with_store(&state, move |store| {
+        survey::compose(store, &base, &fragments).map_err(|e| imt_core::ports::StoreError::Invalid(format!("{e:#}")))
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -130,9 +137,7 @@ mod tests {
     fn the_survey_runs_as_a_job_and_its_proposals_compose() {
         let app = test_app(None);
         let win = main_window(&app);
-        win.store_write()
-            .open(&[samples().join("serilog-clef"), samples().join("serilog-text")])
-            .unwrap();
+        crate::test_support::import(&win, &[samples().join("serilog-clef"), samples().join("serilog-text")]);
         let (ch, seen) = sink();
         // The command returns the job at once; the proposals are its result.
         let id = folder_survey(app.handle().clone(), win.clone(), None, ch).now().unwrap();

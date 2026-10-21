@@ -6,11 +6,8 @@
 use super::Workspace;
 use crate::model::Record;
 use crate::plugin::annotate::{AnnotationDto, AnnotationsRequest};
-use crate::spans::draft::{self, Classifier};
-use crate::spans::{
-    book, summarize, to_annotation, Pairer, RunStatus, RunStyle, RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest, SpanRule,
-    SpanSummary,
-};
+use crate::spans::draft::Classifier;
+use crate::spans::{book, Pairer, RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest, SpanRule, SpanSummary};
 
 /// The pairing state of every rule, and what it was computed from.
 #[derive(Default)]
@@ -95,52 +92,14 @@ impl Workspace {
 
     /// The guided editor's preview: the draft checked against the profile and paired over the loaded records.
     pub fn preview_spans(&self, req: &SpanPreviewRequest) -> SpanPreview {
-        let (errors, warnings, checked) = draft::check(&req.draft, &self.profile.profile, &self.profile.markers);
-        let Some(checked) = checked else {
-            return SpanPreview {
-                errors,
-                warnings,
-                ..Default::default()
-            };
-        };
-        let timed = self.records.partition_point(|r| r.ts.is_some());
-        let mut pairers = vec![Pairer::new(checked.rule.restart_on_start)];
-        let lanes = |r: &Record| self.lane_of(r);
-        let source = |id: u32| self.source_name(id);
-        feed(
-            &self.records[..timed],
-            &[(&checked.rule, checked.classifier.clone())],
-            &mut pairers,
-            &lanes,
-            &source,
-        );
-        let style = RunStyle::of(&checked.rule);
-        let mut all: Vec<AnnotationDto> = pairers[0]
-            .runs()
-            .iter()
-            .map(|run| to_annotation(&style, run, &self.default_group_by))
-            .collect();
-        all.sort_by_key(|a| a.from);
-        let summary = summarize(&checked.rule, &all, pairers[0].dropped_runs + pairers[0].ignored_events);
-        let anomalies = all
-            .iter()
-            .filter(|a| {
-                a.run
-                    .as_ref()
-                    .is_some_and(|r| r.too_long || matches!(r.status, RunStatus::NoStop | RunStatus::NoStart))
-            })
-            .take(crate::spans::dto::PREVIEW_RUNS)
-            .cloned()
-            .collect();
-        all.truncate(crate::spans::dto::PREVIEW_RUNS);
-        SpanPreview {
-            errors,
-            warnings,
-            summary: Some(summary),
-            runs: all,
-            anomalies,
-            plan: Some(checked.plan),
+        let mut p = crate::spans::preview::SpanPreviewer::new(req, &self.profile, self.default_group_by.clone());
+        if p.wants_events() {
+            let timed = self.records.partition_point(|r| r.ts.is_some());
+            for r in &self.records[..timed] {
+                p.add(r, self.source_name(r.source), &self.lane_of(r));
+            }
         }
+        p.finish()
     }
 
     /// Summaries of every span kind over all runs (enabled rules first).

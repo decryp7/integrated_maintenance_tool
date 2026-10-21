@@ -10,6 +10,8 @@ mod export;
 mod facet;
 mod insights;
 mod page;
+mod ports;
+pub use ports::{event_view, summary_reply, WorkspaceStore};
 mod preview;
 mod redaction;
 pub use insights::preview_parse;
@@ -557,6 +559,7 @@ impl Workspace {
                         self.tail.remember_unrecognized(source_file(&path_s));
                     }
                     self.unrecognized.push(UnrecognizedFile {
+                        crashed: reason.contains(" crashed: "),
                         path: path_s,
                         name,
                         reason,
@@ -707,6 +710,7 @@ impl Workspace {
             sources: self.sources.clone(),
             unrecognized: self.unrecognized.clone(),
             total: self.records.len(),
+            untimed: self.records.iter().filter(|r| r.ts.is_none()).count(),
             from,
             to,
             levels,
@@ -740,16 +744,7 @@ impl Workspace {
             pipeline: self.pipeline_stats(),
             icons: self.profile.icons.clone(),
             plugins: self.registry.plugins(),
-            exporters: self
-                .registry
-                .exporters
-                .iter()
-                .map(|e| ExporterInfo {
-                    id: e.id().into(),
-                    name: e.name().into(),
-                    extension: e.extension().into(),
-                })
-                .collect(),
+            exporters: self.registry.exporter_infos(),
             dashboards: self.profile.profile.dashboard.clone(),
             redacted_view: self.view_redaction.is_some(),
         }

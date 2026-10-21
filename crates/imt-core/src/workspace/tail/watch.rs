@@ -184,7 +184,7 @@ impl StopToken {
         self.0.load(Ordering::SeqCst)
     }
 
-    fn stop(&self) {
+    pub fn stop(&self) {
         self.0.store(true, Ordering::SeqCst);
     }
 }

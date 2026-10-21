@@ -4,9 +4,9 @@
 //! (this checks the protocol table, the dispatch and that every DTO survives its JSON round trip).
 //! Also: a scan streams every event, a cancelled query stops, and an operation on a closed store fails typed.
 
-use imt_core::ports::{Analysis, Diagnostics, Filter, Ingest, Positions, Profiles, Query, Search, StoreError};
+use imt_core::ports::{Analysis, Diagnostics, Filter, Ingest, Positions, Profiles, Projects, Query, Search, StoreError};
 use imt_core::ql::QueryControl;
-use imt_core::{PluginRegistry, Profile};
+use imt_core::Profile;
 use imt_store_duck::DuckStore;
 use imt_store_worker::{StoreWorker, WorkerConfig};
 use serde::de::DeserializeOwned;
@@ -106,6 +106,10 @@ fn ask<S: Query + Analysis + Profiles + Diagnostics + Search + Positions>(s: &S,
             text(s.preview_extractor(&req(json!({"toml": EXTRACT, "extractor": "Elapsed", "query": all}))).map(j)),
         ),
         ("problems".into(), text(s.problems().map(j))),
+        (
+            "previewSpans".into(),
+            text(s.preview_spans(&req(json!({"draft": {"kind": "work", "label": "Work", "start": {"type": "pattern", "pattern": "started"}, "stop": {"type": "pattern", "pattern": "stopped"}}}))).map(j)),
+        ),
         ("evaluateFix".into(), text(s.evaluate_fix(&req(json!({"profileOverride": "[parse]\n"}))).map(j))),
         ("search".into(), text(s.search(&req(json!({"text": "timeout", "limit": 20}))).map(j))),
     ];
@@ -127,7 +131,10 @@ fn every_operation_over_the_worker_answers_like_the_store() {
         .collect();
     assert!(!roots.is_empty(), "the samples are there");
     let local = {
-        let store = DuckStore::create(&dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
+        // The same importers as the worker: the plugin processes next to the test binaries.
+        let plugins = imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary()).plugins();
+        let registry = imt_store_worker::server::install_plugins(plugins, &[]);
+        let store = DuckStore::create(&dir.0, Profile::default_profile(), registry).unwrap();
         store.open(&roots).unwrap().wait().unwrap();
         store.wait_for_index(Duration::from_secs(120)).unwrap();
         let answers = ask(&store, &exports.0.join("local.csv"));

@@ -1,7 +1,7 @@
 //! "Set up analysis for this folder": a bounded survey of what is loaded, heuristic proposals built from
 //! it, and the engine's validation and preview of every proposal (heuristic or AI) before the user sees it.
 //!
-//! - [`run`] samples each source group through the [`LogStore`] (capped per group, in total and in time;
+//! - [`run`] samples each source group through the [`SurveyStore`] (capped per group, in total and in time;
 //!   cancellable through a [`SurveyControl`]), computes the [`FolderSurvey`] facts, turns them into
 //!   [`Candidate`]s and validates them ([`validate()`]). Nothing is changed.
 //! - [`compose`] merges selected [`Fragment`]s into the active profile's TOML, validates the result
@@ -33,7 +33,13 @@ pub use sample::{Sample, Sampled};
 pub use templates::{classify_lifecycle, noise_reason, template_regex};
 pub use validate::validate;
 
-use crate::LogStore;
+/// What the survey reads: the store's queries and profile operations (any store adapter).
+pub trait SurveyStore: crate::ports::Query + crate::ports::Profiles {}
+impl<T: crate::ports::Query + crate::ports::Profiles + ?Sized> SurveyStore for T {}
+
+fn store_failed(e: crate::ports::StoreError) -> SurveyError {
+    SurveyError::Invalid(e.to_string())
+}
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -160,7 +166,7 @@ impl SurveyControl {
 
 /// Surveys what `store` has loaded and returns validated heuristic proposals. `base_toml` is the active
 /// profile as the user wrote it (proposals are merged over it).
-pub fn run<S: LogStore + ?Sized>(
+pub fn run<S: SurveyStore + ?Sized>(
     store: &S,
     base_toml: &str,
     req: &SurveyRequest,
@@ -168,15 +174,16 @@ pub fn run<S: LogStore + ?Sized>(
 ) -> Result<FolderSetup, SurveyError> {
     let started = Instant::now();
     let limits = SurveyLimits::from_request(req);
-    let summary = store.summary();
+    let summary = store.summary().map_err(store_failed)?;
     if summary.sources.is_empty() && summary.unrecognized.is_empty() {
         return Err(SurveyError::NothingOpened);
     }
+    let profile = store.active_profile().map_err(store_failed)?;
     let sampled = sample::collect(store, &summary, &limits, control, started)?;
-    let survey = analyse(&sampled, &summary, store.profile(), control, started)?;
+    let survey = analyse(&sampled, &summary, &profile, control, started)?;
     control.check()?;
     control.begin(SurveyStage::Proposing, 1);
-    let candidates = propose(&survey, store.profile());
+    let candidates = propose(&survey, &profile);
     control.advance(1);
     let (proposals, skipped) = validate(store, base_toml, &survey, &sampled, candidates, control)?;
     control.begin(SurveyStage::Done, 0);
@@ -191,26 +198,27 @@ pub fn run<S: LogStore + ?Sized>(
 
 /// Surveys `store` without proposing anything (the facts the AI refinement is grounded in) and returns
 /// the samples too, for validating further proposals.
-pub fn survey_only<S: LogStore + ?Sized>(
+pub fn survey_only<S: SurveyStore + ?Sized>(
     store: &S,
     req: &SurveyRequest,
     control: &SurveyControl,
 ) -> Result<(FolderSurvey, Sampled), SurveyError> {
     let started = Instant::now();
     let limits = SurveyLimits::from_request(req);
-    let summary = store.summary();
+    let summary = store.summary().map_err(store_failed)?;
     if summary.sources.is_empty() && summary.unrecognized.is_empty() {
         return Err(SurveyError::NothingOpened);
     }
+    let profile = store.active_profile().map_err(store_failed)?;
     let sampled = sample::collect(store, &summary, &limits, control, started)?;
-    let mut survey = analyse(&sampled, &summary, store.profile(), control, started)?;
+    let mut survey = analyse(&sampled, &summary, &profile, control, started)?;
     survey.elapsed_ms = started.elapsed().as_millis() as u64;
     Ok((survey, sampled))
 }
 
 fn analyse(
     sampled: &Sampled,
-    summary: &crate::api::WorkspaceSummary,
+    summary: &crate::ports::SummaryReply,
     profile: &crate::Profile,
     control: &SurveyControl,
     started: Instant,
@@ -230,7 +238,7 @@ fn analyse(
     control.check()?;
     let numbers = number_candidates(&sampled.events);
     control.advance(1);
-    let markers = templates::coverage(&summary.marker_kinds, &sampled.events);
+    let markers = templates::coverage(&summary.marker_kinds, profile, &sampled.events);
     let unrecognised = unrecognised::groups(&summary.unrecognized);
     control.advance(1);
     Ok(FolderSurvey {
@@ -252,7 +260,7 @@ fn analyse(
 
 /// Merges `fragments` into `base_toml`, validates the result against `store` (its plugins) and returns it
 /// with a diff. Saved queries are checked with the query language and returned separately.
-pub fn compose<S: LogStore + ?Sized>(store: &S, base_toml: &str, fragments: &[Fragment]) -> anyhow::Result<ComposedProfile> {
+pub fn compose<S: SurveyStore + ?Sized>(store: &S, base_toml: &str, fragments: &[Fragment]) -> anyhow::Result<ComposedProfile> {
     const MAX_FRAGMENTS: usize = 200;
     if fragments.is_empty() {
         anyhow::bail!("select at least one proposal");
@@ -266,7 +274,7 @@ pub fn compose<S: LogStore + ?Sized>(store: &S, base_toml: &str, fragments: &[Fr
             if name.trim().is_empty() || name.chars().count() > 120 {
                 anyhow::bail!("a saved query needs a name of 1 to 120 characters");
             }
-            if let Some(e) = store.check_query(ql) {
+            if let Some(e) = store.check_query(ql).map_err(|e| anyhow::anyhow!("{e}"))? {
                 anyhow::bail!("the saved query \"{name}\" is not valid: {}", e.message);
             }
             saved_queries.push(SavedQueryFragment {
@@ -278,7 +286,7 @@ pub fn compose<S: LogStore + ?Sized>(store: &S, base_toml: &str, fragments: &[Fr
     let (before, after) = compose_toml(base_toml, fragments)?;
     let profile = crate::Profile::from_toml(&after).map_err(|e| anyhow::anyhow!("the combined profile is not valid: {e}"))?;
     store
-        .validate_profile(profile)
+        .validate_profile(&profile)
         .map_err(|e| anyhow::anyhow!("the combined profile does not compile: {e:#}"))?;
     let diff = line_diff(&before, &after);
     let added = diff.iter().filter(|d| d.op == DiffOp::Add).count();

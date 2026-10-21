@@ -8,7 +8,8 @@ use crate::dashboard::{TileCfg, TileData, TileKind, TileRequest, MAX_TABLE_ROWS,
 use crate::model::value_number;
 use crate::plugin::annotate::AnnotationsRequest;
 use crate::ql::QlResult;
-use crate::query::{Query, TimeWindow};
+use crate::query::Query;
+use crate::tiles::{first_value, tile_query, with_ql};
 use anyhow::{anyhow, Result};
 use serde_json::Value;
 
@@ -148,114 +149,5 @@ impl Workspace {
                 })
             }
         }
-    }
-}
-
-/// The tile's base query: the dashboard's, or its own sliding window.
-fn tile_query(tile: &TileCfg, base: &Query) -> Result<Query> {
-    let mut q = base.clone();
-    if let Some(ms) = tile.window_ms()? {
-        q.from = None;
-        q.to = None;
-        q.window = Some(TimeWindow::Live { last_ms: ms });
-    }
-    Ok(q)
-}
-
-/// `base` with the tile's query-language text added to its own: the base
-/// program, then the tile's filter as a `where` stage, then its stages.
-fn with_ql(mut base: Query, ql: Option<&str>) -> Query {
-    let tile = ql.map(str::trim).unwrap_or("");
-    if base.ql.trim().is_empty() || tile.is_empty() {
-        if base.ql.trim().is_empty() {
-            base.ql = tile.to_string();
-        }
-        return base;
-    }
-    let (filter, stages) = split_stages(tile);
-    let mut text = base.ql.trim().to_string();
-    if !filter.is_empty() {
-        text = format!("{text} | where {filter}");
-    }
-    if !stages.is_empty() {
-        text = format!("{text} | {stages}");
-    }
-    base.ql = text;
-    base
-}
-
-/// Splits a query-language text at its first `|` outside quotes.
-fn split_stages(text: &str) -> (&str, &str) {
-    let mut quote: Option<char> = None;
-    for (i, c) in text.char_indices() {
-        match (quote, c) {
-            (Some(q), c) if c == q => quote = None,
-            (Some(_), _) => {}
-            (None, '"' | '\'' | '`') => quote = Some(c),
-            (None, '|') => return (text[..i].trim(), text[i + 1..].trim()),
-            (None, _) => {}
-        }
-    }
-    (text.trim(), "")
-}
-
-/// The last column of the first row of a table (the value of a `stats`).
-fn first_value(result: QlResult) -> (String, Option<Value>) {
-    match result {
-        QlResult::Table { columns, rows } => {
-            let label = columns.last().cloned().unwrap_or_default();
-            (label, rows.into_iter().next().and_then(|r| r.into_iter().last()))
-        }
-        QlResult::Events { ids, .. } => ("events".into(), Some(Value::from(ids.len()))),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tile_queries_combine_with_the_base() {
-        let base = Query {
-            ql: "level >= warning".into(),
-            from: Some(1),
-            ..Default::default()
-        };
-        assert_eq!(with_ql(base.clone(), None).ql, "level >= warning");
-        assert_eq!(with_ql(base.clone(), Some("x = 1")).ql, "level >= warning | where x = 1");
-        assert_eq!(
-            with_ql(base.clone(), Some("| stats count()")).ql,
-            "level >= warning | stats count()"
-        );
-        assert_eq!(
-            with_ql(base.clone(), Some("m = \"a|b\" | stats count() by m")).ql,
-            "level >= warning | where m = \"a|b\" | stats count() by m"
-        );
-        assert_eq!(with_ql(Query::default(), Some(" a ")).ql, "a");
-        for text in [
-            "level >= warning | where x = 1",
-            "level >= warning | stats count()",
-            "level >= warning | where m = \"a|b\" | stats count() by m",
-        ] {
-            crate::ql::parse(text).unwrap();
-        }
-        let mut tile: TileCfg = toml::from_str("id='t'\ntype='annotations'\nwindow='1m'").unwrap();
-        let q = tile_query(&tile, &base).unwrap();
-        assert_eq!((q.from, q.window), (None, Some(TimeWindow::Live { last_ms: 60_000 })));
-        tile.window = None;
-        assert_eq!(tile_query(&tile, &base).unwrap().from, Some(1));
-        assert_eq!(
-            first_value(QlResult::Events {
-                ids: vec![1, 2],
-                fields: None
-            })
-            .1,
-            Some(Value::from(2))
-        );
-        let empty = QlResult::Table {
-            columns: vec![],
-            rows: vec![],
-        };
-        assert_eq!(first_value(empty), (String::new(), None));
     }
 }

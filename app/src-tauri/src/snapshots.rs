@@ -1252,9 +1252,9 @@ mod tests {
         let app = crate::test_support::test_app(None);
         let main = crate::test_support::main_window(&app);
         let (tx, rx) = std::sync::mpsc::channel();
-        main.events
-            .clone()
-            .unwrap()
+        main.host
+            .registry
+            .events()
             .subscribe::<imt_core::events::SnapshotTaken>("test.snapshots", move |e| {
                 let _ = tx.send(e.id.clone());
             })

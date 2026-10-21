@@ -508,7 +508,12 @@ fn recover(sources: &[String]) -> Option<Opened> {
 /// the last open (shown once).
 #[tauri::command]
 pub async fn diagnostics_report<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<DiagnosticsReportState> {
-    let sources: Vec<String> = crate::windows::read(&state, |ws| Ok(ws.summary().sources.into_iter().map(|s| s.path).collect())).await?;
+    let sources: Vec<String> = crate::workspace_commands::summary_of(&state)
+        .await?
+        .sources
+        .into_iter()
+        .map(|s| s.path)
+        .collect();
     let label = state.label().to_string();
     let reports = reports(&app);
     let notice = lock(&reports.notices).remove(&label);
@@ -740,7 +745,7 @@ mod tests {
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), win)).unwrap();
         assert!(st.report.is_none());
         let win = crate::test_support::main_window(&app);
-        win.store_write().open(&[PathBuf::from(&paths[0])]).unwrap();
+        crate::test_support::import(&win, &[PathBuf::from(&paths[0])]);
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), crate::test_support::main_window(&app))).unwrap();
         let report = st.report.unwrap();
         assert!(report.processes.is_empty());

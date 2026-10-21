@@ -3,7 +3,7 @@
 //! (`imt_core::file_target`), so no path ever comes from the webview.
 
 use crate::opener::{self, Invocation, Os};
-use crate::windows::{read, CurrentWindow};
+use crate::windows::CurrentWindow;
 use crate::CmdResult;
 use imt_core::file_target::{resolve, FileAction, FileTarget, OpenFileRequest};
 use serde::Serialize;
@@ -76,7 +76,7 @@ fn open(action: FileAction, target: &FileTarget) -> Result<FileOpened, String> {
 /// the file manager. Refuses ids that are not (or no longer) open in this window and archive members.
 #[tauri::command]
 pub(crate) async fn open_source_file(state: CurrentWindow, request: OpenFileRequest) -> CmdResult<FileOpened> {
-    let sources = read(&state, |ws| Ok(ws.sources())).await?;
+    let sources = crate::workspace_commands::summary_of(&state).await?.sources;
     let target = resolve(&sources, &request).map_err(|e| e.to_string())?;
     crate::error::lift(
         tauri::async_runtime::spawn_blocking(move || open(request.action, &target))

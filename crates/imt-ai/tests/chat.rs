@@ -130,8 +130,8 @@ fn events_can_be_resumed_by_sequence_number() {
 
 #[test]
 fn proposals_are_emitted_validated_and_never_applied() {
-    let before = store().summary().total;
-    let profile_before = store().profile().name.clone();
+    let before = store().summary().unwrap().total;
+    let profile_before = store().active_profile().unwrap().name.clone();
     // the chat model calls propose_query; the nested natural-language-to-query call is the second scripted reply
     let a = assistant(vec![
         tools("propose_query", json!({"question": "show errors"})),
@@ -165,7 +165,10 @@ fn proposals_are_emitted_validated_and_never_applied() {
         .content
         .clone();
     assert!(tool_result.contains("nothing was changed") && tool_result.contains("must review and apply"));
-    assert_eq!((store().summary().total, store().profile().name.clone()), (before, profile_before));
+    assert_eq!(
+        (store().summary().unwrap().total, store().active_profile().unwrap().name.clone()),
+        (before, profile_before)
+    );
     // the proposal is stored with the turn for the project file
     assert_eq!(s.turns()[0].proposals[0]["kind"], "query");
 }
@@ -541,7 +544,8 @@ fn starter_prompts_come_from_the_overview() {
     assert!(p.iter().all(|s| s.len() > 10) && p.iter().collect::<std::collections::HashSet<_>>().len() == p.len());
     let findings = store()
         .overview(&imt_core::api::QueryRequest { query: Default::default() })
-        .unwrap();
+        .unwrap()
+        .result;
     assert!(!findings.is_empty());
     assert!(p.iter().any(|s| s.contains(&findings[0].title)), "{p:?} vs {}", findings[0].title);
     assert!(p.iter().any(|s| s.contains("What happened around")), "{p:?}");

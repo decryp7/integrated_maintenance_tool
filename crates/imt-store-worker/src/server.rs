@@ -295,6 +295,7 @@ impl Worker {
             StoreOp::PreviewParse => run!(s.preview_parse(&body(b)?)),
             StoreOp::PreviewExtractor => run!(s.preview_extractor(&body(b)?)),
             StoreOp::ProposeSpanRule => run!(s.propose_span_rule(&body(b)?)),
+            StoreOp::PreviewSpans => run!(s.preview_spans(&body(b)?)),
             StoreOp::EvaluateSpanRule => run!(s.evaluate_span_rule(&body(b)?)),
             StoreOp::Problems => reply(&s.problems()?),
             StoreOp::EvaluateFix => run!(s.evaluate_fix(&body(b)?)),

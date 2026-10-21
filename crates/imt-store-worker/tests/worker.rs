@@ -230,7 +230,19 @@ fn errors_pass_through_and_a_crash_is_recovered() {
     assert_eq!(store.summary().unwrap().total, 2);
     // Typed errors come back as they were.
     assert!(matches!(store.remove_source(SourceId(999)), Err(StoreError::NotFound(_))));
-    assert!(matches!(store.restore(&Default::default()), Err(StoreError::Unsupported { .. })));
+    let bad_regex = PageQuery {
+        query: imt_core::ports::Filter {
+            text: "(".into(),
+            regex: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert!(
+        matches!(store.page(&bad_regex), Err(StoreError::Invalid(_))),
+        "{:?}",
+        store.page(&bad_regex)
+    );
     // The worker dies: the next call fails (retryable) or already runs on a new worker; then all is back.
     let pid = w.status().pid.unwrap();
     let mut sys = sysinfo::System::new();

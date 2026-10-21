@@ -6,15 +6,17 @@ use super::dto::*;
 use super::fields::MAX_LANES;
 use super::fragment::{compose_toml, fragment_toml};
 use super::sample::{Sample, Sampled};
+use super::SurveyStore;
 use super::{SurveyControl, SurveyError, SurveyStage};
-use crate::api::{PageRequest, ParsePreviewRequest};
+use crate::api::ParsePreviewRequest;
 use crate::condition::Condition;
 use crate::model::Record;
 use crate::pipeline::Pipeline;
+use crate::ports::PageQuery;
 use crate::profile::{compile_conditions, CompiledProfile};
 use crate::query::Query;
-use crate::spans::{Edge, Pairer, Per, RunStatus, SpanCfg, SpanDraft, SpanPreviewRequest, Trigger};
-use crate::{LogStore, Profile};
+use crate::spans::{Edge, Pairer, Per, RunStatus, SpanCfg};
+use crate::Profile;
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -24,7 +26,7 @@ const LANE_PREVIEW: usize = 12;
 const MIN_PARSED: f64 = 0.6;
 
 /// Validates `candidates` in order (a proposal may only require earlier, valid ones).
-pub fn validate<S: LogStore + ?Sized>(
+pub fn validate<S: SurveyStore + ?Sized>(
     store: &S,
     base_toml: &str,
     survey: &FolderSurvey,
@@ -119,7 +121,7 @@ fn format_group(id: &str) -> String {
 
 type Checked = std::result::Result<(ProposalPreview, String), String>;
 
-fn check<S: LogStore + ?Sized>(
+fn check<S: SurveyStore + ?Sized>(
     store: &S,
     base_toml: &str,
     survey: &FolderSurvey,
@@ -138,7 +140,7 @@ fn check<S: LogStore + ?Sized>(
         let (_, merged) = compose_toml(base_toml, &profile_fragments).map_err(|e| format!("{e:#}"))?;
         let profile = Profile::from_toml(&merged).map_err(|e| format!("the profile would not be valid: {e}"))?;
         store
-            .validate_profile(profile)
+            .validate_profile(&profile)
             .map_err(|e| format!("the profile would not compile: {e:#}"))?;
         candidate_toml = Some(merged);
     }
@@ -153,7 +155,7 @@ fn check<S: LogStore + ?Sized>(
         match c.fragments.first() {
             Some(Fragment::ParseRegex { .. }) => parse(store, survey, c, candidate_toml.as_deref().unwrap_or(base_toml))?,
             Some(Fragment::Marker { marker }) => matches(&eval, events, &marker.kind)?,
-            Some(Fragment::Span { span }) => runs(store, &eval, events, span)?,
+            Some(Fragment::Span { span }) => runs(&eval, events, span)?,
             Some(Fragment::Extractor { extractor }) => extracted(&eval, events, &extractor.name)?,
             Some(Fragment::Pipeline { step }) => pipeline(&eval, events, step)?,
             Some(Fragment::Chart { chart }) => chart_shape(&eval, events, chart)?,
@@ -323,44 +325,13 @@ fn extracted(eval: &Eval, events: &[Sample], name: &str) -> Previewed {
     })
 }
 
-/// Runs of a `[[span]]` proposal. When it names only marker kinds the store already has, the engine's own
-/// Runs preview over all loaded events answers ([`LogStore::preview_spans`]); when it needs markers that are
-/// only proposed, the engine's pairing ([`Pairer`]) runs over the sample with the proposed markers applied.
-fn runs<S: LogStore + ?Sized>(store: &S, eval: &Eval, events: &[Sample], span: &SpanCfg) -> Previewed {
+/// Runs of a `[[span]]` proposal: the engine's pairing ([`Pairer`]) over the sample with the proposed markers
+/// applied (the same pairing as the Runs table).
+fn runs(eval: &Eval, events: &[Sample], span: &SpanCfg) -> Previewed {
     if let Some(issue) = crate::spans::config::check(span).into_iter().next() {
         return Err(format!("the run rule is not valid: {}", issue.message));
     }
     let (starts, stops) = (span.start.list(), span.stop.list());
-    let known: HashSet<String> = store.summary().marker_kinds.into_iter().map(|m| m.kind).collect();
-    if starts.iter().chain(&stops).all(|k| known.contains(k)) {
-        let draft = SpanDraft {
-            kind: span.kind.clone(),
-            label: span.label.clone().unwrap_or_default(),
-            start: Trigger::Markers { kinds: starts },
-            stop: Trigger::Markers { kinds: stops },
-            per: span.per.clone(),
-            max_duration: span.max_duration.clone(),
-            restart_on_start: Some(span.restart_on_start),
-            color: span.color.clone(),
-        };
-        let p = store
-            .preview_spans(&SpanPreviewRequest { draft })
-            .map_err(|e| format!("the runs cannot be previewed: {e:#}"))?;
-        if let Some(e) = p.errors.first() {
-            return Err(format!("the run rule is not valid: {}", e.message));
-        }
-        let s = p.summary.ok_or("the runs cannot be previewed")?;
-        if s.runs == 0 {
-            return Err("no run starts in the loaded events".into());
-        }
-        return Ok(ProposalPreview::Runs {
-            runs: s.runs,
-            closed: s.closed,
-            open: s.open,
-            no_stop: s.no_stop,
-            lanes: s.lanes,
-        });
-    }
     let per = Per::parse(&span.per).map_err(|e| format!("the run rule is not valid: {e:#}"))?;
     let mut order: Vec<usize> = (0..events.len()).filter(|i| events[*i].rec.ts.is_some()).collect();
     order.sort_by_key(|i| (events[*i].rec.ts, *i));
@@ -511,11 +482,13 @@ fn chart_shape(eval: &Eval, events: &[Sample], chart: &crate::profile::ChartCfg)
     })
 }
 
-fn query<S: LogStore + ?Sized>(store: &S, ql: &str) -> Previewed {
-    if let Some(e) = store.check_query(ql) {
-        return Err(format!("the query is not valid: {}", e.message));
+fn query<S: SurveyStore + ?Sized>(store: &S, ql: &str) -> Previewed {
+    match store.check_query(ql) {
+        Ok(Some(e)) => return Err(format!("the query is not valid: {}", e.message)),
+        Ok(None) => {}
+        Err(e) => return Err(format!("the query cannot be checked: {e}")),
     }
-    let req = PageRequest {
+    let req = PageQuery {
         query: Query {
             ql: ql.to_string(),
             ..Query::default()
@@ -532,7 +505,7 @@ fn query<S: LogStore + ?Sized>(store: &S, ql: &str) -> Previewed {
     Ok(ProposalPreview::Query { matches })
 }
 
-fn parse<S: LogStore + ?Sized>(store: &S, survey: &FolderSurvey, c: &Candidate, toml: &str) -> Previewed {
+fn parse<S: SurveyStore + ?Sized>(store: &S, survey: &FolderSurvey, c: &Candidate, toml: &str) -> Previewed {
     let ext = format_group(&c.id);
     let group = survey
         .unrecognised
@@ -546,7 +519,9 @@ fn parse<S: LogStore + ?Sized>(store: &S, survey: &FolderSurvey, c: &Candidate, 
         file_name: group.sample_file.clone().unwrap_or_default(),
         limit: 200,
     };
-    let p = store.preview_parse(&req);
+    let p = store
+        .preview_parse(&req)
+        .map_err(|e| format!("the files cannot be previewed: {e}"))?;
     if let Some(e) = p.error {
         return Err(format!("the files still cannot be read: {e}"));
     }

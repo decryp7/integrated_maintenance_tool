@@ -2978,6 +2978,8 @@ dependencies = [
  "imt-plugin-host",
  "imt-plugin-profiling",
  "imt-profile",
+ "imt-store-client",
+ "imt-store-duck",
  "log",
  "notify-debouncer-mini",
  "objc2-app-kit",

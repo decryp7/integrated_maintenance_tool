@@ -73,7 +73,9 @@ struct Answer {
 pub(crate) fn base_profile(store: StoreRef<'_>, base_toml: Option<&str>) -> Result<Profile> {
     match base_toml {
         Some(t) => Profile::from_toml(t).map_err(|e| AiError::Invalid(format!("the current profile is not valid: {e}"))),
-        None => Ok(store.with(|s| s.profile().clone())),
+        None => store
+            .with(|s| s.active_profile())
+            .map_err(|e| AiError::Invalid(format!("the current profile cannot be read: {e}"))),
     }
 }
 
@@ -91,7 +93,9 @@ pub(crate) fn preview(
         limit: 1000,
     };
     // Borrowed for this validation step only.
-    let p = store.with(|s| s.preview_parse(&req));
+    let p = store
+        .with(|s| s.preview_parse(&req))
+        .map_err(|e| format!("the engine cannot preview this profile: {e}"))?;
     match p.error {
         Some(e) => Err(e),
         None => Ok((toml, p)),

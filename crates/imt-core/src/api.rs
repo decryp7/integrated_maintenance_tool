@@ -93,6 +93,9 @@ pub struct UnrecognizedFile {
     pub path: String,
     pub name: String,
     pub reason: String,
+    /// Its importer crashed (contained): a bug to report, not an unknown format.
+    #[serde(default)]
+    pub crashed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +139,8 @@ pub struct WorkspaceSummary {
     pub sources: Vec<SourceInfo>,
     pub unrecognized: Vec<UnrecognizedFile>,
     pub total: usize,
+    /// Events without a timestamp: in the grid (marked), not on the timeline or in time filters.
+    pub untimed: usize,
     pub from: Option<i64>,
     pub to: Option<i64>,
     pub levels: BTreeMap<Level, usize>,

@@ -41,11 +41,35 @@ pub const QUARANTINE_AFTER: u32 = 3;
 /// Most notes kept per plugin.
 pub const MAX_NOTES: usize = 20;
 
-/// Runs `f`, turning a panic into an error ("{what} crashed: ...").
+/// A contained crash (a panic, or a plugin process that died) as a typed error, so callers report it as a crash
+/// without reading the text ("{what} crashed: {message}").
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{what} crashed: {message}")]
+pub struct Crashed {
+    /// What crashed: "IMT", `plugin "x" (import)`.
+    pub what: String,
+    pub message: String,
+}
+
+impl Crashed {
+    pub fn new(what: impl Into<String>, message: impl Into<String>) -> Crashed {
+        Crashed {
+            what: what.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Whether an error (or one it was caused by) is a crash.
+    pub fn is_in(e: &anyhow::Error) -> bool {
+        e.chain().any(|c| c.is::<Crashed>())
+    }
+}
+
+/// Runs `f`, turning a panic into an error ([`Crashed`]: "{what} crashed: ...").
 pub fn catch<T>(what: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
     match catch_unwind(AssertUnwindSafe(f)) {
         Ok(result) => result,
-        Err(payload) => Err(anyhow!("{what} crashed: {}", panic_message(payload.as_ref()))),
+        Err(payload) => Err(anyhow::Error::new(Crashed::new(what, panic_message(payload.as_ref())))),
     }
 }
 
@@ -517,9 +541,9 @@ impl Guard {
         match catch_unwind(AssertUnwindSafe(f)) {
             Ok(result) => result,
             Err(payload) => {
-                let message = format!("plugin \"{}\" ({what}) crashed: {}", self.owner, panic_message(payload.as_ref()));
-                self.health.fail(&self.owner, &message);
-                Err(anyhow!(message))
+                let crash = Crashed::new(format!("plugin \"{}\" ({what})", self.owner), panic_message(payload.as_ref()));
+                self.health.fail(&self.owner, &crash.to_string());
+                Err(anyhow::Error::new(crash))
             }
         }
     }

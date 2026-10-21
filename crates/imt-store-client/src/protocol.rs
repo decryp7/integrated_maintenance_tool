@@ -112,6 +112,8 @@ ops! {
     ExportProject,
     /// [`imt_core::ports::EventsRequest`] → the events
     Events,
+    /// [`imt_core::spans::SpanPreviewRequest`] → [`imt_core::spans::SpanPreview`]
+    PreviewSpans,
 }
 
 /// What the app asks the worker.

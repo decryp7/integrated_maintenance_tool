@@ -136,7 +136,7 @@ impl Emitter<'_> {
 /// Everything a turn needs besides the session itself.
 pub struct ChatEnv<'a, P: LlmProvider> {
     pub assistant: &'a Assistant<P>,
-    /// The workspace, borrowed per tool call (never across generation); `&dyn LogStore` converts with `.into()`.
+    /// The workspace, borrowed per tool call (never across generation); `&dyn Store` converts with `.into()`.
     pub store: StoreRef<'a>,
     /// The internal browser, when the app has one (suggested links, read-along, agent mode).
     pub browser: Option<&'a BrowserEnv<'a>>,
@@ -453,7 +453,9 @@ impl ChatSession {
         })?;
         let mut known = r.evidence.record_ids.clone();
         known.extend(&resolved.selected);
-        let mut citations = parse_citations(&r.text, &known, &|q| env.store.with(|s| s.check_query(q)).is_none());
+        let mut citations = parse_citations(&r.text, &known, &|q| {
+            env.store.with(|s| s.check_query(q)).is_ok_and(|e| e.is_none())
+        });
         // The workspace may have changed while the model wrote (live tail): check the evidence again, by content.
         if host.engine.recheck_citations(&mut citations) > 0 {
             notes.push(

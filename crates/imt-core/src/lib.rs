@@ -45,6 +45,7 @@ pub mod survey;
 pub mod svg;
 pub mod template;
 pub mod templates;
+pub mod tiles;
 pub mod timestamp_issue;
 pub mod workspace;
 

@@ -1,9 +1,9 @@
 //! App-wide state shared by every window (configuration folders, safe mode, which plugins are enabled, the
-//! plugin processes) and the factory that gives each new window its own workspace.
+//! plugin processes, the store worker) and the factory that gives each new window its own store and host.
 
+use crate::engine::{Engine, Host, StoreHost};
 use crate::profile::{load_profile, ProfileDoc};
 use crate::windows::{WindowFactory, WindowState};
-use imt_core::{LogStore, Workspace};
 use imt_plugin_host::Builtins;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,20 +20,48 @@ pub(crate) struct AppState {
     /// The built-in plugins, each in its own process (ADR 0017), shared by every window: a running process
     /// monitor is the same in every window. None in safe mode.
     pub(crate) plugins: Arc<Builtins>,
+    /// Where every window's store is made and opened (the store worker).
+    pub(crate) stores: Arc<dyn StoreHost>,
+    /// The folder of scratch stores (`<data>/stores`).
+    pub(crate) store_root: PathBuf,
+}
+
+/// The folder of scratch stores under IMT's data folder (the temp folder when there is none).
+pub(crate) fn store_root(data: Option<&std::path::Path>) -> PathBuf {
+    match data {
+        Some(d) => d.join("stores"),
+        None => std::env::temp_dir().join(format!("imt-stores-{}", std::process::id())),
+    }
 }
 
 impl AppState {
-    pub fn new(profile_dir: Option<PathBuf>, safe_mode: bool) -> AppState {
+    /// The app's state: plugin processes and the store worker (both start on first use).
+    pub fn new(profile_dir: Option<PathBuf>, data_dir: Option<PathBuf>, safe_mode: bool) -> anyhow::Result<AppState> {
         let plugins = if safe_mode {
             Builtins::none()
         } else {
             Builtins::load(&imt_plugin_host::builtins::default_binary())
         };
-        AppState::with_plugins(profile_dir, safe_mode, plugins)
+        let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
+        let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
+        let stores = crate::engine::WorkerHost::new(disabled, safe_mode)?;
+        Ok(AppState::with(
+            profile_dir,
+            safe_mode,
+            Arc::new(plugins),
+            Arc::new(stores),
+            store_root(data_dir.as_deref()),
+        ))
     }
 
-    /// The state with the given plugins (tests).
-    pub fn with_plugins(profile_dir: Option<PathBuf>, safe_mode: bool, plugins: Builtins) -> AppState {
+    /// The state with the given plugins and store host (tests).
+    pub fn with(
+        profile_dir: Option<PathBuf>,
+        safe_mode: bool,
+        plugins: Arc<Builtins>,
+        stores: Arc<dyn StoreHost>,
+        store_root: PathBuf,
+    ) -> AppState {
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);
         let disabled = crate::plugin_config::load_plugin_settings(config_dir.as_deref()).disabled;
         AppState {
@@ -41,25 +69,26 @@ impl AppState {
             config_dir,
             safe_mode,
             disabled: Arc::new(disabled),
-            plugins: Arc::new(plugins),
+            plugins,
+            stores,
+            store_root,
         }
     }
 
-    /// A new window's workspace: its own plugin registry (crash health is per window; the plugin processes are
-    /// shared), the saved profile (the default in safe mode, where no plugin is installed).
+    /// A new window: its own plugin registry (crash health is per window; the plugin processes are shared) with
+    /// the saved profile (the default in safe mode, where no plugin is installed), and its store slot (the store
+    /// is made on first use).
     pub fn new_window(&self, label: &str) -> anyhow::Result<WindowState> {
         let registry = crate::plugin_config::install(self.plugins.plugins(), self.safe_mode, &self.disabled)?;
-        let mut workspace = Workspace::with_registry(imt_core::Profile::default_profile(), registry)?;
         let (profile, doc) = if self.safe_mode {
             ProfileDoc::builtin()
         } else {
-            load_profile(self.profile_dir.as_ref(), &workspace)
+            load_profile(self.profile_dir.as_ref(), &registry)
         };
-        workspace.set_profile(profile)?;
-        let progress = workspace.progress();
-        let profiling = crate::profiling::ProfilingSlot::from_registry(workspace.registry());
-        let store: Box<dyn LogStore> = Box::new(workspace);
-        let mut state = WindowState::new(label, store, progress, doc);
+        let profiling = crate::profiling::ProfilingSlot::from_registry(&registry);
+        let host = Host::new(registry, profile.clone())?;
+        let engine = Engine::new(self.stores.clone(), self.store_root.clone(), label, profile);
+        let mut state = WindowState::new(label, engine, host, doc);
         state.profiling = profiling;
         Ok(state)
     }

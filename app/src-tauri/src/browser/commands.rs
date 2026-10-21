@@ -111,7 +111,7 @@ pub struct EventQueryDto {
 pub async fn browser_event_query(win: CurrentWindow, record_id: u32) -> CmdResult<EventQueryDto> {
     let w = win.arc().clone();
     blocking(move || {
-        let store = w.store_read();
+        let store = w.engine.store()?;
         crate::error::lift(
             search_for_event(store.as_ref(), record_id)
                 .map(|q| EventQueryDto {

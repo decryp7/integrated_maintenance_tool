@@ -6,9 +6,9 @@ use crate::activity::{domain_event, privacy, OpId};
 use crate::jobs::{JobKind, JobSpec};
 use crate::paths::WindowGrants;
 use crate::services::profile::ProfileFiles;
-use crate::windows::{read, CurrentWindow};
+use crate::windows::CurrentWindow;
 use crate::{err, AppState, CmdResult, State};
-use imt_core::{LogStore, Profile, DEFAULT_PROFILE_TOML};
+use imt_core::{Profile, DEFAULT_PROFILE_TOML};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -56,16 +56,15 @@ pub(crate) async fn get_profile(state: CurrentWindow) -> CmdResult<ProfileDoc> {
     Ok(state.profile_doc())
 }
 
-/// Parses and compiles a profile against the installed plugins.
-/// Async (off the main thread): while an import or live tail holds the workspace, a sync command would wait for
-/// the lock on the main thread and freeze every window.
+/// Parses and compiles a profile with the window's plugins (the store checks it again when it applies it).
 #[tauri::command]
 pub(crate) async fn validate_profile(state: CurrentWindow, toml: String) -> CmdResult<ProfileValidation> {
-    read(&state, move |store| Ok(validate(store, &toml))).await
+    let win = state.arc().clone();
+    crate::sync::blocking("validating the profile", move || Ok(validate(&win.host, &toml))).await
 }
 
-pub(crate) fn validate(store: &dyn LogStore, toml: &str) -> ProfileValidation {
-    match ProfileFiles::check(store, toml) {
+pub(crate) fn validate(host: &crate::engine::Host, toml: &str) -> ProfileValidation {
+    match ProfileFiles::check(host, toml) {
         Ok(_) => ProfileValidation {
             ok: true,
             error: None,
@@ -92,18 +91,22 @@ pub(crate) async fn save_profile<R: Runtime>(
     toml: String,
 ) -> CmdResult<u64> {
     // Never replace a working profile with one that does not compile.
-    let profile = ProfileFiles::check(state.store_read().as_ref(), &toml)?;
+    let profile = ProfileFiles::check(&state.host, &toml)?;
+    let compiled = state.host.compile(profile.clone()).map_err(err)?;
     let name = profile.name.clone();
     domain_event("profile.saved", op.as_deref(), &[("Profile", &name)]);
     let spec = JobSpec::new(JobKind::Import, format!("Apply the profile {name}"));
     let (files, win) = (files(&app_state), state.arc().clone());
-    crate::workspace_commands::start_import_then(
+    let applied = profile.clone();
+    crate::engine::import::start(
         &app,
         &state,
         spec,
-        move |ws| ws.set_profile(profile),
-        move |()| {
-            // After the swap, outside the workspace lock.
+        Box::new(move |store| store.set_profile(applied.clone())),
+        move |_report| {
+            // The store re-derived what the change needs; now the window's host and new stores follow it.
+            win.host.set_compiled(compiled);
+            win.engine.set_profile(profile);
             let path = files.persist(&toml)?;
             win.set_profile_doc(ProfileDoc {
                 name,
@@ -161,9 +164,9 @@ pub(crate) async fn export_profile(grants: WindowGrants, op: OpId, path: String,
     Ok(())
 }
 
-/// The saved profile if it still compiles against the installed plugins, else the built-in default.
-pub(crate) fn load_profile(dir: Option<&PathBuf>, store: &dyn LogStore) -> (Profile, ProfileDoc) {
-    ProfileFiles::new(dir.cloned()).load(store)
+/// The saved profile if it still compiles with the installed plugins, else the built-in default.
+pub(crate) fn load_profile(dir: Option<&PathBuf>, registry: &imt_core::PluginRegistry) -> (Profile, ProfileDoc) {
+    ProfileFiles::new(dir.cloned()).load(registry)
 }
 
 #[cfg(test)]
@@ -172,7 +175,6 @@ mod tests {
     use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, test_app, TempDir};
-    use imt_core::Workspace;
     use tauri::Manager;
 
     #[test]
@@ -186,8 +188,7 @@ mod tests {
         assert_eq!((doc.path, doc.name.as_str()), (None, "Default (Serilog)"));
 
         let win = st();
-        let store = win.store_read();
-        let validate = |t: &str| validate(store.as_ref(), t);
+        let validate = |t: &str| validate(&win.host, t);
         let ok = validate("name = 'x'");
         assert!(ok.ok && ok.error.is_none());
         let syntax = validate("name = 'x'\n[parse\n");
@@ -197,7 +198,6 @@ mod tests {
         assert_eq!(semantic.line, Some(4));
         let unlocated = validate("[parse]\nassume_timezone = 'Mars'");
         assert!(block(validate_profile(st(), "name = 'y'".into())).unwrap().ok);
-        drop(store);
         assert_eq!((unlocated.ok, unlocated.line), (false, None));
 
         let bad = save_profile(app.handle().clone(), shared(), st(), OpId::default(), "[parse".into())
@@ -246,7 +246,7 @@ regex = '('
         assert!(saved.exists());
 
         // A fresh start picks the saved profile up; an invalid one falls back to the default.
-        let fresh = || Workspace::new(Profile::default_profile()).unwrap();
+        let fresh = imt_core::PluginRegistry::new;
         assert_eq!(load_profile(Some(&dir.0), &fresh()).1.name, "Saved");
         std::fs::write(&saved, "[parse]\nregexes = ['(']").unwrap();
         assert_eq!(load_profile(Some(&dir.0), &fresh()).1.name, "Default (Serilog)");

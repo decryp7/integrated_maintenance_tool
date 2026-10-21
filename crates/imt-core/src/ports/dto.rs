@@ -67,6 +67,25 @@ pub struct EventView {
     pub markers: Vec<String>,
 }
 
+impl EventView {
+    /// The event as a record (for code written over records: redaction, reports). Ids beyond `u32` saturate
+    /// until records carry `EventId`s.
+    pub fn to_record(&self) -> crate::model::Record {
+        crate::model::Record {
+            id: u32::try_from(self.id.0).unwrap_or(u32::MAX),
+            ts: self.ts,
+            level: self.level,
+            message: self.message.clone(),
+            template: self.template.clone(),
+            exception: self.exception.clone(),
+            fields: self.fields.clone(),
+            source: self.source.0,
+            line: self.line,
+            markers: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageReply {

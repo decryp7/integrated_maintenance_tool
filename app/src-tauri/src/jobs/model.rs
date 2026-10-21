@@ -184,8 +184,8 @@ pub struct JobSource {
     pub link: Option<JobLink>,
 }
 
-/// How far a job is. Either part may be unknown.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+/// How far a job is. Any part may be unknown.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobProgress {
     /// 0..=1.
@@ -194,6 +194,14 @@ pub struct JobProgress {
     pub total: Option<u64>,
     /// Time left as the producer estimates it (else estimated from the fraction).
     pub eta_ms: Option<u64>,
+    /// Bytes read so far and in all (imports).
+    #[serde(default)]
+    pub bytes_done: Option<u64>,
+    #[serde(default)]
+    pub bytes_total: Option<u64>,
+    /// What it works on now (an import: the file's name; never a path).
+    #[serde(default)]
+    pub current: Option<String>,
 }
 
 impl JobProgress {
@@ -209,7 +217,7 @@ impl JobProgress {
             fraction: (total > 0).then(|| (done as f64 / total as f64) as f32),
             done: Some(done),
             total: (total > 0).then_some(total),
-            eta_ms: None,
+            ..JobProgress::default()
         }
     }
 
@@ -217,9 +225,7 @@ impl JobProgress {
     pub fn sanitized(self) -> JobProgress {
         JobProgress {
             fraction: self.fraction.filter(|f| f.is_finite()).map(|f| f.clamp(0.0, 1.0)),
-            done: self.done,
-            total: self.total,
-            eta_ms: self.eta_ms,
+            ..self
         }
     }
 }

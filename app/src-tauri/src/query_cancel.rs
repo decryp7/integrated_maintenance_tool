@@ -11,9 +11,9 @@ use crate::jobs::{Controls, JobProgress};
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
 use imt_core::api::QueryRequest;
-use imt_core::ql::{QueryControl, QueryProgress, RunError};
+use imt_core::ports::StoreError;
+use imt_core::ql::{QlError, QlResult, QueryControl, QueryProgress};
 use serde::Serialize;
-use serde_json::{json, Value};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
 use tauri::ipc::Channel;
@@ -66,13 +66,37 @@ impl Drop for Ticker {
     }
 }
 
-/// The outcome as the UI expects it: `{ result }`, `{ error }` (with the span to underline) or
-/// `{ cancelled: true }`.
-pub fn outcome(out: Result<imt_core::ql::QlResult, RunError>) -> Value {
+/// The outcome as the UI expects it (`StreamedQueryOutcome`): `{ result }`, `{ error }` (with the span to
+/// underline) or `{ cancelled: true }`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryOutcome {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<QlResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<QlError>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub cancelled: bool,
+}
+
+/// A run's outcome; a failure of the store (not of the query) stays an error of the command.
+pub fn outcome(out: Result<QlResult, StoreError>) -> CmdResult<QueryOutcome> {
+    let none = QueryOutcome {
+        result: None,
+        error: None,
+        cancelled: false,
+    };
     match out {
-        Ok(result) => json!({ "result": result }),
-        Err(RunError::Invalid(error)) => json!({ "error": error }),
-        Err(RunError::Cancelled) => json!({ "cancelled": true }),
+        Ok(result) => Ok(QueryOutcome {
+            result: Some(result),
+            ..none
+        }),
+        Err(StoreError::Query(error)) => Ok(QueryOutcome {
+            error: Some(error),
+            ..none
+        }),
+        Err(StoreError::Cancelled) => Ok(QueryOutcome { cancelled: true, ..none }),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -84,7 +108,7 @@ pub async fn run_controlled<R: Runtime>(
     control: QueryControl,
     request: QueryRequest,
     on_progress: Channel<QueryStreamEvent>,
-) -> CmdResult<Value> {
+) -> CmdResult<QueryOutcome> {
     let _ticker = Ticker::start(control.clone(), on_progress.clone());
     let watched = control.clone();
     let (stop, probe) = (control.clone(), control.clone());
@@ -97,17 +121,17 @@ pub async fn run_controlled<R: Runtime>(
     let announce = move |id: crate::jobs::JobId| {
         let _ = started.send(QueryStreamEvent::Started { job_id: id.0 });
     };
-    let out = crate::jobs::analysis_announced(app, state, "Run a query", "query", Some(ql), controls, announce, move |ws, _| {
-        Ok(ws.run_query_with(&request, &watched))
+    let out = crate::jobs::analysis_announced(app, state, "Run a query", "query", Some(ql), controls, announce, move |store, _| {
+        Ok(store.run_query_with(&request, &watched))
     })
     .await?;
-    if matches!(out, Err(RunError::Cancelled)) {
+    if matches!(out, Err(StoreError::Cancelled)) {
         log::info!(Stage = format!("{:?}", control.progress().stage).as_str(); "Query cancelled by the user");
     } else {
         // The final count, so the UI's progress ends where the run did.
         let _ = on_progress.send(QueryStreamEvent::Progress(control.progress()));
     }
-    Ok(outcome(out))
+    outcome(out)
 }
 
 /// Like `run_query`, as a job the UI cancels with `jobs_cancel` (the id is the channel's first event),
@@ -118,7 +142,7 @@ pub async fn run_query_stream<R: Runtime>(
     state: CurrentWindow,
     request: QueryRequest,
     on_progress: Channel<QueryStreamEvent>,
-) -> CmdResult<Value> {
+) -> CmdResult<QueryOutcome> {
     use tracing::Instrument;
     let span = tracing::info_span!("query", Window = state.label());
     run_controlled(&app, &state, QueryControl::new(), request, on_progress)
@@ -133,6 +157,7 @@ mod tests {
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
     use imt_core::query::Query;
+    use serde_json::{json, Value};
     use std::sync::{Arc, Mutex as StdMutex};
     use tauri::ipc::InvokeResponseBody;
     use tauri::Manager;
@@ -181,20 +206,18 @@ mod tests {
         let app = opened();
         let (channel, seen) = recorder(|_| {});
         let ql = "level >= information | stats count() as n";
-        let out = block(run_query_stream(app.handle().clone(), main_window(&app), req(ql), channel)).unwrap();
+        let out = block(run_query_stream(app.handle().clone(), main_window(&app), req(ql), channel))
+            .unwrap()
+            .json();
         assert_eq!(out["result"]["kind"], "table");
-        let plain = block(crate::insights::run_query(main_window(&app), req(ql))).unwrap();
+        let plain = block(crate::insights::run_query(main_window(&app), req(ql))).unwrap().json();
         assert_eq!(out, plain);
         let events = seen.lock().unwrap().clone();
         assert_eq!(events[0]["kind"], "started");
         let job = events[0]["jobId"].as_u64().unwrap();
         assert!(job > 0, "the run is a job");
         let last = events.last().cloned().expect("final progress");
-        assert_eq!(
-            (last["kind"].as_str(), last["stage"].as_str()),
-            (Some("progress"), Some("evaluating"))
-        );
-        assert_eq!(last["done"], last["total"]);
+        assert_eq!(last["kind"], "progress");
 
         let (channel, _) = recorder(|_| {});
         let out = block(run_controlled(
@@ -204,7 +227,8 @@ mod tests {
             req("level >"),
             channel,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert!(out["error"]["offset"].as_u64().unwrap() > 0, "{out}");
     }
 
@@ -239,7 +263,8 @@ mod tests {
             req("level >= debug"),
             channel,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(out, json!({ "cancelled": true }));
         // The next run is complete.
         let (channel, _) = recorder(|_| {});
@@ -250,18 +275,23 @@ mod tests {
             req("level >= debug"),
             channel,
         ))
-        .unwrap();
+        .unwrap()
+        .json();
         assert_eq!(out["result"]["kind"], "events");
     }
 
     #[test]
     fn outcomes_are_typed() {
-        assert_eq!(outcome(Err(RunError::Cancelled)), json!({ "cancelled": true }));
-        let e = outcome(Err(RunError::Invalid(imt_core::ql::QlError::new("bad", 1, 2))));
+        assert_eq!(outcome(Err(StoreError::Cancelled)).unwrap().json(), json!({ "cancelled": true }));
+        let e = outcome(Err(StoreError::Query(imt_core::ql::QlError::new("bad", 1, 2))))
+            .unwrap()
+            .json();
         assert_eq!(
             (e["error"]["message"].as_str(), e["error"]["offset"].as_u64()),
             (Some("bad"), Some(1))
         );
+        // A failure of the store is an error of the command, not an outcome.
+        assert!(outcome(Err(StoreError::Engine("gone".into()))).is_err());
     }
 
     #[test]

@@ -176,6 +176,8 @@ pub trait Profiles: Send + Sync {
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview>;
     /// Proposes `[[span]]` rules that pair the example start/end events, each evaluated on the data.
     fn propose_span_rule(&self, req: &crate::spans::infer::SpanRuleRequest) -> StoreResult<crate::spans::infer::SpanProposal>;
+    /// The Runs editor's preview of a draft rule: checked against the profile and paired over the events.
+    fn preview_spans(&self, req: &crate::spans::SpanPreviewRequest) -> StoreResult<crate::spans::SpanPreview>;
     /// What a rule (a profile override adding a `[[span]]`) does on the data; verifies AI-proposed rules.
     fn evaluate_span_rule(&self, req: &crate::spans::infer::SpanRuleCheck) -> StoreResult<Analyzed<crate::spans::infer::SpanEvaluation>>;
 }
@@ -201,6 +203,9 @@ pub trait Projects: Send + Sync {
     fn save_project(&self, manifest: &crate::package::ProjectManifest) -> StoreResult<crate::package::ProjectManifest>;
     /// Saves the project and writes it as an `.imtz` to `out` (no caches); returns the bytes written.
     fn export_project(&self, manifest: &crate::package::ProjectManifest, out: &std::path::Path) -> StoreResult<u64>;
+    /// Lets go of the store's files (its window closed or opened another store); a later call opens them
+    /// again. A store that holds nothing it could let go of does nothing.
+    fn close(&self) {}
 }
 
 /// Every port of a store: what one window of the app holds (the DuckDB store in the store worker; in process

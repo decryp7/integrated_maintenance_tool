@@ -47,13 +47,14 @@ pub fn resolve<'s>(ctx: &ChatContext, store: impl Into<StoreRef<'s>>, tools: &En
     }
     if let Some(q) = ctx.query.as_deref().map(str::trim).filter(|q| !q.is_empty()) {
         match store.with(|s| s.check_query(q)) {
-            None => {
+            Ok(None) => {
                 lines.push(format!("Active filter: `{}`", word(q, 300)));
                 r.query = Some(q.to_string());
             }
-            Some(e) => r
+            Ok(Some(e)) => r
                 .notes
                 .push(format!("The active filter was ignored because it is not valid: {}", e.message)),
+            Err(e) => r.notes.push(format!("The active filter was ignored: {e}")),
         }
     }
     if let Some((a, b)) = ctx.time_range {

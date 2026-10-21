@@ -186,6 +186,7 @@ pub fn import_files_parallel(
                 path: path.to_string_lossy().into_owned(),
                 name: name.clone(),
                 reason: NOT_IMPORTED.into(),
+                crashed: false,
             })]
         } else {
             progress.reading(path);

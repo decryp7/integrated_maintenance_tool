@@ -1,6 +1,9 @@
-//! `.imtproj` project files: which files are open, which were removed, the
+//! `.imtproj` workspace files: which files are open, which were removed, the
 //! profile, and the UI's own state (filters, zoom history, layout, bookmarks,
-//! notes...), which the engine stores without interpreting.
+//! notes...), which the engine stores without interpreting. IMT writes them for
+//! its own sessions (with the store folder to reopen), the activity log and
+//! unpacked bundles; projects users save are `.imtz` archives of their store
+//! ([`crate::package`], ADR 0014 §6).
 //!
 //! Paths inside the project's folder are stored relative to it, so a project
 //! folder can be moved or shared with its logs.
@@ -34,6 +37,10 @@ pub struct ProjectFile {
     /// Clock-skew offsets (ms) by source path.
     #[serde(default, skip_serializing_if = "ClockOffsets::is_empty")]
     pub clock: ClockOffsets,
+    /// The store folder holding these files' events (an autosaved session): reopened instead of importing
+    /// the files again when it is still there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store: Option<String>,
     /// Incident reports; one that cannot be read is skipped, not fatal.
     #[serde(
         default,
@@ -157,6 +164,7 @@ mod tests {
             profile: "name = 'P'".into(),
             ui: json!({ "query": { "text": "timeout" } }),
             clock: serde_json::from_value(json!({ dir.join("logs/a.log").to_string_lossy(): 2350, elsewhere: -100 })).unwrap(),
+            store: None,
             reports: vec![],
         };
         p.save(&file).unwrap();
@@ -215,6 +223,7 @@ mod tests {
             profile: String::new(),
             ui: Value::Null,
             clock: ClockOffsets::default(),
+            store: None,
             reports: vec![],
         };
         assert!(p.save(&dir.join("no/such/dir/x.imtproj")).is_err());

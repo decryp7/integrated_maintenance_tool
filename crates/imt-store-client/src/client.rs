@@ -440,15 +440,6 @@ impl RemoteStore {
         &self.dir
     }
 
-    /// Closes the store in the worker (the folder stays). Later calls reopen it.
-    pub fn close(&self) {
-        let Ok(lease) = self.worker.inner.sup.lease() else { return };
-        let handle = lock(&lease.conn.handles).remove(&self.dir);
-        if let Some(store) = handle {
-            let _ = raw(&lease.conn, &StoreRequest::CloseStore { store }, CALL_TIMEOUT);
-        }
-    }
-
     /// Remembers the profile for reopening after a restart (the worker's store has it already).
     fn remember_profile(&self, profile: &Profile) {
         *lock(&self.profile) = profile.clone();
@@ -471,6 +462,14 @@ impl Projects for RemoteStore {
             },
             LONG_TIMEOUT,
         )
+    }
+    /// Closes the store in the worker (the folder stays). Later calls reopen it.
+    fn close(&self) {
+        let Ok(lease) = self.worker.inner.sup.lease() else { return };
+        let handle = lock(&lease.conn.handles).remove(&self.dir);
+        if let Some(store) = handle {
+            let _ = raw(&lease.conn, &StoreRequest::CloseStore { store }, CALL_TIMEOUT);
+        }
     }
 }
 
@@ -635,6 +634,9 @@ impl Profiles for RemoteStore {
     }
     fn preview_extractor(&self, req: &ExtractPreviewRequest) -> StoreResult<ExtractPreview> {
         self.analysis(StoreOp::PreviewExtractor, req)
+    }
+    fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
+        self.analysis(StoreOp::PreviewSpans, req)
     }
     fn propose_span_rule(&self, req: &SpanRuleRequest) -> StoreResult<SpanProposal> {
         self.analysis(StoreOp::ProposeSpanRule, req)

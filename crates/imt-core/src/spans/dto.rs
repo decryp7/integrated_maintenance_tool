@@ -152,7 +152,7 @@ pub enum Trigger {
 }
 
 /// A candidate `[[span]]` rule from the guided editor.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanDraft {
     pub kind: String,
@@ -175,7 +175,7 @@ fn instance() -> String {
     "instance".into()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPreviewRequest {
     pub draft: SpanDraft,
@@ -185,7 +185,7 @@ pub struct SpanPreviewRequest {
 /// the whole new `[[span]]` list (the draft replacing a rule of the same kind,
 /// else added last; the profile's other rules kept) and the `[[marker]]`
 /// rules its text patterns need (each replacing one of the same kind).
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPlan {
     /// The draft's `[[span]]` table.
@@ -196,7 +196,7 @@ pub struct SpanPlan {
 }
 
 /// The guided editor's live preview of a draft over the loaded data.
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanPreview {
     /// Problems that prevent saving, by form field.

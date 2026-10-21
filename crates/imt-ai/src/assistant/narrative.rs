@@ -59,7 +59,9 @@ impl<P: LlmProvider> Assistant<P> {
         start.extend(exchange);
         let r = self.run_tool_loop(ANALYST_SYSTEM, start, &mut tools, &mut |_: LoopEvent<'_>| {})?;
         evidence.merge(&r.evidence);
-        let mut citations = parse_citations(&r.text, &evidence.record_ids, &|q| store.with(|s| s.check_query(q)).is_none());
+        let mut citations = parse_citations(&r.text, &evidence.record_ids, &|q| {
+            store.with(|s| s.check_query(q)).is_ok_and(|e| e.is_none())
+        });
         tools.recheck_citations(&mut citations);
         Ok(Narrative {
             text: r.text,

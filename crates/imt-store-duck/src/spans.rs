@@ -73,6 +73,26 @@ impl Inner {
         Ok(out)
     }
 
+    /// The Runs editor's preview: the draft paired over the timed events in time order (at most
+    /// [`MAX_ANALYSED`]).
+    pub(crate) fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
+        let profile = self.profile();
+        let conn = self.conn()?;
+        let ctx = self.ctx(&conn)?;
+        let mut p = imt_core::spans::preview::SpanPreviewer::new(req, &profile, ctx.default_group_by.clone());
+        drop(conn);
+        if p.wants_events() {
+            let group_by = ctx.default_group_by.clone();
+            self.stream_rows(&Filter::default(), MAX_ANALYSED, &mut |r| {
+                if r.rec.ts.is_some() {
+                    let lane = group_key(&group_by, &r.rec, &r.source);
+                    p.add(&r.rec, &r.source, &lane);
+                }
+            })?;
+        }
+        Ok(p.finish())
+    }
+
     pub(crate) fn evaluate_span_rule(&self, req: &SpanRuleCheck) -> StoreResult<Analyzed<SpanEvaluation>> {
         let active = self.profile();
         let candidate = active

@@ -135,6 +135,10 @@ impl Profiles for DuckStore {
         Ok(preview_parse(self.inner.registry(), req))
     }
 
+    fn preview_spans(&self, req: &imt_core::spans::SpanPreviewRequest) -> StoreResult<imt_core::spans::SpanPreview> {
+        self.inner.preview_spans(req)
+    }
+
     fn propose_span_rule(&self, req: &imt_core::spans::infer::SpanRuleRequest) -> StoreResult<imt_core::spans::infer::SpanProposal> {
         self.inner.propose_span_rule(req)
     }
