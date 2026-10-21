@@ -287,6 +287,12 @@ pub enum WireError {
     Engine {
         message: String,
     },
+    Damaged {
+        message: String,
+    },
+    Locked {
+        message: String,
+    },
 }
 
 impl From<&StoreError> for WireError {
@@ -308,6 +314,8 @@ impl From<&StoreError> for WireError {
             StoreError::Cancelled => WireError::Cancelled,
             StoreError::Io(m) => WireError::Io { message: m.clone() },
             StoreError::Engine(m) => WireError::Engine { message: m.clone() },
+            StoreError::Damaged(m) => WireError::Damaged { message: m.clone() },
+            StoreError::Locked(m) => WireError::Locked { message: m.clone() },
         }
     }
 }
@@ -336,6 +344,8 @@ impl From<WireError> for StoreError {
             WireError::Cancelled => StoreError::Cancelled,
             WireError::Io { message } => StoreError::Io(message),
             WireError::Engine { message } => StoreError::Engine(message),
+            WireError::Damaged { message } => StoreError::Damaged(message),
+            WireError::Locked { message } => StoreError::Locked(message),
         }
     }
 }

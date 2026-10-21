@@ -159,10 +159,30 @@ fn reopening_recovers_from_a_crash_and_refuses_damage() {
     // A missing segment is refused with a message.
     let first = files(&moved).into_iter().next().unwrap();
     std::fs::remove_file(moved.0.join(SEGMENTS_DIR).join(&first)).unwrap();
-    let Err(StoreError::Engine(e)) = DuckStore::open(&moved.0, Profile::default_profile(), PluginRegistry::new()) else {
+    let Err(StoreError::Damaged(e)) = DuckStore::open(&moved.0, Profile::default_profile(), PluginRegistry::new()) else {
         panic!("a missing segment must be refused")
     };
     assert!(e.contains("missing"), "{e}");
+}
+
+#[test]
+fn a_damaged_segment_is_a_typed_error_not_a_crash() {
+    let dir = TempDir::new("damaged");
+    let (store, _) = store_with(&dir, Profile::default_profile(), &log_samples()).unwrap();
+    drop(store);
+    let first = files(&dir).into_iter().next().unwrap();
+    std::fs::write(dir.0.join(SEGMENTS_DIR).join(&first), b"not a parquet file at all").unwrap();
+    // Opening may already notice; otherwise the first read of the events does.
+    let failure = match DuckStore::open(&dir.0, Profile::default_profile(), PluginRegistry::new()) {
+        Err(e) => e,
+        Ok(store) => store
+            .page(&imt_core::ports::PageQuery::default())
+            .err()
+            .or_else(|| store.summary().err())
+            .expect("reading a damaged segment fails"),
+    };
+    assert!(matches!(&failure, StoreError::Damaged(m) if m.contains("damaged")), "{failure:?}");
+    assert!(!failure.is_retryable());
 }
 
 fn copy(from: &std::path::Path, to: &std::path::Path) {

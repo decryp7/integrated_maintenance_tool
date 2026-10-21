@@ -79,8 +79,37 @@ pub const DB_FILE: &str = "data.duckdb";
 const POOL: usize = 8;
 
 pub(crate) fn engine(e: impl std::fmt::Display) -> StoreError {
-    StoreError::Engine(e.to_string())
+    classify(e.to_string())
 }
+
+/// A database failure as the typed error it is: a lock held by another process, a damaged data file, or an
+/// engine failure.
+fn classify(message: String) -> StoreError {
+    let lower = message.to_lowercase();
+    // Linux/macOS (a POSIX lock) and Windows (a sharing violation).
+    if lower.contains("could not set lock on file") || lower.contains("conflicting lock") || lower.contains("file is already open in") {
+        StoreError::Locked(format!("this project is open in another IMT window or program ({message})"))
+    } else if lower.contains("no magic bytes found")
+        || lower.contains("too small to be a parquet file")
+        || (lower.contains("parquet") && (lower.contains("corrupt") || lower.contains("invalid footer")))
+    {
+        StoreError::Damaged(format!("a data file of this project is damaged ({message})"))
+    } else {
+        StoreError::Engine(message)
+    }
+}
+
+/// A segment the catalog lists is not in the folder.
+#[derive(Debug)]
+struct MissingSegment(String);
+
+impl std::fmt::Display for MissingSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "the data file {} of this project is missing", self.0)
+    }
+}
+
+impl std::error::Error for MissingSegment {}
 
 /// What the store was opened with and what was opened in it.
 pub(crate) struct State {
@@ -369,10 +398,9 @@ fn recover(conn: &Connection, dir: &Path, schema: &EventSchema) -> anyhow::Resul
     let seg_dir = dir.join(segments::SEGMENTS_DIR);
     std::fs::create_dir_all(&seg_dir)?;
     for f in &listed {
-        anyhow::ensure!(
-            seg_dir.join(f).is_file(),
-            "the segment {f} of this project is missing; open its log files again"
-        );
+        if !seg_dir.join(f).is_file() {
+            return Err(MissingSegment(f.clone()).into());
+        }
     }
     for left in segments::sweep(&seg_dir, &listed) {
         log::warn!("could not delete {}", left.display());
@@ -456,7 +484,10 @@ impl DuckStore {
                 "this project was saved by an older preview of IMT (store format {version}); open its log files again"
             )));
         }
-        recover(&conn, dir, &schema).map_err(|e| engine(format!("{e:#}")))?;
+        recover(&conn, dir, &schema).map_err(|e| match e.downcast_ref::<MissingSegment>() {
+            Some(m) => StoreError::Damaged(m.to_string()),
+            None => engine(format!("{e:#}")),
+        })?;
         // Added after the format was first written; created on open so older stores gain it.
         conn.execute_batch(schema::CACHE_DDL).map_err(engine)?;
         Ok(Self::with(dir, conn, schema, compiled, registry, opts))
@@ -906,5 +937,40 @@ impl Search for DuckStore {
             total,
             ready: pending == 0,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn database_failures_become_typed_errors() {
+        let locked = classify("IO Error: Could not set lock on file \"x/catalog.duckdb\": Conflicting lock is held".into());
+        assert!(
+            matches!(&locked, StoreError::Locked(m) if m.contains("another IMT window")),
+            "{locked:?}"
+        );
+        assert!(locked.is_retryable());
+        let windows = classify(
+            "IO Error: Cannot open file \"data.duckdb\": The process cannot access the file because it is being used by another \
+             process.\r\n\nFile is already open in \nimt-store-worker.exe (PID 1)"
+                .into(),
+        );
+        assert!(matches!(windows, StoreError::Locked(_)), "{windows:?}");
+        for damaged in [
+            "Invalid Input Error: No magic bytes found at end of file 'seg.parquet'",
+            "Invalid Input Error: File 'seg.parquet' too small to be a Parquet file",
+            "IO Error: Parquet file is corrupt",
+        ] {
+            let e = classify(damaged.into());
+            assert!(matches!(&e, StoreError::Damaged(m) if m.contains("damaged")), "{e:?}");
+            assert!(!e.is_retryable());
+        }
+        assert!(matches!(classify("Out of Memory Error".into()), StoreError::Engine(_)));
+        assert_eq!(
+            MissingSegment("seg-1.parquet".into()).to_string(),
+            "the data file seg-1.parquet of this project is missing"
+        );
     }
 }

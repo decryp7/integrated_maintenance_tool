@@ -66,6 +66,13 @@ pub enum StoreError {
     /// The database engine failed.
     #[error("store: {0}")]
     Engine(String),
+    /// The store's files are damaged (a segment missing or unreadable): retrying cannot help; the message says
+    /// how to recover (open the logs again, or the project's `.imtz`).
+    #[error("{0}")]
+    Damaged(String),
+    /// The store is open in another process (its database file is locked); retry after closing it there.
+    #[error("{0}")]
+    Locked(String),
 }
 
 impl StoreError {
@@ -78,7 +85,10 @@ impl StoreError {
 
     /// Whether repeating the request later can succeed.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, StoreError::Busy(_) | StoreError::Io(_) | StoreError::Engine(_))
+        matches!(
+            self,
+            StoreError::Busy(_) | StoreError::Io(_) | StoreError::Engine(_) | StoreError::Locked(_)
+        )
     }
 }
 

@@ -319,6 +319,11 @@ pub(crate) fn store_error(e: StoreError) -> CmdError {
         StoreError::Cancelled => CmdError::new(ErrorCode::Cancelled, "cancelled"),
         StoreError::Io(m) => CmdError::new(ErrorCode::Io, m),
         StoreError::Engine(m) => CmdError::new(ErrorCode::Failed, m),
+        StoreError::Damaged(m) => CmdError::new(ErrorCode::Failed, m)
+            .hint("Open the original log files again, or open the project's .imtz export: its copy is intact."),
+        StoreError::Locked(m) => {
+            CmdError::new(ErrorCode::Busy, m).hint("Close the other IMT window or program that has this project open, then try again.")
+        }
     }
 }
 
@@ -383,6 +388,12 @@ mod tests {
         assert_eq!(e.code, ErrorCode::Cancelled);
         let e: CmdError = StoreError::unsupported("live tail", "6c").into();
         assert_eq!(e.code, ErrorCode::Unsupported);
+        let e: CmdError = StoreError::Damaged("a data file is damaged".into()).into();
+        assert_eq!((e.code, e.retryable), (ErrorCode::Failed, false));
+        assert!(e.hint.as_deref().is_some_and(|h| h.contains(".imtz")));
+        let e: CmdError = StoreError::Locked("open elsewhere".into()).into();
+        assert_eq!((e.code, e.retryable), (ErrorCode::Busy, true));
+        assert!(e.hint.as_deref().is_some_and(|h| h.contains("Close")));
         let e: CmdError = StoreError::Query(imt_core::ql::QlError {
             message: "unknown field".into(),
             offset: 3,
