@@ -29,6 +29,11 @@ export class BuiltinCommands {
   private readonly prefs = inject(SettingsStore);
   private readonly layout = inject(LayoutModeStore);
 
+  private showOverWelcome(id: string): void {
+    this.welcome.stepAside();
+    this.dock.show(id);
+  }
+
   readonly commands: ImtCommand[] = [
     { id: 'palette.open', title: $localize`:@@builtin.cmd.palette.open:Show all commands`, category: $localize`:@@builtin.category.view:View`, keybinding: 'Mod+K', run: () => this.palette.open() },
     { id: 'file.openFiles', title: $localize`:@@builtin.cmd.file.openFiles:Open files…`, category: $localize`:@@builtin.category.file:File`, keybinding: 'Mod+O', run: () => this.store.pickAndOpen(false) },
@@ -84,7 +89,8 @@ export class BuiltinCommands {
         title: $localize`:@@builtin.cmd.toggleView:Toggle ${view.title}:view: panel`,
         category: $localize`:@@builtin.category.view:View`,
         when: (ctx) => isViewAvailable(view, ctx.summary),
-        run: () => this.dock.toggle(view.id),
+        // Behind the welcome screen a docked panel is open but unseen: show it rather than close it.
+        run: () => (this.welcome.visible() ? this.showOverWelcome(view.id) : this.dock.toggle(view.id)),
       }),
     ),
   ];

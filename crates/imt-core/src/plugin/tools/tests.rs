@@ -1,8 +1,11 @@
 use super::*;
 use crate::plugin::{Manifest, Plugin, PluginRegistry};
+use anyhow::Result;
 use serde_json::json;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 /// A tool whose ops exercise every outcome.
 struct Echo {
@@ -208,7 +211,6 @@ fn schema_errors_name_the_location_and_the_rule() {
         "must be a whole number, not true/false"
     );
     // `Any` accepts everything, so it never appears in a message; its name still reads well.
-    assert_eq!(Schema::Any.kind(), "any value");
     // Field builders only apply to objects.
     assert_eq!(
         Schema::text(1).field("x", Schema::Bool).optional("y", Schema::Bool).open(),

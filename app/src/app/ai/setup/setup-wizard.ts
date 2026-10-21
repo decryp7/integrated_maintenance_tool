@@ -1,3 +1,4 @@
+import { transferSpeed } from '../../shared/format/transfer-speed';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,6 +20,7 @@ import {
   hardwareLines,
   percent,
   speedLabel,
+  visionLabel,
 } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { Recommendation, SetupEvent } from '../ai.types';
@@ -126,6 +128,7 @@ import {
                     <span>{{ size(r.model.sizeBytes) }}</span>
                     <span i18n="@@ai.setup.licence">Licence: {{ r.model.license }}</span>
                     <span>{{ toolCalling(r) }}</span>
+                    <span data-testid="ai-model-vision">{{ vision(!!r.model.projector) }}</span>
                   </span>
                   @if (r.model.notes) {
                     <span class="notes muted">{{ r.model.notes }}</span>
@@ -427,6 +430,10 @@ export class AiSetupWizard implements OnInit {
       ? percent(st.bytes, st.total)
       : 0;
   });
+  private readonly transfer = transferSpeed(() => {
+    const st = this.running()?.stage;
+    return st?.stage === 'downloading' ? st : null;
+  });
   protected readonly progressText = computed(() => {
     const st = this.running()?.stage;
     if (!st || (st.stage !== 'downloading' && st.stage !== 'verifying')) return '';
@@ -434,8 +441,8 @@ export class AiSetupWizard implements OnInit {
     if (st.stage === 'verifying') return base;
     return [
       base,
-      formatRate(st.bytesPerSec),
-      formatEta(st.etaSecs) && $localize`:@@ai.runtime.progress.left:${formatEta(st.etaSecs)}:eta: left`,
+      formatRate(this.transfer().rate),
+      formatEta(this.transfer().etaSecs),
     ]
       .filter(Boolean)
       .join(' · ');
@@ -468,6 +475,8 @@ export class AiSetupWizard implements OnInit {
       ? $localize`:@@ai.setup.progress.download:Download progress`
       : $localize`:@@ai.setup.progress.verify:Verification progress`,
   );
+
+  protected readonly vision = visionLabel;
 
   protected toolCalling(r: Recommendation): string {
     return r.model.toolCalling ? $localize`:@@ai.setup.toolCalling:Tool calling` : $localize`:@@ai.setup.noToolCalling:No tool calling`;

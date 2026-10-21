@@ -12,7 +12,8 @@ import { TOOL_IDS } from '../../core/tools.types';
 import { ToolCatalog } from '../tool-catalog.store';
 import { ToolUnavailable } from '../tool-unavailable';
 import { errorMessage } from '../tool-errors';
-import { DEFAULT_PLAN, formatBytes, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
+import { formatBytes, formatCount } from '../../shared/format/units';
+import { DEFAULT_PLAN, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
 
 /** Opens the diagnostics collector ("Collect diagnostics bundle…"). */
 @Injectable({ providedIn: 'root' })
@@ -152,8 +153,8 @@ type Phase = 'idle' | 'running' | 'done';
         <div class="mono path">{{ r.bundle }}</div>
         @if (summary(); as s) {
           <ul class="facts">
-            <li i18n="@@tools.collector.facts.items"><strong>{{ s.items }}</strong> {s.items, plural, =1 {item} other {items}} · {{ bytes(s.bytes) }}</li>
-            <li><ng-container i18n="@@tools.collector.facts.masked"><strong>{{ s.redactionTotal }}</strong> {s.redactionTotal, plural, =1 {value} other {values}} masked</ng-container>
+            <li i18n="@@tools.collector.facts.items"><strong>{{ fmt(s.items) }}</strong> {s.items, plural, =1 {item} other {items}} · {{ bytes(s.bytes) }}</li>
+            <li><ng-container i18n="@@tools.collector.facts.masked"><strong>{{ fmt(s.redactionTotal) }}</strong> {s.redactionTotal, plural, =1 {value} other {values}} masked</ng-container>
               @if (s.redactionByRule.length) { ({{ ruleText() }}) }
             </li>
             <li i18n="@@tools.collector.facts.skipped"><strong>{{ s.skipped.length }}</strong> skipped</li>
@@ -209,6 +210,7 @@ type Phase = 'idle' | 'running' | 'done';
   `,
 })
 export class CollectorDialog implements OnInit {
+  protected readonly fmt = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(CollectBackend);
   private readonly workspace = inject(WorkspaceStore);

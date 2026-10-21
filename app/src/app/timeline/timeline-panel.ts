@@ -19,6 +19,7 @@ import { TimelineAnnotations } from './annotations.store';
 import { layoutRuns, RunBandVm } from './run-layout';
 import { RunHover } from './run-track';
 import { ProfileSpanTrack } from '../profiling/integration/profile-span-track';
+import { DumpMarkerTrack } from '../dumps/dump-marker-track';
 import { DOCK_PANEL_ID } from '../dock/angular-panel';
 import { DockService } from '../dock/dock.service';
 import { isTimelineInstance } from './timeline-config';
@@ -46,7 +47,7 @@ function timelineSource(): TimelineSource {
 @Component({
   selector: 'imt-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction],
+  imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, TimelineHeader, TimelineLegend, TimelineLanes, TimelineTooltips, TimelineInteraction],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
@@ -117,6 +118,7 @@ function timelineSource(): TimelineSource {
           <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" />
         }
         <imt-profile-span-track [view]="range()" [width]="plotWidth()" />
+        <imt-dump-marker-track [view]="range()" [width]="plotWidth()" />
         @for (x of fatalLines(); track $index) {
           <!-- The band shows only where the theme asks for it (data-crash-band); the rule always. -->
           <div class="crash-band" [style.left.%]="x" aria-hidden="true"></div>

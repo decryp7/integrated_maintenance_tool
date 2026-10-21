@@ -139,7 +139,7 @@ test.describe('research', () => {
     await expectNoSeriousViolations(page, testInfo, 'research-answer', 'imt-ai-chat-panel');
   });
 
-  test('Research this on an event confirms a search with workspace data, and the answer opens in the chat', async ({ page }, testInfo) => {
+  test('Research… drafts the search text, confirms workspace data in it, and the answer opens in the chat', async ({ page }, testInfo) => {
     await openAiApp(page, 'mockJobsVisibleMs=0');
     const chat = await openChat(page);
     await chat.getByTestId('chat-research').click();
@@ -147,8 +147,11 @@ test.describe('research', () => {
     await dialog.getByLabel('What should the AI find out?').fill('why does WEB02 deny access?');
     await dialog.getByTestId('research-run').click();
     await expect(dialog.getByTestId('research-flagged')).toContainText('WEB02');
+    // Nothing was searched: the AI wrote the search text and the dialog shows it, with who wrote it.
+    await expect(dialog.getByLabel('Search text', { exact: true })).toHaveValue('WEB02 deny access');
+    await expect(dialog.getByTestId('research-source')).toContainText('The AI wrote it');
     await expectNoSeriousViolations(page, testInfo, 'research-dialog', '[role=dialog]');
-    await dialog.getByLabel('Search text (optional; the question is used when empty)').fill('IIS access denied 0x80070005');
+    await dialog.getByLabel('Search text', { exact: true }).fill('IIS access denied 0x80070005');
     await dialog.getByLabel('Results to read').selectOption('3');
     await dialog.getByTestId('research-run').click();
     await expect(dialog).toHaveCount(0);

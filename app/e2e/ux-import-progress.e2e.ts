@@ -17,7 +17,7 @@ test.describe('import progress', () => {
     const toast = page.getByTestId('import-toast');
     await expect(toast).toBeVisible({ timeout: 5_000 });
     await expect(toast).toContainText(/Reading part-\d\.log/);
-    await expect(toast).toContainText(/MB of 12 MB/);
+    await expect(toast).toContainText(/MB of 11 MB/);
     await expectNoSeriousViolations(page, testInfo, 'import-toast', '[data-testid=import-toast]');
     await toast.getByRole('button', { name: 'Cancel import' }).click();
 

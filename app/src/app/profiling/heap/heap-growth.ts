@@ -1,10 +1,11 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { HeapGrowthPage } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
 import { AsyncResource } from '../../analysis/async-resource';
 import { CapturesStore } from '../captures.store';
 import { ProfilingBackend } from '../profiling-backend';
-import { formatBytes, formatDelta } from '../profiling-format';
+import { formatBytes, formatDelta, formatExactDelta } from '../profiling-format';
 import { PROFILING_STYLES } from '../profiling-styles';
 import { byTaken } from './heap-diff';
 import { HeapSelection, sparkline } from './heap-selection';
@@ -23,7 +24,7 @@ import { HeapSelection, sparkline } from './heap-selection';
         }
       </fieldset>
       <label class="inline" i18n="@@profiling.heapGrowth.steadyOnly"><input type="checkbox" [checked]="steadyOnly()" (change)="steadyOnly.set($any($event.target).checked)" /> Steady growth only</label>
-      @if (res.data(); as d) { <span class="muted" role="status" i18n="@@profiling.heapGrowth.steadyCount">{d.steadyCount, plural, =1 {{{ d.steadyCount }} type grew in every snapshot} other {{{ d.steadyCount }} types grew in every snapshot}}</span> }
+      @if (res.data(); as d) { <span class="muted" role="status" i18n="@@profiling.heapGrowth.steadyCount">{d.steadyCount, plural, =1 {{{ fmt(d.steadyCount) // i18n(ph: "count") }} type grew in every snapshot} other {{{ fmt(d.steadyCount) // i18n(ph: "count") }} types grew in every snapshot}}</span> }
     </div>
     @if (chosen().length < 3) {
       <div class="state" role="status">{{ needMore() }}</div>
@@ -38,7 +39,7 @@ import { HeapSelection, sparkline } from './heap-selection';
                   <td class="ellipsis fn"><button class="link" type="button" (click)="sel.showInstances(r.name)">{{ r.name }}</button></td>
                   <td><svg width="80" height="20" viewBox="0 0 80 20" role="img" [attr.aria-label]="trendLabel(r.name, r.bytes)"><polyline [attr.points]="spark(r.bytes)" fill="none" stroke-width="2" [class.steady]="r.steady" /></svg></td>
                   <td class="mono">{{ seriesText(r.bytes) }}</td>
-                  <td class="num" [class.up]="r.growthBytes > 0" [class.down]="r.growthBytes < 0">{{ delta(r.growthBytes, 'bytes') }}</td>
+                  <td class="num" [class.up]="r.growthBytes > 0" [class.down]="r.growthBytes < 0" [title]="exactDelta(r.growthBytes)">{{ delta(r.growthBytes, 'bytes') }}</td>
                   <td>@if (r.steady) { <span class="tag steady" title="Never shrank and grew overall: a leak candidate" i18n-title="@@profiling.heapGrowth.steadyTitle" i18n="@@profiling.heapGrowth.steadyTag">⚠ steady growth</span> }</td>
                 </tr>
               }
@@ -62,6 +63,7 @@ import { HeapSelection, sparkline } from './heap-selection';
   ],
 })
 export class HeapGrowth {
+  protected readonly fmt = formatCount;
   protected readonly sel = inject(HeapSelection);
   private readonly captures = inject(CapturesStore);
   private readonly backend = inject(ProfilingBackend);
@@ -72,6 +74,7 @@ export class HeapGrowth {
   protected readonly chosen = computed(() => this.heaps().filter((h) => !this.excluded().has(h.id)).map((h) => h.id));
   protected readonly spark = (v: number[]) => sparkline(v);
   protected readonly delta = formatDelta;
+  protected readonly exactDelta = formatExactDelta;
 
   constructor() {
     effect(() => {

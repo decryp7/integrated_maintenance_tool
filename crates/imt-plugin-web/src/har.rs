@@ -3,13 +3,13 @@
 use crate::level_for_status;
 use anyhow::{anyhow, Context, Result};
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer};
-use imt_core::model::{Level, Record};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+use imt_plugin_api::model::{Level, Record};
 use serde_json::Value;
 
 pub struct HarImporter;
 
-impl Importer for HarImporter {
+impl TextImporter for HarImporter {
     fn id(&self) -> &'static str {
         "har"
     }

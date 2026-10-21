@@ -1,4 +1,4 @@
-//! .NET EventPipe `.nettrace` importer (format V4 and V5: .NET Core 3.0 to .NET 9,
+//! .NET EventPipe `.nettrace` importer (format V4 and V5: .NET Core 3.0 to .NET 9; V6: .NET 10;
 //! as written by `dotnet-trace`, `dotnet-monitor` and `DiagnosticsClient`).
 //!
 //! What it reads:
@@ -18,11 +18,28 @@
 //!   stack; `ContentionStart_V1`/`ContentionStop` (81/91, paired per thread) → LockWait
 //!   events and WaitNs at the waiting stack; `MethodJittingStarted` (145) paired with
 //!   `MethodLoadVerbose` → JIT events. Metrics are declared only when present.
+//! - Allocations: `GCAllocationTick` (10, V1–V4; pointer-sized type id) → AllocBytes /
+//!   AllocCount samples (sampled) at the allocating stack, the allocated type as a leaf
+//!   frame (`(large object heap)` / `(pinned object heap)` marked).
+//! - Thread pool: `ThreadPoolWorkerThreadStart` (50) names the thread
+//!   `.NET ThreadPool Worker`; `ThreadPoolWorkerThreadAdjustmentAdjustment` (55) with
+//!   reason Starvation → a Marker event.
+//! - A GC heap walk (`GCBulkType`, `GCBulkNode`, `GCBulkEdge`, roots; see [`heap`]) makes
+//!   the file import as a heap snapshot instead of a profile.
+//! - IMT's ETW extension events ([`ext`]): `ImageLoad` (native frames as
+//!   `module+0xoffset`), `ThreadWait` (Wait events and WaitNs at the blocking stack),
+//!   `ThreadName`, `NativeSymbol` (native frames named by their function, with module,
+//!   source file and the function's first line) and the native heap events `HeapAlloc` /
+//!   `HeapFree` / `HeapReAlloc` (paired by address: AllocBytes / AllocCount at the
+//!   allocating stack, and LiveBytes for what was not freed by the end of the capture).
+//!
+//! Pointer-sized payload fields follow the Trace object's pointer size (the target's
+//! bitness).
 //!
 //! Timestamps are QPC ticks; nanoseconds since the trace's sync time are
 //! `(ts - syncTimeQPC) * 1e9 / qpcFrequency` in 128-bit arithmetic. The start time is
-//! the Trace object's UTC SYSTEMTIME. NetTrace V6 (.NET 10) is reported as
-//! unsupported; gzip-wrapped files are inflated within [`Limits::max_input_bytes`].
+//! the Trace object's UTC SYSTEMTIME. NetTrace V6 (.NET 10, in `v6.rs`) is read too;
+//! gzip-wrapped files are inflated within [`Limits::max_input_bytes`].
 //!
 //! Sources (format and payload layouts):
 //! - PerfView `src/TraceEvent/EventPipe/NetTraceFormat_v5.md` and `NetTraceFormat.md` (V6),
@@ -34,8 +51,11 @@
 //! - CLR event manifest (`ClrEtwAll.man`) for the runtime/rundown payloads.
 
 mod cursor;
+pub mod ext;
 mod format;
+pub mod heap;
 mod runtime;
+mod v6;
 #[doc(hidden)]
 pub mod writer;
 
@@ -88,6 +108,9 @@ impl CaptureImporter for NettraceImporter {
         }
         let bytes = util::maybe_gunzip(bytes, limits, FORMAT)?;
         let parsed = format::parse(&bytes, limits)?;
+        if parsed.heap.has_walk() {
+            return Ok(Capture::Heap(build_heap(file_name, parsed, limits)?));
+        }
         Ok(Capture::Profile(build(file_name, parsed, limits)?))
     }
 }
@@ -100,6 +123,14 @@ struct Clock {
 }
 
 impl Clock {
+    /// A duration in timestamp ticks as nanoseconds.
+    fn ticks_ns(&self, ticks: u64) -> u64 {
+        if self.freq <= 0 {
+            return 0;
+        }
+        u64::try_from(u128::from(ticks) * 1_000_000_000 / self.freq as u128).unwrap_or(u64::MAX)
+    }
+
     fn ns(&self, ts: i64) -> u64 {
         if ts <= self.origin || self.freq <= 0 {
             return 0;
@@ -129,16 +160,40 @@ fn system_time_ms(t: [u16; 8]) -> Option<i64> {
     Some(((days * 24 + hour) * 60 + minute) * 60_000 + second * 1000 + ms)
 }
 
-/// A timeline event before it is added to the builder.
+/// A timeline event (or a metric observation) before it is added to the builder.
 struct Pending {
-    kind: EventKind,
+    /// `None`: only a metric sample (allocation ticks), no timeline event.
+    kind: Option<EventKind>,
     thread: Option<u64>,
     ts: i64,
     dur_ns: u64,
     label: String,
     stack: Option<u32>,
-    /// A metric value recorded as a sample at the event's stack.
-    value: Option<(MetricId, u64)>,
+    /// Metric values recorded as a sample at the event's stack.
+    values: Vec<(MetricId, u64)>,
+    /// A synthetic leaf frame below the stack (the allocated type).
+    leaf: Option<String>,
+}
+
+impl Pending {
+    fn event(kind: EventKind, thread: Option<u64>, ts: i64, dur_ns: u64, label: String) -> Pending {
+        Pending {
+            kind: Some(kind),
+            thread,
+            ts,
+            dur_ns,
+            label,
+            stack: None,
+            values: Vec::new(),
+            leaf: None,
+        }
+    }
+
+    fn at(mut self, stack: Option<u32>, values: Vec<(MetricId, u64)>) -> Pending {
+        self.stack = stack;
+        self.values = values;
+        self
+    }
 }
 
 /// Pairs start/stop events into timeline events (input sorted by time).
@@ -158,35 +213,25 @@ fn timeline(events: &[format::RtRec], clock: &Clock) -> Vec<Pending> {
                     out.push(gc_event(*count, ts, generation, reason, dur(ts, e.ts)));
                 }
             }
-            Rt::Exception { type_name } => out.push(Pending {
-                kind: EventKind::Exception,
-                thread: Some(e.thread),
-                ts: e.ts,
-                dur_ns: 0,
-                label: type_name.clone(),
-                stack: e.stack,
-                value: Some((MetricId::Exceptions, 1)),
-            }),
+            Rt::Exception { type_name } => out.push(
+                Pending::event(EventKind::Exception, Some(e.thread), e.ts, 0, type_name.clone())
+                    .at(e.stack, vec![(MetricId::Exceptions, 1)]),
+            ),
             Rt::ContentionStart { native } => {
                 waits.insert(e.thread, (e.ts, e.stack, *native));
             }
             Rt::ContentionStop => {
                 if let Some((ts, stack, native)) = waits.remove(&e.thread) {
                     let d = dur(ts, e.ts);
-                    out.push(Pending {
-                        kind: EventKind::LockWait,
-                        thread: Some(e.thread),
-                        ts,
-                        dur_ns: d,
-                        label: if native {
-                            "Native lock contention"
-                        } else {
-                            "Monitor lock contention"
-                        }
-                        .to_string(),
-                        stack,
-                        value: Some((MetricId::WaitNs, d)),
-                    });
+                    let label = if native {
+                        "Native lock contention"
+                    } else {
+                        "Monitor lock contention"
+                    };
+                    out.push(
+                        Pending::event(EventKind::LockWait, Some(e.thread), ts, d, label.to_string())
+                            .at(stack, vec![(MetricId::WaitNs, d)]),
+                    );
                 }
             }
             Rt::JitStart { method_id, name } => {
@@ -199,6 +244,43 @@ fn timeline(events: &[format::RtRec], clock: &Clock) -> Vec<Pending> {
                 };
                 out.push(jit_event(e.thread, ts, d, name));
             }
+            Rt::Alloc { bytes, kind, type_name } => {
+                let name = type_name.as_deref().unwrap_or("(unknown type)");
+                let leaf = match kind {
+                    1 => format!("{name} (large object heap)"),
+                    2 => format!("{name} (pinned object heap)"),
+                    _ => name.to_string(),
+                };
+                out.push(Pending {
+                    kind: None,
+                    thread: Some(e.thread),
+                    ts: e.ts,
+                    dur_ns: 0,
+                    label: String::new(),
+                    stack: e.stack,
+                    values: vec![(MetricId::AllocBytes, *bytes), (MetricId::AllocCount, 1)],
+                    leaf: Some(leaf),
+                });
+            }
+            Rt::Wait {
+                duration,
+                reason,
+                readied_by,
+            } => {
+                let d = clock.ticks_ns(*duration);
+                let mut label = ext::wait_label(*reason).to_string();
+                if *readied_by != 0 {
+                    label.push_str(&format!(" (readied by thread {readied_by})"));
+                }
+                out.push(Pending::event(EventKind::Wait, Some(e.thread), e.ts, d, label).at(e.stack, vec![(MetricId::WaitNs, d)]));
+            }
+            Rt::PoolStarvation { workers } => out.push(Pending::event(
+                EventKind::Marker,
+                Some(e.thread),
+                e.ts,
+                0,
+                format!("Thread pool starvation: workers raised to {workers}"),
+            )),
         }
     }
     // Unfinished GCs and JITs (the trace ended first) are kept as instants.
@@ -216,45 +298,107 @@ fn timeline(events: &[format::RtRec], clock: &Clock) -> Vec<Pending> {
 }
 
 fn gc_event(count: u32, ts: i64, generation: u32, reason: u32, dur_ns: u64) -> Pending {
-    Pending {
-        kind: EventKind::Gc,
-        thread: None,
+    Pending::event(
+        EventKind::Gc,
+        None,
         ts,
         dur_ns,
-        label: format!("GC #{count} gen {generation} ({})", runtime::gc_reason(reason)),
-        stack: None,
-        value: None,
-    }
+        format!("GC #{count} gen {generation} ({})", runtime::gc_reason(reason)),
+    )
 }
 
 fn jit_event(thread: u64, ts: i64, dur_ns: u64, name: &str) -> Pending {
-    Pending {
-        kind: EventKind::Jit,
-        thread: Some(thread),
-        ts,
-        dur_ns,
-        label: name.to_string(),
-        stack: None,
-        value: None,
-    }
+    Pending::event(EventKind::Jit, Some(thread), ts, dur_ns, name.to_string())
 }
 
-/// Method code ranges, sorted by start, for address lookup.
-struct Symbols {
-    /// (start, end exclusive, method index).
+/// An allocation not freed (yet): size, stack, thread, time.
+type Outstanding = (u64, Option<u32>, u64, i64);
+
+/// Native heap operations (ETW heap provider): every allocation as AllocBytes / AllocCount at its stack, and
+/// allocations not freed by the end as LiveBytes at their stack (the heap growth by call path). Returns the
+/// allocation observations, the unfreed ones and notes. The table of outstanding allocations is bounded by the
+/// number of heap events read (itself bounded by `Limits::max_samples`).
+fn native_heap(parsed: &Parsed) -> (Vec<Pending>, Vec<Pending>, Vec<String>) {
+    use ext::HeapOp;
+    if parsed.heap_ops.is_empty() {
+        return (Vec::new(), Vec::new(), Vec::new());
+    }
+    let mut ops: Vec<&format::HeapRec> = parsed.heap_ops.iter().collect();
+    ops.sort_by_key(|r| r.ts);
+    let observation = |thread: u64, ts: i64, stack: Option<u32>, values: Vec<(MetricId, u64)>| Pending {
+        kind: None,
+        thread: Some(thread),
+        ts,
+        dur_ns: 0,
+        label: String::new(),
+        stack,
+        values,
+        leaf: None,
+    };
+    let mut allocs = Vec::new();
+    let mut live: HashMap<u64, Outstanding> = HashMap::new();
+    let mut unmatched_frees = 0u64;
+    for r in ops {
+        let (freed, new) = match r.op {
+            HeapOp::Alloc { address, size, .. } => (None, Some((address, size))),
+            HeapOp::Free { address, .. } => (Some(address), None),
+            HeapOp::ReAlloc {
+                new_address,
+                old_address,
+                size,
+                ..
+            } => (Some(old_address), Some((new_address, size))),
+        };
+        if let Some(address) = freed {
+            if live.remove(&address).is_none() && new.is_none() {
+                unmatched_frees += 1;
+            }
+        }
+        if let Some((address, size)) = new {
+            allocs.push(observation(
+                r.thread,
+                r.ts,
+                r.stack,
+                vec![(MetricId::AllocBytes, size), (MetricId::AllocCount, 1)],
+            ));
+            live.insert(address, (size, r.stack, r.thread, r.ts));
+        }
+    }
+    let mut rest: Vec<(u64, Outstanding)> = live.into_iter().collect();
+    rest.sort_by_key(|(addr, (_, _, _, ts))| (*ts, *addr));
+    let unfreed_bytes: u64 = rest.iter().map(|(_, (size, ..))| *size).fold(0, u64::saturating_add);
+    let unfreed: Vec<Pending> = rest
+        .iter()
+        .map(|(_, (size, stack, thread, ts))| observation(*thread, *ts, *stack, vec![(MetricId::LiveBytes, *size)]))
+        .collect();
+    let mut notes = vec![format!(
+        "{} native allocations were traced; {} of them ({unfreed_bytes} bytes) were not freed by the end of the capture (Unfreed bytes)",
+        allocs.len(),
+        unfreed.len()
+    )];
+    if unmatched_frees > 0 {
+        notes.push(format!(
+            "{unmatched_frees} frees were of memory allocated before the capture started"
+        ));
+    }
+    (allocs, unfreed, notes)
+}
+
+/// Address ranges, sorted by start, for lookup (methods, then images).
+struct Ranges {
+    /// (start, end exclusive, index).
     ranges: Vec<(u64, u64, usize)>,
 }
 
-impl Symbols {
-    fn new(methods: &[runtime::MethodInfo]) -> Symbols {
-        let mut ranges: Vec<(u64, u64, usize)> = methods
-            .iter()
+impl Ranges {
+    fn new(items: impl Iterator<Item = (u64, u64)>) -> Ranges {
+        let mut ranges: Vec<(u64, u64, usize)> = items
             .enumerate()
-            .map(|(i, m)| (m.start, m.start.saturating_add(u64::from(m.size.max(1))), i))
+            .map(|(i, (start, size))| (start, start.saturating_add(size.max(1)), i))
             .collect();
         ranges.sort_by_key(|r| (r.0, r.2));
         ranges.dedup_by_key(|r| r.0);
-        Symbols { ranges }
+        Ranges { ranges }
     }
 
     fn lookup(&self, addr: u64) -> Option<usize> {
@@ -267,9 +411,16 @@ impl Symbols {
 /// Turns address stacks into builder stacks, interning frames.
 struct Resolver<'p> {
     parsed: &'p Parsed,
-    symbols: Symbols,
+    symbols: Ranges,
+    /// Native symbols by exact address (the last one written for an address wins).
+    native: HashMap<u64, usize>,
+    images: Ranges,
     method_frames: Vec<u32>,
     address_frames: HashMap<u64, u32>,
+    /// Addresses resolved only to a module (+offset).
+    image_hits: usize,
+    /// Addresses resolved through native symbols.
+    native_hits: usize,
     stacks: Vec<u32>,
 }
 
@@ -277,9 +428,13 @@ impl<'p> Resolver<'p> {
     fn new(parsed: &'p Parsed) -> Resolver<'p> {
         Resolver {
             parsed,
-            symbols: Symbols::new(&parsed.methods),
+            symbols: Ranges::new(parsed.methods.iter().map(|m| (m.start, u64::from(m.size)))),
+            native: parsed.native_symbols.iter().enumerate().map(|(i, s)| (s.address, i)).collect(),
+            images: Ranges::new(parsed.images.iter().map(|i| (i.base, i.size))),
             method_frames: vec![NONE; parsed.methods.len()],
             address_frames: HashMap::new(),
+            image_hits: 0,
+            native_hits: 0,
             stacks: vec![NONE; parsed.stacks.len()],
         }
     }
@@ -296,7 +451,34 @@ impl<'p> Resolver<'p> {
         if let Some(&f) = self.address_frames.get(&addr) {
             return Ok(f);
         }
-        let f = b.frame(FrameSpec::new(&format!("0x{addr:x}")).kind(FrameKind::Native))?;
+        if let Some(&i) = self.native.get(&addr) {
+            let sym = &self.parsed.native_symbols[i];
+            let image = self.images.lookup(addr).map(|i| ext::image_file_name(&self.parsed.images[i].path));
+            let f = b.frame(
+                FrameSpec::new(&sym.function)
+                    .module(image)
+                    .file(Some(sym.file.as_str()))
+                    .line((sym.line > 0).then_some(sym.line))
+                    .kind(FrameKind::Native),
+            )?;
+            self.native_hits += 1;
+            self.address_frames.insert(addr, f);
+            return Ok(f);
+        }
+        let f = match self.images.lookup(addr) {
+            Some(i) => {
+                // Module + offset: what a symbol resolver (PDB) can refine later.
+                let image = &self.parsed.images[i];
+                let module = ext::image_file_name(&image.path);
+                self.image_hits += 1;
+                b.frame(
+                    FrameSpec::new(&format!("{module}+0x{:x}", addr - image.base))
+                        .module(Some(module))
+                        .kind(FrameKind::Native),
+                )?
+            }
+            None => b.frame(FrameSpec::new(&format!("0x{addr:x}")).kind(FrameKind::Native))?,
+        };
         self.address_frames.insert(addr, f);
         Ok(f)
     }
@@ -315,6 +497,32 @@ impl<'p> Resolver<'p> {
         }
         Ok(self.stacks[s as usize])
     }
+
+    /// Addresses shown as `0x…` (neither a method nor an image covers them).
+    fn unresolved(&self) -> usize {
+        self.address_frames.len() - self.image_hits - self.native_hits
+    }
+}
+
+/// The capture name: the file's stem, or the process id.
+fn capture_name(file_name: &str, process_id: u32) -> String {
+    let stem = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
+    let stem = stem.split('.').next().unwrap_or(stem);
+    if stem.is_empty() {
+        format!("Process {process_id}")
+    } else {
+        stem.to_string()
+    }
+}
+
+/// A trace with a GC heap walk: the heap snapshot.
+fn build_heap(file_name: &str, parsed: Parsed, limits: &Limits) -> Result<imt_profile::heap::HeapSnapshot> {
+    let info = parsed
+        .info
+        .ok_or_else(|| ProfileError::malformed(FORMAT, "the trace has no Trace object"))?;
+    parsed
+        .heap
+        .build(&capture_name(file_name, info.process_id), system_time_ms(info.sync_time), limits)
 }
 
 fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile> {
@@ -340,22 +548,35 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
         metrics.push(MetricInfo::new(MetricId::Samples, Measurement::Sampled));
         metrics.push(MetricInfo::new(MetricId::TimeNs, Measurement::Sampled));
     }
+    let (heap_allocs, unfreed, heap_notes) = native_heap(&parsed);
+    let has = |id: MetricId| pending.iter().any(|p| p.values.iter().any(|(m, _)| *m == id));
+    let ticks = has(MetricId::AllocBytes);
+    let allocations = ticks || !heap_allocs.is_empty();
+    if allocations {
+        // GC allocation ticks are sampled; the heap provider reports every allocation.
+        let m = if ticks { Measurement::Sampled } else { Measurement::Exact };
+        metrics.push(MetricInfo::new(MetricId::AllocBytes, m));
+        metrics.push(MetricInfo::new(MetricId::AllocCount, m));
+    }
+    if !unfreed.is_empty() {
+        metrics.push(MetricInfo::new(MetricId::LiveBytes, Measurement::Exact));
+    }
     for id in [MetricId::Exceptions, MetricId::WaitNs] {
-        if pending.iter().any(|p| p.value.is_some_and(|(m, _)| m == id)) {
+        if has(id) {
             metrics.push(MetricInfo::new(id, Measurement::Exact));
         }
     }
     if metrics.is_empty() {
         metrics.push(MetricInfo::new(MetricId::Samples, Measurement::Sampled));
     }
-    let mut b = ProfileBuilder::new(FORMAT, ProfileKind::Cpu, &metrics, *limits)?;
-    let stem = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
-    let stem = stem.split('.').next().unwrap_or(stem);
-    if stem.is_empty() {
-        b.set_name(&format!("Process {}", info.process_id));
-    } else {
-        b.set_name(stem);
-    }
+    let pending: Vec<Pending> = pending.into_iter().chain(heap_allocs).chain(unfreed).collect();
+    let kind = match (parsed.samples.is_empty(), allocations) {
+        (true, true) => ProfileKind::Alloc,
+        (false, true) => ProfileKind::Mixed,
+        _ => ProfileKind::Cpu,
+    };
+    let mut b = ProfileBuilder::new(FORMAT, kind, &metrics, *limits)?;
+    b.set_name(&capture_name(file_name, info.process_id));
     b.set_has_time(true);
     // The origin is the sync time, or an earlier first event (offset ≤ 0).
     let offset_ms = (i128::from(origin) - i128::from(info.sync_qpc)) * 1000 / i128::from(info.qpc_freq);
@@ -369,6 +590,11 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
     } else {
         DEFAULT_INTERVAL_NS
     };
+    let mut names: Vec<(&u64, &String)> = parsed.thread_names.iter().collect();
+    names.sort();
+    for (&t, name) in names {
+        b.thread(Some(t), name)?;
+    }
     let mut resolver = Resolver::new(&parsed);
     let mut row = vec![0u64; b.metrics().len()];
     if let (Some(s), Some(t)) = (b.metric_index(MetricId::Samples), b.metric_index(MetricId::TimeNs)) {
@@ -383,25 +609,46 @@ fn build(file_name: &str, mut parsed: Parsed, limits: &Limits) -> Result<Profile
     for p in pending {
         let thread = p.thread.map(|t| b.thread(Some(t), "")).transpose()?;
         let at = clock.ns(p.ts);
-        // Events with a metric (exceptions, lock waits) record it as a sample at their stack.
-        let stack = match (p.value, thread) {
-            (Some((metric, v)), Some(thread)) => {
-                let stack = resolver.stack(&mut b, p.stack)?;
-                b.sample_with(thread, at, stack, &[(metric, v)])?;
+        // Events with metrics (exceptions, waits, allocations) record them as a sample at their stack.
+        let stack = match thread {
+            Some(thread) if !p.values.is_empty() => {
+                let mut stack = resolver.stack(&mut b, p.stack)?;
+                if let Some(leaf) = &p.leaf {
+                    let f = b.frame(FrameSpec::new(leaf).module(Some("(allocated type)")).framework(false))?;
+                    stack = b.push(stack, f)?;
+                }
+                b.sample_with(thread, at, stack, &p.values)?;
                 Some(stack)
             }
             _ => None,
         };
-        b.event(ProfileEvent {
-            kind: p.kind,
-            thread,
-            start_ns: at,
-            dur_ns: p.dur_ns,
-            label: p.label,
-            stack,
-        });
+        if let Some(kind) = p.kind {
+            b.event(ProfileEvent {
+                kind,
+                thread,
+                start_ns: at,
+                dur_ns: p.dur_ns,
+                label: p.label,
+                stack,
+            });
+        }
     }
-    notes(&mut b, &parsed, resolver.address_frames.len());
+    notes(&mut b, &parsed, resolver.unresolved());
+    for n in heap_notes {
+        b.note(n);
+    }
+    if resolver.native_hits > 0 {
+        b.note(format!(
+            "{} native code addresses were named from symbols (PDB or exports)",
+            resolver.native_hits
+        ));
+    }
+    if resolver.image_hits > 0 {
+        b.note(format!(
+            "{} native code addresses are shown as module+offset (no symbols were found for them)",
+            resolver.image_hits
+        ));
+    }
     b.finish()
 }
 
@@ -428,6 +675,7 @@ fn notes(b: &mut ProfileBuilder, p: &Parsed, unresolved: usize) {
         (p.dropped_events, "runtime events beyond the event limit were skipped"),
         (p.dropped_methods, "method or module records beyond the frame limit were ignored"),
         (p.unknown_objects, "unknown objects in the file were skipped"),
+        (p.dropped_heap_ops, "native heap events beyond the sample limit were skipped"),
     ];
     for (n, what) in counts {
         if n > 0 {

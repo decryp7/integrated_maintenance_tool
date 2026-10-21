@@ -67,7 +67,7 @@ fn walk(b: &mut TreeBuilder, path: &mut Vec<PathSeg>, v: &Value) -> Result<(), C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tree::display_path;
+    use crate::config::display_path;
 
     #[test]
     fn reads_tables_arrays_and_scalars() {

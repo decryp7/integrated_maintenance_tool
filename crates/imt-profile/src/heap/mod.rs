@@ -2,6 +2,7 @@
 //! dominators, retained sizes and paths to GC roots.
 
 pub mod dominators;
+pub mod findings;
 pub mod model;
 pub mod ops;
 

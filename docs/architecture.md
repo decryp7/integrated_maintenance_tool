@@ -60,14 +60,14 @@ flowchart LR
 |---|---|---|
 | `imt-core` | library (the core) | Records, importers, profiles and pipelines, the query language, analysis, exports, projects, the plugin runtime, live tail, redaction, reports, dashboards, bundles, clock skew, configuration diff, templates. Ports: `LogStore`, `Importer`, `ReportRenderer`, `ConfigParser`, tools. |
 | `imt-profile` | library, pure (no I/O, no `imt-core`) | The profiling engine: profile and heap-snapshot model, builders with limits, the `CaptureImporter` and `ProfileStore` ports with the in-memory `Captures` store, and every profiling view (hotspots, trees, butterfly, flame, diff, threads, findings, moment, heap analysis). See [profiling.md](profiling.md). |
-| `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) contributed to the `profiling.importers` extension point. |
+| `imt-plugin-profiling` | plugin | Capture importers (nettrace, perf script, folded, pprof, Chrome trace / cpuprofile, speedscope, heapsnapshot) served as profile importers (the profiling plugin's process is the profile worker). |
 | `imt-plugin-tools` | plugin (shared by every window) | The system tools as `Tool`s: Performance Monitor templates and collector sets (`logman`), process monitor, Event Log follower, diagnostics collector, elevation. |
 | `imt-monitor` | library + CLI | Process sampling (and Windows PDH counters) into rolling CLEF files. |
 | `imt-collect` | library + CLI | The diagnostics collector writing redacted `.imtz` bundles. |
 | `imt-agent` | library + CLI / service | Headless scheduled and triggered collection ([ADR 0005](adr/0005-headless-agent.md)). |
 | `imt-pdf` | adapter | PDF output for incident reports, implementing `imt-core`'s `ReportRenderer` port, with embedded font subsets ([ADR 0007](adr/0007-reports-pdf-and-redaction.md)). |
 | `imt-plugin-registry`, `-windows`, `-web`, `-formats`, `-otel`, `-syslog` | plugins | Format importers, marker kinds, annotators and configuration parsers. `-windows` also has the Process Monitor CSV and minidump importers and the Event Log follower; `-formats` has log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file and Kubernetes CRI. |
-| `imt-plugin-sdk`, `imt-plugin-host`, `imt-ipc` | SDK, host, transport | Out-of-process plugins over gRPC `imt.plugin.v1`: the Rust SDK and conformance kit, the host that serves built-in plugins isolated, and the shared transport ([ADR 0004](adr/0004-stable-plugin-abi.md)). The C#/.NET SDK is in `sdk/dotnet`. |
+| `imt-plugin-api`, `imt-plugin-host`, `imt-plugins`, `imt-ipc` | contract, host adapter, plugins binary, transport | Every plugin runs in its own sandboxed process ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)): `imt-plugin-api` is the contract plugins depend on (no `imt-core`), `imt-plugin-host` the adapter that starts them and registers proxy contributions into the `PluginRegistry`, `imt-plugins` the binary that serves every built-in (`--plugin <id>`, `--manifests`), and `imt-ipc` the frames, supervisor, launcher and sandbox shared with the AI and store workers. |
 | `imt-ai`, `imt-ai-worker` | library, worker process | The local AI layer (including the internal browser's rules, [ADR 0011](adr/0011-internal-browser.md)) and the worker that runs a downloaded `llama-server` ([ADR 0009](adr/0009-prebuilt-llama-server-runtimes.md)). |
 | `imt-store-spike` | spike (outside the workspace) | DuckDB and DataFusion measurements behind [ADR 0010](adr/0010-persistent-store.md); see [store-spike.md](store-spike.md). |
 | `app/src-tauri` (`imt-app`) | shell | Tauri commands, windows, tray, sessions; depends on ports only. |
@@ -86,23 +86,28 @@ view, exports, reports and bundles), `report/` (versioned report model, Markdown
 | ADR | Decision |
 |---|---|
 | [0001](adr/0001-architecture.md) | Desktop architecture: Rust engine, Tauri shell, Angular UI. |
-| [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. |
+| [0002](adr/0002-microkernel-and-process-isolation.md) | Small core, everything else a plugin; native code out of process. Its wire protocol (gRPC, opt-in isolation) is superseded by 0017. |
 | [0003](adr/0003-plugin-dependencies-services-events.md) | Plugin dependencies, services, extension points and events. |
-| [0004](adr/0004-stable-plugin-abi.md) | Stable plugin ABI: protobuf and gRPC for plugin processes (the WebAssembly tier was dropped on 2026-10-18). |
+| [0004](adr/0004-stable-plugin-abi.md) | Superseded by 0017. Stable plugin ABI: protobuf and gRPC for plugin processes (the WebAssembly tier was dropped on 2026-10-18). |
 | [0005](adr/0005-headless-agent.md) | Headless collection agent (`imt-agent`). |
 | [0006](adr/0006-clock-skew-applied-on-load.md) | Clock-skew offsets are applied when records enter the workspace. |
 | [0007](adr/0007-reports-pdf-and-redaction.md) | Incident reports: engine-side model, HTML and pure-Rust PDF; one redactor. |
 | [0008](adr/0008-menus-one-model-native-on-macos.md) | Menus: one model, native on macOS. |
 | [0009](adr/0009-prebuilt-llama-server-runtimes.md) | AI inference runs the official prebuilt `llama-server`, downloaded on demand. |
 | [0010](adr/0010-persistent-store.md) | Large workspaces: a persistent DuckDB store in a worker process with a Tantivy index (decided, not started). |
-| [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode. |
+| [0011](adr/0011-internal-browser.md) | The AI gets web content only through an internal browser the user drives (no AI web search); pages get no IPC. Amended by 0012: read-only research mode; by 0024: docked panel. |
 | [0012](adr/0012-jobs.md) | Jobs and notifications: every long task is a job with per-kind queues and limits in Rust; a notification centre for what needs attention; research mode as a job. |
-| [0013](adr/0013-ai-browsing-banner.md) | "AI is browsing" on the browser window: an owned banner window of IMT's UI with Stop, a title prefix and (Windows 11) an amber frame while agent mode or research drives; the state comes from the browser hub. |
+| [0013](adr/0013-ai-browsing-banner.md) | "AI is browsing" while agent mode or research drives the browser; the state comes from the browser hub. Superseded by 0024: the banner is the Browser panel's header. |
+| [0017](adr/0017-one-ipc-out-of-process-plugins.md) | One IPC: framed postcard over a private local stream; plugins and workers only out of process and sandboxed; supersedes 0004 and the transport of 0002. |
+| [0024](adr/0024-docked-browser.md) | The internal browser is a docked Browser panel: a child webview (multi-webview) kept over the panel's page area, hidden behind IMT overlays, capabilities scoped by webview label; Linux gets a page window of its own. The AI drafts the search text, checked by the leak guard and shown before it is searched. |
 
-## Plugin runtime (ADR 0003)
+## Plugin runtime (ADR 0003, ADR 0017)
 
 Code lives in `crates/imt-core/src/plugin/` and `crates/imt-core/src/events.rs`; the extension guide is
-[plugins.md](plugins.md).
+[plugins.md](plugins.md). Plugins themselves run out of process (ADR 0017): `imt-plugin-host` registers
+proxy contributions into this registry, so the guards, quarantine and status below apply to them unchanged.
+Services, plugin-declared extension points, events, dependencies and activation (ADR 0003) remain here as
+engine-internal machinery for built-in code; plugins cannot use them.
 
 | Module | Responsibility |
 |---|---|
@@ -130,9 +135,10 @@ counters) and `annotations` (`workspace_commands.rs`). The UI shows them in the 
 timeline.
 
 The first real user is the Windows plugin: `crates/imt-plugin-windows/src/markers.rs` (marker kinds
-with the event-id sources) and `annotators.rs` (`windows.reboots`, `windows.services`). The stable
-contract for external plugins is the gRPC protocol `imt.plugin.v1` ([ADR 0004](adr/0004-stable-plugin-abi.md));
-`imt-plugin-host` and the Rust and C# SDKs implement it (see [plugins.md](plugins.md)).
+with the event-id sources) and `annotators.rs` (`windows.reboots`, `windows.services`). The contract
+plugins build against is the `imt-plugin-api` crate, carried over the frames of `imt-ipc`; `imt-plugin-host`
+runs each plugin in its own sandboxed process ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); see
+[plugins.md](plugins.md)).
 
 ## Windows, instances and sessions (shell)
 
@@ -152,7 +158,7 @@ state go.
 | `notify.rs` | Desktop notification policy (level × kind × whether a window already shows it), rate limiter, and the adapter over `tauri-plugin-notification`; never includes file contents. |
 | `window_prefs.rs` | The *Window & tray* settings section: `openFilesIn`, `onClose`, `notifications`, `startMinimized`. |
 | `lifecycle.rs` | Safe mode, crash detection, plugin enable/disable, session autosave, restarts (`restart_app`, `restart_elevated`: the command line is built in Rust, flags first, then `--` and the window's own session file; the webview sends no arguments) and the bounded teardown on close and exit (`teardown_step`: each step on its own thread, logged, at most 3 s). |
-| `commands.rs` | The command table (ADR 0016): `command_table!` in `lib.rs` lists every command once with its kind (query, mutation, quiet), the windows that may call it (`MAIN`: `main`, `w-*`; `POPOUT`: `p-*`; `BANNER`: `aib-*`) and its largest request; it generates the invoke handler and the activity log's classification, and `commands::guard` refuses calls from other windows and oversized requests. Every command is async (a test fails on a sync one). |
+| `commands.rs` | The command table (ADR 0016): `command_table!` in `lib.rs` lists every command once with its kind (query, mutation, quiet), the windows that may call it (`MAIN`: `main`, `w-*`; `POPOUT`: `p-*`; never the browser's page webview `browser-*`) and its largest request; it generates the invoke handler and the activity log's classification, and `commands::guard` refuses calls from other windows and oversized requests. Every command is async (a test fails on a sync one). |
 | `services/` | Tauri-free services behind the commands (ADR 0016): `profile.rs` (checking a profile text against a store with the error line, the active profile on disk with its history, written atomically and only after a window's workspace swapped to it) and `project.rs` (what a window saves, writing and reading `.imtproj` files, the captures an opened project reopens). Commands are adapters; no command calls another. |
 | `config_store.rs` | One way to keep configuration and state files (ADR 0016): versioned documents (`{ version, ... }`; older ones read when their fields fit, newer or damaged ones give the defaults, a damaged one kept as `.corrupt`), atomic writes (temp file, flush, rename), one writer process-wide, `Config<T>` caches a document and persists outside its lock, `Debounced` coalesces frequent writes on its own thread (notifications; flushed at exit). Used by `settings.json`, `diagnostics.json`, `plugins.json` (the one place plugin enablement is kept), `recent.json`, `notifications.json`, `updates.json`. |
 | `app_context.rs`, `sync.rs`, `plugin_config.rs`, `builtin_sections.rs` | The app's context built once in `setup` (folders, run flags; path grants, recent lists, window scopes and the UI dispatcher created up front); the shared lock and blocking helpers (`sync::lock/read/write`, `sync::blocking`); plugin enablement and registries (split out of `lifecycle.rs`); the app's own settings sections (split out of `settings.rs`). Web addresses open through `opener::open_url`. |
@@ -218,7 +224,7 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 
 | Diagram | What it shows |
 |---|---|
-| [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: the file system, the OS webview, Windows Event Log and performance counters, third-party plugins (gRPC), and the only network hosts, used when the user starts an update or a download: Gitea releases, Hugging Face (models) and GitHub releases (llama-server). IMT runs offline otherwise. |
+| [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: the file system, the OS webview, Windows Event Log and performance counters, plugins (separate sandboxed processes; the diagram predates ADR 0017 and still shows gRPC), and the only network hosts, used when the user starts an update or a download: Gitea releases, Hugging Face (models) and GitHub releases (llama-server). IMT runs offline otherwise. |
 | [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units, the processes they run in and how they talk; libraries linked into the app process are drawn inside it. |
 | [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: `workspace` (the `LogStore` implementation), `store`, `api`, `importers`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project`, the plugin registry, and the plugin runtime (manifests, dependency graph, services, watchdog), the event bus and plugin marker kinds / annotators; the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`, templates / did-you-mean / overwrite); and the crates around the core: `imt-pdf`, `imt-agent`, `imt-profile` and the plugin crates (including the tools and profiling plugins). The engine is the single source of truth; the shell reaches it only through `LogStore`. |
 | [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders under `app/src/app`: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views, extension tokens, docking, logger. Angular presents what the engine returns; state lives in SignalStores. |
@@ -233,7 +239,7 @@ and fill pattern, not colour alone); clicking one applies its evidence query.
 | [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: files are imported in parallel (archive, importer selection, ingest), merged, indexed and announced to hooks; the UI polls progress and can cancel. |
 | [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the query panel, which streams progress and can be cancelled. |
 | [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `MomentView` asks `query_moment` for the selected range; `Workspace::moment` summarises it against the window before it. |
-| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: isolated built-ins run out of process over gRPC `imt.plugin.v1`; every contribution is wrapped in a `Guarded*` adapter before the `Workspace` compiles the profile. |
+| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: built-ins run out of process over `imt-ipc` frames (the diagram predates ADR 0017 and still shows gRPC); every contribution is wrapped in a `Guarded*` adapter before the `Workspace` compiles the profile. |
 | [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file (`import_file`, `import_bytes`, `CompiledProfile::ingest`: extractors, pipeline, markers). Every failure lists the file as unrecognised with its reason; the rest of the import continues. |
 | [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as IMT drives it: `PerfmonController` (`imt-plugin-tools`) runs `logman`; the Performance Monitor view installs, starts, stops, queries, deletes and imports its output. |
 | [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; `Workspace::refresh_tail` follows changed files and evaluates live alerts. |

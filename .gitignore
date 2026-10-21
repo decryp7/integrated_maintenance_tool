@@ -157,9 +157,6 @@ app/src-tauri/binaries/
 
 # Sample logs that are part of the source tree (the *.log rule above would hide them)
 !crates/imt-core/templates/samples/*.log
-!sdk/dotnet/samples/OrderAudit/data/*.log
-# .NET test output
-sdk/dotnet/TestResults/
 
 # cargo-mutants results
 mutants.out/

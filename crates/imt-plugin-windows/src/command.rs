@@ -41,7 +41,7 @@ fn drain<R: Read + Send + 'static>(mut pipe: R) -> thread::JoinHandle<String> {
 
 impl CommandRunner for SystemRunner {
     fn run(&self, program: &str, args: &[String], timeout: Duration) -> io::Result<CommandOutput> {
-        let mut child = imt_core::process::quiet_command(program)
+        let mut child = imt_plugin_api::process::quiet_command(program)
             .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

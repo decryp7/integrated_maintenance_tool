@@ -10,13 +10,14 @@ use imt_ai::gguf::{self, GgufInfo};
 use imt_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
 use imt_ai::llm::{LazyProvider, LlmProvider, LoadState, ModelLoader};
 use imt_ai::models::source::{ModelSource, Progress};
+use imt_ai::models::store::InstalledProjector;
 use imt_ai::models::verify::verify_local;
 use imt_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
 use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommendations};
-use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, LoadRequest, ModelRuntime};
+use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use imt_ai::settings::AiSettings;
 use imt_ai::setup::{Setup, SetupPlan, SetupStage};
-use imt_ai::worker::{GrpcLauncher, Health, WorkerConfig, WorkerRuntime};
+use imt_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
 use imt_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -59,7 +60,7 @@ impl AiDeps {
         let settings = Arc::new(RwLock::new(AiSettings::default()));
         let runtimes = RuntimeDeps::system(data_dir.join("ai").join("runtimes"), worker.clone());
         let env = runtimes.worker_env_source(settings.clone());
-        let cfg = WorkerConfig::new(Arc::new(GrpcLauncher {
+        let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
             exe: worker.clone(),
             args: vec![],
             env,
@@ -117,6 +118,8 @@ pub struct AiStatus {
     pub notes: Vec<String>,
     pub safe_mode: bool,
     pub setup_running: bool,
+    /// The active model reads images ("Text + images"): its projector is installed (ADR 0025).
+    pub vision: bool,
 }
 
 /// An installed model with what it means for this machine.
@@ -134,6 +137,12 @@ pub struct ModelDto {
     pub name: String,
     pub license: Option<String>,
     pub tool_calling: bool,
+    /// Reads images: its projector is installed and fits it.
+    pub vision: bool,
+    /// The installed projector (also one that cannot be used, with its problem).
+    pub projector: Option<InstalledProjector>,
+    /// Bytes of the catalog projector that would add image support, when it is not installed.
+    pub projector_download_bytes: Option<u64>,
 }
 
 /// Progress of a set-up or an activation, streamed as `imt://ai-setup`.
@@ -209,10 +218,13 @@ impl ModelLoader for AppLoader {
         }
         let path = self.store.path_of(&self.file)?;
         let info = gguf::inspect(&path)?;
-        check_memory(&self.probe.probe(), &info)?;
+        // The model's image projector, when installed, loads into the same engine (one model, ADR 0025).
+        let projector = self.store.projector_path(&self.file)?;
+        check_memory(&self.probe.probe(), &info, projector_bytes(projector.as_deref()))?;
         let req = LoadRequest {
             context: effective_context(&self.settings, &info),
             path,
+            projector,
             info,
             gpu: self.settings.gpu_offload.into(),
             threads: self.settings.threads,
@@ -227,6 +239,10 @@ impl ModelLoader for AppLoader {
 
     fn context_hint(&self) -> usize {
         self.settings.context_length
+    }
+
+    fn vision_hint(&self) -> bool {
+        self.store.projector_path(&self.file).is_ok_and(|p| p.is_some())
     }
 }
 
@@ -449,6 +465,7 @@ impl AiCore {
             notes,
             safe_mode: self.safe_mode,
             setup_running: self.setup_running(),
+            vision: false,
         };
         drop(info);
         if let Err(e) = self.availability() {
@@ -467,9 +484,11 @@ impl AiCore {
             Active::Fixed(p) => {
                 s.state = EngineStateDto::Ready;
                 s.model = Some(p.display_name());
+                s.vision = p.vision();
             }
             Active::Lazy { lazy, file } => {
                 s.model = Some(file.clone());
+                s.vision = lazy.vision();
                 s.state = match lazy.state() {
                     LoadState::Unloaded => EngineStateDto::Idle,
                     LoadState::Loading => EngineStateDto::Loading,
@@ -650,9 +669,17 @@ impl AiCore {
             .into_iter()
             .map(|m| {
                 let cat = self.catalog.models.iter().find(|c| c.file == m.file_name);
+                let projector_download_bytes = cat.and_then(|c| c.projector.as_ref()).filter(|_| !m.vision()).map(|p| p.size_bytes);
                 ModelDto {
+                    vision: m.vision(),
+                    projector: m.projector.clone(),
+                    projector_download_bytes,
                     active: active.as_deref() == Some(m.file_name.as_str()),
-                    assessment: m.info.as_ref().map(|i| assess(&hw, i.file_size, i.params_b, i.is_moe(), 0.0)),
+                    // Its projector loads with it (ADR 0025).
+                    assessment: m.info.as_ref().map(|i| {
+                        let extra = m.projector.as_ref().filter(|p| p.problem.is_none()).map_or(0, |p| p.size_bytes);
+                        assess(&hw, i.file_size + extra, i.params_b, i.is_moe(), 0.0)
+                    }),
                     catalog_id: cat.map(|c| c.id.clone()),
                     name: cat
                         .map(|c| c.name.clone())
@@ -714,6 +741,95 @@ impl AiCore {
             .into_iter()
             .find(|m| m.file_name == added.file_name)
             .ok_or_else(|| AiCmdError::new(AiErrorCode::Io, "the model was added but cannot be listed"))
+    }
+
+    // ---- image support (ADR 0025) ----
+
+    /// The pixel budget of an image for the active model: what its projector reads, else the default.
+    pub fn image_target_pixels(&self) -> u64 {
+        let file = match &*lock(&self.active) {
+            Active::Lazy { file, .. } => Some(file.clone()),
+            _ => None,
+        };
+        file.and_then(|f| self.store().projector_path(&f).ok().flatten())
+            .and_then(|p| gguf::inspect_projector(&p).ok())
+            .map_or(imt_ai::vision::image::DEFAULT_TARGET_PIXELS, |p| p.max_image_pixels())
+    }
+
+    /// The catalog entry of an installed model file that offers a projector.
+    fn projector_entry(&self, file_name: &str) -> AiResult<imt_ai::catalog::CatalogModel> {
+        let entry = self.catalog.models.iter().find(|c| c.file == file_name).ok_or_else(|| {
+            AiCmdError::not_found(format!(
+                "{file_name} is not a model from the list, so IMT does not know its image projector; add the projector file yourself"
+            ))
+        })?;
+        if entry.projector.is_none() {
+            return Err(AiCmdError::not_found(format!(
+                "{} cannot read images: choose a model marked \"Text + images\"",
+                entry.name
+            )));
+        }
+        Ok(entry.clone())
+    }
+
+    /// Bytes "Add image support" downloads for `file_name` (0 when it is installed already).
+    pub fn projector_download_bytes(&self, file_name: &str) -> AiResult<u64> {
+        let entry = self.projector_entry(file_name)?;
+        self.with_setup(|s| Ok(s.missing_projector_bytes(&entry)))
+    }
+
+    /// Downloads and verifies the catalog projector of the installed model `file_name` (never automatically: the
+    /// user asked). The active model is reloaded with it on its next use. Blocks; call off the UI thread.
+    pub fn install_projector(&self, file_name: &str, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> AiResult<()> {
+        self.availability()?;
+        let entry = self.projector_entry(file_name)?;
+        if !self.store().path_of(file_name)?.is_file() {
+            return Err(AiCmdError::not_found(format!("{file_name} is not installed")));
+        }
+        self.with_setup(|s| s.download_projector(&entry, progress, on_stage))?;
+        self.reload_if_active(file_name);
+        Ok(())
+    }
+
+    /// Adds a projector file the user chose for the installed model `file_name`: it must be a projector made for
+    /// this model; a file of the catalog projector's size must have its SHA-256. Hashing reads the file: call off
+    /// the UI thread.
+    pub fn add_projector(&self, file_name: &str, path: &Path, progress: &Progress) -> AiResult<ModelDto> {
+        self.availability()?;
+        let store = self.store();
+        store.path_of(file_name)?;
+        let info = gguf::inspect_projector(path)?;
+        let pinned = self
+            .catalog
+            .models
+            .iter()
+            .find(|c| c.file == file_name)
+            .and_then(|c| c.projector.clone());
+        if let Some(p) = pinned.filter(|p| p.size_bytes == info.file_size) {
+            progress.begin(imt_ai::models::Phase::Verifying, info.file_size, 0);
+            let got = imt_ai::models::download::sha256_file(path, progress)?;
+            if !got.eq_ignore_ascii_case(&p.sha256) {
+                return Err(AiError::Integrity(format!(
+                    "this is not the original projector of {file_name}: its SHA-256 is {got}, expected {}; download it again",
+                    p.sha256
+                ))
+                .into());
+            }
+        }
+        store.add_projector(file_name, path, AddMode::Link)?;
+        self.reload_if_active(file_name);
+        self.models()
+            .into_iter()
+            .find(|m| m.file_name == file_name)
+            .ok_or_else(|| AiCmdError::new(AiErrorCode::Io, "the projector was added but the model cannot be listed"))
+    }
+
+    /// The active model is `file_name`: load it again (with its projector) on its next use.
+    fn reload_if_active(&self, file_name: &str) {
+        let active = matches!(&*lock(&self.active), Active::Lazy { file, .. } if file == file_name);
+        if active && !self.setup_running() {
+            self.install_active(None);
+        }
     }
 
     // ---- settings ----

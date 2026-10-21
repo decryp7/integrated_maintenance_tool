@@ -87,6 +87,7 @@ impl Importer for Tailing {
         Ok(Imported {
             records: vec![r],
             skipped: 0,
+            ..Default::default()
         })
     }
     fn import_tail(&self, _: &ImportCtx, head: &str, tail: &str) -> Option<Result<Imported>> {
@@ -99,6 +100,7 @@ impl Importer for Tailing {
         Some(Ok(Imported {
             records: vec![r],
             skipped: 0,
+            ..Default::default()
         }))
     }
     fn multiline(&self) -> bool {
@@ -190,6 +192,43 @@ fn guarded_importers_forward_import_tail_and_multiline() {
     });
 }
 
+/// Declares identity fields, or crashes doing so.
+struct Ident(bool);
+
+impl Importer for Ident {
+    fn id(&self) -> &'static str {
+        "ident"
+    }
+    fn sniff(&self, _: &ImportCtx, _: &str) -> u8 {
+        0
+    }
+    fn import(&self, _: &ImportCtx, _: &str) -> Result<Imported> {
+        Ok(Imported::default())
+    }
+    fn identity_fields(&self) -> Vec<String> {
+        if self.0 {
+            panic!("identity exploded");
+        }
+        vec!["Host".into()]
+    }
+}
+
+#[test]
+fn guarded_identity_fields_fall_back_to_none() {
+    let health = Arc::new(Health::default());
+    let ok = GuardedImporter {
+        inner: Arc::new(Ident(false)),
+        guard: Guard::new("i", health.clone()),
+    };
+    assert_eq!(ok.identity_fields(), ["Host"]);
+    let crashing = GuardedImporter {
+        inner: Arc::new(Ident(true)),
+        guard: Guard::new("j", health.clone()),
+    };
+    assert!(quietly(|| crashing.identity_fields()).is_empty());
+    assert_eq!(health.get("j").failures, 1, "the crash is attributed to the plugin");
+}
+
 struct Bin;
 impl BinaryImporter for Bin {
     fn id(&self) -> &'static str {
@@ -208,6 +247,7 @@ impl BinaryImporter for Bin {
         Ok(Imported {
             records: vec![r],
             skipped: 0,
+            ..Default::default()
         })
     }
 }
@@ -221,6 +261,7 @@ fn guarded_binary_importers_run_detached_or_inline() {
     };
     ctx_run(|ctx| {
         assert_eq!(g.id(), "bin");
+        assert!(g.identity_fields().is_empty(), "the trait's default");
         assert_eq!(g.sniff(ctx, &[0, 1]), 100);
         assert_eq!(g.import(ctx, &[0, 1, 2]).unwrap().records[0].message, "3 bytes");
         health.set_budgets(Budgets::unlimited());
@@ -258,7 +299,7 @@ fn budgets_labels_and_durations() {
     h.set_budgets(Budgets::unlimited());
     assert_eq!(h.budgets(), Budgets::unlimited());
     assert_eq!(b.get(CallKind::Export), None);
-    assert_eq!(fmt_duration(Duration::from_secs(120)), "120 s");
+    assert_eq!(fmt_duration(Duration::from_secs(120)), "2 min");
     assert_eq!(fmt_duration(Duration::from_millis(1500)), "1.5 s");
     assert_eq!(fmt_duration(Duration::from_millis(50)), "50 ms");
 }

@@ -93,7 +93,10 @@ impl Workspace {
             Some(Ok(loaded)) => {
                 delta.remove_from(id, None);
                 let offset = self.source_offset(id);
-                delta.insert.extend(loaded.imported.records.into_iter().map(|mut r| {
+                // A tailed file had no routed events when opened; events routes would claim now stay in its own
+                // source (nothing is lost) until the file is opened again.
+                let routed = loaded.logical.into_iter().flat_map(|(_, records)| records);
+                delta.insert.extend(loaded.imported.records.into_iter().chain(routed).map(|mut r| {
                     r.source = id;
                     r.ts = crate::skew::shift(r.ts, offset);
                     r
@@ -257,7 +260,7 @@ impl Workspace {
         rest
     }
 
-    fn seed_at_end(&self, path: &Path) -> Option<(&'static str, TailSeed)> {
+    fn seed_at_end(&self, path: &Path) -> Option<(String, TailSeed)> {
         let len = std::fs::metadata(path).ok()?.len();
         let src = FileBytes { path, len };
         let head = src.read(0, HEAD_TEXT_BYTES).ok()?;
@@ -289,7 +292,7 @@ impl Workspace {
         let next_line = count_lines(&src, encoding, offset).ok()? + 1;
         let anchor = hash(&src.read(offset.saturating_sub(ANCHOR_BYTES), offset).ok()?);
         Some((
-            importer.id(),
+            importer.id().to_string(),
             TailSeed {
                 identity: identity_of(path),
                 head: Fingerprint::of(&head),
@@ -301,7 +304,9 @@ impl Workspace {
                 next_line,
                 encoding,
                 bom,
-                mode: Mode::Append { importer: importer.id() },
+                mode: Mode::Append {
+                    importer: importer.id().to_string(),
+                },
             },
         ))
     }

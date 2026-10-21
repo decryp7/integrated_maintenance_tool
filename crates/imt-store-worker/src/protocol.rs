@@ -1,8 +1,8 @@
-//! The worker protocol: method names, the bodies that are not port DTOs, and store errors on the wire.
-//!
-//! A call is `(method, store handle, JSON body)`; the reply is JSON. A failed call answers a
-//! [`imt_ipc::RemoteError`] whose `data` is a [`WireError`], so the client gets the same [`StoreError`]
-//! back; anything else (a crash, a hang, garbage) is a failure of the worker process.
+//! The worker protocol over IMT's one IPC (ADR 0017): every call is a [`StoreRequest`] frame body (postcard);
+//! the operation is typed ([`StoreOp`]), the port DTOs it carries and answers with cross as JSON text (they are
+//! the ports' JSON-shaped types, unchanged). A failed call answers a [`imt_ipc::RemoteError`] whose `data` is a
+//! [`WireError`], so the client gets the same [`StoreError`] back; anything else (a crash, a hang, garbage, an
+//! oversized frame) is a failure of the worker process.
 
 use imt_core::batch::SourceId;
 use imt_core::ports::StoreError;
@@ -12,8 +12,81 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-/// Largest message either way (a page of 5,000 rows with long messages fits).
+/// Largest frame either way (a page of 5,000 rows with long messages fits).
 pub const MAX_MESSAGE_BYTES: usize = 64 << 20;
+
+/// An operation on one open store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StoreOp {
+    Open,
+    Reload,
+    Refresh,
+    RemoveSource,
+    Clear,
+    AppendTail,
+    SessionProgress,
+    SessionCancel,
+    SessionWait,
+    Summary,
+    Page,
+    Timeline,
+    Facet,
+    IdsAt,
+    PositionOf,
+    Positioned,
+    ActiveProfile,
+    ValidateProfile,
+    Problems,
+    Search,
+    IndexStatus,
+}
+
+impl StoreOp {
+    /// The method name (logs, the worker's dispatch).
+    pub fn method(self) -> &'static str {
+        match self {
+            StoreOp::Open => method::OPEN,
+            StoreOp::Reload => method::RELOAD,
+            StoreOp::Refresh => method::REFRESH,
+            StoreOp::RemoveSource => method::REMOVE_SOURCE,
+            StoreOp::Clear => method::CLEAR,
+            StoreOp::AppendTail => method::APPEND_TAIL,
+            StoreOp::SessionProgress => method::SESSION_PROGRESS,
+            StoreOp::SessionCancel => method::SESSION_CANCEL,
+            StoreOp::SessionWait => method::SESSION_WAIT,
+            StoreOp::Summary => method::SUMMARY,
+            StoreOp::Page => method::PAGE,
+            StoreOp::Timeline => method::TIMELINE,
+            StoreOp::Facet => method::FACET,
+            StoreOp::IdsAt => method::IDS_AT,
+            StoreOp::PositionOf => method::POSITION_OF,
+            StoreOp::Positioned => method::POSITIONED,
+            StoreOp::ActiveProfile => method::ACTIVE_PROFILE,
+            StoreOp::ValidateProfile => method::VALIDATE_PROFILE,
+            StoreOp::Problems => method::PROBLEMS,
+            StoreOp::Search => method::SEARCH,
+            StoreOp::IndexStatus => method::INDEX_STATUS,
+        }
+    }
+}
+
+/// What the app asks the worker; the reply is the operation's DTO as JSON ([`imt_ipc::Json`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum StoreRequest {
+    /// An [`OpenStore`] → [`Handle`].
+    OpenStore(imt_ipc::Json),
+    CloseStore {
+        store: u64,
+    },
+    /// → [`WorkerStatus`].
+    Status,
+    /// `op` on the open store `store`, with its request DTO.
+    Call {
+        store: u64,
+        op: StoreOp,
+        body: imt_ipc::Json,
+    },
+}
 
 /// Error code of every store error (the kind is in [`WireError`]).
 pub const STORE_ERROR: i32 = -32050;
@@ -195,14 +268,14 @@ impl From<WireError> for StoreError {
 /// A store error as the typed error of a failed call.
 pub fn to_remote(e: &StoreError) -> RemoteError {
     let mut r = RemoteError::new(STORE_ERROR, e.to_string());
-    r.data = serde_json::to_value(WireError::from(e)).ok();
+    r.data = serde_json::to_value(WireError::from(e)).ok().map(Into::into);
     r
 }
 
 /// The store error a typed error carries (a malformed one is an engine error with its message).
 pub fn from_remote(r: RemoteError) -> StoreError {
     r.data
-        .and_then(|d| serde_json::from_value::<WireError>(d).ok())
+        .and_then(|d| serde_json::from_value::<WireError>(d.into_inner()).ok())
         .map(StoreError::from)
         .unwrap_or(StoreError::Engine(r.message))
 }

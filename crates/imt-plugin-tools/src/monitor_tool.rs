@@ -2,9 +2,9 @@
 
 use crate::ids::PROCESS_MONITOR;
 use anyhow::{anyhow, bail, Result};
-use imt_core::export::ClefFileSink;
-use imt_core::plugin::tools::{OpSpec, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 use imt_core::plugin::Collector;
+use imt_plugin_api::clef::ClefFileSink;
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -61,7 +61,7 @@ impl MonitorTool {
         let (flag, collector, done) = (stop.clone(), self.collector.clone(), ctx.clone());
         let thread = std::thread::Builder::new().name("imt-process-monitor".into()).spawn(move || {
             // The collector is plugin code on its own thread: contain a panic.
-            let result = imt_core::guard::catch("the process monitor", || collector.run(&config, &sink, &flag));
+            let result = imt_plugin_api::clef::catch("the process monitor", || collector.run(&config, &sink, &flag));
             if !flag.load(Ordering::SeqCst) {
                 // Ended on its own (an error): it is no longer background work.
                 done.task_finished(TASK);
@@ -112,7 +112,11 @@ impl Tool for MonitorTool {
         ToolInfo::new(PROCESS_MONITOR, "Process monitor")
             .describe("Samples processes (and, on Windows, performance counters) into rolling CLEF files that open with live tail.")
             .op(OpSpec::new("start", "Start monitoring")
-                .args(Schema::object().field("config", Schema::Any).optional("dir", Schema::text(4096)))
+                .args(
+                    Schema::object()
+                        .field("config", Schema::Any)
+                        .optional("dir", Schema::path(PathKind::Dir, PathAccess::Write)),
+                )
                 .budget(Some(Duration::from_secs(10))))
             .op(OpSpec::new("stop", "Stop monitoring"))
             .op(OpSpec::new("status", "Whether it runs").budget(Some(Duration::from_secs(5))))
@@ -138,9 +142,9 @@ impl Tool for MonitorTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::export::EventSink;
-    use imt_core::model::Record;
-    use imt_core::plugin::tools::TaskSink;
+    use imt_plugin_api::clef::EventSink;
+    use imt_plugin_api::model::Record;
+    use imt_plugin_api::tools::TaskSink;
 
     /// Writes one event per tick until stopped; or fails / panics on demand.
     struct FakeMonitor(&'static str);

@@ -20,6 +20,7 @@ imt-core = { path = "../imt-core" }
 imt-collect = { path = "../imt-collect" }
 imt-ipc = { path = "../imt-ipc" }
 anyhow.workspace = true
+base64.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
@@ -28,18 +29,14 @@ thiserror.workspace = true
 toml.workspace = true
 log.workspace = true
 regex.workspace = true
-prost.workspace = true
 tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
-tokio-stream = { workspace = true, features = ["net"] }
-tonic.workspace = true
-tonic-prost.workspace = true
-tower.workspace = true
-hyper-util.workspace = true
 getrandom.workspace = true
 zip.workspace = true
 flate2.workspace = true
 tar = { version = "0.4", default-features = false }
 url = "2"
+# Decoding untrusted images for the model (ADR 0025): only these formats, no others compiled in.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "webp"] }
 percent-encoding = "2"
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
 # The TLS stack ureq already uses; named here only to recognise certificate errors (`net::classify`).
@@ -47,10 +44,6 @@ rustls = { version = "0.23", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Graphics_Dxgi", "Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory"] }
-
-[build-dependencies]
-protox.workspace = true
-tonic-prost-build.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

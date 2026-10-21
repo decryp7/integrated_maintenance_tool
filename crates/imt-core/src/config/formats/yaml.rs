@@ -260,7 +260,7 @@ fn typed(text: &str, style: TScalarStyle) -> ConfigValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tree::display_path;
+    use crate::config::display_path;
 
     fn shown(s: &str) -> Vec<String> {
         let t = YamlParser.parse(s, &Limits::default()).unwrap();

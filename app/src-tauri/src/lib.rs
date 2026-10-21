@@ -33,6 +33,7 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod dumps;
 mod engine_errors;
 mod error;
 mod file_commands;
@@ -52,7 +53,6 @@ mod opener;
 mod panel_windows;
 mod paths;
 mod plugin_config;
-mod plugin_isolation;
 mod pointer;
 mod profile;
 mod profiling;
@@ -112,7 +112,7 @@ macro_rules! command_table {
 }
 
 // Every command the UI can invoke: one line each (ADR 0016). Kind: Query (read-only), Mutation, Quiet
-// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), BANNER (`aib-*`), WINDOW =
+// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), WINDOW =
 // MAIN | POPOUT. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
 command_table! {
     Query [WINDOW] => workspace_commands::workspace_summary,
@@ -188,6 +188,21 @@ command_table! {
     Query [WINDOW] => profiling::profiling_heap_dominators,
     Query [WINDOW] => profiling::profiling_heap_instances,
     Query [WINDOW] => profiling::profiling_heap_paths,
+    Query [WINDOW] limit 4 * 1024 => profiling::profiling_heap_findings,
+    Query [WINDOW] => dumps::dumps_sniff,
+    Mutation [WINDOW] => dumps::dumps_open,
+    Query [WINDOW] => dumps::dumps_list,
+    Mutation [WINDOW] => dumps::dumps_close,
+    Query [WINDOW] => dumps::dumps_overview,
+    Query [WINDOW] => dumps::dumps_threads,
+    Query [WINDOW] => dumps::dumps_stack,
+    Query [WINDOW] => dumps::dumps_modules,
+    Query [WINDOW] => dumps::dumps_findings,
+    Query [WINDOW] => dumps::dumps_umdh_diff,
+    Query [WINDOW] => dumps::dumps_umdh_stack,
+    Query [WINDOW] => dumps::dumps_umdh_tree,
+    Query [WINDOW] => dumps::dumps_markers,
+    Query [WINDOW] => dumps::dumps_explain,
     Query [WINDOW] => profile::get_profile,
     Query [WINDOW] limit MIB => profile::validate_profile,
     Mutation [WINDOW] limit MIB => profile::save_profile,
@@ -197,7 +212,7 @@ command_table! {
     Mutation [WINDOW] limit MIB => profile::export_profile,
     Query [WINDOW] => profile::profile_templates,
     Query [WINDOW] => demo::demo_paths,
-    Mutation [WINDOW | BANNER] limit 8 * MIB => snapshots::save_error_snapshot,
+    Mutation [WINDOW] limit 8 * MIB => snapshots::save_error_snapshot,
     Query [WINDOW] => snapshots::list_error_snapshots,
     Query [WINDOW] => snapshots::read_error_snapshot,
     Mutation [WINDOW] => snapshots::delete_error_snapshot,
@@ -219,6 +234,8 @@ command_table! {
     Query [WINDOW] => system::read_file_head,
     Query [WINDOW] => tools::tools_list,
     Mutation [WINDOW] limit MIB => tools::tool_invoke,
+    Quiet [WINDOW] limit 64 * 1024 => tools::tool_poll,
+    Query [WINDOW] limit 4 * 1024 => tools::tool_task_job,
     Query [WINDOW] => agent_commands::agent_schema,
     Query [WINDOW] => agent_commands::agent_config_load,
     Query [WINDOW] limit MIB => agent_commands::agent_config_validate,
@@ -230,7 +247,6 @@ command_table! {
     Mutation [MAIN] => lifecycle::restart_app,
     Mutation [MAIN] => plugin_config::plugin_reset,
     Mutation [MAIN] => plugin_config::plugin_set_enabled,
-    Query [WINDOW] => plugin_isolation::plugin_isolation_status,
     Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
     Query [MAIN] => lifecycle::last_session,
     Mutation [MAIN] => lifecycle::restore_windows,
@@ -258,8 +274,8 @@ command_table! {
     Quiet [MAIN] limit MIB => menu::set_app_menu,
     Query [WINDOW] => background::background_tasks,
     Mutation [WINDOW] => background::stop_background_task,
-    Query [WINDOW | BANNER] => jobs::jobs_list,
-    Mutation [WINDOW | BANNER] => jobs::jobs_cancel,
+    Query [WINDOW] => jobs::jobs_list,
+    Mutation [WINDOW] => jobs::jobs_cancel,
     Mutation [WINDOW] => jobs::jobs_retry,
     Mutation [WINDOW] => jobs::jobs_move,
     Mutation [WINDOW] => jobs::jobs_clear_finished,
@@ -276,8 +292,9 @@ command_table! {
     Mutation [WINDOW] => notification_centre::notifications_dismiss,
     Quiet [WINDOW] => notification_centre::notifications_record,
     Mutation [WINDOW] limit 4 * MIB => notification_centre::notifications_restore,
+    Query [WINDOW] => browser::research::ai_research_draft,
     Mutation [WINDOW] => browser::research::ai_research,
-    Query [WINDOW | BANNER] => browser::driving::browser_driving,
+    Query [WINDOW] => browser::driving::browser_driving,
     Mutation [WINDOW] => browser::commands::browser_open_and_read,
     Query [WINDOW] => ai::commands::ai_status,
     Query [WINDOW] => ai::commands::ai_hardware,
@@ -306,11 +323,17 @@ command_table! {
     Mutation [WINDOW] => ai::commands::ai_chat_export_markdown,
     Query [WINDOW] => ai::commands::ai_suggested_prompts,
     Mutation [WINDOW] => ai::commands::ai_open_link,
+    Mutation [WINDOW] => ai::vision::ai_image_open,
+    Mutation [WINDOW] limit 48 * MIB => ai::vision::ai_image_paste,
+    Mutation [WINDOW] => ai::vision::ai_image_close,
+    Mutation [WINDOW] => ai::vision::ai_model_install_projector,
+    Mutation [WINDOW] => ai::vision::ai_model_add_projector,
     Query [WINDOW] => browser::commands::browser_state,
     Mutation [WINDOW] => browser::commands::browser_open,
     Query [WINDOW] => browser::commands::browser_event_query,
     Mutation [WINDOW] => browser::commands::browser_nav,
     Mutation [WINDOW] => browser::commands::browser_close,
+    Quiet [WINDOW] => browser::commands::browser_place,
     Mutation [WINDOW] => browser::commands::browser_open_external,
     Mutation [WINDOW] => browser::commands::browser_capture,
     Query [WINDOW] => browser::commands::browser_sources,
@@ -318,7 +341,7 @@ command_table! {
     Query [WINDOW] => browser::commands::browser_chat_status,
     Mutation [WINDOW] => browser::commands::browser_set_read_along,
     Mutation [WINDOW] => browser::commands::browser_set_agent,
-    Mutation [WINDOW | BANNER] => browser::commands::browser_agent_stop,
+    Mutation [WINDOW] => browser::commands::browser_agent_stop,
     Mutation [WINDOW] => browser::commands::browser_agent_continue,
     Mutation [WINDOW] => browser::commands::browser_agent_respond,
     Mutation [WINDOW] => browser::commands::browser_open_suggested,
@@ -438,6 +461,11 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- managed state (app-wide) ----
     let shared = AppState::new(ctx.config.as_ref().map(|d| d.join("profiles")), ctx.safe_mode);
+    if let Some(problem) = shared.plugins.problem() {
+        log::error!("Plugins are unavailable: {problem}");
+    }
+    // Plugin processes start in the background, so the first import does not wait for one.
+    shared.plugins.warm_up();
     app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
@@ -455,12 +483,6 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
 
     // ---- settings ----
     settings::init(app.handle());
-    settings::register(
-        app.handle(),
-        std::sync::Arc::new(plugin_isolation::IsolationSection::new()),
-        settings::SectionGroup::Plugins,
-    )?;
-    plugin_isolation::install(app.handle());
     window_prefs::register(app.handle())?;
     updater::init(app.handle());
     ai::init(app.handle(), safe_mode);
@@ -476,7 +498,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     tray::create(app.handle());
     menu::install(app.handle());
     let in_tray = app.state::<window_prefs::SharedPrefs>().get().start_minimized && tray::available(app.handle());
-    if let Some(main) = app.get_webview_window(windows::MAIN) {
+    if let Some(main) = app.get_window(windows::MAIN) {
         if !in_tray {
             main.show()?;
             let _ = main.set_focus();

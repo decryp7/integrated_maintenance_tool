@@ -447,12 +447,12 @@ fn update_messages_name_the_versions_and_sizes() {
     };
     let n = update_commands::update_notice(&u(UpdateKind::Model, 5_400_000_000));
     assert!(
-        n.title.contains("model update") && n.body.contains("b.gguf replaces a.gguf (5.4 GB"),
+        n.title.contains("model update") && n.body.contains("b.gguf replaces a.gguf (5 GB"),
         "{}",
         n.body
     );
     let n = update_commands::update_notice(&u(UpdateKind::Runtime, 20_000));
-    assert!(n.title.contains("runtime update") && n.body.contains("(1 MB"), "{}", n.body);
+    assert!(n.title.contains("runtime update") && n.body.contains("(20 KB"), "{}", n.body);
     assert_eq!(n.dedupe_key.as_deref(), Some("ai-update:runtime:m"));
 }
 

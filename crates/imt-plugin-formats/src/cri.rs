@@ -6,14 +6,19 @@ use crate::container::{path_fields, Joiner, Stream};
 use crate::first_line;
 use anyhow::Result;
 use chrono::DateTime;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::Fields;
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::Fields;
 
 pub struct CriImporter;
 
-impl Importer for CriImporter {
+impl TextImporter for CriImporter {
     fn id(&self) -> &'static str {
         "cri"
+    }
+
+    /// Where the container runs, from the log path (`Namespace`/`Pod`/`Container`) and its id.
+    fn identity_fields(&self) -> Vec<String> {
+        ["Namespace", "Pod", "Container", "ContainerId"].map(String::from).to_vec()
     }
 
     /// Above the generic text importer (70) and syslog (75).
@@ -84,6 +89,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
     Imported {
         records: joiner.finish(),
         skipped,
+        ..Default::default()
     }
 }
 
@@ -91,7 +97,7 @@ fn import(ctx: &ImportCtx, content: &str) -> Imported {
 mod tests {
     use super::*;
     use crate::testutil::{garbage, ms, with_ctx, with_path};
-    use imt_core::model::Level;
+    use imt_plugin_api::model::Level;
 
     const LOG: &str = "\
 2026-10-17T12:00:00.123456789Z stdout F Started orders v3.14.2\r
@@ -104,6 +110,14 @@ not a cri line
 
 2026-10-17T12:00:04Z stderr F:x E1017 12:00:04.000000 1 main.go:1] failed
 ";
+
+    #[test]
+    fn declares_identity_fields() {
+        assert_eq!(
+            imt_plugin_api::TextImporter::identity_fields(&CriImporter),
+            ["Namespace", "Pod", "Container", "ContainerId"]
+        );
+    }
 
     #[test]
     fn parses_joins_partials_and_levels() {

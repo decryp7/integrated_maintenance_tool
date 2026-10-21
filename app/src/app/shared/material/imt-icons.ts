@@ -52,6 +52,7 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   arrowDown: 'M12 5v14M6 13l6 6l6-6',
   stop: 'M7 7h10v10H7z',
   research: 'M10.5 4.5a6 6 0 1 0 0 12a6 6 0 1 0 0-12M15 15l5 5M8 10.5h5M10.5 8v5',
+  image: 'M4 5h16v14H4zM4 16l5-5l4 4l2-2l5 5M15.5 8.5a1 1 0 1 0 0 .1',
 };
 
 /** True when `name` is part of IMT's icon set. */

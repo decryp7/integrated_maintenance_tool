@@ -1,5 +1,5 @@
 //! The seam between the supervisor and the wire. The supervisor and the use cases depend only on these
-//! traits, so the transport can change (gRPC over a local socket or named pipe today) without touching them.
+//! traits, so the transport can change (`imt_ipc` frames over a local socket or named pipe today) without touching them.
 
 use serde_json::Value;
 use std::sync::atomic::AtomicBool;

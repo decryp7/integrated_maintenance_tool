@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { nativePick, nativePickOne } from './native-dialog';
+import type { DropPoint } from './dropped-files';
 
 /** Host integration: native dialogs and drag-and-drop when running inside Tauri. */
 
@@ -23,7 +24,7 @@ export async function pickPaths(directory: boolean): Promise<string[]> {
 
 /** Subscribes to files dropped on the window. Returns an unsubscribe function. */
 export async function onFilesDropped(
-  handler: (paths: string[]) => void,
+  handler: (paths: string[], at: DropPoint | null) => void,
   hover: (over: boolean) => void,
 ): Promise<() => void> {
   if (!isTauri()) return () => {};
@@ -34,9 +35,16 @@ export async function onFilesDropped(
     else if (payload.type === 'leave') hover(false);
     else if (payload.type === 'drop') {
       hover(false);
-      if (payload.paths.length) handler(payload.paths);
+      if (payload.paths.length) handler(payload.paths, dropPoint(payload.position, window.devicePixelRatio));
     }
   });
+}
+
+/** The OS drop position (physical pixels) in the page's CSS pixels. */
+export function dropPoint(position: { x: number; y: number } | null | undefined, scale: number): DropPoint | null {
+  if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return null;
+  const s = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return { x: position.x / s, y: position.y / s };
 }
 
 /** Native open dialog for a single profile file; null when cancelled. */
@@ -105,7 +113,7 @@ export class Platform {
   pickPaths(directory: boolean): Promise<string[]> {
     return pickPaths(directory);
   }
-  onFilesDropped(handler: (paths: string[]) => void, hover: (over: boolean) => void): Promise<() => void> {
+  onFilesDropped(handler: (paths: string[], at: DropPoint | null) => void, hover: (over: boolean) => void): Promise<() => void> {
     return onFilesDropped(handler, hover);
   }
   pickProfileToOpen(): Promise<string | null> {

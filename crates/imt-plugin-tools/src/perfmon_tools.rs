@@ -7,7 +7,7 @@ use crate::settings::Knobs;
 use crate::Runner;
 use anyhow::{anyhow, bail, Result};
 use imt_core::overwrite::check_overwrite;
-use imt_core::plugin::tools::{OpSpec, Platform, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
+use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolFailure, ToolInfo, ToolTask};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
@@ -25,6 +25,8 @@ fn template_schema() -> Schema {
         .optional("extraCounters", Schema::list(Schema::text(1024), 512))
         .optional("sampleIntervalSecs", Schema::int(0, U32_MAX))
         .optional("format", Schema::one_of(["blg", "csv", "tsv"]))
+        // Where the Data Collector Set writes its logs on the machine it runs on (a Windows path in the generated
+        // XML, often of another machine): a setting, not a path IMT writes to, so it is not checked against grants.
         .optional("outputDir", Schema::text(4096))
         .optional("maxSizeMb", Schema::int(0, U32_MAX))
         .optional("durationSecs", Schema::int(0, U32_MAX))
@@ -53,7 +55,7 @@ impl Tool for TemplatesTool {
             .op(OpSpec::new("generate", "Generate the XML").args(
                 Schema::object()
                     .field("template", template_schema())
-                    .optional("xmlPath", Schema::text(4096))
+                    .optional("xmlPath", Schema::path(PathKind::File, PathAccess::Write))
                     .optional("overwrite", Schema::Bool),
             ))
     }
@@ -213,7 +215,7 @@ impl Tool for SetsTool {
 mod tests {
     use super::*;
     use crate::fake::{fail, ok, FakeRunner};
-    use imt_core::plugin::tools::{NoTasks, TaskSink};
+    use imt_plugin_api::tools::{NoTasks, TaskSink};
     use std::sync::Mutex;
 
     #[derive(Default)]
@@ -359,7 +361,7 @@ mod tests {
         let e = e.unwrap_err();
         assert!(e.to_string().contains("Access is denied"));
         let typed = e.downcast_ref::<ToolFailure>().expect("a typed denial");
-        assert_eq!(typed.reason, imt_core::plugin::tools::FailureReason::Denied);
+        assert_eq!(typed.reason, imt_plugin_api::tools::FailureReason::Denied);
         assert!(tasks.0.lock().unwrap().is_empty());
         let fake = Arc::new(FakeRunner::new(|_, _| ok("")));
         let e = sets(&fake, false).invoke("outputs", json!({ "name": "IMT" }), &ctx);

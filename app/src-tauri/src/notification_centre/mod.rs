@@ -243,7 +243,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 
 /// Whether some IMT window has the focus (the user sees in-app toasts).
 fn imt_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
-    app.webview_windows()
+    app.windows()
         .iter()
         .any(|(label, w)| !crate::browser::is_browser_label(label) && w.is_focused().unwrap_or(false))
 }
@@ -300,9 +300,7 @@ pub fn on_focus<R: Runtime>(app: &AppHandle<R>, label: &str) {
         return;
     };
     if let Some((id, window)) = centre.take_pending() {
-        let target = window
-            .filter(|w| app.get_webview_window(w).is_some())
-            .unwrap_or_else(|| label.to_string());
+        let target = window.filter(|w| app.get_window(w).is_some()).unwrap_or_else(|| label.to_string());
         crate::windows::emit_to_window(app, &target, OPEN_EVENT, id);
     }
 }

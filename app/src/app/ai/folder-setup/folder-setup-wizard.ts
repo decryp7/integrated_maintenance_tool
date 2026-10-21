@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { DIALOG_REF } from '../../ui/dialog.service';
@@ -70,7 +71,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
       @case ('proposals') {
         <section class="pane">
           @if (store.survey(); as s) {
-            <p class="facts" data-testid="survey-facts"><ng-container i18n="@@ai.folderSetup.facts">Sampled {{ s.sampledEvents }} of {{ s.totalEvents }} events in {s.groups.length, plural, =1 {1 group of files} other {{{ s.groups.length }} groups of files}}.</ng-container>@if (s.unrecognised.length) {<ng-container i18n="@@ai.folderSetup.factsUnread"> {s.unrecognised.length, plural, =1 {1 kind of file is} other {{{ s.unrecognised.length }} kinds of files are}} not read.</ng-container>}</p>
+            <p class="facts" data-testid="survey-facts"><ng-container i18n="@@ai.folderSetup.facts">Sampled {{ fmt(s.sampledEvents) }} of {{ fmt(s.totalEvents) }} events in {s.groups.length, plural, =1 {1 group of files} other {{{ s.groups.length }} groups of files}}.</ng-container>@if (s.unrecognised.length) {<ng-container i18n="@@ai.folderSetup.factsUnread"> {s.unrecognised.length, plural, =1 {1 kind of file is} other {{{ s.unrecognised.length }} kinds of files are}} not read.</ng-container>}</p>
             @if (s.truncated) {
               <p class="facts" i18n="@@ai.folderSetup.truncated">The folder is large: the proposals are based on a sample.</p>
             }
@@ -216,6 +217,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
   `,
 })
 export class FolderSetupWizard {
+  protected readonly fmt = formatCount;
   protected readonly store = inject(FolderSetupStore);
   protected readonly ai = inject(AiStatusStore);
   private readonly launcher = inject(AiLauncher);

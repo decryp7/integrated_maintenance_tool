@@ -9,6 +9,7 @@ import { CaptureNotes, NoCapture } from '../profiling-shared';
 import { PROFILING_STYLES } from '../profiling-styles';
 import { HeapDiff } from './heap-diff';
 import { HeapDominators } from './heap-dominators';
+import { HeapFindings } from './heap-findings';
 import { HeapGrowth } from './heap-growth';
 import { HeapInstances } from './heap-instances';
 import { HEAP_TABS, HeapSelection, HeapTab } from './heap-selection';
@@ -18,7 +19,7 @@ import { HeapTypes } from './heap-types';
 @Component({
   selector: 'imt-heap-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NoCapture, CaptureNotes, HeapTypes, HeapDiff, HeapGrowth, HeapDominators, HeapInstances],
+  imports: [NoCapture, CaptureNotes, HeapFindings, HeapTypes, HeapDiff, HeapGrowth, HeapDominators, HeapInstances],
   providers: [HeapSelection],
   template: `
     @if (active.heap(); as h) {
@@ -39,6 +40,7 @@ import { HeapTypes } from './heap-types';
       </div>
       <div class="panel" role="tabpanel" id="heap-panel" [attr.aria-labelledby]="'heap-tab-' + sel.tab()">
         @switch (sel.tab()) {
+          @case ('findings') { <imt-heap-findings [snapshotId]="h.id" /> }
           @case ('types') { <imt-heap-types [snapshotId]="h.id" /> }
           @case ('diff') { <imt-heap-diff /> }
           @case ('growth') { <imt-heap-growth /> }

@@ -65,7 +65,7 @@ fn samples() -> PathBuf {
 #[derive(Serialize)]
 struct Snapshot {
     sample: String,
-    importer: &'static str,
+    importer: String,
     records: usize,
     skipped: usize,
     /// Records per level, in severity order; levels without records are left out.
@@ -149,7 +149,7 @@ fn snapshot_of(rel: &str, profile: &CompiledProfile, importers: &Importers) -> S
     let stamps: Vec<i64> = records.iter().filter_map(|r| r.ts).collect();
     Snapshot {
         sample: rel.to_string(),
-        importer: importer.id(),
+        importer: importer.id().to_string(),
         records: records.len(),
         skipped: imported.skipped,
         levels,
@@ -170,10 +170,10 @@ fn every_sample_matches_its_importer_snapshot() {
         let snap = snapshot_of(rel, &profile, &importers);
         assert_eq!(snap.importer, expected, "{rel} was read by the wrong importer");
         assert!(snap.records > 0, "{rel} produced no records");
-        used.insert(snap.importer);
+        used.insert(snap.importer.clone());
         insta::assert_yaml_snapshot!(name, snap);
     }
-    let builtin: BTreeSet<&str> = importers.text_importers().map(|i| i.id()).collect();
+    let builtin: BTreeSet<String> = importers.text_importers().map(|i| i.id().to_string()).collect();
     assert_eq!(used, builtin, "every built-in importer must be covered by at least one sample");
 }
 

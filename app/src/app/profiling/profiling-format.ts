@@ -1,6 +1,9 @@
 import { CaptureSummary, HeapSummary, Measurement, MetricDto, MetricId, MetricUnit, ProfileSummary } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { localizeDecimal } from '../i18n/locale';
+import { formatBytes, formatExactBytes } from '../shared/format/units';
+
+export { formatBytes };
 
 /** Pure presentation helpers of the profiling views (units, labels, measurement tags). */
 
@@ -13,6 +16,7 @@ const UNIT_OF: Record<MetricId, MetricUnit> = {
   exceptions: 'count',
   waitNs: 'nanoseconds',
   maxCallNs: 'nanoseconds',
+  liveBytes: 'bytes',
 };
 
 export function unitOf(metric: MetricId, metrics: readonly MetricDto[] = []): MetricUnit {
@@ -29,16 +33,6 @@ export function formatNs(ns: number | null | undefined): string {
   if (a < 60_000_000_000) return `${localizeDecimal((ns / 1_000_000_000).toFixed(2))} s`;
   const s = Math.round(ns / 1_000_000_000);
   return `${Math.floor(s / 60)} min ${s % 60} s`;
-}
-
-/** "512 B", "4.0 KB", "1.5 MB", "2.00 GB". */
-export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return '—';
-  const a = Math.abs(bytes);
-  if (a < 1024) return `${Math.round(bytes)} B`;
-  if (a < 1024 ** 2) return `${localizeDecimal((bytes / 1024).toFixed(1))} KB`;
-  if (a < 1024 ** 3) return `${localizeDecimal((bytes / 1024 ** 2).toFixed(1))} MB`;
-  return `${localizeDecimal((bytes / 1024 ** 3).toFixed(2))} GB`;
 }
 
 export function formatValue(value: number | null | undefined, unit: MetricUnit): string {
@@ -67,6 +61,12 @@ export function formatPp(pp: number): string {
 export function formatDelta(value: number, unit: 'bytes' | 'count'): string {
   const sign = value > 0 ? '+' : value < 0 ? '−' : '';
   return sign + (unit === 'bytes' ? formatBytes(Math.abs(value)) : formatCount(Math.abs(value)));
+}
+
+/** The exact signed byte delta for a tooltip: "+4,096 bytes". */
+export function formatExactDelta(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+  return sign + formatExactBytes(Math.abs(value));
 }
 
 /** The short glyph shown next to a value: ≈ for estimates, = for exact counts. */

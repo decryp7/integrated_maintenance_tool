@@ -1,19 +1,16 @@
-//! The typed vocabulary of the worker protocol. The wire is gRPC (`proto/llm.proto`, see `grpc_client` and
-//! `grpc_server`); these are the plain-Rust forms the supervisor and the backends work with, and the
-//! typed error that travels in the `x-imt-error-bin` trailer.
+//! The typed vocabulary of the worker protocol: the requests and replies that cross the wire (`frames`), as the
+//! supervisor and the backends work with them, and the worker's typed error.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-pub const PROTOCOL_VERSION: u32 = 1;
-/// Largest gRPC message accepted in either direction.
+/// 2: the model's image projector (`LoadParams::mmproj_path`, `LoadResult::vision`) and images in chats
+/// (`ChatParams::images`, ADR 0025).
+pub const PROTOCOL_VERSION: u32 = 2;
+/// Largest frame accepted in either direction.
 pub const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
-/// Metadata key carrying the per-launch token on every call.
-pub const TOKEN_HEADER: &str = imt_ipc::auth::TOKEN_HEADER;
-/// Binary trailer carrying the typed error (JSON).
-pub const ERROR_TRAILER: &str = imt_ipc::error::ERROR_TRAILER;
 
-/// The calls of the `Worker` service, by the names the transport trait uses.
+/// The calls of the worker, by the names the transport trait uses.
 pub mod method {
     pub const HELLO: &str = "hello";
     pub const LOAD: &str = "load";
@@ -55,6 +52,9 @@ pub struct HelloResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoadParams {
     pub model_path: String,
+    /// The model's multimodal projector, loaded into the same server (`--mmproj`) so the one model reads images.
+    #[serde(default)]
+    pub mmproj_path: Option<String>,
     /// -1 decide from the free GPU memory, 0 CPU only, n layers on the GPU.
     pub gpu_layers: i32,
     pub context: usize,
@@ -69,6 +69,48 @@ pub struct LoadResult {
     pub context: usize,
     pub name: String,
     pub rss_bytes: u64,
+    /// The server loaded the projector and accepts images.
+    #[serde(default)]
+    pub vision: bool,
+}
+
+/// Most images in one chat request, and most bytes of their (base64) data together.
+pub const MAX_IMAGES: usize = 4;
+pub const MAX_IMAGE_DATA: usize = 8 * 1024 * 1024;
+
+/// An image of a chat request: IMT's sanitised re-encoding (never the user's file), base64.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WireImage {
+    /// `image/png` or `image/jpeg`.
+    pub mime: String,
+    /// Standard base64 of the encoded image.
+    pub data: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl WireImage {
+    /// Checks a request's images against the limits (the worker re-checks what it is sent).
+    pub fn check_all(images: &[WireImage]) -> Result<(), RpcError> {
+        let bytes: usize = images.iter().map(|i| i.data.len()).sum();
+        let bad = images.iter().any(|i| {
+            !matches!(i.mime.as_str(), "image/png" | "image/jpeg")
+                || i.width == 0
+                || i.height == 0
+                || i.data.is_empty()
+                || !i.data.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'='))
+        });
+        if images.len() > MAX_IMAGES || bytes > MAX_IMAGE_DATA || bad {
+            return Err(RpcError::new(
+                code::INVALID_PARAMS,
+                format!(
+                    "at most {MAX_IMAGES} PNG or JPEG images of {} MB together",
+                    MAX_IMAGE_DATA / (1024 * 1024)
+                ),
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -79,6 +121,9 @@ pub struct ChatParams {
     pub temperature: f32,
     #[serde(default)]
     pub json_schema: Option<Value>,
+    /// The images of the prompt, in the order of its media markers (`llm::prompted::MEDIA_MARKER`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<WireImage>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,7 +163,7 @@ pub fn context_overflow(prompt: usize, limit: usize) -> RpcError {
     RpcError {
         code: code::CONTEXT_OVERFLOW,
         message: format!("the prompt ({prompt} tokens) does not fit the context ({limit})"),
-        data: Some(json!({"prompt": prompt, "limit": limit})),
+        data: Some(json!({"prompt": prompt, "limit": limit}).into()),
     }
 }
 
@@ -130,13 +175,36 @@ mod tests {
     fn typed_params_roundtrip() {
         let l = LoadParams {
             model_path: "/m.gguf".into(),
+            mmproj_path: Some("/m.mmproj.gguf".into()),
             gpu_layers: -1,
             context: 8192,
             threads: 0,
         };
         assert_eq!(serde_json::from_value::<LoadParams>(serde_json::to_value(&l).unwrap()).unwrap(), l);
         let c: ChatParams = serde_json::from_value(json!({"prompt": "p", "max_tokens": 5, "temperature": 0.5})).unwrap();
-        assert!(c.json_schema.is_none());
+        assert!(c.json_schema.is_none() && c.images.is_empty());
+        let old: LoadParams = serde_json::from_value(json!({"model_path": "m", "gpu_layers": 0, "context": 1, "threads": 0})).unwrap();
+        assert_eq!(old.mmproj_path, None);
+        let img = |mime: &str, data: &str| WireImage {
+            mime: mime.into(),
+            data: data.into(),
+            width: 2,
+            height: 2,
+        };
+        assert!(WireImage::check_all(&[img("image/png", "iVBORw0KGgo=")]).is_ok());
+        for bad in [
+            vec![img("image/gif", "AAAA")],
+            vec![img("image/png", "")],
+            vec![img("image/png", "not base64!")],
+            vec![img("image/png", "AAAA"); MAX_IMAGES + 1],
+            vec![img("image/png", &"A".repeat(MAX_IMAGE_DATA + 4))],
+            vec![WireImage {
+                width: 0,
+                ..img("image/png", "AAAA")
+            }],
+        ] {
+            assert_eq!(WireImage::check_all(&bad).unwrap_err().code, code::INVALID_PARAMS);
+        }
         assert_eq!(serde_json::to_value(WireFinish::Cancelled).unwrap(), "cancelled");
         let o = context_overflow(10, 5);
         assert_eq!(o.code, code::CONTEXT_OVERFLOW);

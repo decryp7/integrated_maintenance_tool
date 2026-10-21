@@ -328,6 +328,8 @@ export const TOOL_IDS = {
   eventLog: 'event-log-follower',
   diagnostics: 'diagnostics',
   elevation: 'elevation',
+  /** "Create dump of process…" (the dumps capture plugin, ADR 0023). */
+  dumpCapture: 'dumps.capture',
 } as const;
 
 /** The shape of a tool operation's arguments (checked by the engine before the tool runs). */
@@ -353,6 +355,8 @@ export interface ToolOp {
   args: ToolSchema;
   /** Time the operation may take before it is abandoned; null = unlimited. */
   budgetMs: number | null;
+  /** A read-only status operation the UI may poll with `tool_poll` (quiet in the activity log). */
+  poll?: boolean;
 }
 
 /** Whether a tool can be used now, and if not, why. */

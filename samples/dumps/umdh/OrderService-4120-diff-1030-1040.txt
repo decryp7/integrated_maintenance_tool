@@ -1,0 +1,53 @@
+//
+// Each log entry has the following syntax:
+//
+// + BYTES_DELTA (NEW_BYTES - OLD_BYTES) NEW_COUNT allocs BackTrace TRACEID
+// + COUNT_DELTA (NEW_COUNT - OLD_COUNT) BackTrace TRACEID allocations
+//     ... stack trace ...
+//
+// where:
+//
+//     BYTES_DELTA - increase in bytes between before and after log
+//     NEW_BYTES - bytes in after log
+//     OLD_BYTES - bytes in before log
+//     COUNT_DELTA - increase in allocations between before and after log
+//     NEW_COUNT - number of allocations in after log
+//     OLD_COUNT - number of allocations in before log
+//     TRACEID - decimal index of the stack trace in the trace database
+//         (can be used to search for allocation instances in the original
+//         UMDH logs).
+//
+
++ 1400000 ( 1E00000 -  A00000)    1E0 allocs	BackTraceA2C3
++     140 (     1E0 -      A0)	BackTraceA2C3	allocations
+
+	ntdll!RtlpAllocateHeapInternal+0000000E
+	ntdll!RtlAllocateHeap+00000021
+	ucrtbase!_malloc_base+00000036
+	Shop.Orders!OrderCache::Add+0000004A (c:\src\orders\ordercache.cpp, 88)
+	Shop.Orders!OrderService::Handle+00000112 (c:\src\orders\orderservice.cpp, 214)
+	OrderService!wmain+0000002B
+	KERNEL32!BaseThreadInitThunk+00000014
+	ntdll!RtlUserThreadStart+00000021
+
++   23800 (   3C800 -   19000)     79 allocs	BackTrace77B1
++      47 (      79 -      32)	BackTrace77B1	allocations
+
+	ntdll!RtlpAllocateHeapInternal+0000000E
+	ntdll!RtlAllocateHeap+00000021
+	ucrtbase!_malloc_base+00000036
+	Shop.Payments!Capture::Retry+0000003C (c:\src\payments\capture.cpp, 57)
+	Shop.Payments!Capture::Run+000000A0
+	OrderService!wmain+0000002B
+
+-     800 (   31800 -   32000)    18C allocs	BackTrace1F04
+-       4 (     18C -     190)	BackTrace1F04	allocations
+
+	ntdll!RtlpAllocateHeapInternal+0000000E
+	ntdll!RtlAllocateHeap+00000021
+	ucrtbase!_malloc_base+00000036
+	Shop.Orders!Session::Create+00000019 (c:\src\orders\session.cpp, 31)
+	Shop.Orders!OrderService::Handle+00000040
+	OrderService!wmain+0000002B
+
+Total increase == 1423000 requested + 3C00 overhead = 1426C00

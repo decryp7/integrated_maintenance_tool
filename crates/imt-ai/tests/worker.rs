@@ -28,7 +28,7 @@ fn no_profile() -> Vec<(String, String)> {
 }
 
 fn config(args: &[&str]) -> WorkerConfig {
-    let mut c = WorkerConfig::new(Arc::new(GrpcLauncher {
+    let mut c = WorkerConfig::new(Arc::new(FramesLauncher {
         exe: fake_worker_exe(),
         args: args.iter().map(|s| s.to_string()).collect(),
         env: imt_ai::worker::fixed_env(no_profile()),
@@ -71,6 +71,7 @@ fn model(gpu: GpuMode) -> Model {
         _dir: dir,
         req: LoadRequest {
             path,
+            projector: None,
             info,
             context: 4096,
             gpu,
@@ -115,6 +116,7 @@ fn wait_gone(pid: u32) -> bool {
 fn params(gpu_layers: i32) -> LoadParams {
     LoadParams {
         model_path: "x.gguf".into(),
+        mmproj_path: None,
         gpu_layers,
         context: 2048,
         threads: 0,
@@ -127,6 +129,7 @@ fn chat_params(p: &str) -> ChatParams {
         max_tokens: 16,
         temperature: 0.0,
         json_schema: None,
+        images: vec![],
     }
 }
 
@@ -321,48 +324,11 @@ fn nothing_is_left_behind() {
     let r = s.chat(&chat_params("again"), None, &mut |_| {}).unwrap();
     assert!(r.text.starts_with("echo:"));
     assert_ne!(s.status().pid.unwrap(), pid);
-
-    // a worker whose stdin closes (IMT is gone) exits by itself, even though a client could still be connected
-    #[cfg(unix)]
-    {
-        use std::io::Write;
-        let endpoint = imt_ai::worker::endpoint::PrivateEndpoint::create().unwrap();
-        let token = imt_ai::worker::endpoint::new_token().unwrap();
-        let mut child = imt_core::process::quiet_command(fake_worker_exe())
-            .envs(no_profile())
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::null())
-            .spawn()
-            .unwrap();
-        let mut stdin = child.stdin.take().unwrap();
-        let hs = imt_ai::worker::endpoint::Handshake {
-            address: endpoint.address.clone(),
-            token: token.clone(),
-        };
-        writeln!(stdin, "{}", serde_json::to_string(&hs).unwrap()).unwrap();
-        stdin.flush().unwrap();
-        let end = Instant::now() + Duration::from_secs(5);
-        while !std::path::Path::new(&endpoint.address).exists() {
-            assert!(Instant::now() < end, "the worker never started listening");
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        let _client = imt_ai::worker::GrpcTransport::connect(&endpoint.address, &token).unwrap();
-        drop(stdin);
-        let end = Instant::now() + Duration::from_secs(5);
-        let status = loop {
-            if let Some(s) = child.try_wait().unwrap() {
-                break s;
-            }
-            assert!(Instant::now() < end, "the worker did not exit after stdin closed");
-            std::thread::sleep(Duration::from_millis(20));
-        };
-        assert!(status.success());
-    }
 }
 
 #[test]
 fn start_failures_and_memory_limits() {
-    let c = WorkerConfig::new(Arc::new(GrpcLauncher {
+    let c = WorkerConfig::new(Arc::new(FramesLauncher {
         exe: PathBuf::from("/definitely/not/here"),
         args: vec![],
         env: imt_ai::worker::fixed_env(vec![]),

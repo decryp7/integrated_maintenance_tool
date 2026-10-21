@@ -231,6 +231,8 @@ pub fn recommend(hw: &Hardware, catalog: &Catalog, installed_files: &[String]) -
         .models
         .iter()
         .map(|m| {
+            // A projector (ADR 0025) goes to the GPU only when the whole model does, else it stays in system RAM:
+            // the fit on the GPU is the model's.
             let a = assess(hw, m.size_bytes, m.params_b, m.moe, m.min_ram_gb);
             let context = if a.fit == Fit::Comfortable {
                 m.context_default

@@ -181,7 +181,7 @@ fn append(stack: &mut [Frame], text: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tree::display_path;
+    use crate::config::display_path;
 
     fn shown(t: &ConfigTree) -> Vec<String> {
         let mut v: Vec<String> = t

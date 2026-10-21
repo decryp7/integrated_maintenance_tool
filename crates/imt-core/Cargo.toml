@@ -18,6 +18,8 @@ getrandom.workspace = true
 # The event batch (ADR 0014 §3), re-exported as `imt_core::batch`.
 imt-batch = { path = "../imt-batch", features = ["serde"] }
 globset.workspace = true
+# The plugin contract (ADR 0017): records, timestamps, configuration trees, settings and tool schemas live there.
+imt-plugin-api = { path = "../imt-plugin-api" }
 # Logging facade only: guard events (contained crashes, quarantines, abandoned calls) reach the app's log.
 log = { workspace = true, features = ["kv"] }
 quick-xml.workspace = true

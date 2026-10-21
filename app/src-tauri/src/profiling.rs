@@ -67,8 +67,8 @@ impl ProfilingSlot {
 /// An importer contribution called under its plugin's guard: a panic or a
 /// quarantined plugin becomes an error, never a crash.
 struct GuardedImporter {
-    id: &'static str,
-    name: &'static str,
+    id: String,
+    name: String,
     produces: CaptureKind,
     service: Service<dyn CaptureImporter>,
     budget: Duration,
@@ -80,7 +80,7 @@ impl GuardedImporter {
     }
 
     fn within(service: Service<dyn CaptureImporter>, budget: Duration) -> Option<GuardedImporter> {
-        let (id, name, produces) = service.call(|i| (i.id(), i.name(), i.produces())).ok()?;
+        let (id, name, produces) = service.call(|i| (i.id().to_string(), i.name().to_string(), i.produces())).ok()?;
         Some(GuardedImporter {
             id,
             name,
@@ -92,12 +92,12 @@ impl GuardedImporter {
 }
 
 impl CaptureImporter for GuardedImporter {
-    fn id(&self) -> &'static str {
-        self.id
+    fn id(&self) -> &str {
+        &self.id
     }
 
-    fn name(&self) -> &'static str {
-        self.name
+    fn name(&self) -> &str {
+        &self.name
     }
 
     fn sniff(&self, file_name: &str, head: &[u8]) -> u8 {
@@ -114,7 +114,7 @@ impl CaptureImporter for GuardedImporter {
         {
             Ok(result) => result,
             Err(e) => Err(ProfileError::Importer {
-                importer: self.id.to_string(),
+                importer: self.id.clone(),
                 message: format!("{e:#}"),
             }),
         }
@@ -186,10 +186,10 @@ fn read_capture(path: &str) -> ProfResult<(String, String, Vec<u8>)> {
         return Err(crate::CmdError::from(ProfilingErrorDto::new(
             ErrorCode::Limit,
             format!(
-                "{} is {} MB; captures up to {} MB can be opened",
+                "{} is {}; captures up to {} can be opened",
                 canonical.display(),
-                meta.len() >> 20,
-                max >> 20
+                imt_plugin_api::units::bytes(meta.len()),
+                imt_plugin_api::units::bytes(max)
             ),
         )));
     }
@@ -362,6 +362,12 @@ pub async fn profiling_heap_instances(state: CurrentWindow, request: HeapInstanc
 #[tauri::command]
 pub async fn profiling_heap_paths(state: CurrentWindow, request: HeapPathsRequest) -> ProfResult<HeapPaths> {
     read(&state, move |s| s.heap_paths(&request)).await
+}
+
+/// Automatic findings over a heap snapshot (growth against `baselineId`).
+#[tauri::command]
+pub async fn profiling_heap_findings(state: CurrentWindow, request: HeapFindingsRequest) -> ProfResult<Vec<HeapFinding>> {
+    read(&state, move |s| s.heap_findings(&request)).await
 }
 
 #[cfg(test)]
@@ -552,6 +558,13 @@ mod tests {
         )
         .unwrap();
         assert!(inst["totalRows"].as_u64().unwrap() >= 1);
+        let findings = invoke(
+            &w,
+            "profiling_heap_findings",
+            json!({ "request": { "snapshotId": ids[2], "baselineId": ids[0] } }),
+        )
+        .unwrap();
+        assert!(!findings.as_array().unwrap().is_empty(), "{findings}");
 
         let net = invoke(&w, "profiling_open", json!({ "path": sample("orders.nettrace") })).unwrap();
         assert!(net["hasTime"].as_bool().unwrap());
@@ -712,8 +725,28 @@ mod tests {
                 Ok(())
             }
         }
+        /// The built-in importers contributed in process (in IMT they come from the profiling plugin's process).
+        struct Builtin;
+        impl imt_core::Plugin for Builtin {
+            fn id(&self) -> &str {
+                "test.profiling"
+            }
+            fn name(&self) -> &str {
+                "Profiling"
+            }
+            fn version(&self) -> &str {
+                "1.0.0"
+            }
+            fn register(&self, r: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
+                r.declare_extension_point::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT)?;
+                for i in imt_plugin_profiling::builtin_importers() {
+                    r.contribute::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT, i);
+                }
+                Ok(())
+            }
+        }
         let mut registry = imt_core::PluginRegistry::new();
-        registry.install(&imt_plugin_profiling::ProfilingPlugin).unwrap();
+        registry.install(&Builtin).unwrap();
         registry.install(&BoomPlugin).unwrap();
         registry.resolve();
         let slot = ProfilingSlot::from_registry(&registry);

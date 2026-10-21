@@ -1,6 +1,6 @@
 import { CounterPreset } from '../core/tools.types';
 import { copyText } from './clipboard';
-import { DEFAULT_PLAN, formatBytes, joinLines, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './collector/plan-model';
+import { DEFAULT_PLAN, joinLines, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './collector/plan-model';
 import { DEFAULT_MONITOR_DRAFT, invalidRows, rowToTarget, toMonitorConfig, validateMonitor } from './monitor/monitor-model';
 import { addProcess, DEFAULT_DRAFT, fullPresets, normaliseProcess, presetState, toggleCounter, togglePreset, toTemplate, validateDraft } from './perfmon/perfmon-model';
 import { baseName, errorMessage, isAccessDenied } from './tool-errors';
@@ -71,10 +71,6 @@ describe('plan model', () => {
     expect(optionalNumber(' 7.9 ')).toBe(7);
     expect(optionalNumber('-1')).toBeNull();
     expect(optionalNumber('x')).toBeNull();
-    expect(formatBytes(512)).toBe('512 B');
-    expect(formatBytes(2048)).toBe('2.0 KB');
-    expect(formatBytes(5 * 1024 ** 3)).toBe('5.0 GB');
-    expect(formatBytes(5 * 1024 ** 4)).toBe('5120.0 GB');
   });
 
   it('summarizes a manifest', () => {

@@ -51,9 +51,9 @@ pub const API_VERSION: u32 = 1;
 /// A bundle of contributions, registered once at startup.
 pub trait Plugin: Send + Sync {
     /// Stable, unique id, reverse-DNS style (`"net.decryptology.registry"`).
-    fn id(&self) -> &'static str;
-    fn name(&self) -> &'static str;
-    fn version(&self) -> &'static str;
+    fn id(&self) -> &str;
+    fn name(&self) -> &str;
+    fn version(&self) -> &str;
     /// The [`API_VERSION`] the plugin was written against.
     fn api_version(&self) -> u32 {
         API_VERSION
@@ -673,7 +673,7 @@ impl PluginRegistry {
     pub fn add_marker_kinds(&mut self, kinds: Vec<markers::PluginMarkerKind>) -> Result<&mut Self> {
         let (owner, _, _) = self.owner();
         for k in kinds {
-            k.check(&owner).map_err(|e| anyhow!("{e:#}"))?;
+            markers::check(&k, &owner).map_err(|e| anyhow!("{e:#}"))?;
             if self.marker_kinds.iter().any(|(o, x)| *o == owner && x.kind == k.kind) {
                 return Err(anyhow!("marker kind \"{owner}/{}\" is declared twice", k.kind));
             }

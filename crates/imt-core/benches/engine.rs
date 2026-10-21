@@ -29,6 +29,8 @@ const SAMPLES: &[(&str, &str, &str, usize)] = &[
     ("serilog-text", "serilog-text/worker01/worker-20261014.txt", "text", 0),
     ("log4net", "log4net/legacy-billing/billing.log.2026-10-14", "text", 0),
     ("csv", "csv/perfmon-export.csv", "csv", 1),
+    // A log server's file: three products, three formats (Serilog text, log4net, CLEF lines) line by line.
+    ("logserver", "linux/logserver01/apps-20261014.log", "text", 1),
 ];
 
 fn samples() -> PathBuf {

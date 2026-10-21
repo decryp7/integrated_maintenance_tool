@@ -1622,6 +1622,120 @@ for worker, pid, gap in [("A", 7101, 140), ("B", 7102, 170)]:
 write_text(serilog_text(run_rows), "runs", "shared", "workers-20261014.log")
 
 # --------------------------------------------------------------------------
+# Mixed sources (ADR 0020): a log server (rsyslog relay) collects what several
+# products write into one shared file, and syslog from several hosts.
+#
+# linux/logserver01/apps-20261014.log mixes, line by line:
+#   - Checkout (Serilog file sink: "{Timestamp} [{Level:u3}] {Message}
+#     {Properties}"), APP01 pid 3120 recycled at 10:12 and back as pid 3388,
+#     APP02 pid 3410, errors with stack traces;
+#   - Inventory (log4net "%date [%thread] %level %logger - %message") on SRV2,
+#     two processes (pid 7001, 7002) named in the message ("host=SRV2 pid=7001");
+#   - Payments writing CLEF JSON lines (PAY01, pid 6100);
+#   - a few haproxy lines in BSD syslog format that no default format reads.
+# Read with profiles/logserver.imtprofile.toml, routes split it into logical
+# sources per product and host.
+#
+# linux/logserver01/syslog-20261014.log: RFC 5424 lines from three hosts
+# (web01, db01, edge01) and several apps and pids, as the relay stores them.
+
+mrnd = random.Random(2020)
+mixed = []
+MIXED_START = datetime(2026, 10, 14, 10, 0, 0, tzinfo=timezone.utc)
+MIXED_END = datetime(2026, 10, 14, 10, 30, 0, tzinfo=timezone.utc)
+MIXED_RECYCLE = datetime(2026, 10, 14, 10, 12, 30, 250000, tzinfo=timezone.utc)
+MIXED_RESTART = MIXED_RECYCLE + timedelta(seconds=41)
+
+
+def serilog_line(t, lvl, msg, props):
+    stamp = t.strftime("%Y-%m-%d %H:%M:%S.") + f"{t.microsecond // 1000:03d} +00:00"
+    return f"{stamp} [{lvl}] {msg} {json.dumps(props, separators=(', ', ': '))}"
+
+
+def log4net_line(t, thread, lvl, logger, msg):
+    stamp = t.strftime("%Y-%m-%d %H:%M:%S,") + f"{t.microsecond // 1000:03d}"
+    return f"{stamp} [{thread}] {lvl:<5} {logger} - {msg}"
+
+
+for machine, pid, gap in [("APP01", 3120, 9.0), ("APP02", 3410, 12.0)]:
+    props = {"Application": "Checkout", "MachineName": machine, "ProcessId": pid}
+    for t in rtimes(mrnd, MIXED_START, MIXED_END, gap):
+        if machine == "APP01" and MIXED_RECYCLE <= t < MIXED_RESTART:
+            continue
+        if machine == "APP01" and t >= MIXED_RESTART:
+            props = dict(props, ProcessId=3388)
+        order = mrnd.randint(88000, 89999)
+        if mrnd.random() < 0.08:
+            mixed.append((t, serilog_line(t, "ERR", f"Payment capture failed for order {order}", dict(props, OrderId=order)) + "\n" + TIMEOUT_STACK))
+        else:
+            mixed.append((t, serilog_line(t, "INF", f"Order {order} placed in {mrnd.randint(12, 240)} ms", dict(props, OrderId=order))))
+    # Every process ends the window healthy.
+    mixed.append((MIXED_END, serilog_line(MIXED_END, "INF", "Checkout heartbeat", props)))
+mixed.append((MIXED_RECYCLE, serilog_line(MIXED_RECYCLE, "INF", "Checkout stopping: application pool recycle",
+                                          {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3120})))
+mixed.append((MIXED_RESTART, serilog_line(MIXED_RESTART, "INF", "Checkout 4.2.1 starting",
+                                          {"Application": "Checkout", "MachineName": "APP01", "ProcessId": 3388})))
+for pid, thread in [(7001, "sync-1"), (7002, "sync-2")]:
+    for t in rtimes(mrnd, MIXED_START, MIXED_END, 20.0):
+        r = mrnd.random()
+        if r < 0.15:
+            mixed.append((t, log4net_line(t, thread, "WARN", "Inventory.Sync", f"host=SRV2 pid={pid} Stock feed slow: {mrnd.randint(2, 9)} s")))
+        elif r < 0.2:
+            mixed.append((t, log4net_line(t, thread, "ERROR", "Inventory.Sync", f"host=SRV2 pid={pid} Stock feed failed") + "\n"
+                          "java.io.IOException: Connection reset by peer\n\tat inventory.Feed.read(Feed.java:88)"))
+        else:
+            mixed.append((t, log4net_line(t, thread, "INFO", "Inventory.Sync", f"host=SRV2 pid={pid} Synced {mrnd.randint(10, 400)} items")))
+    mixed.append((MIXED_END, log4net_line(MIXED_END, thread, "INFO", "Inventory.Sync", f"host=SRV2 pid={pid} Idle")))
+for t in rtimes(mrnd, MIXED_START, MIXED_END, 60.0):
+    clef = {"@t": iso_ms(t), "@mt": "Captured {PaymentId} for {Amount}", "PaymentId": f"p-{mrnd.randint(1000, 9999)}",
+            "Amount": mrnd.randint(5, 900), "Application": "Payments", "MachineName": "PAY01", "ProcessId": 6100}
+    if mrnd.random() < 0.1:
+        clef["@l"] = "Warning"
+    mixed.append((t, json.dumps(clef, separators=(",", ":"))))
+for t in rtimes(mrnd, MIXED_START, MIXED_END, 600.0):
+    mixed.append((t, f"{t.strftime('%b')} {t.day:2d} {t.strftime('%H:%M:%S')} edge01 haproxy[812]: backend orders has no server available!"))
+mixed.sort(key=lambda x: x[0])
+write_text("# logserver01: forwarded application logs (rsyslog omfile, raw messages)\n" + "\n".join(l for _, l in mixed) + "\n",
+           "linux", "logserver01", "apps-20261014.log")
+
+LOGSERVER_PROFILE = '''name = "Log server (logserver01)"
+
+# Inventory names its host and process in the message.
+[[extract]]
+name = "inventory-identity"
+from = "@message"
+regex = 'host=(?P<Host>\\S+) pid=(?P<Pid>\\d+) '
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+
+# One logical source per product and host.
+[[route]]
+when = [{ field = "Application", op = "exists" }]
+source = "{Application}@{MachineName}"
+
+[[route]]
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+source = "Inventory@{Host}"
+'''
+write_text(LOGSERVER_PROFILE, "profiles", "logserver.imtprofile.toml")
+
+lrnd = random.Random(2021)
+relay = []
+
+
+def relay5424(t, sev, host, app, pid, msg):
+    relay.append((t, f"<{8 * 3 + sev}>1 {iso_ms(t)} {host} {app} {pid} - - {msg}"))
+
+
+apps = [("web01", "nginx", [2211, 2212]), ("web01", "sshd", [30412]), ("db01", "postgres", [1880, 1893]), ("edge01", "haproxy", [812])]
+for host, app, pids in apps:
+    for t in rtimes(lrnd, MIXED_START, MIXED_END, 25.0):
+        pid = lrnd.choice(pids)
+        sev = 4 if lrnd.random() < 0.1 else 6
+        relay5424(t, sev, host, app, pid, f"{app} worker {pid}: {'slow request' if sev == 4 else 'request served'} in {lrnd.randint(1, 900)} ms")
+relay.sort(key=lambda x: x[0])
+write_text("\n".join(l for _, l in relay) + "\n", "linux", "logserver01", "syslog-20261014.log")
+
+# --------------------------------------------------------------------------
 # Share: an .imtproj project over the samples (paths relative to it, the
 # OrderService profile, WEB02's clock offset) and an .imtz bundle of the
 # clock-skew logs in the format Workspace::write_bundle writes (project,
@@ -1651,5 +1765,110 @@ manifest = {"format": "imt-share", "schema": 1, "name": "WEB02 clock skew", "cre
             "entries": [{"path": p, "kind": k, "bytes": len(d), "sha256": hashlib.sha256(d).hexdigest()} for p, k, d in files], "skipped": []}
 write_bytes(stored_zip([(p, d) for p, _, d in files] + [("manifest.json", json.dumps(manifest, indent=2).encode("utf-8"))]),
             "share", "web02-clock-skew.imtz")
+
+# --------------------------------------------------------------------------
+# UMDH: three heap snapshots of OrderService on WEB02 (pid 4120) taken while it
+# leaks (`umdh -p:4120 -f:...` at 10:30, 10:35 and 10:40) and UMDH's own diff of
+# the first and the last (`umdh snap-1030.txt snap-1040.txt`, hexadecimal). The
+# order cache grows by about 10 MB per snapshot (the leak), payment retries
+# grow a little, sessions stay level, a 32 MB report buffer is one large
+# allocation, and PdfLib has no symbols (raw addresses placed in its module).
+
+urnd = random.Random(1023)
+UMDH_MODULES = [
+    (0x7FF6A0000000, 0x40000, r"C:\Program Files\Shop\OrderService.exe"),
+    (0x7FF6B0000000, 0x120000, r"C:\Program Files\Shop\Shop.Orders.dll"),
+    (0x7FF6B2000000, 0x80000, r"C:\Program Files\Shop\Shop.Payments.dll"),
+    (0x7FF6B4000000, 0x60000, r"C:\Program Files\Shop\Shop.Reports.dll"),
+    (0x7FF6B6000000, 0x200000, r"C:\Program Files\Shop\PdfLib.dll"),
+    (0x7FFB1C000000, 0x1F8000, r"C:\Windows\SYSTEM32\ntdll.dll"),
+    (0x7FFB1A000000, 0x2C0000, r"C:\Windows\System32\KERNELBASE.dll"),
+    (0x7FFB18000000, 0x120000, r"C:\Windows\System32\ucrtbase.dll"),
+]
+ALLOC = ["ntdll!RtlpAllocateHeapInternal+0000000E", "ntdll!RtlAllocateHeap+00000021", "ucrtbase!_malloc_base+00000036"]
+UMDH_STACKS = [
+    # back trace id, allocation size, counts per snapshot, frames below the allocator
+    (0xA2C3, 0x10000, [160, 320, 480], ["Shop.Orders!OrderCache::Add+0000004A (c:\\src\\orders\\ordercache.cpp, 88)",
+                                        "Shop.Orders!OrderService::Handle+00000112 (c:\\src\\orders\\orderservice.cpp, 214)",
+                                        "OrderService!wmain+0000002B", "KERNEL32!BaseThreadInitThunk+00000014", "ntdll!RtlUserThreadStart+00000021"]),
+    (0x77B1, 0x800, [50, 82, 121], ["Shop.Payments!Capture::Retry+0000003C (c:\\src\\payments\\capture.cpp, 57)",
+                                    "Shop.Payments!Capture::Run+000000A0", "OrderService!wmain+0000002B"]),
+    (0x1F04, 0x200, [400, 412, 396], ["Shop.Orders!Session::Create+00000019 (c:\\src\\orders\\session.cpp, 31)",
+                                      "Shop.Orders!OrderService::Handle+00000040", "OrderService!wmain+0000002B"]),
+    (0x0C9A, 0x2000000, [1, 1, 1], ["Shop.Reports!ReportBuffer::Allocate+00000011", "Shop.Reports!Report::Render+00000208",
+                                    "OrderService!wmain+0000002B"]),
+    (0x5E12, 0x1000, [30, 30, 30], ["7FF6B6012A40", "7FF6B6004410", "Shop.Reports!Report::Render+00000300", "OrderService!wmain+0000002B"]),
+]
+UMDH_HEAP = 0x000001E0A3C40000
+UMDH_TIMES = ["1030", "1035", "1040"]
+
+
+def umdh_header():
+    lines = ["// Debug library initialized ...",
+             "DBGHELP: OrderService - private symbols & lines ",
+             "         C:\\Program Files\\Shop\\OrderService.pdb",
+             "DBGHELP: ntdll - public symbols  ",
+             "         c:\\symbols\\ntdll.pdb\\9C8A0B5D4E2F4A1B8C3D2E1F0A9B8C7D1\\ntdll.pdb",
+             "DBGHELP: PdfLib - export symbols",
+             "//                                                                          ",
+             "// Loaded modules:",
+             "//     Base Size Module"]
+    lines += ["//      %12X %8X %s" % m for m in UMDH_MODULES]
+    lines += ["//", "// Process modules enumerated.", ""]
+    return lines
+
+
+def umdh_snapshot(snap):
+    lines = umdh_header()
+    lines += ["*- - - - - - - - - - Start of data for heap @ %016X - - - - - - - - - -" % UMDH_HEAP, "",
+              "REQUESTED bytes + OVERHEAD at ADDRESS by BackTraceID",
+              "     STACK if not already dumped.", "",
+              "*- - - - - - - - - - Heap %016X Hogs - - - - - - - - - -" % UMDH_HEAP, ""]
+    address = UMDH_HEAP + 0x10000
+    for trace, size, counts, frames in UMDH_STACKS:
+        for i in range(counts[snap]):
+            lines.append("%08X bytes + %08X at %016X by BackTrace%04X" % (size, 0x30 if size >= 0x10000 else 0x10, address, trace))
+            address += size + 0x40 + urnd.randrange(0, 4) * 0x10
+            if i == 0:
+                lines += ["\t" + f for f in ALLOC + frames]
+            lines.append("")
+    lines += ["*- - - - - - - - - - End of data for heap @ %016X - - - - - - - - - -" % UMDH_HEAP, ""]
+    return "\n".join(lines)
+
+
+def umdh_diff(old, new):
+    lines = ["//", "// Each log entry has the following syntax:", "//",
+             "// + BYTES_DELTA (NEW_BYTES - OLD_BYTES) NEW_COUNT allocs BackTrace TRACEID",
+             "// + COUNT_DELTA (NEW_COUNT - OLD_COUNT) BackTrace TRACEID allocations",
+             "//     ... stack trace ...", "//", "// where:", "//",
+             "//     BYTES_DELTA - increase in bytes between before and after log",
+             "//     NEW_BYTES - bytes in after log", "//     OLD_BYTES - bytes in before log",
+             "//     COUNT_DELTA - increase in allocations between before and after log",
+             "//     NEW_COUNT - number of allocations in after log",
+             "//     OLD_COUNT - number of allocations in before log",
+             "//     TRACEID - decimal index of the stack trace in the trace database",
+             "//         (can be used to search for allocation instances in the original",
+             "//         UMDH logs).", "//", ""]
+    total = 0
+    for trace, size, counts, frames in sorted(UMDH_STACKS, key=lambda s: -(s[2][new] - s[2][old]) * s[1]):
+        nb, ob = counts[new] * size, counts[old] * size
+        if nb == ob:
+            continue
+        total += nb - ob
+        sign = "+" if nb >= ob else "-"
+        lines.append("%s %7X ( %7X - %7X) %6X allocs\tBackTrace%04X" % (sign, abs(nb - ob), nb, ob, counts[new], trace))
+        lines.append("%s %7X ( %7X - %7X)\tBackTrace%04X\tallocations" % (sign, abs(counts[new] - counts[old]), counts[new], counts[old], trace))
+        lines.append("")
+        lines += ["\t" + f for f in ALLOC + frames]
+        lines.append("")
+    overhead = 0x30 * 320
+    lines.append("Total increase == %X requested + %X overhead = %X" % (total, overhead, total + overhead))
+    lines.append("")
+    return "\n".join(lines)
+
+
+for i, hhmm in enumerate(UMDH_TIMES):
+    write_text(umdh_snapshot(i), "dumps", "umdh", f"OrderService-4120-snap-{hhmm}.txt", newline="\r\n", encoding="ascii")
+write_text(umdh_diff(0, 2), "dumps", "umdh", "OrderService-4120-diff-1030-1040.txt", newline="\r\n", encoding="ascii")
 
 print("samples written to", ROOT)

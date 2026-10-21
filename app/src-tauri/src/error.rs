@@ -46,6 +46,8 @@ pub enum ErrorCode {
     // ---- the AI ----
     NoModel,
     NoRuntime,
+    /// The active model cannot read images (no projector installed for it; ADR 0025).
+    NoVision,
     Engine,
     ContextOverflow,
     Malformed,

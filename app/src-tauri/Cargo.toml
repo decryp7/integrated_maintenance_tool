@@ -19,17 +19,13 @@ tauri-build = { version = "2.7.3", features = [] }
 [dependencies]
 imt-core = { path = "../../crates/imt-core" }
 imt-pdf = { path = "../../crates/imt-pdf" }
-imt-plugin-registry = { path = "../../crates/imt-plugin-registry" }
-imt-plugin-otel = { path = "../../crates/imt-plugin-otel" }
-imt-plugin-syslog = { path = "../../crates/imt-plugin-syslog" }
-imt-plugin-windows = { path = "../../crates/imt-plugin-windows" }
-imt-plugin-web = { path = "../../crates/imt-plugin-web" }
-imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling" }
 imt-profile = { path = "../../crates/imt-profile" }
-imt-plugin-tools = { path = "../../crates/imt-plugin-tools" }
+# Dumps and UMDH logs (ADR 0023): the engine; the readers run in the dumps plugin's process.
+imt-dump = { path = "../../crates/imt-dump" }
 imt-agent = { path = "../../crates/imt-agent" }
+# Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
 imt-plugin-host = { path = "../../crates/imt-plugin-host" }
-imt-plugin-sdk = { path = "../../crates/imt-plugin-sdk" }
+imt-plugin-api = { path = "../../crates/imt-plugin-api" }
 imt-ai = { path = "../../crates/imt-ai" }
 imt-collect = { path = "../../crates/imt-collect" }
 # Child-process logs (`imt_ipc::child_log`) for problem reports.
@@ -43,7 +39,7 @@ anyhow.workspace = true
 log = { workspace = true, features = ["kv"] }
 mimalloc.workspace = true
 chrono.workspace = true
-tauri = { version = "2.12.4", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.12.4", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-window-state = "2"
@@ -64,11 +60,17 @@ sysinfo = { workspace = true, features = ["system"] }
 zip.workspace = true
 
 [dev-dependencies]
+# The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).
+imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling", default-features = false }
+# The dump readers as a library, for the dumps store's tests (in IMT they run in the dumps plugin's process).
+imt-plugin-dumps = { path = "../../crates/imt-plugin-dumps", default-features = false }
+# The dump DTOs' TypeScript bindings (`generated_types`).
+imt-dump = { path = "../../crates/imt-dump", features = ["ts"] }
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
 ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.
 updater-base64 = { package = "base64", version = "0.22" }
-tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png"] }
+tauri = { version = "2.12.4", features = ["test", "tray-icon", "image-png", "unstable"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
@@ -78,4 +80,4 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows = { workspace = true, features = ["Win32_Graphics_Dwm", "Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { workspace = true, features = ["Win32_System_Console", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

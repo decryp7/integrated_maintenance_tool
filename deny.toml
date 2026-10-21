@@ -43,7 +43,7 @@ allow-wildcard-paths = true
 skip = [
   # Tauri, wry and the gtk-rs/webkit stack (Linux) pin older releases.
   { crate = "base64@0.21.7", reason = "swift-rs (Tauri, macOS)" },
-  { crate = "base64@0.22.1", reason = "tauri-plugin-updater (its Error::Base64), wry, usvg, tonic" },
+  { crate = "base64@0.22.1", reason = "tauri-plugin-updater (its Error::Base64), wry, usvg" },
   { crate = "sha2@0.10.9", reason = "tauri-codegen, wry" },
   { crate = "digest@0.10.7", reason = "sha2 0.10 (Tauri)" },
   { crate = "block-buffer@0.10.4", reason = "sha2 0.10 (Tauri)" },
@@ -58,6 +58,7 @@ skip = [
   { crate = "core-foundation@0.9.4", reason = "system-configuration (macOS)" },
   { crate = "bitflags@1.3.2", reason = "webkit2gtk, javascriptcore-rs, png 0.17, winstructs (evtx)" },
   { crate = "thiserror@1.0.69", reason = "gtk-rs 0.18, jni 0.21, ndk, winstructs (evtx)" },
+  { crate = "scroll@0.11.0", reason = "pdb 0.8 (the dumps plugin's PDB symbols); minidump 0.27 uses scroll 0.13" },
   { crate = "thiserror-impl@1.0.69", reason = "thiserror 1" },
   { crate = "heck@0.4.1", reason = "glib-macros 0.18" },
   { crate = "proc-macro-crate@1.3.1", reason = "gtk3-macros 0.18" },
@@ -69,11 +70,8 @@ skip = [
   { crate = "serde_spanned@0.6.9", reason = "toml 0.8 (gtk-rs)" },
   { crate = "winnow@0.5.40", reason = "toml_edit 0.19-0.20 (gtk-rs)" },
   { crate = "cargo_metadata@0.14.2", reason = "skeptic (build-time, via the gtk-rs/tauri stack)" },
-  { crate = "pulldown-cmark@0.9.6", reason = "skeptic" },
   { crate = "indexmap@1.9.3", reason = "serde_with (Tauri)" },
   { crate = "hashbrown@0.12.3", reason = "indexmap 1" },
-  { crate = "hashbrown@0.15.5", reason = "petgraph (prost-build)" },
-  { crate = "foldhash@0.1.5", reason = "hashbrown 0.15" },
   { crate = "darling@0.20.11", reason = "derive_builder (Tauri)" },
   { crate = "darling_core@0.20.11", reason = "darling 0.20" },
   { crate = "darling_macro@0.20.11", reason = "darling 0.20" },
@@ -89,10 +87,6 @@ skip = [
   { crate = "kurbo@0.11.3", reason = "usvg 0.45, svgtypes (svg2pdf pins usvg 0.45)" },
   # Event logs and minidumps.
   { crate = "num-derive@0.3.3", reason = "winstructs (evtx)" },
-  # The gRPC stack (protox, prost-reflect) is removed in R3 (docs/redesign-2026-10.md).
-  { crate = "logos@0.15.1", reason = "protox-parse" },
-  { crate = "logos-codegen@0.15.1", reason = "logos 0.15" },
-  { crate = "logos-derive@0.15.1", reason = "logos 0.15" },
 ]
 skip-tree = [
   # windows-targets and the windows_* import libraries follow windows-sys; one entry per old windows-sys.

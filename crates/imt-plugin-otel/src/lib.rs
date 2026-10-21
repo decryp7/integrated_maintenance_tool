@@ -9,17 +9,13 @@
 //! pretty-printed, document. Resource and log/span attributes become fields
 //! under their own keys (`service.name`, `host.name`, ...).
 //!
-//! Register it with:
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_otel::OtelPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.otel`, ADR 0017).
 
 use anyhow::Result;
-use imt_core::importers::{ImportCtx, Imported, Importer, MAX_LINE_LEN};
-use imt_core::model::{Fields, Level, Record};
-use imt_core::time::epoch_from_number;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter, MAX_LINE_LEN};
+use imt_plugin_api::model::{Fields, Level, Record};
+use imt_plugin_api::time::epoch_from_number;
+use imt_plugin_api::{Contributions, Plugin};
 use serde_json::{Map, Value};
 
 pub struct OtelPlugin;
@@ -37,13 +33,8 @@ impl Plugin for OtelPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// Stand-alone: no dependencies, no services.
-    fn manifest(&self) -> imt_core::plugin::Manifest {
-        imt_core::plugin::Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_importer(Box::new(OtlpImporter));
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_importer(OtlpImporter);
         Ok(())
     }
 }
@@ -53,7 +44,7 @@ pub struct OtlpImporter;
 
 const ROOT_KEYS: [&str; 2] = ["resourceLogs", "resourceSpans"];
 
-impl Importer for OtlpImporter {
+impl TextImporter for OtlpImporter {
     fn id(&self) -> &'static str {
         "otlp"
     }
@@ -410,7 +401,7 @@ fn span_records(span: &Value, base: &Fields, line: u32, records: &mut Vec<Record
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::{CompiledProfile, Profile};
+    use imt_plugin_api::time::TimestampParser;
     use serde_json::json;
     use std::path::Path;
 
@@ -418,13 +409,8 @@ mod tests {
     const TRACES: &str = include_str!("../tests/fixtures/traces.json");
 
     fn with_ctx<T>(f: impl FnOnce(&ImportCtx) -> T) -> T {
-        let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-        let ctx = ImportCtx {
-            profile: &p,
-            path: Path::new("x.json"),
-            file_date: None,
-        };
-        f(&ctx)
+        let ts = TimestampParser::default();
+        f(&ImportCtx::new(Path::new("x.json"), &ts))
     }
 
     fn import(content: &str) -> Imported {
@@ -607,7 +593,7 @@ mod tests {
                     stack.push(path);
                     continue;
                 }
-                let Some(text) = std::fs::read(&path).ok().and_then(|b| imt_core::importers::decode(&b)) else {
+                let Some(text) = std::fs::read(&path).ok().and_then(|b| imt_plugin_api::text::decode(&b)) else {
                     continue;
                 };
                 let head: String = text.chars().take(8192).collect();
@@ -656,35 +642,13 @@ mod tests {
     }
 
     #[test]
-    fn plugin_registers_the_importer() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&OtelPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.otel");
-        assert_eq!(info.contributes, vec!["importer:otlp".to_string()]);
+    fn the_plugin_contributes_the_importer() {
+        let mut c = Contributions::default();
+        OtelPlugin.register(&mut c).unwrap();
+        let m = c.manifest(&OtelPlugin);
+        assert_eq!(m.id.as_ref(), "net.decryptology.otel");
+        assert_eq!(m.contributions(), ["importer:otlp"]);
         assert_eq!(OtelPlugin.name(), "OpenTelemetry");
         assert_eq!(OtelPlugin.version(), env!("CARGO_PKG_VERSION"));
-    }
-
-    fn workspace() -> imt_core::Workspace {
-        let mut registry = PluginRegistry::new();
-        registry.install(&OtelPlugin).unwrap();
-        imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap()
-    }
-
-    #[test]
-    fn opens_fixtures_through_a_workspace() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        let mut ws = workspace();
-        ws.open(&[dir.join("logs.jsonl"), dir.join("traces.json")]).unwrap();
-        let s = ws.summary();
-        assert_eq!(s.sources.len(), 2);
-        assert!(s.sources.iter().all(|x| x.importer == "otlp"));
-        assert!(s.plugins.iter().any(|p| p.id == "net.decryptology.otel"));
-        assert_eq!(ws.records().len(), 9);
-        assert!(ws
-            .records()
-            .iter()
-            .any(|r| r.fields.get("service.name") == Some(&json!("orders")) && r.message == "Order 42 accepted"));
     }
 }

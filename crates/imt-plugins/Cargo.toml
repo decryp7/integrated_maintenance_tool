@@ -1,0 +1,40 @@
+[package]
+name = "imt-plugins"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "IMT's built-in plugins, each served in its own sandboxed process (imt-plugins --plugin <id>, ADR 0017); its tests run every plugin through the engine over the real IPC"
+
+[[bin]]
+name = "imt-plugins"
+path = "src/main.rs"
+
+[dependencies]
+imt-plugin-api = { path = "../imt-plugin-api" }
+imt-plugin-registry = { path = "../imt-plugin-registry" }
+imt-plugin-otel = { path = "../imt-plugin-otel" }
+imt-plugin-syslog = { path = "../imt-plugin-syslog" }
+imt-plugin-windows = { path = "../imt-plugin-windows" }
+imt-plugin-web = { path = "../imt-plugin-web" }
+imt-plugin-formats = { path = "../imt-plugin-formats" }
+imt-plugin-profiling = { path = "../imt-plugin-profiling" }
+imt-plugin-dotnet = { path = "../imt-plugin-dotnet" }
+imt-plugin-tools = { path = "../imt-plugin-tools" }
+imt-plugin-dumps = { path = "../imt-plugin-dumps" }
+imt-plugin-native = { path = "../imt-plugin-native" }
+serde_json.workspace = true
+
+[dev-dependencies]
+chrono.workspace = true
+imt-core = { path = "../imt-core" }
+imt-plugin-host = { path = "../imt-plugin-host" }
+imt-profile = { path = "../imt-profile" }
+imt-dump = { path = "../imt-dump" }
+imt-ipc = { path = "../imt-ipc" }
+insta.workspace = true
+proptest.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+tempfile.workspace = true

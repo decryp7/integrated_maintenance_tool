@@ -365,6 +365,7 @@ fn imports_report_progress_and_can_be_cancelled() {
             Ok(imt_core::importers::Imported {
                 records: vec![r],
                 skipped: 0,
+                ..Default::default()
             })
         }
     }
@@ -372,7 +373,7 @@ fn imports_report_progress_and_can_be_cancelled() {
     let mut importers = imt_core::importers::Importers::new();
     struct Shared(std::sync::Arc<Brake>);
     impl imt_core::importers::Importer for Shared {
-        fn id(&self) -> &'static str {
+        fn id(&self) -> &str {
             self.0.id()
         }
         fn sniff(&self, c: &imt_core::importers::ImportCtx, h: &str) -> u8 {

@@ -138,10 +138,10 @@ fn usage_lists_every_category_through_ipc() {
 
 #[test]
 fn the_message_line_says_what_was_freed_and_what_stayed() {
-    assert_eq!(cleared_line(3 * 1024 * 1024, 0), "Freed 3.0 MB.");
-    assert_eq!(cleared_line(0, 1), "Freed 0.0 MB; 1 item stayed (in use or not allowed).");
+    assert_eq!(cleared_line(3 * 1024 * 1024, 0), "Freed 3 MB.");
+    assert_eq!(cleared_line(0, 1), "Freed 0 bytes; 1 item stayed (in use or not allowed).");
     assert_eq!(
         cleared_line(1024 * 1024 / 2, 4),
-        "Freed 0.5 MB; 4 items stayed (in use or not allowed)."
+        "Freed 512 KB; 4 items stayed (in use or not allowed)."
     );
 }

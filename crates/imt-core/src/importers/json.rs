@@ -17,11 +17,16 @@ impl Importer for JsonImporter {
         "json"
     }
 
-    fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
+    fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
         let Some(first) = first_lines(head, 1).next() else { return 0 };
         let first = first.trim_start();
         if first.starts_with('{') && serde_json::from_str::<Map<String, Value>>(first).is_ok() {
-            95
+            // JSON lines mixed with text events: below the text importer (70), which reads both (ADR 0020).
+            if super::lines::has_text_events(ctx.profile, head) {
+                65
+            } else {
+                95
+            }
         } else if (first.starts_with('[') || first.starts_with('{')) && starts_with_json(head) {
             // Pretty-printed array or object (possibly cut off at the end of the head).
             60
@@ -317,6 +322,37 @@ mod tests {
         assert_eq!(r.fields["MachineName"], "WEB02");
         assert_eq!(out.records[1].level, Level::Information);
         assert_eq!(out.records[1].fields["EventId"], "a1b2");
+    }
+
+    /// CLEF with a rendered `@m` (no template), a .NET round-trip timestamp (7-digit fraction, offset), an exception
+    /// with an inner exception and a nested `ExceptionDetail` object (Serilog.Exceptions). Invented values.
+    #[test]
+    fn clef_with_rendered_message_and_exception_detail() {
+        let out = import(concat!(
+            r#"{"@t":"2021-04-03T10:20:30.1234567+08:00","@m":"Error during Sync.Fetch","@i":"0badc0de","@l":"Error","@x":"Acme.Sync.FetchException: Client timed out(5000ms)!  ---> System.TimeoutException: The operation has timed out.\r\n   --- End of inner exception stack trace ---","Arguments":"queue A","ProcessId":4100,"ProcessName":"Acme.Agent","ThreadId":9,"PrivateBytes":"120.50MB","MachineName":"NODE7","ExceptionDetail":{"HResult":-2146233088,"Message":"Client timed out(5000ms)! ","InnerException":{"Type":"System.TimeoutException","HResult":-2146233083},"Type":"Acme.Sync.FetchException"}}"#,
+            "\n"
+        ));
+        assert_eq!(out.records.len(), 1);
+        let r = &out.records[0];
+        // 10:20:30.1234567 at +08:00 is 02:20:30.123 UTC (milliseconds kept).
+        let want = chrono::NaiveDate::from_ymd_opt(2021, 4, 3)
+            .unwrap()
+            .and_hms_milli_opt(2, 20, 30, 123)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis();
+        assert_eq!(r.ts, Some(want));
+        assert_eq!(r.level, Level::Error);
+        assert_eq!(r.message, "Error during Sync.Fetch");
+        assert!(r
+            .exception
+            .as_deref()
+            .is_some_and(|x| x.contains("System.TimeoutException") && x.contains('\n')));
+        assert_eq!(r.fields["ProcessId"], 4100);
+        assert_eq!(r.fields["MachineName"], "NODE7");
+        assert_eq!(r.fields["EventId"], "0badc0de");
+        assert_eq!(r.fields["ExceptionDetail.InnerException.Type"], "System.TimeoutException");
+        assert_eq!(r.fields["ExceptionDetail.HResult"], -2146233088);
     }
 
     #[test]

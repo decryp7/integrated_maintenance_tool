@@ -1,8 +1,10 @@
 use super::*;
 use crate::fake::{ok, FakeRunner};
-use imt_core::export::EventSink;
-use imt_core::plugin::tools::{Availability, NoTasks, Platform, ToolCtx};
+use imt_core::plugin::tools::Availability;
 use imt_core::plugin::PluginStatus;
+use imt_core::PluginRegistry;
+use imt_plugin_api::clef::EventSink;
+use imt_plugin_api::tools::{NoTasks, Platform, ToolCtx};
 use serde_json::json;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
@@ -34,15 +36,54 @@ fn fake_plugin(runner: Arc<FakeRunner>, windows: bool) -> ToolsPlugin {
     })
 }
 
+/// The plugin's tools and settings installed in an engine registry in this process, as the host's proxies
+/// install them (tests of the tools through the engine's tool host: validation, availability, quarantine).
+struct InProcess(ToolsPlugin);
+
+impl imt_core::Plugin for InProcess {
+    fn id(&self) -> &str {
+        PLUGIN_ID
+    }
+    fn name(&self) -> &str {
+        "System tools"
+    }
+    fn version(&self) -> &str {
+        env!("CARGO_PKG_VERSION")
+    }
+    fn register(&self, r: &mut PluginRegistry) -> Result<()> {
+        for tool in &self.0.shared.tools {
+            r.add_tool(tool.clone())?;
+        }
+        Ok(())
+    }
+    fn configurable(&self) -> Option<Arc<dyn Configurable>> {
+        Some(Arc::new(settings::ToolsSettings(self.0.shared.knobs.clone())))
+    }
+}
+
 fn registry(plugin: &ToolsPlugin) -> PluginRegistry {
     let mut r = PluginRegistry::empty();
-    r.install_shared(Arc::new(plugin.clone())).unwrap();
+    r.install_shared(Arc::new(InProcess(plugin.clone()))).unwrap();
     r.resolve();
     r
 }
 
+/// The user chose every path (path arguments are checked by the host; these tests are about the tools).
+struct AnyPath;
+
+impl imt_plugin_api::tools::PathPolicy for AnyPath {
+    fn check(
+        &self,
+        path: &str,
+        _: imt_plugin_api::tools::PathKind,
+        _: imt_plugin_api::tools::PathAccess,
+    ) -> Result<std::path::PathBuf, String> {
+        Ok(path.into())
+    }
+}
+
 fn ctx() -> ToolCtx {
-    ToolCtx::new(None, Arc::new(NoTasks))
+    ToolCtx::new(None, Arc::new(NoTasks)).with_paths(Arc::new(AnyPath))
 }
 
 #[test]
@@ -63,14 +104,13 @@ fn registers_its_tools_service_and_settings() {
             "settings"
         ]
     );
-    assert!(info.provides.is_empty());
-    assert!(info.requires.iter().any(|d| d.id == "net.decryptology.windows" && d.optional));
-    // Optional: missing Windows plugin is only a warning.
-    assert!(
-        info.warnings.iter().any(|w| w.contains("net.decryptology.windows")),
-        "{:?}",
-        info.warnings
-    );
+    assert!(info.provides.is_empty() && info.requires.is_empty());
+    let mut c = Contributions::default();
+    plugin.register(&mut c).unwrap();
+    let m = c.manifest(&plugin);
+    m.check().unwrap();
+    assert_eq!(m.contributions(), info.contributes);
+    assert!(m.asks_for(Permission::RunPrograms) && m.asks_for(Permission::WriteFolders));
     assert_eq!(plugin.name(), "System tools");
     assert_eq!(plugin.version(), env!("CARGO_PKG_VERSION"));
     let section = r.plugin_settings()[0].configurable.settings_section();
@@ -139,7 +179,7 @@ fn clones_share_state_across_registries_and_settings_reach_logman() {
     let _ = std::fs::remove_dir_all(dir);
 
     let settings = a.plugin_settings()[0].configurable.clone();
-    let values = imt_core::settings::validate(&settings.settings_section(), &json!({ "logmanTimeout": 9_000 })).unwrap();
+    let values = imt_plugin_api::settings::validate(&settings.settings_section(), &json!({ "logmanTimeout": 9_000 })).unwrap();
     settings.apply_settings(&values).unwrap();
     b.tools()
         .on_platform(Platform::Windows)
@@ -166,7 +206,7 @@ fn a_quarantined_plugin_lists_its_tools_as_unavailable_with_the_reason() {
 fn disabled_or_safe_mode_means_no_tools() {
     let mut r = PluginRegistry::empty();
     r.disable([PLUGIN_ID]);
-    r.install_shared(Arc::new(ToolsPlugin::default())).unwrap();
+    r.install_shared(Arc::new(InProcess(ToolsPlugin::default()))).unwrap();
     assert!(r.tools().is_empty());
     assert!(PluginRegistry::empty().tools().is_empty());
 }

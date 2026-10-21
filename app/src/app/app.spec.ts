@@ -13,9 +13,13 @@ describe('App', () => {
     TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend()] });
     const fixture = TestBed.createComponent(App);
     await settle(fixture, 8);
-    await vi.waitFor(() => {
-      for (const tag of ['imt-timeline-panel', 'imt-events-grid']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
-    });
+    // The panels load lazily: a busy machine needs more than the default second.
+    await vi.waitFor(
+      () => {
+        for (const tag of ['imt-timeline-panel', 'imt-events-grid']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
+      },
+      { timeout: 10_000 },
+    );
     return { fixture, store: TestBed.inject(WorkspaceStore), dock: TestBed.inject(DockService) };
   }
 

@@ -803,6 +803,20 @@ pub enum FindingKind {
     ExceptionHotPath,
     ThreadPoolStarvation,
     Regression,
+    /// One call path carries most of the time (the call tree opens along it).
+    HotPath,
+    /// Threads spent much of their time blocked or waiting for a CPU (context-switch waits).
+    Blocking,
+    /// Just-in-time compilation took a noticeable share of the time.
+    JitTime,
+    /// What allocates the most (types and call sites, large object heap).
+    Allocations,
+    /// The user-code native function with the most self time, with its source location (ADR 0022).
+    HotNativeFunction,
+    /// The native function in which threads waited longest (locks, blocking calls).
+    WaitHotSpot,
+    /// The call path holding most native heap memory not freed by the end of the capture.
+    NativeHeapGrowth,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -1098,6 +1112,57 @@ pub struct HeapPaths {
     pub unreachable: bool,
     /// The search stopped at its visit limit; more paths may exist.
     pub truncated: bool,
+}
+
+/// `profiling_heap_findings`: findings for a snapshot, with growth against `baselineId`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeapFindingsRequest {
+    pub snapshot_id: u32,
+    #[serde(default)]
+    pub baseline_id: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HeapFindingKind {
+    /// The type that keeps the most memory alive.
+    TopRetainers,
+    /// Objects of 85,000 bytes or more (the .NET large object heap).
+    LargeObjects,
+    /// Objects waiting for their finalizer.
+    Finalizable,
+    /// Static fields retaining much of the heap.
+    StaticRetention,
+    /// Delegates and event handlers retaining their targets.
+    EventHandlers,
+    /// A string-heavy heap.
+    Strings,
+    /// Types that grew since the baseline snapshot.
+    Growth,
+}
+
+/// The memory view that shows a heap finding's evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HeapFindingView {
+    Types,
+    Dominators,
+    Paths,
+    Diff,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeapFinding {
+    pub kind: HeapFindingKind,
+    pub severity: FindingSeverity,
+    pub title: String,
+    pub detail: String,
+    pub value_bytes: Option<u64>,
+    /// The type to select in `view`, when the finding is about one.
+    pub type_name: Option<String>,
+    pub view: HeapFindingView,
 }
 
 /// Units for formatting values in the UI (re-exported for completeness).

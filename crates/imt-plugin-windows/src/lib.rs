@@ -42,10 +42,8 @@
 //! CBS/DISM text logs (`2026-10-14 10:00:00, Info   CBS   message`) need no
 //! importer: the built-in text importer reads them with a profile regex.
 //!
-//! ```
-//! let mut registry = imt_core::PluginRegistry::new();
-//! registry.install(&imt_plugin_windows::WindowsPlugin).unwrap();
-//! ```
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.windows`, ADR 0017); converting a `.blg`
+//! runs `relog` on the file, so the plugin asks for the opened files' paths and to run programs.
 
 pub mod annotators;
 mod blg;
@@ -60,18 +58,18 @@ pub mod procmon;
 pub mod settings;
 
 pub use blg::BlgImporter;
-pub use evtx_import::{is_evtx, read_evtx, EvtxImporter};
+pub use evtx_import::{is_evtx, read_evtx, to_record, EvtxImporter};
 pub use minidump_import::{is_minidump, read_minidump, MinidumpImporter};
 pub use nfo::{NfoConfigParser, NfoImporter};
 pub use perfmon::PerfmonCsvImporter;
 pub use procmon::ProcmonCsvImporter;
 
 use anyhow::Result;
-use imt_core::plugin::Manifest;
-use imt_core::settings::Configurable;
-use imt_core::{Plugin, PluginRegistry};
+use imt_plugin_api::manifest::{Permission, PermissionRequest};
+use imt_plugin_api::{Contributions, Plugin};
 use std::sync::Arc;
 
+#[derive(Default)]
 pub struct WindowsPlugin;
 
 impl Plugin for WindowsPlugin {
@@ -87,70 +85,56 @@ impl Plugin for WindowsPlugin {
         env!("CARGO_PKG_VERSION")
     }
 
-    /// No dependencies; provides no services: PerfMon data reaches IMT as
-    /// imported records (`.csv`, `.blg`), not as live counters.
-    fn manifest(&self) -> Manifest {
-        Manifest::new(self.id(), self.version())
-    }
-
-    fn register(&self, registry: &mut PluginRegistry) -> Result<()> {
-        registry.add_binary_importer(Box::new(EvtxImporter));
-        registry.add_importer(Box::new(NfoImporter));
-        registry.contribute::<dyn imt_core::config::ConfigParser>(imt_core::config::PARSERS_POINT, Arc::new(NfoConfigParser));
-        registry.add_importer(Box::new(PerfmonCsvImporter));
-        registry.add_binary_importer(Box::<BlgImporter>::default());
-        registry.add_importer(Box::new(ProcmonCsvImporter));
-        registry.add_binary_importer(Box::new(MinidumpImporter));
-        registry.add_marker_kinds(markers::kinds())?;
-        registry.add_annotator(Arc::new(annotators::RebootAnnotator))?;
-        registry.add_annotator(Arc::new(annotators::ServiceAnnotator))?;
+    fn register(&self, c: &mut Contributions) -> Result<()> {
+        c.add_binary_importer(EvtxImporter)
+            .add_importer(NfoImporter)
+            .add_config_parser(NfoConfigParser)
+            .add_importer(PerfmonCsvImporter)
+            .add_binary_importer(BlgImporter::default())
+            .add_importer(ProcmonCsvImporter)
+            .add_binary_importer(MinidumpImporter)
+            .add_marker_kinds(markers::kinds())
+            .add_annotator(annotators::RebootAnnotator)
+            .add_annotator(annotators::ServiceAnnotator)
+            .set_settings(Arc::new(settings::WindowsSettings));
         Ok(())
     }
 
-    fn configurable(&self) -> Option<Arc<dyn Configurable>> {
-        Some(Arc::new(settings::WindowsSettings))
+    /// `.blg` files are converted by `relog`, which reads the file by its path and writes a temporary CSV.
+    fn permissions(&self) -> Vec<PermissionRequest> {
+        vec![
+            PermissionRequest {
+                permission: Permission::OpenedFilePaths,
+                reason: "BLG files are converted by relog.exe, which reads the file by its path".into(),
+            },
+            PermissionRequest {
+                permission: Permission::RunPrograms,
+                reason: "BLG files are converted by relog.exe".into(),
+            },
+        ]
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::profile::Profile;
-    use std::path::Path;
 
     #[test]
     fn plugin_registers_its_importers() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&WindowsPlugin).unwrap();
-        let info = &registry.plugins()[0];
-        assert_eq!(info.id, "net.decryptology.windows");
-        assert_eq!(info.contributes.len(), 6 + 1 + markers::kinds().len() + 2 + 1);
-        assert!(info.contributes.contains(&"contribution:config.parsers".to_string()));
-        assert_eq!(info.contributes.last().unwrap(), "settings");
-        assert!(info.contributes.contains(&"marker:app-crash".to_string()));
-        assert!(info.contributes.contains(&"annotator:windows.reboots".to_string()));
-        let section = registry.plugin_settings()[0].configurable.settings_section();
+        let mut c = Contributions::default();
+        WindowsPlugin.register(&mut c).unwrap();
+        let info = c.manifest(&WindowsPlugin);
+        info.check().unwrap();
+        assert_eq!(&*info.id, "net.decryptology.windows");
+        assert_eq!(info.contributions().len(), 6 + 1 + markers::kinds().len() + 2 + 1);
+        assert!(info.contributions().contains(&"config-parser:msinfo".to_string()));
+        assert_eq!(info.contributions().last().unwrap(), "settings");
+        assert!(info.contributions().contains(&"marker:app-crash".to_string()));
+        assert!(info.contributions().contains(&"annotator:windows.reboots".to_string()));
+        let section = info.settings.unwrap();
         assert_eq!((section.id.as_str(), section.fields.len()), ("net.decryptology.windows", 1));
+        assert!(info.permissions.iter().any(|p| p.permission == Permission::RunPrograms));
         assert_eq!(WindowsPlugin.name(), "Windows diagnostics");
         assert_eq!(WindowsPlugin.version(), env!("CARGO_PKG_VERSION"));
-    }
-
-    #[test]
-    fn workspace_opens_the_fixtures() {
-        let mut registry = PluginRegistry::new();
-        registry.install(&WindowsPlugin).unwrap();
-        let mut ws = imt_core::Workspace::with_registry(Profile::default_profile(), registry).unwrap();
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        ws.open(&[dir]).unwrap();
-        let s = ws.summary();
-        let mut ids: Vec<&str> = s.sources.iter().map(|x| x.importer.as_str()).collect();
-        ids.sort();
-        assert_eq!(ids, vec!["evtx", "minidump", "msinfo", "perfmon-csv", "procmon-csv"]);
-        assert!(ws.records().iter().any(|r| r.fields.contains_key("EventId")));
-        assert!(ws.records().iter().any(|r| r.fields.contains_key("Item")));
-        assert!(ws
-            .records()
-            .iter()
-            .any(|r| r.fields.get("Operation").is_some_and(|o| o == "CreateFile")));
     }
 }

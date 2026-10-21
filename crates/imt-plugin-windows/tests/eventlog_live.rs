@@ -14,8 +14,8 @@ fn follows_the_real_event_log() {
 
 #[cfg(windows)]
 mod live {
-    use imt_core::export::EventSink;
-    use imt_core::model::{Level, Record};
+    use imt_plugin_api::clef::EventSink;
+    use imt_plugin_api::model::{Level, Record};
     use imt_plugin_windows::eventlog::bookmark::BookmarkStore;
     use imt_plugin_windows::eventlog::follower::{ChannelState, Limits};
     use imt_plugin_windows::eventlog::{system, Channel, Follower, FollowerConfig};
@@ -52,7 +52,7 @@ mod live {
 
     /// Writes an Application event with `eventcreate`; false when it cannot.
     fn write_event(description: &str) -> bool {
-        let child = imt_core::process::quiet_command("eventcreate")
+        let child = imt_plugin_api::process::quiet_command("eventcreate")
             .args([
                 "/T",
                 "INFORMATION",

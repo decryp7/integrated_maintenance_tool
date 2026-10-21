@@ -1,7 +1,7 @@
 //! Helpers shared by the fuzz targets (included with `#[path]`).
 #![allow(dead_code)]
 
-use imt_core::importers::{self, BinaryImporter, ImportCtx, Importer};
+use imt_core::importers::{self, ImportCtx, Importer};
 use imt_core::profile::{CompiledProfile, Profile};
 use std::path::Path;
 use std::sync::OnceLock;
@@ -33,10 +33,43 @@ pub fn text_importer(imp: &dyn Importer, data: &[u8]) {
     }
 }
 
-pub fn binary_importer(imp: &dyn BinaryImporter, data: &[u8]) {
-    let c = ctx();
+fn timestamps() -> &'static imt_plugin_api::time::TimestampParser {
+    static T: OnceLock<imt_plugin_api::time::TimestampParser> = OnceLock::new();
+    T.get_or_init(imt_plugin_api::time::TimestampParser::default)
+}
+
+fn plugin_ctx() -> imt_plugin_api::ImportCtx<'static> {
+    let mut c = imt_plugin_api::ImportCtx::new(Path::new("fuzz"), timestamps());
+    c.file_date = chrono::NaiveDate::from_ymd_opt(2026, 10, 14);
+    c
+}
+
+/// A plugin's text importer (`imt-plugin-api`), as its process runs it; rows cross the IPC as wire events.
+pub fn plugin_text(imp: &dyn imt_plugin_api::TextImporter, data: &[u8]) {
+    let Some(text) = importers::decode(data) else { return };
+    let c = plugin_ctx();
+    let head: String = text.chars().take(64 * 1024).collect();
+    assert!(imp.sniff(&c, &head) <= 100);
+    if let Ok(imported) = imp.import(&c, &text) {
+        wire_round_trip(&imported.records);
+    }
+}
+
+/// A plugin's binary importer, as its process runs it.
+pub fn plugin_binary(imp: &dyn imt_plugin_api::BinaryImporter, data: &[u8]) {
+    let c = plugin_ctx();
     assert!(imp.sniff(&c, &data[..data.len().min(4096)]) <= 100);
-    let _ = imp.import(&c, data);
+    if let Ok(imported) = imp.import(&c, data) {
+        wire_round_trip(&imported.records);
+    }
+}
+
+/// Records of a plugin cross the IPC as postcard wire events: every record encodes and decodes.
+pub fn wire_round_trip(records: &[imt_plugin_api::Record]) {
+    let rows: Vec<_> = records.iter().map(imt_plugin_api::protocol::WireEvent::of).collect();
+    let bytes = imt_ipc::wire::encode(&rows).expect("wire events encode");
+    let back: Vec<imt_plugin_api::protocol::WireEvent> = imt_ipc::wire::decode(&bytes).expect("wire events decode");
+    assert_eq!(back.len(), rows.len());
 }
 
 /// Sniffs and imports a profile or heap snapshot with small limits (import

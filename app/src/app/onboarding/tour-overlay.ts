@@ -24,11 +24,11 @@ export function popoverPosition(spot: { top: number; left: number; width: number
   host: { '(document:keydown)': 'onKey($event)', '(window:resize)': 'tour.remeasure()' },
   template: `
     @if (tour.step(); as step) {
-      <div class="shade" [class.dim]="!tour.spot()" aria-hidden="true"></div>
+      <div class="shade" data-imt-overlay [class.dim]="!tour.spot()" aria-hidden="true"></div>
       @if (tour.spot(); as s) {
         <div class="spot" aria-hidden="true" [style.top.px]="s.top - 4" [style.left.px]="s.left - 4" [style.width.px]="s.width + 8" [style.height.px]="s.height + 8"></div>
       }
-      <div #box class="pop" role="dialog" aria-modal="false" aria-labelledby="imt-tour-title" aria-describedby="imt-tour-text" data-testid="tour" [style.top.px]="pos().top" [style.left.px]="pos().left">
+      <div #box class="pop" data-imt-overlay role="dialog" aria-modal="false" aria-labelledby="imt-tour-title" aria-describedby="imt-tour-text" data-testid="tour" [style.top.px]="pos().top" [style.left.px]="pos().left">
         <div class="count" i18n="@@onboarding.overlay.count">Step {{ tour.index() + 1 }} of {{ tour.steps.length }}</div>
         <h2 id="imt-tour-title">{{ step.title }}</h2>
         <p id="imt-tour-text">{{ step.text }}</p>

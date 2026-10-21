@@ -1,3 +1,4 @@
+import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { AnnotationDto } from '../core/api.types';
 import { Icon } from '../shared/icon';
@@ -96,7 +97,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
                     (pointerenter)="markerHover.emit({ x: $event.clientX, y: $event.clientY, lane: l.lane.key, marker: g.marker })"
                   >
                     <imt-marker-glyph [kind]="g.marker.cluster.kind" [size]="14" />
-                    @if (g.marker.showCount) { <span class="count mono">{{ g.marker.cluster.count }}</span> }
+                    @if (g.marker.showCount) { <span class="count mono">{{ fmt(g.marker.cluster.count) }}</span> }
                   </span>
                 }
               </button>
@@ -187,6 +188,7 @@ export type LanesEmpty = 'noSources' | 'noMatchMain' | 'noMatchOwn' | null;
   `,
 })
 export class TimelineLanes {
+  protected readonly fmt = formatCount;
   readonly lanes = input.required<readonly LaneVm[]>();
   readonly runLayout = input.required<ReadonlyMap<string, RunBandVm[]>>();
   readonly annLanes = input.required<ReadonlyMap<string, AnnotationVm[]>>();

@@ -37,6 +37,8 @@ run fails while the committed file is stale:
 ```sh
 # windows/WEB02/OrderService.exe.4120.dmp (synthetic minidump builder in tests/support)
 IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-windows --test samples -- --ignored
+# dumps/*.dmp and the dump fuzz seeds (synthetic minidump builder, imt_plugin_dumps::synth)
+IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-dumps --test samples -- --ignored regenerate_
 # profiling/: see docs/profiling.md
 ```
 
@@ -64,6 +66,8 @@ without it the file is listed as unrecognised.
 | `windows/WEB02/procmon-OrderService.csv` | Process Monitor “Save as CSV” (BOM, CRLF, `Date & Time`, `TID`, `Duration`) | Windows plugin (`procmon-csv`) | The process exit at 10:41:24, WerFault writing the dump, ACCESS DENIED / SHARING VIOLATION markers, the new process starting |
 | `windows/WEB02/perfmon-OrderService_000001.csv` | PerfMon PDH-CSV (what `relog` makes of a `.blg`) | Windows plugin (`perfmon-csv`) | Process counters that follow the PID across the restart and are blank while it is down; machine counters |
 | `windows/WEB02/OrderService.exe.4120.dmp` | Windows minidump (synthetic, from the Rust builder) | Windows plugin (`minidump`) | Crash dump summary: CLR exception 0xE0434352 in KERNELBASE.dll, stack scan, modules (coreclr, CoreLib) |
+| `dumps/OrderService.exe.4120.full.dmp`, `dumps/Billing.exe.900.hang.dmp` | Full dump (x64, `Memory64List`) and a hang dump of a 32-bit .NET Framework process (synthetic, from the Rust builder) | dumps plugin (`minidump`) | Dump view: access violation, culprit frame, threads waiting on a lock; a dump without an exception, the .NET runtime |
+| `dumps/umdh/OrderService-4120-snap-{1030,1035,1040}.txt`, `…-diff-1030-1040.txt` | UMDH heap snapshots (`umdh -p -f`) and UMDH's own diff (written by `generate.py`) | dumps plugin (`umdh`) | UMDH view: the order cache grows in every snapshot (leak), payment retries grow, a 32 MB single allocation, PdfLib frames without symbols |
 | `windows/registry-export.reg`, `windows/msinfo32.nfo` | regedit export (UTF-16), msinfo32 report | registry plugin (`registry`), Windows plugin (`msinfo`) | Configuration as records (no timestamps) |
 | `monitor/BILL01/process-monitor.clef` | IMT process monitor (`imt-monitor`) output, CLEF | `json` | “Process stats” with the .NET Framework runtime counters (`Dotnet*`: GC per generation, heap sizes, % time in GC, exceptions/s, contention), an app pool recycle detected as exit + restart (`RestartedAs`, `Restarted`) |
 | `web/iis/WEB01/W3SVC1/u_ex261014.log`, `web/iis/WEB02/…` | IIS W3C extended log; WEB02's has a second header block after the restart | web plugin (`w3c`) | `time-taken` growing on WEB02, 502.3 while the app is down, 4xx/5xx levels |
@@ -72,6 +76,8 @@ without it the file is listed as unrecognised.
 | `linux/docker01/syslog` | `/var/log/syslog`, RFC 3164 (BSD) lines without PRI | syslog plugin (`syslog`) | Host/app/pid fields, dockerd health checks failing and conntrack drops during the incident. BSD lines carry no year: it comes from the file date |
 | `linux/k8s-node-2/rsyslog-rfc5424.log` | RFC 5424 with structured data | syslog plugin (`syslog`) | `sd.k8s@32473.*` fields, readiness probe failures, the container crash and back-off |
 | `linux/sqlrpt01/journal.json` | `journalctl -o json` | syslog plugin (`journald`) | Kernel I/O errors on `sdb` just before SQL Server error 823 on the same host |
+| `linux/logserver01/apps-20261014.log` | A log server's shared file: Checkout (Serilog text, APP01/APP02, pid 3120 recycled as 3388), Inventory (log4net, pids 7001/7002 in the message), Payments (CLEF JSON lines) and haproxy lines no default format reads | `text` (per-line formats); `profiles/logserver.imtprofile.toml` adds routes | Each line read with its own format, no cross-product continuation, unmatched lines reported in the Explorer, lanes per product and process; with the profile, logical sources `Checkout@APP01`, `Checkout@APP02`, `Inventory@SRV2`, `Payments@PAY01` under the file (ADR 0020) |
+| `linux/logserver01/syslog-20261014.log` | RFC 5424 relayed from web01, db01 and edge01 (nginx, sshd, postgres, haproxy) | syslog plugin (`syslog`) | One lane per host, app and process from the importer's identity fields |
 | `otel/collector/traces-20261014.jsonl`, `logs-20261014.jsonl` | OTLP/JSON, Collector `file` exporter (one export per line) | OpenTelemetry plugin (`otlp`) | Traces gateway → order-service → SQL / payments-adapter with errors and exception events during the incident; logs linked by `TraceId`/`SpanId` |
 | `clock-skew/gateway/`, `clock-skew/web02/requests-20261014.clef` | CLEF | `json` | Clock-skew suggestion: both log each request's `CorrelationId`, WEB02's clock is 3.742 s behind, so the suggestion proposes about +3.74 s for WEB02 |
 | `archives/notify01/notify01-logs-20261014.zip`, `app.log.3.gz` | zip and gzip of a rotated set (`app.log`, `app.log.1`, `.2`, `.3`) | `text` (archives are expanded) | Transparent archive reading, rotated files in order, e-mail addresses to redact |

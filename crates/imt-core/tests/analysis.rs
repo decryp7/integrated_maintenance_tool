@@ -193,7 +193,7 @@ fn silence_in_the_middle_and_at_the_end() {
         silent[1].message
     );
     assert_eq!(silent[0].instance.as_deref(), Some("C"));
-    assert!(silent[0].message.contains("no events for 15 min 0 s"), "{}", silent[0].message);
+    assert!(silent[0].message.contains("no events for 15 min)"), "{}", silent[0].message);
     assert!(silent[0].score > 1.0);
 
     // An instance that says it stopped is not silent, a sparse one is not "steady".
@@ -771,8 +771,17 @@ fn detect_on_the_generated_samples() {
         .unwrap_or_else(|| panic!("no error spike in {found:#?}"));
     assert!(spike.from < crash.from, "{} !< {}", spike.from, crash.from);
     assert!(spike.message.starts_with("Error rate on OrderService · WEB02 · 4120 rose to "));
-    // Besides WEB02, the diagnostics sample has a deliberate plugin crash, and the billing log stops after an error.
-    assert!(found.iter().filter(|a| a.kind == AnomalyKind::Crash).count() <= 3, "{found:#?}");
+    // Besides WEB02 and the billing log stopping after an error, only the diagnostics sample's child processes
+    // crash (a plugin crashing repeatedly, the AI runtime; one lane per process id, ADR 0020).
+    let crashes: Vec<&str> = found
+        .iter()
+        .filter(|a| a.kind == AnomalyKind::Crash)
+        .filter_map(|a| a.instance.as_deref())
+        .collect();
+    assert!(
+        crashes.iter().filter(|i| !i.starts_with("diagnostics/")).count() <= 2,
+        "{crashes:#?}"
+    );
 }
 
 #[test]

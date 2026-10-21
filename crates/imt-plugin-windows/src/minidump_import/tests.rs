@@ -1,17 +1,13 @@
 use super::synth::*;
 use super::*;
-use imt_core::profile::{CompiledProfile, Profile};
+use imt_plugin_api::time::TimestampParser;
 use std::path::Path;
 
 const FIXTURE: &str = "tests/fixtures/crash.dmp";
 
 fn import(bytes: &[u8]) -> Result<Imported> {
-    static P: std::sync::OnceLock<CompiledProfile> = std::sync::OnceLock::new();
-    let ctx = ImportCtx {
-        profile: P.get_or_init(|| CompiledProfile::compile(Profile::default_profile()).unwrap()),
-        path: Path::new("crash.dmp"),
-        file_date: None,
-    };
+    let ts = TimestampParser::default();
+    let ctx = ImportCtx::new(Path::new("crash.dmp"), &ts);
     MinidumpImporter.import(&ctx, bytes)
 }
 
@@ -28,12 +24,8 @@ fn field<'a>(r: &'a Record, name: &str) -> &'a Value {
 
 #[test]
 fn sniffs_the_signature() {
-    let p = CompiledProfile::compile(Profile::default_profile()).unwrap();
-    let ctx = ImportCtx {
-        profile: &p,
-        path: Path::new("x.bin"),
-        file_date: None,
-    };
+    let ts = TimestampParser::default();
+    let ctx = ImportCtx::new(Path::new("x.bin"), &ts);
     assert_eq!(MinidumpImporter.id(), "minidump");
     assert_eq!(MinidumpImporter.sniff(&ctx, b"MDMP\x93\xa7"), 100);
     assert_eq!(MinidumpImporter.sniff(&ctx, b"ElfFile\0"), 0);

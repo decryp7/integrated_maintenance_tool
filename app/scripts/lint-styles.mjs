@@ -12,8 +12,6 @@ import { fileURLToPath } from 'node:url';
 
 /** Files allowed to keep raw values, and why. Keep this list short. */
 export const ALLOWED = new Map([
-  // Its own always-on-top window: a warning colour that must stand out from any page, the same in every theme (ADR 0013).
-  ['app/browser/ai-browsing-banner.ts', 'AI browsing banner: fixed warning colours'],
   // Printing: black on white whatever the theme.
   ['app/help/cheat-sheet.ts', 'cheat sheet print styles'],
 ]);

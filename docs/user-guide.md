@@ -169,6 +169,37 @@ split_by = ["MachineName", "ProcessId"]
 - Profiles are checked by the engine (user regexes are length- and size-limited); an invalid profile
   is rejected with a message that says what to fix.
 
+### Files several products write (log servers)
+
+A file may mix formats: IMT reads every line with the first output template or regex that matches it
+(templates first, in profile order), and one-line JSON objects with a timestamp key (`@t`, `timestamp`...)
+as JSON events. A line no format reads continues the event above; when it looks like an event (it starts
+with a date, a time or a syslog header), the Explorer's tooltip for the file reports it ("12 lines look like
+events but match no format, first on line 40"): add a template or regex for that product.
+
+Lanes follow each product's own fields: the instance key takes the fields a source writes on most of its
+events, even when that product writes few of the folder's events, and importers add the fields that name
+their writers (syslog `Host`/`App`/`ProcId`, Windows event logs `Computer`/`ProcessId`, containers
+`Namespace`/`Pod`/`Container`).
+
+To give each product or host of a shared file its own source, add routes. The first route whose `when`
+conditions hold names the event's logical source; the Explorer lists the logical sources under the file:
+
+```toml
+[[route]]
+when = [{ field = "Application", op = "exists" }]
+source = "{Application}@{MachineName}"        # fields or @pseudo-fields in braces
+
+[[route]]
+when = [{ field = "Logger", op = "contains", value = "Inventory" }]
+source = "Inventory@{Host}"                   # Host may come from an [[extract]] rule
+```
+
+Events no route names stay in the file's own source. Removing a logical source removes the file; a split
+file is re-read whole when it changes. A worked example is
+[`samples/profiles/logserver.imtprofile.toml`](../samples/profiles/logserver.imtprofile.toml) for
+`samples/linux/logserver01/apps-20261014.log`. Design: [ADR 0020](adr/0020-mixed-sources.md).
+
 ## Query language
 
 Press `Ctrl/⌘+/` to focus the query bar and `Ctrl/⌘+Enter` to run. Keywords are case-insensitive.
@@ -205,24 +236,38 @@ export as CSV. The full grammar is in
 
 ## Internal web browser
 
-*Search the web for this error* and the address box of the **Web** panel (Tools ▸ Web) open pages in
-IMT's own browser window. Searches use **Google** unless you pick another engine: Settings ▸ Web browser ▸
-Search engine sets it for every search (DuckDuckGo, Bing, Stack Overflow, or *Custom* with your own address
-containing `{q}`), and the picker next to the address box or in the search dialog changes it for one search.
+*Search the web for this error* and the address box of the **Browser** panel (Tools ▸ Browser) open pages in
+the panel itself. It docks like any other panel: drag its tab next to Timeline or Events, split it, maximise it
+or pop it out into a window of its own. Searches use **Google** unless you pick another engine: Settings ▸ Web
+browser ▸ Search engine sets it for every search (DuckDuckGo, Bing, Stack Overflow, or *Custom* with your own
+address containing `{q}`), and the picker next to the address box or in the search dialog changes it for one
+search.
 
-When a chat's **agent mode** or a **research** drives the browser, the browser window shows it:
+**The search text.** For *Search the web for this error* and *Research this*, the AI writes the search from your
+question and the event: it keeps the exception type, the decisive words of the message, error codes and the
+framework or library with its version, and leaves out ids, GUIDs, host, machine and user names, paths, ports,
+timestamps and other values of your installation. IMT then checks it like any search text: in *Search the web*,
+what looks private or comes from your logs is taken out; in *Research this*, it is highlighted and you confirm
+or edit it (*Research anyway*). Either way you see the text and can change it before anything is searched;
+*Let the AI write it* drafts it again. Without a model, IMT builds the text itself, as before.
 
-- an amber bar across the top of the window: *AI is browsing*, what drives it (a chat or research) and
-  **Stop**;
-- the window title starts with "AI browsing —";
-- on Windows 11, the window frame is amber.
+**Keyboard.** Ctrl+L (⌘+L) puts you in the address box, also while you are in the page; Esc in the page gives the
+keyboard back to IMT; IMT's own shortcuts (Ctrl+Shift+…, Alt+…, F1) work while you are in the page. On macOS and
+Linux, keys typed in the page stay with the page: click into IMT first.
 
-**Stop** in that bar ends agent mode for the chat (a step waiting for your approval is denied) or cancels the
-research, the same as Stop in the chat or the Web panel. The bar, the title prefix and the frame go away as
-soon as the AI lets go of the browser: after Stop, when the answer or the research is done, cancelled or
-failed, when you turn agent mode off, or when you close the browser or its IMT window. The bar is part of
-IMT, not of the web page: a page cannot show, hide or press it. On Linux with Wayland the bar may not sit
-exactly over the browser window, since Wayland does not let apps place windows; the title still says it.
+**Menus and dialogs.** The page is drawn by the system's web view, above IMT. While a menu, dialog, toast or the
+drag guides of a panel would cover it, the page steps aside and the panel says so; it comes back when they close.
+
+When a chat's **agent mode** or a **research** drives the browser, the Browser panel says so in its header:
+*AI is browsing*, what the AI does (the step, or the result page it reads) and **Stop**; its tab reads
+"Browser · AI is browsing". **Stop** ends agent mode for the chat (a step waiting for your approval is denied) or
+cancels the research, the same as Stop in the chat. It goes away as soon as the AI lets go of the browser: after
+Stop, when the answer or the research is done, cancelled or failed, when you turn agent mode off, or when you
+close the page or its IMT window. The header is part of IMT, not of the web page: a page cannot show, hide or
+press it. When the AI opens a page, the Browser panel opens without taking the focus.
+
+On Linux the page opens in a window of its own (the system's web view cannot be placed inside the panel there);
+the panel keeps the address box, the notices and *AI is browsing* with Stop.
 
 ## AI runtime and model updates
 

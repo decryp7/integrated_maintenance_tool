@@ -23,6 +23,22 @@ pub struct GenParams {
     pub temperature: f32,
     pub json_schema: Option<Value>,
     pub cancel: Option<Arc<AtomicBool>>,
+    /// The images of the prompt, in the order of their [`MEDIA_MARKER`]s.
+    pub images: Vec<ImageInput>,
+}
+
+/// Where an image goes in a rendered prompt: llama.cpp's multimodal marker (`mtmd_default_marker`), which the
+/// engine replaces with the image's tokens. It is removed from every text first, so a log line or a web page that
+/// contains it cannot claim an image slot.
+pub const MEDIA_MARKER: &str = "<__media__>";
+
+/// `text` without any [`MEDIA_MARKER`].
+pub fn strip_media_markers(text: &str) -> String {
+    let mut s = text.to_string();
+    while s.contains(MEDIA_MARKER) {
+        s = s.replace(MEDIA_MARKER, "");
+    }
+    s
 }
 
 pub struct Generated {
@@ -38,6 +54,10 @@ pub struct Generated {
 pub trait TextEngine: Send + Sync {
     fn name(&self) -> String;
     fn context_length(&self) -> usize;
+    /// Whether the engine reads images (`GenParams::images`).
+    fn vision(&self) -> bool {
+        false
+    }
     fn generate(&self, prompt: &str, params: &GenParams, on_text: &mut dyn FnMut(&str)) -> Result<Generated>;
 }
 
@@ -142,20 +162,41 @@ impl<E: TextEngine> LlmProvider for PromptedProvider<E> {
         self.engine.context_length()
     }
 
+    fn vision(&self) -> bool {
+        self.engine.vision()
+    }
+
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
         let with_tools = !req.tools.is_empty() && req.json_schema.is_none();
-        let mut system = req.system.clone();
+        let mut system = strip_media_markers(&req.system);
         if with_tools {
             system.push_str("\n\n");
             system.push_str(&tools_prompt(&req.tools));
         }
-        let turns: Vec<(&str, String)> = req.messages.iter().map(render_message).collect();
+        let mut images: Vec<ImageInput> = Vec::new();
+        let turns: Vec<(&str, String)> = req
+            .messages
+            .iter()
+            .map(|m| {
+                let (role, text) = render_message(m);
+                let text = strip_media_markers(&text);
+                if m.images.is_empty() {
+                    return (role, text);
+                }
+                images.extend(m.images.iter().cloned());
+                (role, format!("{}\n{text}", MEDIA_MARKER.repeat(m.images.len())))
+            })
+            .collect();
+        if !images.is_empty() && !self.engine.vision() {
+            return Err(crate::error::AiError::NoVision);
+        }
         let prompt = self.format.render(&system, &turns);
         let params = GenParams {
             max_tokens: if req.max_tokens == 0 { DEFAULT_MAX_TOKENS } else { req.max_tokens },
             temperature: req.temperature.unwrap_or(DEFAULT_TEMPERATURE),
             json_schema: req.json_schema.clone(),
             cancel: req.cancel.clone(),
+            images,
         };
         let json_mode = req.json_schema.is_some();
         let mut think = ThinkFilter::new();
@@ -215,6 +256,8 @@ mod tests {
         finish: Finish,
         prompts: Mutex<Vec<String>>,
         schema_seen: Mutex<Option<Value>>,
+        vision: bool,
+        images_seen: Mutex<usize>,
     }
 
     fn fake(output: &str, finish: Finish) -> Fake {
@@ -223,6 +266,8 @@ mod tests {
             finish,
             prompts: Mutex::new(vec![]),
             schema_seen: Mutex::new(None),
+            vision: false,
+            images_seen: Mutex::new(0),
         }
     }
 
@@ -233,9 +278,13 @@ mod tests {
         fn context_length(&self) -> usize {
             2048
         }
+        fn vision(&self) -> bool {
+            self.vision
+        }
         fn generate(&self, prompt: &str, p: &GenParams, on_text: &mut dyn FnMut(&str)) -> Result<Generated> {
             self.prompts.lock().unwrap().push(prompt.to_string());
             *self.schema_seen.lock().unwrap() = p.json_schema.clone();
+            *self.images_seen.lock().unwrap() = p.images.len();
             for chunk in self.output.as_bytes().chunks(5) {
                 on_text(&String::from_utf8_lossy(chunk));
             }
@@ -335,6 +384,44 @@ mod tests {
         assert!(r.tool_calls.is_empty());
         assert_eq!(e.schema_seen.lock().unwrap().clone(), Some(schema));
         assert!(!e.prompts.lock().unwrap()[0].contains("<tools>"));
+    }
+
+    fn image() -> ImageInput {
+        ImageInput::new(ImageMime::Png, vec![1, 2, 3], 4, 3)
+    }
+
+    #[test]
+    fn images_go_where_their_markers_are_and_nowhere_else() {
+        let req = ChatRequest {
+            system: format!("sys {MEDIA_MARKER}"),
+            messages: vec![
+                ChatMessage::user(format!("a log line with {MEDIA_MARKER} in it")),
+                ChatMessage::assistant("ok"),
+                ChatMessage::user_with_images("what is <__media<__media__>__>this?", vec![image(), image()]),
+            ],
+            ..ChatRequest::default()
+        };
+        let mut engine = fake("A dialog.", Finish::Stop);
+        engine.vision = true;
+        let (r, _, e) = run(engine, req.clone());
+        assert_eq!(r.text, "A dialog.");
+        let prompt = e.prompts.lock().unwrap()[0].clone();
+        // Two markers, both in the last user message; none from the system text or the log line.
+        assert_eq!(prompt.matches(MEDIA_MARKER).count(), 2, "{prompt}");
+        assert!(prompt.contains(&format!("{MEDIA_MARKER}{MEDIA_MARKER}\nwhat is this?")), "{prompt}");
+        assert!(prompt.contains("a log line with  in it"));
+        assert_eq!(*e.images_seen.lock().unwrap(), 2);
+        assert_eq!(strip_media_markers("x<__media__>y"), "xy");
+        // A model without vision refuses images instead of ignoring them.
+        let p = PromptedProvider::new(fake("", Finish::Stop), PromptFormat::ChatMl { no_think: false });
+        assert!(!p.vision());
+        assert_eq!(p.chat(&req, &mut |_| {}).unwrap_err(), crate::error::AiError::NoVision);
+        let img = image();
+        assert_eq!(
+            (img.mime().as_str(), img.bytes(), img.width(), img.height()),
+            ("image/png", &[1u8, 2, 3][..], 4, 3)
+        );
+        assert_eq!(ImageMime::Jpeg.as_str(), "image/jpeg");
     }
 
     #[test]

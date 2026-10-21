@@ -1,3 +1,4 @@
+import { formatBytes, formatExactBytes, formatRelativeTime } from '../shared/format/units';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { DeletedFiles, LiveOptions, MAX_DETECT_EVERY_MS, TailFileStatus, WatchPreference } from '../core/api.types';
 import { formatCount } from '../core/format';
@@ -9,29 +10,6 @@ import { localizeDecimal } from '../i18n/locale';
 
 /** The status table refreshes this often while the panel is open and live tail runs. */
 export const STATUS_POLL_MS = 2000;
-
-/** "1.2 MB" */
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${localizeDecimal(v.toFixed(v < 10 ? 1 : 0))} ${units[i]}`;
-}
-
-/** "just now", "12 s ago", "3 min ago", "2 h ago" */
-export function formatAgo(ts: number | null, now: number): string {
-  if (ts === null) return '—';
-  const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 2) return $localize`:@@live.tailStatus.justNow:just now`;
-  if (s < 60) return $localize`:@@live.tailStatus.secondsAgo:${s}:seconds: s ago`;
-  if (s < 3600) return $localize`:@@live.tailStatus.minutesAgo:${Math.floor(s / 60)}:minutes: min ago`;
-  return $localize`:@@live.tailStatus.hoursAgo:${Math.floor(s / 3600)}:hours: h ago`;
-}
 
 /** A positive whole number from an input, or null for empty / invalid ("off"). */
 export function parseLimit(text: string): number | null {
@@ -98,10 +76,10 @@ export function parseLimit(text: string): number | null {
 
     @if (status.status(); as st) {
       <div class="totals" role="status" aria-live="off">
-        <span i18n="@@live.tailStatus.totalFiles"><strong>{{ st.totals.files }}</strong> files</span>
+        <span i18n="@@live.tailStatus.totalFiles"><strong>{{ fmt(st.totals.files) }}</strong> files</span>
         <span i18n="@@live.tailStatus.totalTailing"><strong>{{ st.totals.tailing }}</strong> tailing</span>
         @if (st.totals.errors) { <span class="bad" i18n="@@live.tailStatus.totalErrors"><strong>{{ st.totals.errors }}</strong> with errors</span> }
-        <span>{{ bytes(st.totals.bytes) }}</span>
+        <span [title]="exact(st.totals.bytes)">{{ bytes(st.totals.bytes) }}</span>
         <span i18n="@@live.tailStatus.totalRate"><strong>{{ rate(st.totals.linesPerSec) }}</strong> lines/s</span>
         <span i18n="@@live.tailStatus.totalEvents">{{ count(st.totals.records) }} events</span>
         <span title="Events removed by the retention limit since the workspace was opened" i18n-title="@@live.tailStatus.evictedTitle" i18n="@@live.tailStatus.totalEvicted">{{ count(st.totals.evicted) }} evicted</span>
@@ -120,7 +98,7 @@ export function parseLimit(text: string): number | null {
                 <td class="mono" [title]="f.path">{{ f.name }}</td>
                 <td class="mono faint" [title]="f.group">{{ shortGroup(f) }}</td>
                 <td>{{ modeLabel(f) }}</td>
-                <td class="mono r">{{ bytes(f.offset) }} / {{ bytes(f.size) }}</td>
+                <td class="mono r" [title]="exact(f.offset) + ' / ' + exact(f.size)">{{ bytes(f.offset) }} / {{ bytes(f.size) }}</td>
                 <td class="mono r">{{ rate(f.linesPerSec) }}</td>
                 <td class="nowrap">{{ ago(f.lastEvent) }}</td>
                 <td [title]="hint(f)"><span class="state" [class]="f.state.kind">{{ label(f) }}</span>@if (f.state.kind === 'error') { <span class="err-msg">{{ errorOf(f) }}</span> }</td>
@@ -159,6 +137,7 @@ export function parseLimit(text: string): number | null {
   `,
 })
 export class TailStatusView {
+  protected readonly fmt = formatCount;
   protected readonly live = inject(LiveTail);
   protected readonly status = inject(TailStatusStore);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -173,6 +152,7 @@ export class TailStatusView {
   protected readonly maxDetect = MAX_DETECT_EVERY_MS;
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
   protected readonly label = (f: TailFileStatus) => stateLabel(f.state);
   protected readonly hint = (f: TailFileStatus) => stateHint(f.state);
 
@@ -195,7 +175,7 @@ export class TailStatusView {
   }
 
   protected ago(ts: number | null): string {
-    return formatAgo(ts, this.now());
+    return formatRelativeTime(ts, this.now());
   }
 
   protected rate(v: number): string {

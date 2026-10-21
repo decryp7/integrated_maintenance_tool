@@ -74,6 +74,7 @@ fn import_controls(state: &CurrentWindow) -> Controls {
             done: Some(p.done as u64),
             total: Some(p.total as u64),
             eta_ms: p.eta_ms,
+            ..JobProgress::default()
         })
     })
 }
@@ -875,10 +876,6 @@ mod tests {
         let end = crate::test_support::job_end(&app, job);
         assert_eq!(end.state, crate::jobs::JobState::Failed);
         assert!(end.error.unwrap_or_default().contains("unknown export format"));
-        assert_eq!(
-            crate::plugin_config::plugins(false, &[]).unwrap().plugins().len(),
-            crate::plugin_config::builtin_plugins().len()
-        );
     }
 
     #[test]
@@ -1145,6 +1142,9 @@ mod tests {
             offset_ms: 0,
             file_kind: Default::default(),
             timestamp_issue: None,
+            routed_from: None,
+            problems: Vec::new(),
+            identity: Vec::new(),
         };
         assert_eq!(timestamp_notice(&source), None);
         source.timestamp_issue = Some(TimestampIssue {

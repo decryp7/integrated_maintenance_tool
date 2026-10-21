@@ -300,6 +300,26 @@ impl WindowGrants {
     }
 }
 
+/// Path arguments of plugin tools (ADR 0017 §4): a path the window's user chose, canonical, or why not.
+impl imt_core::plugin::tools::PathPolicy for WindowGrants {
+    fn check(
+        &self,
+        raw: &str,
+        kind: imt_core::plugin::tools::PathKind,
+        access: imt_core::plugin::tools::PathAccess,
+    ) -> Result<PathBuf, String> {
+        use imt_core::plugin::tools::{PathAccess, PathKind};
+        let granted = match (access, kind) {
+            (PathAccess::Read, PathKind::Dir) => self.read_dir(raw),
+            (PathAccess::Read, PathKind::File) => self.read_file(raw, &[]),
+            // An output folder: the folder the user chose with the folder dialog (granted as a tree).
+            (PathAccess::Write, PathKind::Dir) => self.read_dir(raw),
+            (PathAccess::Write, PathKind::File) => self.write(raw, &[]),
+        };
+        granted.map(|g| g.path).map_err(|e| e.message)
+    }
+}
+
 impl<'de, R: Runtime> CommandArg<'de, R> for WindowGrants {
     fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
         let webview = command.message.webview();
@@ -507,7 +527,7 @@ impl PickRequest {
 /// Shows a native open or save dialog for the calling window and grants what the user chose to it.
 /// Returns the chosen paths (empty when cancelled). The only way the webview gets a path it may use.
 #[tauri::command]
-pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::WebviewWindow<R>, request: PickRequest) -> CmdResult<Vec<String>> {
+pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::Window<R>, request: PickRequest) -> CmdResult<Vec<String>> {
     let request = request.validated()?;
     let chosen = show(&app, &window, &request).await?;
     let access = request.access();
@@ -525,7 +545,7 @@ pub async fn pick_paths<R: Runtime>(app: AppHandle<R>, window: tauri::WebviewWin
 }
 
 /// Runs the dialog; the answer comes back through a callback (the dialog runs on the main thread).
-async fn show<R: Runtime>(app: &AppHandle<R>, window: &tauri::WebviewWindow<R>, request: &PickRequest) -> CmdResult<Vec<PathBuf>> {
+async fn show<R: Runtime>(app: &AppHandle<R>, window: &tauri::Window<R>, request: &PickRequest) -> CmdResult<Vec<PathBuf>> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
     let mut dialog = app.dialog().file().set_parent(window);
     if !request.title.is_empty() {

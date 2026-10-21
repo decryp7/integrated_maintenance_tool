@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { ProfileEventDto, ProfileEventKind, ThreadLane, ThreadTimeline } from '../../core/api.types';
 import { formatDateTime } from '../../core/format';
@@ -21,6 +22,7 @@ export const EVENT_GLYPHS: Record<ProfileEventKind, { label: string; path: strin
   jit: { label: $localize`:@@profiling.threads.event.jit:JIT`, path: 'M6 1L11 11H1Z', color: 'var(--s3)' },
   exception: { label: $localize`:@@profiling.threads.event.exception:Exception`, path: 'M2 2L10 10M10 2L2 10', color: 'var(--lvl-error)' },
   lockWait: { label: $localize`:@@profiling.threads.event.lockWait:Lock wait`, path: 'M2 2H10V10H2Z', color: 'var(--s4)' },
+  wait: { label: $localize`:@@profiling.threads.event.wait:Wait`, path: 'M1 6H11M6 1V6', color: 'var(--s1)' },
   marker: { label: $localize`:@@profiling.threads.event.marker:Marker`, path: 'M6 0V12M3 3H9', color: 'var(--text-2)' },
 };
 
@@ -109,7 +111,7 @@ interface EventVm {
               }
               @if (brush(); as b) { <div class="brush" [style.left.px]="b.min" [style.width.px]="b.max - b.min"></div> }
             </div>
-            @if (t.eventsTruncated) { <div class="notice" role="status" i18n="@@profiling.threads.truncated">Only the first {{ maxEvents }} events are shown; narrow the range for the rest.</div> }
+            @if (t.eventsTruncated) { <div class="notice" role="status" i18n="@@profiling.threads.truncated">Only the first {{ fmt(maxEvents) }} events are shown; narrow the range for the rest.</div> }
             <details class="events">
               <summary i18n="@@profiling.threads.eventsInView">Events in view ({{ t.events.length }})</summary>
               <table class="grid">
@@ -161,6 +163,7 @@ interface EventVm {
   ],
 })
 export class ThreadTimelineView {
+  protected readonly fmt = formatCount;
   protected readonly active = inject(ActiveProfile);
   protected readonly state = inject(ProfileViewState);
   private readonly backend = inject(ProfilingBackend);

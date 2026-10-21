@@ -32,7 +32,7 @@ function jobInfo(p: Partial<JobInfo> & { id: number }): JobInfo {
     title: `Job ${p.id}`,
     source: { window: 'main', link: null },
     state: 'done',
-    progress: { fraction: null, done: null, total: null, etaMs: null },
+    progress: { fraction: null, done: null, total: null, etaMs: null, unit: 'items' },
     message: null,
     queuedAt: 0,
     startedAt: 0,
@@ -778,7 +778,7 @@ describe('JobsStore', () => {
 
 describe('jobs-text', () => {
   it('names every kind and state', () => {
-    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Maintenance']);
+    expect(JOB_KINDS.map(kindLabel)).toEqual(['AI', 'Research', 'Analysis', 'Import', 'Export', 'Download', 'Collection', 'Capture', 'Maintenance']);
     expect((['queued', 'running', 'done', 'failed', 'cancelled', 'interrupted'] as const).map(stateLabel)).toEqual(['Queued', 'Running', 'Done', 'Failed', 'Cancelled', 'Interrupted']);
   });
 

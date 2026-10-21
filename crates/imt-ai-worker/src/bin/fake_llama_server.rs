@@ -10,6 +10,10 @@
 //!   fails), `start-fail` (exits at once when serving).
 //!
 //! It records what it saw next to the model: `<model>.args.json`, `<model>.requests.jsonl`, `<model>.cancelled`.
+//!
+//! Images: started with `--mmproj`, `/completion` accepts the multimodal prompt (`prompt_string` with one
+//! `<__media__>` per entry of `multimodal_data`) and starts its reply with "I see N image(s)."; without it, it
+//! refuses images like llama-server does.
 
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Read, Write};
@@ -25,6 +29,7 @@ struct Script {
     n_ctx: usize,
     ready_at: Instant,
     key: Option<String>,
+    mmproj: bool,
 }
 
 fn arg(args: &[String], name: &str) -> Option<String> {
@@ -84,6 +89,7 @@ fn main() {
         reply: cfg["reply"].as_str().unwrap_or("Hello from the fake server.").to_string(),
         ready_at: Instant::now() + Duration::from_millis(cfg["loading_ms"].as_u64().unwrap_or(100)),
         key: std::env::var("LLAMA_API_KEY").ok(),
+        mmproj: arg(&args, "--mmproj").is_some(),
         model,
         mode,
     });
@@ -169,10 +175,18 @@ fn handle(mut s: TcpStream, script: &Script) {
             );
         }
     }
-    let prompt = req["prompt"].as_str().or_else(|| req["content"].as_str()).unwrap_or("");
+    let prompt = req["prompt"]
+        .as_str()
+        .or_else(|| req["prompt"]["prompt_string"].as_str())
+        .or_else(|| req["content"].as_str())
+        .unwrap_or("");
     let tokens = prompt.split_whitespace().count() + 1;
     match path.as_str() {
-        "/props" => respond(&mut s, 200, &json!({"default_generation_settings": {"n_ctx": script.n_ctx}})),
+        "/props" => respond(
+            &mut s,
+            200,
+            &json!({"default_generation_settings": {"n_ctx": script.n_ctx}, "modalities": {"vision": script.mmproj}}),
+        ),
         "/tokenize" => respond(&mut s, 200, &json!({"tokens": (0..tokens).collect::<Vec<_>>()})),
         "/completion" => completion(&mut s, script, &req, prompt, tokens),
         _ => respond(
@@ -199,6 +213,21 @@ fn completion(s: &mut TcpStream, script: &Script, req: &Value, prompt: &str, tok
             &json!({"error": {"code": 400, "type": "invalid_request_error", "message": "Field 'json_schema': JSON schema conversion failed"}}),
         );
     }
+    let images = req["prompt"]["multimodal_data"].as_array().map_or(0, Vec::len);
+    if images > 0 && !script.mmproj {
+        return respond(
+            s,
+            500,
+            &json!({"error": {"code": 500, "type": "server_error", "message": "image input is not supported - hint: if this is unexpected, you may need to provide the mmproj"}}),
+        );
+    }
+    if images != prompt.matches("<__media__>").count() {
+        return respond(
+            s,
+            400,
+            &json!({"error": {"code": 400, "type": "invalid_request_error", "message": "number of bitmaps does not match number of markers"}}),
+        );
+    }
     let crashed = side(&script.model, ".crashed");
     if script.mode == "crash_on_chat" && !crashed.exists() {
         let _ = std::fs::write(&crashed, b"1");
@@ -215,6 +244,11 @@ fn completion(s: &mut TcpStream, script: &Script, req: &Value, prompt: &str, tok
             .iter()
             .filter(|p| !p.starts_with('<') || preserved.contains(p))
             .map(|p| p.to_string())
+            .collect()
+    } else if images > 0 {
+        format!("I see {images} image(s). {}", script.reply)
+            .split_inclusive(' ')
+            .map(str::to_string)
             .collect()
     } else {
         script.reply.split_inclusive(' ').map(str::to_string).collect()

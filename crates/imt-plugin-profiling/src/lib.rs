@@ -17,7 +17,7 @@
 //! | [`nettrace::NettraceImporter`] | .NET EventPipe `.nettrace` (sample profiler, GC, exceptions, contention) |
 //! | [`heapsnapshot::HeapSnapshotImporter`] | V8 / Chrome / Node `.heapsnapshot` (object graph) |
 //!
-//! Register it with `registry.install(&imt_plugin_profiling::ProfilingPlugin)`
+//! It runs in its own process (`imt-plugins --plugin net.decryptology.profiling`, ADR 0017)
 //! (feature `plugin`, on by default). Without that feature the crate is just
 //! the importers, which is what the fuzz targets build.
 
@@ -61,7 +61,8 @@ mod tests {
 
     #[test]
     fn importers_have_unique_ids_and_refuse_empty_files() {
-        let mut ids: Vec<&str> = builtin_importers().iter().map(|i| i.id()).collect();
+        let all = builtin_importers();
+        let mut ids: Vec<&str> = all.iter().map(|i| i.id()).collect();
         let n = ids.len();
         ids.sort();
         ids.dedup();

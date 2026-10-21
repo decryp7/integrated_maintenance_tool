@@ -1,73 +1,154 @@
-//! A fake child for the imt-ipc tests (never bundled). Flags: `--exit-now` (dies before listening),
-//! `--no-listen` (reads the handshake and never binds), `--write-pid=<file>` (records its pid, for the
-//! orphan test), `--say=<text>` (writes a line to stderr first). It serves the test `Echo` service, whose request picks crashes, panics, delays and
-//! (`env`) reports an environment variable.
+//! A fake child for the launcher and supervisor tests (never bundled). It runs [`imt_ipc::child::child_main`]
+//! and answers text requests:
+//!
+//! - `echo <text>` → `<text>`; `env <NAME>` → the variable or `<unset>`; `exit <code>` → exits at once (a crash);
+//!   `hang` → never answers; `panic` → panics in the handler; `big <n>` → n bytes; `stream <n>` → n items;
+//!   `alloc <n>` → allocates and touches n bytes, `ok …` or `denied: …`;
+//!   `write <path>` → tries to create the file, answers `ok` or the error; `spawn` → tries to start a program;
+//!   `ask <text>` → calls the host back with `<text>` and answers with the host's reply; `gaps` → the notes of its
+//!   lockdown (JSON), so tests know what this system enforces.
+//!
+//! Flags: `--exit-now` (dies before connecting), `--no-connect` (reads the bootstrap, never connects),
+//! `--bad-token` (connects with a wrong token), `--relay` (starts a copy of itself that connects instead: a
+//! process the host did not start), `--garbage` (sends bytes that are not a frame after the handshake),
+//! `--oversize` (announces a 1 GiB frame after the handshake), `--say=<text>` (a line on stderr first).
 
-use imt_ipc::server::{child_main, RuntimeKind, ServeOptions};
-use imt_ipc::testing::echo_server::{Echo, EchoServer};
-use imt_ipc::testing::{EchoReply, EchoRequest};
+use imt_ipc::child::{connect_and_lock_down, lifeline, read_bootstrap};
+use imt_ipc::peer::{code, CallCtx, Handler};
 use imt_ipc::RemoteError;
+use std::io::Read;
+use std::sync::Arc;
 use std::time::Duration;
-use tonic::{Request, Response, Status};
 
-struct Svc;
-
-#[tonic::async_trait]
-impl Echo for Svc {
-    async fn echo(&self, req: Request<EchoRequest>) -> Result<Response<EchoReply>, Status> {
-        let r = req.into_inner();
-        tokio::time::sleep(Duration::from_millis(r.delay_ms)).await;
-        match r.action.as_str() {
-            "abort" => crash(),
-            "panic" => panic!("handler panicked"),
-            "error" => Err(imt_ipc::error::to_status(
-                tonic::Code::FailedPrecondition,
-                &RemoteError::new(7, "typed failure"),
-            )),
-            // Reports one of its environment variables (the environment tests).
-            "env" => Ok(Response::new(EchoReply {
-                text: std::env::var(&r.text).unwrap_or_else(|_| "<unset>".into()),
-            })),
-            _ => Ok(Response::new(EchoReply { text: r.text })),
+fn handle(ctx: &CallCtx, body: &[u8]) -> Result<Vec<u8>, RemoteError> {
+    let text = String::from_utf8_lossy(body).into_owned();
+    let (cmd, arg) = text.split_once(' ').unwrap_or((text.as_str(), ""));
+    let fail = |m: String| RemoteError::new(code::INTERNAL, m);
+    match cmd {
+        "echo" => Ok(arg.as_bytes().to_vec()),
+        "gaps" => Ok(serde_json::to_vec(imt_ipc::sandbox::applied_notes()).map_err(|e| fail(e.to_string()))?),
+        "env" => Ok(std::env::var(arg).unwrap_or_else(|_| "<unset>".into()).into_bytes()),
+        "exit" => std::process::exit(arg.parse().unwrap_or(3)),
+        "hang" => loop {
+            std::thread::sleep(Duration::from_secs(3600));
+        },
+        "panic" => panic!("handler panicked"),
+        "big" => Ok(vec![b'x'; arg.parse().unwrap_or(0)]),
+        "alloc" => {
+            // Allocates and touches n bytes without aborting when it cannot (`denied`).
+            let n: usize = arg.parse().unwrap_or(0);
+            let mut v: Vec<u8> = Vec::new();
+            Ok(match v.try_reserve_exact(n) {
+                Ok(()) => {
+                    v.resize(n, 1);
+                    format!("ok {}", v.iter().step_by(4096).map(|b| *b as usize).sum::<usize>()).into_bytes()
+                }
+                Err(e) => format!("denied: {e}").into_bytes(),
+            })
         }
+        "stream" => {
+            for i in 0..arg.parse::<u32>().unwrap_or(0) {
+                ctx.send_item(i.to_le_bytes().to_vec())?;
+            }
+            Ok(b"done".to_vec())
+        }
+        "write" => Ok(match std::fs::write(arg, b"x") {
+            Ok(()) => {
+                let _ = std::fs::remove_file(arg);
+                b"ok".to_vec()
+            }
+            Err(e) => format!("denied: {e}").into_bytes(),
+        }),
+        "spawn" => {
+            #[allow(clippy::disallowed_methods)]
+            let r = std::process::Command::new(std::env::current_exe().map_err(|e| fail(e.to_string()))?)
+                .arg("--exit-now")
+                .status();
+            Ok(match r {
+                Ok(_) => b"ok".to_vec(),
+                Err(e) => format!("denied: {e}").into_bytes(),
+            })
+        }
+        "ask" => ctx
+            .peer()
+            .call(arg.as_bytes().to_vec(), Some(Duration::from_secs(10)))
+            .map_err(|e| fail(e.to_string())),
+        _ => Err(RemoteError::new(code::UNIMPLEMENTED, format!("unknown request {cmd}"))),
     }
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if let Some(file) = args.iter().find_map(|a| a.strip_prefix("--write-pid=")) {
-        let _ = std::fs::write(file, std::process::id().to_string());
-    }
     for say in args.iter().filter_map(|a| a.strip_prefix("--say=")) {
         eprintln!("{say}");
     }
     if args.iter().any(|a| a == "--exit-now") {
         std::process::exit(3);
     }
-    if args.iter().any(|a| a == "--no-listen") {
+    if args.iter().any(|a| a == "--relay") {
+        // Hand the bootstrap to a copy of itself, which connects with the right token but another pid.
+        let mut line = String::new();
+        let _ = std::io::BufRead::read_line(&mut std::io::BufReader::new(std::io::stdin().take(64 * 1024)), &mut line);
+        #[allow(clippy::disallowed_methods)]
+        let mut c = std::process::Command::new(std::env::current_exe().expect("exe"))
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn");
+        if let Some(mut i) = c.stdin.take() {
+            use std::io::Write;
+            let _ = i.write_all(line.as_bytes());
+            let _ = i.flush();
+            std::thread::sleep(Duration::from_secs(30));
+        }
+        let _ = c.kill();
+        let _ = c.wait();
+        return;
+    }
+    let mut bootstrap = match read_bootstrap(std::io::stdin().lock()) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("fake child: {e}");
+            std::process::exit(1);
+        }
+    };
+    if args.iter().any(|a| a == "--no-connect") {
+        lifeline();
         loop {
             std::thread::sleep(Duration::from_secs(3600));
         }
     }
-    let opts = ServeOptions {
-        name: "fake child".into(),
-        ..ServeOptions::default()
-    };
-    let r = child_main(RuntimeKind::MultiThread, opts, |_| {
-        tonic::service::Routes::new(EchoServer::new(Svc))
-    });
-    if let Err(e) = r {
-        eprintln!("fake child: {e}");
-        std::process::exit(1);
+    if args.iter().any(|a| a == "--bad-token") {
+        bootstrap.token = "ab".repeat(32);
     }
-}
-
-/// Dies like a crash. On Windows `abort` goes through Windows Error Reporting, which can keep a crashing process
-/// alive for seconds on a busy machine (and the crash then looks like a hang); exit at once instead, with the
-/// status an abort leaves (STATUS_STACK_BUFFER_OVERRUN).
-fn crash() -> ! {
-    #[cfg(windows)]
-    std::process::exit(0xC000_0409_u32 as i32);
-    #[cfg(not(windows))]
-    std::process::abort();
+    if args.iter().any(|a| a == "--garbage" || a == "--oversize") {
+        let token = imt_ipc::link::Token::from_hex(&bootstrap.token).expect("token");
+        let address = bootstrap.address.clone();
+        let bytes: Vec<u8> = if args.iter().any(|a| a == "--garbage") {
+            vec![5, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff]
+        } else {
+            (1u32 << 30).to_le_bytes().to_vec()
+        };
+        lifeline();
+        let _ = imt_ipc::runtime::run(async move {
+            use tokio::io::AsyncWriteExt;
+            if let Ok(mut io) = imt_ipc::link::handshake(&address, &token, "IMT").await {
+                let _ = io.write_all(&bytes).await;
+                let _ = io.flush().await;
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+        });
+        return;
+    }
+    let handler: Arc<dyn Handler> = Arc::new(handle);
+    match connect_and_lock_down(&bootstrap, false, "IMT", |_| handler) {
+        Ok(peer) => {
+            // As child_main does: after the lockdown, so the thread is locked down too.
+            lifeline();
+            peer.wait_closed(None);
+        }
+        Err(e) => {
+            eprintln!("fake child: {e}");
+            std::process::exit(1);
+        }
+    }
 }

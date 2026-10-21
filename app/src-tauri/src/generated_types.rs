@@ -35,6 +35,46 @@ fn files() -> Vec<(&'static str, String)> {
                 decl(crate::recent::RecentKind::decl())
             ),
         ),
+        ("dumps.ts", {
+            use imt_dump::api::*;
+            let decls = [
+                DocKind::decl(),
+                DumpSniffKind::decl(),
+                DumpSniffResult::decl(),
+                Severity::decl(),
+                DumpDocSummary::decl(),
+                ExceptionCard::decl(),
+                HandleTypeDto::decl(),
+                HandlesDto::decl(),
+                MemoryDto::decl(),
+                DumpOverview::decl(),
+                ThreadState::decl(),
+                ThreadRow::decl(),
+                ThreadsRequest::decl(),
+                ThreadsPage::decl(),
+                FrameTrust::decl(),
+                FrameRow::decl(),
+                StackRequest::decl(),
+                StackDto::decl(),
+                ModuleRow::decl(),
+                ModulesRequest::decl(),
+                ModulesPage::decl(),
+                FindingKind::decl(),
+                FindingEvidence::decl(),
+                DumpFinding::decl(),
+                DumpFindingsRequest::decl(),
+                UmdhGroup::decl(),
+                UmdhDiffRequest::decl(),
+                UmdhRow::decl(),
+                UmdhDiffPage::decl(),
+                UmdhStackRequest::decl(),
+                UmdhStackDto::decl(),
+                UmdhTreeRequest::decl(),
+                UmdhTreeNode::decl(),
+                DumpMarker::decl(),
+            ];
+            format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
+        }),
         (
             "paths.ts",
             format!(
@@ -42,6 +82,14 @@ fn files() -> Vec<(&'static str, String)> {
                 decl(crate::paths::PickKind::decl()),
                 decl(crate::paths::PickFilter::decl()),
                 decl(crate::paths::PickRequest::decl())
+            ),
+        ),
+        (
+            "browser.ts",
+            format!(
+                "{header}{}\n{}",
+                decl(crate::browser::geometry::CssRect::decl()),
+                decl(crate::browser::geometry::Placement::decl())
             ),
         ),
     ]

@@ -7,7 +7,7 @@ import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
 import { UiStateRegistry } from '../lifecycle/ui-state';
-import { Sidebar } from '../shell/sidebar';
+import { problemText, Sidebar } from '../shell/sidebar';
 import { DialogService, DIALOG_REF } from '../ui/dialog.service';
 import { DEFAULT_LIVE_OPTIONS, LiveTail } from '../workspace/live-tail';
 import { AlertsStore } from './alerts.store';
@@ -36,6 +36,18 @@ const src = (id: number, path: string, group: string, to: number | null, records
   from: null,
   to,
 });
+
+/** The tiny dataset with web02's app.log split by profile routes into two logical sources (ADR 0020). */
+function splitDataset() {
+  const d = tinyDataset();
+  const path = '/logs/web02/app.log';
+  d.sources.push(
+    { id: 7, path, name: 'billing@srv1', importer: 'text', skipped: 0, routedFrom: 'web02/app.log', problems: [{ kind: 'unmatchedLine', count: 3, sampleLines: [12, 40, 41] }] },
+    { id: 8, path, name: 'auth@srv2', importer: 'text', skipped: 0, routedFrom: 'web02/app.log' },
+  );
+  d.records.push({ ...at(d.records, 8), source: 7, line: 1 }, { ...at(d.records, 8), source: 8, line: 2 });
+  return d;
+}
 
 /** The tiny dataset plus rolled files of web02's app.log. */
 function rolledDataset() {
@@ -79,6 +91,50 @@ describe('source groups', () => {
     const d = last.kind === 'group' ? last.group : null;
     expect(d!.newest.id).toBe(9);
     expect(groupSources([])).toEqual([]);
+  });
+
+  it('nests the logical sources of a split file under it, the own source of the file first', () => {
+    const routed = (id: number, name: string, records: number): SourceInfo => ({ ...src(id, '/l/shared.log', `l/shared.log › ${name}`, null, records), name, routedFrom: 'l/shared.log' });
+    const own = { ...src(3, '/l/shared.log', 'l/shared.log', null, 4), name: 'l/shared.log' };
+    const items = groupSources([routed(1, 'web@a', 2), src(2, '/l/b.log', '/l/b.log', 10), own, routed(4, 'db@b', 1)]);
+    expect(items.map((i) => (i.kind === 'file' ? i.source.id : i.group.key))).toEqual(['split:/l/shared.log', 2]);
+    const first = at(items, 0);
+    const g = first.kind === 'group' ? first.group : null;
+    expect(g!.split).toBe(true);
+    expect(g!.label).toBe('shared.log');
+    expect(g!.sources.map((s) => s.id)).toEqual([3, 4, 1]);
+    expect(g!.newest.id).toBe(3);
+    expect(g!.records).toBe(7);
+    // Without an own source, the label still names the file.
+    const only = groupSources([routed(1, 'web@a', 2)]);
+    const o = at(only, 0);
+    expect(o.kind === 'group' && o.group.label).toBe('shared.log');
+    expect(o.kind === 'group' && o.group.newest.id).toBe(1);
+  });
+
+  it('describes import problems in words', () => {
+    expect(problemText({ kind: 'unmatchedLine', count: 3, sampleLines: [12] })).toContain('first on line 12');
+    expect(problemText({ kind: 'unmatchedLine', count: 3, sampleLines: [] })).toBe('3 lines look like events but match no format (kept with the event above)');
+    expect(problemText({ kind: 'routeLimit', count: 2, sampleLines: [1] })).toContain('logical-source limit');
+    expect(problemText({ kind: 'lineTooLong', count: 1, sampleLines: [1] })).toContain('lineTooLong');
+  });
+
+  it('the sidebar shows a split file as a row of its logical sources', async () => {
+    setup(new MockBackend({ latency: false, dataset: splitDataset }));
+    const fixture = TestBed.createComponent(Sidebar);
+    await settle(fixture);
+    const row = el<HTMLButtonElement>(fixture, '[data-testid=source-group]');
+    expect(row.textContent).toContain('app.log');
+    expect(el(fixture, '[data-testid=split-badge]').textContent).toContain('3 sources');
+    expect(text(fixture)).not.toContain('newest:');
+    expect(row.parentElement!.getAttribute('title')).toContain('Split into 3 sources by profile routes');
+    row.click();
+    await settle(fixture);
+    const members = all(fixture, '.src.member');
+    expect(members.map((m) => m.querySelector('.name')!.textContent!.trim())).toEqual(['app.log', 'auth@srv2', 'billing@srv1']);
+    const billing = at(members, 2).getAttribute('title')!;
+    expect(billing).toContain('Split from web02/app.log by a profile route');
+    expect(billing).toContain('3 lines look like events but match no format (kept with the event above), first on line 12');
   });
 
   it('the sidebar shows a group row that expands, with state badges explained in words', async () => {
