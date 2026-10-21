@@ -1,4 +1,4 @@
-import { isTauri, onFilesDropped, pickExportPath, pickPaths, pickProfileToOpen, pickProfileToSave, Platform, saveDialogConfirmsOverwrite } from './platform';
+import { dropPoint, isTauri, onFilesDropped, pickExportPath, pickPaths, pickProfileToOpen, pickProfileToSave, Platform, saveDialogConfirmsOverwrite } from './platform';
 import { at } from '../../testing/must';
 
 // The engine shows the dialogs (`pick_paths`) and answers with the chosen paths. Tauri's IPC is stubbed at its
@@ -86,8 +86,14 @@ describe('platform (Tauri)', () => {
     webview.emit({ type: 'leave' });
     webview.emit({ type: 'drop', paths: [] });
     webview.emit({ type: 'drop', paths: ['/logs'] });
-    expect(hover.mock.calls.map((c) => c[0])).toEqual([true, true, false, false, false]);
-    expect(dropped).toHaveBeenCalledExactlyOnceWith(['/logs']);
+    webview.emit({ type: 'drop', paths: ['/shot.png'], position: { x: 40, y: 20 } });
+    expect(hover.mock.calls.map((c) => c[0])).toEqual([true, true, false, false, false, false]);
+    // Where it landed, in CSS pixels, so the shell can route it to the drop target there.
+    const scale = window.devicePixelRatio || 1;
+    expect(dropped.mock.calls).toEqual([
+      [['/logs'], null],
+      [['/shot.png'], { x: 40 / scale, y: 20 / scale }],
+    ]);
     expect(off).toBe(webview.unlisten);
   });
 });
@@ -145,3 +151,13 @@ describe('platform multi-file open dialog', () => {
     expect(await p.pickOpenPaths('Add', [])).toEqual([]);
   });
 });
+
+describe('dropPoint', () => {
+  it('turns the OS drop position into CSS pixels', () => {
+    expect(dropPoint({ x: 300, y: 150 }, 1.5)).toEqual({ x: 200, y: 100 });
+    expect(dropPoint({ x: 10, y: 20 }, 0)).toEqual({ x: 10, y: 20 });
+    expect(dropPoint({ x: Number.NaN, y: 1 }, 1)).toBeNull();
+    expect(dropPoint(null, 1)).toBeNull();
+  });
+});
+

@@ -724,6 +724,7 @@ fn main() {
     let loaded = rt
         .load(&LoadRequest {
             path: model.clone(),
+            projector: None,
             context,
             info: info.clone(),
             gpu: GpuMode::Auto,

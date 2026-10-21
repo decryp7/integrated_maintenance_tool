@@ -53,6 +53,9 @@ pub struct Profile {
     /// Runs between lifecycle markers (start … stop), paired per lane.
     #[serde(default)]
     pub span: Vec<crate::spans::SpanCfg>,
+    /// `[[route]]`: splits files into logical sources by event fields (log servers, shared files).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub route: Vec<crate::route::RouteCfg>,
 }
 
 /// `[[marker_override]]`: switches a marker kind off or changes its look.
@@ -129,6 +132,9 @@ pub struct JsonCfg {
 pub struct CsvCfg {
     pub delimiter: String,
     pub has_header: bool,
+    /// Column names for a file without a header row (missing or extra columns are `col<N>`).
+    #[serde(default)]
+    pub columns: Vec<String>,
     pub timestamp: String,
     pub level: String,
     pub message: String,
@@ -434,6 +440,9 @@ pub struct CompiledProfile {
     pub include: GlobSet,
     pub exclude: GlobSet,
     pub text_formats: Vec<TextFormat>,
+    /// All of `text_formats` in one set, to find the first format a line matches in one pass (`None` when
+    /// the set would exceed the regex size limit; the formats are then tried one by one).
+    pub text_format_set: Option<regex::RegexSet>,
     pub timestamps: TimestampParser,
     pub extractors: Vec<Extractor>,
     pub markers: Vec<Marker>,
@@ -443,6 +452,8 @@ pub struct CompiledProfile {
     pub icons: Vec<crate::icons::CustomIcon>,
     /// `[[span]]` rules, their marker bits resolved against `markers` (see [`CompiledProfile::resolve_spans`]).
     pub spans: Vec<crate::spans::SpanRule>,
+    /// `[[route]]` rules, in profile order.
+    pub routes: Vec<crate::route::Route>,
 }
 
 impl CompiledProfile {
@@ -461,9 +472,11 @@ impl CompiledProfile {
         let exclude = globs(&profile.files.exclude).context("files.exclude")?;
 
         let mut text_formats = Vec::new();
+        let mut patterns = Vec::new();
         for t in &profile.parse.output_templates {
-            let regex =
-                crate::user_regex::compile(&output_template_to_regex(t), false).with_context(|| format!("parse.output_templates: {t}"))?;
+            let pattern = output_template_to_regex(t);
+            let regex = crate::user_regex::compile(&pattern, false).with_context(|| format!("parse.output_templates: {t}"))?;
+            patterns.push(pattern);
             let time_only = !t.contains("{Timestamp:yyyy") && !t.contains("{Timestamp}") && t.contains("{Timestamp:");
             text_formats.push(TextFormat {
                 regex,
@@ -473,7 +486,9 @@ impl CompiledProfile {
         for r in &profile.parse.regexes {
             let regex = crate::user_regex::compile(r, false).with_context(|| format!("parse.regexes: {r}"))?;
             text_formats.push(TextFormat { regex, time_only: false });
+            patterns.push(r.clone());
         }
+        let text_format_set = crate::user_regex::compile_set(&patterns).ok();
 
         let timestamps = TimestampParser::new(
             &profile.parse.timestamp_formats,
@@ -550,8 +565,10 @@ impl CompiledProfile {
         crate::dashboard::validate_all(&profile.dashboard).context("[[dashboard]]")?;
         let mut spans = crate::spans::config::compile(&profile.span)?;
         crate::spans::config::resolve(&mut spans, &markers);
+        let routes = crate::route::compile_all(&profile.route)?;
 
         Ok(CompiledProfile {
+            routes,
             spans,
             icons,
             pipeline,
@@ -559,6 +576,7 @@ impl CompiledProfile {
             include,
             exclude,
             text_formats,
+            text_format_set,
             timestamps,
             extractors,
             markers,

@@ -1,11 +1,12 @@
 //! Research jobs (research mode, `imt_ai::browser::research`): the AI searches with the user's engine in the
 //! window's visible browser and reads the result pages by itself, read-only, as a job of kind `research` (one at
-//! a time, cancellable from the Jobs pane and the Web panel's Stop).
+//! a time, cancellable from the Jobs pane and the Browser panel's Stop).
 //!
 //! Started three ways: the model's `web_research` tool in a chat turn ([`TurnResearcher`], the turn waits for
-//! the job), "Research this" on an event or the chat's "Research…" ([`ai_research`], the answer becomes a turn of
-//! the chat and "Research finished · View answer" opens it), and Retry. The search text is checked by the leak
-//! guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
+//! the job; the model writes the search text itself), "Research this" on an event or the chat's "Research…"
+//! ([`ai_research_draft`] drafts the search text with the model and the user sees and edits it, then
+//! [`ai_research`] runs it and the answer becomes a turn of the chat), and Retry. The search text is checked by the
+//! leak guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
 
 use super::hub::BrowserHub;
 use super::page::TauriPage;
@@ -16,8 +17,8 @@ use crate::windows::{CurrentWindow, WindowState};
 use imt_ai::browser::policy::ScrollDirection;
 use imt_ai::browser::research::{self, ResearchEnv, ResearchModel, ResearchStep, WithModel};
 use imt_ai::browser::{
-    AgentLimits, BrowserError, ChatBrowser, CheckedQuery, Element, PageDriver, ResearchReport, ResearchRequest, ResearchSettings,
-    Researcher, WebUrl,
+    draft_or, AgentLimits, BrowserError, ChatBrowser, CheckedQuery, Drafted, Element, PageDriver, QueryDrafter, QuerySource,
+    ResearchReport, ResearchRequest, ResearchSettings, Researcher, WebUrl,
 };
 use imt_ai::{StoreAccess, StoreRef};
 use serde::{Deserialize, Serialize};
@@ -124,6 +125,7 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     let cancel = ctx.cancel_flag();
     let env = ResearchEnv {
         reader: &reader,
+        results: &reader,
         driver: &driver,
         search: hub.settings().search,
         log: &log,
@@ -193,8 +195,10 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
     }
 }
 
-/// The answer of a research started from a button: a turn of the chat (a new chat when it is busy).
-fn record_in_chat(
+/// The answer of a research started from a button: a turn of the chat (a new chat when it is busy). When nothing was
+/// found, the results page comes with it as a link card the user may open (noted as suggested in that chat).
+fn record_in_chat<R: Runtime>(
+    app: &AppHandle<R>,
     win: &Arc<WindowState>,
     emit: &crate::ai::commands::Emit,
     session: Option<&str>,
@@ -215,10 +219,20 @@ fn record_in_chat(
         }
     };
     let mut s = crate::sync::lock(&turn.session);
-    s.record_answer(&format!("Research: {question}"), &report.answer, report.sources(), &mut |e| {
-        chats.push_event(&sid, e);
-        emit(&sid, e);
-    });
+    let cards: Vec<_> = report.results_page_card().into_iter().collect();
+    if let (Some(url), Some(hub)) = (&report.results_page, app.try_state::<super::BrowserState>()) {
+        hub.note_suggested(win.label(), &sid, url);
+    }
+    s.record_answer_with(
+        &format!("Research: {question}"),
+        &report.answer,
+        report.sources(),
+        cards,
+        &mut |e| {
+            chats.push_event(&sid, e);
+            emit(&sid, e);
+        },
+    );
     let record = s.to_record();
     drop(s);
     chats.end_turn(&sid, record);
@@ -246,7 +260,7 @@ pub(crate) fn start<R: Runtime>(
     });
     jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
         let report = run_research(&a, w.label(), &req, ctx)?;
-        let sid = record_in_chat(&w, &emit, session.as_deref(), &req.question, &report)?;
+        let sid = record_in_chat(&a, &w, &emit, session.as_deref(), &req.question, &report)?;
         Ok(Done::new(()).with_result(JobResult::Chat { session_id: sid }))
     })
     .map_err(AiCmdError::busy)
@@ -325,6 +339,100 @@ fn prepare<R: Runtime>(
         query: checked.query,
         max_results: max,
     }))
+}
+
+/// How long the model may take to draft a search text before the engine's text is used.
+const DRAFT_TIMEOUT: Duration = Duration::from_secs(45);
+
+/// The question to research and its search text: drafted by the model from the question and the event (the engine's
+/// text when there is no model or its draft is unusable). Not yet checked by the leak guard. Runs the model: call off
+/// the main thread.
+pub(crate) fn draft_search<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &Arc<WindowState>,
+    question: Option<&str>,
+    record_id: Option<u32>,
+) -> AiResult<(String, Drafted)> {
+    let access = crate::ai::commands::WindowStore(win.clone());
+    let store: StoreRef<'_> = (&access as &dyn StoreAccess).into();
+    let event = match record_id {
+        Some(id) => Some(
+            store
+                .with(|s| imt_ai::browser::query::event_text_of(s, id))
+                .ok_or_else(|| AiCmdError::not_found(format!("there is no event #{id} in the loaded logs")))?,
+        ),
+        None => None,
+    };
+    let engine = record_id.and_then(|id| {
+        store
+            .with(|s| imt_ai::browser::query::search_for_event(s, id))
+            .ok()
+            .map(|q| q.query)
+    });
+    let question = match (question, &engine) {
+        (Some(q), _) => bounded("the question", q, MAX_QUESTION_CHARS)?,
+        (None, Some(q)) => format!("What does this error mean and how can it be fixed: {q}"),
+        (None, None) if event.is_some() => "What does this error mean and how can it be fixed?".to_string(),
+        (None, None) => return Err(AiCmdError::invalid("give the question to research")),
+    };
+    // Without an event, the search text used to be the question itself: it still is when the model cannot draft.
+    let fallback = engine.or_else(|| record_id.is_none().then(|| question.clone()));
+    let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let assistant = crate::ai::commands::core(app).ok().and_then(|c| c.assistant(cancel.clone()).ok());
+    let model = assistant.as_ref().map(WithModel);
+    let timer = cancel.clone();
+    std::thread::spawn(move || {
+        SLEEP(DRAFT_TIMEOUT);
+        timer.store(true, std::sync::atomic::Ordering::Relaxed);
+    });
+    let drafted = draft_or(model.as_ref().map(|m| m as &dyn QueryDrafter), &question, event.as_ref(), || {
+        fallback
+    })
+    .ok_or_else(|| AiCmdError::not_found("there is nothing to search for in this event"))?;
+    Ok((question, drafted))
+}
+
+/// What "Research this" shows before anything is searched: the question and the drafted search text with what the
+/// leak guard found in it. The user edits it, then `ai_research` runs it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResearchDraft {
+    pub question: String,
+    pub checked: CheckedQuery,
+    /// Who wrote the search text.
+    pub source: QuerySource,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftArgs {
+    /// What to find out; defaults to one about the event.
+    pub question: Option<String>,
+    /// The event to research.
+    pub record_id: Option<u32>,
+}
+
+/// "Research this": the model drafts the search text from the question and the event (fallback: the engine's text),
+/// the leak guard checks it, and the user sees and edits it before the research runs.
+#[tauri::command]
+pub async fn ai_research_draft<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, args: DraftArgs) -> AiResult<ResearchDraft> {
+    if let Some(q) = &args.question {
+        bounded("the question", q, MAX_QUESTION_CHARS)?;
+    }
+    let w = win.arc().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (question, drafted) = draft_search(&app, &w, args.question.as_deref(), args.record_id)?;
+        let access = crate::ai::commands::WindowStore(w.clone());
+        let checked =
+            imt_ai::browser::check_store_query((&access as &dyn StoreAccess).into(), &drafted.query).map_err(AiCmdError::invalid)?;
+        Ok(ResearchDraft {
+            question,
+            checked,
+            source: drafted.source,
+        })
+    })
+    .await
+    .map_err(|e| AiCmdError::new(AiErrorCode::Engine, format!("the search text was not drafted ({e})")))?
 }
 
 /// "Research this" (an event, the inspector) and the chat's "Research…": starts a research job whose answer

@@ -4,7 +4,7 @@ import { ImportProgress, WorkspaceSummary } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
-import { fileName, formatBytes, formatEta, percent, progressLine } from './import-format';
+import { fileName, percent, progressLine } from './import-format';
 import { ImportProgressService, jobImportProgress, LONG_IMPORT_MS } from './import-progress.service';
 import { JobsStore } from '../jobs/jobs.store';
 import { JobInfo } from '../jobs/jobs.types';
@@ -26,24 +26,13 @@ const p = (patch: Partial<ImportProgress> = {}): ImportProgress => ({
 
 describe('import formatting', () => {
   it('formats bytes, ETA, file names, percent and the line', () => {
-    expect(formatBytes(999)).toBe('999 B');
-    expect(formatBytes(1500)).toBe('1.5 KB');
-    expect(formatBytes(24_000_000)).toBe('24 MB');
-    expect(formatBytes(5e15)).toBe('5000 TB');
-    expect(formatEta(null)).toBe('');
-    expect(formatEta(-1)).toBe('');
-    expect(formatEta(Infinity)).toBe('');
-    expect(formatEta(500)).toBe('almost done');
-    expect(formatEta(12_000)).toBe('about 12 s left');
-    expect(formatEta(150_000)).toBe('about 3 min left');
-    expect(formatEta(7_200_000)).toBe('about 2.0 h left');
     expect(fileName(null)).toBe('');
     expect(fileName('C:\\logs\\a.log')).toBe('a.log');
     expect(fileName('/')).toBe('/');
     expect(percent(p())).toBe(30);
     expect(percent(p({ bytesTotal: 0 }))).toBe(25);
     expect(percent(p({ bytesTotal: 0, total: 0 }))).toBe(0);
-    expect(progressLine(p())).toBe('3 of 12 files · 24 MB of 80 MB · about 12 s left');
+    expect(progressLine(p())).toBe('3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(progressLine(p({ total: 1, done: 0, bytesTotal: 0, etaMs: null }))).toBe('0 of 1 file');
   });
 
@@ -84,7 +73,7 @@ function importJob(id: number, progress: Partial<JobInfo['progress']> = {}, patc
     title: 'Open /big',
     source: { window: 'main', link: null },
     state: 'running',
-    progress: { fraction: 0.3, done: 3, total: 12, etaMs: 12_000, bytesDone: 24_000_000, bytesTotal: 80_000_000, current: '/logs/web01/app.log', ...progress },
+    progress: { fraction: 0.3, done: 3, total: 12, etaMs: 12_000, unit: 'items', bytesDone: 24_000_000, bytesTotal: 80_000_000, current: '/logs/web01/app.log', ...progress },
     message: null,
     queuedAt: 0,
     startedAt: 0,
@@ -139,7 +128,7 @@ describe('ImportProgressService and its widgets', () => {
     // The job's progress (imt://jobs) drives the widgets: no import_progress polling while it runs.
     jobs.apply({ jobs: [importJob(5, { done: 1 }, { kind: 'export', title: 'Export' }), importJob(7)], paused: [] });
     status.detectChanges();
-    expect(text(status)).toContain('Importing 3 of 12 files · 24 MB of 80 MB · about 12 s left');
+    expect(text(status)).toContain('Importing 3 of 12 files · 23 MB of 76 MB · less than a minute left');
     expect(text(status)).toContain('app.log');
     const bar = status.nativeElement.querySelector('[role=progressbar]') as HTMLElement;
     expect(bar.getAttribute('aria-valuenow')).toBe('30');

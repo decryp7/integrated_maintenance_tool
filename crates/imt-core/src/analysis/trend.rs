@@ -201,18 +201,13 @@ fn judge(place: &str, name: &str, s: &Series, cfg: &TrendConfig) -> Option<Anoma
     })
 }
 
-/// "1.8 GB", "512 MB", "40 KB", "12 B".
+/// "1.8 GB", "512 MB", "40 KB", "12 bytes" (the shared rules of `imt_plugin_api::units`).
 fn fmt_bytes(v: f64) -> String {
-    const KB: f64 = 1024.0;
-    let a = v.abs();
-    if a >= MB * 1024.0 {
-        format!("{:.1} GB", v / (MB * 1024.0))
-    } else if a >= MB {
-        format!("{} MB", fmt_num(v / MB))
-    } else if a >= KB {
-        format!("{} KB", fmt_num(v / KB))
+    let text = imt_plugin_api::units::bytes(v.abs().round() as u64);
+    if v < 0.0 {
+        format!("-{text}")
     } else {
-        format!("{} B", fmt_num(v))
+        text
     }
 }
 
@@ -222,10 +217,10 @@ mod tests {
 
     #[test]
     fn formats_bytes() {
-        assert_eq!(fmt_bytes(2.0 * MB * 1024.0), "2.0 GB");
+        assert_eq!(fmt_bytes(2.0 * MB * 1024.0), "2 GB");
         assert_eq!(fmt_bytes(18.0 * MB), "18 MB");
         assert_eq!(fmt_bytes(2048.0), "2 KB");
-        assert_eq!(fmt_bytes(12.0), "12 B");
+        assert_eq!(fmt_bytes(12.0), "12 bytes");
     }
 
     #[test]

@@ -7,9 +7,14 @@
 //! `IMT_BENCH_IMPORT_LINES` (lines per importer input, default 250 000) and
 //! `IMT_BENCH_WORKSPACE_LINES` (lines per workspace file, default 100 000).
 
+// The app's allocator (`app/src-tauri/src/main.rs`), so the numbers are the shipped ones.
+#[global_allocator]
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use imt_core::importers::{ImportCtx, Importers};
 use imt_core::model::Level;
+use imt_core::patterns::{MinerConfig, PatternMiner};
 use imt_core::profile::CompiledProfile;
 use imt_core::query::Query;
 use imt_core::workspace::{ChartRequest, FacetRequest, PageRequest, TimelineRequest};
@@ -24,6 +29,8 @@ const SAMPLES: &[(&str, &str, &str, usize)] = &[
     ("serilog-text", "serilog-text/worker01/worker-20261014.txt", "text", 0),
     ("log4net", "log4net/legacy-billing/billing.log.2026-10-14", "text", 0),
     ("csv", "csv/perfmon-export.csv", "csv", 1),
+    // A log server's file: three products, three formats (Serilog text, log4net, CLEF lines) line by line.
+    ("logserver", "linux/logserver01/apps-20261014.log", "text", 1),
 ];
 
 fn samples() -> PathBuf {
@@ -61,6 +68,7 @@ fn scaled(rel: &str, header: usize, lines: usize) -> (String, usize) {
 }
 
 fn import(c: &mut Criterion) {
+    imt_alloc::tune();
     let lines = env_lines("IMT_BENCH_IMPORT_LINES", 250_000);
     let profile = CompiledProfile::compile(Profile::default_profile()).expect("default profile compiles");
     let importers = Importers::new();
@@ -118,6 +126,7 @@ impl Drop for ScaledFiles {
 }
 
 fn queries(c: &mut Criterion) {
+    imt_alloc::tune();
     let lines = env_lines("IMT_BENCH_WORKSPACE_LINES", 100_000);
     let files = ScaledFiles::write(lines);
     let mut ws = Workspace::new(Profile::default_profile()).expect("default profile");
@@ -191,6 +200,20 @@ fn queries(c: &mut Criterion) {
             b.iter(|| black_box(ws.chart(black_box(&req)).expect("chart").series.len()))
         });
     }
+    // Analyses whose per-event loops are maps keyed by log content.
+    let all = imt_core::api::QueryRequest { query: Query::default() };
+    group.bench_function("analysis/exceptions", |b| {
+        b.iter(|| black_box(ws.exception_groups(black_box(&all)).expect("exceptions").len()))
+    });
+    group.bench_function("analysis/patterns", |b| {
+        b.iter(|| {
+            let mut miner = PatternMiner::new(MinerConfig::default());
+            for r in ws.records() {
+                miner.add(r);
+            }
+            black_box(miner.overflowed())
+        })
+    });
     group.finish();
 }
 

@@ -291,14 +291,9 @@ fn read_events<R: Read + Seek>(
         }
         PlanKind::Text { format, day_first, .. } => {
             reader.seek(SeekFrom::Start(plan.data_start))?;
-            let fmt = ctx
-                .profile
-                .text_formats
-                .get(format)
-                .ok_or_else(|| anyhow!("text format {format} is not in the profile"))?;
             let mut chunks = ReaderChunks::new(reader, plan.encoding, plan.data_start);
             let mut lines = LineReader::new(&mut chunks);
-            text::import_text(ctx, fmt, day_first, &mut lines, &mut batcher)?
+            text::import_text(ctx, format, day_first, &mut lines, &mut batcher)?
         }
         PlanKind::Json(shape) => {
             reader.seek(SeekFrom::Start(plan.data_start))?;

@@ -91,10 +91,12 @@ impl AppState {
             load_profile(self.profile_dir.as_ref(), &registry)
         };
         let profiling = crate::profiling::ProfilingSlot::from_registry(&registry);
+        let dumps = crate::dumps::DumpsSlot::from_registry(&registry);
         let host = Host::new(registry, profile.clone())?;
         let engine = Engine::new(self.stores.clone(), self.store_root.clone(), label, profile);
         let mut state = WindowState::new(label, engine, host, doc);
         state.profiling = profiling;
+        state.dumps = dumps;
         Ok(state)
     }
 

@@ -106,7 +106,6 @@ The built-in browser demo (`npm start`, below) loads similar data without instal
 | [docs/design.md](docs/design.md) | All design diagrams on one page |
 | [docs/plugins.md](docs/plugins.md) | Extending IMT: profiles, Rust plugins, UI plugins, process plugins |
 | [docs/profiling.md](docs/profiling.md) | The profiling engine and its views |
-| [docs/dotnet-profiling-plan.md](docs/dotnet-profiling-plan.md) | Plan for the .NET profiler collectors |
 | [docs/development.md](docs/development.md) | Building, packaging, testing, CI/CD and the project layout |
 | [docs/releasing.md](docs/releasing.md) | Releases and signed updates |
 | [docs/testing-manual.md](docs/testing-manual.md) | Manual tests that need a real desktop |

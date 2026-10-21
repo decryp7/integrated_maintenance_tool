@@ -91,7 +91,7 @@ fn handles_use_a_count_floor() {
     assert!(
         found[0]
             .message
-            .starts_with("HandleCount on A grew 1180 over 59 min 0 s (~20/min, R² 1.00)"),
+            .starts_with("HandleCount on A grew 1180 over 59 min (~20/min, R² 1.00)"),
         "{}",
         found[0].message
     );

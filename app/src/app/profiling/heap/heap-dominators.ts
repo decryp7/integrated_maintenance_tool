@@ -1,3 +1,4 @@
+import { formatExactBytes } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal, untracked } from '@angular/core';
 import { HeapObjectRow } from '../../core/api.types';
 import { formatCount } from '../../core/format';
@@ -60,8 +61,8 @@ export function flattenDominators(levels: ReadonlyMap<number | null, Level>, exp
                   <span class="tw" aria-hidden="true" (click)="toggle(r.row)">{{ r.row.childCount ? (r.expanded ? '▾' : '▸') : '' }}</span>
                   <span class="ellipsis">{{ r.row.typeName }}</span> <span class="faint mono">&#64;{{ r.row.object }}</span>
                 </span></td>
-                <td role="gridcell" class="num">{{ bytes(r.row.retained) }}</td>
-                <td role="gridcell" class="num">{{ bytes(r.row.shallow) }}</td>
+                <td role="gridcell" class="num" [title]="exact(r.row.retained)">{{ bytes(r.row.retained) }}</td>
+                <td role="gridcell" class="num" [title]="exact(r.row.shallow)">{{ bytes(r.row.shallow) }}</td>
                 <td role="gridcell" class="num">{{ count(r.row.childCount) }}</td>
                 <td role="gridcell"><button class="mini" type="button" [attr.aria-label]="whyLabel(r.row.typeName, r.row.object)" (click)="sel.showPaths(r.row.object, r.row.typeName)" i18n="@@profiling.heapDominators.paths">Paths to roots</button></td>
               </tr>
@@ -102,6 +103,7 @@ export class HeapDominators {
   protected readonly focus = signal(0);
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
   protected readonly top = computed<Level>(() => this.levels().get(null) ?? { rows: [], total: 0, loading: true, error: null });
   protected readonly rows = computed(() => flattenDominators(this.levels(), this.expanded()));
   /** Loading/error lines of expanded levels. */

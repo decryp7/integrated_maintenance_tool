@@ -63,18 +63,9 @@ pub(crate) mod util {
         format!("{:02}:{:02}:{:02}", s / 3600, s % 3600 / 60, s % 60)
     }
 
-    /// "850 ms", "46 s", "2 min 5 s", "1 h 5 min".
+    /// "850 ms", "46 s", "2 min 5 s", "1 h 5 min" (the shared rules of `imt_plugin_api::units`).
     pub fn fmt_duration(ms: i64) -> String {
-        let s = ms / 1000;
-        if ms < 1000 {
-            format!("{ms} ms")
-        } else if s < 60 {
-            format!("{s} s")
-        } else if s < 3600 {
-            format!("{} min {} s", s / 60, s % 60)
-        } else {
-            format!("{} h {} min", s / 3600, s % 3600 / 60)
-        }
+        imt_plugin_api::units::duration_ms(ms.max(0).unsigned_abs())
     }
 
     /// Short number: whole when large, otherwise up to two decimals.

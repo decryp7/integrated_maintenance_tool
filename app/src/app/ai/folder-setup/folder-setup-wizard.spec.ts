@@ -62,7 +62,7 @@ describe('FolderSetupWizard', () => {
     expect(el.querySelector('[role="progressbar"]')).toBeTruthy();
     expect(el.querySelector('[aria-current="step"]')!.textContent).toContain('Survey');
     await until(fixture, () => !!q('review'));
-    expect(q('survey-facts')!.textContent).toContain('Sampled 9820 of 9820 events');
+    expect(q('survey-facts')!.textContent).toContain('Sampled 9,820 of 9,820 events');
     expect(el.querySelector('[aria-current="step"]')!.textContent).toContain('Proposals');
     expect(el.querySelectorAll('fieldset legend')[0]!.textContent).toBe('Instances and lanes');
     // Without AI: the note says how to get better proposals.

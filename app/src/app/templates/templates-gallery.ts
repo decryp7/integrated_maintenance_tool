@@ -1,3 +1,4 @@
+import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, signal, untracked } from '@angular/core';
 import { ParsePreview, ProfileTemplate } from '../core/api.types';
 import { ImtBackend } from '../core/backend';
@@ -74,7 +75,7 @@ export const TEMPLATE_PREVIEW_ROWS = 20;
                 } @else if (!p.total) {
                   <span class="err">{{ noEventsText(p.skipped) }}</span>
                 } @else {
-                  <ng-container i18n="@@templates.gallery.reads">Reads <strong>{{ p.total }}</strong> {p.total, plural, =1 {event} other {events}} from {{ sampleLabel() }}</ng-container>@if (p.skipped) {<ng-container i18n="@@templates.gallery.skipped">; {p.skipped, plural, =1 {{{ p.skipped }} line} other {{{ p.skipped }} lines}} not understood</ng-container>}.
+                  <ng-container i18n="@@templates.gallery.reads">Reads <strong>{{ fmt(p.total) }}</strong> {p.total, plural, =1 {event} other {events}} from {{ sampleLabel() }}</ng-container>@if (p.skipped) {<ng-container i18n="@@templates.gallery.skipped">; {p.skipped, plural, =1 {{{ p.skipped }} line} other {{{ p.skipped }} lines}} not understood</ng-container>}.
                 }
               }
             </div>
@@ -132,6 +133,7 @@ export const TEMPLATE_PREVIEW_ROWS = 20;
   `,
 })
 export class TemplatesGallery implements OnInit {
+  protected readonly fmt = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly ux = inject(UxBackend);
   private readonly backend = inject(ImtBackend);

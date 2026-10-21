@@ -122,20 +122,37 @@ pub enum PluginRequest {
         content: HostFileRef,
         limits: Json,
     },
+    /// → `u8`.
+    SniffDocument {
+        importer: Arc<str>,
+        file_name: String,
+        head: Vec<u8>,
+    },
+    /// Items: pieces (`Vec<u8>`) of the document, encoded by the plugin's document library; → [`DocumentDone`].
+    /// The plugin reads `content` by ranges.
+    ImportDocument {
+        importer: Arc<str>,
+        file_name: String,
+        content: HostFileRef,
+        options: Json,
+    },
 }
 
 /// The end of an import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportDone {
     pub skipped: u64,
+    /// The importer's aggregated problems ([`crate::importer::Imported::problems`]).
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a live-tail import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TailDone {
     /// `false`: the importer cannot append; the host re-imports the whole file.
     pub supported: bool,
     pub skipped: u64,
+    pub problems: Vec<crate::problems::Problem>,
 }
 
 /// The end of a profile import: the capture's encoded size and whether it is a heap snapshot.
@@ -143,6 +160,12 @@ pub struct TailDone {
 pub struct ProfileDone {
     pub bytes: u64,
     pub heap: bool,
+}
+
+/// The end of a document import: the encoded document's size.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocumentDone {
+    pub bytes: u64,
 }
 
 /// A failed tool call.

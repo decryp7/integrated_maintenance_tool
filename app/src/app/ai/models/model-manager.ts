@@ -11,12 +11,13 @@ import { Platform } from '../../core/platform';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
-import { fitLabel, formatBytes } from '../ai-format';
+import { fitLabel, formatBytes, visionLabel } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { InstalledModel, Recommendation, SetupEvent } from '../ai.types';
 import { AiRuntimePanel } from '../runtimes/runtime-panel';
 import { AiSetupWizard } from '../setup/setup-wizard';
 import { stageLabel, RunningStage } from '../setup/wizard';
+import { JobFollow } from '../../jobs/job-follow';
 
 const ENGINE_STATE: Record<string, string> = {
   unavailable: $localize`:@@ai.models.state.unavailable:Unavailable`,
@@ -118,11 +119,40 @@ const ENGINE_STATE: Record<string, string> = {
                     <ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>
                   }
                 </span>
+                <span class="facts" data-testid="ai-model-vision">{{ visionLabel(m.vision) }}@if (m.projector; as p) { · {{ p.fileName }} ({{ size(p.sizeBytes) }})}</span>
                 @if (m.problem) {
                   <span class="err">{{ m.problem }}</span>
                 }
+                @if (m.projector?.problem; as pp) {
+                  <span class="err">{{ pp }}</span>
+                }
               </div>
               <div class="actions">
+                @if (!m.vision && m.projectorDownloadBytes !== null) {
+                  <button
+                    type="button"
+                    class="btn"
+                    data-testid="ai-add-image-support"
+                    [disabled]="busy() || projectorRunning() === m.fileName"
+                    (click)="addImageSupport(m)"
+                    i18n="@@ai.vision.models.addSupport"
+                  >
+                    Add image support ({{ size(m.projectorDownloadBytes) }})
+                  </button>
+                }
+                @if (!m.vision) {
+                  <button
+                    type="button"
+                    class="btn ghost"
+                    data-testid="ai-add-projector"
+                    [disabled]="busy()"
+                    (click)="addProjectorFile(m)"
+                    [attr.aria-label]="addProjectorLabel(m)"
+                    i18n="@@ai.vision.models.addProjector"
+                  >
+                    Add projector file…
+                  </button>
+                }
                 @if (!m.active) {
                   <button
                     type="button"
@@ -168,8 +198,11 @@ const ENGINE_STATE: Record<string, string> = {
               >
               <span class="facts"
                 >{{ size(r.model.sizeBytes) }} · {{ r.model.license
-                }}@if (r.model.toolCalling) {<ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>}</span
+                }}@if (r.model.toolCalling) {<ng-container i18n="@@ai.models.toolCalling"> · tool calling</ng-container>} · {{ visionLabel(!!r.model.projector) }}</span
               >
+              @if (r.model.notes) {
+                <span class="facts notes" data-testid="ai-catalog-notes">{{ r.model.notes }}</span>
+              }
             </div>
             <div class="actions">
               <button
@@ -243,6 +276,9 @@ const ENGINE_STATE: Record<string, string> = {
       color: var(--text-2);
       overflow-wrap: anywhere;
     }
+    .notes {
+      color: var(--muted);
+    }
     .actions {
       display: flex;
       gap: 6px;
@@ -290,6 +326,10 @@ export class AiModelManager implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly progress = signal('');
+  /** The model whose image support is downloading. */
+  readonly projectorRunning = signal<string | null>(null);
+  private readonly follow = inject(JobFollow);
+  protected readonly visionLabel = visionLabel;
 
   protected readonly others = computed(() => {
     const have = new Set(this.models().map((m) => m.fileName));
@@ -407,6 +447,50 @@ export class AiModelManager implements OnInit {
     try {
       const m = await this.backend.addLocalModel(path);
       this.progress.set($localize`:@@ai.models.added:${m.name}:name: was added. Choose Use to make it active.`);
+      await this.load();
+    } catch (e) {
+      this.error.set(toAiError(e).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected addProjectorLabel(m: InstalledModel): string {
+    return $localize`:@@ai.vision.models.addProjectorLabel:Add a projector file for ${m.name}:name:`;
+  }
+
+  /** "Add image support": the catalog projector as a download job (only when the user asks). */
+  async addImageSupport(m: InstalledModel): Promise<void> {
+    this.error.set(null);
+    this.projectorRunning.set(m.fileName);
+    try {
+      const id = await this.backend.installProjector(m.fileName);
+      this.progress.set($localize`:@@ai.vision.models.downloading:Downloading image support for ${m.name}:name: — running in Jobs`);
+      const end = await this.follow.follow(id, this.destroyRef);
+      if (!end) return;
+      await this.status.refresh();
+      await this.load();
+      if (end.state === 'failed') this.error.set(end.error ?? $localize`:@@ai.vision.projector.failed:The download failed.`);
+      else if (end.state === 'done') this.progress.set($localize`:@@ai.vision.models.added:${m.name}:name: now reads images.`);
+    } catch (e) {
+      this.error.set(toAiError(e).message);
+    } finally {
+      this.projectorRunning.set(null);
+    }
+  }
+
+  /** A projector file the user chose for an installed model (the engine checks it fits). */
+  async addProjectorFile(m: InstalledModel): Promise<void> {
+    const path = await this.platform.pickOpenPath($localize`:@@ai.vision.models.pickProjector:Add an image projector (mmproj GGUF)`, [
+      { name: $localize`:@@ai.vision.models.projectorFilter:Image projector`, extensions: ['gguf'] },
+    ]);
+    if (!path) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const added = await this.backend.addProjector(m.fileName, path);
+      this.progress.set($localize`:@@ai.vision.models.added:${added.name}:name: now reads images.`);
+      await this.status.refresh();
       await this.load();
     } catch (e) {
       this.error.set(toAiError(e).message);

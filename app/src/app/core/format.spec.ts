@@ -60,8 +60,8 @@ describe('format', () => {
   it('formats durations', () => {
     expect(formatDuration(500)).toBe('500 ms');
     expect(formatDuration(1500)).toBe('1.5 s');
-    expect(formatDuration(90_000)).toBe('1.5 min');
-    expect(formatDuration(5_400_000)).toBe('1.5 h');
+    expect(formatDuration(90_000)).toBe('1 min 30 s');
+    expect(formatDuration(5_400_000)).toBe('1 h 30 min');
     expect(formatDuration(2 * 86_400_000)).toBe('2 d');
   });
 

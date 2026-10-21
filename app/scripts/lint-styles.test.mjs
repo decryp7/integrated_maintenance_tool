@@ -52,7 +52,7 @@ test('reads component styles (single and arrays) and style modules with their li
 });
 
 test('skips allow-listed files and the template markup', () => {
-  assert.deepEqual(fileProblems('app/browser/ai-browsing-banner.ts', 'styles: `a { color: #fff; }`'), []);
+  assert.deepEqual(fileProblems('app/help/cheat-sheet.ts', 'styles: `a { color: #fff; }`'), []);
   assert.deepEqual(fileProblems('app/y.ts', 'template: `<svg fill="#fff"></svg>`'), []);
 });
 

@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish = false
-description = "IMT's store worker (ADR 0014): hosts the DuckDB stores and their full-text indexes in a supervised child process, and the thin client that implements the store ports over imt-ipc"
+description = "IMT's store worker (ADR 0014): hosts the DuckDB stores and their full-text indexes in a supervised child process (the client is imt-store-client)"
 
 [lib]
 name = "imt_store_worker"
@@ -17,6 +17,7 @@ name = "imt-store-worker"
 path = "src/main.rs"
 
 [dependencies]
+imt-alloc = { path = "../imt-alloc" }
 imt-core = { path = "../imt-core" }
 imt-ipc = { path = "../imt-ipc" }
 imt-store-client = { path = "../imt-store-client" }

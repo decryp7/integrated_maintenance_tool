@@ -59,7 +59,7 @@ describe('TitleBar', () => {
   it('runs menu commands', async () => {
     const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
-    expect(text(fixture)).toContain('Indexed');
+    expect(text(fixture)).toMatch(/Indexed · \d+(\.\d)? (ms|s|min)/);
     await choose(fixture, 'View', 'Explorer');
     expect(store.sidebarOpen()).toBe(false);
     await choose(fixture, 'View', 'Metrics');
@@ -225,6 +225,7 @@ describe('StatusBar', () => {
     expect(text(fixture)).toContain('2 sources');
     expect(text(fixture)).toContain('11 events');
     expect(el(fixture, '[data-testid=status-untimed]').textContent).toContain('1 without a time');
+    expect(text(fixture)).toMatch(/\d+ instances/);
     expect(text(fixture)).toContain('3 matching');
     expect(text(fixture)).toContain('Importers: json · text');
     el<HTMLButtonElement>(fixture, '.tz').click();

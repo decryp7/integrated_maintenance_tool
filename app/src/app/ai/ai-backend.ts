@@ -24,7 +24,10 @@ import {
   SetupEvent,
   SetupPlan,
   AiStartRequest,
+  AiImage,
+  DraftArgs,
   ResearchArgs,
+  ResearchDraft,
   ResearchStarted,
 } from './ai.types';
 
@@ -74,6 +77,11 @@ export abstract class AiBackend {
   abstract activateModel(fileName: string): Promise<void>;
   abstract deleteModel(fileName: string): Promise<void>;
   abstract addLocalModel(path: string): Promise<InstalledModel>;
+  /** "Add image support": downloads the catalog projector of an installed model as a download job (resolves with its
+   * id). Never called without the user asking. */
+  abstract installProjector(fileName: string): Promise<number>;
+  /** Adds a projector file the user chose for an installed model (checked like a download). */
+  abstract addProjector(fileName: string, path: string): Promise<InstalledModel>;
   abstract reset(): Promise<AiStatus>;
 
   /** The inference runtimes (llama-server builds) for this platform: installed, usable, suggested, active. */
@@ -111,6 +119,9 @@ export abstract class AiBackend {
   /** Web research ("Research this", the chat's "Research…"): a research job whose answer becomes a chat turn, or a
    * search text with workspace data to confirm first. */
   abstract research(args: ResearchArgs): Promise<ResearchStarted>;
+  /** "Research this": the model drafts the search text from the question and the event (the engine's text without a
+   * model); the leak guard checks it. Nothing is searched: the user sees and edits it first. */
+  abstract researchDraft(args: DraftArgs): Promise<ResearchDraft>;
   /** Stops this window's running use cases. */
   abstract cancel(): Promise<number>;
 
@@ -118,8 +129,16 @@ export abstract class AiBackend {
   abstract chatNew(): Promise<SessionInfo>;
   abstract chatGet(sessionId: string): Promise<ChatRecord>;
   abstract chatDelete(sessionId: string): Promise<boolean>;
-  /** Starts a turn as an AI job (resolves with its id); the answer streams through `onChat` once it runs. */
-  abstract chatSend(sessionId: string, text: string, context: ChatContext): Promise<number>;
+  /** Starts a turn as an AI job (resolves with its id); the answer streams through `onChat` once it runs. `images`
+   * are open images (`imageOpen`, `imagePaste`) shown to the model with the question (ADR 0025). */
+  abstract chatSend(sessionId: string, text: string, context: ChatContext, images?: number[]): Promise<number>;
+
+  /** Opens an image file the user chose or the Explorer lists: Rust decodes it and returns the clean copy. */
+  abstract imageOpen(path: string): Promise<AiImage>;
+  /** Opens pasted or dropped image bytes (base64; the webview does not decode them). */
+  abstract imagePaste(data: string, name?: string | null): Promise<AiImage>;
+  /** Forgets an open image. */
+  abstract imageClose(id: number): Promise<boolean>;
   abstract chatCancel(sessionId: string): Promise<boolean>;
   abstract chatEventsSince(sessionId: string, seq: number): Promise<ChatEnvelope[] | null>;
   abstract chatHistory(): Promise<ChatHistoryRecord>;

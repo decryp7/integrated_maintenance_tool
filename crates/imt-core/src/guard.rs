@@ -203,18 +203,9 @@ impl Budgets {
     }
 }
 
-/// "120 s", "1.5 s", "250 ms".
+/// "2 min", "1.5 s", "250 ms" (the shared rules of `imt_plugin_api::units`).
 pub(crate) fn fmt_duration(d: Duration) -> String {
-    if d >= Duration::from_secs(1) {
-        let s = d.as_secs_f64();
-        if s.fract() == 0.0 {
-            format!("{s:.0} s")
-        } else {
-            format!("{s:.1} s")
-        }
-    } else {
-        format!("{} ms", d.as_millis())
-    }
+    imt_plugin_api::units::duration_ms(u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -620,6 +611,10 @@ impl Importer for GuardedImporter {
         // When in doubt, re-read from the last record start (always correct).
         self.guard.quiet(CallKind::Tail, "multiline", true, || self.inner.multiline())
     }
+    fn identity_fields(&self) -> Vec<String> {
+        self.guard
+            .quiet(CallKind::Sniff, "identity_fields", Vec::new(), || self.inner.identity_fields())
+    }
 }
 
 pub struct GuardedBinaryImporter {
@@ -630,6 +625,10 @@ pub struct GuardedBinaryImporter {
 impl BinaryImporter for GuardedBinaryImporter {
     fn id(&self) -> &str {
         self.inner.id()
+    }
+    fn identity_fields(&self) -> Vec<String> {
+        self.guard
+            .quiet(CallKind::Sniff, "identity_fields", Vec::new(), || self.inner.identity_fields())
     }
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {
         self.guard.quiet(CallKind::Sniff, "sniff", 0, || self.inner.sniff(ctx, head))

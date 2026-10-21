@@ -15,7 +15,7 @@ use crate::windows::{emit_to_window, label_order, queue_open, CurrentWindow, Win
 use crate::{err, CmdResult};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
-use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, Window, WindowEvent};
 
 pub const WINDOWS_EVENT: &str = "imt://windows-changed";
 pub const CLOSE_REQUESTED_EVENT: &str = "imt://close-requested";
@@ -75,16 +75,16 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
-/// Pop-out panels, browser windows and their banners belong to an IMT window; they are not windows of their own.
+/// Pop-out panels and the browser's page window (Linux) belong to an IMT window; they are not windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
-    panel_windows::is_popout(label) || crate::browser::is_browser_label(label) || crate::browser::is_banner_label(label)
+    panel_windows::is_popout(label) || crate::browser::is_browser_label(label)
 }
 
 /// The open windows, `main` first.
 pub fn list<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowInfo> {
     let windows = app.try_state::<Windows>();
     let mut out: Vec<WindowInfo> = app
-        .webview_windows()
+        .windows()
         .into_iter()
         .filter(|(label, _)| !is_auxiliary(label))
         .map(|(label, w)| {
@@ -123,7 +123,7 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 /// `tests/window_commands.rs` enforces this.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
     let windows = app.try_state::<Windows>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
-    if app.webview_windows().keys().filter(|l| !is_auxiliary(l)).count() >= MAX_WINDOWS {
+    if app.windows().keys().filter(|l| !is_auxiliary(l)).count() >= MAX_WINDOWS {
         anyhow::bail!("IMT already has {MAX_WINDOWS} windows open; close one first");
     }
     let label = windows.next_label();
@@ -144,21 +144,21 @@ pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow:
     }
     crate::window_scoped::created(app, &label);
     windows.note_focus(&label);
-    log::info!(Windows = app.webview_windows().len() as u64; "Window opened");
+    log::info!(Windows = app.windows().len() as u64; "Window opened");
     changed(app);
     Ok(label)
 }
 
 /// Shows, restores and focuses a window.
 pub fn reveal<R: Runtime>(app: &AppHandle<R>, label: &str) -> CmdResult<()> {
-    let w = app.get_webview_window(label).ok_or("this window was closed")?;
+    let w = app.get_window(label).ok_or("this window was closed")?;
     show(&w);
     panel_windows::set_visible(app, label, true);
     changed(app);
     Ok(())
 }
 
-fn show<R: Runtime>(w: &WebviewWindow<R>) {
+fn show<R: Runtime>(w: &Window<R>) {
     let _ = w.show();
     let _ = w.unminimize();
     let _ = w.set_focus();
@@ -169,8 +169,8 @@ pub fn target<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
     let windows = app.try_state::<Windows>()?;
     windows
         .last_focused()
-        .filter(|l| app.get_webview_window(l).is_some())
-        .or_else(|| app.get_webview_window(MAIN).map(|_| MAIN.to_string()))
+        .filter(|l| app.get_window(l).is_some())
+        .or_else(|| app.get_window(MAIN).map(|_| MAIN.to_string()))
         .or_else(|| list(app).into_iter().next().map(|w| w.label))
 }
 
@@ -209,7 +209,7 @@ fn begin_quit<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.try_state::<Windows>() {
         w.set_exiting();
     }
-    log::info!(Windows = app.webview_windows().len() as u64; "Quit requested");
+    log::info!(Windows = app.windows().len() as u64; "Quit requested");
 }
 
 /// Tells the user an import finished in a window that is not in front.
@@ -227,7 +227,7 @@ pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, events: u64)
     };
     let (label, body) = (label.to_string(), format!("{events} events loaded in {place}."));
     crate::ui_dispatch::run(app, move |app| {
-        let Some(w) = app.get_webview_window(&label) else { return };
+        let Some(w) = app.get_window(&label) else { return };
         let seen = w.is_focused().unwrap_or(false) && w.is_visible().unwrap_or(false);
         notify(app, NotificationKind::ImportFinished, seen, "Import finished", &body);
     });
@@ -290,9 +290,12 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         WindowEvent::CloseRequested { api, .. } => {
             if close_requested(app, window) != CloseDecision::Close {
                 api.prevent_close();
+            } else if panel_windows::is_popout(label) {
+                // The browser's page lives on when its panel's pop-out closes (it moves back to the host).
+                crate::browser::host_closing(app, label);
             }
         }
-        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) && !crate::browser::is_banner_label(label) => {
+        WindowEvent::Focused(true) if !crate::browser::is_browser_label(label) => {
             if let Some(windows) = app.try_state::<Windows>() {
                 // A pop-out panel stands for its host (files from other apps go there).
                 windows.note_focus(panel_windows::resolve(label));
@@ -325,7 +328,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
         return CloseDecision::Close;
     }
     let other_visible = app
-        .webview_windows()
+        .windows()
         .iter()
         .filter(|(l, w)| l.as_str() != label && !is_auxiliary(l) && w.is_visible().unwrap_or(false))
         .count();
@@ -361,9 +364,6 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
     if crate::browser::is_browser_label(label) {
         crate::browser::destroyed(app, label);
-        return;
-    }
-    if crate::browser::is_banner_label(label) {
         return;
     }
     log::info!(Window = label; "Window destroyed");

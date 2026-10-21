@@ -1,9 +1,9 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { BrowserBackend } from './browser-backend';
-import { BrowserEvent, NavCommand, NoticeKind, OpenTarget, PageState, SearchEngine } from './browser.types';
+import { AiDriver, BrowserEvent, NavCommand, NoticeKind, OpenTarget, PageKey, PageState, SearchEngine } from './browser.types';
 
-/** A notice of the browser window shown in the Web panel until dismissed. */
+/** A notice of the browser shown in the Browser panel until dismissed. */
 export interface BrowserNotice {
   id: number;
   kind: NoticeKind;
@@ -16,11 +16,19 @@ interface BrowserStoreState {
   /** The engine the panel searches with: null until `browser_state` answers (the backend then uses Settings ▸ Web browser). */
   engine: SearchEngine | null;
   customEngine: boolean;
+  /** The page shows in the panel (false on Linux: a window of its own). */
+  docked: boolean;
+  /** Who drives the browser now ("AI is browsing" in the panel header and on its tab); null: the user. */
+  driver: AiDriver | null;
+  /** A `driving` event came: it wins over a slower first answer of `browser_driving`. */
+  driverHeard: boolean;
   notices: BrowserNotice[];
   /** The last request that failed (shown inline with Retry). */
   error: string | null;
   busy: boolean;
   loaded: boolean;
+  /** The last key IMT took from the page (Ctrl+L, Esc, a shortcut), numbered so the same key twice is seen twice. */
+  key: { seq: number; key: PageKey } | null;
 }
 
 /** Most notices kept in the panel. */
@@ -30,10 +38,14 @@ const initial: BrowserStoreState = {
   page: { open: false, url: '', title: '', loading: false },
   engine: null,
   customEngine: false,
+  docked: true,
+  driver: null,
+  driverHeard: false,
   notices: [],
   error: null,
   busy: false,
   loaded: false,
+  key: null,
 };
 
 function message(e: unknown): string {
@@ -43,8 +55,9 @@ function message(e: unknown): string {
 }
 
 /**
- * The Web panel's state for this window's browser: the page shown, the engine, notices (blocked
- * navigations, downloads, popups). The shell owns the browser; this keeps what the panel shows.
+ * The Browser panel's state for this window's browser: the page shown, the engine, notices (blocked
+ * navigations, downloads, popups) and the keys taken from the page. The shell owns the browser; this keeps what the
+ * panel shows.
  */
 export const BrowserStore = signalStore(
   { providedIn: 'root' },
@@ -76,12 +89,19 @@ export const BrowserStore = signalStore(
         } else if (e.type === 'notice') {
           const n: BrowserNotice = { id: nextId++, kind: e.kind, url: e.url, message: e.message };
           patchState(store, (s) => ({ notices: [...s.notices.filter((x) => !(x.kind === n.kind && x.url === n.url)), n].slice(-MAX_NOTICES) }));
+        } else if (e.type === 'driving') {
+          patchState(store, { driver: e.by, driverHeard: true });
+        } else if (e.type === 'key') {
+          const { type: _type, ...key } = e;
+          patchState(store, (s) => ({ key: { seq: (s.key?.seq ?? 0) + 1, key } }));
         }
       },
 
       async load(): Promise<void> {
         const s = await remember(() => backend.state());
-        if (s) patchState(store, { page: s.page, engine: store.loaded() ? (store.engine() ?? s.engine) : s.engine, customEngine: s.customEngine, loaded: true });
+        if (s) patchState(store, { page: s.page, engine: store.loaded() ? (store.engine() ?? s.engine) : s.engine, customEngine: s.customEngine, docked: s.docked, loaded: true });
+        const d = await backend.driving().catch(() => undefined);
+        if (d !== undefined && !store.driverHeard()) patchState(store, { driver: d });
       },
 
       setEngine(engine: SearchEngine): void {

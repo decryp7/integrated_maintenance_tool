@@ -87,6 +87,12 @@ export class FakeDock {
   toggle = (id: string) => void this.calls.push(`toggle:${id}`);
   close = (id: string) => void this.calls.push(`close:${id}`);
   reset = () => void this.calls.push('reset');
+  // A method (not a field): some specs replace it on the prototype.
+  setTitle(id: string, title: string): void {
+    this.calls.push(`title:${id}:${title}`);
+  }
+  /** Ticks like the dock's layout changes (`DockService.layoutChanged`). */
+  readonly layoutChanged = signal(0);
 }
 
 export function provideFakeDock(dock = new FakeDock()): Provider[] {

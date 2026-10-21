@@ -96,13 +96,13 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
             <div>
               <h3 class="sec" i18n="@@analysis.compare.newInB">New in B</h3>
               @for (a of c.newValues; track a.field) {
-                <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ v.count }}</span></span> }</p>
+                <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ fmt(v.count) }}</span></span> }</p>
               } @empty { <p class="muted" i18n="@@analysis.compare.nothingNew">Nothing new.</p> }
             </div>
             <div>
               <h3 class="sec" i18n="@@analysis.compare.goneFromA">Gone from A</h3>
               @for (a of c.goneValues; track a.field) {
-                <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ v.count }}</span></span> }</p>
+                <p><strong class="mono">{{ a.field }}</strong>: @for (v of a.values; track v.value) { <span class="chip">{{ v.value }} <span class="mono">{{ fmt(v.count) }}</span></span> }</p>
               } @empty { <p class="muted" i18n="@@analysis.compare.nothingGone">Nothing gone.</p> }
             </div>
           </div>
@@ -133,6 +133,7 @@ import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
   ],
 })
 export class CompareView {
+  protected readonly fmt = formatCount;
   protected fieldLabel(field: string): string {
     return $localize`:@@analysis.compare.fieldN:Field ${field}:field:`;
   }

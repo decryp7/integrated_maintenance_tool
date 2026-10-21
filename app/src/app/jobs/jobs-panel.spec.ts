@@ -20,7 +20,7 @@ function jobInfo(p: Partial<JobInfo> & { id: number }): JobInfo {
     title: `Job ${p.id}`,
     source: { window: 'main', link: null },
     state: 'done',
-    progress: { fraction: null, done: null, total: null, etaMs: null },
+    progress: { fraction: null, done: null, total: null, etaMs: null, unit: 'items' },
     message: null,
     queuedAt: 0,
     startedAt: 0,
@@ -102,7 +102,7 @@ async function render(f: ComponentFixture<unknown>) {
 
 const sample = (): JobsSnapshot => ({
   jobs: [
-    jobInfo({ id: 1, kind: 'ai', title: 'Explain event 7', state: 'running', cancellable: true, elapsedMs: 5000, etaMs: 3000, progress: { fraction: 0.4, done: 2, total: 5, etaMs: 3000 }, message: 'reading' }),
+    jobInfo({ id: 1, kind: 'ai', title: 'Explain event 7', state: 'running', cancellable: true, elapsedMs: 5000, etaMs: 3000, progress: { fraction: 0.4, done: 2, total: 5, etaMs: 3000, unit: 'items' }, message: 'reading' }),
     jobInfo({ id: 2, kind: 'ai', title: 'Summarize', state: 'queued', position: 1, movable: true, cancellable: true }),
     jobInfo({ id: 3, kind: 'ai', title: 'Root causes', state: 'queued', position: 2, movable: true, cancellable: true }),
     jobInfo({ id: 4, kind: 'export', title: 'Export CSV', state: 'done', resultType: 'file', unseen: true }),
@@ -113,6 +113,26 @@ const sample = (): JobsSnapshot => ({
 
 describe('JobsPanel', () => {
   afterEach(() => TestBed.resetTestingModule());
+
+  it('shows byte progress as sizes with a smoothed speed and time left, never raw numbers', async () => {
+    const MB = 1024 * 1024;
+    let now = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const running = (done: number): JobsSnapshot => ({
+      jobs: [jobInfo({ id: 9, kind: 'ai', title: 'Download model', state: 'running', progress: { fraction: done / (100 * MB), done, total: 100 * MB, etaMs: null, unit: 'bytes' } })],
+      paused: [],
+    });
+    const { f, fake } = setup(running(0));
+    await render(f);
+    expect(el(f, '[data-testid=job-progress-9]').textContent).toBe('0 bytes of 100 MB');
+    for (let s = 1; s <= 4; s++) {
+      now += 1000;
+      fake.push(running(s * 10 * MB));
+      await settle(f);
+    }
+    expect(el(f, '[data-testid=job-progress-9]').textContent).toBe('40 MB of 100 MB · 10 MB/s · less than a minute left');
+    vi.restoreAllMocks();
+  });
 
   it('shows an empty state when there are no jobs', async () => {
     const { f, root } = setup();

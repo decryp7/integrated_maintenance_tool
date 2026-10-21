@@ -1,12 +1,12 @@
 import { inject, Provider } from '@angular/core';
-import { DotnetCaptureRequest, DotnetCaptureStatus, DotnetProcess, EtlConverted, EtlProcess } from '../../core/api.types';
+import { DotnetCaptureRequest, DotnetCaptureStatus, DotnetProcess } from '../../core/api.types';
 import { isTauri } from '../../core/platform';
 import { ToolCatalogBackend } from '../../core/tools-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 
-/** The plugin tool that records .NET processes and converts `.etl` traces (crates/imt-plugin-dotnet). */
+/** The plugin tool that records .NET processes (crates/imt-plugin-dotnet); `.etl` traces are the native profiler's. */
 export const DOTNET_TOOL = 'dotnet-profiler';
 
 /**
@@ -23,10 +23,6 @@ export abstract class DotnetBackend {
   abstract stop(id: string): Promise<DotnetCaptureStatus>;
   /** Stops at once and deletes the file (through the capture's job: Jobs are the one cancel authority). */
   abstract cancel(id: string): Promise<DotnetCaptureStatus>;
-  /** The processes in an `.etl` trace (Windows only). */
-  abstract etlProcesses(path: string): Promise<EtlProcess[]>;
-  /** Converts one process of an `.etl` trace to a NetTrace file. */
-  abstract etlConvert(path: string, pid: number): Promise<EtlConverted>;
 }
 
 /** The real backend: the plugin tool; cancelling goes through the capture's job. */
@@ -63,12 +59,6 @@ export class ToolDotnetBackend extends DotnetBackend {
     if (!status) throw new Error($localize`:@@profiling.dotnet.gone:The capture is no longer listed.`);
     return status;
   }
-  etlProcesses(path: string) {
-    return this.call<EtlProcess[]>('etl-processes', { path });
-  }
-  etlConvert(path: string, pid: number) {
-    return this.call<EtlConverted>('etl-convert', { path, pid });
-  }
 }
 
 /* v8 ignore start: the browser demo loads the mock lazily, so it stays out of the shipped bundle */
@@ -88,12 +78,6 @@ class LazyMockDotnetBackend extends DotnetBackend {
   }
   cancel(id: string) {
     return this.impl.then((b) => b.cancel(id));
-  }
-  etlProcesses(path: string) {
-    return this.impl.then((b) => b.etlProcesses(path));
-  }
-  etlConvert(path: string, pid: number) {
-    return this.impl.then((b) => b.etlConvert(path, pid));
   }
 }
 /* v8 ignore stop */

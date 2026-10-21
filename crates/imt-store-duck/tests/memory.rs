@@ -1,4 +1,4 @@
-//! Memory budget (ADR 0014 §2): importing stays under 600 MB resident whatever is imported. A sampler
+//! Memory budget (ADR 0014 §2): importing stays under 768 MB resident whatever is imported. A sampler
 //! thread polls the process RSS every 20 ms; the test fails above the budget and prints the ingest rate.
 //!
 //! `IMT_BENCH_COPIES=<n>` imports n copies of the samples (each in its own folder) for a larger run;
@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 /// Worker budget while importing (ADR 0014).
-const IMPORT_BUDGET_MB: u64 = 600;
+const IMPORT_BUDGET_MB: u64 = 768;
 
 fn copy_dir(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap();

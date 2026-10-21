@@ -811,6 +811,12 @@ pub enum FindingKind {
     JitTime,
     /// What allocates the most (types and call sites, large object heap).
     Allocations,
+    /// The user-code native function with the most self time, with its source location (ADR 0022).
+    HotNativeFunction,
+    /// The native function in which threads waited longest (locks, blocking calls).
+    WaitHotSpot,
+    /// The call path holding most native heap memory not freed by the end of the capture.
+    NativeHeapGrowth,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]

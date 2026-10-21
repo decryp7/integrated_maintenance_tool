@@ -23,12 +23,17 @@ export interface JobSource {
   link: JobLink | null;
 }
 
+/** What `done` and `total` count: bytes are shown as sizes with speed and time left, items as plain numbers. */
+export type ProgressUnit = 'items' | 'bytes';
+
 export interface JobProgress {
   /** 0..1. */
   fraction: number | null;
   done: number | null;
   total: number | null;
   etaMs: number | null;
+  /** What done and total count. */
+  unit: ProgressUnit;
   /** Bytes read so far, of `bytesTotal` (an import); absent when the job does not count bytes. */
   bytesDone?: number;
   bytesTotal?: number;
@@ -46,7 +51,9 @@ export type JobResult =
   | { type: 'view'; view: string; ql: string | null }
   | { type: 'model'; fileName: string | null }
   | { type: 'folderSurvey'; outcome: unknown }
-  | { type: 'storage'; result: unknown };
+  | { type: 'storage'; result: unknown }
+  /** The logs related to an image (`RelatedOutcome`, ADR 0025). */
+  | { type: 'relatedLogs'; result: unknown };
 
 export type JobResultType = JobResult['type'];
 

@@ -1,15 +1,16 @@
-//! "Set up AI assistant": probe the hardware, recommend a model, download and verify it, validate the
-//! file, load it (GPU first, CPU fallback), warm it up and remember the choice.
+//! "Set up AI assistant": probe the hardware, recommend a model, download and verify it (and its image
+//! projector, ADR 0025), validate the file, load it (GPU first, CPU fallback), warm it up and remember the choice.
 
-use crate::catalog::{Catalog, CatalogModel};
+use crate::catalog::{projector_file_name, Catalog, CatalogModel};
 use crate::error::{AiError, Result};
 use crate::gguf;
 use crate::hardware::{Hardware, HardwareProbe};
 use crate::llm::{ChatMessage, ChatRequest, LlmProvider};
+use crate::models::source::RemoteFile;
 use crate::models::source::{ModelSource, Phase, Progress};
 use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelStore};
 use crate::recommend::{recommend, Recommendation, Recommendations};
-use crate::runtime::{check_memory, effective_context, load_with_fallback, LoadRequest, ModelRuntime};
+use crate::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use crate::settings::AiSettings;
 use serde::Serialize;
 use std::path::Path;
@@ -55,7 +56,7 @@ pub struct SetupPlan {
     pub chosen: Option<Recommendation>,
     pub license: Option<String>,
     pub gated: bool,
-    /// Bytes still to download (0 when the file is already installed).
+    /// Bytes still to download (0 when the model and its projector are already installed).
     pub download_bytes: u64,
     pub already_installed: bool,
     /// Why the licence could not be shown (offline, host down), if so.
@@ -92,8 +93,9 @@ impl Setup<'_> {
         let mut download_bytes = 0;
         let already_installed = chosen.as_ref().is_some_and(|c| c.installed);
         if let Some(c) = &chosen {
+            download_bytes = self.missing_projector_bytes(&c.model);
             if !already_installed {
-                download_bytes = c.model.size_bytes;
+                download_bytes += c.model.size_bytes;
                 match self.source.describe(&c.model.hf_repo, &c.model.file) {
                     Ok(r) => {
                         license = r.license;
@@ -125,12 +127,30 @@ impl Setup<'_> {
         on_stage(SetupStage::Probing);
         let hardware = self.probe.probe();
         on_stage(SetupStage::Recommending);
-        let path = self.store.path_of(&choice.file)?;
-        let installed_ok = path.is_file() && std::fs::metadata(&path).map(|m| m.len() == choice.size_bytes).unwrap_or(false);
-        if !installed_ok {
+        if !self.model_installed(choice)? {
             self.download(choice, progress, on_stage)?;
+        } else {
+            self.download_projector(choice, progress, on_stage)?;
         }
         self.activate_inner(&choice.file, &hardware, progress, on_stage)
+    }
+
+    fn model_installed(&self, choice: &CatalogModel) -> Result<bool> {
+        let path = self.store.path_of(&choice.file)?;
+        Ok(path.is_file() && std::fs::metadata(&path).map(|m| m.len() == choice.size_bytes).unwrap_or(false))
+    }
+
+    /// The projector's bytes still to download for `choice` (0 when it has none or it is installed).
+    pub fn missing_projector_bytes(&self, choice: &CatalogModel) -> u64 {
+        let Some(p) = &choice.projector else { return 0 };
+        let installed = projector_file_name(&choice.file)
+            .and_then(|n| std::fs::metadata(self.store.dir().join(n)).ok())
+            .is_some_and(|m| m.len() == p.size_bytes);
+        if installed {
+            0
+        } else {
+            p.size_bytes
+        }
     }
 
     /// Activates a model that is already in the models folder (also used for models the user added).
@@ -142,20 +162,44 @@ impl Setup<'_> {
 
     /// Downloads `choice` into the models folder and verifies it against the catalog, without loading it (also
     /// how a model update fetches its new file: the installed one is untouched until this succeeds). The file
-    /// appears under its real name only once its SHA-256 matches.
+    /// appears under its real name only once its SHA-256 matches. A model that reads images gets its projector
+    /// too, verified the same way.
     pub fn download(&self, choice: &CatalogModel, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> Result<()> {
-        let remote = self.source.describe(&choice.hf_repo, &choice.file)?;
-        if remote.sha256 != choice.sha256.to_ascii_lowercase() || remote.size != choice.size_bytes {
+        let remote = self.describe_checked(&choice.hf_repo, &choice.file, &choice.sha256, choice.size_bytes)?;
+        self.fetch(&remote, &choice.file, progress, on_stage)?;
+        self.download_projector(choice, progress, on_stage)
+    }
+
+    /// Downloads the image projector of an installed catalog model (`choice.file`) when it is missing, verified
+    /// against the catalog; the model itself is untouched. Does nothing for a model without one.
+    pub fn download_projector(&self, choice: &CatalogModel, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> Result<()> {
+        let Some(p) = &choice.projector else { return Ok(()) };
+        if self.missing_projector_bytes(choice) == 0 {
+            return Ok(());
+        }
+        let name = projector_file_name(&choice.file)
+            .ok_or_else(|| AiError::Refused(format!("'{}' cannot have an image projector", choice.file)))?;
+        let remote = self.describe_checked(&choice.hf_repo, &p.file, &p.sha256, p.size_bytes)?;
+        self.fetch(&remote, &name, progress, on_stage)
+    }
+
+    fn describe_checked(&self, repo: &str, file: &str, sha256: &str, size: u64) -> Result<RemoteFile> {
+        let remote = self.source.describe(repo, file)?;
+        if remote.sha256 != sha256.to_ascii_lowercase() || remote.size != size {
             return Err(AiError::Integrity(
                 "the file on the model host differs from the catalog (it was probably updated); update the model list and try again".into(),
             ));
         }
+        Ok(remote)
+    }
+
+    fn fetch(&self, remote: &RemoteFile, name: &str, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> Result<()> {
         let cap = (self.settings.max_download_gb as u64) * 1024 * 1024 * 1024;
         let dl = Downloader {
             source: self.source,
             disk: self.disk,
             opts: DownloadOptions {
-                max_bytes: cap.max(choice.size_bytes),
+                max_bytes: cap.max(remote.size),
                 backoff: self.backoff,
                 ..DownloadOptions::default()
             },
@@ -168,7 +212,7 @@ impl Setup<'_> {
             eta_secs: None,
         });
         std::thread::scope(|scope| {
-            let worker = scope.spawn(|| dl.download(&remote, &dir, progress));
+            let worker = scope.spawn(|| dl.download_as(remote, &dir, name, progress));
             while !worker.is_finished() {
                 std::thread::sleep(Duration::from_millis(100));
                 emit_progress(progress, on_stage);
@@ -191,7 +235,8 @@ impl Setup<'_> {
         on_stage(SetupStage::Validating);
         let path = self.store.path_of(file_name)?;
         let info = gguf::inspect(&path)?;
-        check_memory(hardware, &info)?;
+        let projector = self.store.projector_path(file_name)?;
+        check_memory(hardware, &info, projector_bytes(projector.as_deref()))?;
         let gpu = self.settings.gpu_offload.into();
         on_stage(SetupStage::Loading {
             gpu: gpu != crate::runtime::GpuMode::Cpu,
@@ -199,6 +244,7 @@ impl Setup<'_> {
         let req = LoadRequest {
             context: effective_context(&self.settings, &info),
             path,
+            projector,
             info,
             gpu,
             threads: self.settings.threads,

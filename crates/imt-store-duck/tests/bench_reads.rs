@@ -11,6 +11,10 @@
 
 mod common;
 
+// The store worker's allocator (`imt-store-worker`), so the numbers are the shipped ones.
+#[global_allocator]
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
+
 use common::{log_samples, TempDir};
 use imt_core::api::{QueryRequest, TimelineRequest};
 use imt_core::model::Level;
@@ -49,6 +53,7 @@ fn req<T: serde::de::DeserializeOwned>(v: serde_json::Value) -> T {
 
 #[test]
 fn read_operations_meet_the_budget() {
+    imt_alloc::tune();
     let copies: Option<usize> = std::env::var("IMT_BENCH_READS").ok().and_then(|v| v.parse().ok());
     let existing = std::env::var("IMT_BENCH_STORE").ok().map(PathBuf::from);
     if copies.is_none() && existing.is_none() {

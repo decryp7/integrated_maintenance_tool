@@ -8,7 +8,11 @@
 use imt_plugin_host::Builtins;
 use std::sync::{Arc, OnceLock};
 
+#[global_allocator]
+static GLOBAL: imt_alloc::MiMalloc = imt_alloc::MiMalloc;
+
 fn main() {
+    imt_alloc::tune();
     let builtins: Arc<OnceLock<Builtins>> = Arc::default();
     let registry: imt_store_worker::server::RegistryFactory = Arc::new(move |disabled, safe_mode| {
         if safe_mode {

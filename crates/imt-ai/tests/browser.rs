@@ -509,6 +509,8 @@ fn an_event_becomes_a_redacted_search() {
 struct FakeResearcher {
     auto: bool,
     asked: Mutex<Vec<(String, String, u8)>>,
+    /// Nothing found on the results page (and why).
+    no_results: Option<&'static str>,
 }
 
 impl Researcher for FakeResearcher {
@@ -520,6 +522,16 @@ impl Researcher for FakeResearcher {
     }
     fn research(&self, question: &str, query: &str, max_results: u8) -> imt_ai::Result<ResearchReport> {
         self.asked.lock().unwrap().push((question.into(), query.into(), max_results));
+        if let Some(why) = self.no_results {
+            return Ok(ResearchReport {
+                query: query.into(),
+                answer: format!("{why} Open the results page to pick the results yourself."),
+                read: vec![],
+                skipped: vec![],
+                no_results: Some(why.into()),
+                results_page: Some("https://www.google.com/search?q=HRESULT+0x80070005+IIS".into()),
+            });
+        }
         Ok(ResearchReport {
             query: query.into(),
             answer: "0x80070005 is E_ACCESSDENIED [1].".into(),
@@ -529,6 +541,8 @@ impl Researcher for FakeResearcher {
                 url: "https://learn.microsoft.com/iis/access-denied".into(),
             }],
             skipped: vec![],
+            no_results: None,
+            results_page: None,
         })
     }
 }
@@ -552,6 +566,7 @@ fn the_model_researches_by_itself_and_the_answer_cites_the_pages() {
     let r = FakeResearcher {
         auto: true,
         asked: Mutex::new(vec![]),
+        no_results: None,
     };
     let events = run(
         &a,
@@ -592,6 +607,7 @@ fn research_with_workspace_data_or_turned_off_offers_a_button_instead() {
     let r = FakeResearcher {
         auto: true,
         asked: Mutex::new(vec![]),
+        no_results: None,
     };
     let events = run(
         &a,
@@ -618,6 +634,7 @@ fn research_with_workspace_data_or_turned_off_offers_a_button_instead() {
     let off = FakeResearcher {
         auto: false,
         asked: Mutex::new(vec![]),
+        no_results: None,
     };
     let events = run(
         &a,
@@ -647,4 +664,64 @@ fn a_research_answer_from_a_button_becomes_a_turn_of_the_chat() {
     assert!(matches!(&events[0].event, ChatEvent::Done { citations, .. } if citations.len() == 1));
     assert_eq!(s.turns().len(), 1);
     assert_eq!(s.title(), "Research: 0x80070005");
+}
+
+#[test]
+fn a_research_that_finds_nothing_says_why_and_offers_the_results_page() {
+    // The model's own research (web_research): the results page comes as a link card, the model is told why.
+    let a = assistant(vec![
+        tool(
+            "web_research",
+            json!({"question": "what does 0x80070005 mean?", "query": "HRESULT 0x80070005 IIS"}),
+        ),
+        text("Google showed no result links; open the results page."),
+    ]);
+    let b = FakeBrowser::new(docs_page());
+    let c = ChatBrowser::new(AgentLimits::default());
+    let log = MemoryLog::default();
+    let r = FakeResearcher {
+        auto: true,
+        asked: Mutex::new(vec![]),
+        no_results: Some("Google showed no result links."),
+    };
+    let events = run(
+        &a,
+        &with_research(env(&b, &c, &DenyAll, &log), &r),
+        vec![],
+        "what does 0x80070005 mean?",
+    );
+    let card = events
+        .iter()
+        .find_map(|e| match &e.event {
+            ChatEvent::LinkSuggestion { kind, url, title, .. } => Some((kind.clone(), url.clone(), title.clone())),
+            _ => None,
+        })
+        .expect("the results page as a card");
+    assert_eq!(
+        card,
+        (
+            "search".to_string(),
+            "https://www.google.com/search?q=HRESULT+0x80070005+IIS".to_string(),
+            "Open the results page".to_string()
+        )
+    );
+    let requests = a.provider().requests();
+    let tool_result = &requests[1].messages.last().unwrap().content;
+    assert!(
+        tool_result.contains("found nothing to read: Google showed no result links."),
+        "{tool_result}"
+    );
+    // A research from a button: the card comes before the answer.
+    let report = r.research("q", "HRESULT 0x80070005 IIS", 5).unwrap();
+    let mut s = ChatSession::new("chat-2");
+    let mut seen = Vec::new();
+    s.record_answer_with(
+        "Research: q",
+        &report.answer,
+        report.sources(),
+        report.results_page_card().into_iter().collect(),
+        &mut |e| seen.push(e.clone()),
+    );
+    assert!(matches!(&seen[0].event, ChatEvent::LinkSuggestion { title, .. } if title == "Open the results page"));
+    assert!(matches!(&seen[1].event, ChatEvent::Done { text, .. } if text.contains("Open the results page")));
 }

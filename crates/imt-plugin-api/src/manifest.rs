@@ -25,6 +25,8 @@ pub enum Permission {
     WriteFolders,
     /// Open network connections.
     Network,
+    /// Read (never write) files in folders the user configured, such as symbol folders.
+    ReadFolders,
 }
 
 impl Permission {
@@ -35,6 +37,7 @@ impl Permission {
             Permission::RunPrograms => "run programs",
             Permission::WriteFolders => "write into folders you choose",
             Permission::Network => "connect to the network",
+            Permission::ReadFolders => "read files in folders you configure (never write them)",
         }
     }
 }
@@ -58,7 +61,14 @@ pub struct ImporterCap {
     pub tail: bool,
     /// A record may span several lines.
     pub multiline: bool,
+    /// Fields that identify who wrote an event, widest first (ADR 0020; see
+    /// [`crate::importer::TextImporter::identity_fields`]).
+    #[serde(default)]
+    pub identity_fields: Vec<String>,
 }
+
+/// Most identity fields an importer may declare.
+pub const MAX_IDENTITY_FIELDS: usize = 8;
 
 /// A configuration format a plugin contributes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +86,15 @@ pub struct ProfileImporterCap {
     pub id: Arc<str>,
     /// Produces heap snapshots (else profiles).
     pub heap: bool,
+}
+
+/// A document format a plugin contributes (dumps, UMDH logs: ADR 0023).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentImporterCap {
+    pub id: Arc<str>,
+    /// What it produces, in the host engine's words (`dump`, `umdh`).
+    pub produces: Arc<str>,
 }
 
 /// A plugin's identity and contributions.
@@ -100,6 +119,8 @@ pub struct Manifest {
     pub settings: Option<SettingsSection>,
     pub tools: Vec<ToolInfo>,
     pub profile_importers: Vec<ProfileImporterCap>,
+    #[serde(default)]
+    pub document_importers: Vec<DocumentImporterCap>,
 }
 
 impl Manifest {
@@ -113,6 +134,7 @@ impl Manifest {
         out.extend(self.transforms.iter().map(|t| format!("transform:{t}")));
         out.extend(self.tools.iter().map(|t| format!("tool:{}", t.id)));
         out.extend(self.profile_importers.iter().map(|p| format!("profile-importer:{}", p.id)));
+        out.extend(self.document_importers.iter().map(|d| format!("document-importer:{}", d.id)));
         if self.settings.is_some() {
             out.push("settings".into());
         }
@@ -144,6 +166,15 @@ impl Manifest {
         for c in self.contributions() {
             if !seen.insert(c.clone()) {
                 return Err(format!("plugin \"{}\" contributes \"{c}\" twice", self.id));
+            }
+        }
+        for i in &self.importers {
+            let bad = |f: &String| f.is_empty() || f.len() > 64 || f.chars().any(char::is_control);
+            if i.identity_fields.len() > MAX_IDENTITY_FIELDS || i.identity_fields.iter().any(bad) {
+                return Err(format!(
+                    "importer \"{}\": declare at most {MAX_IDENTITY_FIELDS} identity fields of 1–64 characters",
+                    i.id
+                ));
             }
         }
         for t in &self.tools {
@@ -183,6 +214,7 @@ mod tests {
                 binary: false,
                 tail: true,
                 multiline: false,
+                identity_fields: vec!["Host".into()],
             }],
             config_parsers: Vec::new(),
             marker_kinds: vec![PluginMarkerKind::new("boom", "Boom")],
@@ -191,6 +223,7 @@ mod tests {
             settings: None,
             tools: vec![ToolInfo::new("toy.tool", "Toy").op(OpSpec::new("go", "Go").elevated())],
             profile_importers: Vec::new(),
+            document_importers: Vec::new(),
         }
     }
 
@@ -209,6 +242,17 @@ mod tests {
         let mut old = m.clone();
         old.contract = 0;
         assert!(old.check().unwrap_err().contains("contract 0"));
+        let mut identity = m.clone();
+        identity.importers[0].identity_fields = vec!["".into()];
+        assert!(identity.check().unwrap_err().contains("identity fields"));
+        identity.importers[0].identity_fields = vec!["F".into(); MAX_IDENTITY_FIELDS + 1];
+        assert!(identity.check().is_err());
+        // Older manifests without the field read as none.
+        let mut json = serde_json::to_value(&m).unwrap();
+        json["importers"][0].as_object_mut().unwrap().remove("identityFields");
+        assert!(serde_json::from_value::<Manifest>(json).unwrap().importers[0]
+            .identity_fields
+            .is_empty());
         let mut twice = m.clone();
         twice.annotators.push("toy.spans".into());
         assert!(twice.check().unwrap_err().contains("twice"));

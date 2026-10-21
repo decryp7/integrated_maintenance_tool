@@ -17,11 +17,16 @@ impl Importer for JsonImporter {
         "json"
     }
 
-    fn sniff(&self, _ctx: &ImportCtx, head: &str) -> u8 {
+    fn sniff(&self, ctx: &ImportCtx, head: &str) -> u8 {
         let Some(first) = first_lines(head, 1).next() else { return 0 };
         let first = first.trim_start();
         if first.starts_with('{') && serde_json::from_str::<Map<String, Value>>(first).is_ok() {
-            95
+            // JSON lines mixed with text events: below the text importer (70), which reads both (ADR 0020).
+            if super::lines::has_text_events(ctx.profile, head) {
+                65
+            } else {
+                95
+            }
         } else if (first.starts_with('[') || first.starts_with('{')) && starts_with_json(head) {
             // Pretty-printed array or object (possibly cut off at the end of the head).
             60
@@ -196,7 +201,7 @@ pub(crate) fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &Timesta
         _ => default_level,
     };
     let message = take_first(&mut obj, &cfg.message);
-    rec.template = take_first(&mut obj, &cfg.template).map(|v| as_text(&v));
+    rec.template = take_first(&mut obj, &cfg.template).map(into_text);
     rec.exception = take_first(&mut obj, &cfg.exception).map(|v| match v {
         Value::String(s) => s,
         // A stack trace as one string per frame (Elasticsearch's "stacktrace").
@@ -209,29 +214,23 @@ pub(crate) fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &Timesta
     // CLEF / Serilog bookkeeping keys.
     obj.remove("@r");
     obj.remove("Renderings");
+    // The fields: these first, then the properties objects' entries, then the other keys (renamed, nested
+    // objects flattened), a later key replacing the value of an earlier one in its place.
+    let mut front: Vec<(String, Value)> = Vec::new();
     for (from, to) in [("@i", "EventId"), ("@tr", "TraceId"), ("@sp", "SpanId")] {
         if let Some(v) = obj.remove(from) {
-            rec.fields.insert(to.to_string(), v);
+            front.push((to.to_string(), v));
         }
     }
-
     for key in &cfg.properties {
         if let Some(Value::Object(props)) = obj.remove(key) {
-            for (k, v) in props {
-                rec.fields.insert(k, v);
-            }
+            front.extend(props);
         }
     }
-    for (k, v) in obj {
-        let k = match k.strip_prefix("@@") {
-            Some(rest) => format!("@{rest}"),
-            None => k,
-        };
-        flatten_into(&mut rec.fields, k, v);
-    }
+    rec.fields = fields_of(front, obj);
 
     rec.message = match message {
-        Some(v) => as_text(&v),
+        Some(v) => into_text(v),
         None => rec
             .template
             .as_deref()
@@ -241,9 +240,49 @@ pub(crate) fn to_record(mut obj: Map<String, Value>, cfg: &JsonCfg, ts: &Timesta
     rec
 }
 
-fn as_text(v: &Value) -> String {
+/// The fields of an event: `front` (in order), then the keys of `rest`, as inserting them one by one into
+/// a new map would give them. Most events (no nested objects, no `@@` keys, no key twice) keep `rest`'s
+/// map as it is, so the fields are not hashed into a second map.
+fn fields_of(front: Vec<(String, Value)>, rest: Map<String, Value>) -> Map<String, Value> {
+    let plain = rest.iter().all(|(k, v)| !k.starts_with("@@") && !flattens(v))
+        && front
+            .iter()
+            .enumerate()
+            .all(|(i, (k, _))| !rest.contains_key(k) && front[..i].iter().all(|(e, _)| e != k));
+    if plain {
+        let mut fields = rest;
+        for (i, (k, v)) in front.into_iter().enumerate() {
+            fields.shift_insert(i, k, v);
+        }
+        return fields;
+    }
+    let mut fields = Map::with_capacity(front.len() + rest.len());
+    for (k, v) in front {
+        fields.insert(k, v);
+    }
+    for (k, v) in rest {
+        let k = match k.strip_prefix("@@") {
+            Some(rest) => format!("@{rest}"),
+            None => k,
+        };
+        flatten_into(&mut fields, k, v);
+    }
+    fields
+}
+
+/// Whether [`flatten_into`] spreads the value over several fields.
+fn flattens(v: &Value) -> bool {
+    matches!(v, Value::Object(inner) if flattens_inner(inner))
+}
+
+fn flattens_inner(inner: &Map<String, Value>) -> bool {
+    !inner.is_empty() && inner.len() <= 32
+}
+
+/// The text of a value: a string as it is (moved, not copied), anything else as JSON.
+fn into_text(v: Value) -> String {
     match v {
-        Value::String(s) => s.clone(),
+        Value::String(s) => s,
         other => other.to_string(),
     }
 }
@@ -273,7 +312,7 @@ fn take_first(obj: &mut Map<String, Value>, keys: &[String]) -> Option<Value> {
 
 fn flatten_into(fields: &mut Map<String, Value>, key: String, v: Value) {
     match v {
-        Value::Object(inner) if !inner.is_empty() && inner.len() <= 32 => {
+        Value::Object(inner) if flattens_inner(&inner) => {
             for (k, v) in inner {
                 flatten_into(fields, format!("{key}.{k}"), v);
             }
@@ -317,6 +356,37 @@ mod tests {
         assert_eq!(r.fields["MachineName"], "WEB02");
         assert_eq!(out.records[1].level, Level::Information);
         assert_eq!(out.records[1].fields["EventId"], "a1b2");
+    }
+
+    /// CLEF with a rendered `@m` (no template), a .NET round-trip timestamp (7-digit fraction, offset), an exception
+    /// with an inner exception and a nested `ExceptionDetail` object (Serilog.Exceptions). Invented values.
+    #[test]
+    fn clef_with_rendered_message_and_exception_detail() {
+        let out = import(concat!(
+            r#"{"@t":"2021-04-03T10:20:30.1234567+08:00","@m":"Error during Sync.Fetch","@i":"0badc0de","@l":"Error","@x":"Acme.Sync.FetchException: Client timed out(5000ms)!  ---> System.TimeoutException: The operation has timed out.\r\n   --- End of inner exception stack trace ---","Arguments":"queue A","ProcessId":4100,"ProcessName":"Acme.Agent","ThreadId":9,"PrivateBytes":"120.50MB","MachineName":"NODE7","ExceptionDetail":{"HResult":-2146233088,"Message":"Client timed out(5000ms)! ","InnerException":{"Type":"System.TimeoutException","HResult":-2146233083},"Type":"Acme.Sync.FetchException"}}"#,
+            "\n"
+        ));
+        assert_eq!(out.records.len(), 1);
+        let r = &out.records[0];
+        // 10:20:30.1234567 at +08:00 is 02:20:30.123 UTC (milliseconds kept).
+        let want = chrono::NaiveDate::from_ymd_opt(2021, 4, 3)
+            .unwrap()
+            .and_hms_milli_opt(2, 20, 30, 123)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis();
+        assert_eq!(r.ts, Some(want));
+        assert_eq!(r.level, Level::Error);
+        assert_eq!(r.message, "Error during Sync.Fetch");
+        assert!(r
+            .exception
+            .as_deref()
+            .is_some_and(|x| x.contains("System.TimeoutException") && x.contains('\n')));
+        assert_eq!(r.fields["ProcessId"], 4100);
+        assert_eq!(r.fields["MachineName"], "NODE7");
+        assert_eq!(r.fields["EventId"], "0badc0de");
+        assert_eq!(r.fields["ExceptionDetail.InnerException.Type"], "System.TimeoutException");
+        assert_eq!(r.fields["ExceptionDetail.HResult"], -2146233088);
     }
 
     #[test]
@@ -465,6 +535,94 @@ mod tests {
                 "[not json"
             )
             .is_err());
+    }
+
+    /// The fields as the importer built them before [`fields_of`]: inserted one by one into a new map.
+    fn reference_fields(front: Vec<(String, Value)>, rest: Map<String, Value>) -> Map<String, Value> {
+        let mut fields = Map::new();
+        for (k, v) in front {
+            fields.insert(k, v);
+        }
+        for (k, v) in rest {
+            let k = match k.strip_prefix("@@") {
+                Some(rest) => format!("@{rest}"),
+                None => k,
+            };
+            flatten_into(&mut fields, k, v);
+        }
+        fields
+    }
+
+    fn pairs(m: &Map<String, Value>) -> Vec<(String, Value)> {
+        m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+    }
+
+    fn same_fields(front: &[(&str, Value)], rest: &str) {
+        let front: Vec<(String, Value)> = front.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+        let rest: Map<String, Value> = serde_json::from_str(rest).unwrap();
+        let want = reference_fields(front.clone(), rest.clone());
+        assert_eq!(pairs(&fields_of(front, rest)), pairs(&want), "keys, values and order");
+    }
+
+    #[test]
+    fn fields_keep_the_order_and_values_of_inserting_them_one_by_one() {
+        use serde_json::json;
+        // The usual event: the map is kept, the front goes first.
+        same_fields(
+            &[("EventId", json!(7)), ("TraceId", json!("t"))],
+            r#"{"b": 1, "a": "x", "c": null}"#,
+        );
+        same_fields(&[], r#"{"b": 1, "a": [1, {"x": 2}], "e": {}}"#);
+        // A front key again in the rest, or twice in the front: the later value in the first place.
+        same_fields(&[("EventId", json!(7))], r#"{"b": 1, "EventId": 8}"#);
+        same_fields(&[("EventId", json!(7)), ("X", json!(1)), ("EventId", json!(9))], r#"{"b": 1}"#);
+        // Renamed and flattened keys.
+        same_fields(&[("EventId", json!(1))], r#"{"@@x": 1, "b": 2}"#);
+        same_fields(&[], r#"{"o": {"k": 1, "j": {"z": 2}}, "o.k": 3, "p": 4}"#);
+        let big: Map<String, Value> = (0..33).map(|i| (format!("k{i}"), json!(i))).collect();
+        same_fields(&[], &serde_json::to_string(&json!({"big": big, "z": 1})).unwrap());
+    }
+
+    #[test]
+    fn fields_match_the_one_by_one_insertion_on_every_json_sample() {
+        let samples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples");
+        let cfg = CompiledProfile::compile(Profile::default_profile())
+            .unwrap()
+            .profile
+            .parse
+            .json
+            .clone();
+        let mut files = vec![samples];
+        let mut lines = 0;
+        while let Some(p) = files.pop() {
+            if p.is_dir() {
+                files.extend(std::fs::read_dir(&p).unwrap().map(|e| e.unwrap().path()));
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&p) else { continue };
+            for line in text.lines() {
+                let Ok(mut obj) = serde_json::from_str::<Map<String, Value>>(line.trim()) else {
+                    continue;
+                };
+                obj.remove("@r");
+                obj.remove("Renderings");
+                let mut front = Vec::new();
+                for (from, to) in [("@i", "EventId"), ("@tr", "TraceId"), ("@sp", "SpanId")] {
+                    if let Some(v) = obj.remove(from) {
+                        front.push((to.to_string(), v));
+                    }
+                }
+                for key in &cfg.properties {
+                    if let Some(Value::Object(props)) = obj.remove(key) {
+                        front.extend(props);
+                    }
+                }
+                let want = reference_fields(front.clone(), obj.clone());
+                assert_eq!(pairs(&fields_of(front, obj)), pairs(&want), "{}: {line}", p.display());
+                lines += 1;
+            }
+        }
+        assert!(lines > 1000, "the samples have JSON events ({lines})");
     }
 
     #[test]

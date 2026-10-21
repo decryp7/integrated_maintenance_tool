@@ -15,6 +15,7 @@
 
 pub mod capture;
 pub mod control;
+pub mod draft;
 pub mod engines;
 pub mod leak;
 pub mod pace;
@@ -23,6 +24,7 @@ pub mod port;
 pub mod protocol;
 pub mod query;
 pub mod research;
+pub mod results;
 pub mod scripts;
 pub mod snapshot;
 pub mod tools;
@@ -30,6 +32,7 @@ pub mod url;
 
 pub use capture::{capture_from, PageCapture};
 pub use control::{small_for_agent, AgentLimits, ChatBrowser, ChatBrowserStatus};
+pub use draft::{draft_or, parse_draft, Drafted, QueryDrafter, QuerySource};
 pub use engines::{SearchEngine, SearchError, SearchSettings, SearchTemplate};
 pub use leak::{LeakKind, LeakReport, Segment};
 pub use policy::{AgentAction, Ask, AskKind, ScrollDirection};
@@ -40,6 +43,7 @@ pub use port::{
 pub use protocol::{Nonce, ReplyError, ReplyGate};
 pub use query::{event_query, EventText};
 pub use research::{check_store_query, clamp_results, CheckedQuery, ResearchReport, ResearchRequest, ResearchSettings, Researcher};
+pub use results::{results_page_from, ResultsPage, ResultsReader};
 pub use snapshot::{snapshot_from, DomSnapshot, Element, ElementKind, HandOff};
 pub use tools::ResearchTool;
 pub use tools::{browser_specs, BrowserEnv, BrowserTools, PauseReason};

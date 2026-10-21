@@ -1,6 +1,9 @@
 /** Time, number and axis helpers shared by the timeline, grid and charts. Numbers and month names follow the active locale. */
 
-import { activeLocale, groupedNumber, localizeDecimal, SOURCE_LOCALE } from '../i18n/locale';
+import { activeLocale, SOURCE_LOCALE } from '../i18n/locale';
+
+export { formatCompact, formatCount, formatDuration, formatNumber, unitLabels } from '../shared/format/units';
+export type { Units } from '../shared/format/units';
 
 export type TimeZoneMode = 'utc' | 'local';
 
@@ -19,30 +22,6 @@ function month(i: number): string {
     months = { locale, names: EN_MONTHS.map((_, m) => f.format(Date.UTC(2000, m, 15))) };
   }
   return months.names[i] ?? '';
-}
-
-export interface Units {
-  ms: string;
-  s: string;
-  min: string;
-  h: string;
-  d: string;
-  thousand: string;
-  million: string;
-}
-let units: Units | null = null;
-
-/** Unit abbreviations the UI writes after numbers, translated once on first use. */
-export function unitLabels(): Units {
-  return (units ??= {
-    ms: $localize`:Abbreviation for milliseconds, after a duration@@core.format.unit.ms:ms`,
-    s: $localize`:Abbreviation for seconds, after a duration@@core.format.unit.s:s`,
-    min: $localize`:Abbreviation for minutes, after a duration@@core.format.unit.min:min`,
-    h: $localize`:Abbreviation for hours, after a duration@@core.format.unit.h:h`,
-    d: $localize`:Abbreviation for days, after a duration@@core.format.unit.d:d`,
-    thousand: $localize`:Suffix for thousands in compact numbers, as in 1.2k@@core.format.suffix.thousand:k`,
-    million: $localize`:Suffix for millions in compact numbers, as in 2.5M@@core.format.suffix.million:M`,
-  });
 }
 
 function pad(n: number, w = 2): string {
@@ -111,39 +90,6 @@ export function tzLabel(tz: TimeZoneMode): string {
   const off = -new Date().getTimezoneOffset();
   const sign = off >= 0 ? '+' : '-';
   return `UTC${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
-}
-
-/** 12345 -> "12,345" (grouping of the active locale). */
-export function formatCount(n: number): string {
-  return groupedNumber(n);
-}
-
-/** 1234 -> "1.2k" */
-export function formatCompact(n: number): string {
-  if (n < 1000) return String(n);
-  const u = unitLabels();
-  if (n < 1_000_000) return localizeDecimal((n / 1000).toFixed(n < 10_000 ? 1 : 0)) + u.thousand;
-  return localizeDecimal((n / 1_000_000).toFixed(1)) + u.million;
-}
-
-export function formatNumber(v: number): string {
-  const a = Math.abs(v);
-  const u = unitLabels();
-  if (a >= 1_000_000) return localizeDecimal((v / 1_000_000).toFixed(1)) + u.million;
-  if (a >= 10_000) return (v / 1000).toFixed(0) + u.thousand;
-  if (a >= 100) return v.toFixed(0);
-  if (a >= 10) return localizeDecimal(v.toFixed(1));
-  return localizeDecimal(v.toFixed(2).replace(/\.?0+$/, '') || '0');
-}
-
-export function formatDuration(ms: number): string {
-  const u = unitLabels();
-  const one = (v: number) => localizeDecimal(String(+v.toFixed(1)));
-  if (ms < 1000) return `${Math.round(ms)} ${u.ms}`;
-  if (ms < 60_000) return `${one(ms / 1000)} ${u.s}`;
-  if (ms < 3_600_000) return `${one(ms / 60_000)} ${u.min}`;
-  if (ms < 86_400_000) return `${one(ms / 3_600_000)} ${u.h}`;
-  return `${one(ms / 86_400_000)} ${u.d}`;
 }
 
 const SEC = 1000;

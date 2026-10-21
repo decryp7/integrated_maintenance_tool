@@ -649,6 +649,7 @@ impl Importer for Sleepy {
         Ok(Imported {
             records: vec![r],
             skipped: 0,
+            ..Default::default()
         })
     }
 }

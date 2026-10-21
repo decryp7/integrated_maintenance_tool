@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, si
 import { DIALOG_REF } from '../ui/dialog.service';
 import { BrowserBackend } from './browser-backend';
 import { BrowserStore } from './browser.store';
-import { SearchEngine } from './browser.types';
+import { QuerySource, SearchEngine } from './browser.types';
 import { engineLabel, ENGINE_OPTIONS } from './browser-text';
 
 /**
- * "Search the web for this error": the engine builds the search text from the event (names from the logs
- * and private details removed); the user checks or edits it and picks the engine before anything opens.
+ * "Search the web for this error": the AI drafts the search text from the event (the engine builds it without a model);
+ * what the leak guard flags in it, names from the logs
+ * and private details, is removed. The user checks or edits it and picks the engine before anything opens.
  */
 @Component({
   selector: 'imt-search-web-dialog',
@@ -19,10 +20,13 @@ import { engineLabel, ENGINE_OPTIONS } from './browser-text';
       <form (submit)="$event.preventDefault(); search()">
         <label for="web-search-text" i18n="@@browser.searchDialog.label">Search for</label>
         <input id="web-search-text" class="input" maxlength="500" [value]="query()" (input)="query.set(asValue($event))" data-testid="web-search-text" />
+        @if (source(); as s) {
+          <p class="muted small" data-testid="web-search-source">{{ s === 'model' ? byModel : byEngine }}</p>
+        }
         @if (removed().length) {
           <p class="muted small" data-testid="web-search-removed">{{ removedText() }}</p>
         }
-        <p class="muted small" i18n="@@browser.searchDialog.note">Only this text goes to the search engine, in IMT's browser window. Nothing else from your logs leaves this computer.</p>
+        <p class="muted small" i18n="@@browser.searchDialog.note">Only this text goes to the search engine, in IMT's Browser panel. Nothing else from your logs leaves this computer.</p>
         <div class="row">
           <label for="web-search-engine" i18n="@@browser.searchDialog.engine">Engine</label>
           <select id="web-search-engine" class="select" [value]="engine()" (change)="setEngine(asValue($event))">
@@ -63,6 +67,10 @@ export class SearchWebDialog implements OnInit {
 
   protected readonly query = signal('');
   protected readonly removed = signal<string[]>([]);
+  /** Who wrote the text (null: the user, or not prepared yet). */
+  protected readonly source = signal<QuerySource | null>(null);
+  protected readonly byModel = $localize`:@@browser.searchDialog.byModel:The AI wrote this search from the event.`;
+  protected readonly byEngine = $localize`:@@browser.searchDialog.byEngine:IMT built this search from the event (the AI could not write it).`;
   /** Null until the browser state is known: the backend then searches with the engine from Settings. */
   protected readonly engine = signal<SearchEngine | null>(null);
   protected readonly loading = signal(false);
@@ -101,6 +109,7 @@ export class SearchWebDialog implements OnInit {
       const q = await this.backend.eventQuery(id);
       this.query.set(q.query);
       this.removed.set(q.removed);
+      this.source.set(q.source);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : String(e));
       this.failed = () => this.prepare();

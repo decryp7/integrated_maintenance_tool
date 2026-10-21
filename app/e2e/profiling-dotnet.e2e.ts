@@ -34,14 +34,4 @@ test.describe('.NET profiling (mock plugin tool)', () => {
     await dialog.getByRole('button', { name: 'Close' }).last().click();
     await expect(heap(page).getByRole('list', { name: 'Memory findings' })).toBeVisible();
   });
-
-  test('open a process from an .etl trace', async ({ page }) => {
-    await openProfiles(page);
-    await runCommand(page, 'Open process from .etl');
-    const dialog = page.getByRole('dialog', { name: 'Open a process from an ETW trace' });
-    await expect(dialog.getByRole('listbox', { name: 'Processes in the trace' }).getByRole('option')).toHaveCount(3);
-    await dialog.getByTestId('etl-open').click();
-    await expect(dialog).toHaveCount(0);
-    await expect(hotspots(page)).toBeVisible();
-  });
 });

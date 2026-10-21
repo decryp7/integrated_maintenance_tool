@@ -241,7 +241,11 @@ impl SeriesBuilder {
         let n = self.buckets.n;
         let mut keys: Vec<String> = self.series.keys().cloned().collect();
         if def.split_by.len() == 1 && def.split_by[0] == "@level" {
-            keys.sort_by_key(|k| crate::model::Level::parse(k).map(|l| l.index()).unwrap_or(99));
+            // By level; values that are not levels after them, by name (not in the map's order).
+            keys.sort_by(|a, b| {
+                let rank = |k: &str| crate::model::Level::parse(k).map_or(99, |l| l.index());
+                rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
+            });
         } else {
             let totals = &self.totals;
             keys.sort_by(|a, b| totals[b].count.cmp(&totals[a].count).then_with(|| a.cmp(b)));
@@ -294,6 +298,33 @@ pub fn chart_value(row: &dyn crate::row::RowRef, field: Option<&str>) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn level_series_are_ordered_by_level_then_name() {
+        let def = ChartDef {
+            id: "c".into(),
+            title: "t".into(),
+            y: "count()".into(),
+            bucket: "1s".into(),
+            split_by: vec!["@level".into()],
+            kind: "line".into(),
+            unit: String::new(),
+        };
+        let buckets = Buckets::of(&def, 0, 1_000, 10).unwrap();
+        // Many keys, so the map's own order would show.
+        let names: Vec<String> = (0..6).map(|i| format!("x{i}")).collect();
+        for _ in 0..3 {
+            let mut b = SeriesBuilder::new(buckets);
+            for k in names.iter().rev().cloned().chain(["Error".to_string(), "Information".to_string()]) {
+                b.add(0, 1.0, k);
+            }
+            let keys: Vec<String> = b.finish(&def, Agg::Count).into_iter().map(|s| s.key).collect();
+            assert_eq!(keys[..2], ["Information".to_string(), "Error".to_string()]);
+            let mut rest = keys[2..].to_vec();
+            rest.sort();
+            assert_eq!(keys[2..], rest[..], "values that are not levels come by name");
+        }
+    }
 
     #[test]
     fn parses() {

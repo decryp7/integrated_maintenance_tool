@@ -70,10 +70,11 @@ impl PluginHandler {
         d.as_deref().and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
     }
 
-    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<u64, RemoteError> {
+    /// Streams the records; returns what the end of the call carries (skipped lines, problems).
+    fn send_imported(ctx: &CallCtx, imported: Imported) -> Result<(u64, Vec<crate::problems::Problem>), RemoteError> {
         let skipped = imported.skipped as u64;
         chunk_events(imported.records.iter().map(WireEvent::of), |item| ctx.send(&item))?;
-        Ok(skipped)
+        Ok((skipped, imported.problems.into_vec()))
     }
 
     fn dispatch(&self, ctx: &CallCtx, req: PluginRequest) -> Result<Vec<u8>, RemoteError> {
@@ -120,8 +121,8 @@ impl PluginHandler {
                 } else {
                     return Err(invalid(format!("no importer \"{importer}\"")));
                 };
-                let skipped = Self::send_imported(ctx, imported)?;
-                encode_reply(&ImportDone { skipped })
+                let (skipped, problems) = Self::send_imported(ctx, imported)?;
+                encode_reply(&ImportDone { skipped, problems })
             }
             PluginRequest::ImportTail {
                 importer,
@@ -149,10 +150,15 @@ impl PluginHandler {
                     None => encode_reply(&TailDone {
                         supported: false,
                         skipped: 0,
+                        problems: Vec::new(),
                     }),
                     Some(r) => {
-                        let skipped = Self::send_imported(ctx, r.map_err(failed)?)?;
-                        encode_reply(&TailDone { supported: true, skipped })
+                        let (skipped, problems) = Self::send_imported(ctx, r.map_err(failed)?)?;
+                        encode_reply(&TailDone {
+                            supported: true,
+                            skipped,
+                            problems,
+                        })
                     }
                 }
             }
@@ -273,6 +279,26 @@ impl PluginHandler {
                     heap: i.heap(),
                 })
             }
+            PluginRequest::SniffDocument { importer, file_name, head } => {
+                let i = self.document_importer(&importer)?;
+                encode_reply(&i.sniff(&file_name, &head).min(100))
+            }
+            PluginRequest::ImportDocument {
+                importer,
+                file_name,
+                content,
+                options,
+            } => {
+                let i = self.document_importer(&importer)?;
+                let file = HostFile::new(ctx.peer(), content);
+                let encoded = i.import_encoded(&file_name, &file, &options.0);
+                for piece in encoded.chunks(READ_CHUNK as usize) {
+                    ctx.send_item(piece.to_vec())?;
+                }
+                encode_reply(&DocumentDone {
+                    bytes: encoded.len() as u64,
+                })
+            }
         }
     }
 
@@ -290,6 +316,14 @@ impl PluginHandler {
             .iter()
             .find(|p| p.id() == id)
             .ok_or_else(|| invalid(format!("no profile importer \"{id}\"")))
+    }
+
+    fn document_importer(&self, id: &str) -> Result<&Arc<dyn crate::plugin::DocumentImporter>, RemoteError> {
+        self.c
+            .document_importers
+            .iter()
+            .find(|p| p.id() == id)
+            .ok_or_else(|| invalid(format!("no document importer \"{id}\"")))
     }
 
     fn tool(&self, id: &str) -> Result<&(crate::tools::ToolInfo, Arc<dyn crate::tools::Tool>), RemoteError> {

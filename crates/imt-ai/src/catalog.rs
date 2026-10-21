@@ -1,5 +1,9 @@
 //! The list of models IMT recommends, as data (`data/local-models.json`). The user can replace it
 //! with a newer file; entries that do not validate are skipped with a warning, never trusted.
+//!
+//! A model that can read images names its multimodal projector (`projector`): the `mmproj` file of the same
+//! repository, made for this model generation (ADR 0025). Installing the model downloads both, each verified by
+//! its SHA-256; the projector is filed next to the model as [`projector_file_name`].
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -45,6 +49,47 @@ pub struct CatalogModel {
     /// installed one of them is offered an update to `file` (`crate::updates`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supersedes: Vec<String>,
+    /// The image projector of this model (same repository), when it can read images.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projector: Option<CatalogProjector>,
+}
+
+/// A model's multimodal projector (`mmproj`) as the catalog pins it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogProjector {
+    /// The file in the model's repository (often just `mmproj-F16.gguf`, so it is renamed locally).
+    pub file: String,
+    pub sha256: String,
+    pub size_bytes: u64,
+}
+
+impl CatalogModel {
+    /// Whether this model reads images (it has a projector).
+    pub fn vision(&self) -> bool {
+        self.projector.is_some()
+    }
+
+    /// Bytes of everything one install downloads (the model and its projector).
+    pub fn install_bytes(&self) -> u64 {
+        self.size_bytes + self.projector.as_ref().map_or(0, |p| p.size_bytes)
+    }
+}
+
+/// Suffix of a projector's file in the models folder.
+pub const PROJECTOR_SUFFIX: &str = ".mmproj.gguf";
+
+/// Where the projector of the model file `model` is kept: next to it, `<model stem>.mmproj.gguf`. One rule for
+/// catalog and user-added models, so the pairing needs no state of its own and deleting the model finds it.
+pub fn projector_file_name(model: &str) -> Option<String> {
+    let stem = model.strip_suffix(".gguf").or_else(|| model.strip_suffix(".GGUF"))?;
+    let name = format!("{stem}{PROJECTOR_SUFFIX}");
+    (is_safe_file_name(model) && !is_projector_file_name(model) && is_safe_file_name(&name)).then_some(name)
+}
+
+/// Whether `name` is a projector's file name in the models folder (see [`projector_file_name`]).
+pub fn is_projector_file_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with(PROJECTOR_SUFFIX)
 }
 
 fn default_ctx() -> usize {
@@ -91,6 +136,20 @@ fn problem(m: &CatalogModel) -> Option<String> {
     }
     if m.supersedes.len() > MAX_SUPERSEDED || m.supersedes.iter().any(|f| !is_safe_file_name(f) || *f == m.file) {
         return Some(format!("{}: invalid list of replaced files", m.id));
+    }
+    if projector_file_name(&m.file).is_none() {
+        return Some(format!("{}: the model file name is reserved for image projectors", m.id));
+    }
+    if let Some(p) = &m.projector {
+        if !is_safe_file_name(&p.file) || p.file == m.file {
+            return Some(format!("{}: unsafe projector file name", m.id));
+        }
+        if p.sha256.len() != 64 || !p.sha256.chars().all(|c| c.is_ascii_hexdigit()) || p.sha256.eq_ignore_ascii_case(&m.sha256) {
+            return Some(format!("{}: invalid projector sha256", m.id));
+        }
+        if p.size_bytes == 0 {
+            return Some(format!("{}: invalid projector size", m.id));
+        }
     }
     None
 }
@@ -159,6 +218,26 @@ mod tests {
         let q = c.find("qwen3.5-9b-q4km").unwrap();
         assert_eq!(q.hf_repo, "unsloth/Qwen3.5-9B-GGUF");
         assert!(q.tool_calling);
+        // The default model reads images with the projector of its own repository (ADR 0025).
+        assert!(q.vision() && q.recommended_for.iter().any(|r| r == "default"));
+        let p = q.projector.as_ref().unwrap();
+        assert_eq!(p.file, "mmproj-F16.gguf");
+        assert_eq!(q.install_bytes(), q.size_bytes + p.size_bytes);
+        let best = c.find("qwen3.6-35b-a3b-ud-q4km").unwrap();
+        assert!(best.vision() && best.moe && best.min_ram_gb >= 32.0);
+        // Projectors are generation specific: never one shared between entries.
+        for m in c.models.iter().filter(|m| m.vision()) {
+            for o in c.models.iter().filter(|o| o.id != m.id && o.vision()) {
+                assert_ne!(
+                    o.projector.as_ref().unwrap().sha256,
+                    m.projector.as_ref().unwrap().sha256,
+                    "{} / {}",
+                    m.id,
+                    o.id
+                );
+            }
+        }
+        assert!(!c.find("qwen3.5-2b-q4km").unwrap().vision());
         assert_eq!(Catalog::embedded(), c);
         assert!(c.find("nope").is_none());
     }
@@ -188,6 +267,32 @@ mod tests {
         let mut replaces_older = good.clone();
         replaces_older.id = "g".into();
         replaces_older.supersedes = vec!["Older-Q4_K_M.gguf".into()];
+        let projector = CatalogProjector {
+            file: "mmproj-F16.gguf".into(),
+            sha256: "a".repeat(64),
+            size_bytes: 10,
+        };
+        let mut bad_projector_name = good.clone();
+        bad_projector_name.id = "h".into();
+        bad_projector_name.projector = Some(CatalogProjector {
+            file: "../mmproj.gguf".into(),
+            ..projector.clone()
+        });
+        let mut bad_projector_sha = good.clone();
+        bad_projector_sha.id = "i".into();
+        bad_projector_sha.projector = Some(CatalogProjector {
+            sha256: good.sha256.clone(),
+            ..projector.clone()
+        });
+        let mut bad_projector_size = good.clone();
+        bad_projector_size.id = "j".into();
+        bad_projector_size.projector = Some(CatalogProjector {
+            size_bytes: 0,
+            ..projector.clone()
+        });
+        let mut reserved = good.clone();
+        reserved.id = "k".into();
+        reserved.file = "x.mmproj.gguf".into();
         c.models = vec![
             good,
             bad_name,
@@ -197,11 +302,15 @@ mod tests {
             bad_supersedes,
             supersedes_itself,
             replaces_older,
+            bad_projector_name,
+            bad_projector_sha,
+            bad_projector_size,
+            reserved,
         ];
         let (parsed, w) = Catalog::parse(&serde_json::to_string(&c).unwrap()).unwrap();
         assert_eq!(parsed.models.len(), 2);
         assert_eq!(parsed.models[1].supersedes, ["Older-Q4_K_M.gguf"]);
-        assert_eq!(w.len(), 6);
+        assert_eq!(w.len(), 10, "{w:?}");
     }
 
     #[test]
@@ -228,6 +337,20 @@ mod tests {
         std::fs::write(&p, serde_json::to_string(&mine).unwrap()).unwrap();
         assert_eq!(Catalog::load(&p).0.updated, "later");
         assert!(Catalog::load(dir.path()).1[0].contains("cannot read"));
+    }
+
+    #[test]
+    fn projector_names_sit_next_to_their_model() {
+        assert_eq!(
+            projector_file_name("Qwen3.5-9B-Q4_K_M.gguf").as_deref(),
+            Some("Qwen3.5-9B-Q4_K_M.mmproj.gguf")
+        );
+        assert_eq!(projector_file_name("Mine.GGUF").as_deref(), Some("Mine.mmproj.gguf"));
+        assert!(projector_file_name("x.mmproj.gguf").is_none());
+        assert!(projector_file_name("../x.gguf").is_none());
+        assert!(projector_file_name("x.bin").is_none());
+        assert!(projector_file_name(&format!("{}.gguf", "a".repeat(190))).is_none());
+        assert!(is_projector_file_name("A.MMPROJ.GGUF") && !is_projector_file_name("a.gguf"));
     }
 
     #[test]

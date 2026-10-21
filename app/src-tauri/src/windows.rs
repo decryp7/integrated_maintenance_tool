@@ -54,6 +54,8 @@ pub struct WindowState {
     pub(crate) close_asked: AtomicBool,
     /// Open profiles and heap snapshots (see `profiling`).
     pub(crate) profiling: crate::profiling::ProfilingSlot,
+    /// Open dumps and UMDH logs (see `dumps`).
+    pub(crate) dumps: crate::dumps::DumpsSlot,
     /// The window's AI chats and running AI use cases.
     pub(crate) ai: crate::ai::WindowAi,
 }
@@ -73,6 +75,7 @@ impl WindowState {
             loaded: AtomicBool::new(false),
             close_asked: AtomicBool::new(false),
             profiling: crate::profiling::ProfilingSlot::default(),
+            dumps: crate::dumps::DumpsSlot::default(),
             ai: crate::ai::WindowAi::default(),
         }
     }
@@ -291,13 +294,12 @@ pub struct CurrentWindow(Arc<WindowState>);
 
 impl CurrentWindow {
     /// The state of window `label` (created on first use). A pop-out panel
-    /// window (`p-<host>-<n>`) and a browser's "AI is browsing" banner (`aib-<owner>`)
-    /// have no workspace of their own: they get their window's.
+    /// window (`p-<host>-<n>`) has no workspace of its own: it gets its window's.
     pub fn of<R: Runtime, M: Manager<R>>(manager: &M, label: &str) -> CmdResult<CurrentWindow> {
         let windows = manager.try_state::<Windows>().ok_or("IMT is not ready yet")?;
         crate::error::lift(
             windows
-                .get_or_create(crate::browser::banner_owner(label).unwrap_or_else(|| crate::panel_windows::resolve(label)))
+                .get_or_create(crate::panel_windows::resolve(label))
                 .map(CurrentWindow)
                 .map_err(err),
         )
@@ -319,6 +321,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for CurrentWindow {
     fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
         let webview = command.message.webview();
         let label = webview.window().label().to_string();
+        // IMT's own webview is its window's only one with the window's label; another webview in it (the browser's
+        // page, ADR 0024) never acts for the window.
+        if webview.label() != label {
+            return Err(InvokeError::from("this webview is not IMT's"));
+        }
         CurrentWindow::of(&webview, &label).map_err(InvokeError::from)
     }
 }

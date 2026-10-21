@@ -53,6 +53,7 @@ pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
         bytes_done: Some(p.bytes_done),
         bytes_total: (p.bytes_total > 0).then_some(p.bytes_total),
         current: p.current.as_deref().map(file_name),
+        ..JobProgress::default()
     }
 }
 

@@ -1,3 +1,4 @@
+import { formatCount } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RedactDetector, REDACT_DETECTORS, RedactionPreview } from '../../core/api.types';
 import { ProfileModel } from '../../core/profile.model';
@@ -82,7 +83,7 @@ const PREVIEW_MS = 250;
             <div class="box" data-testid="redaction-preview">{{ p.after }}</div>
             <p class="status">
               @for (h of p.hits; track h.rule; let last = $last) {
-                <span class="mono">{{ h.rule }}</span> {{ h.count }}{{ last ? '' : ' · ' }}
+                <span class="mono">{{ h.rule }}</span> {{ fmt(h.count) }}{{ last ? '' : ' · ' }}
               }
             </p>
           }
@@ -110,6 +111,7 @@ const PREVIEW_MS = 250;
   `,
 })
 export class RedactionDialog {
+  protected readonly fmt = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);
   private readonly share = inject(ShareBackend);

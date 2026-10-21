@@ -594,6 +594,8 @@ mod tests {
         assert_eq!(p().parse("2025/11/08,00:04:37.759Z"), Some(ms(2025, 11, 8, 0, 4, 37, 759)));
         assert_eq!(p().parse("2025/11/08, 00:04:37"), Some(ms(2025, 11, 8, 0, 4, 37, 0)));
         assert_eq!(p().parse("[2025/11/08,00:04:37.759+01:00]"), Some(want));
+        // Midnight with an offset: the instant falls on the previous UTC day, milliseconds with a leading zero.
+        assert_eq!(p().parse("2024/03/02,00:00:00.013+01:00"), Some(ms(2024, 3, 1, 23, 0, 0, 13)));
         assert_eq!(p().parse("08/11/2025,00:04:37"), Some(ms(2025, 8, 11, 0, 4, 37, 0)));
         // The comma as the decimal separator (log4j) still reads as before.
         assert_eq!(p().parse("2025-11-08 00:04:37,759"), Some(ms(2025, 11, 8, 0, 4, 37, 759)));

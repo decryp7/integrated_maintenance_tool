@@ -1,3 +1,4 @@
+import { formatExactBytes } from '../../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { HeapFinding, HeapFindingView } from '../../core/api.types';
 import { AnalysisState } from '../../analysis/analysis-state';
@@ -32,7 +33,7 @@ const ACTION: Record<HeapFindingView, string> = {
             <div class="head">
               <imt-severity-badge [severity]="f.severity" />
               <strong class="title">{{ f.title }}</strong>
-              @if (f.valueBytes !== null) { <span class="mono muted">{{ bytes(f.valueBytes) }}</span> }
+              @if (f.valueBytes !== null) { <span class="mono muted" [title]="exact(f.valueBytes)">{{ bytes(f.valueBytes) }}</span> }
             </div>
             <p class="detail">{{ f.detail }}</p>
             <button class="btn" type="button" (click)="open(f)" [attr.aria-label]="actionLabel(f)">{{ action(f) }}</button>
@@ -58,6 +59,7 @@ export class HeapFindings {
   private readonly sel = inject(HeapSelection);
   protected readonly res = new AsyncResource<HeapFinding[]>();
   protected readonly bytes = formatBytes;
+  protected readonly exact = formatExactBytes;
   /** The snapshot taken just before this one (growth is measured against it). */
   private readonly baselineId = computed(() => {
     const ordered = byTaken(this.captures.heaps());

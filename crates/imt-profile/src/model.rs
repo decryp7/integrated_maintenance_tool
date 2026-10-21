@@ -72,6 +72,8 @@ pub enum MetricId {
     WaitNs,
     /// Longest single call in nanoseconds; not inclusive, aggregated by maximum.
     MaxCallNs,
+    /// Bytes allocated during the capture and not freed by its end (native heap growth by stack).
+    LiveBytes,
 }
 
 /// Unit of a metric's values.
@@ -84,7 +86,7 @@ pub enum Unit {
 }
 
 impl MetricId {
-    pub const ALL: [MetricId; 8] = [
+    pub const ALL: [MetricId; 9] = [
         MetricId::Samples,
         MetricId::TimeNs,
         MetricId::Calls,
@@ -93,6 +95,7 @@ impl MetricId {
         MetricId::Exceptions,
         MetricId::WaitNs,
         MetricId::MaxCallNs,
+        MetricId::LiveBytes,
     ];
 
     /// A caller's total includes its callees' values (time, samples, allocations).
@@ -109,7 +112,7 @@ impl MetricId {
     pub fn unit(self) -> Unit {
         match self {
             MetricId::TimeNs | MetricId::WaitNs | MetricId::MaxCallNs => Unit::Nanoseconds,
-            MetricId::AllocBytes => Unit::Bytes,
+            MetricId::AllocBytes | MetricId::LiveBytes => Unit::Bytes,
             _ => Unit::Count,
         }
     }
@@ -125,6 +128,7 @@ impl MetricId {
             MetricId::Exceptions => "Exceptions",
             MetricId::WaitNs => "Wait time",
             MetricId::MaxCallNs => "Max per call",
+            MetricId::LiveBytes => "Unfreed bytes",
         }
     }
 
@@ -320,6 +324,8 @@ mod tests {
         assert!(!MetricId::Calls.inclusive());
         assert!(!MetricId::MaxCallNs.inclusive());
         assert_eq!(MetricId::AllocBytes.unit(), Unit::Bytes);
+        assert_eq!(MetricId::LiveBytes.unit(), Unit::Bytes);
+        assert!(MetricId::LiveBytes.inclusive());
         assert_eq!(MetricId::WaitNs.unit(), Unit::Nanoseconds);
         assert_eq!(MetricId::Exceptions.unit(), Unit::Count);
         let mut acc = 5;

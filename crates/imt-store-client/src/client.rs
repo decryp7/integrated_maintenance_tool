@@ -61,9 +61,9 @@ pub const WAIT_TIMEOUT: Duration = Duration::from_secs(24 * 3600);
 /// How often a cancellable call checks its control.
 const POLL: Duration = Duration::from_millis(50);
 
-/// Memory cap of the worker process by default: the import budget (600 MB) with headroom, so only a
-/// runaway is stopped (the job object or address-space limit stops the process; the supervisor restarts it).
-pub const DEFAULT_MEMORY_CAP: u64 = 1 << 30;
+/// Memory cap of the worker process by default: well above the import budget (768 MB), so only a runaway is stopped
+/// (the job object kills the process; the supervisor restarts it). Analyses of 10M events peak near 1 GB.
+pub const DEFAULT_MEMORY_CAP: u64 = 2 << 30;
 
 /// How to start the worker.
 #[derive(Clone)]

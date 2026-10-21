@@ -6,6 +6,7 @@ use crate::ql::{Expr, TextSearch};
 use crate::row::{FieldKey, FieldKeys, RecordRow, RowRef};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -280,9 +281,11 @@ fn in_range(from: Option<i64>, to: Option<i64>, ts: Option<i64>) -> bool {
     }
 }
 
-/// The instance key: the values of `fields` joined with " · ". Records that
-/// carry none of the fields (e.g. a log4net file among Serilog logs) are keyed
-/// by their source file instead of collapsing into one anonymous instance.
+/// The instance key: the values of `fields` from the first present one to the last present one, joined
+/// with " · " ("–" for a missing one in between). When the first field is missing, the source name comes
+/// first, so keys built from different fields (a key chosen for several products lists one product's fields
+/// after another's, ADR 0020) never collide. Records that carry none of the fields (e.g. a log4net file
+/// among Serilog logs) are keyed by their source instead of collapsing into one anonymous instance.
 pub fn group_key(fields: &[String], rec: &Record, source_name: &str) -> String {
     group_key_with(fields.len(), |i| rec.field_text(&fields[i], source_name), source_name)
 }
@@ -292,56 +295,33 @@ pub fn group_key_row(fields: &[FieldKey], row: &dyn RowRef) -> String {
     group_key_with(fields.len(), |i| row.text(&fields[i]), row.source_name())
 }
 
-fn group_key_with<'a>(n: usize, text: impl Fn(usize) -> Option<std::borrow::Cow<'a, str>>, source_name: &str) -> String {
+fn group_key_with<'a>(n: usize, text: impl Fn(usize) -> Option<Cow<'a, str>>, source_name: &str) -> String {
     if n == 0 {
         return "all".into();
     }
+    let values: Vec<Option<Cow<'a, str>>> = (0..n).map(|i| text(i).filter(|v| !v.is_empty())).collect();
+    let (Some(first), Some(last)) = (values.iter().position(Option::is_some), values.iter().rposition(Option::is_some)) else {
+        return source_name.to_string();
+    };
     let mut key = String::new();
-    let mut found = false;
-    for i in 0..n {
+    if first > 0 {
+        key.push_str(source_name);
+        key.push_str(GROUP_SEPARATOR);
+    }
+    for (i, v) in values[first..=last].iter().enumerate() {
         if i > 0 {
             key.push_str(GROUP_SEPARATOR);
         }
-        match text(i) {
-            Some(v) if !v.is_empty() => {
-                found = true;
-                key.push_str(&v);
-            }
-            _ => key.push_str(MISSING),
-        }
+        key.push_str(v.as_deref().unwrap_or(MISSING));
     }
-    if found {
-        key
-    } else {
-        source_name.to_string()
-    }
+    key
 }
 
-/// The instance key when the query names none: the profile's `[instance] key`, else the candidate
-/// fields present on at least half of the `total` events that vary, else (with one source) the first
-/// present candidate, else `@source`.
+/// The instance key when the query names none, from field totals over all events (see
+/// [`crate::instance::instance_key_from_totals`]; the workspace uses per-source counts,
+/// [`crate::instance::instance_key`]).
 pub fn default_group_by(cfg: &crate::profile::InstanceCfg, fields: &[crate::api::FieldInfo], total: usize, sources: usize) -> Vec<String> {
-    if !cfg.key.is_empty() {
-        return cfg.key.clone();
-    }
-    let total = total.max(1);
-    let present: Vec<&crate::api::FieldInfo> = cfg
-        .candidates
-        .iter()
-        .filter_map(|c| fields.iter().find(|f| &f.name == c))
-        .filter(|f| f.count * 2 >= total)
-        .collect();
-    // Constant fields (same value everywhere) do not tell instances apart.
-    let varying: Vec<String> = present.iter().filter(|f| f.distinct > 1).map(|f| f.name.clone()).collect();
-    if !varying.is_empty() {
-        return varying;
-    }
-    if sources <= 1 {
-        if let Some(f) = present.first() {
-            return vec![f.name.clone()];
-        }
-    }
-    vec!["@source".into()]
+    crate::instance::instance_key_from_totals(cfg, fields, total, sources)
 }
 
 #[cfg(test)]
@@ -537,13 +517,21 @@ mod tests {
 
         let groups = Query {
             group_by: vec!["M".into(), "Missing".into()],
-            groups: vec!["WEB01 · –".into()],
+            groups: vec!["WEB01".into()],
             ..Default::default()
         };
         let g = CompiledQuery::new(&groups, &["@source".into()], &[]).unwrap();
-        assert_eq!(g.group_key(&r, "s"), "WEB01 · –");
+        assert_eq!(g.group_key(&r, "s"), "WEB01", "missing values at the end are left out");
         assert!(g.structural(&r, "s", None));
-        assert!(g.structural(&r, "s", Some("WEB01 · –")));
+        assert!(g.structural(&r, "s", Some("WEB01")));
+        let mut both = r.clone();
+        both.fields.insert("N".into(), "7".into());
+        let fields = ["Missing".into(), "M".into(), "Missing".into(), "N".into(), "Missing".into()];
+        assert_eq!(
+            group_key(&fields, &both, "s"),
+            "s · WEB01 · – · 7",
+            "the source first when the first field is missing"
+        );
         assert!(!g.structural(&r, "s", Some("other")));
         let d = CompiledQuery::new(&Query::default(), &["@source".into()], &[]).unwrap();
         assert_eq!(d.group_key(&r, "file.log"), "file.log");

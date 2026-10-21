@@ -38,7 +38,8 @@
  *   preview_spans          { request: SpanPreviewRequest } -> SpanPreview   (the Runs editor's preview of a candidate rule)
  *   plugin_events          {}                              -> SubscriberMetrics[] (event-bus delivery counters per subscriber)
  *
- * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots".
+ * Analysis commands: see the "Analysis" section below. Error snapshot commands: see "Error snapshots". Dump and UMDH
+ * commands (`dumps_*`): see "Dumps".
  *
  * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
  * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
@@ -82,6 +83,41 @@ export interface SourceInfo {
   fileKind: FileKind;
   /** Many events without a readable timestamp (the engine sends null when the timestamps are fine). */
   timestampIssue?: TimestampIssue | null;
+  /**
+   * Display name of the file a profile `[[route]]` split this logical source from (ADR 0020); null for a file's
+   * own source. Logical sources of one file share its `path`; removing one removes the file.
+   */
+  routedFrom?: string | null;
+  /** Import problems of this source, one entry per kind (the engine always sends it, maybe empty). */
+  problems?: SourceProblem[];
+}
+
+/**
+ * What went wrong while reading a source (Rust `ingest::ProblemKind`): a line over the size limit, an event over the
+ * size limit, a line that is not an event, events without a readable timestamp, a field value that does not fit its
+ * declared type, bytes invalid in the file's encoding, a format no importer recognises, a damaged archive, an event
+ * split at a parallel chunk boundary, a line that looks like an event but matches no format (kept with the event
+ * above), events past the logical-source limit of `[[route]]`.
+ */
+export type SourceProblemKind =
+  | 'lineTooLong'
+  | 'eventTooLarge'
+  | 'lineNotParsed'
+  | 'timestampUnparsed'
+  | 'fieldInvalid'
+  | 'encoding'
+  | 'unknownFormat'
+  | 'truncatedArchive'
+  | 'eventSplit'
+  | 'unmatchedLine'
+  | 'routeLimit';
+
+/** One kind of import problem in one source (Rust `ingest::Problem`). */
+export interface SourceProblem {
+  kind: SourceProblemKind;
+  count: number;
+  /** 1-based line numbers of the first occurrences (at most 20). */
+  sampleLines: number[];
 }
 
 /**
@@ -1489,7 +1525,7 @@ export interface SniffResult {
 }
 
 /** What a metric counts. `calls` and `maxCallNs` are per node (not inclusive). */
-export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs';
+export type MetricId = 'samples' | 'timeNs' | 'calls' | 'allocCount' | 'allocBytes' | 'exceptions' | 'waitNs' | 'maxCallNs' | 'liveBytes';
 /** `sampled` values are statistical estimates (label them so); `exact` were all recorded. */
 export type Measurement = 'sampled' | 'exact';
 export type MetricUnit = 'count' | 'nanoseconds' | 'bytes';
@@ -1940,7 +1976,10 @@ export type ProfileFindingKind =
   | 'hotPath'
   | 'blocking'
   | 'jitTime'
-  | 'allocations';
+  | 'allocations'
+  | 'hotNativeFunction'
+  | 'waitHotSpot'
+  | 'nativeHeapGrowth';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type EvidenceView = 'hotspots' | 'callTree' | 'flame' | 'butterfly' | 'timeline' | 'diff';
 
@@ -2684,3 +2723,122 @@ export type { RecentKind, RecentLists, RecentProject } from './generated/recent'
 
 // What every command rejects with, and its codes: generated from `error::CmdError` and `error::ErrorCode`.
 export type { CmdErrorDto, ErrorCode } from './generated/errors';
+
+// ---- Native profiling (plugin net.decryptology.native; tools `native-profiler` and `native-profiler.etw`;
+// Rust: crates/imt-plugin-native, ADR 0022) ----
+
+/** A process that can be profiled (Rust `NativeProcess`). */
+export interface NativeProcess {
+  pid: number;
+  name: string;
+  path: string | null;
+  /** `x86`, `x64`, `arm64` when known. */
+  arch: string | null;
+  /** The sampler can open it; otherwise only ETW (administrator) records it. */
+  accessible: boolean;
+}
+
+/** `sampling`: suspend-and-sample, no rights needed; `etw`: ETW in the plugin's elevated process. */
+export type NativeCaptureMode = 'sampling' | 'etw';
+
+/** `defaults` of `native-profiler` (the settings' symbol options and the sampling bounds). */
+export interface NativeDefaults {
+  symbolPath: string;
+  /** Downloads from the Microsoft symbol server are allowed (off by default). */
+  symbolServer: boolean;
+  rateHz: number;
+  maxRateHz: number;
+  maxDurationSec: number;
+  /** False off Windows. */
+  supported: boolean;
+}
+
+/** `start` of either tool (Rust `request::Raw`): `rateHz` for sampling only, `heap` for ETW only. */
+export interface NativeCaptureRequest {
+  pid: number;
+  /** null/absent = until stopped. 1..3600. */
+  durationSec?: number | null;
+  /** Samples per second per thread, 1..1000 (sampling). */
+  rateHz?: number;
+  /** Record heap allocations with their stacks (ETW). */
+  heap?: boolean;
+  /** Folders with PDBs, separated by `;`. */
+  symbolPath?: string;
+  symbolServer?: boolean;
+}
+
+export type NativeCaptureState = 'recording' | 'stopping' | 'done' | 'failed' | 'cancelled';
+
+/** A capture (Rust `CaptureStatus`). */
+export interface NativeCaptureStatus {
+  id: string;
+  pid: number;
+  processName: string;
+  mode: NativeCaptureMode;
+  state: NativeCaptureState;
+  elapsedMs: number;
+  bytes: number;
+  /** Samples taken so far (sampling). */
+  samples: number;
+  /** The NetTrace file once done; open it with `profiling_open`. */
+  path: string | null;
+  error: string | null;
+  /** The error is missing rights. */
+  needsElevation: boolean;
+  truncated: boolean;
+  notes: string[];
+}
+
+// ---- Dumps and UMDH heap logs (app/src-tauri/src/dumps.rs; ADR 0023) ----
+// Generated from `imt_dump::api`. Commands (invoke name -> args -> result):
+//   dumps_sniff     { paths: string[] }                    -> DumpSniffResult[]   (first 64 KiB; nothing is opened)
+//   dumps_open      { path: string }                       -> DumpDocSummary      (a path the user chose)
+//   dumps_list      {}                                     -> DumpDocSummary[]
+//   dumps_close     { id: number }                         -> boolean
+//   dumps_overview  { id: number }                         -> DumpOverview
+//   dumps_threads   { request: ThreadsRequest }            -> ThreadsPage
+//   dumps_stack     { request: StackRequest }              -> StackDto
+//   dumps_modules   { request: ModulesRequest }            -> ModulesPage
+//   dumps_findings  { request: DumpFindingsRequest }       -> DumpFinding[]       (one dump, or UMDH logs of one process)
+//   dumps_umdh_diff { request: UmdhDiffRequest }           -> UmdhDiffPage
+//   dumps_umdh_stack { request: UmdhStackRequest }         -> UmdhStackDto
+//   dumps_umdh_tree { request: UmdhTreeRequest }           -> UmdhTreeNode[]
+//   dumps_markers   {}                                     -> DumpMarker[]        (documents with a time, for the timeline)
+//   dumps_explain   { request: DumpFindingsRequest }       -> string              (the compact, redacted AI question)
+// "Create dump of process…" is the plugin tool `dumps.capture` (`tool_invoke`: `processes`, `create`).
+export type {
+  DocKind,
+  DumpDocSummary,
+  DumpFinding,
+  DumpFindingKind,
+  DumpFindingsRequest,
+  DumpMarker,
+  DumpOverview,
+  DumpSeverity,
+  DumpSniffKind,
+  DumpSniffResult,
+  ExceptionCard,
+  FindingEvidence,
+  FrameRow,
+  FrameTrust,
+  HandlesDto,
+  HandleTypeDto,
+  MemoryDto,
+  ModuleRow,
+  ModulesPage,
+  ModulesRequest,
+  StackDto,
+  StackRequest,
+  ThreadRow,
+  ThreadsPage,
+  ThreadsRequest,
+  ThreadState,
+  UmdhDiffPage,
+  UmdhDiffRequest,
+  UmdhGroup,
+  UmdhRow,
+  UmdhStackDto,
+  UmdhStackRequest,
+  UmdhTreeNode,
+  UmdhTreeRequest,
+} from './generated/dumps';

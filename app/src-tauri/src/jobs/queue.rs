@@ -166,6 +166,7 @@ pub fn needs_attention(job: &Job) -> bool {
                             | JobResult::File { .. }
                             | JobResult::FolderSurvey { .. }
                             | JobResult::Storage { .. }
+                            | JobResult::RelatedLogs { .. }
                     )
                 )
                 || job.run_ms(i64::MIN) >= ATTENTION_AFTER_MS
@@ -192,6 +193,7 @@ fn result_type(r: &JobResult) -> &'static str {
         JobResult::Model { .. } => "model",
         JobResult::FolderSurvey { .. } => "folderSurvey",
         JobResult::Storage { .. } => "storage",
+        JobResult::RelatedLogs { .. } => "relatedLogs",
     }
 }
 

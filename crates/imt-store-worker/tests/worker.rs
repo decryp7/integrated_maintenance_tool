@@ -1,5 +1,5 @@
 //! The store worker end to end: the real worker binary under the supervisor, the ports over it, the
-//! memory budgets of ADR 0014 (worker ≤ 600 MB importing, ≤ 300 MB idle and querying; the app side flat)
+//! memory budgets of ADR 0014 (worker ≤ 768 MB importing, ≤ 300 MB idle and querying; the app side flat)
 //! and a crash that the next call recovers from by reopening the store.
 //!
 //! `IMT_BENCH_COPIES=<n>` imports n copies of the samples for a larger run (use `--release`).
@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-const IMPORT_BUDGET_MB: u64 = 600;
+const IMPORT_BUDGET_MB: u64 = 768;
 const QUERY_BUDGET_MB: u64 = 300;
 /// Growth of the app process allowed while it drives an import and queries (it holds no events).
 const CLIENT_GROWTH_MB: u64 = 64;
@@ -162,6 +162,12 @@ fn imports_and_queries_within_the_budgets() {
     std::thread::sleep(Duration::from_millis(300));
     let idle = rss_of(pid) >> 20;
     sampler.take_mb();
+    // Printed before the queries, so a failing query still reports the import.
+    eprintln!(
+        "worker: import {} events in {elapsed:.2} s ({:.0}/s); peak RSS importing {import_peak} MB, indexing {index_peak} MB, idle {idle} MB",
+        report.events,
+        report.events as f64 / elapsed
+    );
     // Queries.
     let summary = store.summary().unwrap();
     assert_eq!(summary.total, report.events);

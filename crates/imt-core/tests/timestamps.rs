@@ -139,3 +139,15 @@ fn no_sample_is_flagged() {
         .collect();
     assert_eq!(flagged, Vec::<String>::new());
 }
+
+// Regression: a log4net CSV layout without a header, its date and time split by the comma delimiter. The first
+// event was read as a header, and only the date became the timestamp. (Invented values in the fixture.)
+#[test]
+fn a_headerless_csv_with_date_and_time_in_two_columns_imports() {
+    let ws = open(&["log4net-csv.log"], Profile::default_profile());
+    let s = source(&ws, "log4net-csv.log");
+    assert_eq!(s.importer, "csv");
+    assert_eq!((s.records, s.skipped), (5, 0), "every row is an event");
+    assert_eq!(s.from, Some(utc(2024, 3, 2, 8, 15, 0, 13)));
+    assert_eq!(s.to, Some(utc(2024, 3, 2, 22, 59, 59, 999)));
+}

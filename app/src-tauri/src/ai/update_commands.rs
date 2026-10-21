@@ -44,11 +44,7 @@ fn updates<R: Runtime>(app: &AppHandle<R>) -> AiResult<Arc<AiUpdates>> {
 }
 
 fn size_text(bytes: u64) -> String {
-    if bytes >= 1_000_000_000 {
-        format!("{:.1} GB", bytes as f64 / 1e9)
-    } else {
-        format!("{:.0} MB", (bytes as f64 / 1e6).max(1.0))
-    }
+    imt_plugin_api::units::bytes(bytes)
 }
 
 /// The message of an update the user is asked about.
@@ -117,7 +113,7 @@ fn start_model_update<R: Runtime>(app: &AppHandle<R>, u: UpdateCandidate) -> AiR
         let busy = chat_busy(&app);
         let mut on_stage = |st: SetupStage| match st {
             SetupStage::Downloading { bytes, total, .. } | SetupStage::Verifying { bytes, total } => {
-                ctx.progress(JobProgress::counts(bytes, total))
+                ctx.progress(JobProgress::bytes(bytes, total))
             }
             _ => {}
         };

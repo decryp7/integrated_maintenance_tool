@@ -7,6 +7,7 @@ import {
   MarkersProposal,
   PipelineProposal,
   ProfileProposal,
+  ProjectorInfo,
   Recommendation,
   Recommendations,
   RegexProposal,
@@ -25,7 +26,10 @@ export const MOCK_HARDWARE: Hardware = {
   gpus: [{ name: 'NVIDIA GeForce RTX 4060 Laptop GPU', vramGb: 8, unified: false }],
 };
 
-function model(id: string, name: string, paramsB: number, sizeGb: number, license: string, toolCalling: boolean, notes: string): CatalogModel {
+const MB = 1024 ** 2;
+
+function model(id: string, name: string, paramsB: number, sizeGb: number, license: string, toolCalling: boolean, notes: string, projectorMb: number | null = null): CatalogModel {
+  const file = `${name.replace(/ /g, '-')}-Q4_K_M.gguf`;
   return {
     id,
     name,
@@ -34,7 +38,7 @@ function model(id: string, name: string, paramsB: number, sizeGb: number, licens
     activeParamsB: null,
     quant: 'Q4_K_M',
     hfRepo: `unsloth/${name.replace(/ /g, '-')}-GGUF`,
-    file: `${name.replace(/ /g, '-')}-Q4_K_M.gguf`,
+    file,
     sha256: '0'.repeat(64),
     sizeBytes: Math.round(sizeGb * GB),
     license,
@@ -45,15 +49,18 @@ function model(id: string, name: string, paramsB: number, sizeGb: number, licens
     moe: false,
     recommendedFor: [],
     notes,
+    // The model's image projector (ADR 0025): the `mmproj` file of the same repository.
+    projector: projectorMb === null ? null : { file: `mmproj-${name.replace(/ /g, '-')}-F16.gguf`, sha256: '1'.repeat(64), sizeBytes: Math.round(projectorMb * MB) },
   };
 }
 
 export const MOCK_CATALOG: CatalogModel[] = [
-  model('qwen3.5-9b-q4km', 'Qwen3.5 9B', 9, 5.6, 'apache-2.0', true, 'Best quality that fits 8 GB of video memory.'),
-  model('qwen3.5-4b-q4km', 'Qwen3.5 4B', 4, 2.7, 'apache-2.0', true, 'Fast; good tool calling.'),
+  model('qwen3.5-9b-q4km', 'Qwen3.5 9B', 9, 5.6, 'apache-2.0', true, 'Best quality that fits 8 GB of video memory.', 876),
+  model('qwen3.5-4b-q4km', 'Qwen3.5 4B', 4, 2.7, 'apache-2.0', true, 'Fast; good tool calling.', 640),
   model('llama3.2-3b-q4km', 'Llama 3.2 3B', 3.2, 2.0, 'llama3.2', true, 'Small and quick.'),
-  model('gemma3-12b-q4km', 'Gemma 3 12B', 12, 7.3, 'gemma', false, 'Strong writer; no tool calling.'),
+  model('gemma3-12b-q4km', 'Gemma 3 12B', 12, 7.3, 'gemma', false, 'Strong writer; no tool calling.', 812),
   model('qwen3.5-32b-q4km', 'Qwen3.5 32B', 32, 19.8, 'apache-2.0', true, 'Needs a 24 GB GPU.'),
+  { ...model('qwen3.6-35b-a3b-q4km', 'Qwen3.6 35B-A3B', 35, 20.6, 'apache-2.0', true, 'Best quality, text + images; needs 32 GB of RAM.', 858), activeParamsB: 3, moe: true, minRamGb: 32 },
 ];
 
 /** The catalog entry at `index` (the mock catalog is fixed, so a missing one is a programming error). */
@@ -93,7 +100,21 @@ export function installedFrom(m: CatalogModel, active: boolean): InstalledModel 
     name: m.name,
     license: m.license,
     toolCalling: m.toolCalling,
+    // Installed with its projector when the catalog has one (ADR 0025: one install downloads both).
+    vision: !!m.projector,
+    projector: m.projector ? { fileName: `${m.file.replace(/\.gguf$/i, '')}.mmproj.gguf`, sizeBytes: m.projector.sizeBytes, info: mockProjectorInfo(m.projector.sizeBytes), problem: null } : null,
+    projectorDownloadBytes: null,
   };
+}
+
+/** What a projector's header says (the mock's are all Qwen-style CLIP encoders). */
+export function mockProjectorInfo(fileSize: number): ProjectorInfo {
+  return { name: 'mmproj', projectorType: 'qwen3vl_merger', projectionDim: 2560, imageSize: 768, patchSize: 16, spatialMergeSize: 2, fileSize };
+}
+
+/** The same model without its projector: text only, with "Add image support" offered when the catalog has one. */
+export function textOnly(m: InstalledModel, catalog: CatalogModel | undefined): InstalledModel {
+  return { ...m, vision: false, projector: null, projectorDownloadBytes: catalog?.projector?.sizeBytes ?? null };
 }
 
 let demoIds: { error: number; fatal: number; warning: number } | null = null;

@@ -11,6 +11,8 @@ import { PROFILING_VIEW_IDS as V } from './profiling-navigator';
 import { isHeap, isProfile } from './profiling-format';
 import { provideDotnetBackend } from './dotnet/dotnet-backend';
 import { DotnetCommands } from './dotnet/dotnet-commands';
+import { provideNativeBackend } from './native/native-backend';
+import { NativeCommands } from './native/native-commands';
 
 const CATEGORY = $localize`:@@profiling.category:Profiling`;
 
@@ -92,9 +94,11 @@ export function provideProfiling(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideProfilingBackend(),
     ...provideDotnetBackend(),
+    ...provideNativeBackend(),
     { provide: IMT_VIEWS, multi: true, useValue: PROFILING_VIEWS },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProfilingCommands).commands },
     { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(DotnetCommands).commands },
+    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(NativeCommands).commands },
     { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: profilingDropHandler },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(ProfilingPersistence).contribution] },
     provideAppInitializer(() => startProfiling()),

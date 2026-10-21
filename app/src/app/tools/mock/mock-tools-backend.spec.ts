@@ -62,9 +62,10 @@ describe('MockToolsBackend tools', () => {
       'diagnostics',
       'elevation',
       'event-log-follower',
+      'dumps.capture',
     ]);
     expect(
-      win.every(
+      win.filter((t) => t.id !== 'dumps.capture').every(
         (t) => t.availability.state === 'available' && t.plugin === 'net.decryptology.tools',
       ),
     ).toBe(true);

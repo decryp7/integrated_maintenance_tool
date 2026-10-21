@@ -1,3 +1,4 @@
+import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Icon } from '../shared/icon';
 import { fileName, percent, progressLine } from './import-format';
@@ -62,7 +63,7 @@ export class ImportStatus {
   template: `
     @if (svc.long()) {
       @if (vm(); as v) {
-        <div class="toast" role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
+        <div class="toast" data-imt-overlay role="status" aria-label="Import in progress" i18n-aria-label="@@import.ui.inProgress" data-testid="import-toast">
           <div class="head">
             <imt-icon name="refresh" [size]="14" />
             <strong i18n="@@import.ui.heading">Importing…</strong>
@@ -107,7 +108,7 @@ export class ImportToast {
     @if (svc.partial(); as p) {
       <div class="banner" role="status" data-testid="partial-import-banner">
         <imt-icon name="alert" [size]="14" />
-        <span class="msg" i18n="@@import.ui.partial"><strong>Partially imported:</strong> {{ p.done }} of {{ p.total }} files were read before you cancelled. The rest are listed as not imported in the Explorer.</span>
+        <span class="msg" i18n="@@import.ui.partial"><strong>Partially imported:</strong> {{ fmt(p.done) }} of {{ fmt(p.total) }} files were read before you cancelled. The rest are listed as not imported in the Explorer.</span>
         <button type="button" class="btn primary" (click)="svc.reimportAll()" i18n="@@import.ui.reimportAll">Re-import all</button>
         <button type="button" class="btn ghost" (click)="svc.dismissPartial()" i18n="@@import.ui.dismiss">Dismiss</button>
       </div>
@@ -120,5 +121,6 @@ export class ImportToast {
   `,
 })
 export class PartialImportBanner {
+  protected readonly fmt = formatCount;
   protected readonly svc = inject(ImportProgressService);
 }

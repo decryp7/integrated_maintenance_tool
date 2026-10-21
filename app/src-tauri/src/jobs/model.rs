@@ -184,6 +184,17 @@ pub struct JobSource {
     pub link: Option<JobLink>,
 }
 
+/// What `done` and `total` of a [`JobProgress`] count; the UI formats them accordingly (a size, or a plain number).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProgressUnit {
+    /// Files, pages, events, steps.
+    #[default]
+    Items,
+    /// Bytes transferred or processed.
+    Bytes,
+}
+
 /// How far a job is. Any part may be unknown.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -194,6 +205,9 @@ pub struct JobProgress {
     pub total: Option<u64>,
     /// Time left as the producer estimates it (else estimated from the fraction).
     pub eta_ms: Option<u64>,
+    /// What `done` and `total` count (absent in older payloads = items).
+    #[serde(default)]
+    pub unit: ProgressUnit,
     /// Bytes read so far and in all (imports).
     #[serde(default)]
     pub bytes_done: Option<u64>,
@@ -218,6 +232,14 @@ impl JobProgress {
             done: Some(done),
             total: (total > 0).then_some(total),
             ..JobProgress::default()
+        }
+    }
+
+    /// Progress in bytes (a download or copy): the UI shows sizes, speed and time left.
+    pub fn bytes(done: u64, total: u64) -> JobProgress {
+        JobProgress {
+            unit: ProgressUnit::Bytes,
+            ..JobProgress::counts(done, total)
         }
     }
 
@@ -258,6 +280,8 @@ pub enum JobResult {
     FolderSurvey { outcome: Value },
     /// What clearing IMT's storage freed and kept: View opens Settings ▸ Storage with it.
     Storage { result: Value },
+    /// The logs related to an image (ADR 0025): View opens the image with its links.
+    RelatedLogs { result: Value },
 }
 
 impl JobResult {
@@ -269,7 +293,8 @@ impl JobResult {
             JobResult::Narrative { narrative: v }
             | JobResult::Proposal { proposal: v }
             | JobResult::FolderSurvey { outcome: v }
-            | JobResult::Storage { result: v } => v.to_string().len(),
+            | JobResult::Storage { result: v }
+            | JobResult::RelatedLogs { result: v } => v.to_string().len(),
             _ => 0,
         };
         (size <= Self::MAX_PAYLOAD_BYTES).then_some(self)
@@ -477,5 +502,18 @@ mod tests {
         let link = serde_json::to_value(JobLink::Event { record_id: 4 }).unwrap();
         assert_eq!(link, serde_json::json!({"type": "event", "recordId": 4}));
         assert_eq!(JobId(7).to_string(), "7");
+    }
+    #[test]
+    fn byte_progress_is_typed_and_old_payloads_mean_items() {
+        let p = JobProgress::bytes(512, 2048);
+        assert_eq!(
+            (p.unit, p.done, p.total, p.fraction),
+            (ProgressUnit::Bytes, Some(512), Some(2048), Some(0.25))
+        );
+        assert_eq!(JobProgress::counts(1, 2).unit, ProgressUnit::Items);
+        assert_eq!(p.clone().sanitized().unit, ProgressUnit::Bytes);
+        assert_eq!(serde_json::to_value(p).unwrap()["unit"], "bytes");
+        let old: JobProgress = serde_json::from_value(serde_json::json!({"fraction": 0.5, "done": 1, "total": 2, "etaMs": null})).unwrap();
+        assert_eq!(old.unit, ProgressUnit::Items);
     }
 }

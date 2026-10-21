@@ -6,7 +6,7 @@
 use super::commands::{check_link, core};
 use super::core::AiCore;
 use super::error::{AiCmdError, AiResult};
-use imt_ai::manual::{model_file, runtime_files, ManualFile};
+use imt_ai::manual::{model_file, projector_file, runtime_files, ManualFile};
 use imt_ai::runtimes::builds::{is_build_id, label};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
@@ -54,7 +54,10 @@ impl AiCore {
                     kind,
                     id: m.id.clone(),
                     name: m.name.clone(),
-                    files: vec![model_file(m, &self.settings().hf_endpoint, MODEL_REVISION)],
+                    // A model that reads images: its projector too (added with "Add projector file…").
+                    files: std::iter::once(model_file(m, &self.settings().hf_endpoint, MODEL_REVISION))
+                        .chain(projector_file(m, &self.settings().hf_endpoint, MODEL_REVISION))
+                        .collect(),
                     folder: self.models_dir().display().to_string(),
                 })
             }

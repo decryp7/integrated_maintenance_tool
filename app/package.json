@@ -10,7 +10,7 @@
     "lint": "ng lint && node scripts/lint-styles.mjs",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium webkit",
-    "e2e:tauri:build": "cargo build -p imt-store-worker -p imt-plugins && tauri build --debug --no-bundle",
+    "e2e:tauri:build": "node scripts/build-sidecars.mjs --debug && tauri build --debug --no-bundle",
     "e2e:tauri:driver": "node e2e-tauri/scripts/fetch-msedgedriver.mjs",
     "e2e:tauri": "wdio run e2e-tauri/wdio.conf.ts",
     "screenshots": "playwright test -c scripts/screenshots/playwright.config.ts",

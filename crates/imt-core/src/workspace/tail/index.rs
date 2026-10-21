@@ -21,6 +21,8 @@ struct FieldStat {
     count: usize,
     non_numeric: usize,
     values: HashMap<String, usize>,
+    /// Records carrying the field, by source id (ids are dense and never reused).
+    by_source: Vec<u32>,
 }
 
 /// Per-field counts, numeric-ness and distinct values, updatable record by record.
@@ -45,6 +47,11 @@ impl FieldIndex {
                 None => self.stats.entry(k.clone()).or_default(),
             };
             s.count += 1;
+            let src = r.source as usize;
+            if s.by_source.len() <= src {
+                s.by_source.resize(src + 1, 0);
+            }
+            s.by_source[src] += 1;
             if value_number(v).is_none() {
                 s.non_numeric += 1;
             }
@@ -61,6 +68,9 @@ impl FieldIndex {
         for (k, v) in &r.fields {
             let Some(s) = self.stats.get_mut(k) else { continue };
             s.count = s.count.saturating_sub(1);
+            if let Some(n) = s.by_source.get_mut(r.source as usize) {
+                *n = n.saturating_sub(1);
+            }
             if value_number(v).is_none() {
                 s.non_numeric = s.non_numeric.saturating_sub(1);
             }
@@ -75,6 +85,14 @@ impl FieldIndex {
                 self.stats.remove(k);
             }
         }
+    }
+
+    /// Records of source `source` that carry `field`.
+    pub fn count_in(&self, field: &str, source: u32) -> usize {
+        self.stats
+            .get(field)
+            .and_then(|s| s.by_source.get(source as usize))
+            .map_or(0, |n| *n as usize)
     }
 
     /// The field list shown in the summary: most frequent first.
@@ -310,7 +328,22 @@ mod tests {
         assert_eq!(infos[0].name, "n");
         assert_eq!((infos[0].count, infos[0].distinct, infos[0].numeric), (2, 2, false));
         assert!(infos[1].derived);
+        let mut c = rec(2, 3, "c", json!({"n": 3}));
+        c.source = 4;
+        idx.add(&c);
+        assert_eq!(
+            (
+                idx.count_in("n", 0),
+                idx.count_in("n", 4),
+                idx.count_in("n", 9),
+                idx.count_in("x", 0)
+            ),
+            (2, 1, 0, 0)
+        );
+        idx.remove(&c);
+        assert_eq!(idx.count_in("n", 4), 0);
         idx.remove(&b);
+        assert_eq!(idx.count_in("n", 0), 1);
         let infos = idx.infos(&HashSet::new());
         assert!(infos[0].numeric && infos[0].distinct == 1);
         idx.remove(&a);

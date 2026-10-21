@@ -186,10 +186,10 @@ fn read_capture(path: &str) -> ProfResult<(String, String, Vec<u8>)> {
         return Err(crate::CmdError::from(ProfilingErrorDto::new(
             ErrorCode::Limit,
             format!(
-                "{} is {} MB; captures up to {} MB can be opened",
+                "{} is {}; captures up to {} can be opened",
                 canonical.display(),
-                meta.len() >> 20,
-                max >> 20
+                imt_plugin_api::units::bytes(meta.len()),
+                imt_plugin_api::units::bytes(max)
             ),
         )));
     }

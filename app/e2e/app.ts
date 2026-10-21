@@ -26,7 +26,8 @@ export function parseCount(text: string): number {
 /** Reads the unfiltered total once the demo workspace is loaded (the demo data may change). */
 export async function initialTotal(page: Page): Promise<string> {
   const total = gridTotal(page);
-  await expect(total).toHaveText(/^\d[\d,]*$/);
+  // The loaded total, not the "0" shown while the first import is still running (a slow WebKit run read that).
+  await expect(total).toHaveText(/^[1-9][\d,]*$/);
   return total.innerText();
 }
 

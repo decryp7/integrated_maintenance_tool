@@ -283,6 +283,25 @@ describe('NotificationToasts', () => {
     return { f, fake, ctx, actions, store: TestBed.inject(NotificationsStore) };
   }
 
+  it('holds a toast under the pointer or focus and releases it once both have left', async () => {
+    const { f, fake, store } = setup();
+    await render(f);
+    const n = notice({ id: 1, primary: { type: 'showJobs' } });
+    fake.push(event([n], n));
+    f.detectChanges();
+    const toast = el(f, '[data-testid=notice-toast]');
+    const hold = vi.spyOn(store, 'holdToast');
+    const release = vi.spyOn(store, 'releaseToast');
+    toast.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(hold).toHaveBeenCalledWith(1);
+    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').focus();
+    toast.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(release).not.toHaveBeenCalled(); // focus is still inside
+    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').blur();
+    toast.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+    expect(release).toHaveBeenCalledWith(1);
+  });
+
   it('renders nothing until a message is posted, then previews it with its action', async () => {
     const { f, fake } = setup();
     await render(f);

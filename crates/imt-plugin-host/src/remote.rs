@@ -25,6 +25,7 @@ use imt_ipc::{IpcError, Json};
 use imt_plugin_api::annotate as api_annotate;
 use imt_plugin_api::importer::path_tail;
 use imt_plugin_api::manifest::{ConfigParserCap, ImporterCap, Permission};
+use imt_plugin_api::problems::Problems;
 use imt_plugin_api::protocol::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -140,7 +141,7 @@ impl Ctx {
     ) -> Result<(Rep, Vec<Record>)> {
         let timeout = self.deadline(kind);
         let mut records = Vec::new();
-        let lent = Lent { files, view: None };
+        let lent = Lent { files, ..Lent::default() };
         let rep = self
             .process
             .call_lending(
@@ -190,6 +191,7 @@ impl Importer for RemoteImporter {
         Ok(Imported {
             records,
             skipped: done.skipped as usize,
+            problems: Problems::from_vec(done.problems),
         })
     }
 
@@ -214,6 +216,7 @@ impl Importer for RemoteImporter {
             Ok((done, records)) => Some(Ok(Imported {
                 records,
                 skipped: done.skipped as usize,
+                problems: Problems::from_vec(done.problems),
             })),
             Err(e) => Some(Err(e)),
         }
@@ -221,6 +224,10 @@ impl Importer for RemoteImporter {
 
     fn multiline(&self) -> bool {
         self.cap.multiline
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
     }
 }
 
@@ -232,6 +239,10 @@ struct RemoteBinaryImporter {
 impl BinaryImporter for RemoteBinaryImporter {
     fn id(&self) -> &str {
         &self.cap.id
+    }
+
+    fn identity_fields(&self) -> Vec<String> {
+        self.cap.identity_fields.clone()
     }
 
     fn sniff(&self, ctx: &ImportCtx, head: &[u8]) -> u8 {
@@ -256,6 +267,7 @@ impl BinaryImporter for RemoteBinaryImporter {
         Ok(Imported {
             records,
             skipped: done.skipped as usize,
+            problems: Problems::from_vec(done.problems),
         })
     }
 }
@@ -292,7 +304,7 @@ impl ConfigParser for RemoteConfigParser {
         let limits = *limits;
         let lent = Lent {
             files: vec![content.as_bytes()],
-            view: None,
+            ..Lent::default()
         };
         let timeout = self.ctx.deadline(CallKind::Import);
         self.ctx
@@ -350,8 +362,8 @@ impl Annotator for RemoteAnnotator {
     fn annotate(&self, view: &dyn AnnotationView, since: Option<RecordCursor>) -> Result<Vec<Annotation>> {
         let timeout = self.ctx.deadline(CallKind::Annotate);
         let lent = Lent {
-            files: Vec::new(),
             view: Some(view),
+            ..Lent::default()
         };
         let annotator = self.id.clone();
         let list: Vec<api_annotate::Annotation> = self
@@ -593,6 +605,9 @@ impl Plugin for RemotePlugin {
         }
         if !m.profile_importers.is_empty() {
             crate::profile::register(registry, &self.process, &ctx.health)?;
+        }
+        if !m.document_importers.is_empty() {
+            crate::document::register(registry, &self.process, &ctx.health)?;
         }
         Ok(())
     }

@@ -4,11 +4,14 @@
 use super::approvals::{Approvals, DecisionDto};
 use super::hub::{BrowserHub, PageState};
 use super::page::TauriPage;
-use super::window::{browser_label, open};
+use super::view::{self, open, page_webview};
 use super::{emit, BrowserEvent, BrowserState, ChatStatusDto, SourceInfo};
 use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
-use imt_ai::browser::{query::search_for_event, scripts, small_for_agent, PageReader, SearchEngine, WebUrl};
+use imt_ai::browser::draft::without_flagged;
+use imt_ai::browser::{
+    check_store_query, query::search_for_event, scripts, small_for_agent, PageReader, QuerySource, SearchEngine, WebUrl,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime};
@@ -52,7 +55,7 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> CmdResult<T> + Send + '
     crate::sync::blocking("the browser task", f).await
 }
 
-/// The Web panel's view of its window's browser.
+/// The Browser panel's view of its window's browser.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BrowserStateDto {
@@ -61,6 +64,8 @@ pub struct BrowserStateDto {
     pub engine: SearchEngine,
     /// A custom search address is set.
     pub custom_engine: bool,
+    /// The page shows in the panel (Windows, macOS); false: in a window of its own (Linux, see `view`).
+    pub docked: bool,
 }
 
 #[tauri::command]
@@ -71,6 +76,7 @@ pub async fn browser_state<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) ->
         page: hub.page(win.label()),
         engine: s.search.engine,
         custom_engine: s.search.custom.is_some(),
+        docked: view::DOCKED,
     })
 }
 
@@ -98,28 +104,50 @@ pub async fn browser_open<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, tar
     Ok(url.as_str().to_string())
 }
 
-/// The redacted search text for an event, built by the engine (the user may edit it before it opens).
+/// The search text for an event: drafted by the model (what the leak guard flags in it is taken out), or built by the
+/// engine with the privacy guard. The user may edit it before it opens.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventQueryDto {
     pub query: String,
-    /// What the privacy guard removed ("2 file paths").
+    /// What was taken out for the user's privacy ("2 file paths", "1 value from your logs").
     pub removed: Vec<String>,
+    /// Who wrote the text.
+    pub source: QuerySource,
 }
 
+/// What the model is asked when it drafts the search for "Search the web for this error".
+const SEARCH_QUESTION: &str = "Find web pages that explain this error and how to fix it.";
+
 #[tauri::command]
-pub async fn browser_event_query(win: CurrentWindow, record_id: u32) -> CmdResult<EventQueryDto> {
+pub async fn browser_event_query<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, record_id: u32) -> CmdResult<EventQueryDto> {
     let w = win.arc().clone();
     blocking(move || {
-        let store = w.engine.store()?;
-        crate::error::lift(
+        let engine = || {
+            let store = w.engine.store()?;
             search_for_event(store.as_ref(), record_id)
                 .map(|q| EventQueryDto {
                     query: q.query,
                     removed: q.removed,
+                    source: QuerySource::Engine,
                 })
-                .map_err(|e| format!("nothing to search for: {e}")),
-        )
+                .map_err(|e| crate::CmdError::from(format!("nothing to search for: {e}")))
+        };
+        let (_, drafted) = super::research::draft_search(&app, &w, Some(SEARCH_QUESTION), Some(record_id))
+            .map_err(|e| crate::CmdError::from(format!("nothing to search for: {}", e.message)))?;
+        if drafted.source == QuerySource::Engine {
+            return engine();
+        }
+        let access = crate::ai::commands::WindowStore(w.clone());
+        let checked = check_store_query((&access as &dyn imt_ai::StoreAccess).into(), &drafted.query).map_err(crate::CmdError::from)?;
+        match without_flagged(&checked) {
+            (query, _) if query.is_empty() => engine(),
+            (query, removed) => Ok(EventQueryDto {
+                query,
+                removed,
+                source: QuerySource::Model,
+            }),
+        }
     })
     .await
 }
@@ -136,9 +164,7 @@ pub enum NavCommand {
 
 #[tauri::command]
 pub async fn browser_nav<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, command: NavCommand) -> CmdResult<()> {
-    let w = app
-        .get_webview_window(&browser_label(win.label()))
-        .ok_or("the browser is not open")?;
+    let w = page_webview(&app, win.label()).ok_or("the browser is not open")?;
     let js = match command {
         NavCommand::Back => "history.back()",
         NavCommand::Forward => "history.forward()",
@@ -148,12 +174,26 @@ pub async fn browser_nav<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, comm
     crate::error::lift(w.eval(js).map_err(err))
 }
 
+/// Closes the page (the panel stays); false when none was open.
 #[tauri::command]
 pub async fn browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) -> CmdResult<bool> {
-    match app.get_webview_window(&browser_label(win.label())) {
-        Some(w) => crate::error::lift(w.close().map(|_| true).map_err(err)),
-        None => Ok(false),
-    }
+    crate::error::lift(view::close(&app, win.label()))
+}
+
+/// Where the Browser panel's page area is, from the window the panel is in (the IMT window or its pop-out): the page
+/// webview takes that place, or hides (ADR 0024). Validated here; frequent while the user resizes, so quiet.
+#[tauri::command]
+pub async fn browser_place<R: Runtime>(
+    app: AppHandle<R>,
+    window: tauri::Window<R>,
+    win: CurrentWindow,
+    placement: super::Placement,
+) -> CmdResult<bool> {
+    let placement = placement
+        .validated()
+        .map_err(|e| crate::CmdError::new(crate::ErrorCode::Invalid, e))?;
+    let view = crate::error::lift(view::place(&app, win.label(), window.label(), placement))?;
+    Ok(matches!(view, super::geometry::View::At(_)))
 }
 
 /// Opens the page shown (or a popup it asked for) in the system browser; any other address is refused.
@@ -302,7 +342,7 @@ pub async fn browser_agent_stop<R: Runtime>(app: AppHandle<R>, win: CurrentWindo
     hub.chat(win.label(), &chat).stop();
     approvals(&app)?.deny_chat(win.label(), &chat);
     if hub.is_driving(win.label(), &chat) {
-        if let Some(w) = app.get_webview_window(&browser_label(win.label())) {
+        if let Some(w) = page_webview(&app, win.label()) {
             let _ = w.eval(scripts::STOP_LOADING);
         }
     }

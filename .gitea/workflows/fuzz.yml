@@ -41,7 +41,9 @@ jobs:
           - shard: 4
             targets: [fuzz_procmon_csv, fuzz_minidump, fuzz_eventlog, fuzz_log4j_xml, fuzz_sql_errorlog, fuzz_docker_json, fuzz_cri, fuzz_ai_request, fuzz_worker_http]
           - shard: 5
-            targets: [fuzz_prof_nettrace_heap, fuzz_dotnet_etw, fuzz_dotnet_ipc]
+            targets: [fuzz_prof_nettrace_heap, fuzz_dotnet_ipc, fuzz_native_etw, fuzz_native_pe, fuzz_image, fuzz_vision_facts]
+          - shard: 6
+            targets: [fuzz_dump_minidump, fuzz_dump_umdh, fuzz_dump_wire]
     steps:
       - uses: actions/checkout@v4
 

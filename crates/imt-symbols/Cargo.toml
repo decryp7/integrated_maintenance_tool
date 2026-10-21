@@ -1,0 +1,30 @@
+[package]
+name = "imt-symbols"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Native symbols for IMT (ADR 0022): PE/PDB identities, symbol paths and cache, optional symbol-server downloads, DbgHelp symbolisation and stack walking; shared by the native profiler and dump analysis"
+
+[dependencies]
+thiserror.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"], optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Kernel",
+    "Win32_System_SystemInformation",
+    "Win32_System_LibraryLoader",
+] }
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[features]
+# Downloads from a symbol server (the Microsoft symbol server when the user enables it).
+default = ["server"]
+server = ["dep:ureq"]

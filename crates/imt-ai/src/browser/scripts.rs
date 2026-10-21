@@ -5,12 +5,14 @@
 use super::capture::{MAX_BLOCKS, MAX_CAPTURE_CHARS};
 use super::policy::ScrollDirection;
 use super::protocol::Nonce;
+use super::results::{MAX_LINK_TEXT, MAX_RESULT_LINKS};
 use super::snapshot::{Element, MAX_ELEMENTS};
 use serde_json::{json, Value};
 
 const CAPTURE: &str = include_str!("js/capture.js");
 const SNAPSHOT: &str = include_str!("js/snapshot.js");
 const ACT: &str = include_str!("js/act.js");
+const RESULT_LINKS: &str = include_str!("js/result_links.js");
 
 /// `(function (A) {...})({...})`, with the line endings of the checkout normalised.
 fn call(source: &str, args: Value) -> String {
@@ -32,6 +34,14 @@ pub fn capture(nonce: &Nonce) -> String {
 /// The interactive elements and hand-off signals (see `snapshot::snapshot_from`).
 pub fn snapshot(nonce: &Nonce) -> String {
     call(SNAPSHOT, json!({"nonce": nonce.as_str(), "maxElements": MAX_ELEMENTS * 2}))
+}
+
+/// Every link of a search results page, in document order, marked when inside `region` (see `results.rs`).
+pub fn result_links(nonce: &Nonce, region: &[&str]) -> String {
+    call(
+        RESULT_LINKS,
+        json!({"nonce": nonce.as_str(), "max": MAX_RESULT_LINKS, "maxText": MAX_LINK_TEXT, "region": region}),
+    )
 }
 
 pub fn click(nonce: &Nonce, element: &Element) -> String {
@@ -94,6 +104,7 @@ mod tests {
         for s in [
             capture(&n),
             snapshot(&n),
+            result_links(&n, &["#rso"]),
             click(&n, &el()),
             scroll(&n, ScrollDirection::Up),
             history(&n, true),
@@ -108,6 +119,8 @@ mod tests {
         }
         assert_eq!(args(&capture(&n))["maxChars"], MAX_CAPTURE_CHARS * 2);
         assert_eq!(args(&click(&n, &el()))["tag"], "input");
+        assert_eq!(args(&result_links(&n, &["#rso", "#search"]))["region"], json!(["#rso", "#search"]));
+        assert_eq!(args(&result_links(&n, &[]))["max"], MAX_RESULT_LINKS);
         assert_eq!(args(&scroll(&n, ScrollDirection::Down))["dir"], "down");
         assert_eq!(args(&history(&n, false))["op"], "forward");
     }

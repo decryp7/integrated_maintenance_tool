@@ -12,5 +12,10 @@ pub trait LlmProvider: Send + Sync {
     fn display_name(&self) -> String;
     /// Tokens the loaded model can hold (prompt plus answer).
     fn context_length(&self) -> usize;
+    /// Whether the model reads images (its projector is loaded with it, ADR 0025). A request with images to a
+    /// provider without vision fails with `AiError::NoVision`.
+    fn vision(&self) -> bool {
+        false
+    }
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse>;
 }

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "crates/imt-store-duck", "crates/imt-store-client", "crates/imt-store-worker", "app/src-tauri", "xtask"]
+members = ["crates/imt-core", "crates/imt-alloc", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-etw", "crates/imt-symbols", "crates/imt-plugin-native", "crates/imt-dump", "crates/imt-plugin-dumps", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "crates/imt-store-duck", "crates/imt-store-client", "crates/imt-store-worker", "app/src-tauri", "xtask"]
 # The persistent-store spike (docs/store-spike.md) builds on its own: it needs DataFusion, which no shipped crate
 # uses. The store crates (imt-store-duck, imt-store-worker) link the official prebuilt libduckdb: every build needs
 # `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` from `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (docs/development.md).
@@ -42,6 +42,9 @@ log = "0.4"
 memory-stats = "1.2"
 # Event segments of the store: zstd Parquet (Apache-2.0), the Arrow version of duckdb-rs.
 parquet = { version = "58", default-features = false }
+# The global allocator of the binaries that parse and analyse (MIT), v3 (user decision 2026-10-21): through
+# `imt-alloc`, which also tunes it; measurements in ADR 0014's performance notes.
+mimalloc = { version = "0.1", default-features = false }
 # The frame codec of every IPC connection (ADR 0017): serde, compact, no schema compiler.
 postcard = { version = "1.1", default-features = false, features = ["use-std"] }
 proptest = "1.12"
@@ -68,6 +71,12 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 # `tauri dev` and in the tests, and they are compiled once. Workspace crates stay at opt-level 0 for fast rebuilds.
 [profile.dev.package."*"]
 opt-level = 2
+
+# Line tables only (file:line in backtraces and debugger stepping, no variable info): build folders about half the
+# size and much less memory when linking test binaries. CI used this already. For full debug info in one session:
+# `CARGO_PROFILE_DEV_DEBUG=full`.
+[profile.dev]
+debug = "line-tables-only"
 
 # Shipped builds (tag builds and installers: `cargo build --profile dist`, `tauri build -- --profile dist`):
 # release plus cross-crate inlining, one codegen unit and no symbols. Slower to build, so day-to-day

@@ -14,7 +14,6 @@ const SCREENSHOTS = '../docs/screenshots';
 
 async function box(page: Page, selector: string) {
   // A panel moving between the dock and the auto-hide fly-out is re-mounted: wait until it has a box again.
-  // (Follow-up in docs/dotnet-profiling-plan.md handoff: check whether pinning visibly flickers.)
   let b: Awaited<ReturnType<Locator['boundingBox']>> = null;
   await expect.poll(async () => (b = await page.locator(selector).filter({ visible: true }).first().boundingBox())).not.toBeNull();
   if (!b) throw new Error(`no box for ${selector}`);

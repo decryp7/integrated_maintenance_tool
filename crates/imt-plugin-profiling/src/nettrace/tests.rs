@@ -951,3 +951,115 @@ fn v6_errors_and_truncation() {
     }
     assert!(err(&head).contains("Trace block"));
 }
+
+#[test]
+fn native_symbols_name_frames_and_heap_events_pair_by_address() {
+    let mut w = Writer::new(&TraceHeader::default());
+    w.metadata(
+        true,
+        &[
+            meta(1, ext::PROVIDER, ext::ids::IMAGE_LOAD),
+            meta(2, ext::PROVIDER, ext::ids::NATIVE_SYMBOL),
+            meta(3, SAMPLE_PROFILER, ids::THREAD_SAMPLE),
+            meta(4, ext::PROVIDER, ext::ids::HEAP_ALLOC),
+            meta(5, ext::PROVIDER, ext::ids::HEAP_FREE),
+            meta(6, ext::PROVIDER, ext::ids::HEAP_REALLOC),
+        ],
+    );
+    const BASE: u64 = 0x7ff6_0000_0000;
+    const SPIN: u64 = BASE + 0x1010;
+    const MAIN_FN: u64 = BASE + 0x2020;
+    const GROW: u64 = BASE + 0x3030;
+    w.stacks(1, &[vec![SPIN, MAIN_FN], vec![GROW, MAIN_FN], vec![SPIN + 4, MAIN_FN]]);
+    let image = ext::image_load(&ext::ImageLoad {
+        base: BASE,
+        size: 0x10_000,
+        path: r"C:\app\busy.exe".into(),
+    });
+    let sym = |address: u64, start: u64, function: &str, line: u32| {
+        ext::native_symbol(&ext::NativeSymbol {
+            address,
+            start,
+            line,
+            function: function.into(),
+            file: r"C:\src\busy.rs".into(),
+        })
+    };
+    let heap = |op: ext::HeapOp| ext::heap_op(&op).1;
+    w.events(
+        true,
+        &[
+            row(1, 10, 0, at(0), image),
+            row(2, 10, 0, at(0), sym(SPIN, BASE + 0x1000, "busy::spin", 12)),
+            row(2, 10, 0, at(0), sym(SPIN + 4, BASE + 0x1000, "busy::spin", 12)),
+            row(2, 10, 0, at(0), sym(MAIN_FN, BASE + 0x2000, "busy::main", 0)),
+            row(3, 10, 1, at(1), p::sample(false)),
+            row(3, 10, 3, at(2), p::sample(false)),
+            // Two allocations: one freed, one reallocated (grown) and kept; a free of older memory.
+            row(
+                4,
+                11,
+                2,
+                at(3),
+                heap(ext::HeapOp::Alloc {
+                    heap: 1,
+                    address: 0x500,
+                    size: 100,
+                }),
+            ),
+            row(
+                4,
+                11,
+                2,
+                at(4),
+                heap(ext::HeapOp::Alloc {
+                    heap: 1,
+                    address: 0x600,
+                    size: 40,
+                }),
+            ),
+            row(5, 11, 0, at(5), heap(ext::HeapOp::Free { heap: 1, address: 0x500 })),
+            row(
+                6,
+                11,
+                2,
+                at(6),
+                heap(ext::HeapOp::ReAlloc {
+                    heap: 1,
+                    new_address: 0x700,
+                    old_address: 0x600,
+                    size: 80,
+                }),
+            ),
+            row(5, 11, 0, at(7), heap(ext::HeapOp::Free { heap: 1, address: 0x999 })),
+            row(4, 11, 0, at(8), vec![1, 2]),
+        ],
+    );
+    let p = import(&w.finish()).unwrap();
+    assert_eq!(p.kind, ProfileKind::Mixed);
+    let s = names(&p, p.samples.stack[0]);
+    assert_eq!(s, ["busy::main", "busy::spin"], "{s:?}");
+    // Both addresses of busy::spin are one frame (one function, its first line).
+    let spins: Vec<_> = p.frames.iter().filter(|f| f.function == "busy::spin").collect();
+    assert_eq!(spins.len(), 1);
+    assert_eq!(spins[0].kind, FrameKind::Native);
+    assert_eq!(spins[0].line, Some(12));
+    assert!(spins[0].file.as_deref().is_some_and(|f| f.ends_with("busy.rs")));
+    assert_eq!(spins[0].module.as_deref(), Some("busy.exe"));
+    assert!(p.notes.iter().any(|n| n.contains("named from symbols")), "{:?}", p.notes);
+    let total = |m: MetricId| {
+        let k = p.metric_index(m).unwrap();
+        let n = p.metrics.len();
+        (0..p.samples.len()).map(|i| p.samples.values[i * n + k]).sum::<u64>()
+    };
+    assert_eq!(total(MetricId::AllocBytes), 220);
+    assert_eq!(total(MetricId::AllocCount), 3);
+    assert_eq!(total(MetricId::LiveBytes), 80, "only the reallocated block is left");
+    assert_eq!(
+        p.metrics.iter().find(|m| m.id == MetricId::AllocBytes).unwrap().measurement,
+        Measurement::Exact
+    );
+    assert!(p.notes.iter().any(|n| n.contains("80 bytes")), "{:?}", p.notes);
+    assert!(p.notes.iter().any(|n| n.contains("allocated before the capture")), "{:?}", p.notes);
+    assert!(p.notes.iter().any(|n| n.contains("damaged")), "{:?}", p.notes);
+}
