@@ -109,7 +109,7 @@ impl ResultsPage {
             region_links: self
                 .links
                 .iter()
-                .filter(|l| l.in_region)
+                .filter(|l| l.in_region || !self.region_found)
                 .take(MAX_DIAGNOSTIC_LINKS)
                 .map(|l| format!("{}{}", link_shape(&l.href), if l.heading { " (heading)" } else { "" }))
                 .collect(),
@@ -168,7 +168,8 @@ pub struct PageDiagnostics {
     pub links_in_region: usize,
     pub region_found: bool,
     pub kind: PageKind,
-    /// The shapes of the links in the results region ([`link_shape`]: no query values).
+    /// The shapes of the links in the results region, or of every link when the page has none ([`link_shape`]: no
+    /// query values).
     pub region_links: Vec<String>,
 }
 
@@ -412,6 +413,7 @@ fn distinct(page: &ResultsPage, max: usize, keep: impl Fn(&ResultLink) -> Option
 /// picks of [`candidates`]) are ever opened, each directly by its address, or through the engine when it hides the
 /// address behind its own redirect ([`through_engine`]).
 pub fn result_links(page: &ResultsPage, search: &WebUrl, max: usize) -> Vec<(WebUrl, String)> {
+    let page = &whole_page_without_region(page);
     let engine = search.site();
     let keep = |l: &ResultLink| readable(l, search).filter(|u| through_engine(u, search) || !is_engine_property(u, &engine));
     let all = distinct(page, usize::MAX, keep);
@@ -429,6 +431,19 @@ pub fn result_links(page: &ResultsPage, search: &WebUrl, max: usize) -> Vec<(Web
     };
     out.truncate(max);
     out
+}
+
+/// A page without the engine's results region (Google gives WKWebView a simpler page without `#rso`/`#search`): every
+/// link counts as in the region, so titled results behind the engine's redirect ([`is_engine_redirect`]) still count.
+fn whole_page_without_region(page: &ResultsPage) -> std::borrow::Cow<'_, ResultsPage> {
+    if page.region_found {
+        return std::borrow::Cow::Borrowed(page);
+    }
+    let mut whole = page.clone();
+    for l in &mut whole.links {
+        l.in_region = true;
+    }
+    std::borrow::Cow::Owned(whole)
 }
 
 /// What the model may pick from when the rules find nothing: readable links that are not the search page's own
@@ -673,6 +688,40 @@ mod tests {
         );
     }
 
+    // Regression (live test, macOS): Google gave WKWebView a simpler page without its results region (no `#rso`,
+    // `#search` or `main`); the titled results behind its redirect were dropped as outside the region.
+    #[test]
+    fn without_a_results_region_titled_results_behind_the_engine_redirect_still_count() {
+        let search = WebUrl::parse(GOOGLE).unwrap();
+        let titled = |href: &str, text: &str| ResultLink {
+            heading: true,
+            ..link(href, text, false)
+        };
+        let page = ResultsPage {
+            url: GOOGLE.into(),
+            links: vec![
+                link("https://www.google.com/search?q=x&tbm=isch", "Images", false),
+                titled("https://www.google.com/goto?url=CAESAbc1", "TimeoutException Class"),
+                link("https://www.google.com/goto?url=CAESAbc3", "untitled", false),
+                titled("https://www.google.com/search?q=related", "Related"),
+                link("https://www.google.com/url?q=https://docs.example.com/a&sa=U", "Docs", false),
+            ],
+            region_found: false,
+            ..fixtures::settled()
+        };
+        assert_eq!(
+            sites(&result_links(&page, &search, 10)),
+            ["https://www.google.com/goto?url=CAESAbc1", "https://docs.example.com/a"]
+        );
+        let d = page.diagnostics();
+        assert_eq!(
+            d.region_links.len(),
+            5,
+            "every link's shape when there is no region: {:?}",
+            d.region_links
+        );
+    }
+
     // Regression (live test, WebView2): Google linked every organic result as `/goto?url=<encrypted token>` (its ping
     // too); the address shows only when Google redirects. The rules dropped them all as Google's own links, so research
     // reported "Google showed no result links" for a page full of results.
@@ -698,6 +747,7 @@ mod tests {
                 titled("https://support.google.com/websearch?p=x", "Help", true),
                 titled("https://qa.example.net/q/9", "Q&A", true),
             ],
+            region_found: true,
             ..fixtures::settled()
         };
         let links = result_links(&page, &search, 10);
