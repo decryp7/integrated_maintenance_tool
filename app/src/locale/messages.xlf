@@ -5894,7 +5894,7 @@
         <source>Custom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <note priority="1" from="description">Search engine option</note>
       </trans-unit>
@@ -5902,77 +5902,77 @@
         <source>The browser did not open this address: <x id="reason" equiv-text="message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.notice.download" datatype="html">
         <source>Downloads are blocked in IMT&apos;s browser. Open the page in your browser to download the file.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">25</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.notice.popup" datatype="html">
         <source>The page wanted to open a new window. IMT&apos;s browser does not open new windows.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.notice.agentBlocked" datatype="html">
         <source>The AI tried to open <x id="site" equiv-text="message"/>, which this chat may not visit. It was blocked.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">31</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.leak.logValue" datatype="html">
         <source>from your logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.leak.logText" datatype="html">
         <source>text from your logs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.leak.private" datatype="html">
         <source>looks private</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.handOff.captcha" datatype="html">
         <source>The page shows a CAPTCHA or human check. The AI stopped; solve it yourself if you want to go on.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.handOff.login" datatype="html">
         <source>The page asks to sign in. The AI stopped; sign in yourself if you want to go on.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.handOff.payment" datatype="html">
         <source>The page is a payment form. The AI stopped and never fills in payments.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.handOff.other" datatype="html">
         <source>The AI stopped and handed the browser back to you.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/browser/browser-text.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="browser.store.failed" datatype="html">
@@ -10202,438 +10202,487 @@
           <context context-type="linenumber">146</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dumps.headline.exceptionAt" datatype="html">
+        <source><x id="name" equiv-text="h.name"/> in <x id="location" equiv-text="h.location"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.noException.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> thread, no exception</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.noException.other" datatype="html">
+        <source><x id="count" equiv-text="n"/> threads, no exception</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.snapshot.one" datatype="html">
+        <source><x id="count" equiv-text="n"/> allocation stack, <x id="size" equiv-text="size"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">26</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.snapshot.other" datatype="html">
+        <source><x id="count" equiv-text="n"/> allocation stacks, <x id="size" equiv-text="size"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">27</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.diff.one" datatype="html">
+        <source><x id="delta" equiv-text="delta"/> across <x id="count" equiv-text="n"/> allocation stack</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dumps.headline.diff.other" datatype="html">
+        <source><x id="delta" equiv-text="delta"/> across <x id="count" equiv-text="n"/> allocation stacks</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dumps/dump-headline.ts</context>
+          <context context-type="linenumber">35</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="dumps.marker.title" datatype="html">
         <source><x id="name" equiv-text="name"/> — <x id="when" equiv-text="when"/>: <x id="headline" equiv-text="headline"/>. Click to open.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-marker-track.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">108</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.marker.openDump" datatype="html">
         <source>Open dump <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-marker-track.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.marker.openUmdh" datatype="html">
         <source>Open UMDH log <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-marker-track.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.faulted" datatype="html">
         <source>faulted</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">19</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.lockWait" datatype="html">
         <source>waits on a lock</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.waiting" datatype="html">
         <source>waiting</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">21</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.thread.running" datatype="html">
         <source>running</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.context" datatype="html">
         <source>context</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.cfi" datatype="html">
         <source>unwind info</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">26</context>
+          <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.framePointer" datatype="html">
         <source>frame pointer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.scan" datatype="html">
         <source>stack scan</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.trust.recorded" datatype="html">
         <source>recorded</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.pick" datatype="html">
         <source>Dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">45,46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.pickLabel" datatype="html">
         <source>Dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">52,54</context>
+          <context context-type="linenumber">53,55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.uptime" datatype="html">
         <source>up <x id="INTERPOLATION" equiv-text="{{ uptime(o.uptimeS) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">65,66</context>
+          <context context-type="linenumber">66,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.exception" datatype="html">
         <source>Exception</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.at" datatype="html">
         <source>at</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.thread" datatype="html">
         <source>thread <x id="INTERPOLATION" equiv-text="{{ x.threadId }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">75,76</context>
+          <context context-type="linenumber">76,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.tabs" datatype="html">
         <source>Dump views</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">82</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.filter" datatype="html">
         <source>Filter threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">94</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.filterLabel" datatype="html">
         <source>Filter threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">94</context>
+          <context context-type="linenumber">95</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.empty" datatype="html">
         <source>No threads.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.threads.label" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.region" datatype="html">
         <source>Stack</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">108</context>
+          <context context-type="linenumber">109</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.empty" datatype="html">
         <source>No frames: the thread&apos;s stack could not be read.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">109</context>
+          <context context-type="linenumber">110</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.frame" datatype="html">
         <source>Frame</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.source" datatype="html">
         <source>Source</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.how" datatype="html">
         <source>Found by</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">112,113</context>
+          <context context-type="linenumber">113,114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.culprit" datatype="html">
         <source>likely culprit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">117,118</context>
+          <context context-type="linenumber">118,119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.truncated" datatype="html">
         <source>The stack is deeper; only its innermost frames are shown.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">124,126</context>
+          <context context-type="linenumber">125,127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.filter" datatype="html">
         <source>Filter modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">131</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.filterLabel" datatype="html">
         <source>Filter modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">131</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.empty" datatype="html">
         <source>No modules.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">132</context>
+          <context context-type="linenumber">133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.label" datatype="html">
         <source>Modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.name" datatype="html">
         <source>Module</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.version" datatype="html">
         <source>Version</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.base" datatype="html">
         <source>Base</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.size" datatype="html">
         <source>Size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.symbols" datatype="html">
         <source>Symbols</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.path" datatype="html">
         <source>Path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">135,136</context>
+          <context context-type="linenumber">136,137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.yes" datatype="html">
         <source>yes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">143</context>
+          <context context-type="linenumber">144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.modules.no" datatype="html">
         <source>no</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">143,144</context>
+          <context context-type="linenumber">144,145</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.symbols" datatype="html">
         <source>Symbols</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">156,157</context>
+          <context context-type="linenumber">157,158</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.symbolsText" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ count(o.framesSymbolised) }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ count(o.frames) }}"/> frames named; <x id="INTERPOLATION_2" equiv-text="{{ count(o.modulesWithSymbols) }}"/> of <x id="INTERPOLATION_3" equiv-text="{{ count(o.modules) }}"/> modules with symbols.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">157,158</context>
+          <context context-type="linenumber">158,159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.handles" datatype="html">
         <source>Handles (<x id="INTERPOLATION" equiv-text="{{ count(h.total) }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">161,162</context>
+          <context context-type="linenumber">162,163</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.memory" datatype="html">
         <source>Memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">167,168</context>
+          <context context-type="linenumber">168,169</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.committed" datatype="html">
         <source>Committed <x id="INTERPOLATION" equiv-text="{{ bytes(m.committed) }}"/> (private <x id="INTERPOLATION_1" equiv-text="{{ bytes(m.private) }}"/>, image <x id="INTERPOLATION_2" equiv-text="{{ bytes(m.image) }}"/>, mapped <x id="INTERPOLATION_3" equiv-text="{{ bytes(m.mapped) }}"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">169,170</context>
+          <context context-type="linenumber">170,171</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.reserved" datatype="html">
         <source>Reserved <x id="INTERPOLATION" equiv-text="{{ bytes(m.reserved) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">170,171</context>
+          <context context-type="linenumber">171,172</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.free" datatype="html">
         <source>Largest free block <x id="INTERPOLATION" equiv-text="{{ bytes(m.largestFree) }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">171,172</context>
+          <context context-type="linenumber">172,173</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.unloaded" datatype="html">
         <source>Unloaded modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">177,178</context>
+          <context context-type="linenumber">178,179</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.details.notes" datatype="html">
         <source>Notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">183,184</context>
+          <context context-type="linenumber">184,185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.none" datatype="html">
         <source>Open a crash or memory dump (.dmp) to see why the process crashed or hung.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">193</context>
+          <context context-type="linenumber">194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.view.open" datatype="html">
         <source>Open dump…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">193</context>
+          <context context-type="linenumber">194</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.findings" datatype="html">
         <source>Findings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">224</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.threads" datatype="html">
         <source>Threads</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">224</context>
+          <context context-type="linenumber">225</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.modules" datatype="html">
         <source>Modules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">225</context>
+          <context context-type="linenumber">226</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.tab.details" datatype="html">
         <source>Details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">226</context>
+          <context context-type="linenumber">227</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.full" datatype="html">
         <source>full dump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">326</context>
+          <context context-type="linenumber">327</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.heap" datatype="html">
         <source>minidump with heap</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">326</context>
+          <context context-type="linenumber">327</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.kind.mini" datatype="html">
         <source>minidump</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">326</context>
+          <context context-type="linenumber">327</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.stack.label" datatype="html">
         <source>Stack of thread <x id="id" equiv-text="id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dumps/dump-view.ts</context>
-          <context context-type="linenumber">346</context>
+          <context context-type="linenumber">347</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dumps.findings.title" datatype="html">
@@ -16115,25 +16164,32 @@
           <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="notifications.action.jobCleared" datatype="html">
+        <source>This job was cleared from Jobs; the outcome above is all that is kept.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
+          <context context-type="linenumber">78</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="notifications.action.failed" datatype="html">
         <source>That did not work.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">104</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.setUpFormatTitle" datatype="html">
         <source>Set up format</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.fixTimestampsTitle" datatype="html">
         <source>Fix timestamps</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">108</context>
+          <context context-type="linenumber">142</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.toasts.region" datatype="html">
@@ -16161,77 +16217,77 @@
         <source>Notification filters</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.unreadOnly" datatype="html">
         <source>Unread only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">20,21</context>
+          <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.markAll" datatype="html">
         <source>Mark all read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">25,27</context>
+          <context context-type="linenumber">26,28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.retryRequest" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">30,33</context>
+          <context context-type="linenumber">31,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.empty" datatype="html">
         <source>Nothing needs your attention.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">38,40</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.markRead" datatype="html">
         <source>Mark read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">67,69</context>
+          <context context-type="linenumber">77,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">69,71</context>
+          <context context-type="linenumber">79,81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.read" datatype="html">
         <source>read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.unread" datatype="html">
         <source>unread</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">161</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.markReadLabel" datatype="html">
         <source>Mark read: <x id="title" equiv-text="n.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">151</context>
+          <context context-type="linenumber">166</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.dismissLabel" datatype="html">
         <source>Dismiss <x id="title" equiv-text="n.title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notifications-panel.ts</context>
-          <context context-type="linenumber">155</context>
+          <context context-type="linenumber">170</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.source.job" datatype="html">
