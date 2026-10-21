@@ -319,8 +319,13 @@ pub(crate) fn store_error(e: StoreError) -> CmdError {
         StoreError::Cancelled => CmdError::new(ErrorCode::Cancelled, "cancelled"),
         StoreError::Io(m) => CmdError::new(ErrorCode::Io, m),
         StoreError::Engine(m) => CmdError::new(ErrorCode::Failed, m),
-        StoreError::Damaged(m) => CmdError::new(ErrorCode::Failed, m)
-            .hint("Open the original log files again, or open the project's .imtz export: its copy is intact."),
+        StoreError::Damaged(m) => {
+            // Retrying reads the same damaged file.
+            let mut e = CmdError::new(ErrorCode::Failed, m)
+                .hint("Open the original log files again, or open the project's .imtz export: its copy is intact.");
+            e.retryable = false;
+            e
+        }
         StoreError::Locked(m) => {
             CmdError::new(ErrorCode::Busy, m).hint("Close the other IMT window or program that has this project open, then try again.")
         }
