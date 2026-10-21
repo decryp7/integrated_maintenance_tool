@@ -2755,6 +2755,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "imt-example-annotator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-collector"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-importer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-tool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+ "serde_json",
+]
+
+[[package]]
+name = "imt-example-transform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "imt-plugin-api",
+ "imt-plugin-test",
+]
+
+[[package]]
 name = "imt-ipc"
 version = "0.1.0"
 dependencies = [

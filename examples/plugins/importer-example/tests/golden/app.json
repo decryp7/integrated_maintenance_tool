@@ -1,0 +1,33 @@
+[
+  {
+    "line": 1,
+    "ts": 1792576800000,
+    "level": "Information",
+    "message": "service started",
+    "fields": {
+      "host": "web01",
+      "port": 8080
+    }
+  },
+  {
+    "line": 2,
+    "ts": 1792576805000,
+    "level": "Warning",
+    "message": "disk almost full",
+    "fields": {
+      "host": "web01",
+      "used": 93
+    }
+  },
+  {
+    "line": 4,
+    "ts": 1792576809000,
+    "level": "Error",
+    "message": "request failed",
+    "fields": {
+      "host": "web02",
+      "status": 500,
+      "path": "/api/orders"
+    }
+  }
+]
