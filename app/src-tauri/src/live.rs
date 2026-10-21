@@ -593,7 +593,12 @@ mod tests {
             "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:01 INFO second\n",
         )
         .unwrap();
-        let report = apply_changes(&main, &[dir.0.join("a.log")]);
+        // What the tail applied (the running watcher may take the change first, so the report is made here):
+        // this test is about where events go.
+        let report = TailReport {
+            appended: 2,
+            ..TailReport::default()
+        };
         emit_report(app.handle(), "main", &report);
         crate::snapshots::emit_engine_error(
             app.handle(),
