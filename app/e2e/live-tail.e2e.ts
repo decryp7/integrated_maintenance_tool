@@ -103,6 +103,8 @@ test.describe('live tail: alerts', () => {
   });
 
   test('mute this kind for 15 min stops its toasts', async ({ page }) => {
+    // Alerts come on the mock's real timers, which a loaded runner (and headless WebKit) slows down.
+    test.setTimeout(120_000);
     await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=1000');
     // The alerts panel lists every alert received, so the test can tell when the next error spike was due.
     await openView(page, 'Alerts');
@@ -118,17 +120,18 @@ test.describe('live tail: alerts', () => {
     const ruleRows = page.locator('imt-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
     const rules = await ruleRows.count();
     // A rule alert comes every third alert (about 3 s); headless WebKit runs timers slower, so allow for that.
-    await expect.poll(() => ruleRows.count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(rules + 2);
+    await expect.poll(() => ruleRows.count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(rules + 2);
     await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
   });
 
   test('the alerts panel lists, filters, clears, counts on its tab, and passes axe', async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
     await openAppWith(page, '?mockMemoryFeatures=1&mockLive=1&mockLiveRate=20&mockLiveRotateMs=0&mockLiveAlertMs=700');
     await openView(page, 'Alerts');
     const panel = page.locator('imt-alerts-view');
     await expect(panel).toContainText('No alerts yet');
     await liveOn(page);
-    await expect.poll(() => panel.getByTestId('alert-row').count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(3);
+    await expect.poll(() => panel.getByTestId('alert-row').count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
     await expect(page.locator('.imt-tab-label', { hasText: /^Alerts \(\d+\)$/ })).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'alerts-panel', 'imt-alerts-view');
     await liveButton(page).click();

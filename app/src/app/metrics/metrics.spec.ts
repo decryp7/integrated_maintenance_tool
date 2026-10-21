@@ -151,6 +151,8 @@ describe('ChartTheme', () => {
   it('takes the tokens of the theme and scheme in effect, and follows changes', () => {
     const theme = TestBed.inject(ChartTheme);
     const prefs = TestBed.inject(UiPrefsStore);
+    // The default theme, whatever an earlier test left behind.
+    prefs.setTheme('calm');
     prefs.setScheme('dark');
     expect(theme.tokens().series).toHaveLength(4);
     expect(theme.tokens().text).toBe('#e7e8eb');

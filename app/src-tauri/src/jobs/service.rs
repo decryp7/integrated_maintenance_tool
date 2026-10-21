@@ -945,11 +945,11 @@ pub(crate) mod tests {
         wait_until("the crash to be recorded", || jobs.state_of(JobId(1)) == Some(JobState::Failed));
         let info = jobs.info(JobId(1)).unwrap();
         assert!(info.error.unwrap().contains("stopped unexpectedly: worker died"));
+        // The state flips before its activity line is written: wait for the line too.
+        wait_until("the failure in the activity log", || {
+            crate::activity::captured().iter().any(|c| c.message.contains("job.failed"))
+        });
         let logged = crate::activity::captured();
-        assert!(
-            logged.iter().any(|c| c.message.contains("job.failed")),
-            "state changes are in the activity log"
-        );
         assert!(logged.iter().any(|c| c.message.contains("job.queued")));
     }
 
